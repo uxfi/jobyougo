@@ -1,0 +1,2369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hugo Vermot — Product Designer & AI Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f8f7f4;
+      --ink: #0c0b09;
+      --ink-2: rgba(12,11,9,.5);
+      --ink-3: rgba(12,11,9,.3);
+      --rule: rgba(12,11,9,.1);
+      --hover-bg: rgba(12,11,9,.04);
+      --font-display: 'Syne', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* ── CUSTOM CURSOR ── */
+    #cursor-dot {
+      position: fixed; top: 0; left: 0; z-index: 9999;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--ink);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: transform 60ms ease, width 200ms ease, height 200ms ease, opacity 200ms, background 200ms;
+    }
+    #cursor-ring {
+      position: fixed; top: 0; left: 0; z-index: 9998;
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1px solid rgba(237,233,224,.35);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: transform 120ms ease, width 250ms ease, height 250ms ease, opacity 200ms, border-color 200ms;
+    }
+    body.cursor-hover #cursor-dot  { width: 8px; height: 8px; }
+    body.cursor-hover #cursor-ring { width: 56px; height: 56px; border-color: rgba(237,233,224,.7); }
+    body.cursor-link  #cursor-ring { width: 72px; height: 72px; border-color: var(--ink); }
+    body.cursor-white #cursor-dot  { background: #fff; }
+    body.cursor-white #cursor-ring { border-color: rgba(255,255,255,.4); }
+    body.cursor-white.cursor-hover #cursor-ring { border-color: rgba(255,255,255,.8); }
+    body.cursor-white.cursor-link  #cursor-ring { border-color: #fff; }
+
+    /* ── HIDDEN UTIL ── */
+    .hidden { display: none !important; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 28px 48px;
+      mix-blend-mode: normal;
+    }
+    nav::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,.35) 0%, transparent 100%);
+      pointer-events: none; z-index: -1;
+    }
+    .nav-logo {
+      cursor: pointer; text-decoration: none;
+      display: flex; align-items: center;
+    }
+    .nav-logo img {
+      height: 32px; width: auto;
+      object-fit: contain;
+      filter: invert(1);
+      opacity: .9;
+      transition: opacity 200ms;
+    }
+    .nav-logo img:hover { opacity: 1; }
+    .nav-center {
+      display: flex; gap: 36px;
+    }
+    .nav-link {
+      font-size: 12px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+      color: rgba(255,255,255,.65); text-decoration: none; cursor: pointer;
+      transition: color 200ms;
+      position: relative;
+    }
+    .nav-link::after {
+      content: ''; position: absolute; bottom: -2px; left: 0; right: 100%;
+      height: 1px; background: #fff;
+      transition: right 250ms ease;
+    }
+    .nav-link:hover { color: #fff; }
+    .nav-link:hover::after { right: 0; }
+    .nav-right { display: flex; align-items: center; gap: 20px; }
+    .btn-back {
+      font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+      color: rgba(255,255,255,.65); text-decoration: none; cursor: pointer;
+      transition: color 200ms; display: flex; align-items: center; gap: 7px;
+      position: relative;
+    }
+    .btn-back:hover { color: #fff; }
+    .btn-back .btn-back-tooltip {
+      position: absolute; top: calc(100% + 10px); left: 50%;
+      transform: translateX(-50%) translateY(-4px);
+      background: rgba(20,18,14,.95);
+      border: 1px solid rgba(237,233,224,.12);
+      border-radius: 8px; padding: 7px 12px;
+      font-size: 12px; font-weight: 500; white-space: nowrap;
+      color: #fff; text-transform: none; letter-spacing: 0;
+      pointer-events: none; opacity: 0;
+      transition: opacity 150ms, transform 150ms;
+      backdrop-filter: blur(8px); z-index: 200;
+    }
+    .btn-back .btn-back-tooltip::after {
+      content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent; border-bottom-color: rgba(237,233,224,.12);
+    }
+    .btn-back:hover .btn-back-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .btn-cta {
+      font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+      color: #fff; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.35);
+      border-radius: 100px; padding: 9px 20px;
+      text-decoration: none; cursor: pointer;
+      transition: opacity 180ms;
+    }
+    .btn-cta:hover { opacity: .85; }
+
+    /* ══════════════════════════════════
+       HOME VIEW
+    ══════════════════════════════════ */
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      justify-content: flex-end;
+      padding: 96px 48px 72px;
+      position: relative; overflow: hidden;
+    }
+    .hero-video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      opacity: 1;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .hero > *:not(.hero-video) { position: relative; z-index: 1; }
+    .hero-eyebrow {
+      font-size: 12px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(255,255,255,.65); margin-bottom: 24px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .hero-eyebrow span { width: 32px; height: 1px; background: rgba(255,255,255,.3); display: inline-block; }
+    .hero-avatar-wrap {
+      position: relative; flex-shrink: 0;
+      width: 36px; height: 36px;
+    }
+    .hero-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      overflow: hidden;
+      border: 1px solid var(--rule);
+      box-shadow: 0 0 0 3px rgba(237,233,224,.06);
+    }
+    .hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .hero-avatar-frame {
+      position: absolute; inset: -6px;
+      width: calc(100% + 12px); height: calc(100% + 12px);
+      pointer-events: none;
+    }
+    .hero-headline {
+      font-family: var(--font-display);
+      font-size: clamp(52px, 7.5vw, 108px);
+      font-weight: 800;
+      line-height: .88;
+      letter-spacing: -4px;
+      color: #ffffff;
+      max-width: 1100px;
+      margin-bottom: 56px;
+    }
+    .hero-headline em {
+      font-style: italic; font-weight: 400;
+      color: rgba(255,220,200,.8);
+    }
+    .hero-bottom {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 32px; flex-wrap: wrap;
+    }
+    .hero-desc {
+      font-size: 16px; color: rgba(255,255,255,.7); line-height: 1.7;
+      max-width: 440px;
+    }
+    .hero-stats {
+      display: flex; gap: 12px; flex-shrink: 0;
+    }
+    .hero-stats > div {
+      background: rgba(255,255,255,.12);
+      backdrop-filter: blur(16px) saturate(1.4);
+      -webkit-backdrop-filter: blur(16px) saturate(1.4);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 12px;
+      padding: 14px 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.25);
+    }
+    .hero-stat-val {
+      font-family: var(--font-display);
+      font-size: 38px; font-weight: 700;
+      letter-spacing: -1.5px; line-height: 1;
+      color: #fff;
+    }
+    .hero-stat-lbl {
+      font-size: 12px; color: rgba(255,255,255,.6); margin-top: 5px;
+      letter-spacing: .05em;
+    }
+    .hero-scroll-hint {
+      position: absolute; bottom: 72px; right: 48px;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      color: var(--ink-3); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+      writing-mode: vertical-rl;
+    }
+    .hero-scroll-line {
+      width: 1px; height: 48px; background: var(--rule);
+      animation: scrollline 2s ease-in-out infinite;
+    }
+    @keyframes scrollline {
+      0%,100% { transform: scaleY(1); opacity: .4; }
+      50% { transform: scaleY(.4); opacity: .1; }
+    }
+
+    /* ── RULE ── */
+    .h-rule { height: 1px; background: var(--rule); margin: 0 48px; }
+
+    /* ── SECTION HEADER ── */
+    .s-header {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: 64px 48px 48px;
+    }
+    .s-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ink-3);
+    }
+    .s-count { font-size: 11px; color: var(--ink-3); }
+    .btn-download-cv {
+      font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--ink-3); border: 1px solid var(--rule);
+      border-radius: 100px; padding: 6px 14px;
+      text-decoration: none; transition: color 180ms, border-color 180ms;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-download-cv:hover { color: var(--ink); border-color: rgba(12,11,9,.3); }
+
+    /* ── PROJECT LIST (Hello Monday style) ── */
+    .proj-list { padding: 0 48px; }
+    .proj-list-item {
+      display: grid;
+      grid-template-columns: 64px 40px 1fr 120px;
+      align-items: center;
+      gap: 24px;
+      padding: 28px 0;
+      border-top: 1px solid var(--rule);
+      cursor: pointer;
+      position: relative;
+      transition: background 150ms;
+    }
+    .proj-list-item:last-child { border-bottom: 1px solid var(--rule); }
+    .proj-list-item:hover .proj-list-name { transform: translateX(8px); }
+    .proj-list-item:hover .proj-list-arrow { opacity: 1; transform: translateX(0); }
+    .proj-list-item:hover .proj-list-logo { opacity: 1; filter: grayscale(0); }
+    .proj-list-num {
+      font-family: var(--font-display);
+      font-size: 13px; color: var(--ink-3); font-weight: 600;
+      letter-spacing: .05em;
+    }
+    .proj-list-logo {
+      width: 36px; height: 36px; object-fit: contain;
+      filter: grayscale(1); opacity: .4;
+      transition: opacity 350ms, filter 350ms;
+    }
+    .proj-list-logo-placeholder { width: 36px; height: 36px; }
+    .proj-list-name-wrap {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 24px;
+    }
+    .proj-list-name {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 3.2vw, 46px);
+      font-weight: 700;
+      letter-spacing: -1.5px;
+      line-height: 1;
+      color: var(--ink);
+      transition: transform 350ms cubic-bezier(.16,1,.3,1);
+    }
+    .proj-list-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .proj-list-badge {
+      display: inline-block;
+      font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      border-radius: 100px; padding: 3px 10px;
+      white-space: nowrap;
+    }
+    .badge-solo  { color: #7c3aed; background: #f5f3ff; border: 1px solid #ddd6fe; }
+    .badge-vibe  { color: #0369a1; background: #f0f9ff; border: 1px solid #bae6fd; }
+    .badge-green { color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .badge-pink  { color: #be185d; background: #fdf2f8; border: 1px solid #fbcfe8; }
+    .proj-list-tag {
+      font-size: 12px; color: var(--ink-2); letter-spacing: .04em;
+      text-align: right;
+    }
+    .proj-list-year {
+      font-size: 12px; color: var(--ink-3);
+      text-align: right;
+      display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+    }
+    .proj-list-arrow {
+      color: var(--ink-2); opacity: 0;
+      transform: translateX(-6px);
+      transition: opacity 200ms, transform 300ms cubic-bezier(.16,1,.3,1);
+      font-size: 18px;
+    }
+
+    /* ── FLOATING PREVIEW (on hover) ── */
+    #proj-preview {
+      position: fixed; z-index: 90;
+      width: 420px;
+      border-radius: 4px; overflow: hidden;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(.92) rotate(-1deg);
+      transition: opacity 300ms ease, transform 300ms cubic-bezier(.16,1,.3,1);
+      box-shadow: 0 40px 80px rgba(0,0,0,.6);
+    }
+    #proj-preview.visible {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+    #proj-preview-inner {
+      width: 100%;
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+    #proj-preview-img {
+      width: 100%; height: auto;
+      display: block;
+    }
+    #proj-preview-overlay {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 60%;
+      background: linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,0) 100%);
+    }
+    .preview-label {
+      position: absolute; bottom: 30px; left: 20px; z-index: 1;
+      font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+      color: rgba(255,255,255,.7);
+    }
+    .preview-name {
+      position: absolute; bottom: 10px; left: 20px; z-index: 1;
+      font-family: var(--font-display);
+      font-size: 22px; font-weight: 700; letter-spacing: -.5px;
+      color: #fff; line-height: 1.1;
+    }
+
+    /* ── ABOUT SECTION ── */
+    .about-section { padding: 80px 48px 96px; }
+    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: start; }
+    .about-headline {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 4vw, 56px);
+      font-weight: 700; letter-spacing: -2px; line-height: 1.05;
+      color: var(--ink);
+    }
+    .about-headline em { font-style: italic; font-weight: 400; color: var(--ink-2); }
+    .about-body { display: flex; flex-direction: column; gap: 20px; padding-top: 8px; }
+    .about-para { font-size: 15px; color: var(--ink-2); line-height: 1.75; }
+    .about-para strong { color: var(--ink); font-weight: 600; }
+
+
+    /* ── SKILL BARS ── */
+    .skills-section {
+      margin-top: 40px;
+      padding-top: 32px;
+      border-top: 1px solid var(--rule);
+    }
+    .skills-label {
+      font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ink-3); margin-bottom: 20px;
+    }
+    .skills-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px 40px;
+    }
+    .skill-row { display: flex; flex-direction: column; gap: 6px; }
+    .skill-meta {
+      display: flex; justify-content: space-between; align-items: baseline;
+    }
+    .skill-name { font-size: 12px; font-weight: 500; color: var(--ink-2); }
+    .skill-score { font-size: 11px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+    .skill-track {
+      height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden;
+    }
+    .skill-fill {
+      height: 100%; border-radius: 2px; background: var(--ink);
+      transform-origin: left;
+      transform: scaleX(0);
+      transition: transform .8s cubic-bezier(.16,1,.3,1);
+    }
+    .skills-section.visible .skill-fill { transform: scaleX(1); }
+
+    /* ── CURSOR CARD ── */
+    .cursor-card {
+      margin-top: 8px;
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex; flex-direction: column; gap: 16px;
+      background: rgba(12,11,9,.03);
+    }
+    .cursor-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .cursor-logo-wrap { display: flex; align-items: center; gap: 10px; }
+    .cursor-logo-svg { width: 20px; height: 20px; flex-shrink: 0; }
+    .cursor-logo-label {
+      font-family: var(--font-display);
+      font-size: 13px; font-weight: 700; letter-spacing: -.3px; color: var(--ink);
+    }
+    .cursor-badge {
+      font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--bg); background: var(--ink);
+      border-radius: 100px; padding: 4px 10px;
+    }
+    .cursor-stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+      background: var(--rule); border-radius: 8px; overflow: hidden;
+    }
+    .cursor-stat { background: var(--bg); padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; }
+    .cursor-stat-val {
+      font-family: var(--font-display);
+      font-size: 18px; font-weight: 800; letter-spacing: -1px; color: var(--ink);
+    }
+    .cursor-stat-lbl { font-size: 10px; color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; }
+
+    /* ── RESULTS BAND ── */
+    .results-band {
+      padding: 48px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      background: transparent;
+      border-bottom: 1px solid var(--rule);
+      position: relative;
+    }
+    .results-band::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,.85);
+      backdrop-filter: blur(2px);
+      pointer-events: none; z-index: 0;
+    }
+    .results-band > * { position: relative; z-index: 1; }
+    .result-item {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px 16px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .result-val {
+      font-family: var(--font-display);
+      font-size: 26px; font-weight: 800; letter-spacing: -1px; line-height: 1;
+      color: #0c0b09;
+    }
+    .result-lbl { font-size: 12px; color: rgba(12,11,9,.5); line-height: 1.4; }
+    .result-logo {
+      width: 22px; height: 22px; object-fit: contain;
+      filter: none; opacity: 1;
+      margin-top: 4px;
+    }
+
+
+    /* ── LANG SWITCHER ── */
+    .lang-switcher { display: flex; align-items: center; gap: 6px; }
+    .lang-btn {
+      background: none; border: none; cursor: pointer; padding: 0;
+      display: flex; align-items: center; gap: 6px;
+      border-radius: 100px;
+      border: 1px solid rgba(255,255,255,.15);
+      padding: 4px 10px 4px 4px;
+      opacity: .45;
+      transition: opacity 180ms, border-color 180ms;
+      position: relative;
+    }
+    .lang-btn:hover { opacity: .75; border-color: rgba(255,255,255,.35); }
+    .lang-btn.active { opacity: 1; border-color: rgba(255,255,255,.5); }
+    .lang-btn svg { width: 20px; height: 20px; border-radius: 50%; display: block; flex-shrink: 0; }
+    .lang-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; color: #fff; }
+    .lang-tooltip {
+      position: absolute; top: calc(100% + 10px); left: 50%;
+      transform: translateX(-50%) translateY(-4px);
+      background: rgba(20,18,14,.95);
+      border: 1px solid rgba(237,233,224,.12);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px; font-weight: 500; white-space: nowrap;
+      color: #fff;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 150ms, transform 150ms;
+      backdrop-filter: blur(8px);
+      z-index: 200;
+    }
+    .lang-tooltip::after {
+      content: '';
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-bottom-color: rgba(237,233,224,.12);
+    }
+    .lang-btn:hover .lang-tooltip {
+      opacity: 1; transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── TOOLS MARQUEE ── */
+    .tools-marquee-wrap {
+      border-bottom: 1px solid var(--rule);
+      overflow: hidden;
+      position: relative;
+      padding: 28px 0;
+    }
+    .tools-marquee-wrap::before,
+    .tools-marquee-wrap::after {
+      content: ''; position: absolute; top: 0; bottom: 0; width: 120px; z-index: 2; pointer-events: none;
+    }
+    .tools-marquee-wrap::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+    .tools-marquee-wrap::after  { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
+    .tools-marquee-track {
+      display: flex; align-items: center; gap: 0;
+      width: max-content;
+      animation: marquee-scroll 28s linear infinite;
+    }
+    .tools-marquee-wrap:hover .tools-marquee-track { animation-play-state: paused; }
+    @keyframes marquee-scroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+    .tool-chip {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 36px;
+      border-right: 1px solid var(--rule);
+      flex-shrink: 0;
+    }
+    .tool-chip img {
+      width: 22px; height: 22px; object-fit: contain;
+      filter: grayscale(1) brightness(1.8);
+      opacity: .55;
+      transition: opacity 200ms, filter 200ms;
+    }
+    .tools-marquee-wrap:hover .tool-chip img {
+      opacity: .85; filter: grayscale(.3) brightness(1.4);
+    }
+    .tool-chip-name {
+      font-size: 12px; font-weight: 500; letter-spacing: .04em;
+      color: var(--ink-3); white-space: nowrap;
+    }
+
+    /* ── CLIENTS TABLE ── */
+    .clients-section { padding: 80px 48px; }
+    .clients-table { width: 100%; border-collapse: collapse; }
+    .clients-table tr {
+      border-bottom: 1px solid var(--rule);
+      cursor: default;
+      transition: background 120ms;
+    }
+    .clients-table tr:first-child { border-top: 1px solid var(--rule); }
+    .clients-table tr:hover { background: var(--hover-bg); }
+    .clients-table td { padding: 20px 12px; font-size: 14px; }
+    .ct-num { color: var(--ink-3); font-variant-numeric: tabular-nums; width: 48px; font-size: 12px; }
+    .ct-logo { width: 48px; }
+    .ct-logo img {
+      width: 32px; height: 32px; object-fit: contain;
+      filter: grayscale(1);
+      opacity: .45;
+      transition: opacity 200ms, filter 200ms;
+    }
+    .clients-table tr:hover .ct-logo img { filter: grayscale(0); opacity: 1; }
+    .ct-logo-placeholder {
+      width: 32px; height: 32px; border-radius: 6px;
+      background: var(--hover-bg); border: 1px solid var(--rule);
+    }
+    .ct-co { font-family: var(--font-display); font-weight: 600; color: var(--ink); font-size: 16px; }
+    .ct-role { color: var(--ink-2); }
+    .ct-type { color: var(--ink-3); font-size: 12px; }
+    .ct-year { color: var(--ink-3); font-size: 12px; text-align: right; }
+
+    /* ── CONTACT ── */
+    .contact-section {
+      padding: 100px 48px 80px;
+      display: flex; flex-direction: column; gap: 32px;
+    }
+    .contact-headline {
+      font-family: var(--font-display);
+      font-size: clamp(56px, 9vw, 120px);
+      font-weight: 800; letter-spacing: -4px; line-height: .88;
+      color: var(--ink);
+    }
+    .contact-headline em { font-style: italic; font-weight: 400; color: var(--ink-2); }
+    .contact-links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .contact-link {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 13px; font-weight: 500;
+      color: var(--ink-2);
+      border: 1px solid var(--rule);
+      border-radius: 100px; padding: 10px 20px;
+      text-decoration: none; cursor: pointer;
+      transition: color 180ms, border-color 180ms;
+    }
+    .contact-link:hover { color: var(--ink); border-color: rgba(12,11,9,.3); }
+    .contact-link.primary {
+      background: var(--ink); color: var(--bg);
+      border-color: transparent; font-weight: 600;
+    }
+    .contact-link.primary:hover { opacity: .88; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--rule);
+      padding: 28px 48px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .footer-copy { font-size: 12px; color: var(--ink-3); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-link {
+      font-size: 12px; color: var(--ink-3); text-decoration: none;
+      cursor: pointer; transition: color 180ms; letter-spacing: .04em;
+    }
+    .footer-link:hover { color: var(--ink-2); }
+
+    /* ══════════════════════════════════
+       PROJECT DETAIL VIEW
+    ══════════════════════════════════ */
+    .proj-page { padding-top: 0; min-height: 100vh; }
+
+    /* ── PROJECT HERO ── */
+    .proj-hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      justify-content: flex-end;
+      padding: 48px;
+      position: relative; overflow: hidden;
+      background-size: cover;
+      background-position: top center;
+      background-repeat: no-repeat;
+    }
+    .proj-hero-cover-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(12,11,9,.92) 0%, rgba(12,11,9,.6) 40%, rgba(12,11,9,.2) 100%);
+      z-index: 1;
+    }
+    .proj-hero-accent-bar {
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--proj-accent, var(--ink)); z-index: 4;
+    }
+    .proj-hero-glow {
+      position: absolute; top: -200px; right: -200px;
+      width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, var(--proj-accent, rgba(12,11,9,.04)) 0%, transparent 65%);
+      opacity: .12; pointer-events: none; z-index: 2;
+    }
+    .proj-hero-content { position: relative; z-index: 3; max-width: 1000px; }
+
+    /* ── White text when cover image is present ── */
+    .proj-hero.has-cover .proj-breadcrumb     { color: rgba(255,255,255,.4); }
+    .proj-hero.has-cover .proj-breadcrumb-link:hover { color: #fff; }
+    .proj-hero.has-cover .proj-bc-sep         { color: rgba(255,255,255,.2); }
+    .proj-hero.has-cover .proj-hero-tag       { color: var(--proj-accent); }
+    .proj-hero.has-cover .proj-hero-name      { color: #fff; }
+    .proj-hero.has-cover .proj-hero-tagline   { color: rgba(255,255,255,.6); }
+    .proj-hero.has-cover .proj-hero-desc      { color: rgba(255,255,255,.7); }
+    .proj-hero.has-cover .proj-meta-key       { color: rgba(255,255,255,.35); }
+    .proj-hero.has-cover .proj-meta-val       { color: #fff; }
+    .proj-breadcrumb {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px; color: var(--ink-3);
+      letter-spacing: .08em; text-transform: uppercase;
+      margin-bottom: 48px;
+    }
+    .proj-breadcrumb-link { cursor: pointer; transition: color 180ms; }
+    .proj-breadcrumb-link:hover { color: var(--ink); }
+    .proj-bc-sep { color: var(--ink-3); }
+    .proj-hero-tag {
+      font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--proj-accent, var(--ink-2));
+      margin-bottom: 20px;
+    }
+    .proj-hero-name {
+      font-family: var(--font-display);
+      font-size: clamp(56px, 9vw, 120px);
+      font-weight: 800; letter-spacing: -4px; line-height: .88;
+      color: var(--ink); margin-bottom: 20px;
+    }
+    .proj-hero-tagline {
+      font-size: 20px; color: var(--ink-2);
+      font-weight: 300; letter-spacing: -.2px;
+      margin-bottom: 40px;
+    }
+    .proj-hero-desc {
+      font-size: 17px; color: var(--ink-2); max-width: 600px;
+      line-height: 1.7; margin-bottom: 52px;
+    }
+    .proj-meta-row { display: flex; gap: 48px; flex-wrap: wrap; }
+    .proj-meta-item { display: flex; flex-direction: column; gap: 5px; }
+    .proj-meta-key {
+      font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ink-3);
+    }
+    .proj-meta-val { font-size: 14px; font-weight: 500; color: var(--ink); }
+
+    /* ── PROJ BODY ── */
+    .proj-body { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+    .proj-challenge-block { padding: 80px 0; border-top: 1px solid var(--rule); }
+    .proj-block-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--proj-accent, var(--ink-2));
+      margin-bottom: 24px;
+    }
+    .proj-challenge-text {
+      font-family: var(--font-display);
+      font-size: clamp(22px, 2.8vw, 36px);
+      font-weight: 600; letter-spacing: -1px; line-height: 1.25;
+      color: var(--ink); max-width: 760px;
+    }
+
+    .proj-2col {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px;
+      padding: 64px 0; border-top: 1px solid var(--rule);
+    }
+    .proj-col-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--proj-accent, var(--ink-3));
+      margin-bottom: 18px;
+    }
+    .proj-col-text { font-size: 15px; color: var(--ink-2); line-height: 1.8; }
+
+    .proj-process { padding: 64px 0; border-top: 1px solid var(--rule); }
+    .proj-process-title {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 3vw, 40px);
+      font-weight: 700; letter-spacing: -1.5px;
+      color: var(--ink); margin-bottom: 40px;
+    }
+    .proj-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+    .proj-step {
+      border: 1px solid var(--rule);
+      padding: 32px; position: relative;
+      transition: background 150ms;
+    }
+    .proj-step:hover { background: var(--hover-bg); }
+    .proj-step-num {
+      font-size: 11px; color: var(--ink-3);
+      font-variant-numeric: tabular-nums; margin-bottom: 20px;
+    }
+    .proj-step-title {
+      font-family: var(--font-display);
+      font-size: 17px; font-weight: 700;
+      color: var(--ink); letter-spacing: -.3px; margin-bottom: 12px;
+    }
+    .proj-step-desc { font-size: 14px; color: var(--ink-2); line-height: 1.7; }
+    .proj-step-line {
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--proj-accent, var(--ink)); opacity: 0;
+      transition: opacity 200ms;
+    }
+    .proj-step:hover .proj-step-line { opacity: 1; }
+
+    .proj-outcome {
+      padding: 64px 0; border-top: 1px solid var(--rule);
+      display: grid; grid-template-columns: auto 1fr; gap: 48px; align-items: center;
+    }
+    .proj-outcome-stat {
+      font-family: var(--font-display);
+      font-size: 56px; font-weight: 800; letter-spacing: -2.5px; line-height: 1;
+      color: var(--ink); white-space: nowrap; flex-shrink: 0;
+    }
+    .proj-outcome-divider { display: none; }
+    .proj-outcome-text { font-size: 17px; color: var(--ink-2); line-height: 1.7; }
+    .proj-outcome-text strong { color: var(--ink); font-weight: 600; }
+    .proj-outcome-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--proj-accent, var(--ink-2)); margin-bottom: 12px;
+    }
+
+    .proj-url-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 500;
+      color: var(--ink-2); border: 1px solid var(--rule);
+      border-radius: 100px; padding: 10px 20px;
+      text-decoration: none; margin-top: 40px;
+      transition: color 180ms, border-color 180ms; cursor: pointer;
+    }
+    .proj-url-btn:hover { color: var(--ink); border-color: rgba(12,11,9,.3); }
+
+    .proj-nav-bar {
+      border-top: 1px solid var(--rule);
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      align-items: center; gap: 16px; padding: 40px 48px;
+      max-width: 100%;
+    }
+    .proj-nav-btn {
+      display: flex; align-items: center; gap: 16px;
+      cursor: pointer; transition: opacity 180ms; text-decoration: none;
+    }
+    .proj-nav-btn.next { justify-content: flex-end; text-align: right; }
+    .proj-nav-btn:hover { opacity: .7; }
+    .proj-nav-dir {
+      font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--ink-3); margin-bottom: 4px;
+    }
+    .proj-nav-co {
+      font-family: var(--font-display);
+      font-size: 18px; font-weight: 700; letter-spacing: -.5px;
+      color: var(--ink);
+    }
+    .proj-nav-arr { font-size: 22px; color: var(--ink-2); }
+    .proj-nav-all {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--ink-3); cursor: pointer; transition: color 180ms;
+    }
+    .proj-nav-all:hover { color: var(--ink); }
+
+    /* ── AI TRANSFORMATION SECTION ── */
+    .ai-transformation {
+      background: linear-gradient(135deg, #c2d4ff 0%, #dcc5ff 100%);
+      padding: 96px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ai-transformation::before {
+      content: '';
+      position: absolute; top: -120px; right: -120px;
+      width: 420px; height: 420px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,.45) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .ai-transformation::after {
+      content: '';
+      position: absolute; bottom: -80px; left: 25%;
+      width: 320px; height: 320px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,.3) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .ait-eyebrow {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(12,11,9,.45);
+      margin-bottom: 24px;
+    }
+    .ait-eyebrow::before {
+      content: ''; width: 24px; height: 1px; background: rgba(12,11,9,.25);
+    }
+    .ait-headline {
+      font-family: var(--font-display);
+      font-size: clamp(42px, 5.5vw, 80px);
+      font-weight: 800; letter-spacing: -3px; line-height: .92;
+      color: var(--ink);
+      margin-bottom: 48px;
+    }
+    .ait-headline em {
+      font-style: italic; font-weight: 400;
+      color: rgba(12,11,9,.35);
+    }
+    .ait-body {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 80px;
+      margin-bottom: 56px;
+      align-items: start;
+    }
+    .ait-desc {
+      font-size: 16px; color: rgba(12,11,9,.6); line-height: 1.85;
+    }
+    .ait-skills {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      align-content: flex-start;
+    }
+    .ait-skill {
+      font-size: 11px; font-weight: 500;
+      color: rgba(12,11,9,.75);
+      background: rgba(255,255,255,.5);
+      border: 1px solid rgba(12,11,9,.1);
+      padding: 6px 14px; border-radius: 100px;
+      letter-spacing: .02em; white-space: nowrap;
+    }
+    .ait-products-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(12,11,9,.35);
+      margin-bottom: 16px;
+    }
+    .ait-products {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 1px;
+      background: rgba(12,11,9,.08);
+      border-radius: 14px; overflow: hidden;
+      border: 1px solid rgba(12,11,9,.08);
+    }
+    .ait-product {
+      background: rgba(255,255,255,.35);
+      padding: 24px 20px;
+      transition: background 200ms;
+    }
+    .ait-product:hover { background: rgba(255,255,255,.55); }
+    .ait-product-name {
+      font-family: var(--font-display);
+      font-size: 15px; font-weight: 700; letter-spacing: -.3px;
+      color: var(--ink); margin-bottom: 6px;
+    }
+    .ait-product-desc {
+      font-size: 11px; color: rgba(12,11,9,.45);
+      line-height: 1.5; margin-bottom: 16px;
+    }
+    .ait-product-cta {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; letter-spacing: .02em;
+      color: var(--ink);
+      background: rgba(255,255,255,.6);
+      border: 1px solid rgba(12,11,9,.12);
+      padding: 6px 12px; border-radius: 100px;
+      text-decoration: none;
+      transition: background 180ms, border-color 180ms;
+    }
+    .ait-product-cta:hover {
+      background: rgba(255,255,255,.9);
+      border-color: rgba(12,11,9,.25);
+    }
+    .ait-product-cta svg { flex-shrink: 0; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      nav { padding: 24px; }
+      .nav-center { display: none; }
+      .hero { padding: 80px 24px 60px; }
+      .hero-headline { letter-spacing: -2px; }
+      .hero-bottom { flex-direction: column; gap: 24px; }
+      .hero-stats { gap: 24px; }
+      .h-rule { margin: 0 24px; }
+      .s-header { padding: 48px 24px 32px; }
+      .proj-list { padding: 0 24px; }
+      .proj-list-item { grid-template-columns: 40px 1fr; gap: 12px; }
+      .proj-list-logo, .proj-list-logo-placeholder { display: none; }
+      .proj-list-tag, .proj-list-year { display: none; }
+      .proj-list-badges { display: none; }
+      .about-section, .clients-section, .contact-section { padding: 60px 24px; }
+      .about-grid { grid-template-columns: 1fr; gap: 32px; }
+      .results-band { grid-template-columns: repeat(3, 1fr); padding: 0; }
+      .contact-headline { letter-spacing: -3px; }
+      footer { padding: 24px; flex-direction: column; gap: 12px; text-align: center; }
+      #cursor-dot, #cursor-ring { display: none; }
+      body { cursor: auto; }
+      .proj-hero { padding: 80px 24px 48px; min-height: auto; }
+      .proj-body { padding: 0 24px; }
+      .proj-2col, .proj-steps { grid-template-columns: 1fr; }
+      .proj-outcome { grid-template-columns: 1fr; gap: 20px; }
+      .proj-outcome-stat { font-size: 40px; }
+      .proj-nav-bar { padding: 32px 24px; grid-template-columns: 1fr 1fr; }
+      .proj-nav-all { display: none; }
+      .ai-transformation { padding: 64px 24px; }
+      .ait-body { grid-template-columns: 1fr; gap: 32px; }
+      .ait-products { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- CUSTOM CURSOR -->
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
+
+<!-- FLOATING PROJECT PREVIEW -->
+<div id="proj-preview">
+  <div id="proj-preview-inner">
+    <img id="proj-preview-img" src="" alt="" />
+    <div id="proj-preview-overlay"></div>
+    <div class="preview-label" id="preview-tag"></div>
+    <div class="preview-name" id="preview-name"></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="site-nav">
+  <span class="nav-logo" onclick="goHome()"><img src="../images/logo-HV.jpg" alt="HV"></span>
+  <div class="nav-center" id="nav-links">
+    <span class="nav-link" onclick="scrollToSection('#work')" data-i18n="nav_work">Work</span>
+    <span class="nav-link" onclick="scrollToSection('#about')" data-i18n="nav_about">About</span>
+    <span class="nav-link" onclick="scrollToSection('#clients')" data-i18n="nav_clients">Clients</span>
+    <span class="nav-link" onclick="scrollToSection('#contact')" data-i18n="nav_contact">Contact</span>
+  </div>
+  <div class="nav-right">
+    <a class="btn-back" href="index.html">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 8h10M3 8l3.5-3.5M3 8l3.5 3.5"/>
+      </svg>
+      Career Ops
+      <span class="btn-back-tooltip">That\u2019s how I found a job 🎯</span>
+    </a>
+    <a class="btn-cta" href="mailto:chilka.v@gmail.com" data-i18n="nav_cta">Contact by email</a>
+    <div class="lang-switcher">
+      <button class="lang-btn active" id="btn-en" onclick="setLang('en')" title="English">
+        <!-- UK flag SVG -->
+        <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <rect width="20" height="20" rx="10" fill="#012169"/>
+          <path d="M0 0 L20 20 M20 0 L0 20" stroke="#fff" stroke-width="3.5" clip-path="url(#c)"/>
+          <path d="M0 0 L20 20 M20 0 L0 20" stroke="#C8102E" stroke-width="2" clip-path="url(#c)"/>
+          <path d="M10 0 V20 M0 10 H20" stroke="#fff" stroke-width="5.5"/>
+          <path d="M10 0 V20 M0 10 H20" stroke="#C8102E" stroke-width="3.5"/>
+          <clipPath id="c"><circle cx="10" cy="10" r="10"/></clipPath>
+        </svg>
+        <span class="lang-label">EN</span>
+        <span class="lang-tooltip">Yes, I speak English! 🫖</span>
+      </button>
+      <button class="lang-btn" id="btn-fr" onclick="setLang('fr')" title="Français">
+        <!-- French flag SVG -->
+        <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <rect width="20" height="20" rx="10" fill="#ED2939"/>
+          <rect width="13.3" height="20" rx="0" fill="#fff"/>
+          <rect width="6.67" height="20" rx="0" fill="#002395"/>
+          <circle cx="10" cy="10" r="10" fill="none" stroke="rgba(0,0,0,0)" clip-path="none"/>
+          <clipPath id="cf"><circle cx="10" cy="10" r="10"/></clipPath>
+          <g clip-path="url(#cf)">
+            <rect width="6.67" height="20" fill="#002395"/>
+            <rect x="6.67" width="6.66" height="20" fill="#fff"/>
+            <rect x="13.33" width="6.67" height="20" fill="#ED2939"/>
+          </g>
+        </svg>
+        <span class="lang-label">FR</span>
+        <span class="lang-tooltip">Oui, je suis français ! 🥖</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════ HOME VIEW ═══════════ -->
+<div id="view-home">
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <video class="hero-video" autoplay muted loop playsinline style="playback-rate:0.75">
+      <source src="../images/video-background.mp4" type="video/mp4">
+    </video>
+    <div class="hero-eyebrow">
+      <div class="hero-avatar-wrap">
+        <div class="hero-avatar"><img src="../images/hugo_vermot.png" alt="Hugo Vermot"></div>
+        <img class="hero-avatar-frame" src="../images/circle-frame.png" alt="">
+      </div>
+      <span></span>
+      Hugo Vermot — Product Designer & AI Builder — Paris & Bangkok
+    </div>
+    <h1 class="hero-headline" data-i18n-html="hero_headline">When<br><em>Design</em><br>Meets<br><em>Agentic AI.</em></h1>
+
+    <div class="hero-bottom">
+      <p class="hero-desc">
+        <span data-i18n="hero_desc">12+ years across LVMH, Renault, Société Générale and 6 solo AI products. I work at the intersection of product design, agentic AI, and growth systems.</span>
+      </p>
+      <div class="hero-stats">
+        <div><div class="hero-stat-val">12+</div><div class="hero-stat-lbl" data-i18n="stat_years">Years in design</div></div>
+        <div><div class="hero-stat-val">+30</div><div class="hero-stat-lbl" data-i18n="stat_seed">Projects done</div></div>
+        <div><div class="hero-stat-val">Top 3%</div><div class="hero-stat-lbl" data-i18n="stat_cursor">Cursor usage — 10.5B tokens</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS BAND -->
+  <div class="results-band">
+    <div class="result-item">
+      <div class="result-val">+40%</div>
+      <div class="result-lbl" data-i18n="res_saas">SaaS efficiency</div>
+      <img class="result-logo" src="../images/galian.png" alt="GALIAN">
+    </div>
+    <div class="result-item">
+      <div class="result-val">+30%</div>
+      <div class="result-lbl">Engagement</div>
+      <img class="result-logo" src="../images/societegenerale.png" alt="Société Générale">
+    </div>
+    <div class="result-item">
+      <div class="result-val">+20%</div>
+      <div class="result-lbl" data-i18n="res_loyalty">Loyalty enrollment Q1</div>
+      <img class="result-logo" src="../images/shisideo.png" alt="Shiseido">
+    </div>
+    <div class="result-item">
+      <div class="result-val">+12%</div>
+      <div class="result-lbl" data-i18n="res_invest">Investment activity</div>
+      <img class="result-logo" src="../images/societegenerale.png" alt="Société Générale">
+    </div>
+    <div class="result-item">
+      <div class="result-val">+12%</div>
+      <div class="result-lbl">Engagement</div>
+      <img class="result-logo" src="../images/bmw.png" alt="BMW">
+    </div>
+    <div class="result-item">
+      <div class="result-val">-20%</div>
+      <div class="result-lbl" data-i18n="res_dev">Dev time via design system</div>
+      <img class="result-logo" src="../images/renault.png" alt="Renault">
+    </div>
+  </div>
+
+  <!-- TOOLS MARQUEE -->
+  <div class="tools-marquee-wrap" aria-hidden="true">
+    <div class="tools-marquee-track" id="marquee-track">
+      <!-- original set -->
+      <div class="tool-chip"><img src="../images/figma.png" alt="Figma"><span class="tool-chip-name">Figma</span></div>
+      <div class="tool-chip"><img src="../images/javascript.png" alt="JavaScript"><span class="tool-chip-name">JavaScript</span></div>
+      <div class="tool-chip"><img src="../images/supabase.png" alt="Supabase"><span class="tool-chip-name">Supabase</span></div>
+      <div class="tool-chip"><img src="../images/gcloud.png" alt="Google Cloud"><span class="tool-chip-name">Google Cloud</span></div>
+      <div class="tool-chip"><img src="../images/openrouter.png" alt="OpenRouter"><span class="tool-chip-name">OpenRouter</span></div>
+      <div class="tool-chip"><img src="../images/gemini.jpg" alt="Gemini"><span class="tool-chip-name">Gemini</span></div>
+      <div class="tool-chip"><img src="../images/firecrawl.png" alt="Firecrawl"><span class="tool-chip-name">Firecrawl</span></div>
+      <div class="tool-chip"><img src="../images/slack.png" alt="Slack"><span class="tool-chip-name">Slack</span></div>
+      <div class="tool-chip"><img src="../images/jira.png" alt="Jira"><span class="tool-chip-name">Jira</span></div>
+      <div class="tool-chip"><img src="../images/clickup.png" alt="ClickUp"><span class="tool-chip-name">ClickUp</span></div>
+      <!-- duplicate for seamless loop -->
+      <div class="tool-chip"><img src="../images/figma.png" alt="Figma"><span class="tool-chip-name">Figma</span></div>
+      <div class="tool-chip"><img src="../images/javascript.png" alt="JavaScript"><span class="tool-chip-name">JavaScript</span></div>
+      <div class="tool-chip"><img src="../images/supabase.png" alt="Supabase"><span class="tool-chip-name">Supabase</span></div>
+      <div class="tool-chip"><img src="../images/gcloud.png" alt="Google Cloud"><span class="tool-chip-name">Google Cloud</span></div>
+      <div class="tool-chip"><img src="../images/openrouter.png" alt="OpenRouter"><span class="tool-chip-name">OpenRouter</span></div>
+      <div class="tool-chip"><img src="../images/gemini.jpg" alt="Gemini"><span class="tool-chip-name">Gemini</span></div>
+      <div class="tool-chip"><img src="../images/firecrawl.png" alt="Firecrawl"><span class="tool-chip-name">Firecrawl</span></div>
+      <div class="tool-chip"><img src="../images/slack.png" alt="Slack"><span class="tool-chip-name">Slack</span></div>
+      <div class="tool-chip"><img src="../images/jira.png" alt="Jira"><span class="tool-chip-name">Jira</span></div>
+      <div class="tool-chip"><img src="../images/clickup.png" alt="ClickUp"><span class="tool-chip-name">ClickUp</span></div>
+    </div>
+  </div>
+
+  <!-- WORK -->
+  <div id="work">
+    <div class="s-header">
+      <div class="s-label" data-i18n="work_label">Selected work</div>
+      <a class="btn-download-cv" href="Hugo_Vermot_CV.pdf" download="Hugo_Vermot_CV.pdf">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
+        Download CV
+      </a>
+    </div>
+    <div class="proj-list" id="proj-list-el"></div>
+  </div>
+
+  <!-- AI TRANSFORMATION -->
+  <section class="ai-transformation">
+    <div class="ait-eyebrow" data-i18n="ait_eyebrow">2-Year AI Engineering Transformation</div>
+    <h2 class="ait-headline" data-i18n-html="ait_headline">From Designer<br>to <em>Full-Stack</em><br>AI Builder.</h2>
+    <div class="ait-body">
+      <p class="ait-desc">
+        <span data-i18n="ait_desc">Since 2024, rebuilt from the ground up as an engineer. No bootcamp. No shortcuts. Daily building across backend, frontend, databases, cloud infrastructure, and generative AI pipelines — while shipping real products used by real users.</span>
+      </p>
+      <div class="ait-skills">
+        <span class="ait-skill">Python</span>
+        <span class="ait-skill">JavaScript / Next.js</span>
+        <span class="ait-skill">REST API Design</span>
+        <span class="ait-skill">PostgreSQL / Supabase</span>
+        <span class="ait-skill">Cloud Run / Vercel</span>
+        <span class="ait-skill">Playwright / Chrome CDP</span>
+        <span class="ait-skill">Claude API</span>
+        <span class="ait-skill">OpenRouter</span>
+        <span class="ait-skill">Prompt Engineering</span>
+        <span class="ait-skill">Agent Orchestration</span>
+        <span class="ait-skill">Generative AI</span>
+        <span class="ait-skill">Vibe Coding</span>
+      </div>
+    </div>
+    <div class="ait-products-label" data-i18n="ait_products_label">5 products built solo — from zero — all functional</div>
+    <div class="ait-products">
+      <div class="ait-product">
+        <div class="ait-product-name">Creads.io</div>
+        <div class="ait-product-desc">AI ad generation & marketing SaaS</div>
+        <a class="ait-product-cta" href="https://www.creads.io/" target="_blank" rel="noopener">
+          Visit <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 10L10 2M10 2H4M10 2v6"/></svg>
+        </a>
+      </div>
+      <div class="ait-product">
+        <div class="ait-product-name">Flemme OS</div>
+        <div class="ait-product-desc">Social outbound automation platform</div>
+        <a class="ait-product-cta" href="https://flemme-three.vercel.app/" target="_blank" rel="noopener">
+          Visit <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 10L10 2M10 2H4M10 2v6"/></svg>
+        </a>
+      </div>
+      <div class="ait-product">
+        <div class="ait-product-name">UXfi.ai</div>
+        <div class="ait-product-desc">AI UX audit platform</div>
+        <a class="ait-product-cta" href="https://v0-uxfi.vercel.app/" target="_blank" rel="noopener">
+          Visit <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 10L10 2M10 2H4M10 2v6"/></svg>
+        </a>
+      </div>
+      <div class="ait-product">
+        <div class="ait-product-name">Panfy</div>
+        <div class="ait-product-desc">Crypto analytics with AI signals</div>
+        <a class="ait-product-cta" href="https://v0-panfy.vercel.app/" target="_blank" rel="noopener">
+          Visit <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 10L10 2M10 2H4M10 2v6"/></svg>
+        </a>
+      </div>
+      <div class="ait-product">
+        <div class="ait-product-name">Career-Ops</div>
+        <div class="ait-product-desc">AI job search pipeline & CV automation</div>
+        <a class="ait-product-cta" href="portfolio.html" target="_blank" rel="noopener">
+          Visit <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 10L10 2M10 2H4M10 2v6"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <div class="h-rule"></div>
+
+  <!-- ABOUT -->
+  <section class="about-section" id="about">
+    <div class="about-grid">
+      <div class="about-left">
+        <h2 class="about-headline" data-i18n-html="about_headline">A designer who<br><em>builds</em> and<br>ships AI.</h2>
+
+        <!-- SKILLS -->
+        <div class="skills-section" id="skills-section">
+          <div class="skills-label">Skill levels</div>
+          <div class="skills-grid">
+            <div class="skill-row">
+              <div class="skill-meta"><span class="skill-name">UX Design</span><span class="skill-score">9/10</span></div>
+              <div class="skill-track"><div class="skill-fill" style="width:90%"></div></div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-meta"><span class="skill-name">Figma</span><span class="skill-score">9/10</span></div>
+              <div class="skill-track"><div class="skill-fill" style="width:90%"></div></div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-meta"><span class="skill-name">AI Prompt Engineering</span><span class="skill-score">8/10</span></div>
+              <div class="skill-track"><div class="skill-fill" style="width:80%"></div></div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-meta"><span class="skill-name">Experience Design</span><span class="skill-score">8/10</span></div>
+              <div class="skill-track"><div class="skill-fill" style="width:80%"></div></div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-meta"><span class="skill-name">User Research</span><span class="skill-score">7/10</span></div>
+              <div class="skill-track"><div class="skill-fill" style="width:70%"></div></div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-meta"><span class="skill-name">Branding</span><span class="skill-score">7/10</span></div>
+              <div class="skill-track"><div class="skill-fill" style="width:70%"></div></div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-meta"><span class="skill-name">Marketing Strategy</span><span class="skill-score">6/10</span></div>
+              <div class="skill-track"><div class="skill-fill" style="width:60%"></div></div>
+            </div>
+            <div class="skill-row">
+              <div class="skill-meta"><span class="skill-name">Full-Stack Dev</span><span class="skill-score">6/10</span></div>
+              <div class="skill-track"><div class="skill-fill" style="width:60%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /about-left -->
+      <div class="about-body">
+        <p class="about-para">
+          <span data-i18n-html="about_p1">French AI product builder and <strong>senior product designer</strong> with 12+ years of experience across UX, product strategy, design systems, and applied AI. UX designer since 2015, with a path spanning France Televisions, Marcel/Publicis, 9 years freelance, agency founding, and solo AI SaaS execution.</span>
+        </p>
+        <p class="about-para">
+          <span data-i18n-html="about_p2">I work at the intersection of <strong>Product Design, Agentic AI</strong>, generative multi-modal pipelines, and growth systems. Since 2024, I build AI products end-to-end: architecture, UX, prompt systems, orchestration, scoring logic, creative intelligence, automation, and shipping.</span>
+        </p>
+        <p class="about-para">
+          <span data-i18n-html="about_p3">My design approach is systems-first: information architecture, visual hierarchy, complete flows with <strong>error states, edge cases, and empty states</strong>. Used to defending UX choices in front of CPOs, developers, and regulated business contexts such as MIF2.</span>
+        </p>
+
+        <!-- CURSOR CARD -->
+        <div class="cursor-card">
+          <div class="cursor-card-header">
+            <div class="cursor-logo-wrap">
+              <!-- Cursor logo SVG -->
+              <svg class="cursor-logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M16 2L30 26H2L16 2Z" fill="rgba(12,11,9,0.1)" stroke="rgba(12,11,9,0.5)" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M16 10L24 26H8L16 10Z" fill="rgba(12,11,9,0.8)"/>
+              </svg>
+              <span class="cursor-logo-label">Cursor</span>
+            </div>
+            <span class="cursor-badge">Top 3% globally</span>
+          </div>
+          <div class="cursor-stats-grid">
+            <div class="cursor-stat">
+              <div class="cursor-stat-val">22.1K</div>
+              <div class="cursor-stat-lbl" data-i18n="cursor_agents">Agents run</div>
+            </div>
+            <div class="cursor-stat">
+              <div class="cursor-stat-val">10.5B</div>
+              <div class="cursor-stat-lbl" data-i18n="cursor_tokens">Tokens used</div>
+            </div>
+            <div class="cursor-stat">
+              <div class="cursor-stat-val">63d</div>
+              <div class="cursor-stat-lbl" data-i18n="cursor_streak">Streak</div>
+            </div>
+            <div class="cursor-stat">
+              <div class="cursor-stat-val">344d</div>
+              <div class="cursor-stat-lbl" data-i18n="cursor_active">Active daily</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="h-rule"></div>
+
+  <!-- CLIENTS -->
+  <section class="clients-section" id="clients">
+    <div class="s-header" style="padding: 0 0 40px;">
+      <div class="s-label" data-i18n="clients_label">Track record</div>
+      <div class="s-count" data-i18n="clients_count">12 companies</div>
+    </div>
+    <table class="clients-table">
+      <tbody id="clients-tbody"></tbody>
+    </table>
+  </section>
+
+  <div class="h-rule"></div>
+
+  <!-- CONTACT -->
+  <section class="contact-section" id="contact">
+    <h2 class="contact-headline" data-i18n-html="contact_headline">Let's build<br><em>something</em><br>together.</h2>
+    <div class="contact-links">
+      <a class="contact-link primary" href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>
+      <a class="contact-link" href="https://linkedin.com/in/hugovermot" target="_blank">LinkedIn ↗</a>
+      <a class="contact-link" href="https://twitter.com/Chilka_" target="_blank">@Chilka_ ↗</a>
+      <a class="contact-link" href="https://github.com/uxfi" target="_blank">GitHub ↗</a>
+      <a class="contact-link" href="https://www.figma.com/deck/EtKxJy1KsPXtr7nUhYSp1B/PRESENTATION" target="_blank">Portfolio PDF ↗</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-copy" data-i18n="footer_copy">© 2025 Hugo Vermot</div>
+    <div class="footer-links">
+      <a class="footer-link" href="mailto:chilka.v@gmail.com">Email</a>
+      <a class="footer-link" href="https://linkedin.com/in/hugovermot" target="_blank">LinkedIn</a>
+      <a class="footer-link" href="https://github.com/uxfi" target="_blank">GitHub</a>
+      <a class="footer-link" href="index.html">Career Ops</a>
+    </div>
+  </footer>
+
+</div><!-- /view-home -->
+
+<!-- ═══════════ PROJECT DETAIL VIEW ═══════════ -->
+<div id="view-project" class="hidden">
+  <div id="proj-page-content"></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════ */
+const PROJECTS = [
+  {
+    id:'creads', num:'01', group:'ai', cover:'covers/creads.jpg', logo:'../images/creads_logo_final.png',
+    company:'Creads.io', tagline:'AI Creative Director — Built from 0',
+    role:'Founder & AI Product Builder',
+    year:'2024 – Present', duration:'Ongoing', team:'Solo',
+    platforms:['Desktop'], tag:'AI SaaS · Founder', badges:['Solo Founder','Vibe Coded'], accent:'#a855f7',
+    desc:'End-to-end AI creative director. Brand Agent → Smart Matching → Brief Generator → Visual Engineer → video pipeline. Real customers.',
+    challenge:'Building a fully automated AI creative director from scratch — brand analysis, smart matching, brief generation, visual engineering, and video pipeline — solo.',
+    goals:'Build a multi-layer AI pipeline that autonomously generates winning ad creatives — combining brand intelligence, audience psychology, and cinematic visual direction.',
+    solution:'Built a proprietary creative intelligence framework with 34 hooks, 29 emotions, 25 cognitive biases, and 18 composition patterns. Multi-layer prompt architecture with waterfall logic and cross-agent consistency.',
+    steps:[
+      {num:'01', title:'Brand Agent Pipeline', desc:'Firecrawl-powered brand scraping → structured brand profile → Smart Matching against 40 ad concepts × 100 categories using PostgreSQL scoring. Automated brand intelligence at scale.'},
+      {num:'02', title:'Creative Intelligence', desc:'Proprietary framework: 34 psychological hooks, 29 emotions, 25 cognitive biases, 18 composition patterns. Cinematic prose prompting with token hierarchy, safe zones, structural vs. style separation.'},
+      {num:'03', title:'Video Pipeline & Growth', desc:'Full video pipeline via Runway, Kling, Veo 3, and Remotion. Growth automation: scraping + DM automation generating up to 200 leads per click. Bootstrapped, live, real customers.'},
+    ],
+    outcome:'Live AI SaaS with real customers — bootstrapped solo. End-to-end automated creative generation from brand scraping to video output.',
+    outcomeStat:'Live', url:'https://www.creads.io/',
+  },
+  {
+    id:'uxfi', num:'02', group:'ai', cover:'covers/uxfi.jpg', logo:'../images/uxfi.png',
+    company:'UXfi.ai', tagline:'AI UX Audit Platform',
+    role:'Founder & Builder',
+    year:'2024', duration:'On hold', team:'Solo',
+    platforms:['Desktop'], tag:'AI Tool · Founder', badges:['Solo Founder','Vibe Coded'], accent:'#6366f1',
+    desc:'AI UX audit SaaS with multi-dimensional scoring and AI-generated redesign suggestions. E-commerce focused, from $10/month.',
+    challenge:'Building an AI system that evaluates UX quality across multiple dimensions and generates actionable redesign suggestions — without needing a designer.',
+    goals:'Create a fast AI UX audit tool that gives e-commerce teams instant clarity on what\'s broken and how to fix it — scoring their product and generating specific recommendations.',
+    solution:'Built a multi-dimensional UX scoring system powered by AI. Users submit a URL, the system audits the product, generates a multi-axis score, and provides prioritized AI redesign recommendations.',
+    steps:[
+      {num:'01', title:'Scoring Architecture', desc:'Designed the multi-dimensional scoring system across visual hierarchy, navigation clarity, CTA effectiveness, mobile UX, and conversion optimization dimensions.'},
+      {num:'02', title:'AI Audit Pipeline', desc:'Built the AI pipeline to analyze product screenshots and generate structured UX feedback with severity ratings, issue categorization, and prioritized improvement recommendations.'},
+      {num:'03', title:'Product Design', desc:'Designed the full product UI: audit dashboard with total score display, dimension breakdown cards, issue list with recommendations, and redesign suggestion previews.'},
+    ],
+    outcome:'AI-powered UX audit platform — multi-dimensional scoring, AI redesign suggestions, e-commerce focus. Available from $10/month.',
+    outcomeStat:null, url:'https://v0-uxfi.vercel.app/',
+  },
+  {
+    id:'panfy', num:'03', group:'ai', cover:'covers/panfy.jpg', logo:'../images/panfy_icon.png',
+    company:'Panfy', tagline:'HyperLiquid Trading Dashboard',
+    role:'Builder',
+    year:'2024', duration:'3 months', team:'Solo',
+    platforms:['Desktop'], tag:'Crypto · Builder', badges:['Solo Founder','Vibe Coded'], accent:'#22c55e',
+    desc:'Live market metrics aggregated from HyperLiquid for fast trading decisions — AI signals, top trader tracking, and $PAN token layer.',
+    challenge:'Building a real-time crypto analytics dashboard that aggregates complex market data and presents it in a fast, decision-ready format.',
+    goals:'Aggregate live HyperLiquid ecosystem metrics — Fear & Greed, 24h volatility, BTC dominance, top traders — into a single decision dashboard with AI signal layer.',
+    solution:'Built a real-time dashboard pulling live from HyperLiquid API. Designed and shipped the complete product UI with market signals, top gainer/loser tracking, and ecosystem intelligence.',
+    steps:[
+      {num:'01', title:'Data Architecture', desc:'Designed the data pipeline pulling from HyperLiquid for live prices, top trader activity, gainer/loser rankings, Fear & Greed index, 24h volatility, and BTC dominance metrics.'},
+      {num:'02', title:'Dashboard Design', desc:'Designed the trading decision interface: market overview panel, trending tokens list, top gainers/losers table, ecosystem signals panel, and $PAN token ecosystem metrics.'},
+      {num:'03', title:'AI Signal Layer', desc:'Integrated AI trading signals for opportunity detection, risk indicators, and market regime classification on top of the live HyperLiquid data feed.'},
+    ],
+    outcome:'Live HyperLiquid dashboard — real-time market data, AI signals, top trader tracking, and $PAN ecosystem metrics for fast trading decisions.',
+    outcomeStat:'Live', url:'https://v0-panfy.vercel.app/',
+  },
+  {
+    id:'upviral', num:'04', group:'enterprise', cover:'covers/upviral.jpg', logo:'../images/upviral.png',
+    company:'UpViral', tagline:'SaaS Marketing Platform',
+    role:'Product Manager / Product Designer',
+    year:'2024', duration:'6 months', team:'Chief Product Officer & Developers',
+    platforms:['Desktop'], tag:'SaaS · Product', accent:'#0ea5e9',
+    desc:'SaaS platform enabling the creation of referral and viral campaigns to generate leads through incentivizing customer growth.',
+    challenge:'Engaging in a continuous project and supervising improvements to align with the schedule, delivery capabilities, and existing procedures.',
+    goals:'Organizing and revitalizing the entire application, which had minimal design foundations. Led developers and made structural decisions for ongoing development, conducting multiple user interviews to gain deeper insights.',
+    solution:'Closely collaborated with the Chief Product Officer to strategize and enhance both the product design workflow and the product itself. Closely monitored developments to ensure outcomes met UX standards.',
+    steps:[
+      {num:'01', title:'Audit & IA Mapping', desc:'Deep audit of a product with minimal design foundations. Mapped the full information architecture and identified critical flow breakdowns across the campaign builder.'},
+      {num:'02', title:'User Interviews', desc:'Multiple rounds of user research with actual UpViral customers to capture pain points, mental models, and unmet needs across the referral campaign creation flow.'},
+      {num:'03', title:'UI & Flow Redesign', desc:'Complete UI overhaul coordinated with the CPO. Rebuilt user flows, campaign builder components, and visual design system from weak foundations to a structured product.'},
+    ],
+    outcome:'Complete UI overhaul — information architecture rebuild, full user flow redesign, and campaign builder redesign. Validated through user interviews and iterative collaboration with CPO.',
+    outcomeStat:null, url:'https://upviral.com',
+  },
+  {
+    id:'renault', num:'05', group:'enterprise', cover:'covers/renault.jpg', logo:'../images/renault.png',
+    company:'Renault Group', tagline:'"Renew" Second-hand Cars Marketplace',
+    role:'Product Designer',
+    year:'2019 – 2020', duration:'14 months', team:'PO, PM, Int. market, Lead car dealership, Dev teams',
+    platforms:['Mobile','Desktop'], tag:'Automotive · eCommerce', accent:'#f59e0b',
+    desc:'Complete redesign of the Renault "Renew" second-hand car marketplace — international scope, multi-brand, 23,900+ vehicle listings.',
+    challenge:'As the sole designer on this project, effectively overseeing the timeline and requirements while integrating continuous improvements across a multi-brand, multi-country marketplace.',
+    goals:'Adapt the design to meet specific needs of international teams while delivering an intuitive user experience. Ensure all compliance requirements are properly addressed.',
+    solution:'Conducted and facilitated multiple workshops with teams to collect requirements, and iteratively created wireframes to ensure alignment across three distinct workstreams.',
+    steps:[
+      {num:'01', title:'Userflow & Mapping', desc:'Mapped all pages, content, and features across the international marketplace. Defined information architecture for 23,900+ vehicle listings across multiple brands and European markets.'},
+      {num:'02', title:'Back-office Design', desc:'Designed two distinct back-office tools: a car dealership stock management platform and a national brand manager monitoring tool with sales reports, KPIs, and action plan tracking.'},
+      {num:'03', title:'Front-office Design', desc:'Customer-facing website with automotive-specific UX: LOA/Crédit calculators, vehicle specification pages, filter system, and dealer locator map.'},
+    ],
+    outcome:'Fully redesigned international second-hand car marketplace — mobile and desktop, 23,900+ vehicles, multiple European markets, dual back-office tooling.',
+    outcomeStat:'23,900 vehicles', url:null,
+  },
+  {
+    id:'lvmh', num:'06', group:'enterprise', cover:'covers/lvmh.jpg', logo:'../images/lvmh.png',
+    company:'LVMH Group', tagline:'Data Marketing Platform',
+    role:'UX Designer',
+    year:'2021 – 2022', duration:'12 months', team:'Data team, Design lead, Marketing teams',
+    platforms:['Desktop'], tag:'Luxury · Data SaaS', accent:'#d4af37',
+    desc:'Cutting-edge data marketing platform for LVMH — aggregating customer data and campaign performance across 15+ luxury maisons.',
+    challenge:'Aggregating and consolidating data from various luxury brands, industries, and digital/physical retail contexts — a highly complex integration challenge.',
+    goals:'Consider various scenarios for integration into existing customer journeys across both physical retail and e-commerce platforms for 15+ luxury maisons including Dior, Louis Vuitton, Fendi, and Kenzo.',
+    solution:'Conducted multiple interviews and led a research process to identify touchpoints and develop flows for data generation, enhancing the final user experience across all retail contexts.',
+    steps:[
+      {num:'01', title:'Stakeholder Interviews', desc:'Ran research interviews across Dior, Louis Vuitton, Fendi, Kenzo and other brand stakeholders to align on core workflows, data needs, and integration constraints.'},
+      {num:'02', title:'Customer Journey Mapping', desc:'Created comprehensive experience maps for purchasing flows — from social prospecting to in-store visit, purchase, and post-purchase — with dedicated data collection touchpoints.'},
+      {num:'03', title:'Internal Data Tool Design', desc:'Designed data monitoring tools for maisons within the organization — enabling teams to manage customer data entities, product data, and data ingestion sources.'},
+    ],
+    outcome:'Unified data SaaS platform spanning 15+ LVMH maisons — enabling cross-brand marketing intelligence from both physical retail and e-commerce touchpoints.',
+    outcomeStat:'15+ maisons', url:null,
+  },
+  {
+    id:'arlequin', num:'07', group:'enterprise', logo:null,
+    company:'Arlequin Finance', tagline:'Trading Platform — Ground Up',
+    role:'Product Designer',
+    year:'2022', duration:'6 months', team:'Product Manager, CEO & Developers',
+    platforms:['Mobile','Desktop'], tag:'Fintech · Trading', accent:'#10b981',
+    desc:'French startup providing a trading platform enabling users to trade across all markets, create investment funds, or invest in others.',
+    challenge:'Starting from the ground up — transforming concepts into reality by designing both application and web interfaces for a regulated fintech product.',
+    goals:'Develop designs aligning with brand identity while considering development efficiency. Introduce innovative solutions while ensuring simplicity of implementation.',
+    solution:'Streamlined the design thinking process, leveraging knowledge of trading platforms to save time and increase efficiency, quickly providing multiple interface variants.',
+    steps:[
+      {num:'01', title:'Brand & Concept Design', desc:'Defined the visual identity and design language from scratch — balancing professional trading aesthetics with accessibility for both beginner and advanced investors.'},
+      {num:'02', title:'Interface Variants', desc:'Rapidly produced multiple interface variants for portfolio view, live trading room, and funds marketplace — allowing the team to compare approaches and iterate fast.'},
+      {num:'03', title:'Full Platform Build', desc:'Designed the complete trading platform: portfolio dashboard with multi-asset allocation, live trading room with candlestick charts, and investment funds marketplace.'},
+    ],
+    outcome:'Fully operational trading platform — portfolio management, live trading room, investment funds marketplace, and KYC onboarding flows.',
+    outcomeStat:null, url:null,
+  },
+  {
+    id:'skiset', num:'08', group:'enterprise', cover:'covers/skiset.jpg', logo:null,
+    company:'Skiset', tagline:'Ski Equipment Booking Redesign',
+    role:'UX / UI Designer',
+    year:'2020', duration:'8 months', team:'PO, Marketing brand officer, CEO, Lead Dev',
+    platforms:['Mobile','Desktop'], tag:'eCommerce · Sport', accent:'#3b82f6',
+    desc:'Graphic redesign of the Skiset online ski equipment booking platform — enhancing UX and attracting more customers through a modern interface.',
+    challenge:'Working in an agency context, persuading the client to make informed design decisions for this highly demanding revamp while maintaining conversion.',
+    goals:'Redesign the booking flow without adversely affecting conversion rate and customer acquisition. Gather specific user information to enhance in-store pickup efficiency.',
+    solution:'Collaborated with the project manager to validate workflows with the client. Conducted user tests on the prototype to confirm assumptions and quantify UX and business impacts.',
+    steps:[
+      {num:'01', title:'User Flow & Mapping', desc:'Detailed flows and mapping of the complete booking journey — from station selection and dates to equipment pack choice, sizing, and payment.'},
+      {num:'02', title:'Design & Prototype', desc:'Wireframes, high-fidelity mockups, and interactive prototype across mobile and desktop. Pack selection with horizontal layout, equipment visualization, and ski level picker.'},
+      {num:'03', title:'User Testing', desc:'Real-condition testing sessions with real users on the interactive prototype. Documented 6 key observations, UX issue analysis, and specific recommendations per screen.'},
+    ],
+    outcome:'User testing validated design decisions — 15/20 mobile satisfaction, 16/20 desktop satisfaction. Booking flow redesigned without compromising conversion.',
+    outcomeStat:'15/20 · 16/20', url:'https://skiset.com',
+  },
+  {
+    id:'casino', num:'09', group:'enterprise', logo:'../images/casino.png',
+    company:'Casino Group', tagline:'Grocery eCommerce Revamp',
+    role:'UX / UI Designer',
+    year:'2020 – 2021', duration:'10 months', team:'PO, Marketing team, Designers',
+    platforms:['Mobile','Desktop'], tag:'Retail · eCommerce', accent:'#ef4444',
+    desc:'Modern, user-friendly interface for Casino.fr — managing the complexity of different user flows between retail store and online app.',
+    challenge:'Ensuring a seamless online and in-store experience without interruptions — bridging the physical retail world and e-commerce in one coherent product.',
+    goals:'Revise the booking flow to enhance UX without affecting conversion or acquisition. Integrate special promotions with specific online conditions redeemable in-store.',
+    solution:'Collaborated with the project manager to validate workflows. Conducted user tests on prototype to confirm assumptions and quantify potential business impacts.',
+    steps:[
+      {num:'01', title:'Information Architecture', desc:'Mapped complete site architecture across Drive (in-store pickup) and Livraison (home delivery) modes. Defined store selector, product catalog, cart, and account flows.'},
+      {num:'02', title:'Wireframes to Mockups', desc:'Iterative design from low-fidelity wireframes to high-fidelity mockups for Casino.fr — mobile-first, with full desktop adaptation. Product pages with Nutri-Score and drive/delivery toggle.'},
+      {num:'03', title:'Promotion & Loyalty System', desc:'Designed integrated promotion flows with Drive/Livraison-specific conditions, in-store redemption mechanics, and loyalty wallet integration.'},
+    ],
+    outcome:'Complete Casino.fr eCommerce redesign — unified Drive and Livraison experience, seamless retail-online integration, and promotion/loyalty flows.',
+    outcomeStat:null, url:'https://casino.fr',
+  },
+  {
+    id:'sg', num:'10', group:'enterprise', logo:'../images/societegenerale.png',
+    company:'Société Générale', tagline:'Investment & Savings Platform',
+    role:'Senior Product Designer',
+    year:'2023 – 2024', duration:'12 months', team:'PO, PM, Regulatory team, Dev teams',
+    platforms:['Mobile','Desktop'], tag:'Finance · Investment', accent:'#dc2626',
+    desc:'Desktop and mobile experiences for savings, allocation, and investment flows in a MIF2-regulated banking context.',
+    challenge:'Designing regulated financial experiences that meet strict MIF2 compliance while remaining intuitive enough to drive measurable investment activity.',
+    goals:'Design desktop and mobile experiences for savings, allocation, and investment flows. Navigate MIF2 regulatory validation and investor-profile journeys.',
+    solution:'Built intuitive investment flows that simplified regulatory complexity for end users. Delivered MIF2-compliant investor profile journeys with clear savings breakdown and asset management dashboards.',
+    steps:[
+      {num:'01', title:'Investor Profile Questionnaire', desc:'Designed the complete MIF2-compliant questionnaire across 4 categories: patrimonial situation, sustainable investment sensitivity, financial knowledge, and investment services experience.'},
+      {num:'02', title:'Portfolio & Savings Dashboard', desc:'Designed savings allocation views showing breakdown by product (Assurance vie, Livret d\'épargne), total patrimoine, and allocation donut chart.'},
+      {num:'03', title:'Asset Management Flows', desc:'Full investment management UI with tab navigation, portfolio tables, and delegation/advisory service promotion across desktop and mobile.'},
+    ],
+    outcome:'+12% investment activity — MIF2 compliant regulated flows for savings, allocation, and investment journeys across desktop and mobile.',
+    outcomeStat:'+12%', url:null,
+  },
+  {
+    id:'shiseido', num:'11', group:'enterprise', logo:'../images/shisideo.png',
+    company:'Shiseido Group', tagline:'eCommerce & Loyalty Redesign',
+    role:'Senior Product Designer',
+    year:'2024', duration:'6 months', team:'PO, Dev teams, Marketing',
+    platforms:['Mobile'], tag:'Beauty · eCommerce', accent:'#ec4899',
+    desc:'Redesign of loyalty flows and account-space experiences for the Shiseido Group global eCommerce platform.',
+    challenge:'Redesigning loyalty flows and account-space experiences for one of the world\'s most iconic beauty brands — and driving enrollment at scale.',
+    goals:'Redesign loyalty flows and account-space experiences to increase loyalty enrollment and enhance the post-purchase experience for global Shiseido customers.',
+    solution:'Redesigned the complete end-to-end loyalty journey with clear information architecture and motivating moments — from product discovery through checkout to loyalty dashboard.',
+    steps:[
+      {num:'01', title:'eCommerce Flow Design', desc:'Complete shopping experience redesign: home with skin diagnosis, product catalog with Best Seller tabs, product detail pages with skin concern tags, reviews, and size selection.'},
+      {num:'02', title:'Loyalty Integration', desc:'Designed "My Shiseido" loyalty integration across the purchase flow — points earning (1€ = 10 points), welcome box CTA, exclusive rewards, free samples selection in cart.'},
+      {num:'03', title:'Cart & Checkout', desc:'Multi-step cart with product management, free 3-sample selection, loyalty member badge, promo code, multi-payment (Visa, PayPal, Apple Pay, Klarna, Alipay), and order summary.'},
+    ],
+    outcome:'+20% loyalty enrollment in Q1 post-launch — complete Shiseido eCommerce and loyalty account redesign across the global mobile platform.',
+    outcomeStat:'+20%', url:null,
+  },
+  {
+    id:'vloggy', num:'13', group:'ai', logo:'../images/vloggy_logo.png',
+    company:'Vloggy', tagline:'100% Video Social Network',
+    role:'Co-founder & Product Designer',
+    year:'2018 – 2020', duration:'2 years', team:'Co-founding team',
+    platforms:['iOS','Android'], tag:'Social · Co-founder', accent:'#f97316',
+    desc:'100% video social network for iOS and Android — 24-min 1080p editing, 10-second video comments, creator monetization.',
+    challenge:'Building a video-first social network from zero — product vision, UX design, and shipping apps on iOS and Android — while raising seed funding.',
+    goals:'Design a social video product that puts creators first: intuitive 24-min editing, expressive video-comment format, and creator monetization from day one.',
+    solution:'Co-defined the product vision, designed the complete creator and viewer experience, and supported the $100K seed raise from Columbus BlueSky (CM-CIC, BNP Paribas Développement, Harwanne/Covéa).',
+    steps:[
+      {num:'01', title:'Product Vision', desc:'Defined core differentiators: 24-min 1080p in-app editing, 10-second video comments, creator monetization — targeting the gap between YouTube depth and TikTok accessibility.'},
+      {num:'02', title:'Mobile App Design', desc:'Designed complete iOS and Android experience: video feed, in-app editor with 1080p, 10-second video comment recorder, creator profile, and monetization dashboard.'},
+      {num:'03', title:'Fundraising Support', desc:'Built the investor presentation and product demo that secured the $100K seed round from Columbus BlueSky Holding.'},
+    ],
+    outcome:'$100K seed raised — video social network shipped on iOS and Android with creator monetization.',
+    outcomeStat:'$100K', url:null,
+  },
+  {
+    id:'flemme', num:'13', group:'ai', cover:'covers/flemme.jpg', logo:null, badges:['Solo Founder','Vibe Coded'],
+    company:'Flemme OS', tagline:'AI Social Publishing Automation',
+    role:'Founder & AI Product Builder',
+    year:'2024 – Present', duration:'Ongoing', team:'Solo',
+    platforms:['Desktop'], tag:'AI Agent · Social', accent:'#f43f5e',
+    desc:'AI-powered social publishing agent — automates content creation, scheduling, DM prospection, and outreach across Twitter, Instagram, and Threads.',
+    challenge:'Building a fully autonomous social media agent that handles the entire publication workflow — from content generation to DM prospection — without manual intervention.',
+    goals:'Create a single OS for social automation: multi-platform publishing, AI-generated replies, DM outreach sequences, lead monitoring, and a creative ad library — all agent-driven.',
+    solution:'Built Flemme OS as a modular agentic system: Social Monitor tracks engagement signals, DeepFlow handles content pipelines, DM Prospection runs outreach campaigns, and the Ad Library feeds creative generation.',
+    steps:[
+      {num:'01', title:'Agent Architecture', desc:'Designed the multi-agent system: Social Monitor for signal tracking, Outreach agent for DM sequences, Reply agent for Twitter/Threads/Instagram — all coordinated through a central dashboard.'},
+      {num:'02', title:'Publishing Pipeline', desc:'Built automated content creation and scheduling pipelines for Twitter, Instagram, and Threads — with AI-generated posts, replies, and engagement sequences tied to lead monitoring triggers.'},
+      {num:'03', title:'DM Prospection & Lead System', desc:'Built scraping + DM automation generating 200+ leads per click. Includes Cortex intelligence layer, Leads CRM, and ScreenArc for visual content archiving. Live with real users.'},
+    ],
+    outcome:'Live AI social agent OS — multi-platform publishing automation, DM prospection, and outreach sequences across Twitter, Instagram, and Threads.',
+    outcomeStat:'Live', url:'https://flemme-three.vercel.app/',
+  },
+  {
+    id:'bmw', num:'14', group:'enterprise', logo:'../images/bmw.png',
+    company:'BMW Group', tagline:'UI Design — Automotive Digital',
+    role:'UI Designer',
+    year:'2020 – 2021', duration:'12 months', team:'Product team, Dev teams',
+    platforms:['Desktop','Mobile'], tag:'Automotive · UI', accent:'#1c69d4',
+    desc:'UI design for BMW Group digital products — automotive-grade interface design across connected car and digital services.',
+    challenge:'Designing digital interfaces that meet the rigorous quality and brand standards of one of the world\'s most iconic automotive groups.',
+    goals:'Deliver high-quality UI across BMW digital touchpoints — combining automotive precision with modern UX patterns.',
+    solution:'Collaborated with BMW product teams to design and refine digital interfaces, ensuring pixel-perfect execution aligned with the BMW design language.',
+    steps:[
+      {num:'01', title:'Brand & Design System', desc:'Applied BMW\'s strict visual identity and design principles to digital interfaces — typography, colour, iconography, and spacing aligned with automotive brand standards.'},
+      {num:'02', title:'Interface Design', desc:'Designed screens across connected services and digital platforms — clean, precise UI with attention to detail expected at automotive scale.'},
+      {num:'03', title:'Delivery & Handoff', desc:'Produced thorough design specifications and handoff documentation for development teams across multiple markets and platforms.'},
+    ],
+    outcome:'High-quality UI delivered across BMW Group digital products — brand-compliant, pixel-perfect, and built for automotive-grade standards.',
+    outcomeStat:null, url:null,
+  },
+  {
+    id:'sncf', num:'15', group:'enterprise', logo:'../images/sncf.png',
+    company:'SNCF Group', tagline:'Mobility & Transport Product Design',
+    role:'Product Designer',
+    year:'2017 – 2019', duration:'2 years', team:'Product, Dev & Marketing teams',
+    platforms:['Mobile','Desktop'], tag:'Mobility · Transport', accent:'#e2001a',
+    desc:'Product design for SNCF Group digital mobility services — designing seamless travel experiences for millions of passengers.',
+    challenge:'Designing travel and transport products at national scale — balancing accessibility, complexity, and real-time information for a diverse passenger base.',
+    goals:'Design intuitive mobility experiences that simplify the journey from ticket search to arrival — across mobile and desktop, for all passenger profiles.',
+    solution:'Worked closely with SNCF product and tech teams to design and iterate on key travel flows — search, booking, real-time info, and account management.',
+    steps:[
+      {num:'01', title:'Passenger Journey Mapping', desc:'Mapped end-to-end travel journeys — from first search to post-journey — identifying friction points and opportunities across the full passenger experience.'},
+      {num:'02', title:'Mobile & Desktop Design', desc:'Designed responsive travel interfaces: trip search with real-time results, seat selection, ticket management, and disruption notification flows.'},
+      {num:'03', title:'Accessibility & Scale', desc:'Applied accessibility standards across all designs to serve SNCF\'s broad passenger base — from digital natives to occasional travellers unfamiliar with digital tools.'},
+    ],
+    outcome:'Intuitive mobility product design delivered at national scale — simplified travel flows across mobile and desktop for millions of SNCF passengers.',
+    outcomeStat:null, url:null,
+  },
+  {
+    id:'galian', num:'16', group:'enterprise', logo:'../images/galian.png',
+    company:'GALIAN', tagline:'Insurance SaaS Platform',
+    role:'Product Designer',
+    year:'2018 – 2021', duration:'3 years', team:'Product, Dev & Legal teams',
+    platforms:['Desktop'], tag:'Insurance · SaaS', accent:'#0891b2',
+    desc:'Product design for GALIAN insurance SaaS platform — digitising professional liability insurance flows for regulated sectors.',
+    challenge:'Transforming complex insurance and legal processes into clear, intuitive digital experiences — in a highly regulated industry with strict compliance requirements.',
+    goals:'Design a professional insurance platform that makes policy management, claims, and compliance straightforward for professionals and their advisors.',
+    solution:'Collaborated with GALIAN product and legal teams to design the platform architecture and key flows — from onboarding and policy subscription to claims management.',
+    steps:[
+      {num:'01', title:'Process Mapping & IA', desc:'Mapped complex insurance processes — subscription, endorsement, claims, renewal — and restructured them into clear, linear user flows that reduce cognitive load.'},
+      {num:'02', title:'Platform Design', desc:'Designed the full SaaS platform: onboarding flow, policy dashboard, document management, claims submission, and advisor portal — desktop-first, compliance-aware.'},
+      {num:'03', title:'Regulatory UX', desc:'Worked with legal teams to embed compliance requirements into the UX — disclosure flows, mandatory fields, and regulatory checkpoints — without making the product feel bureaucratic.'},
+    ],
+    outcome:'Professional insurance SaaS platform designed from ground up — clear digital flows for policy management, claims, and compliance over 3 years of collaboration.',
+    outcomeStat:null, url:null,
+  },
+];
+
+const EXP_LIST = [
+  {num:'01', company:'UpViral', logo:'../images/upviral.png', role:'Product Manager / Designer', type:'SaaS · Remote', year:'2024 – 2025'},
+  {num:'02', company:'Shiseido Group', logo:'../images/shisideo.png', role:'Senior Product Designer', type:'Beauty · Paris', year:'2024'},
+  {num:'03', company:'Société Générale', logo:'../images/societegenerale.png', role:'Senior Product Designer', type:'Finance · Paris', year:'2023 – 2024'},
+  {num:'04', company:'EdenRed', logo:'../images/edenred.png', role:'Senior Product Designer', type:'Benefits · Remote', year:'2023 – 2024'},
+  {num:'05', company:'LVMH Group', logo:'../images/lvmh.png', role:'UX Designer', type:'Luxury · Paris', year:'2021 – 2022'},
+  {num:'06', company:'BMW Group', logo:'../images/bmw.png', role:'UI Designer', type:'Auto · Remote', year:'2020 – 2021'},
+  {num:'07', company:'Renault Group', logo:'../images/renault.png', role:'Product Designer', type:'Auto · Paris', year:'2019 – 2020'},
+  {num:'08', company:'Casino Group', logo:'../images/casino.png', role:'UX / UI Designer', type:'Retail · Paris', year:'2020 – 2021'},
+  {num:'09', company:'GALIAN', logo:'../images/galian.png', role:'Product Designer', type:'Insurance SaaS · Paris', year:'2018 – 2021'},
+  {num:'10', company:'SNCF Group', logo:'../images/sncf.png', role:'Product Designer', type:'Mobility · Paris', year:'2017 – 2019'},
+  {num:'11', company:'Marcel / Publicis', logo:null, role:'UX Designer', type:'Agency · Paris', year:'2015 – 2017'},
+  {num:'12', company:'France Télévisions', logo:null, role:'Web Graphic Designer', type:'Media · Paris', year:'2013'},
+];
+
+/* ═══════════════════════════════════════════
+   CUSTOM CURSOR
+═══════════════════════════════════════════ */
+const dot  = document.getElementById('cursor-dot');
+const ring = document.getElementById('cursor-ring');
+let mouseX = 0, mouseY = 0, ringX = 0, ringY = 0;
+
+document.addEventListener('mousemove', e => {
+  mouseX = e.clientX; mouseY = e.clientY;
+  dot.style.left = mouseX + 'px';
+  dot.style.top  = mouseY + 'px';
+  const hero = document.getElementById('hero');
+  const inHero = hero && e.clientY < hero.getBoundingClientRect().bottom;
+  document.body.classList.toggle('cursor-white', inHero);
+});
+
+function animRing() {
+  ringX += (mouseX - ringX) * .14;
+  ringY += (mouseY - ringY) * .14;
+  ring.style.left = ringX + 'px';
+  ring.style.top  = ringY + 'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+
+document.addEventListener('mouseover', e => {
+  const t = e.target.closest('a, button, [onclick], .nav-link, .proj-list-item, .btn-cta, .btn-back');
+  document.body.classList.toggle('cursor-link', !!t && t.matches('a, .btn-cta, .btn-back'));
+  document.body.classList.toggle('cursor-hover', !!t);
+});
+
+/* ═══════════════════════════════════════════
+   FLOATING PREVIEW
+═══════════════════════════════════════════ */
+const preview     = document.getElementById('proj-preview');
+const previewInner = document.getElementById('proj-preview-inner');
+const previewTag  = document.getElementById('preview-tag');
+const previewName = document.getElementById('preview-name');
+let previewX = 0, previewY = 0, pvX = 0, pvY = 0;
+let previewVisible = false;
+
+document.addEventListener('mousemove', e => {
+  previewX = e.clientX + 32;
+  previewY = e.clientY - 110;
+});
+
+function animPreview() {
+  pvX += (previewX - pvX) * .1;
+  pvY += (previewY - pvY) * .1;
+  if (previewVisible) {
+    preview.style.left = pvX + 'px';
+    preview.style.top  = pvY + 'px';
+  }
+  requestAnimationFrame(animPreview);
+}
+animPreview();
+
+const previewImg = document.getElementById('proj-preview-img');
+
+function showPreview(p) {
+  if (p.cover) {
+    previewImg.src = p.cover;
+    previewImg.style.display = 'block';
+    previewInner.style.background = '#111';
+  } else {
+    previewImg.src = '';
+    previewImg.style.display = 'none';
+    previewInner.style.background = `linear-gradient(135deg, ${p.accent}22 0%, ${p.accent}55 100%), #111`;
+  }
+  previewTag.textContent = p.tag;
+  previewTag.style.color = p.cover ? 'rgba(255,255,255,.7)' : p.accent;
+  previewName.textContent = p.company;
+  preview.classList.add('visible');
+  previewVisible = true;
+}
+function hidePreview() {
+  preview.classList.remove('visible');
+  previewVisible = false;
+}
+
+/* ═══════════════════════════════════════════
+   ROUTER
+═══════════════════════════════════════════ */
+function goHome() {
+  document.getElementById('view-home').classList.remove('hidden');
+  document.getElementById('view-project').classList.add('hidden');
+  document.getElementById('nav-links').style.display = '';
+  window.scrollTo(0, 0);
+  document.title = 'Hugo Vermot — Product Designer & AI Builder';
+  if (history.pushState) history.pushState(null, '', '#');
+}
+
+function openProject(id) {
+  const p = PROJECTS.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('view-home').classList.add('hidden');
+  document.getElementById('nav-links').style.display = 'none';
+  document.getElementById('proj-page-content').innerHTML = renderProject(p);
+  document.getElementById('view-project').classList.remove('hidden');
+  window.scrollTo(0, 0);
+  document.title = `${p.company} — Hugo Vermot`;
+  if (history.pushState) history.pushState(null, '', `#project/${id}`);
+  hidePreview();
+}
+
+function scrollToSection(anchor) {
+  const el = document.querySelector(anchor);
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ═══════════════════════════════════════════
+   RENDER PROJECT DETAIL
+═══════════════════════════════════════════ */
+function renderProject(p) {
+  const allIds = PROJECTS.map(x => x.id);
+  const idx = allIds.indexOf(p.id);
+  const prev = idx > 0 ? PROJECTS[idx - 1] : null;
+  const next = idx < allIds.length - 1 ? PROJECTS[idx + 1] : null;
+
+  const stepsHTML = p.steps.map(s => `
+    <div class="proj-step">
+      <div class="proj-step-line"></div>
+      <div class="proj-step-num">${s.num}</div>
+      <div class="proj-step-title">${s.title}</div>
+      <div class="proj-step-desc">${s.desc}</div>
+    </div>`).join('');
+
+  const outcomeHTML = p.outcomeStat
+    ? `<div class="proj-outcome-stat">${p.outcomeStat}</div>
+       <div><div class="proj-outcome-label">Key outcome</div><div class="proj-outcome-text"><strong>${p.outcome}</strong></div></div>`
+    : `<div style="grid-column:1/-1"><div class="proj-outcome-label">Key outcome</div><div class="proj-outcome-text"><strong>${p.outcome}</strong></div></div>`;
+
+  const urlBtn = p.url
+    ? `<a class="proj-url-btn" href="${p.url}" target="_blank">Visit website ↗</a>`
+    : '';
+
+  const prevBtn = prev
+    ? `<div class="proj-nav-btn" onclick="openProject('${prev.id}')">
+         <div class="proj-nav-arr">←</div>
+         <div><div class="proj-nav-dir">Previous</div><div class="proj-nav-co">${prev.company}</div></div>
+       </div>`
+    : `<div></div>`;
+
+  const nextBtn = next
+    ? `<div class="proj-nav-btn next" onclick="openProject('${next.id}')">
+         <div><div class="proj-nav-dir">Next</div><div class="proj-nav-co">${next.company}</div></div>
+         <div class="proj-nav-arr">→</div>
+       </div>`
+    : `<div></div>`;
+
+  const platformStr = p.platforms.join(', ');
+
+  return `
+  <div style="--proj-accent:${p.accent}">
+    <div class="proj-hero${p.cover ? ' has-cover' : ''}" style="--proj-accent:${p.accent}${p.cover ? `;background-image:url(${p.cover})` : ''}">
+      ${p.cover ? `<div class="proj-hero-cover-overlay"></div>` : ''}
+      <div class="proj-hero-accent-bar"></div>
+      <div class="proj-hero-glow"></div>
+      <div class="proj-hero-content">
+        <div class="proj-breadcrumb">
+          <span class="proj-breadcrumb-link" onclick="goHome()">Portfolio</span>
+          <span class="proj-bc-sep">/</span>
+          <span>${p.company}</span>
+        </div>
+        <div class="proj-hero-tag">${p.tag} · ${p.year}</div>
+        <div class="proj-hero-name">${p.company}</div>
+        <div class="proj-hero-tagline">${p.tagline}</div>
+        <div class="proj-hero-desc">${p.desc}</div>
+        <div class="proj-meta-row">
+          <div class="proj-meta-item"><div class="proj-meta-key">Role</div><div class="proj-meta-val">${p.role}</div></div>
+          <div class="proj-meta-item"><div class="proj-meta-key">Duration</div><div class="proj-meta-val">${p.duration}</div></div>
+          <div class="proj-meta-item"><div class="proj-meta-key">Team</div><div class="proj-meta-val">${p.team}</div></div>
+          <div class="proj-meta-item"><div class="proj-meta-key">Platform</div><div class="proj-meta-val">${platformStr}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="proj-body">
+      <div class="proj-challenge-block">
+        <div class="proj-block-label">Challenge</div>
+        <div class="proj-challenge-text">${p.challenge}</div>
+      </div>
+
+      <div class="proj-2col">
+        <div>
+          <div class="proj-col-label">Specific goals</div>
+          <div class="proj-col-text">${p.goals}</div>
+        </div>
+        <div>
+          <div class="proj-col-label">My solution</div>
+          <div class="proj-col-text">${p.solution}</div>
+        </div>
+      </div>
+
+      <div class="proj-process">
+        <div class="proj-block-label">Process</div>
+        <div class="proj-process-title">How I approached it</div>
+        <div class="proj-steps">${stepsHTML}</div>
+      </div>
+
+      <div class="proj-outcome">
+        ${outcomeHTML}
+      </div>
+
+      ${urlBtn}
+      <div style="height:64px"></div>
+    </div>
+
+    <div class="proj-nav-bar">
+      ${prevBtn}
+      <div class="proj-nav-all" onclick="goHome()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12h12M2 8h12M2 4h12"/></svg>
+        All work
+      </div>
+      ${nextBtn}
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════
+   RENDER HOME
+═══════════════════════════════════════════ */
+function renderProjList() {
+  const el = document.getElementById('proj-list-el');
+  el.innerHTML = PROJECTS.map(p => `
+    <div class="proj-list-item"
+      onclick="openProject('${p.id}')"
+      onmouseenter="showPreview(PROJECTS.find(x=>x.id==='${p.id}'))"
+      onmouseleave="hidePreview()">
+      <div class="proj-list-num">${p.num}</div>
+      ${p.logo ? `<img class="proj-list-logo" src="${p.logo}" alt="${p.company}">` : `<div class="proj-list-logo-placeholder"></div>`}
+      <div class="proj-list-name-wrap">
+        <span class="proj-list-name">${p.company}</span>
+        ${p.badges ? `<div class="proj-list-badges">${p.badges.map((b,i) => `<span class="proj-list-badge ${i===0?'badge-solo':'badge-vibe'}">${b}</span>`).join('')}</div>` : ''}
+      </div>
+      <div class="proj-list-year">${p.year}<span class="proj-list-arrow">→</span></div>
+    </div>`).join('');
+}
+
+function renderClientsTable() {
+  const el = document.getElementById('clients-tbody');
+  el.innerHTML = EXP_LIST.map(e => `
+    <tr>
+      <td class="ct-num">${e.num}</td>
+      <td class="ct-logo">${e.logo ? `<img src="${e.logo}" alt="${e.company}">` : `<div class="ct-logo-placeholder"></div>`}</td>
+      <td class="ct-co">${e.company}</td>
+      <td class="ct-role">${e.role}</td>
+      <td class="ct-type">${e.type}</td>
+      <td class="ct-year">${e.year}</td>
+    </tr>`).join('');
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+renderProjList();
+renderClientsTable();
+
+(function() {
+  const hash = window.location.hash;
+  if (hash.startsWith('#project/')) {
+    const id = hash.replace('#project/', '');
+    if (PROJECTS.find(p => p.id === id)) openProject(id);
+  }
+})();
+
+window.addEventListener('popstate', function() {
+  const hash = window.location.hash;
+  if (!hash || hash === '#') goHome();
+  else if (hash.startsWith('#project/')) {
+    const id = hash.replace('#project/', '');
+    openProject(id);
+  }
+});
+
+// Slow down hero background video
+const heroVideo = document.querySelector('.hero-video');
+if (heroVideo) {
+  heroVideo.addEventListener('play', () => {});
+}
+
+// Skill bars — animate on scroll into view
+const skillsSection = document.getElementById('skills-section');
+if (skillsSection) {
+  const obs = new IntersectionObserver(([e]) => {
+    if (e.isIntersecting) { skillsSection.classList.add('visible'); obs.disconnect(); }
+  }, { threshold: 0.3 });
+  obs.observe(skillsSection);
+}
+
+/* ═══════════════════════════════════════════
+   I18N — LANGUAGE SWITCHER
+═══════════════════════════════════════════ */
+const TRANSLATIONS = {
+  en: {
+    nav_work: 'Work',
+    nav_about: 'About',
+    nav_clients: 'Clients',
+    nav_contact: 'Contact',
+    nav_cta: 'Contact by email',
+    hero_headline: 'When<br><em>Design</em><br>Meets<br><em>Agentic AI.</em>',
+    hero_desc: '12+ years across LVMH, Renault, Société Générale and 6 solo AI products. I work at the intersection of product design, agentic AI, and growth systems.',
+    stat_years: 'Years in design',
+    stat_seed: 'Projects done',
+    stat_cursor: 'Cursor usage — 10.5B tokens',
+    res_saas: 'SaaS efficiency',
+    res_loyalty: 'Loyalty enrollment Q1',
+    res_invest: 'Investment activity',
+    res_dev: 'Dev time via design system',
+    work_label: 'Selected work',
+    work_count: '16 projects',
+    ait_eyebrow: '2-Year AI Engineering Transformation',
+    ait_headline: 'From Designer<br>to <em>Full-Stack</em><br>AI Builder.',
+    ait_desc: 'Since 2024, rebuilt from the ground up as an engineer. No bootcamp. No shortcuts. Daily building across backend, frontend, databases, cloud infrastructure, and generative AI pipelines — while shipping real products used by real users.',
+    ait_products_label: '5 products built solo — from zero — all functional',
+    about_headline: 'A designer who<br><em>builds</em> and<br>ships AI.',
+    about_p1: 'French AI product builder and <strong>senior product designer</strong> with 12+ years of experience across UX, product strategy, design systems, and applied AI. UX designer since 2015, with a path spanning France Televisions, Marcel/Publicis, 9 years freelance, agency founding, and solo AI SaaS execution.',
+    about_p2: 'I work at the intersection of <strong>Product Design, Agentic AI</strong>, generative multi-modal pipelines, and growth systems. Since 2024, I build AI products end-to-end: architecture, UX, prompt systems, orchestration, scoring logic, creative intelligence, automation, and shipping.',
+    about_p3: 'My design approach is systems-first: information architecture, visual hierarchy, complete flows with <strong>error states, edge cases, and empty states</strong>. Used to defending UX choices in front of CPOs, developers, and regulated business contexts such as MIF2.',
+    cursor_agents: 'Agents run',
+    cursor_tokens: 'Tokens used',
+    cursor_streak: 'Streak',
+    cursor_active: 'Active daily',
+    clients_label: 'Track record',
+    clients_count: '12 companies',
+    contact_headline: 'Let\'s build<br><em>something</em><br>together.',
+    footer_copy: '© 2025 Hugo Vermot',
+  },
+  fr: {
+    nav_work: 'Projets',
+    nav_about: 'À propos',
+    nav_clients: 'Clients',
+    nav_contact: 'Contact',
+    nav_cta: 'Me contacter par email',
+    hero_headline: 'Quand le<br><em>Design</em><br>rencontre<br><em>l\'IA Agentique.</em>',
+    hero_desc: '12+ ans chez LVMH, Renault, Société Générale et 6 produits IA en solo. Je travaille à l\'intersection du design produit, de l\'IA agentique et des systèmes de croissance.',
+    stat_years: 'Ans de design',
+    stat_seed: 'Projets réalisés',
+    stat_cursor: 'Cursor — top 3% mondial',
+    res_saas: 'Efficacité SaaS',
+    res_loyalty: 'Fidélisation Q1',
+    res_invest: 'Activité investissement',
+    res_dev: 'Temps dev via design system',
+    work_label: 'Projets sélectionnés',
+    work_count: '16 projets',
+    ait_eyebrow: 'Transformation IA sur 2 ans',
+    ait_headline: 'Du Design au<br><em>Full-Stack</em><br>AI Builder.',
+    ait_desc: 'Depuis 2024, reconstruit de zéro en tant qu\'ingénieur. Sans bootcamp. Sans raccourcis. Construction quotidienne en backend, frontend, bases de données, infrastructure cloud et pipelines IA génératifs — tout en livrant de vrais produits à de vrais utilisateurs.',
+    ait_products_label: '5 produits construits en solo — de zéro — tous fonctionnels',
+    about_headline: 'Un designer qui<br><em>construit</em> et<br>livre de l\'IA.',
+    about_p1: 'Créateur de produits IA et <strong>senior product designer</strong> avec 12+ ans d\'expérience en UX, stratégie produit, design systems et IA appliquée. Designer UX depuis 2015, avec un parcours incluant France Télévisions, Marcel/Publicis, 9 ans en freelance, fondation d\'agence et exécution SaaS IA en solo.',
+    about_p2: 'Je travaille à l\'intersection du <strong>Design Produit et de l\'IA Agentique</strong>, des pipelines génératifs multi-modaux et des systèmes de croissance. Depuis 2024, je construis des produits IA de bout en bout : architecture, UX, systèmes de prompts, orchestration, logique de scoring, intelligence créative et livraison.',
+    about_p3: 'Mon approche design est systems-first : architecture de l\'information, hiérarchie visuelle, flows complets avec <strong>états d\'erreur, cas limites et états vides</strong>. Habitué à défendre les choix UX face aux CPOs, développeurs et contextes métiers réglementés comme MIF2.',
+    cursor_agents: 'Agents lancés',
+    cursor_tokens: 'Tokens utilisés',
+    cursor_streak: 'Série active',
+    cursor_active: 'Actif quotidiennement',
+    clients_label: 'Références',
+    clients_count: '12 entreprises',
+    contact_headline: 'Construisons<br><em>quelque chose</em><br>ensemble.',
+    footer_copy: '© 2025 Hugo Vermot',
+  }
+};
+
+let currentLang = 'en';
+
+function setLang(lang) {
+  currentLang = lang;
+  const t = TRANSLATIONS[lang];
+
+  // Update all text elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+
+  // Update HTML elements (with inner tags)
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if (t[key] !== undefined) el.innerHTML = t[key];
+  });
+
+  // Toggle active flag button
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('btn-fr').classList.toggle('active', lang === 'fr');
+}
+</script>
+
+<!-- ── HRHV CHATBOT ─────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<style>
+  /* ── Markdown inside assistant bubbles ── */
+  .hrhv-bubble.assistant p { margin: 0 0 8px; }
+  .hrhv-bubble.assistant p:last-child { margin-bottom: 0; }
+  .hrhv-bubble.assistant h2, .hrhv-bubble.assistant h3, .hrhv-bubble.assistant h4 {
+    font-family: 'Syne', sans-serif; font-weight: 700; margin: 12px 0 4px;
+    font-size: 13px; line-height: 1.3; color: #0c0b09;
+  }
+  .hrhv-bubble.assistant h2:first-child,
+  .hrhv-bubble.assistant h3:first-child,
+  .hrhv-bubble.assistant h4:first-child { margin-top: 0; }
+  .hrhv-bubble.assistant ul, .hrhv-bubble.assistant ol { padding-left: 16px; margin: 6px 0; }
+  .hrhv-bubble.assistant li { margin-bottom: 3px; }
+  .hrhv-bubble.assistant strong { font-weight: 600; color: #0c0b09; }
+  .hrhv-bubble.assistant em { font-style: italic; }
+  .hrhv-bubble.assistant hr { border: none; border-top: 1px solid rgba(12,11,9,.12); margin: 10px 0; }
+  .hrhv-bubble.assistant code {
+    font-family: monospace; font-size: 12px;
+    background: rgba(12,11,9,.07); padding: 1px 5px; border-radius: 3px;
+  }
+  .hrhv-bubble.assistant a { color: #28af9d; text-decoration: none; }
+  .hrhv-bubble.assistant a:hover { text-decoration: underline; }
+
+  #hrhv-toggle {
+    position: fixed; bottom: 28px; right: 28px; z-index: 10000;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: #28af9d; color: #fff;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(40,175,157,.4);
+    transition: transform 200ms ease, box-shadow 200ms ease, background 200ms;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 700;
+  }
+  #hrhv-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(40,175,157,.55); }
+  #hrhv-toggle.open { background: #0c0b09; box-shadow: 0 4px 20px rgba(12,11,9,.25); }
+  #hrhv-toggle svg { pointer-events: none; }
+  #hrhv-toggle .icon-close { display: none; }
+  #hrhv-toggle.open .icon-chat { display: none; }
+  #hrhv-toggle.open .icon-close { display: block; }
+
+  #hrhv-panel {
+    position: fixed; bottom: 96px; right: 28px; z-index: 9999;
+    width: 380px; max-width: calc(100vw - 40px);
+    height: 520px; max-height: calc(100vh - 120px);
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 8px 48px rgba(12,11,9,.16), 0 1px 3px rgba(12,11,9,.06);
+    display: flex; flex-direction: column; overflow: hidden;
+    transform: translateY(16px) scale(.97); opacity: 0; pointer-events: none;
+    transition: transform 240ms cubic-bezier(.32,1,.32,1), opacity 200ms ease;
+  }
+  #hrhv-panel.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
+
+  .hrhv-header {
+    background: #0c0b09; color: #fff;
+    padding: 16px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  }
+  .hrhv-avatar {
+    width: 36px; height: 36px; border-radius: 50%; background: #28af9d;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+    color: #fff; letter-spacing: .03em; flex-shrink: 0;
+  }
+  .hrhv-header-info { flex: 1; }
+  .hrhv-name { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; line-height: 1.2; }
+  .hrhv-subtitle { font-family: 'Inter', sans-serif; font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; }
+  .hrhv-dot { width: 7px; height: 7px; border-radius: 50%; background: #28af9d; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(40,175,157,.25); }
+
+  .hrhv-messages {
+    flex: 1; overflow-y: auto; padding: 20px 16px;
+    display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth;
+  }
+  .hrhv-messages::-webkit-scrollbar { width: 4px; }
+  .hrhv-messages::-webkit-scrollbar-thumb { background: rgba(12,11,9,.12); border-radius: 2px; }
+
+  .hrhv-bubble {
+    max-width: 88%; padding: 10px 14px; border-radius: 12px;
+    font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.55;
+    word-break: break-word;
+  }
+  .hrhv-bubble.assistant { background: #f0efec; color: #0c0b09; border-bottom-left-radius: 4px; align-self: flex-start; }
+  /* user messages are plain text — preserve newlines */
+  .hrhv-bubble.user { background: #28af9d; color: #fff; border-bottom-right-radius: 4px; align-self: flex-end; white-space: pre-wrap; }
+  .hrhv-bubble.typing { background: #f0efec; align-self: flex-start; padding: 12px 16px; }
+  .hrhv-typing-dots { display: flex; gap: 5px; align-items: center; }
+  .hrhv-typing-dots span {
+    width: 6px; height: 6px; border-radius: 50%; background: rgba(12,11,9,.3);
+    animation: hrhv-bounce 1.2s infinite ease-in-out;
+  }
+  .hrhv-typing-dots span:nth-child(2) { animation-delay: .15s; }
+  .hrhv-typing-dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes hrhv-bounce {
+    0%, 80%, 100% { transform: scale(.75); opacity: .5; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  .hrhv-suggestions { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 16px 12px; flex-shrink: 0; }
+  .hrhv-suggestion {
+    font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 500;
+    color: #28af9d; background: rgba(40,175,157,.08); border: 1px solid rgba(40,175,157,.2);
+    border-radius: 100px; padding: 5px 12px; cursor: pointer;
+    transition: background 150ms, border-color 150ms; white-space: nowrap;
+  }
+  .hrhv-suggestion:hover { background: rgba(40,175,157,.16); border-color: rgba(40,175,157,.4); }
+
+  .hrhv-input-row {
+    padding: 12px 16px; border-top: 1px solid rgba(12,11,9,.08);
+    display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0;
+  }
+  #hrhv-input {
+    flex: 1; resize: none; border: 1px solid rgba(12,11,9,.15);
+    border-radius: 10px; padding: 9px 12px;
+    font-family: 'Inter', sans-serif; font-size: 13.5px; color: #0c0b09;
+    background: #f8f7f4; outline: none; transition: border-color 150ms;
+    max-height: 100px; line-height: 1.45;
+  }
+  #hrhv-input::placeholder { color: rgba(12,11,9,.35); }
+  #hrhv-input:focus { border-color: #28af9d; }
+  #hrhv-send {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: #28af9d; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 150ms, transform 150ms;
+  }
+  #hrhv-send:hover { opacity: .85; transform: scale(1.06); }
+  #hrhv-send:disabled { opacity: .35; cursor: default; transform: none; }
+</style>
+
+<button id="hrhv-toggle" aria-label="Parler à HRHV">
+  <svg class="icon-chat" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+  <svg class="icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+</button>
+
+<div id="hrhv-panel" role="dialog" aria-label="HRHV — Agent RH de Hugo Vermot">
+  <div class="hrhv-header">
+    <div class="hrhv-avatar">HV</div>
+    <div class="hrhv-header-info">
+      <div class="hrhv-name">HRHV · Hugo's HR Agent</div>
+      <div class="hrhv-subtitle">Ask me anything about Hugo Vermot</div>
+    </div>
+    <div class="hrhv-dot"></div>
+  </div>
+  <div class="hrhv-messages" id="hrhv-messages"></div>
+  <div class="hrhv-suggestions" id="hrhv-suggestions">
+    <button class="hrhv-suggestion">Who is Hugo?</button>
+    <button class="hrhv-suggestion">His AI projects</button>
+    <button class="hrhv-suggestion">Availability & rates</button>
+    <button class="hrhv-suggestion">Tech stack</button>
+  </div>
+  <div class="hrhv-input-row">
+    <textarea id="hrhv-input" rows="1" placeholder="Ask anything about Hugo…" autocomplete="off"></textarea>
+    <button id="hrhv-send" aria-label="Send" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const MAX_QUESTIONS = 10;
+  const MAX_INPUT_CHARS = 400;
+
+  const toggle   = document.getElementById('hrhv-toggle');
+  const panel    = document.getElementById('hrhv-panel');
+  const msgs     = document.getElementById('hrhv-messages');
+  const input    = document.getElementById('hrhv-input');
+  const sendBtn  = document.getElementById('hrhv-send');
+  const suggsEl  = document.getElementById('hrhv-suggestions');
+
+  let history = [];
+  let questionCount = 0;
+  let isStreaming = false;
+
+  input.setAttribute('maxlength', MAX_INPUT_CHARS);
+
+  function updateSendState() {
+    const limited = questionCount >= MAX_QUESTIONS;
+    sendBtn.disabled = limited || !input.value.trim() || isStreaming;
+    if (limited) {
+      input.disabled = true;
+      input.placeholder = 'Question limit reached.';
+    }
+  }
+
+  const md = (typeof marked !== 'undefined') ? (t) => marked.parse(t, { breaks: true }) : (t) => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+
+  function appendBubble(role, text) {
+    const div = document.createElement('div');
+    div.className = 'hrhv-bubble ' + role;
+    if (role === 'assistant') div.innerHTML = md(text);
+    else div.textContent = text;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const div = document.createElement('div');
+    div.className = 'hrhv-bubble typing';
+    div.id = 'hrhv-typing';
+    div.innerHTML = '<div class="hrhv-typing-dots"><span></span><span></span><span></span></div>';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('hrhv-typing');
+    if (t) t.remove();
+  }
+
+  function showGreeting() {
+    if (msgs.children.length > 0) return;
+    appendBubble('assistant', 'Hi! I\'m HRHV, Hugo Vermot\'s personal HR agent.\n\nAsk me anything about his background, projects, skills, or availability — I\'m here to help.');
+  }
+
+  toggle.addEventListener('click', () => {
+    const open = panel.classList.toggle('open');
+    toggle.classList.toggle('open', open);
+    if (open) { showGreeting(); setTimeout(() => input.focus(), 240); }
+  });
+
+  suggsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.hrhv-suggestion');
+    if (!btn || isStreaming || questionCount >= MAX_QUESTIONS) return;
+    input.value = btn.textContent;
+    input.dispatchEvent(new Event('input'));
+    sendMessage();
+  });
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+    updateSendState();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!sendBtn.disabled) sendMessage(); }
+  });
+
+  sendBtn.addEventListener('click', sendMessage);
+
+  async function sendMessage() {
+    const text = input.value.trim().slice(0, MAX_INPUT_CHARS);
+    if (!text || isStreaming || questionCount >= MAX_QUESTIONS) return;
+
+    suggsEl.style.display = 'none';
+    questionCount++;
+    appendBubble('user', text);
+    history.push({ role: 'user', content: text });
+
+    input.value = '';
+    input.style.height = 'auto';
+    isStreaming = true;
+    updateSendState();
+
+    showTyping();
+
+    let bubble = null;
+    let fullText = '';
+
+    try {
+      const res = await fetch('/api/hrhv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history }),
+      });
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      removeTyping();
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.text) {
+              fullText += data.text;
+              // Create the bubble on first chunk, update on subsequent ones
+              if (!bubble) bubble = appendBubble('assistant', '');
+              bubble.innerHTML = md(fullText);
+              msgs.scrollTop = msgs.scrollHeight;
+            }
+          } catch {}
+        }
+      }
+
+      if (!fullText) appendBubble('assistant', 'No response. Please try again.');
+      if (fullText) history.push({ role: 'assistant', content: fullText });
+
+      if (questionCount >= MAX_QUESTIONS) {
+        appendBubble('assistant', 'You\'ve reached the session limit (10 questions). To continue, contact Hugo directly: chilka.v@gmail.com');
+      }
+
+    } catch {
+      removeTyping();
+      appendBubble('assistant', 'Server unreachable. You can contact Hugo directly: chilka.v@gmail.com');
+    } finally {
+      isStreaming = false;
+      updateSendState();
+    }
+  }
+})();
+</script>
+</body>
+</html>

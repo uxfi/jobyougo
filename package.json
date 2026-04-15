@@ -1,0 +1,38 @@
+{
+  "name": "jobyougo",
+  "version": "1.0.0",
+  "description": "AI-powered job search pipeline built on Claude Code",
+  "scripts": {
+    "dev": "lsof -ti:3210 | xargs kill -9 2>/dev/null; node --watch ui/server.mjs",
+    "verify": "node verify-pipeline.mjs",
+    "normalize": "node normalize-statuses.mjs",
+    "dedup": "node dedup-tracker.mjs",
+    "merge": "node merge-tracker.mjs",
+    "pdf": "node generate-pdf.mjs",
+    "sync-check": "node cv-sync-check.mjs",
+    "update:check": "node update-system.mjs check",
+    "update": "node update-system.mjs apply",
+    "rollback": "node update-system.mjs rollback"
+  },
+  "keywords": [
+    "ai",
+    "job-search",
+    "claude-code",
+    "career",
+    "automation"
+  ],
+  "author": "Santiago Fernández de Valderrama <hi@santifer.io> (https://santifer.io)",
+  "homepage": "https://santifer.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uxfi/jobyougo"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
+    "dotenv": "^17.4.1",
+    "js-yaml": "^4.1.1",
+    "playwright": "^1.58.1",
+    "sharp": "^0.34.5"
+  }
+}

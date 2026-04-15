@@ -1,0 +1,69 @@
+# ── Personal data (user fills these) ──
+data/applications.md
+data/pipeline.md
+data/scan-history.tsv
+data/scan-selection.json
+data/scan-state.json
+data/cv-profiles.yml
+data/deleted-applications.tsv
+data/*.tsv
+data/*.json
+!data/.gitkeep
+
+# Personal CV & interview prep
+cv.md
+interview-prep/
+
+# Reports (generated per-application)
+reports/*.md
+!reports/.gitkeep
+
+# Output (generated PDFs, HTML, CVs)
+output/*
+!output/.gitkeep
+
+# Batch temp & state
+batch/temp/*
+batch/logs/*
+!batch/logs/.gitkeep
+batch/batch-state.tsv
+batch/batch-input.tsv
+batch/tracker-additions/*.tsv
+batch/tracker-additions/merged/
+!batch/tracker-additions/.gitkeep
+
+# Job descriptions (scraped)
+jds/*
+!jds/.gitkeep
+
+# ── User config (never auto-updated) ──
+config/profile.yml
+portals.yml
+modes/_profile.md
+.update-dismissed
+.update-lock
+
+# ── Personal assets ──
+images/
+ui/covers/
+ui/*.pdf
+fonts/
+
+# ── Generated ──
+.resolved-prompt-*
+node_modules/
+
+# ── OS ──
+.DS_Store
+*.mov
+*.mp4
+
+# ── IDE / Claude Code ──
+.claude/settings.local.json
+.claude/memory/
+career-dashboard
+.vscode/
+
+# ── Environment / secrets ──
+.env
+.env.local

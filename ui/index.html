@@ -1,0 +1,3732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Career Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+<style>
+  /* ─── Reset & Base ─────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:          #08090a;
+    --panel:       #0f1011;
+    --surface:     #191a1b;
+    --surface-2:   #28282c;
+    --text-1:      #f7f8f8;
+    --text-2:      #d0d6e0;
+    --text-3:      #8a8f98;
+    --text-4:      #62666d;
+    --brand:       #5e6ad2;
+    --accent:      #7170ff;
+    --accent-h:    #828fff;
+    --border:      rgba(255,255,255,0.08);
+    --border-s:    rgba(255,255,255,0.05);
+    --green:       #27a644;
+    --emerald:     #10b981;
+    --amber:       #f59e0b;
+    --red:         #ef4444;
+    --violet:      #8b5cf6;
+    --blue:        #3b82f6;
+    --sidebar-w:   220px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-feature-settings: "cv01","ss03";
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Layout ───────────────────────────────────────────────────── */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--panel);
+    border-right: 1px solid var(--border-s);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 0;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 16px 20px;
+    font-size: 14px;
+    font-weight: 590;
+    color: var(--text-1);
+    letter-spacing: -0.182px;
+  }
+  .sidebar-logo .logo-icon {
+    width: 24px; height: 24px;
+    background: var(--brand);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+
+  .sidebar-section {
+    padding: 0 8px;
+    margin-bottom: 4px;
+  }
+  .sidebar-label {
+    font-size: 11px;
+    font-weight: 510;
+    color: var(--text-4);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 8px 8px 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    color: var(--text-3);
+    font-size: 14px;
+    font-weight: 510;
+    cursor: pointer;
+    transition: background 120ms, color 120ms;
+    user-select: none;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text-2); }
+  .nav-item.active { background: rgba(255,255,255,0.06); color: var(--text-1); }
+  .nav-item svg { flex-shrink: 0; opacity: 0.7; }
+  .nav-item.active svg { opacity: 1; }
+  .nav-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.08);
+    color: var(--text-3);
+    font-size: 11px;
+    font-weight: 510;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── Topbar ───────────────────────────────────────────────────── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 52px;
+    border-bottom: 1px solid var(--border-s);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 10;
+    flex-shrink: 0;
+  }
+  .topbar-title {
+    font-size: 14px;
+    font-weight: 590;
+    color: var(--text-1);
+    letter-spacing: -0.182px;
+  }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  .btn-portfolio-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 590;
+    letter-spacing: -0.1px;
+    color: #fff;
+    background: linear-gradient(90deg, #7c3aed, #a855f7, #ec4899, #f97316);
+    border-radius: 100px;
+    padding: 5px 13px;
+    text-decoration: none;
+    transition: opacity 120ms, transform 120ms;
+    cursor: pointer;
+    border: none;
+    flex-shrink: 0;
+  }
+  .btn-portfolio-switch:hover { opacity: 0.85; transform: translateY(-1px); }
+
+  /* ─── Content ──────────────────────────────────────────────────── */
+  .content { padding: 24px 28px; flex: 1; }
+
+  /* ─── Stat Cards ───────────────────────────────────────────────── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: background 120ms;
+  }
+  .stat-card:hover { background: rgba(255,255,255,0.04); }
+  .stat-label {
+    font-size: 12px;
+    font-weight: 510;
+    color: var(--text-4);
+    letter-spacing: -0.13px;
+  }
+  .stat-value {
+    font-size: 28px;
+    font-weight: 510;
+    color: var(--text-1);
+    letter-spacing: -0.704px;
+    line-height: 1;
+  }
+  .stat-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 2px;
+  }
+
+  /* ─── Section Header ───────────────────────────────────────────── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 590;
+    color: var(--text-2);
+    letter-spacing: -0.13px;
+  }
+
+  /* ─── Filters ──────────────────────────────────────────────────── */
+  .filters {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 510;
+    color: var(--text-3);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 120ms;
+    letter-spacing: -0.13px;
+  }
+  .filter-btn:hover { background: rgba(255,255,255,0.04); color: var(--text-2); }
+  .filter-btn.active {
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border);
+    color: var(--text-1);
+  }
+
+  /* ─── Table ────────────────────────────────────────────────────── */
+  .table-wrap {
+    background: rgba(255,255,255,0.01);
+    border: 1px solid var(--border-s);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead { background: rgba(255,255,255,0.02); }
+  th {
+    padding: 9px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 590;
+    color: var(--text-4);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-s);
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 14px;
+    color: var(--text-2);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .td-num { color: var(--text-4); font-size: 12px; font-family: 'Berkeley Mono', monospace; }
+  .td-company { color: var(--text-1); font-weight: 510; }
+  .td-role { color: var(--text-2); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .td-date { color: var(--text-4); font-size: 12px; white-space: nowrap; }
+  .td-notes { color: var(--text-3); font-size: 12px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .td-report a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 510;
+  }
+  .td-report a:hover { color: var(--accent-h); }
+
+  /* ─── Status Badges ────────────────────────────────────────────── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 510;
+    white-space: nowrap;
+  }
+  .badge::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.8;
+    flex-shrink: 0;
+  }
+  .badge-evaluated  { background: rgba(94,106,210,0.15); color: #828fff; }
+  .badge-applied    { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .badge-responded  { background: rgba(139,92,246,0.15); color: #a78bfa; }
+  .badge-interview  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .badge-offer      { background: rgba(16,185,129,0.15); color: #34d399; }
+  .badge-rejected   { background: rgba(239,68,68,0.15);  color: #f87171; }
+  .badge-discarded  { background: rgba(98,102,109,0.15); color: #8a8f98; }
+  .badge-skip       { background: rgba(98,102,109,0.12); color: #62666d; }
+  .badge-default    { background: rgba(255,255,255,0.06); color: var(--text-3); }
+
+  /* ─── Score ────────────────────────────────────────────────────── */
+  .score {
+    font-size: 13px;
+    font-weight: 590;
+    font-family: 'Berkeley Mono', 'SF Mono', monospace;
+  }
+  .score-high   { color: #34d399; }
+  .score-good   { color: #4ade80; }
+  .score-mid    { color: #fbbf24; }
+  .score-low    { color: #f87171; }
+
+  /* ─── Buttons ──────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 510;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: all 120ms;
+    letter-spacing: -0.13px;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--brand);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--accent-h); }
+  .btn-ghost {
+    background: rgba(255,255,255,0.04);
+    color: var(--text-2);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.07); color: var(--text-1); }
+  .btn-sm { padding: 4px 8px; font-size: 12px; }
+  .btn-icon {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-s);
+    color: var(--text-3);
+    width: 28px; height: 28px;
+    padding: 0;
+    border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 120ms;
+  }
+  .btn-icon:hover { background: rgba(255,255,255,0.07); color: var(--text-1); }
+
+  /* ─── Input ────────────────────────────────────────────────────── */
+  input[type="text"], input[type="url"], textarea {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 120ms, box-shadow 120ms;
+    width: 100%;
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-4); }
+  input:focus, textarea:focus {
+    border-color: rgba(113,112,255,0.4);
+    box-shadow: 0 0 0 3px rgba(113,112,255,0.1);
+  }
+
+  /* ─── Pipeline items ───────────────────────────────────────────── */
+  .pipeline-list { display: flex; flex-direction: column; gap: 8px; }
+  .pipeline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-s);
+    border-radius: 8px;
+    transition: background 120ms;
+  }
+  .pipeline-item:hover { background: rgba(255,255,255,0.04); }
+  .pipeline-main {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pipeline-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .pipeline-title {
+    font-size: 13px;
+    font-weight: 510;
+    color: var(--text-1);
+  }
+  .pipeline-company {
+    font-size: 12px;
+    color: var(--text-4);
+    white-space: nowrap;
+  }
+  .pipeline-date {
+    font-size: 11px;
+    color: var(--text-3);
+    padding: 2px 7px;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.06);
+    white-space: nowrap;
+  }
+  .pipeline-url {
+    font-size: 13px;
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pipeline-note {
+    font-size: 12px;
+    color: var(--text-4);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pipeline-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ─── Add URL form ─────────────────────────────────────────────── */
+  .add-form {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .add-form-field { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .add-form-label { font-size: 12px; font-weight: 510; color: var(--text-4); }
+
+  /* ─── Reports ──────────────────────────────────────────────────── */
+  .reports-grid { display: flex; flex-direction: column; gap: 8px; }
+  .report-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-s);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+  }
+  .report-item:hover { background: rgba(255,255,255,0.04); border-color: var(--border); }
+  .report-num {
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--text-4);
+    min-width: 28px;
+  }
+  .report-company {
+    font-size: 14px;
+    font-weight: 510;
+    color: var(--text-1);
+    flex: 1;
+    text-transform: capitalize;
+    letter-spacing: -0.182px;
+  }
+  .report-date { font-size: 12px; color: var(--text-4); flex-shrink: 0; }
+
+  /* ─── Modal ────────────────────────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity 160ms;
+    pointer-events: none;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 760px;
+    max-height: 84vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    transform: translateY(8px);
+    transition: transform 160ms;
+  }
+  .modal-backdrop.open .modal { transform: translateY(0); }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-s);
+    flex-shrink: 0;
+  }
+  .modal-title { font-size: 14px; font-weight: 590; color: var(--text-1); letter-spacing: -0.182px; }
+  .modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  /* ─── Markdown render ──────────────────────────────────────────── */
+  .md-content { font-size: 14px; line-height: 1.7; color: var(--text-2); }
+  .md-content h1 { font-size: 20px; font-weight: 590; color: var(--text-1); letter-spacing: -0.24px; margin: 0 0 16px; }
+  .md-content h2 { font-size: 16px; font-weight: 590; color: var(--text-1); letter-spacing: -0.182px; margin: 24px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-s); }
+  .md-content h3 { font-size: 14px; font-weight: 590; color: var(--text-1); margin: 16px 0 8px; }
+  .md-content p { margin-bottom: 12px; }
+  .md-content ul, .md-content ol { padding-left: 20px; margin-bottom: 12px; }
+  .md-content li { margin-bottom: 4px; }
+  .md-content code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text-1);
+  }
+  .md-content pre {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-s);
+    border-radius: 6px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin-bottom: 12px;
+  }
+  .md-content pre code { background: none; padding: 0; }
+  .md-content strong { color: var(--text-1); font-weight: 590; }
+  .md-content a { color: var(--accent); text-decoration: none; }
+  .md-content a:hover { color: var(--accent-h); text-decoration: underline; }
+  .md-content blockquote {
+    border-left: 2px solid var(--brand);
+    padding-left: 14px;
+    color: var(--text-3);
+    margin: 12px 0;
+  }
+  .md-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .md-content th {
+    background: rgba(255,255,255,0.04);
+    padding: 7px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 590;
+    color: var(--text-4);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-s);
+  }
+  .md-content td {
+    padding: 8px 12px;
+    color: var(--text-2);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  /* ─── Empty state ──────────────────────────────────────────────── */
+  .empty {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-4);
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .empty svg { opacity: 0.3; margin-bottom: 8px; }
+  .empty strong { color: var(--text-3); font-weight: 510; }
+
+  /* ─── Toast ────────────────────────────────────────────────────── */
+  .toast-stack {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 510;
+    color: var(--text-1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: toastIn 200ms ease forwards;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Action bar ───────────────────────────────────────────────── */
+  .action-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-s);
+    border-radius: 8px;
+    align-items: center;
+  }
+  .action-bar-label {
+    font-size: 11px;
+    font-weight: 510;
+    color: var(--text-4);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 4px;
+  }
+  .btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 510;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-2);
+    transition: all 120ms;
+    white-space: nowrap;
+  }
+  .btn-action:hover { background: rgba(255,255,255,0.07); color: var(--text-1); border-color: rgba(255,255,255,0.14); }
+  .btn-action.claude {
+    border-color: rgba(94,106,210,0.3);
+    color: #828fff;
+    background: rgba(94,106,210,0.08);
+  }
+  .btn-action.claude:hover { background: rgba(94,106,210,0.15); }
+  .btn-action.success { border-color: rgba(16,185,129,0.3); color: #34d399; background: rgba(16,185,129,0.08); }
+  .btn-action:disabled { opacity: 0.4; cursor: not-allowed; }
+  .spin { animation: spin 0.8s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── View pages ───────────────────────────────────────────────── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ─── Toggle switch ─────────────────────────────────────────────── */
+  .toggle {
+    position: relative;
+    display: inline-flex;
+    width: 28px; height: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    position: absolute; inset: 0;
+    background: var(--surface-2);
+    border-radius: 9999px;
+    transition: background 160ms;
+  }
+  .toggle input:checked ~ .toggle-track { background: var(--brand); }
+  .toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 160ms;
+    pointer-events: none;
+  }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(12px); }
+
+  /* ─── Portals table specifics ──────────────────────────────────── */
+  .td-portal-url {
+    font-size: 12px;
+    color: var(--accent);
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .td-portal-method {
+    font-size: 11px;
+    color: var(--text-4);
+    font-family: 'SF Mono', monospace;
+    white-space: nowrap;
+  }
+  .td-portal-notes {
+    font-size: 12px;
+    color: var(--text-4);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ─── Divider ──────────────────────────────────────────────────── */
+  hr { border: none; border-top: 1px solid var(--border-s); margin: 20px 0; }
+
+  /* ─── Scrollbar ────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+
+  /* ─── Profile page ──────────────────────────────────────────────── */
+  .profile-block {
+    background: rgba(255,255,255,0.01);
+    border: 1px solid var(--border-s);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+  }
+  .profile-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .profile-block-title {
+    font-size: 11px;
+    font-weight: 590;
+    color: var(--text-4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .profile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .profile-field.span-2 { grid-column: span 2; }
+  .profile-field label {
+    font-size: 11px;
+    font-weight: 510;
+    color: var(--text-4);
+    letter-spacing: 0.02em;
+  }
+  .arch-row {
+    display: grid;
+    grid-template-columns: 1fr 130px 110px 28px;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .proof-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-s);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 1fr 160px 28px;
+    gap: 8px;
+    align-items: start;
+    margin-bottom: 6px;
+  }
+  .proof-card .proof-metric {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+    outline: none;
+  }
+  .fit-tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 510;
+  }
+  .fit-primary   { background: rgba(94,106,210,0.15); color: #828fff; }
+  .fit-secondary { background: rgba(245,158,11,0.12); color: #fbbf24; }
+  .fit-adjacent  { background: rgba(255,255,255,0.06); color: var(--text-3); }
+  select.profile-select {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    outline: none;
+    width: 100%;
+    transition: border-color 120ms;
+  }
+  select.profile-select:focus {
+    border-color: rgba(113,112,255,0.4);
+    box-shadow: 0 0 0 3px rgba(113,112,255,0.1);
+  }
+  .profile-save-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .profile-subsection {
+    margin-top: 4px;
+  }
+  .profile-subsection + .profile-subsection {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-s);
+  }
+  .profile-subtitle {
+    font-size: 11px;
+    font-weight: 590;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .profile-subhint {
+    font-size: 12px;
+    color: var(--text-4);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .criteria-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .criteria-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border-s);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .criteria-card.hard {
+    background: linear-gradient(180deg, rgba(113,112,255,0.08), rgba(255,255,255,0.02));
+    border-color: rgba(113,112,255,0.22);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .criteria-card.soft {
+    background: rgba(255,255,255,0.015);
+  }
+  .criteria-card .profile-field {
+    gap: 6px;
+  }
+  .criteria-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    margin-bottom: 10px;
+    padding: 4px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 620;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .criteria-badge.hard {
+    color: #aab2ff;
+    background: rgba(113,112,255,0.14);
+  }
+  .criteria-badge.soft {
+    color: var(--text-3);
+    background: rgba(255,255,255,0.06);
+  }
+  @media (max-width: 960px) {
+    .criteria-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ─── Sidebar ─────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">C</div>
+      Career Ops
+    </div>
+
+    <div class="sidebar-section">
+      <button class="nav-item active" data-view="dashboard">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M1.5 1h5v5h-5V1zm7 0h5v5h-5V1zm-7 7h5v5h-5V8zm7 0h5v5h-5V8z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" data-view="applications">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 3h11M2 7h11M2 11h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Applications
+        <span class="nav-badge" id="badge-apps">0</span>
+      </button>
+      <button class="nav-item" data-view="pipeline">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 4v3.5l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Pipeline
+        <span class="nav-badge" id="badge-pipe">0</span>
+      </button>
+      <button class="nav-item" data-view="reports">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M3 1.5h9a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1v-10a1 1 0 011-1zM5 5h5M5 7.5h5M5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Reports
+        <span class="nav-badge" id="badge-reports">0</span>
+      </button>
+      <button class="nav-item" data-view="cvs">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2.5 1.5v12h10v-9l-3-3h-7z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 1.5v3h3M4.5 7.5h6M4.5 10.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Generated CVs
+        <span class="nav-badge" id="badge-cvs">0</span>
+      </button>
+      <button class="nav-item" data-view="portals">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 1.5c-2 2-3 3.8-3 6s1 4 3 6m0-12c2 2 3 3.8 3 6s-1 4-3 6M1.5 7.5h12" stroke="currentColor" stroke-width="1.2"/></svg>
+        Portals
+        <span class="nav-badge" id="badge-portals">0</span>
+      </button>
+      <button class="nav-item" data-view="profile">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2.5 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Profile
+      </button>
+    </div>
+
+    <hr style="margin: 8px 16px; border-color: var(--border-s);">
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Quick add</div>
+      <button class="nav-item" id="open-add-btn">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Add URL
+      </button>
+    </div>
+  </aside>
+
+  <!-- ─── Main ─────────────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <div class="topbar-actions" id="topbar-actions">
+        <!-- Portfolio switch -->
+        <a href="portfolio.html" class="btn-portfolio-switch" title="Open portfolio">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M7.5 1a6.5 6.5 0 100 13A6.5 6.5 0 007.5 1zM2.5 7.5a5 5 0 018.485-3.586L3.914 11.5A4.978 4.978 0 012.5 7.5zm1.415 3.914L11.5 4.329A5 5 0 014 12.414z" fill="currentColor"/></svg>
+          Portfolio
+        </a>
+        <!-- dynamic per view -->
+        <button class="btn btn-ghost btn-sm" id="refresh-btn">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M1.5 7.5A6 6 0 017.5 1.5a6 6 0 015.657 4M13.5 7.5a6 6 0 01-6 6 6 6 0 01-5.657-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12 2l1.5 3.5-3.5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── Dashboard ────────────────────────────────────────── -->
+    <div class="content view active" id="view-dashboard">
+      <div class="action-bar">
+        <span class="action-bar-label">Actions</span>
+        <button class="btn-action claude" data-cmd="scan" data-desc="Scans all configured portals (WTTJ, JobsDB, Lever, Ashby…) and adds new offers into the pipeline.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.5v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Run Scan
+        </button>
+        <button class="btn-action claude" data-cmd="pipeline" data-desc="Evaluates all pending URLs in the pipeline.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2 7.5h11M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Process Pipeline
+        </button>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:8px;padding-left:12px;border-left:1px solid var(--border-s)">
+          <label class="toggle">
+            <input type="checkbox" id="auto-next-toggle">
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+          <span style="font-size:11px;color:var(--text-3);white-space:nowrap">Auto-Next</span>
+        </div>
+        <button class="btn-action" data-run="verify" data-title="Pipeline verification">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2.5 7.5l3 3 7-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Verify
+        </button>
+        <button class="btn-action" data-run="sync-check" data-title="CV Sync Check">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M3 3h9v9H3z" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7.5h4M7.5 5.5v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Sync CV
+        </button>
+      </div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="section-header">
+        <span class="section-title">Recent Applications</span>
+        <button class="btn btn-ghost btn-sm" data-view="applications">View all →</button>
+      </div>
+      <div class="table-wrap">
+        <table id="recent-table">
+          <thead><tr>
+            <th>#</th><th>Company</th><th>Role</th><th>Score</th><th>Status</th><th>Date</th>
+          </tr></thead>
+          <tbody id="recent-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── Applications ─────────────────────────────────────── -->
+    <div class="content view" id="view-applications">
+      <div class="action-bar">
+        <span class="action-bar-label">Actions</span>
+        <button class="btn-action claude" data-cmd="apply" data-desc="Fill out a job application form. Share a screenshot of the form — Claude generates copy-paste answers from the existing report + CV.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2.5 7.5l3 3 7-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Apply
+        </button>
+        <button class="btn-action claude" data-cmd="pdf" data-desc="Génère un CV PDF ATS-optimisé adapté à l'offre cible. Colle l'URL ou le texte du JD dans Claude Code après la commande.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M3 1.5h9a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1v-10a1 1 0 011-1z" stroke="currentColor" stroke-width="1.2"/><path d="M5 5h5M5 7.5h5M5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Générer CV/PDF
+        </button>
+        <button class="btn-action claude" data-cmd="tracker" data-desc="Affiche un résumé du tracker avec stats et permet de mettre à jour des statuts.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2 3h11M2 7h11M2 11h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Voir tracker
+        </button>
+        <button class="btn-action" data-run="merge" data-title="Merge tracker">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M3.5 9l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Merge tracker
+        </button>
+        <button class="btn-action" data-run="normalize" data-title="Normaliser statuts">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M4.5 7.5h6M6.5 10.5h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Normaliser
+        </button>
+        <button class="btn-action" data-run="dedup" data-title="Dédupliquer">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="3.5" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 1.5h8v8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Dédupliquer
+        </button>
+      </div>
+      <div class="filters" id="app-filters"></div>
+      <div class="table-wrap" style="overflow-x:auto">
+        <table id="app-table" style="min-width:900px">
+          <thead><tr>
+            <th>#</th><th>Company</th><th>Role</th><th>Score</th>
+            <th>Status</th><th>PDF</th><th>Report</th><th>Date</th><th>Notes</th><th style="width:170px"></th>
+          </tr></thead>
+          <tbody id="app-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── Pipeline ─────────────────────────────────────────── -->
+    <div class="content view" id="view-pipeline">
+      <div class="action-bar">
+        <span class="action-bar-label">Actions</span>
+        <button class="btn-action claude" data-cmd="pipeline" data-desc="Evaluates all pending URLs in the pipeline.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2 7.5h11M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Traiter tout le pipeline
+        </button>
+        <button class="btn-action claude" data-cmd="scan" data-desc="Scanne tous les portails configurés (WTTJ, JobsDB, Lever, Ashby, Indeed Asia…) et ajoute les nouvelles offres dans le pipeline.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.5v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Nouveau scan
+        </button>
+      </div>
+      <div class="add-form" id="pipeline-form">
+        <div class="add-form-field" style="flex:3">
+          <label class="add-form-label">Job URL</label>
+          <input type="url" id="pipeline-url" placeholder="https://jobs.example.com/...">
+        </div>
+        <div class="add-form-field" style="flex:1.5">
+          <label class="add-form-label">Note (optional)</label>
+          <input type="text" id="pipeline-note" placeholder="e.g. Berlin, AI PM">
+        </div>
+        <button class="btn btn-primary" id="add-pipeline-btn">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          Add
+        </button>
+      </div>
+      <div class="section-header">
+        <span class="section-title">Pending URLs</span>
+        <span style="font-size:12px;color:var(--text-4)" id="pipe-count-label"></span>
+      </div>
+      <div class="pipeline-list" id="pipeline-list"></div>
+    </div>
+
+    <!-- ─── Portals ─────────────────────────────────────────── -->
+    <div class="content view" id="view-portals">
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--border-s)">
+        <button class="portals-tab active" data-tab="companies" style="padding:8px 16px;font-size:13px;font-weight:510;color:var(--text-1);background:none;border:none;border-bottom:2px solid var(--brand);cursor:pointer;margin-bottom:-1px;font-family:inherit">
+          Companies <span id="tab-badge-companies" style="margin-left:6px;font-size:11px;color:var(--text-4)"></span>
+        </button>
+        <button class="portals-tab" data-tab="queries" style="padding:8px 16px;font-size:13px;font-weight:510;color:var(--text-3);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;margin-bottom:-1px;font-family:inherit">
+          Job Boards <span id="tab-badge-queries" style="margin-left:6px;font-size:11px;color:var(--text-4)"></span>
+        </button>
+      </div>
+
+      <!-- Companies tab -->
+      <div id="tab-companies">
+        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+          <input type="text" id="portals-search" placeholder="Filter by name, URL, notes…" style="max-width:280px">
+          <div style="display:flex;gap:4px">
+            <button class="filter-btn active" data-portal-filter="all">All</button>
+            <button class="filter-btn" data-portal-filter="enabled">Enabled</button>
+            <button class="filter-btn" data-portal-filter="disabled">Disabled</button>
+          </div>
+          <span style="margin-left:auto;font-size:12px;color:var(--text-4)" id="portals-count-label"></span>
+          <button class="btn btn-primary btn-sm" id="add-portal-btn">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Add
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:36px">On</th>
+              <th>Company</th>
+              <th>Careers URL</th>
+              <th>Method</th>
+              <th>Notes</th>
+              <th style="width:110px">Last Scan</th>
+              <th style="width:80px"></th>
+            </tr></thead>
+            <tbody id="portals-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Job Boards tab -->
+      <div id="tab-queries" style="display:none">
+        <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+          <input type="text" id="queries-search" placeholder="Filter by name, query…" style="max-width:280px">
+          <div style="display:flex;gap:4px">
+            <button class="filter-btn active" data-query-filter="all">All</button>
+            <button class="filter-btn" data-query-filter="search_queries">General</button>
+            <button class="filter-btn" data-query-filter="eu_job_boards">EU / Asia</button>
+            <button class="filter-btn" data-query-filter="enabled">Enabled</button>
+            <button class="filter-btn" data-query-filter="disabled">Disabled</button>
+          </div>
+          <span style="margin-left:auto;font-size:12px;color:var(--text-4)" id="queries-count-label"></span>
+          <button class="btn btn-primary btn-sm" id="add-query-btn">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Add
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:36px">On</th>
+              <th>Name</th>
+              <th>Search query</th>
+              <th style="width:90px">Section</th>
+              <th style="width:110px">Last Scan</th>
+              <th style="width:80px"></th>
+            </tr></thead>
+            <tbody id="queries-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Reports ──────────────────────────────────────────── -->
+    <div class="content view" id="view-reports">
+      <div class="action-bar">
+        <span class="action-bar-label">Actions</span>
+        <button class="btn-action claude" data-cmd="oferta" data-desc="Evaluates a single offer in A-F mode (no auto-PDF). Paste URL or JD text into Claude Code after command.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 1.5L9.18 5.91l4.82.42-3.64 3.16 1.09 4.71L7.5 11.77l-3.95 2.43 1.09-4.71L1 6.33l4.82-.42z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+          Evaluate Offer
+        </button>
+        <button class="btn-action claude" data-cmd="deep" data-desc="Deep research on a company — culture, signals, reputation, compensation. Specify company name in Claude Code.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Deep Research
+        </button>
+        <button class="btn-action claude" data-cmd="contacto" data-desc="LinkedIn Power Move — find key contacts and generate a 3-sentence intro message.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M2.5 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Contact
+        </button>
+      </div>
+      <div class="reports-grid" id="reports-list"></div>
+    </div>
+
+    <!-- ─── Profile ─────────────────────────────────────────────── -->
+    <div class="content view" id="view-profile">
+      <div class="profile-save-bar">
+        <button class="btn btn-primary" id="profile-save-btn">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2.5 7.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Save Profile
+        </button>
+        <span id="profile-save-status" style="font-size:12px;color:var(--text-4)"></span>
+      </div>
+
+      <!-- Identity -->
+      <div class="profile-block">
+        <div class="profile-block-header">
+          <span class="profile-block-title">Identity</span>
+        </div>
+        <div class="profile-grid">
+          <div class="profile-field">
+            <label>Full Name</label>
+            <input type="text" id="prof-name" placeholder="e.g. Jane Doe">
+          </div>
+          <div class="profile-field">
+            <label>Email</label>
+            <input type="email" id="prof-email" placeholder="you@example.com">
+          </div>
+          <div class="profile-field">
+            <label>Phone</label>
+            <input type="text" id="prof-phone" placeholder="+33 6 ...">
+          </div>
+          <div class="profile-field">
+            <label>Location</label>
+            <input type="text" id="prof-location" placeholder="e.g. Based in Paris & Bangkok">
+          </div>
+          <div class="profile-field">
+            <label>LinkedIn</label>
+            <input type="text" id="prof-linkedin" placeholder="linkedin.com/in/...">
+          </div>
+          <div class="profile-field">
+            <label>Portfolio URL</label>
+            <input type="text" id="prof-portfolio" placeholder="https://...">
+          </div>
+          <div class="profile-field">
+            <label>GitHub</label>
+            <input type="text" id="prof-github" placeholder="github.com/...">
+          </div>
+          <div class="profile-field">
+            <label>Twitter / X</label>
+            <input type="text" id="prof-twitter" placeholder="twitter.com/...">
+          </div>
+        </div>
+      </div>
+
+      <!-- Target Roles -->
+      <div class="profile-block">
+        <div class="profile-block-header">
+          <span class="profile-block-title">Target Roles</span>
+        </div>
+        <div class="profile-field" style="margin-bottom:14px">
+          <label>Primary roles <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
+          <textarea id="prof-primary-roles" rows="3" style="resize:vertical" placeholder="AI Product Manager&#10;Head of AI Product&#10;AI Product Designer"></textarea>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <label style="font-size:11px;font-weight:510;color:var(--text-4)">Archetypes</label>
+            <button class="btn btn-ghost btn-sm" id="add-archetype-btn">
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Add
+            </button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 130px 110px 28px;gap:8px;padding:0 2px;margin-bottom:6px">
+            <span style="font-size:10px;color:var(--text-4);text-transform:uppercase;letter-spacing:.04em">Name</span>
+            <span style="font-size:10px;color:var(--text-4);text-transform:uppercase;letter-spacing:.04em">Level</span>
+            <span style="font-size:10px;color:var(--text-4);text-transform:uppercase;letter-spacing:.04em">Fit</span>
+            <span></span>
+          </div>
+          <div id="archetypes-list"></div>
+        </div>
+      </div>
+
+      <!-- Narrative -->
+      <div class="profile-block">
+        <div class="profile-block-header">
+          <span class="profile-block-title">Narrative</span>
+        </div>
+        <div class="profile-grid">
+          <div class="profile-field span-2">
+            <label>Headline</label>
+            <input type="text" id="prof-headline" placeholder="e.g. Senior Product Designer turned AI Product Builder">
+          </div>
+          <div class="profile-field span-2">
+            <label>Exit Story</label>
+            <textarea id="prof-exit-story" rows="4" style="resize:vertical" placeholder="Your positioning narrative..."></textarea>
+          </div>
+          <div class="profile-field span-2">
+            <label>Superpowers <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
+            <textarea id="prof-superpowers" rows="4" style="resize:vertical" placeholder="End-to-end AI product delivery&#10;Cross-functional leadership&#10;..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proof Points -->
+      <div class="profile-block">
+        <div class="profile-block-header">
+          <span class="profile-block-title">Proof Points</span>
+          <button class="btn btn-ghost btn-sm" id="add-proof-btn">
+            <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Add
+          </button>
+        </div>
+        <div id="proofpoints-list"></div>
+      </div>
+
+      <!-- Compensation -->
+      <div class="profile-block">
+        <div class="profile-block-header">
+          <span class="profile-block-title">Compensation</span>
+        </div>
+        <div class="profile-grid">
+          <div class="profile-field">
+            <label>Target Range</label>
+            <input type="text" id="prof-target-range" placeholder="e.g. €70K-110K salary / €600-900/day">
+          </div>
+          <div class="profile-field">
+            <label>Minimum</label>
+            <input type="text" id="prof-minimum" placeholder="e.g. €60K salary / €500/day">
+          </div>
+          <div class="profile-field">
+            <label>Currency</label>
+            <input type="text" id="prof-currency" placeholder="EUR">
+          </div>
+          <div class="profile-field">
+            <label>Employment Type</label>
+            <input type="text" id="prof-employment-type" placeholder="e.g. Open to both salaried and freelance">
+          </div>
+          <div class="profile-field span-2">
+            <label>Location Flexibility</label>
+            <input type="text" id="prof-location-flex" placeholder="e.g. Full remote only — no relocation">
+          </div>
+        </div>
+      </div>
+
+      <!-- Location & Search -->
+      <div class="profile-block">
+        <div class="profile-block-header">
+          <span class="profile-block-title">Location &amp; Search</span>
+        </div>
+        <div class="profile-grid">
+          <div class="profile-field">
+            <label>Country</label>
+            <input type="text" id="prof-country" placeholder="France">
+          </div>
+          <div class="profile-field">
+            <label>City / Region</label>
+            <input type="text" id="prof-city" placeholder="Remote">
+          </div>
+          <div class="profile-field">
+            <label>Timezone</label>
+            <input type="text" id="prof-timezone" placeholder="CET">
+          </div>
+          <div class="profile-field">
+            <label>Visa Status</label>
+            <input type="text" id="prof-visa" placeholder="EU citizen, no sponsorship needed">
+          </div>
+          <div class="profile-field span-2">
+            <label>Remote Policy</label>
+            <input type="text" id="prof-remote-policy" placeholder="Full remote required — all sectors considered">
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Criteria -->
+      <div class="profile-block">
+        <div class="profile-block-header">
+          <span class="profile-block-title">Search Criteria</span>
+        </div>
+        <div class="profile-subsection">
+          <div class="profile-subtitle">Hard Filters</div>
+          <div class="profile-subhint">These are the rules that should eliminate an offer immediately before we spend time on it.</div>
+          <div class="criteria-grid">
+            <div class="criteria-card hard">
+              <div class="criteria-badge hard">Work Setup</div>
+              <div class="profile-field">
+                <label>Contract Types <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
+                <textarea id="prof-search-contract-types" rows="3" style="resize:vertical" placeholder="Salaried&#10;Freelance / Contractor"></textarea>
+              </div>
+              <div class="profile-field" style="margin-top:12px">
+                <label>On-site Availability</label>
+                <input type="text" id="prof-search-onsite" placeholder="Occasional on-site only if exceptional opportunity">
+              </div>
+            </div>
+            <div class="criteria-card hard">
+              <div class="criteria-badge hard">Elimination Rules</div>
+              <div class="profile-field">
+                <label>Must-Haves <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
+                <textarea id="prof-search-must-haves" rows="3" style="resize:vertical" placeholder="Real AI scope&#10;Product ownership&#10;Full remote"></textarea>
+              </div>
+              <div class="profile-field" style="margin-top:12px">
+                <label>Deal Breakers <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
+                <textarea id="prof-search-deal-breakers" rows="4" style="resize:vertical" placeholder="No pure execution roles&#10;No 4-5 days/week on-site&#10;No AI-washing"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="profile-subsection">
+          <div class="profile-subtitle">Preference Signals</div>
+          <div class="profile-subhint">These shape ranking and recommendations once an offer passes the hard filters.</div>
+          <div class="criteria-grid">
+            <div class="criteria-card soft">
+              <div class="criteria-badge soft">Market Scope</div>
+              <div class="profile-field">
+                <label>Sector Preferences <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
+                <textarea id="prof-search-sectors" rows="3" style="resize:vertical" placeholder="AI / SaaS&#10;All sectors considered"></textarea>
+              </div>
+              <div class="profile-field" style="margin-top:12px">
+                <label>Geography Preferences <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
+                <textarea id="prof-search-geography" rows="3" style="resize:vertical" placeholder="EU preferred&#10;International if remote"></textarea>
+              </div>
+            </div>
+            <div class="criteria-card soft">
+              <div class="criteria-badge soft">Ranking Boosts</div>
+              <div class="profile-field">
+                <label>Nice-to-Haves <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
+                <textarea id="prof-search-nice-to-haves" rows="4" style="resize:vertical" placeholder="Strong product culture&#10;Builder environment"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-block">
+        <div class="profile-block-header">
+          <span class="profile-block-title">Advanced Context</span>
+        </div>
+        <div class="profile-field">
+          <label>Strategic profile notes <span style="color:var(--text-4);font-weight:400">(synced with `modes/_profile.md`)</span></label>
+          <textarea id="prof-advanced-context" rows="18" style="resize:vertical;min-height:360px" placeholder="Long-form strategic context, differentiators, advanced positioning, private notes for the system..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Generated CVs ──────────────────────────────────────── -->
+    <div class="content view" id="view-cvs">
+      <div class="section-header">
+        <span class="section-title">Generated PDF CVs &amp; Template Preview</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; align-items: start;">
+        <div class="table-wrap" style="margin-top: 0;">
+          <table>
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Date</th>
+                <th>Size</th>
+                <th style="width:100px; text-align:right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="cvs-tbody"></tbody>
+          </table>
+        </div>
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-s); border-radius: 8px; padding: 12px;">
+          <div style="font-size: 11px; font-weight: 600; color: var(--text-2); margin-bottom: 12px; font-family: 'Space Grotesk', sans-serif; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center;">
+            <span>Template Preview</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <div id="template-toggle" style="display: flex; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid var(--border-s);">
+                <button onclick="setTemplatePreviewType('base')" id="btn-tpl-base" style="border: none; background: none; color: var(--text-4); font-size: 9px; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-weight: 600;">Base</button>
+                <button onclick="setTemplatePreviewType('premium')" id="btn-tpl-premium" style="border: none; background: var(--surface-2); color: var(--text-2); font-size: 9px; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-weight: 600;">Premium</button>
+              </div>
+              <a href="/api/template-preview" id="full-width-preview" target="_blank" class="btn btn-ghost btn-xs" style="text-decoration: none; display: flex; align-items: center; gap: 4px; color: var(--accent); border: 1px solid rgba(45, 49, 250, 0.2); padding: 2px 8px; border-radius: 4px; font-size: 10px; transition: all 0.2s;">
+                <svg width="10" height="10" viewBox="0 0 15 15" fill="none" style="margin-top: -1px;"><path d="M4.5 4.5h6v6M10.5 4.5L4.5 10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Full
+              </a>
+            </div>
+          </div>
+          <iframe id="template-preview-frame" src="/api/template-preview" style="width: 100%; height: 75vh; border: 1px solid var(--border); border-radius: 6px; background: #fff; display: block;"></iframe>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── Report Modal ──────────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Report</span>
+      <button class="btn-icon" id="modal-close">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="md-content" id="modal-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Quick Add Modal ───────────────────────────────────────── -->
+<div class="modal-backdrop" id="quick-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title">Add to Pipeline</span>
+      <button class="btn-icon" id="quick-modal-close">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="add-form-field">
+          <label class="add-form-label">Job URL</label>
+          <input type="url" id="quick-url" placeholder="https://...">
+        </div>
+        <div class="add-form-field">
+          <label class="add-form-label">Note (optional)</label>
+          <input type="text" id="quick-note" placeholder="e.g. Berlin, Senior PM">
+        </div>
+        <button class="btn btn-primary" id="quick-add-btn" style="align-self:flex-end">Add to Pipeline</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Portal Form Modal ─────────────────────────────────────── -->
+<div class="modal-backdrop" id="portal-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <span class="modal-title" id="portal-modal-title">Add company</span>
+      <button class="btn-icon" id="portal-modal-close">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="add-form-field">
+            <label class="add-form-label">Company name *</label>
+            <input type="text" id="pf-name" placeholder="e.g. Mistral AI">
+          </div>
+          <div class="add-form-field">
+            <label class="add-form-label">Scan method</label>
+            <select id="pf-scan-method" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text-1);font-family:inherit;font-size:14px;padding:8px 12px;border-radius:6px;outline:none;width:100%">
+              <option value="">playwright (default)</option>
+              <option value="websearch">websearch</option>
+              <option value="greenhouse_api">greenhouse_api</option>
+            </select>
+          </div>
+        </div>
+        <div class="add-form-field">
+          <label class="add-form-label">Careers URL *</label>
+          <input type="url" id="pf-careers-url" placeholder="https://jobs.lever.co/company">
+        </div>
+        <div class="add-form-field">
+          <label class="add-form-label">Greenhouse API URL (optional)</label>
+          <input type="url" id="pf-api" placeholder="https://boards-api.greenhouse.io/v1/boards/slug/jobs">
+        </div>
+        <div class="add-form-field">
+          <label class="add-form-label">Search query (optional)</label>
+          <input type="text" id="pf-scan-query" placeholder='site:jobs.ashbyhq.com/company "AI" OR "Solutions"'>
+        </div>
+        <div class="add-form-field">
+          <label class="add-form-label">Notes (optional)</label>
+          <input type="text" id="pf-notes" placeholder="e.g. Paris FR. European AI lab.">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2)">
+            <input type="checkbox" id="pf-enabled" checked style="accent-color:var(--brand);width:15px;height:15px">
+            Enabled (included in scans)
+          </label>
+          <button class="btn btn-primary" id="portal-save-btn" style="margin-left:auto">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Query Form Modal ──────────────────────────────────────── -->
+<div class="modal-backdrop" id="query-modal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <span class="modal-title" id="query-modal-title">Add job board query</span>
+      <button class="btn-icon" id="query-modal-close">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="add-form-field">
+          <label class="add-form-label">Name *</label>
+          <input type="text" id="qf-name" placeholder="e.g. JobsDB — AI Product (TH/SG)">
+        </div>
+        <div class="add-form-field">
+          <label class="add-form-label">Search query *</label>
+          <textarea id="qf-query" rows="3" placeholder='site:th.jobsdb.com OR site:sg.jobsdb.com "AI Product" OR "Head of AI"' style="resize:vertical"></textarea>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div class="add-form-field" style="flex:1">
+            <label class="add-form-label">Section</label>
+            <select id="qf-section" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text-1);font-family:inherit;font-size:14px;padding:8px 12px;border-radius:6px;outline:none;width:100%">
+              <option value="search_queries">General (search_queries)</option>
+              <option value="eu_job_boards">EU / Asia (eu_job_boards)</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);white-space:nowrap">
+              <input type="checkbox" id="qf-enabled" checked style="accent-color:var(--brand);width:15px;height:15px">
+              Enabled
+            </label>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="query-save-btn" style="align-self:flex-end">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Scan Selector Modal ───────────────────────────────────── -->
+<div class="modal-backdrop" id="scan-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <span class="modal-title">Configure Scan</span>
+      <button class="btn-icon" id="scan-modal-close">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border-s);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span id="scan-sel-count" style="font-size:12px;color:var(--text-3);flex:1">Loading sources…</span>
+      <button class="btn btn-ghost btn-sm" id="scan-sel-all">Select all</button>
+      <button class="btn btn-ghost btn-sm" id="scan-sel-none">Deselect all</button>
+      <button class="btn btn-ghost btn-sm" id="scan-sel-fresh">Fresh only</button>
+    </div>
+    <div id="scan-modal-body" style="padding:16px 20px;max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:20px"></div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border-s);display:flex;justify-content:flex-end;gap:10px">
+      <button class="btn btn-ghost" id="scan-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="scan-launch-btn">
+        <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.5v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Launch Scan
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Toast stack ───────────────────────────────────────────── -->
+<div class="toast-stack" id="toasts"></div>
+
+<!-- ─── Claude Stream Modal ───────────────────────────────────── -->
+<div class="modal-backdrop" id="cmd-modal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header">
+      <span class="modal-title" id="cmd-modal-title">Claude</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn btn-ghost btn-sm" id="cmd-cv-pdf-btn" style="display:none">Generate CV</button>
+        <button class="btn btn-ghost btn-sm" id="cmd-cover-pdf-btn" style="display:none">Generate PDF</button>
+        <button class="btn btn-ghost btn-sm" id="cmd-copy-short-btn" style="display:none">Copy short version</button>
+        <span id="cmd-status" style="font-size:11px;color:var(--text-4);display:flex;align-items:center;gap:5px"></span>
+        <button class="btn-icon" id="cmd-modal-close">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="cmd-stream-output" class="md-content" style="padding:20px;min-height:160px;max-height:65vh;overflow-y:auto;font-size:13px;line-height:1.7"></div>
+  </div>
+</div>
+
+<!-- ─── Script output Modal ──────────────────────────────────── -->
+<div class="modal-backdrop" id="run-modal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <span class="modal-title" id="run-modal-title">Result</span>
+      <button class="btn-icon" id="run-modal-close">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <pre id="run-modal-output" style="font-family:'SF Mono',monospace;font-size:12px;color:var(--text-2);white-space:pre-wrap;word-break:break-all;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;max-height:360px;overflow-y:auto"></pre>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="question-input-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title" id="question-input-modal-title">Answer a question</span>
+      <button class="btn-icon" id="question-input-modal-close">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <p style="margin:0;font-size:13px;color:var(--text-3)">Paste the question from the application form. Claude will write a first-person answer based on the offer report and your profile.</p>
+      <textarea id="question-input-text"
+        placeholder="e.g. Why do you want to join us? / Décrivez un projet dont vous êtes fier."
+        style="width:100%;min-height:100px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:13px;color:var(--text-1);resize:vertical;font-family:inherit;box-sizing:border-box;outline:none"
+      ></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn btn-ghost" id="question-input-cancel">Cancel</button>
+        <button class="btn btn-primary" id="question-input-submit">Generate answer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const state = {
+  applications: [],
+  pipeline: [],
+  reports: [],
+  cvs: [],
+  portals: [],
+  queries: [],
+  scanState: {},
+  filter: 'All',
+  portalsFilter: 'all',
+  portalsSearch: '',
+  queriesFilter: 'all',
+  queriesSearch: '',
+  portalsTab: 'companies',
+};
+
+// ─── Status helpers ───────────────────────────────────────────────────────────
+const STATUS_CLASS = {
+  'Evaluated': 'badge-evaluated',
+  'Applied':   'badge-applied',
+  'Responded': 'badge-responded',
+  'Interview': 'badge-interview',
+  'Offer':     'badge-offer',
+  'Rejected':  'badge-rejected',
+  'Discarded': 'badge-discarded',
+  'SKIP':      'badge-skip',
+  // Spanish aliases (used by merge-tracker / pipeline)
+  'Evaluada':   'badge-evaluated',
+  'Aplicado':   'badge-applied',
+  'Respondido': 'badge-responded',
+  'Entrevista': 'badge-interview',
+  'Oferta':     'badge-offer',
+  'Rechazado':  'badge-rejected',
+  'Descartado': 'badge-discarded',
+  'NO APLICAR': 'badge-skip',
+};
+const STATUS_DOT = {
+  'Evaluated': '#828fff',
+  'Applied':   '#60a5fa',
+  'Responded': '#a78bfa',
+  'Interview': '#fbbf24',
+  'Offer':     '#34d399',
+  'Rejected':  '#f87171',
+  'Discarded': '#8a8f98',
+  'SKIP':      '#62666d',
+  // Spanish aliases
+  'Evaluada':   '#828fff',
+  'Aplicado':   '#60a5fa',
+  'Respondido': '#a78bfa',
+  'Entrevista': '#fbbf24',
+  'Oferta':     '#34d399',
+  'Rechazado':  '#f87171',
+  'Descartado': '#8a8f98',
+  'NO APLICAR': '#62666d',
+};
+
+function badge(status) {
+  const cls = STATUS_CLASS[status] || 'badge-default';
+  return `<span class="badge ${cls}">${status || '—'}</span>`;
+}
+
+function isAppliedStatus(status) {
+  return ['Applied', 'Aplicado'].includes(String(status || '').trim());
+}
+
+function relativeTime(isoStr) {
+  if (!isoStr) return null;
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const h = diff / 3600000;
+  if (h < 1)  return `${Math.round(diff / 60000)}m ago`;
+  if (h < 24) return `${Math.round(h)}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
+function scanStateEl(name) {
+  const ts = state.scanState[name];
+  if (!ts) return `<span style="color:var(--text-4);font-size:12px">—</span>`;
+  const diff = Date.now() - new Date(ts).getTime();
+  const inCooldown = diff < 86400000; // 24h
+  const label = relativeTime(ts);
+  const color = inCooldown ? 'var(--emerald)' : 'var(--text-3)';
+  const dot = inCooldown
+    ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--emerald);margin-right:5px;vertical-align:middle"></span>`
+    : '';
+  return `<span style="font-size:12px;color:${color}">${dot}${label}</span>`;
+}
+
+function scoreEl(raw) {
+  if (!raw) return '<span style="color:var(--text-4)">—</span>';
+  const num = parseFloat(raw);
+  if (isNaN(num)) return `<span class="score">${raw}</span>`;
+  let cls = num >= 4.5 ? 'score-high' : num >= 4.0 ? 'score-good' : num >= 3.5 ? 'score-mid' : 'score-low';
+  return `<span class="score ${cls}">${raw}</span>`;
+}
+
+// ─── Markdown renderer (lightweight) ─────────────────────────────────────────
+function renderMd(md) {
+  return md
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^#{4} (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^#{3} (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^#{2} (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+    .replace(/^---$/gm, '<hr>')
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    .replace(/^\* (.+)$/gm, '<li>$1</li>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, s => `<ul>${s}</ul>`)
+    .replace(/^(?!<[h|u|b|h|e|i|o|a|l])(.+)$/gm, (m, p) => p.trim() ? `<p>${p}</p>` : '')
+    .replace(/\n{2,}/g, '\n');
+}
+
+// ─── Fetch helpers ────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(path, opts);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('json') ? res.json() : res.text();
+}
+
+// ─── Load data ────────────────────────────────────────────────────────────────
+async function loadAll() {
+  const [apps, pipe, reports, portals, queries, cvs, scanState] = await Promise.all([
+    api('/api/applications').catch(() => []),
+    api('/api/pipeline').catch(() => []),
+    api('/api/reports').catch(() => []),
+    api('/api/portals').catch(() => []),
+    api('/api/queries').catch(() => []),
+    api('/api/cvs').catch(() => []),
+    api('/api/scan-state').catch(() => ({})),
+  ]);
+  state.applications = normalizeApplications(apps);
+  state.pipeline     = pipe;
+  state.reports      = reports;
+  state.cvs          = cvs;
+  state.portals      = portals;
+  state.queries      = queries;
+  state.scanState    = scanState;
+  renderAll();
+}
+
+function normalizeApplications(apps = []) {
+  return apps.map(a => ({
+    '#':      a['#']     ?? a.num     ?? '',
+    Date:     a.Date     ?? a.date    ?? '',
+    Company:  a.Company  ?? a.company ?? '',
+    Role:     a.Role     ?? a.role    ?? '',
+    Score:    a.Score    ?? a.score   ?? '',
+    Status:   a.Status   ?? a.status  ?? '',
+    PDF:      a.PDF      ?? a.pdf     ?? '',
+    Report:   a.Report   ?? a.report  ?? '',
+    Notes:    a.Notes    ?? a.notes   ?? '',
+    JobURL:   a.JobURL   ?? a.job_url ?? a.jobUrl ?? '',
+  }));
+}
+
+// ─── Render helpers ───────────────────────────────────────────────────────────
+function renderAll() {
+  updateBadges();
+  renderDashboard();
+  renderApplications();
+  renderPipeline();
+  renderReports();
+  renderCVs();
+  renderPortals();
+  renderQueries();
+}
+
+function updateBadges() {
+  document.getElementById('badge-apps').textContent    = state.applications.length;
+  document.getElementById('badge-pipe').textContent    = state.pipeline.length;
+  document.getElementById('badge-reports').textContent = state.reports.length;
+  document.getElementById('badge-cvs').textContent     = state.cvs.length;
+  document.getElementById('badge-portals').textContent = state.portals.length + state.queries.length;
+  document.getElementById('tab-badge-companies').textContent = state.portals.length;
+  document.getElementById('tab-badge-queries').textContent   = state.queries.length;
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const apps = state.applications;
+  const statuses = {};
+  apps.forEach(a => {
+    const s = a.Status || 'Unknown';
+    statuses[s] = (statuses[s] || 0) + 1;
+  });
+
+  const avgScore = apps.length
+    ? (apps.reduce((s, a) => s + (parseFloat(a.Score) || 0), 0) / apps.filter(a => parseFloat(a.Score)).length || 0).toFixed(1)
+    : '—';
+
+  const countStatus = (...keys) => keys.reduce((sum, k) => sum + (statuses[k] || 0), 0);
+  const cards = [
+    { label: 'Total', value: apps.length, dot: '#8a8f98' },
+    { label: 'Applied', value: countStatus('Applied', 'Aplicado'), dot: '#60a5fa' },
+    { label: 'Interviews', value: countStatus('Interview', 'Entrevista'), dot: '#fbbf24' },
+    { label: 'Offers', value: countStatus('Offer', 'Oferta'), dot: '#34d399' },
+    { label: 'Avg Score', value: avgScore, dot: '#828fff' },
+    { label: 'Pipeline', value: state.pipeline.length, dot: '#a78bfa' },
+  ];
+
+  document.getElementById('stats-grid').innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="stat-dot" style="background:${c.dot}"></div>
+        <span class="stat-label">${c.label}</span>
+      </div>
+      <div class="stat-value">${c.value}</div>
+    </div>
+  `).join('');
+
+  // Recent 5
+  const recent = [...apps].slice(-5).reverse();
+  document.getElementById('recent-tbody').innerHTML = recent.length
+    ? recent.map(a => `
+        <tr>
+          <td class="td-num">${a['#'] || ''}</td>
+          <td class="td-company">${a.Company || '—'}</td>
+          <td class="td-role">${a.Role || '—'}</td>
+          <td>${scoreEl(a.Score)}</td>
+          <td>${badge(a.Status)}</td>
+          <td class="td-date">${a.Date || ''}</td>
+        </tr>
+      `).join('')
+    : `<tr><td colspan="6"><div class="empty"><strong>No applications yet</strong><span>Start by evaluating a job offer with /career-ops</span></div></td></tr>`;
+}
+
+// ─── Applications ─────────────────────────────────────────────────────────────
+function renderApplications() {
+  const apps = state.applications;
+  const all_statuses = ['All', ...new Set(apps.map(a => a.Status).filter(Boolean))];
+  const filtered = state.filter === 'All' ? apps : apps.filter(a => a.Status === state.filter);
+
+  // Filters
+  document.getElementById('app-filters').innerHTML = all_statuses.map(s => `
+    <button class="filter-btn ${s === state.filter ? 'active' : ''}" data-filter="${s}">${s}
+      <span style="margin-left:4px;opacity:0.5;font-size:11px">${s === 'All' ? apps.length : apps.filter(a => a.Status === s).length}</span>
+    </button>
+  `).join('');
+
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.filter = btn.dataset.filter;
+      renderApplications();
+    });
+  });
+
+  document.getElementById('app-tbody').innerHTML = filtered.length
+    ? [...filtered].reverse().map(a => {
+        const hasReport = !!extractReportFilename(a.Report);
+	        const applyBtn = hasReport
+	          ? `<button class="btn btn-primary btn-sm apply-row-btn"
+	               data-company="${(a.Company||'').replace(/"/g,'&quot;')}"
+	               data-role="${(a.Role||'').replace(/"/g,'&quot;')}"
+	               data-report="${(extractReportFilename(a.Report)||'').replace(/"/g,'&quot;')}"
+	               data-job-url="${(a.JobURL||'').replace(/"/g,'&quot;')}"
+	               title="Open the original offer page"
+	               style="white-space:nowrap;font-size:11px;padding:3px 8px">
+	               Apply
+	             </button>`
+	          : '';
+	        const coverPdf = findLatestCoverLetterPdf(a);
+	        const coverPdfBtn = coverPdf?.filename
+	          ? `<a class="btn btn-ghost btn-sm"
+	               href="/output/${encodeURIComponent(coverPdf.filename)}"
+	               download="${escapeHtml(coverPdf.filename)}"
+	               title="Download the latest generated cover letter PDF for this application"
+	               style="white-space:nowrap;font-size:11px;padding:3px 8px">
+	               CL PDF
+	             </a>`
+	          : '';
+	        const coverBtn = hasReport
+	          ? `<button class="btn btn-ghost btn-sm cover-letter-row-btn"
+	               data-company="${(a.Company||'').replace(/"/g,'&quot;')}"
+	               data-role="${(a.Role||'').replace(/"/g,'&quot;')}"
+               data-report="${(extractReportFilename(a.Report)||'').replace(/"/g,'&quot;')}"
+               title="Generate a tailored cover letter"
+               style="white-space:nowrap;font-size:11px;padding:3px 8px">
+               Cover Letter
+             </button>`
+          : '';
+        const questionBtn = hasReport
+          ? `<button class="btn btn-ghost btn-sm question-row-btn"
+               data-company="${(a.Company||'').replace(/"/g,'&quot;')}"
+               data-role="${(a.Role||'').replace(/"/g,'&quot;')}"
+               data-report="${(extractReportFilename(a.Report)||'').replace(/"/g,'&quot;')}"
+               title="Answer an application question using this offer's report"
+               style="white-space:nowrap;font-size:11px;padding:3px 8px">
+               Q?
+             </button>`
+          : '';
+        const markAppliedBtn = !isAppliedStatus(a.Status)
+          ? `<button class="btn btn-ghost btn-sm mark-applied-btn"
+               data-num="${String(a['#'] ?? '')}"
+               title="Marquer comme postulé"
+               style="white-space:nowrap;font-size:11px;padding:3px 8px;color:#60a5fa;border-color:#60a5fa">
+               ✓ Applied
+             </button>`
+          : '';
+        const deleteBtn = !isAppliedStatus(a.Status)
+          ? `<button class="btn btn-ghost btn-sm delete-application-btn"
+               data-num="${String(a['#'] ?? '')}"
+               data-company="${escapeHtml(a.Company || '')}"
+               data-role="${escapeHtml(a.Role || '')}"
+               title="Supprimer cette offre"
+               style="white-space:nowrap;font-size:11px;padding:3px 8px;color:var(--red);border-color:rgba(239,68,68,0.35)">
+               Supprimer
+             </button>`
+          : '';
+        return `
+        <tr>
+          <td class="td-num">${a['#'] || ''}</td>
+          <td class="td-company">${a.Company || '—'}</td>
+          <td class="td-role">${a.Role || '—'}</td>
+          <td>${scoreEl(a.Score)}</td>
+          <td>${badge(a.Status)}</td>
+          <td style="text-align:center;font-size:16px">${a.PDF === '✓' || a.PDF === '✅' ? '✓' : '—'}</td>
+	          <td class="td-report">${renderReportLink(a.Report)}</td>
+	          <td class="td-date">${a.Date || ''}</td>
+	          <td class="td-notes" title="${a.Notes || ''}">${a.Notes || ''}</td>
+	          <td style="text-align:right;white-space:nowrap">${markAppliedBtn}${markAppliedBtn && (questionBtn || coverPdfBtn || coverBtn || applyBtn || deleteBtn) ? ' ' : ''}${questionBtn}${questionBtn && (coverPdfBtn || coverBtn || applyBtn || deleteBtn) ? ' ' : ''}${coverPdfBtn}${coverPdfBtn && coverBtn ? ' ' : ''}${coverBtn}${(coverPdfBtn || coverBtn) && applyBtn ? ' ' : ''}${applyBtn}${(markAppliedBtn || questionBtn || coverPdfBtn || coverBtn || applyBtn) && deleteBtn ? ' ' : ''}${deleteBtn}</td>
+	        </tr>`;
+	      }).join('')
+	    : `<tr><td colspan="10"><div class="empty"><strong>No applications match this filter</strong></div></td></tr>`;
+
+  // Apply row button — opens the offer and a quick-fill helper
+  document.querySelectorAll('.apply-row-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const jobUrl = btn.dataset.jobUrl;
+      if (jobUrl) {
+        window.open(jobUrl, '_blank', 'noopener,noreferrer');
+
+        const app = state.applications.find(a =>
+          a.Company === btn.dataset.company &&
+          a.Role === btn.dataset.role &&
+          extractReportFilename(a.Report) === btn.dataset.report
+        ) || {
+          Company: btn.dataset.company,
+          Role: btn.dataset.role,
+          JobURL: jobUrl,
+        };
+
+        const helperWin = window.open('', `apply-helper-${Date.now()}`, 'width=430,height=760');
+        if (helperWin) {
+          renderApplyHelperLoading(helperWin, app);
+          try {
+            const profile = profileData || await api('/api/profile');
+            if (!profileData) profileData = profile;
+            renderApplyHelper(helperWin, app, profile);
+          } catch (err) {
+            renderApplyHelper(helperWin, app, {});
+            toast(`Offer opened, but helper could not load profile: ${err.message}`, true);
+          }
+        } else {
+          toast('Offer opened. Allow popups if you also want the quick-fill helper.', true);
+        }
+        return;
+      }
+      toast('No job URL found for this offer yet', true);
+    });
+  });
+
+  document.querySelectorAll('.cover-letter-row-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const company = btn.dataset.company;
+      const role = btn.dataset.role;
+      const report = btn.dataset.report;
+      openCmdModal('coverletter', { company, role, report });
+    });
+  });
+
+  document.querySelectorAll('.question-row-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openQuestionModal(btn.dataset.company, btn.dataset.role, btn.dataset.report);
+    });
+  });
+
+  document.querySelectorAll('.mark-applied-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const num = btn.dataset.num;
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        await fetch(`/api/applications/${encodeURIComponent(num)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Applied' }),
+        }).then(r => { if (!r.ok) throw new Error(r.statusText); });
+        const apps = await api('/api/applications');
+        state.applications = normalizeApplications(apps);
+        renderAll();
+        toast(`Offre #${num} marquée comme Applied`);
+      } catch (err) {
+        toast(`Erreur: ${err.message}`, true);
+        btn.disabled = false;
+        btn.textContent = '✓ Applied';
+      }
+    });
+  });
+
+  document.querySelectorAll('.delete-application-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const num = btn.dataset.num;
+      btn.disabled = true;
+      btn.textContent = '…';
+      try {
+        await fetch(`/api/applications/${encodeURIComponent(num)}`, {
+          method: 'DELETE',
+        }).then(async r => { if (!r.ok) { const b = await r.json().catch(()=>({})); throw new Error(b.error || r.statusText); } });
+        const apps = await api('/api/applications');
+        state.applications = normalizeApplications(apps);
+        renderAll();
+        toast(`Offre #${num} supprimée`);
+      } catch (err) {
+        toast(`Erreur: ${err.message}`, true);
+        btn.disabled = false;
+        btn.textContent = 'Supprimer';
+      }
+    });
+  });
+}
+
+function extractReportFilename(reportCell) {
+  if (!reportCell) return '';
+  const match = reportCell.match(/\(([^)]+)\)/);
+  return match ? match[1].split('/').pop() : '';
+}
+
+function slugify(value = '') {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'document';
+}
+
+function extractDateFromOutputFilename(filename = '') {
+  const match = String(filename).match(/-(\d{4}-\d{2}-\d{2})\.pdf$/i);
+  return match ? match[1] : '';
+}
+
+function findLatestCoverLetterPdf(app) {
+  const company = app?.Company || '';
+  const role = app?.Role || '';
+  if (!company || !role) return null;
+
+  const companySlug = slugify(company);
+  const roleSlug = slugify(role).slice(0, 40);
+  const prefix = `cover-letter-${companySlug}-${roleSlug}-`;
+
+  const matches = (state.cvs || []).filter(entry => String(entry?.filename || '').startsWith(prefix));
+  if (!matches.length) return null;
+
+  matches.sort((a, b) => {
+    const da = extractDateFromOutputFilename(a.filename) || a.date || '';
+    const db = extractDateFromOutputFilename(b.filename) || b.date || '';
+    if (da !== db) return da < db ? 1 : -1;
+    return String(a.filename || '') < String(b.filename || '') ? 1 : -1;
+  });
+  return matches[0];
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeExternalUrl(value = '') {
+  const trimmed = String(value).trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function buildApplyHelperFields(app, profile) {
+  const candidate = profile?.candidate || {};
+  const compensation = profile?.compensation || {};
+  const location = profile?.location || {};
+  const narrative = profile?.narrative || {};
+
+  const nameParts = String(candidate.full_name || '').trim().split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ');
+
+  return [
+    { label: 'Company', value: app.Company || '' },
+    { label: 'Role', value: app.Role || '' },
+    { label: 'First name', value: firstName },
+    { label: 'Last name', value: lastName },
+    { label: 'Full name', value: candidate.full_name || '' },
+    { label: 'Email', value: candidate.email || '' },
+    { label: 'Phone', value: candidate.phone || '' },
+    { label: 'Location', value: candidate.location || location.city || '' },
+    { label: 'LinkedIn', value: normalizeExternalUrl(candidate.linkedin || '') },
+    { label: 'Portfolio', value: normalizeExternalUrl(candidate.portfolio_url || '') },
+    { label: 'GitHub / website', value: normalizeExternalUrl(candidate.github || '') },
+    { label: 'Headline', value: narrative.headline || '' },
+    { label: 'Target compensation', value: compensation.target_range || '' },
+    { label: 'Minimum', value: compensation.minimum || '' },
+    { label: 'Employment type', value: compensation.employment_type || '' },
+    { label: 'Visa status', value: location.visa_status || '' },
+    { label: 'Remote policy', value: location.remote_policy || compensation.location_flexibility || '' },
+  ].filter(field => field.value);
+}
+
+function renderApplyHelper(win, app, profile) {
+  if (!win || win.closed) return;
+  const fields = buildApplyHelperFields(app, profile);
+  const copyAll = fields.map(f => `${f.label}: ${f.value}`).join('\n');
+  const rows = fields.map(field => `
+    <div class="field-row">
+      <div class="field-meta">
+        <div class="field-label">${escapeHtml(field.label)}</div>
+        <div class="field-value">${escapeHtml(field.value)}</div>
+      </div>
+      <button class="copy-btn" data-copy="${escapeHtml(field.value)}">Copy</button>
+    </div>
+  `).join('');
+
+  win.document.open();
+  win.document.write(`<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Apply Helper</title>
+      <style>
+        :root {
+          color-scheme: dark;
+          --bg: #0f1117;
+          --panel: #171a22;
+          --border: rgba(255,255,255,0.08);
+          --text: #f3f4f6;
+          --muted: #9ca3af;
+          --accent: #60a5fa;
+          --accent-2: #2563eb;
+        }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          min-height: 100vh;
+          font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          background: radial-gradient(circle at top, #1d2230 0%, var(--bg) 55%);
+          color: var(--text);
+          padding: 18px;
+        }
+        .panel {
+          background: rgba(23,26,34,0.92);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          padding: 16px;
+          box-shadow: 0 18px 50px rgba(0,0,0,0.28);
+        }
+        .title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+        .sub { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 14px; }
+        .actions { display: flex; gap: 10px; margin-bottom: 14px; }
+        .primary-btn, .ghost-btn, .copy-btn {
+          border: 0;
+          border-radius: 10px;
+          font: inherit;
+          cursor: pointer;
+        }
+        .primary-btn, .ghost-btn {
+          padding: 10px 12px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        .primary-btn {
+          background: linear-gradient(135deg, var(--accent), var(--accent-2));
+          color: white;
+        }
+        .ghost-btn {
+          background: rgba(255,255,255,0.04);
+          color: var(--text);
+          border: 1px solid var(--border);
+        }
+        .copy-btn {
+          align-self: flex-start;
+          background: rgba(96,165,250,0.12);
+          color: #bfdbfe;
+          padding: 8px 10px;
+          min-width: 60px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        .field-list { display: flex; flex-direction: column; gap: 10px; }
+        .field-row {
+          display: flex;
+          gap: 10px;
+          justify-content: space-between;
+          align-items: flex-start;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 12px;
+        }
+        .field-meta { min-width: 0; }
+        .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px; }
+        .field-value { font-size: 13px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
+        .hint { margin-top: 14px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      </style>
+    </head>
+    <body>
+      <div class="panel">
+        <h1 class="title">Apply Helper</h1>
+        <p class="sub">${escapeHtml(app.Company || 'Offer')} - ${escapeHtml(app.Role || '')}<br>Use these values to paste quickly into the application form.</p>
+        <div class="actions">
+          <button class="primary-btn" id="copy-all-btn">Copy all fields</button>
+          <button class="ghost-btn" id="open-offer-btn">Open offer again</button>
+        </div>
+        <div class="field-list">${rows}</div>
+        <div class="hint">Direct auto-fill on external job pages is limited by browser cross-origin rules. This helper keeps the common fields one click away.</div>
+      </div>
+      <script>
+        const copyAll = ${JSON.stringify(copyAll)};
+        const jobUrl = ${JSON.stringify(app.JobURL || '')};
+        async function copyText(value) {
+          try {
+            await navigator.clipboard.writeText(value);
+          } catch (err) {
+            console.error(err);
+          }
+        }
+        document.getElementById('copy-all-btn').addEventListener('click', async () => {
+          await copyText(copyAll);
+          document.getElementById('copy-all-btn').textContent = 'Copied';
+          setTimeout(() => { document.getElementById('copy-all-btn').textContent = 'Copy all fields'; }, 1200);
+        });
+        document.getElementById('open-offer-btn').addEventListener('click', () => {
+          if (jobUrl) window.open(jobUrl, '_blank', 'noopener,noreferrer');
+        });
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            await copyText(btn.dataset.copy || '');
+            const original = btn.textContent;
+            btn.textContent = 'Copied';
+            setTimeout(() => { btn.textContent = original; }, 1200);
+          });
+        });
+      <\/script>
+    </body>
+  </html>`);
+  win.document.close();
+}
+
+function renderApplyHelperLoading(win, app) {
+  if (!win || win.closed) return;
+  win.document.open();
+  win.document.write(`<!doctype html>
+  <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <title>Apply Helper</title>
+      <style>
+        body {
+          margin: 0;
+          min-height: 100vh;
+          display: grid;
+          place-items: center;
+          background: #0f1117;
+          color: #f3f4f6;
+          font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        .box {
+          padding: 18px 20px;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 14px;
+          background: rgba(23,26,34,0.92);
+        }
+        .sub { color: #9ca3af; font-size: 12px; margin-top: 6px; }
+      </style>
+    </head>
+    <body>
+      <div class="box">
+        <div>Preparing quick-fill helper...</div>
+        <div class="sub">${escapeHtml(app.Company || 'Offer')} - ${escapeHtml(app.Role || '')}</div>
+      </div>
+    </body>
+  </html>`);
+  win.document.close();
+}
+
+function renderReportLink(reportCell) {
+  if (!reportCell) return '—';
+  const match = reportCell.match(/\[([^\]]+)\]\(([^)]+)\)/);
+  if (!match) return reportCell || '—';
+  const [, label, path] = match;
+  const filename = path.split('/').pop();
+  return `<a href="#" data-report="${filename}">↗ Report</a>`;
+}
+
+function formatDisplayDate(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed);
+}
+
+function getPipelineDateMeta(item = {}) {
+  const publishedAt = item.published_at || item.publishedAt || item.publication_date || item.publicationDate || '';
+  if (publishedAt) {
+    return `Publiée le ${formatDisplayDate(publishedAt)}`;
+  }
+
+  const createdAt = item.created_at || item.createdAt || '';
+  if (createdAt) {
+    return `Scannée le ${formatDisplayDate(createdAt)}`;
+  }
+
+  return '';
+}
+
+// ─── Pipeline ─────────────────────────────────────────────────────────────────
+function renderPipeline() {
+  const items = state.pipeline;
+  document.getElementById('pipe-count-label').textContent =
+    items.length ? `${items.length} URL${items.length > 1 ? 's' : ''} pending` : 'Empty';
+
+  document.getElementById('pipeline-list').innerHTML = items.length
+    ? items.map((item, i) => {
+        const title = item.title || '';
+        const company = item.company || '';
+        const note = item.display_note || item.displayNote || item.note || '';
+        const dateMeta = getPipelineDateMeta(item);
+        return `
+        <div class="pipeline-item">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" style="flex-shrink:0;color:var(--text-4)">
+            <path d="M8.5 2.5L12 6l-3.5 3.5M3 6h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="pipeline-main">
+            ${(title || company || dateMeta) ? `
+              <div class="pipeline-heading">
+                ${title ? `<span class="pipeline-title">${escapeHtml(title)}</span>` : ''}
+                ${company ? `<span class="pipeline-company">${escapeHtml(company)}</span>` : ''}
+                ${dateMeta ? `<span class="pipeline-date">${escapeHtml(dateMeta)}</span>` : ''}
+              </div>
+            ` : ''}
+            <span class="pipeline-url" title="${escapeHtml(item.url)}">${escapeHtml(item.url)}</span>
+            ${note ? `<span class="pipeline-note">${escapeHtml(note)}</span>` : ''}
+          </div>
+          <div class="pipeline-actions">
+            <button class="btn btn-primary btn-sm pipeline-run-btn" data-pipeline-url="${escapeHtml(item.url)}" title="Evaluate only this URL">
+              Traiter
+            </button>
+            <a href="${escapeHtml(item.url)}" target="_blank" class="btn btn-ghost btn-sm">Open</a>
+            <button class="btn-icon" data-delete-url="${escapeHtml(item.url)}" title="Remove">
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+      `}).join('')
+    : `<div class="empty">
+        <svg width="36" height="36" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 4v3.5l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <strong>Pipeline is empty</strong>
+        <span>Add URLs above to queue them for evaluation</span>
+      </div>`;
+
+  // Delete handlers
+  document.querySelectorAll('[data-delete-url]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.deleteUrl;
+      await api('/api/pipeline', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      toast('Removed from pipeline');
+      await loadAll();
+    });
+  });
+
+  document.querySelectorAll('.pipeline-run-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetUrl = btn.dataset.pipelineUrl;
+      if (!targetUrl) {
+        toast('No URL found for this pipeline row', true);
+        return;
+      }
+      openCmdModal('pipeline', { url: targetUrl });
+    });
+  });
+}
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+function renderReports() {
+  const reports = state.reports;
+  document.getElementById('reports-list').innerHTML = reports.length
+    ? reports.map(r => `
+        <div class="report-item" data-report="${r.filename}">
+          <span class="report-num">#${r.num}</span>
+          <span class="report-company">${r.company.replace(/-/g, ' ')}</span>
+          <span class="report-date">${r.date}</span>
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none" style="color:var(--text-4);flex-shrink:0"><path d="M5.5 3.5l5 4-5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      `).join('')
+    : `<div class="empty">
+        <svg width="36" height="36" viewBox="0 0 15 15" fill="none"><path d="M3 1.5h9a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1v-10a1 1 0 011-1zM5 5h5M5 7.5h5M5 10h3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+        <strong>No reports yet</strong>
+        <span>Evaluate a job offer to generate a report</span>
+      </div>`;
+}
+
+// ─── Generated CVs ────────────────────────────────────────────────────────────
+function renderCVs() {
+  const cvs = state.cvs;
+  document.getElementById('cvs-tbody').innerHTML = cvs.length
+    ? cvs.map(c => `
+        <tr>
+          <td class="td-company">
+            <svg width="13" height="13" viewBox="0 0 15 15" fill="none" style="vertical-align:text-bottom; margin-right:6px; color:var(--text-4)"><path d="M2.5 1.5v12h10v-9l-3-3h-7z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            ${c.filename}
+          </td>
+          <td class="td-date">${c.date}</td>
+          <td style="color:var(--text-4); font-size:12px">${(c.size / 1024).toFixed(1)} KB</td>
+          <td style="text-align:right">
+            <a href="/api/cvs/${encodeURIComponent(c.filename)}" target="_blank" class="btn btn-ghost btn-sm">View PDF</a>
+          </td>
+        </tr>
+      `).join('')
+    : `<tr><td colspan="4"><div class="empty"><strong>No CVs generated yet</strong></div></td></tr>`;
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+async function openReport(filename) {
+  document.getElementById('modal-title').textContent = filename.replace('.md', '').replace(/-/g, ' ');
+  document.getElementById('modal-content').innerHTML = '<p style="color:var(--text-4)">Loading…</p>';
+  document.getElementById('modal').classList.add('open');
+  try {
+    const content = await api(`/api/reports/${encodeURIComponent(filename)}`);
+    document.getElementById('modal-content').innerHTML = renderMd(content);
+  } catch (e) {
+    document.getElementById('modal-content').innerHTML = `<p style="color:var(--red)">Error: ${e.message}</p>`;
+  }
+}
+
+document.getElementById('modal-close').addEventListener('click', () => {
+  document.getElementById('modal').classList.remove('open');
+});
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+// Quick add modal
+document.getElementById('open-add-btn').addEventListener('click', () => {
+  document.getElementById('quick-modal').classList.add('open');
+  document.getElementById('quick-url').focus();
+});
+document.getElementById('quick-modal-close').addEventListener('click', () => {
+  document.getElementById('quick-modal').classList.remove('open');
+});
+document.getElementById('quick-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+document.getElementById('quick-add-btn').addEventListener('click', async () => {
+  const url  = document.getElementById('quick-url').value.trim();
+  const note = document.getElementById('quick-note').value.trim();
+  if (!url.startsWith('http')) { toast('Please enter a valid URL', true); return; }
+  await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
+  document.getElementById('quick-url').value = '';
+  document.getElementById('quick-note').value = '';
+  document.getElementById('quick-modal').classList.remove('open');
+  toast('Added to pipeline');
+  await loadAll();
+  navigate('pipeline');
+});
+
+// ─── Portals tab switcher ─────────────────────────────────────────────────────
+document.querySelectorAll('.portals-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    state.portalsTab = tab.dataset.tab;
+    document.querySelectorAll('.portals-tab').forEach(t => {
+      const active = t.dataset.tab === state.portalsTab;
+      t.style.color        = active ? 'var(--text-1)' : 'var(--text-3)';
+      t.style.borderBottom = active ? '2px solid var(--brand)' : '2px solid transparent';
+    });
+    document.getElementById('tab-companies').style.display = state.portalsTab === 'companies' ? '' : 'none';
+    document.getElementById('tab-queries').style.display   = state.portalsTab === 'queries'   ? '' : 'none';
+  });
+});
+
+// ─── Portals (companies) ──────────────────────────────────────────────────────
+function renderPortals() {
+  let portals = state.portals;
+
+  // Filter by enabled/disabled
+  if (state.portalsFilter === 'enabled')  portals = portals.filter(p => p.enabled);
+  if (state.portalsFilter === 'disabled') portals = portals.filter(p => !p.enabled);
+
+  // Filter by search
+  const q = state.portalsSearch.toLowerCase();
+  if (q) portals = portals.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    p.careers_url.toLowerCase().includes(q) ||
+    (p.notes || '').toLowerCase().includes(q)
+  );
+
+  document.getElementById('portals-count-label').textContent =
+    `${portals.length} / ${state.portals.length} companies`;
+
+  document.getElementById('portals-tbody').innerHTML = portals.length
+    ? portals.map(p => `
+        <tr>
+          <td style="text-align:center">
+            <label class="toggle" title="${p.enabled ? 'Enabled' : 'Disabled'}">
+              <input type="checkbox" ${p.enabled ? 'checked' : ''} data-toggle-portal="${encodeURIComponent(p.name)}">
+              <span class="toggle-track"></span>
+              <span class="toggle-thumb"></span>
+            </label>
+          </td>
+          <td class="td-company" style="${!p.enabled ? 'opacity:0.45' : ''}">${p.name}</td>
+          <td class="td-portal-url" title="${p.careers_url}">
+            <a href="${p.careers_url}" target="_blank" style="color:var(--accent);text-decoration:none">${p.careers_url}</a>
+          </td>
+          <td class="td-portal-method">${p.scan_method || 'playwright'}</td>
+          <td class="td-portal-notes" title="${p.notes || ''}">${p.notes || '—'}</td>
+          <td style="white-space:nowrap">${scanStateEl(p.name)}</td>
+          <td style="white-space:nowrap;text-align:right">
+            <button class="btn-icon" data-edit-portal="${encodeURIComponent(p.name)}" title="Edit" style="margin-right:4px">
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M10.5 2.5l2 2L5 12H3v-2L10.5 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="btn-icon" data-delete-portal="${encodeURIComponent(p.name)}" title="Delete" style="color:var(--red)">
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </td>
+        </tr>
+      `).join('')
+    : `<tr><td colspan="7"><div class="empty"><strong>No companies match</strong><span>Adjust the filters or add a new company</span></div></td></tr>`;
+
+  // Toggle handlers
+  document.querySelectorAll('[data-toggle-portal]').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const name = decodeURIComponent(cb.dataset.togglePortal);
+      try {
+        await api(`/api/portals/${encodeURIComponent(name)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: cb.checked }),
+        });
+        state.portals = await api('/api/portals');
+        renderPortals();
+        updateBadges();
+      } catch(e) { toast(`Error: ${e.message}`, true); cb.checked = !cb.checked; }
+    });
+  });
+
+  // Edit handlers
+  document.querySelectorAll('[data-edit-portal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = decodeURIComponent(btn.dataset.editPortal);
+      const p = state.portals.find(p => p.name === name);
+      if (!p) return;
+      openPortalModal(p);
+    });
+  });
+
+  // Delete handlers
+  document.querySelectorAll('[data-delete-portal]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const name = decodeURIComponent(btn.dataset.deletePortal);
+      if (!confirm(`Delete "${name}"?`)) return;
+      try {
+        await api(`/api/portals/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        state.portals = await api('/api/portals');
+        renderPortals();
+        updateBadges();
+        toast(`"${name}" removed`);
+      } catch(e) { toast(`Error: ${e.message}`, true); }
+    });
+  });
+}
+
+// Portal filters
+document.querySelectorAll('[data-portal-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.portalsFilter = btn.dataset.portalFilter;
+    document.querySelectorAll('[data-portal-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderPortals();
+  });
+});
+
+document.getElementById('portals-search').addEventListener('input', e => {
+  state.portalsSearch = e.target.value;
+  renderPortals();
+});
+
+// Portal modal
+let editingPortalName = null;
+
+function openPortalModal(existing = null) {
+  editingPortalName = existing?.name || null;
+  document.getElementById('portal-modal-title').textContent = existing ? `Edit — ${existing.name}` : 'Add company';
+  document.getElementById('pf-name').value         = existing?.name || '';
+  document.getElementById('pf-careers-url').value  = existing?.careers_url || '';
+  document.getElementById('pf-api').value          = existing?.api || '';
+  document.getElementById('pf-scan-method').value  = existing?.scan_method || '';
+  document.getElementById('pf-scan-query').value   = existing?.scan_query || '';
+  document.getElementById('pf-notes').value        = existing?.notes || '';
+  document.getElementById('pf-enabled').checked    = existing ? existing.enabled : true;
+  document.getElementById('portal-modal').classList.add('open');
+  document.getElementById('pf-name').focus();
+}
+
+document.getElementById('add-portal-btn').addEventListener('click', () => openPortalModal());
+document.getElementById('portal-modal-close').addEventListener('click', () => {
+  document.getElementById('portal-modal').classList.remove('open');
+});
+document.getElementById('portal-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('portal-save-btn').addEventListener('click', async () => {
+  const body = {
+    name:        document.getElementById('pf-name').value.trim(),
+    careers_url: document.getElementById('pf-careers-url').value.trim(),
+    api:         document.getElementById('pf-api').value.trim(),
+    scan_method: document.getElementById('pf-scan-method').value,
+    scan_query:  document.getElementById('pf-scan-query').value.trim(),
+    notes:       document.getElementById('pf-notes').value.trim(),
+    enabled:     document.getElementById('pf-enabled').checked,
+  };
+  if (!body.name)                         { toast('Company name is required', true); return; }
+  if (!body.careers_url.startsWith('http')) { toast('Invalid careers URL', true); return; }
+
+  try {
+    if (editingPortalName) {
+      await api(`/api/portals/${encodeURIComponent(editingPortalName)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      toast(`"${body.name}" updated`);
+    } else {
+      await api('/api/portals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      toast(`"${body.name}" added`);
+    }
+    document.getElementById('portal-modal').classList.remove('open');
+    state.portals = await api('/api/portals');
+    renderPortals();
+    updateBadges();
+  } catch(e) { toast(`Error: ${e.message}`, true); }
+});
+
+// Enter key in portal form
+['pf-name','pf-careers-url','pf-api','pf-scan-query','pf-notes'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('portal-save-btn').click();
+  });
+});
+
+// ─── Queries (Job Boards) ─────────────────────────────────────────────────────
+function renderQueries() {
+  let queries = state.queries;
+
+  if (state.queriesFilter === 'search_queries') queries = queries.filter(q => q.section === 'search_queries');
+  else if (state.queriesFilter === 'eu_job_boards') queries = queries.filter(q => q.section === 'eu_job_boards');
+  else if (state.queriesFilter === 'enabled')  queries = queries.filter(q => q.enabled);
+  else if (state.queriesFilter === 'disabled') queries = queries.filter(q => !q.enabled);
+
+  const q = state.queriesSearch.toLowerCase();
+  if (q) queries = queries.filter(p =>
+    p.name.toLowerCase().includes(q) || p.query.toLowerCase().includes(q)
+  );
+
+  document.getElementById('queries-count-label').textContent =
+    `${queries.length} / ${state.queries.length} queries`;
+
+  document.getElementById('queries-tbody').innerHTML = queries.length
+    ? queries.map(p => `
+        <tr>
+          <td style="text-align:center">
+            <label class="toggle" title="${p.enabled ? 'Enabled' : 'Disabled'}">
+              <input type="checkbox" ${p.enabled ? 'checked' : ''} data-toggle-query="${encodeURIComponent(p.name)}">
+              <span class="toggle-track"></span>
+              <span class="toggle-thumb"></span>
+            </label>
+          </td>
+          <td class="td-company" style="${!p.enabled ? 'opacity:0.45' : ''}">${p.name}</td>
+          <td style="font-size:12px;color:var(--text-3);max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.query}">${p.query}</td>
+          <td><span style="font-size:10px;padding:2px 7px;border-radius:9999px;background:rgba(255,255,255,0.06);color:var(--text-4);white-space:nowrap">${p.section === 'eu_job_boards' ? 'EU / Asia' : 'General'}</span></td>
+          <td style="white-space:nowrap">${scanStateEl(p.name)}</td>
+          <td style="white-space:nowrap;text-align:right">
+            <button class="btn-icon" data-edit-query="${encodeURIComponent(p.name)}" title="Edit" style="margin-right:4px">
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M10.5 2.5l2 2L5 12H3v-2L10.5 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="btn-icon" data-delete-query="${encodeURIComponent(p.name)}" title="Delete" style="color:var(--red)">
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </td>
+        </tr>
+      `).join('')
+    : `<tr><td colspan="6"><div class="empty"><strong>No queries match</strong></div></td></tr>`;
+
+  // Toggle handlers
+  document.querySelectorAll('[data-toggle-query]').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const name = decodeURIComponent(cb.dataset.toggleQuery);
+      try {
+        await api(`/api/queries/${encodeURIComponent(name)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: cb.checked }),
+        });
+        state.queries = await api('/api/queries');
+        renderQueries();
+      } catch(e) { toast(`Error: ${e.message}`, true); cb.checked = !cb.checked; }
+    });
+  });
+
+  // Edit handlers
+  document.querySelectorAll('[data-edit-query]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = decodeURIComponent(btn.dataset.editQuery);
+      const q = state.queries.find(q => q.name === name);
+      if (q) openQueryModal(q);
+    });
+  });
+
+  // Delete handlers
+  document.querySelectorAll('[data-delete-query]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const name = decodeURIComponent(btn.dataset.deleteQuery);
+      if (!confirm(`Delete "${name}"?`)) return;
+      try {
+        await api(`/api/queries/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        state.queries = await api('/api/queries');
+        renderQueries();
+        updateBadges();
+        toast(`"${name}" removed`);
+      } catch(e) { toast(`Error: ${e.message}`, true); }
+    });
+  });
+}
+
+// Query filters
+document.querySelectorAll('[data-query-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.queriesFilter = btn.dataset.queryFilter;
+    document.querySelectorAll('[data-query-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderQueries();
+  });
+});
+
+document.getElementById('queries-search').addEventListener('input', e => {
+  state.queriesSearch = e.target.value;
+  renderQueries();
+});
+
+// Query modal
+let editingQueryName = null;
+
+function openQueryModal(existing = null) {
+  editingQueryName = existing?.name || null;
+  document.getElementById('query-modal-title').textContent = existing ? `Edit — ${existing.name}` : 'Add job board query';
+  document.getElementById('qf-name').value    = existing?.name    || '';
+  document.getElementById('qf-query').value   = existing?.query   || '';
+  document.getElementById('qf-section').value = existing?.section || 'search_queries';
+  document.getElementById('qf-enabled').checked = existing ? existing.enabled : true;
+  document.getElementById('query-modal').classList.add('open');
+  document.getElementById('qf-name').focus();
+}
+
+document.getElementById('add-query-btn').addEventListener('click', () => openQueryModal());
+document.getElementById('query-modal-close').addEventListener('click', () => {
+  document.getElementById('query-modal').classList.remove('open');
+});
+document.getElementById('query-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('query-save-btn').addEventListener('click', async () => {
+  const body = {
+    name:    document.getElementById('qf-name').value.trim(),
+    query:   document.getElementById('qf-query').value.trim(),
+    section: document.getElementById('qf-section').value,
+    enabled: document.getElementById('qf-enabled').checked,
+  };
+  if (!body.name)  { toast('Name is required', true);  return; }
+  if (!body.query) { toast('Query is required', true); return; }
+
+  try {
+    if (editingQueryName) {
+      await api(`/api/queries/${encodeURIComponent(editingQueryName)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      toast(`"${body.name}" updated`);
+    } else {
+      await api('/api/queries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      toast(`"${body.name}" added`);
+    }
+    document.getElementById('query-modal').classList.remove('open');
+    state.queries = await api('/api/queries');
+    renderQueries();
+    updateBadges();
+  } catch(e) { toast(`Error: ${e.message}`, true); }
+});
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+let profileData = null;
+let profileContextMarkdown = '';
+
+function addArchetypeRow(arch = {}) {
+  const row = document.createElement('div');
+  row.className = 'arch-row';
+  row.innerHTML = `
+    <input type="text" class="arch-name" value="${arch.name || ''}" placeholder="e.g. AI Product Manager" style="font-size:13px;padding:6px 10px">
+    <input type="text" class="arch-level" value="${arch.level || ''}" placeholder="Senior/Head" style="font-size:13px;padding:6px 10px">
+    <select class="profile-select arch-fit" style="font-size:13px;padding:6px 10px">
+      <option value="primary"   ${arch.fit === 'primary'   ? 'selected' : ''}>primary</option>
+      <option value="secondary" ${arch.fit === 'secondary' ? 'selected' : ''}>secondary</option>
+      <option value="adjacent"  ${arch.fit === 'adjacent'  ? 'selected' : ''}>adjacent</option>
+    </select>
+    <button class="btn-icon delete-arch-btn" title="Remove" style="color:var(--red)">
+      <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  `;
+  row.querySelector('.delete-arch-btn').addEventListener('click', () => row.remove());
+  document.getElementById('archetypes-list').appendChild(row);
+}
+
+function addProofRow(p = {}) {
+  const card = document.createElement('div');
+  card.className = 'proof-card';
+  card.innerHTML = `
+    <input type="text" class="proof-name" value="${(p.name || '').replace(/"/g,'&quot;')}" placeholder="Project / achievement name" style="font-size:13px;padding:6px 10px">
+    <input type="text" class="proof-url"  value="${(p.url  || '').replace(/"/g,'&quot;')}" placeholder="URL (optional)" style="font-size:13px;padding:6px 10px">
+    <button class="btn-icon delete-proof-btn" title="Remove" style="color:var(--red)">
+      <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <textarea class="proof-metric" rows="2" placeholder="Key metric / result" style="font-size:12px;padding:6px 10px;resize:vertical;grid-column:span 3;margin-top:4px;background:rgba(255,255,255,0.02);border:1px solid var(--border-s);border-radius:6px;color:var(--text-2);font-family:inherit;width:100%">${(p.hero_metric || '').replace(/</g,'&lt;')}</textarea>
+  `;
+  card.querySelector('.delete-proof-btn').addEventListener('click', () => card.remove());
+  document.getElementById('proofpoints-list').appendChild(card);
+}
+
+function renderProfile(data) {
+  profileData = data;
+  const c = data.candidate || {};
+  const t = data.target_roles || {};
+  const n = data.narrative || {};
+  const comp = data.compensation || {};
+  const loc = data.location || {};
+  const search = data.search || {};
+
+  document.getElementById('prof-name').value           = c.full_name        || '';
+  document.getElementById('prof-email').value          = c.email            || '';
+  document.getElementById('prof-phone').value          = c.phone            || '';
+  document.getElementById('prof-location').value       = c.location         || '';
+  document.getElementById('prof-linkedin').value       = c.linkedin         || '';
+  document.getElementById('prof-portfolio').value      = c.portfolio_url    || '';
+  document.getElementById('prof-github').value         = c.github           || '';
+  document.getElementById('prof-twitter').value        = c.twitter          || '';
+
+  document.getElementById('prof-primary-roles').value  = (t.primary || []).join('\n');
+
+  const archList = document.getElementById('archetypes-list');
+  archList.innerHTML = '';
+  (t.archetypes || []).forEach(a => addArchetypeRow(a));
+
+  document.getElementById('prof-headline').value        = n.headline    || '';
+  document.getElementById('prof-exit-story').value      = n.exit_story  || '';
+  document.getElementById('prof-superpowers').value     = (n.superpowers || []).join('\n');
+
+  const ppList = document.getElementById('proofpoints-list');
+  ppList.innerHTML = '';
+  (n.proof_points || []).forEach(p => addProofRow(p));
+
+  document.getElementById('prof-target-range').value    = comp.target_range         || '';
+  document.getElementById('prof-minimum').value         = comp.minimum              || '';
+  document.getElementById('prof-currency').value        = comp.currency             || '';
+  document.getElementById('prof-employment-type').value = comp.employment_type      || '';
+  document.getElementById('prof-location-flex').value   = comp.location_flexibility || '';
+
+  document.getElementById('prof-country').value         = loc.country        || '';
+  document.getElementById('prof-city').value            = loc.city           || '';
+  document.getElementById('prof-timezone').value        = loc.timezone       || '';
+  document.getElementById('prof-visa').value            = loc.visa_status    || '';
+  document.getElementById('prof-remote-policy').value   = loc.remote_policy  || '';
+
+  document.getElementById('prof-search-contract-types').value   = (search.contract_types || []).join('\n');
+  document.getElementById('prof-search-sectors').value          = (search.sector_preferences || []).join('\n');
+  document.getElementById('prof-search-geography').value        = (search.geography_preferences || []).join('\n');
+  document.getElementById('prof-search-onsite').value           = search.onsite_availability || '';
+  document.getElementById('prof-search-must-haves').value       = (search.must_haves || []).join('\n');
+  document.getElementById('prof-search-nice-to-haves').value    = (search.nice_to_haves || []).join('\n');
+  document.getElementById('prof-search-deal-breakers').value    = (search.deal_breakers || []).join('\n');
+  document.getElementById('prof-advanced-context').value        = profileContextMarkdown || '';
+}
+
+async function loadProfile() {
+  try {
+    const [data, context] = await Promise.all([
+      api('/api/profile'),
+      api('/api/profile/context'),
+    ]);
+    profileContextMarkdown = context?.markdown || '';
+    renderProfile(data);
+  } catch(e) {
+    toast('Failed to load profile: ' + e.message, true);
+  }
+}
+
+function collectProfile() {
+  const archetypes = [...document.querySelectorAll('.arch-row')].map(row => ({
+    name:  row.querySelector('.arch-name').value.trim(),
+    level: row.querySelector('.arch-level').value.trim(),
+    fit:   row.querySelector('.arch-fit').value,
+  })).filter(a => a.name);
+
+  const proof_points = [...document.querySelectorAll('#proofpoints-list .proof-card')].map(card => {
+    const obj = { name: card.querySelector('.proof-name').value.trim(), hero_metric: card.querySelector('.proof-metric').value.trim() };
+    const url = card.querySelector('.proof-url').value.trim();
+    if (url) obj.url = url;
+    return obj;
+  }).filter(p => p.name);
+
+  return {
+    candidate: {
+      full_name:     document.getElementById('prof-name').value.trim(),
+      email:         document.getElementById('prof-email').value.trim(),
+      phone:         document.getElementById('prof-phone').value.trim(),
+      location:      document.getElementById('prof-location').value.trim(),
+      linkedin:      document.getElementById('prof-linkedin').value.trim(),
+      portfolio_url: document.getElementById('prof-portfolio').value.trim(),
+      github:        document.getElementById('prof-github').value.trim(),
+      twitter:       document.getElementById('prof-twitter').value.trim(),
+    },
+    target_roles: {
+      primary:    document.getElementById('prof-primary-roles').value.split('\n').map(s => s.trim()).filter(Boolean),
+      archetypes,
+    },
+    narrative: {
+      headline:     document.getElementById('prof-headline').value.trim(),
+      exit_story:   document.getElementById('prof-exit-story').value.trim(),
+      superpowers:  document.getElementById('prof-superpowers').value.split('\n').map(s => s.trim()).filter(Boolean),
+      proof_points,
+    },
+    compensation: {
+      target_range:         document.getElementById('prof-target-range').value.trim(),
+      currency:             document.getElementById('prof-currency').value.trim(),
+      minimum:              document.getElementById('prof-minimum').value.trim(),
+      employment_type:      document.getElementById('prof-employment-type').value.trim(),
+      location_flexibility: document.getElementById('prof-location-flex').value.trim(),
+    },
+    location: {
+      country:      document.getElementById('prof-country').value.trim(),
+      city:         document.getElementById('prof-city').value.trim(),
+      timezone:     document.getElementById('prof-timezone').value.trim(),
+      visa_status:  document.getElementById('prof-visa').value.trim(),
+      remote_policy:document.getElementById('prof-remote-policy').value.trim(),
+    },
+    search: {
+      contract_types: document.getElementById('prof-search-contract-types').value.split('\n').map(s => s.trim()).filter(Boolean),
+      sector_preferences: document.getElementById('prof-search-sectors').value.split('\n').map(s => s.trim()).filter(Boolean),
+      geography_preferences: document.getElementById('prof-search-geography').value.split('\n').map(s => s.trim()).filter(Boolean),
+      onsite_availability: document.getElementById('prof-search-onsite').value.trim(),
+      must_haves: document.getElementById('prof-search-must-haves').value.split('\n').map(s => s.trim()).filter(Boolean),
+      nice_to_haves: document.getElementById('prof-search-nice-to-haves').value.split('\n').map(s => s.trim()).filter(Boolean),
+      deal_breakers: document.getElementById('prof-search-deal-breakers').value.split('\n').map(s => s.trim()).filter(Boolean),
+    },
+  };
+}
+
+let currentTemplateType = 'premium';
+
+function setTemplatePreviewType(type) {
+  currentTemplateType = type;
+  
+  // Update buttons
+  const btnBase = document.getElementById('btn-tpl-base');
+  const btnPremium = document.getElementById('btn-tpl-premium');
+  
+  if (type === 'base') {
+    btnBase.style.background = 'var(--surface-2)';
+    btnBase.style.color = 'var(--text-2)';
+    btnPremium.style.background = 'none';
+    btnPremium.style.color = 'var(--text-4)';
+  } else {
+    btnPremium.style.background = 'var(--surface-2)';
+    btnPremium.style.color = 'var(--text-2)';
+    btnBase.style.background = 'none';
+    btnBase.style.color = 'var(--text-4)';
+  }
+  
+  refreshTemplatePreview();
+}
+
+function refreshTemplatePreview() {
+  const frame = document.getElementById('template-preview-frame');
+  if (!frame) return;
+  
+  const selectedProfile = document.body.dataset.selectedProfile || 'ai_builder';
+  // Use refresh=true to skip output/cv.html and render fresh from source
+  const url = `/api/template-preview?type=${currentTemplateType}&profile=${selectedProfile}&refresh=true&t=${Date.now()}`;
+  frame.src = url;
+  
+  const fullWidthBtn = document.getElementById('full-width-preview');
+  if (fullWidthBtn) fullWidthBtn.href = url;
+}
+
+document.getElementById('profile-save-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('profile-save-btn');
+  const status = document.getElementById('profile-save-status');
+  btn.disabled = true;
+  status.textContent = 'Saving…';
+  try {
+    const advancedContext = document.getElementById('prof-advanced-context').value;
+    await api('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profile: collectProfile(),
+        context_markdown: advancedContext,
+      }),
+    });
+    profileContextMarkdown = advancedContext;
+    status.textContent = '✓ Saved';
+    status.style.color = 'var(--emerald)';
+    refreshTemplatePreview();
+    toast('Profile saved');
+    setTimeout(() => { status.textContent = ''; status.style.color = ''; }, 3000);
+  } catch(e) {
+    status.textContent = '✗ Error';
+    status.style.color = 'var(--red)';
+    toast('Error saving profile: ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('add-archetype-btn').addEventListener('click', () => addArchetypeRow());
+document.getElementById('add-proof-btn').addEventListener('click', () => addProofRow());
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+const TITLES = { dashboard: 'Dashboard', applications: 'Applications', pipeline: 'Pipeline', reports: 'Reports', portals: 'Portals', cvs: 'Generated CVs', profile: 'Profile' };
+
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
+  document.getElementById(`view-${view}`).classList.add('active');
+  document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
+  document.getElementById('topbar-title').textContent = TITLES[view] || view;
+  if (view === 'profile' && !profileData) loadProfile();
+  if (view === 'cvs') refreshTemplatePreview();
+}
+
+document.querySelectorAll('[data-view]').forEach(el => {
+  el.addEventListener('click', () => navigate(el.dataset.view));
+});
+
+// ─── Report link delegation ───────────────────────────────────────────────────
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-report]');
+  if (a) { e.preventDefault(); openReport(a.dataset.report); }
+});
+
+// ─── Pipeline form ────────────────────────────────────────────────────────────
+document.getElementById('add-pipeline-btn').addEventListener('click', async () => {
+  const url  = document.getElementById('pipeline-url').value.trim();
+  const note = document.getElementById('pipeline-note').value.trim();
+  if (!url.startsWith('http')) { toast('Please enter a valid URL', true); return; }
+  await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
+  document.getElementById('pipeline-url').value = '';
+  document.getElementById('pipeline-note').value = '';
+  toast('Added to pipeline');
+  await loadAll();
+});
+
+// Enter key on pipeline inputs
+['pipeline-url','pipeline-note'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('add-pipeline-btn').click();
+  });
+});
+['quick-url','quick-note'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('quick-add-btn').click();
+  });
+});
+
+// ─── Refresh ──────────────────────────────────────────────────────────────────
+document.getElementById('refresh-btn').addEventListener('click', async () => {
+  await loadAll();
+  toast('Data refreshed');
+});
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, error = false) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.borderColor = error ? 'rgba(239,68,68,0.3)' : 'var(--border)';
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ─── Question Input Modal ─────────────────────────────────────────────────────
+let _questionModalMeta = {};
+
+function openQuestionModal(company, role, report) {
+  _questionModalMeta = { company, role, report };
+  document.getElementById('question-input-modal-title').textContent = `Answer a question — ${company} — ${role}`;
+  document.getElementById('question-input-text').value = '';
+  document.getElementById('question-input-modal').classList.add('open');
+  setTimeout(() => document.getElementById('question-input-text').focus(), 50);
+}
+
+document.getElementById('question-input-modal-close').addEventListener('click', () => {
+  document.getElementById('question-input-modal').classList.remove('open');
+});
+document.getElementById('question-input-cancel').addEventListener('click', () => {
+  document.getElementById('question-input-modal').classList.remove('open');
+});
+document.getElementById('question-input-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('question-input-modal'))
+    document.getElementById('question-input-modal').classList.remove('open');
+});
+document.getElementById('question-input-submit').addEventListener('click', () => {
+  const question = document.getElementById('question-input-text').value.trim();
+  if (!question) return;
+  document.getElementById('question-input-modal').classList.remove('open');
+  openCmdModal('question', { ..._questionModalMeta, question });
+});
+document.getElementById('question-input-text').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    document.getElementById('question-input-submit').click();
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('question-input-modal').classList.remove('open');
+  }
+});
+
+// ─── Command Modal (Claude commands) ─────────────────────────────────────────
+const CLAUDE_CMDS = {
+  scan:     { label: 'Scan Portals',       cmd: '/career-ops scan' },
+  pipeline: { label: 'Process Pipeline',   cmd: '/career-ops pipeline' },
+  pdf:      { label: 'Generate CV/PDF',    cmd: '/career-ops pdf' },
+  tracker:  { label: 'View Tracker',       cmd: '/career-ops tracker' },
+  oferta:   { label: 'Evaluate Offer',     cmd: '/career-ops oferta' },
+  deep:     { label: 'Deep Research',      cmd: '/career-ops deep' },
+  contacto: { label: 'Contact (LinkedIn)', cmd: '/career-ops contacto' },
+  apply:    { label: 'Apply to Offer',     cmd: '/career-ops apply' },
+  coverletter: { label: 'Generate Cover Letter', cmd: '/career-ops cover-letter' },
+  question: { label: 'Answer Question',    cmd: '/career-ops question' },
+};
+
+let activeStream = null;
+let activeCmdKey = null;
+let activeCmdMarkdown = '';
+let activeCmdMeta = {};
+
+function extractCoverLetterShortVersion(md = '') {
+  const sectionMatch = md.match(/##\s+Version courte\s*([\s\S]*?)(?=\n##\s+|$)/i);
+  if (sectionMatch) {
+    return sectionMatch[1]
+      .replace(/^\s+|\s+$/g, '')
+      .replace(/\n{3,}/g, '\n\n');
+  }
+  return md.trim();
+}
+
+function openCmdModal(cmdKey, params = {}) {
+  const def = CLAUDE_CMDS[cmdKey];
+  if (!def) return;
+  const out  = document.getElementById('cmd-stream-output');
+  const status = document.getElementById('cmd-status');
+  const modal = document.getElementById('cmd-modal');
+  const cvPdfBtn = document.getElementById('cmd-cv-pdf-btn');
+  const coverPdfBtn = document.getElementById('cmd-cover-pdf-btn');
+  const copyShortBtn = document.getElementById('cmd-copy-short-btn');
+  const isAuto = document.getElementById('auto-next-toggle').checked && cmdKey === 'pipeline' && !params.url;
+  
+  document.getElementById('cmd-modal-title').textContent =
+    ((cmdKey === 'apply' || cmdKey === 'coverletter' || cmdKey === 'question') && params.company && params.role)
+      ? `${def.label} — ${params.company} — ${params.role}`
+      : def.label;
+  out.innerHTML = '';
+  status.innerHTML = '<span class="spin">↻</span> Running…';
+  modal.classList.add('open');
+  activeCmdKey = cmdKey;
+  activeCmdMarkdown = '';
+  activeCmdMeta = { ...params };
+  const isEvalMode = ['oferta', 'pipeline', 'tracker'].includes(cmdKey);
+  cvPdfBtn.style.display = isEvalMode ? '' : 'none';
+  cvPdfBtn.disabled = true;
+  cvPdfBtn.textContent = 'Generate CV';
+  coverPdfBtn.style.display = cmdKey === 'coverletter' ? '' : 'none';
+  coverPdfBtn.disabled = true;
+  coverPdfBtn.textContent = 'Generate PDF';
+  copyShortBtn.style.display = cmdKey === 'coverletter' ? '' : 'none';
+  copyShortBtn.disabled = true;
+  copyShortBtn.textContent = 'Copy short version';
+
+  // Close any previous stream
+  if (activeStream) { activeStream.close(); activeStream = null; }
+
+  let mdBuffer = '';
+  const streamUrl = new URL(`/api/claude/${cmdKey}`, window.location.origin);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) streamUrl.searchParams.set(key, value);
+  });
+  const es = new EventSource(streamUrl.toString());
+  activeStream = es;
+
+  es.addEventListener('start', () => {
+    status.innerHTML = '<span class="spin">↻</span> Claude is generating…';
+  });
+  es.addEventListener('chunk', e => {
+    mdBuffer += JSON.parse(e.data).text;
+    activeCmdMarkdown = mdBuffer;
+    out.innerHTML = renderMd(mdBuffer);
+    out.scrollTop = out.scrollHeight;
+  });
+  es.addEventListener('status', e => {
+    status.innerHTML = `<span class="spin">↻</span> ${JSON.parse(e.data).text}`;
+  });
+  es.addEventListener('warning', e => {
+    const { text = 'Warning' } = JSON.parse(e.data);
+    out.innerHTML += `\n<div style="margin-top:16px;padding:10px 14px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:6px;font-size:12px;color:#f59e0b">${text}</div>`;
+    out.scrollTop = out.scrollHeight;
+  });
+  es.addEventListener('done', async e => {
+    const { saves = [] } = JSON.parse(e.data);
+    if (saves.length) {
+      out.innerHTML += `\n<div style="margin-top:16px;padding:10px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:6px;font-size:12px;color:#34d399">${saves.map(s => `✓ ${s}`).join('<br>')}</div>`;
+    }
+    status.textContent = '✓ Done';
+    if (isEvalMode) {
+      cvPdfBtn.disabled = false;
+    }
+    if (cmdKey === 'coverletter' && extractCoverLetterShortVersion(activeCmdMarkdown)) {
+      coverPdfBtn.disabled = false;
+      copyShortBtn.disabled = false;
+    }
+    es.close(); activeStream = null;
+    await loadAll();
+
+    // AUTO-CONTINUE LOGIC
+    if (isAuto && state.pipeline.length > 0) {
+      status.innerHTML = '<span style="color:var(--brand)">✓ Done. Waiting for next offer (3s)...</span>';
+      setTimeout(() => {
+        if (modal.classList.contains('open')) openCmdModal('pipeline');
+      }, 3000);
+    }
+  });
+  es.addEventListener('error', e => {
+    const msg = e.data ? JSON.parse(e.data).message : 'Connection lost';
+    status.innerHTML = `<span style="color:var(--red)">✗ ${msg}</span>`;
+    es.close(); activeStream = null;
+  });
+}
+
+document.getElementById('cmd-copy-short-btn').addEventListener('click', async () => {
+  if (activeCmdKey !== 'coverletter') return;
+  const shortVersion = extractCoverLetterShortVersion(activeCmdMarkdown);
+  if (!shortVersion) {
+    toast('Short version not ready yet', true);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(shortVersion);
+    const btn = document.getElementById('cmd-copy-short-btn');
+    btn.textContent = 'Copied';
+    setTimeout(() => {
+      btn.textContent = 'Copy short version';
+    }, 1200);
+  } catch (err) {
+    toast(`Copy failed: ${err.message}`, true);
+  }
+});
+
+document.getElementById('cmd-cv-pdf-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('cmd-cv-pdf-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  try {
+    const res = await api('/api/cv-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        response: activeCmdMarkdown,
+        company: activeCmdMeta.company || '',
+        role: activeCmdMeta.role || '',
+      }),
+    });
+    const link = document.createElement('a');
+    link.href = res.url;
+    link.download = res.filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    btn.disabled = false;
+    btn.textContent = 'Download again';
+    toast(`CV generated: ${res.filename}`);
+    await loadAll();
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Generate CV';
+    toast(`CV generation failed: ${err.message}`, true);
+  }
+});
+
+document.getElementById('cmd-cover-pdf-btn').addEventListener('click', async () => {
+  if (activeCmdKey !== 'coverletter') return;
+  if (!activeCmdMarkdown.trim()) {
+    toast('Cover letter not ready yet', true);
+    return;
+  }
+  const btn = document.getElementById('cmd-cover-pdf-btn');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  try {
+    const res = await api('/api/cover-letter-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        markdown: activeCmdMarkdown,
+        company: activeCmdMeta.company || '',
+        role: activeCmdMeta.role || '',
+      }),
+    });
+    const link = document.createElement('a');
+    link.href = res.url;
+    link.download = res.filename;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => link.remove(), 200);
+	    btn.disabled = false;
+	    btn.textContent = 'Download again';
+	    toast(`PDF generated: ${res.filename}`);
+	    await loadAll();
+	  } catch (err) {
+	    btn.disabled = false;
+	    btn.textContent = originalLabel;
+	    toast(`PDF generation failed: ${err.message}`, true);
+	  }
+});
+
+document.getElementById('cmd-modal-close').addEventListener('click', () => {
+  document.getElementById('cmd-modal').classList.remove('open');
+  if (activeStream) { activeStream.close(); activeStream = null; }
+  activeCmdKey = null;
+  activeCmdMarkdown = '';
+  activeCmdMeta = {};
+});
+document.getElementById('cmd-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove('open');
+    if (activeStream) { activeStream.close(); activeStream = null; }
+    activeCmdKey = null;
+    activeCmdMarkdown = '';
+    activeCmdMeta = {};
+  }
+});
+
+// ─── Script runner (Node scripts) ────────────────────────────────────────────
+async function runScript(scriptKey, title) {
+  const btn = document.querySelector(`[data-run="${scriptKey}"]`);
+  if (btn) {
+    btn.disabled = true;
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = `<span class="spin">↻</span> Running…`;
+    try {
+      const res = await api(`/api/run/${scriptKey}`, { method: 'POST' });
+      document.getElementById('run-modal-title').textContent = title || scriptKey;
+      document.getElementById('run-modal-output').textContent = (res.stdout || '') + (res.stderr ? '\n⚠ ' + res.stderr : '');
+      document.getElementById('run-modal').classList.add('open');
+      toast(res.ok ? `${title} — OK` : `${title} — error`, !res.ok);
+      await loadAll();
+    } catch(e) {
+      toast(`Error: ${e.message}`, true);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
+  }
+}
+
+document.getElementById('run-modal-close').addEventListener('click', () => {
+  document.getElementById('run-modal').classList.remove('open');
+});
+document.getElementById('run-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+// ─── Scan Selector Modal ──────────────────────────────────────────────────────
+let scanSources = { companies: [], rss: [], queries: [], aggregators: [] };
+let scanSelection = { companies: [], rss: [], queries: [], aggregators: [], all: true };
+const scanGroupItems = {};
+
+function cooldownEl(lastScanned) {
+  if (!lastScanned) return `<span style="font-size:11px;color:var(--text-4)">—</span>`;
+  const diff = Date.now() - new Date(lastScanned).getTime();
+  const inCd = diff < 86400000;
+  const label = relativeTime(lastScanned);
+  return inCd
+    ? `<span style="font-size:11px;color:var(--emerald);display:flex;align-items:center;gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:var(--emerald);display:inline-block"></span>${label}</span>`
+    : `<span style="font-size:11px;color:var(--text-4)">${label}</span>`;
+}
+
+function renderScanGroup(title, items, key, groupId) {
+  if (!items.length) return '';
+  scanGroupItems[groupId] = items;
+  const allChecked = items.every(it => scanSelection[key]?.includes(it.name));
+  const rows = items.map(it => {
+    const checked = scanSelection[key]?.includes(it.name) ? 'checked' : '';
+    let badge = '';
+    if (key === 'companies') {
+      if (it.access === 'api') {
+        const label = it.apiKind === 'derived_greenhouse' ? 'API auto' : 'API';
+        badge = `<span style="font-size:10px;background:rgba(94,106,210,0.15);color:var(--brand);border-radius:3px;padding:1px 5px;margin-left:4px">${label}</span>`;
+      } else if (it.access === 'websearch') {
+        badge = `<span style="font-size:10px;background:rgba(16,185,129,0.12);color:var(--emerald);border-radius:3px;padding:1px 5px;margin-left:4px">WebSearch</span>`;
+      } else {
+        badge = `<span style="font-size:10px;background:rgba(245,158,11,0.12);color:var(--amber);border-radius:3px;padding:1px 5px;margin-left:4px">Playwright</span>`;
+      }
+    } else if (key === 'aggregators' && it.requiresKey) {
+      badge = it.configured
+        ? `<span style="font-size:10px;background:rgba(94,106,210,0.15);color:var(--brand);border-radius:3px;padding:1px 5px;margin-left:4px">Configured</span>`
+        : `<span style="font-size:10px;background:rgba(245,158,11,0.12);color:var(--amber);border-radius:3px;padding:1px 5px;margin-left:4px">Key missing</span>`;
+    }
+    return `<label style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;border-bottom:1px solid var(--border-s)">
+      <input type="checkbox" class="scan-cb" data-key="${key}" data-name="${it.name}" ${checked} style="accent-color:var(--brand);width:14px;height:14px;flex-shrink:0">
+      <span style="flex:1;font-size:13px;color:var(--text-2)">${it.name}${badge}</span>
+      ${cooldownEl(it.lastScanned)}
+    </label>`;
+  }).join('');
+  return `<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">${title}</span>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-3)">
+        <input type="checkbox" class="scan-group-all" data-key="${key}" data-group="${groupId}" ${allChecked ? 'checked' : ''} style="accent-color:var(--brand);width:13px;height:13px">
+        All
+      </label>
+    </div>
+    <div>${rows}</div>
+  </div>`;
+}
+
+function renderScanModal() {
+  const body = document.getElementById('scan-modal-body');
+  const apiCos = scanSources.companies.filter(c => c.access === 'api');
+  const webCos = scanSources.companies.filter(c => c.access === 'websearch');
+  const playCos = scanSources.companies.filter(c => c.access === 'playwright');
+  body.innerHTML = [
+    renderScanGroup(`Direct API (${apiCos.length})`, apiCos, 'companies', 'companies-api'),
+    renderScanGroup(`WebSearch (${webCos.length})`, webCos, 'companies', 'companies-websearch'),
+    renderScanGroup(`Playwright (${playCos.length})`, playCos, 'companies', 'companies-playwright'),
+    renderScanGroup(`RSS Feeds (${scanSources.rss.length})`, scanSources.rss, 'rss', 'rss'),
+    renderScanGroup(`API Aggregators (${scanSources.aggregators.length})`, scanSources.aggregators, 'aggregators', 'aggregators'),
+    renderScanGroup(`WebSearch Queries (${scanSources.queries.length})`, scanSources.queries, 'queries', 'queries'),
+  ].filter(Boolean).join('');
+
+  const total = (scanSelection.companies?.length || 0) + (scanSelection.rss?.length || 0)
+    + (scanSelection.queries?.length || 0) + (scanSelection.aggregators?.length || 0);
+  document.getElementById('scan-sel-count').textContent = `${total} source${total !== 1 ? 's' : ''} selected`;
+
+  // Bind checkboxes
+  body.querySelectorAll('.scan-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const { key, name } = cb.dataset;
+      if (!scanSelection[key]) scanSelection[key] = [];
+      if (cb.checked) { if (!scanSelection[key].includes(name)) scanSelection[key].push(name); }
+      else { scanSelection[key] = scanSelection[key].filter(n => n !== name); }
+      scanSelection.all = false;
+      renderScanModal();
+    });
+  });
+  body.querySelectorAll('.scan-group-all').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const groupId = cb.dataset.group;
+      const key = cb.dataset.key;
+      const items = scanGroupItems[groupId] || [];
+      const selected = new Set(scanSelection[key] || []);
+      items.forEach(item => {
+        if (cb.checked) selected.add(item.name);
+        else selected.delete(item.name);
+      });
+      scanSelection[key] = Array.from(selected);
+      scanSelection.all = false;
+      renderScanModal();
+    });
+  });
+}
+
+function allNames(sources) {
+  return [
+    ...sources.companies.map(c => c.name),
+    ...sources.rss.map(r => r.name),
+    ...sources.queries.map(q => q.name),
+    ...sources.aggregators.map(a => a.name),
+  ];
+}
+
+async function openScanModal() {
+  const modal = document.getElementById('scan-modal');
+  modal.classList.add('open');
+  document.getElementById('scan-modal-body').innerHTML = '<span style="color:var(--text-4);font-size:13px">Loading…</span>';
+
+  const [sources, savedSel] = await Promise.all([
+    api('/api/scan-sources'),
+    api('/api/scan-selection').catch(() => null),
+  ]);
+  scanSources = sources;
+
+  if (savedSel && !savedSel.all) {
+    // Restore last selection, filtering out any source no longer in portals.yml
+    const validCos = new Set(sources.companies.map(c => c.name));
+    const validRss = new Set(sources.rss.map(r => r.name));
+    const validQ   = new Set(sources.queries.map(q => q.name));
+    const validAgg = new Set(sources.aggregators.map(a => a.name));
+    scanSelection = {
+      all: false,
+      companies:   (savedSel.companies   || []).filter(n => validCos.has(n)),
+      rss:         (savedSel.rss         || []).filter(n => validRss.has(n)),
+      queries:     (savedSel.queries     || []).filter(n => validQ.has(n)),
+      aggregators: (savedSel.aggregators || []).filter(n => validAgg.has(n)),
+    };
+  } else {
+    scanSelection = {
+      all: true,
+      companies:   sources.companies.map(c => c.name),
+      rss:         sources.rss.map(r => r.name),
+      queries:     sources.queries.map(q => q.name),
+      aggregators: sources.aggregators.map(a => a.name),
+    };
+  }
+  renderScanModal();
+}
+
+document.getElementById('scan-sel-all').addEventListener('click', () => {
+  scanSelection = {
+    all: true,
+    companies: scanSources.companies.map(c => c.name),
+    rss: scanSources.rss.map(r => r.name),
+    queries: scanSources.queries.map(q => q.name),
+    aggregators: scanSources.aggregators.map(a => a.name),
+  };
+  renderScanModal();
+});
+document.getElementById('scan-sel-none').addEventListener('click', () => {
+  scanSelection = { all: false, companies: [], rss: [], queries: [], aggregators: [] };
+  renderScanModal();
+});
+document.getElementById('scan-sel-fresh').addEventListener('click', () => {
+  const isFresh = ts => !ts || (Date.now() - new Date(ts).getTime()) >= 86400000;
+  scanSelection = {
+    all: false,
+    companies:    scanSources.companies.filter(c => isFresh(c.lastScanned)).map(c => c.name),
+    rss:          scanSources.rss.filter(r => isFresh(r.lastScanned)).map(r => r.name),
+    queries:      scanSources.queries.filter(q => isFresh(q.lastScanned)).map(q => q.name),
+    aggregators:  scanSources.aggregators.filter(a => isFresh(a.lastScanned)).map(a => a.name),
+  };
+  renderScanModal();
+});
+
+document.getElementById('scan-modal-close').addEventListener('click', () => document.getElementById('scan-modal').classList.remove('open'));
+document.getElementById('scan-modal-cancel').addEventListener('click', () => document.getElementById('scan-modal').classList.remove('open'));
+document.getElementById('scan-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+
+document.getElementById('scan-launch-btn').addEventListener('click', async () => {
+  document.getElementById('scan-modal').classList.remove('open');
+  await api('/api/scan-selection', { method: 'POST', body: JSON.stringify(scanSelection) });
+  openCmdModal('scan');
+});
+
+// ─── Delegate all action buttons ─────────────────────────────────────────────
+document.addEventListener('click', e => {
+  const btnCmd = e.target.closest('[data-cmd]');
+  if (btnCmd) {
+    if (btnCmd.dataset.cmd === 'scan') { openScanModal(); return; }
+    openCmdModal(btnCmd.dataset.cmd);
+    return;
+  }
+
+  const btnRun = e.target.closest('[data-run]');
+  if (btnRun) { runScript(btnRun.dataset.run, btnRun.dataset.title); return; }
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadAll().catch(err => {
+  console.error(err);
+  toast('Failed to connect to server. Is it running?', true);
+});
+</script>
+</body>
+</html>
