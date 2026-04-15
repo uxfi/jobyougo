@@ -2506,7 +2506,7 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (path === '/portfolio.html') {
+    if (path === '/portfolio' || path === '/portfolio.html') {
       const html = await readFile(join(__dirname, 'portfolio.html'), 'utf-8');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.writeHead(200);

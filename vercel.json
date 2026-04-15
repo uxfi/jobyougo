@@ -24,7 +24,7 @@
       "dest": "ui/server.mjs"
     },
     {
-      "src": "/(index.html|portfolio.html)",
+      "src": "/(index.html|portfolio|portfolio.html)",
       "dest": "ui/server.mjs"
     },
     {
