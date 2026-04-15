@@ -55,8 +55,8 @@ node_modules/
 
 # ── OS ──
 .DS_Store
-*.mov
-*.mp4
+# *.mov
+# *.mp4
 
 # ── IDE / Claude Code ──
 .claude/settings.local.json
