@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "ui/server.mjs",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "ui/server.mjs"
+    },
+    {
+      "src": "/output/(.*)",
+      "dest": "ui/server.mjs"
+    },
+    {
+      "src": "/images/(.*)",
+      "dest": "ui/server.mjs"
+    },
+    {
+      "src": "/covers/(.*)",
+      "dest": "ui/server.mjs"
+    },
+    {
+      "src": "/(index.html|portfolio.html)",
+      "dest": "ui/server.mjs"
+    },
+    {
+      "src": "/",
+      "dest": "ui/server.mjs"
+    },
+    {
+      "src": "/(.*\\.(jpg|png|woff2|pdf))",
+      "dest": "ui/server.mjs"
+    }
+  ]
+}
