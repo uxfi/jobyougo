@@ -4,7 +4,7 @@ data/pipeline.md
 data/scan-history.tsv
 data/scan-selection.json
 data/scan-state.json
-data/cv-profiles.yml
+# data/cv-profiles.yml
 data/deleted-applications.tsv
 data/*.tsv
 data/*.json
@@ -38,14 +38,14 @@ jds/*
 
 # ── User config (never auto-updated) ──
 config/profile.yml
-portals.yml
+# portals.yml
 modes/_profile.md
 .update-dismissed
 .update-lock
 
 # ── Personal assets ──
-images/
-ui/covers/
+# images/
+# ui/covers/
 ui/*.pdf
 fonts/
 
@@ -67,3 +67,4 @@ career-dashboard
 # ── Environment / secrets ──
 .env
 .env.local
+.vercel

@@ -1,0 +1,780 @@
+title_filter:
+  positive:
+    - AI Product
+    - AI PM
+    - Product Manager AI
+    - Head of AI
+    - Product Designer AI
+    - AI Designer
+    - UX AI
+    - AI
+    - LLM
+    - Agent
+    - Agentic
+    - GenAI
+    - Generative AI
+    - Solutions Architect
+    - Solutions Engineer
+    - Forward Deployed
+    - Deployed Engineer
+    - Automation
+    - No-Code
+    - Low-Code
+    - Transformation
+    - Product Manager
+    - Product Designer
+    - UX Designer
+    - UI Designer
+    - UX/UI
+    - UI/UX
+    - UX Lead
+    - UI Lead
+    - Design Lead
+    - Head of Design
+    - Head of Product
+  negative:
+    - Junior
+    - Intern
+    - Hybrid
+    - On-site
+    - Onsite
+    - Relocation
+    - .NET
+    - "Java "
+    - iOS
+    - Android
+    - PHP
+    - Ruby
+    - Embedded
+    - Firmware
+    - FPGA
+    - ASIC
+    - Blockchain
+    - Web3
+    - Crypto
+    - Salesforce Admin
+    - "SAP "
+    - Oracle EBS
+    - Mainframe
+    - COBOL
+    - Data Scientist
+    - ML Engineer
+    - MLOps
+    - Austin, TX
+    - San Francisco
+    - New York, NY
+    - Seattle, WA
+    - Boston, MA
+    - Chicago, IL
+    - Los Angeles
+    - Toronto
+    - Vancouver
+    - Canada
+  seniority_boost:
+    - Senior
+    - Staff
+    - Lead
+    - Head
+    - Director
+    - Principal
+remote_filter:
+  mode: strict_full_remote_only
+  required_any:
+    - remote
+    - full remote
+    - fully remote
+    - remote-first
+    - work from anywhere
+    - distributed
+  rejected_any:
+    - hybrid
+    - on-site
+    - onsite
+    - in office
+    - office-based
+    - relocation
+    - must be located
+    - commutable
+  ambiguous_policy: skip
+search_queries:
+  - name: Ashby — AI PM EU
+    query: 'site:jobs.ashbyhq.com ("AI Product Manager" OR "Head of AI" OR "Senior Product Manager AI") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    enabled: true
+  - name: Ashby — Solutions Architect EU
+    query: 'site:jobs.ashbyhq.com ("Solutions Architect" OR "Forward Deployed") AI ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    enabled: true
+  - name: Ashby — Agentic EU
+    query: 'site:jobs.ashbyhq.com ("Agentic" OR "AI Agent" OR "Automation") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    enabled: true
+  - name: Lever — AI PM EU
+    query: 'site:jobs.lever.co ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" AI) ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    enabled: true
+  - name: Lever — FDE EU
+    query: 'site:jobs.lever.co ("Forward Deployed" OR "Deployed Engineer") AI ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    enabled: true
+  - name: WTTJ — AI Product
+    query: 'site:welcometothejungle.com ("AI Product Manager" OR "Head of AI" OR "Product Manager AI") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: WTTJ — Solutions & FDE
+    query: 'site:welcometothejungle.com ("Solutions Architect" OR "Forward Deployed" OR "AI Engineer" OR "Agentic") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: WTTJ — Automation
+    query: 'site:welcometothejungle.com ("Automation" OR "LLM" OR "GenAI") senior ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: JobsDB — AI Roles SG/TH
+    query: 'site:sg.jobsdb.com OR site:th.jobsdb.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Product Manager AI" OR "AI Engineer" OR "Forward Deployed" OR "Agentic" OR "LLM") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Jora SG — AI Roles
+    query: 'site:sg.jora.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "AI Engineer" OR "Forward Deployed" OR "Agentic" OR "LLM" OR "Product Manager AI") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Wellfound — AI PM & FDE remote
+    query: 'site:wellfound.com ("AI Product Manager" OR "Head of AI" OR "Forward Deployed") ("full remote" OR "fully remote" OR remote) Europe'
+    enabled: true
+  - name: Remotive — AI Product & Automation
+    query: 'site:remotive.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Indeed EU — AI PM
+    query: 'site:fr.indeed.com OR site:de.indeed.com ("AI Product Manager" OR "Head of AI" OR "Solutions Architect") ("full remote" OR "fully remote" OR remote) 2026'
+    enabled: true
+  - name: Voice AI EU — FDE & SA
+    query: '("Voice AI" OR "Conversational AI") ("Solutions Architect" OR "Forward Deployed") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU) 2026'
+    enabled: true
+  - name: FDE EU — All portals
+    query: '("Forward Deployed Engineer" OR "Deployed Engineer") AI ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU) (site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:welcometothejungle.com)'
+    enabled: true
+  - name: Indeed Asia — AI Product & PM (SG/TH/HK/JP)
+    query: 'site:sg.indeed.com OR site:th.indeed.com OR site:hk.indeed.com ("AI Product Manager" OR "Head of AI" OR "Product Manager AI" OR "Solutions Architect") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Indeed Asia — FDE & AI Engineer (SG/TH/HK)
+    query: 'site:sg.indeed.com OR site:th.indeed.com OR site:hk.indeed.com ("Forward Deployed" OR "AI Engineer" OR "Agentic" OR "LLM") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Indeed Japan — AI Roles
+    query: 'site:jp.indeed.com ("AI Product" OR "Solutions Architect" OR "Forward Deployed" OR "AI Engineer") English ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: RemoteFront — AI & Automation
+    query: 'site:remotefront.com ("AI Engineer" OR "Solutions Engineer" OR "Automation" OR "LLM" OR "Agent") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Ashby — UX/UI & Product Designer EU
+    query: 'site:jobs.ashbyhq.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    enabled: true
+  - name: Lever — UX/UI & Product Designer EU
+    query: 'site:jobs.lever.co ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    enabled: true
+  - name: Greenhouse — UX/UI & Product Designer EU
+    query: 'site:job-boards.greenhouse.io ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    enabled: true
+  - name: WTTJ — UX/UI & Product Designer
+    query: 'site:welcometothejungle.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Remotive — UX/UI & Product Designer
+    query: 'site:remotive.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Wellfound — UX/UI & Product Designer remote
+    query: 'site:wellfound.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote) Europe'
+    enabled: true
+  - name: UI/UX Jobs Board — Remote Design
+    query: 'site:uiuxjobsboard.com ("Product Designer" OR "UX Designer" OR "UI Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design" OR "AI Designer") remote'
+    enabled: true
+tracked_companies:
+  # ── Aggregator portals (Playwright on search results pages) ──
+  - name: JobsDB TH — AI Remote
+    careers_url: https://th.jobsdb.com/jobs?q=AI+Product+Manager&worktype=remote  # ⚠️ verify URL in browser before enabling
+    enabled: false
+  - name: JobsDB SG — AI Remote
+    careers_url: https://sg.jobsdb.com/jobs?q=AI+Product+Manager&worktype=remote  # ⚠️ verify URL in browser before enabling
+    enabled: false
+  - name: Jora SG — AI Remote
+    careers_url: https://sg.jora.com/jobs?q=AI+Product+Manager&remote=true  # ⚠️ verify URL in browser before enabling
+    enabled: false
+
+  # ── Company career pages ──
+  - name: Anthropic
+    careers_url: https://job-boards.greenhouse.io/anthropic
+    api: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
+    enabled: false
+  - name: OpenAI
+    careers_url: https://openai.com/careers
+    scan_method: websearch
+    scan_query: site:openai.com/careers "Solutions" OR "Forward Deployed" OR "AI Engineer"
+    enabled: false
+  - name: PolyAI
+    careers_url: https://job-boards.eu.greenhouse.io/polyai
+    api: https://boards-api.greenhouse.io/v1/boards/polyai/jobs
+    notes: UK. Voice AI for enterprise contact centers.
+    enabled: false
+  - name: Parloa
+    careers_url: https://job-boards.eu.greenhouse.io/parloa
+    api: https://boards-api.greenhouse.io/v1/boards/parloa/jobs
+    notes: Berlin EMEA. Voice AI enterprise.
+    enabled: false
+  - name: Intercom
+    careers_url: https://job-boards.greenhouse.io/intercom
+    api: https://boards-api.greenhouse.io/v1/boards/intercom/jobs
+    notes: Dublin EMEA. Fin AI agent.
+    enabled: false
+  - name: Hume AI
+    careers_url: https://job-boards.greenhouse.io/humeai
+    api: https://boards-api.greenhouse.io/v1/boards/humeai/jobs
+    notes: NYC. Empathic voice AI.
+    enabled: false
+  - name: ElevenLabs
+    careers_url: https://jobs.ashbyhq.com/elevenlabs
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/elevenlabs
+    notes: Voice AI TTS leader.
+    enabled: false
+  - name: Deepgram
+    careers_url: https://jobs.ashbyhq.com/deepgram
+    scan_method: websearch
+    scan_query: site:deepgram.com/careers OR "deepgram" "Solutions" OR "AI Engineer" site:jobs.ashbyhq.com
+    notes: STT/TTS APIs.
+    enabled: false
+  - name: Vapi
+    careers_url: https://jobs.ashbyhq.com/vapi
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/vapi
+    notes: Voice AI infrastructure.
+    enabled: false
+  - name: Bland AI
+    careers_url: https://jobs.ashbyhq.com/bland
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/bland
+    notes: Voice phone agents. $65M Series B.
+    enabled: false
+  - name: Retool
+    careers_url: https://retool.com/careers
+    scan_method: websearch
+    scan_query: site:retool.com/careers "Deployed" OR "AI" OR "Solutions"
+    notes: London. Popularized Deployed Engineer role.
+    enabled: false
+  - name: Airtable
+    careers_url: https://job-boards.greenhouse.io/airtable
+    api: https://boards-api.greenhouse.io/v1/boards/airtable/jobs
+    notes: No-code + AI platform.
+    enabled: false
+  - name: Vercel
+    careers_url: https://job-boards.greenhouse.io/vercel
+    api: https://boards-api.greenhouse.io/v1/boards/vercel/jobs
+    notes: AI SDK, v0.dev. Frontend AI tooling.
+    enabled: true
+  - name: Temporal
+    careers_url: https://job-boards.greenhouse.io/temporal
+    api: https://boards-api.greenhouse.io/v1/boards/temporal/jobs
+    notes: Workflow orchestration.
+    enabled: false
+  - name: Arize AI
+    careers_url: https://job-boards.greenhouse.io/arizeai
+    api: https://boards-api.greenhouse.io/v1/boards/arizeai/jobs
+    notes: LLMOps / AI observability.
+    enabled: true
+  - name: RunPod
+    careers_url: https://job-boards.greenhouse.io/runpod
+    api: https://boards-api.greenhouse.io/v1/boards/runpod/jobs
+    notes: GPU cloud for AI.
+    enabled: true
+  - name: Glean
+    careers_url: https://job-boards.greenhouse.io/gleanwork
+    api: https://boards-api.greenhouse.io/v1/boards/gleanwork/jobs
+    notes: Enterprise AI search.
+    enabled: true
+  - name: Ada
+    careers_url: https://job-boards.greenhouse.io/ada
+    api: https://boards-api.greenhouse.io/v1/boards/ada/jobs
+    scan_method: websearch
+    scan_query: "\"ada.cx\" OR \"ada\" \"AI\" \"Solutions\" OR \"Engineer\" site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io"
+    notes: Toronto + remote. AI customer service.
+    enabled: false  # Greenhouse API returns 404
+  - name: LivePerson
+    careers_url: https://liveperson.com/company/careers
+    scan_method: websearch
+    scan_query: site:liveperson.com/careers OR "liveperson" "Solutions" OR "AI" site:job-boards.greenhouse.io
+    notes: Remote EMEA. Conversational AI enterprise.
+    enabled: false  # timeout — site blocks headless
+  - name: Sierra
+    careers_url: https://jobs.ashbyhq.com/sierra
+    scan_method: websearch
+    scan_query: "\"sierra.ai\" \"AI\" \"Forward Deployed\" OR \"Applied\" OR \"Solutions\" site:jobs.ashbyhq.com"
+    notes: Bret Taylor (ex-CEO Salesforce). AI customer agents.
+    enabled: true
+  - name: Decagon
+    careers_url: https://jobs.ashbyhq.com/decagon
+    scan_method: websearch
+    scan_query: "\"decagon\" \"AI\" \"Forward Deployed\" OR \"Solutions\" site:jobs.ashbyhq.com"
+    notes: AI customer support agents.
+    enabled: true
+  - name: Talkdesk
+    careers_url: https://www.talkdesk.com/careers
+    scan_method: websearch
+    scan_query: site:talkdesk.com/careers "AI" OR "Solutions Architect" OR "AI Engineer"
+    notes: Lisbon. Contact center AI. EMEA friendly.
+    enabled: true
+  - name: Twilio
+    careers_url: https://www.twilio.com/en-us/company/jobs
+    scan_method: websearch
+    scan_query: site:twilio.com/company/jobs "AI" OR "Voice" "Solutions" OR "Architect"
+    notes: Voice/messaging infrastructure.
+    enabled: false  # timeout — site blocks headless
+  - name: Dialpad
+    careers_url: https://www.dialpad.com/careers
+    scan_method: websearch
+    scan_query: "\"dialpad\" \"AI\" \"Solutions\" OR \"Engineer\" site:job-boards.greenhouse.io OR site:jobs.ashbyhq.com"
+    notes: Voice AI for business comms.
+    enabled: true
+  - name: Gong
+    careers_url: https://www.gong.io/careers
+    scan_method: websearch
+    scan_query: site:gong.io/careers "AI" OR "Solutions" OR "Architect"
+    notes: Revenue intelligence with voice AI.
+    enabled: false  # timeout — site blocks headless
+  - name: Genesys
+    careers_url: https://www.genesys.com/careers
+    scan_method: websearch
+    scan_query: site:genesys.com/careers "AI" "Solutions Architect" OR "AI Engineer"
+    notes: Contact center cloud + AI.
+    enabled: false
+  - name: Salesforce
+    careers_url: https://careers.salesforce.com
+    scan_method: websearch
+    scan_query: site:careers.salesforce.com "Forward Deployed" OR "AI Engineer" OR "Agentforce"
+    notes: Agentforce = AI agents platform.
+    enabled: false
+  - name: Langfuse
+    careers_url: https://langfuse.com/careers
+    scan_method: websearch
+    scan_query: "\"langfuse\" careers OR jobs \"engineer\" OR \"solutions\""
+    notes: Berlin. LLMOps / observability.
+    enabled: true
+  - name: Lindy
+    careers_url: https://jobs.ashbyhq.com/lindy
+    scan_method: websearch
+    scan_query: "\"lindy.ai\" \"AI\" \"Forward Deployed\" OR \"Solutions\" site:jobs.ashbyhq.com"
+    notes: AI agent management platform.
+    enabled: false
+  - name: Cognigy
+    careers_url: https://careers.cognigy.com
+    scan_method: websearch
+    scan_query: "\"cognigy\" careers \"AI\" OR \"Solutions\" OR \"Engineer\""
+    notes: Dusseldorf EMEA. Conversational AI enterprise.
+    enabled: false  # timeout — site blocks headless
+  - name: Speechmatics
+    careers_url: https://job-boards.greenhouse.io/speechmatics
+    api: https://boards-api.greenhouse.io/v1/boards/speechmatics/jobs
+    notes: Cambridge UK. Speech recognition platform.
+    enabled: true
+  - name: n8n
+    careers_url: https://jobs.ashbyhq.com/n8n
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/n8n
+    notes: Berlin + remote EU/US. Workflow automation.
+    enabled: true
+  - name: Zapier
+    careers_url: https://jobs.ashbyhq.com/zapier
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/zapier
+    notes: Remote-first. Automation platform leader.
+    enabled: true
+  - name: Make.com (Celonis)
+    careers_url: https://www.make.com/en/careers
+    scan_method: websearch
+    scan_query: site:make.com/en/careers OR "make.com" "engineer" OR "solutions" site:jobs.ashbyhq.com
+    notes: Celonis parent company. Automation platform.
+    enabled: true
+  - name: Cohere
+    careers_url: https://jobs.ashbyhq.com/cohere
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/cohere
+    notes: AI/LLM provider. Toronto + remote.
+    enabled: true
+  - name: LangChain
+    careers_url: https://jobs.ashbyhq.com/langchain
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/langchain
+    notes: LangChain/LangSmith framework.
+    enabled: true
+  - name: Pinecone
+    careers_url: https://jobs.ashbyhq.com/pinecone
+    notes: Vector database.
+    enabled: false
+  - name: Mistral AI
+    careers_url: https://jobs.lever.co/mistral
+    scan_method: websearch
+    scan_query: site:jobs.lever.co/mistral
+    notes: Paris. European AI lab.
+    enabled: true
+  - name: Weights & Biases
+    careers_url: https://jobs.lever.co/wandb
+    notes: MLOps platform. ⚠️ Lever URL returns 404 — may have changed ATS.
+    enabled: false
+  - name: Palantir
+    careers_url: https://jobs.lever.co/palantir
+    scan_method: websearch
+    scan_query: site:jobs.lever.co/palantir
+    notes: FDE roles. Mostly US/London.
+    enabled: true
+  - name: Factorial
+    careers_url: https://job-boards.greenhouse.io/factorial
+    api: https://boards-api.greenhouse.io/v1/boards/factorial/jobs
+    scan_method: websearch
+    scan_query: site:jobs.greenhouse.io/factorial
+    notes: Barcelona. HR SaaS unicorn.
+    enabled: false  # Greenhouse API returns 404
+  - name: Attio
+    careers_url: https://jobs.ashbyhq.com/attio
+    scan_method: websearch
+    scan_query: site:attio.com/careers OR site:jobs.ashbyhq.com/attio
+    notes: Remote EU. AI-native CRM. Series B $52M.
+    enabled: true
+  - name: Tinybird
+    careers_url: https://jobs.ashbyhq.com/tinybird
+    scan_method: websearch
+    scan_query: site:tinybird.co/careers OR site:jobs.ashbyhq.com/tinybird
+    notes: Remote. Real-time data platform.
+    enabled: true
+  - name: Clarity AI
+    careers_url: https://jobs.lever.co/clarity-ai
+    scan_method: websearch
+    scan_query: site:clarity.ai/careers OR site:jobs.lever.co/clarity-ai
+    notes: Madrid/Remote. Sustainability analytics with AI. ⚠️ Lever URL returns 404.
+    enabled: false
+  - name: Travelperk
+    careers_url: https://jobs.ashbyhq.com/travelperk
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/travelperk
+    notes: Barcelona. Business travel unicorn.
+    enabled: true
+  - name: Aleph Alpha
+    careers_url: https://jobs.ashbyhq.com/AlephAlpha
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/AlephAlpha
+    notes: Heidelberg DE. Sovereign European LLM provider, enterprise & government focus.
+    enabled: true
+  - name: DeepL
+    careers_url: https://jobs.ashbyhq.com/DeepL
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/DeepL
+    notes: Cologne DE. Translation & language AI. 60+ open roles, EU/DACH heavy.
+    enabled: true
+  - name: Black Forest Labs
+    careers_url: https://job-boards.greenhouse.io/blackforestlabs
+    api: https://boards-api.greenhouse.io/v1/boards/blackforestlabs/jobs
+    notes: Freiburg DE / SF. FLUX image models, ex-Stable Diffusion team.
+    enabled: true
+  - name: Helsing
+    careers_url: https://job-boards.greenhouse.io/helsing
+    api: https://boards-api.greenhouse.io/v1/boards/helsing/jobs
+    notes: Munich / Berlin / London / Paris. Defence AI unicorn. 100+ roles, ML & FDE.
+    enabled: true
+  - name: Celonis
+    careers_url: https://job-boards.greenhouse.io/celonis
+    api: https://boards-api.greenhouse.io/v1/boards/celonis/jobs
+    notes: Munich / NYC. Process intelligence, Applied AI Engineer roles, Field CTOs.
+    enabled: true
+  - name: Contentful
+    careers_url: https://job-boards.greenhouse.io/contentful
+    api: https://boards-api.greenhouse.io/v1/boards/contentful/jobs
+    notes: Berlin / Denver. Headless CMS, AI content workflows.
+    enabled: true
+  - name: GetYourGuide
+    careers_url: https://job-boards.greenhouse.io/getyourguide
+    api: https://boards-api.greenhouse.io/v1/boards/getyourguide/jobs
+    notes: Berlin. Travel marketplace, ML & data platform roles.
+    enabled: true
+  - name: HelloFresh
+    careers_url: https://job-boards.greenhouse.io/hellofresh
+    api: https://boards-api.greenhouse.io/v1/boards/hellofresh/jobs
+    notes: Berlin. Meal kit unicorn, large data/ML org.
+    enabled: false
+  - name: N26
+    careers_url: https://job-boards.greenhouse.io/n26
+    api: https://boards-api.greenhouse.io/v1/boards/n26/jobs
+    notes: Berlin / Barcelona. Mobile bank, ~50 roles, ML & risk.
+    enabled: false
+  - name: Trade Republic
+    careers_url: https://job-boards.greenhouse.io/traderepublicbank
+    api: https://boards-api.greenhouse.io/v1/boards/traderepublicbank/jobs
+    notes: Berlin / London / Paris. Neobroker, ~50 roles, platform & data.
+    enabled: true
+  - name: SumUp
+    careers_url: https://job-boards.greenhouse.io/sumup
+    api: https://boards-api.greenhouse.io/v1/boards/sumup/jobs
+    notes: Berlin / London. Payments fintech, EU + LATAM hiring.
+    enabled: true
+  - name: Qonto
+    careers_url: https://jobs.lever.co/qonto
+    scan_method: websearch
+    scan_query: site:jobs.lever.co/qonto
+    notes: Paris / Berlin / Barcelona / Milan. SMB neobank, MLOps for AI Product roles.
+    enabled: true
+  - name: Forto
+    careers_url: https://jobs.lever.co/forto
+    notes: Berlin DE. Digital freight forwarder. ⚠️ Lever URL returns 404.
+    enabled: false
+  - name: Lakera
+    careers_url: https://jobs.ashbyhq.com/lakera.ai
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/lakera.ai
+    notes: Zurich CH / SF. AI security & guardrails. Has Forward Deployed Engineer roles.
+    enabled: true
+  - name: Scandit
+    careers_url: https://job-boards.greenhouse.io/scandit
+    api: https://boards-api.greenhouse.io/v1/boards/scandit/jobs
+    notes: Zurich CH. Computer vision / smart data capture, ML roles.
+    enabled: true
+  - name: Cradle
+    careers_url: https://jobs.ashbyhq.com/cradlebio
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/cradlebio
+    notes: Zurich CH / Amsterdam. AI-guided protein design, ML researcher roles.
+    enabled: true
+  - name: Hugging Face
+    careers_url: https://apply.workable.com/huggingface/
+    scan_method: websearch
+    scan_query: site:apply.workable.com/huggingface
+    notes: Paris / NYC / Remote. ML hub & open-source models.
+    enabled: false  # timeout — Workable blocks headless
+  - name: Photoroom
+    careers_url: https://jobs.ashbyhq.com/photoroom
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/photoroom
+    notes: Paris FR. AI photo editor, Head of CV / Head of ML roles.
+    enabled: true
+  - name: Pigment
+    careers_url: https://jobs.lever.co/pigment
+    scan_method: websearch
+    scan_query: site:jobs.lever.co/pigment
+    notes: Paris FR / NYC / London. AI-powered FP&A planning platform.
+    enabled: true
+  - name: Wayve
+    careers_url: https://job-boards.greenhouse.io/wayve
+    api: https://boards-api.greenhouse.io/v1/boards/wayve/jobs
+    notes: London UK. Embodied AI for self-driving, ML & robotics roles.
+    enabled: false
+  - name: Isomorphic Labs
+    careers_url: https://job-boards.greenhouse.io/isomorphiclabs
+    api: https://boards-api.greenhouse.io/v1/boards/isomorphiclabs/jobs
+    notes: London / Lausanne / Cambridge MA. DeepMind spin-out for drug discovery AI.
+    enabled: false
+  - name: PhysicsX
+    careers_url: https://job-boards.greenhouse.io/physicsx
+    api: https://boards-api.greenhouse.io/v1/boards/physicsx/jobs
+    notes: London UK. Physics-informed ML for engineering, ~40 roles.
+    enabled: false
+  - name: Stability AI
+    careers_url: https://job-boards.greenhouse.io/stabilityai
+    api: https://boards-api.greenhouse.io/v1/boards/stabilityai/jobs
+    notes: London / SF. Generative AI image/video research lab.
+    enabled: true
+  - name: Synthesia
+    careers_url: https://jobs.ashbyhq.com/synthesia
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/synthesia OR site:job-boards.greenhouse.io/synthesia
+    notes: London UK. AI video generation for enterprise, $4B valuation.
+    enabled: true
+  - name: Faculty
+    careers_url: https://jobs.ashbyhq.com/faculty
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/faculty
+    notes: London UK. Applied AI consultancy. 80+ roles, AI Safety / MLE / Delivery.
+    enabled: true
+  - name: Causaly
+    careers_url: https://jobs.ashbyhq.com/causaly
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/causaly
+    notes: London / Athens. Biomedical knowledge graph + AI.
+    enabled: true
+  - name: Lovable
+    careers_url: https://jobs.ashbyhq.com/lovable
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/lovable
+    notes: Stockholm SE. AI app builder (text-to-app), 80+ open roles.
+    enabled: true
+  - name: Legora
+    careers_url: https://jobs.ashbyhq.com/legora
+    scan_method: websearch
+    scan_query: site:jobs.ashbyhq.com/legora
+    notes: Stockholm SE / NYC / London. AI-native legal workspace.
+    enabled: true
+  - name: Spotify
+    careers_url: https://jobs.lever.co/spotify
+    scan_method: websearch
+    scan_query: site:jobs.lever.co/spotify
+    notes: Stockholm SE / NYC / London. Audio platform, large ML/personalization org.
+    enabled: false  # timeout — Lever blocks headless at scale
+  - name: Vinted
+    careers_url: https://jobs.lever.co/vinted
+    notes: Vilnius LT / Berlin. C2C marketplace unicorn. ⚠️ Lever URL returns 404.
+    enabled: false
+  - name: Amplemarket
+    careers_url: https://job-boards.greenhouse.io/amplemarket
+    api: https://boards-api.greenhouse.io/v1/boards/amplemarket/jobs
+    notes: Lisbon PT / Remote. AI-native sales platform.
+    enabled: true
+  - name: Grab
+    careers_url: https://www.grab.careers/en/
+    scan_method: websearch
+    scan_query: site:grab.careers "AI" OR "Product Manager" OR "Designer" OR "Solutions"
+    notes: Singapore. Super app — fintech, AI, marketing digital.
+    enabled: true
+  - name: Shopee
+    careers_url: https://careers.shopee.sg/
+    scan_method: websearch
+    scan_query: site:careers.shopee.sg "AI" OR "Product" OR "Design" OR "recommendation"
+    notes: Singapore. E-commerce, AI recommendation, design.
+    enabled: true
+  - name: Sea Limited
+    careers_url: https://career.sea.com/
+    scan_method: websearch
+    scan_query: site:career.sea.com "AI" OR "Product" OR "Design" OR "digital"
+    notes: Singapore. Maison-mère Shopee + Garena + fintech.
+    enabled: true
+  - name: Carousell Group
+    careers_url: https://careers.smartrecruiters.com/carousellgroup
+    scan_method: websearch
+    scan_query: site:careers.smartrecruiters.com/carousellgroup "Product" OR "Design" OR "AI"
+    notes: Singapore. Marketplace digital, design & product.
+    enabled: false  # timeout — SmartRecruiters blocks headless
+  - name: CoinGecko
+    careers_url: https://careers.coingecko.com/
+    scan_method: websearch
+    scan_query: site:careers.coingecko.com "Product" OR "Design" OR "Marketing" OR "Web3"
+    notes: Singapore. Crypto data, design & marketing web3.
+    enabled: true
+  - name: GoTo Group
+    careers_url: https://www.gotocompany.com/en/careers
+    scan_method: websearch
+    scan_query: site:gotocompany.com/en/careers "AI" OR "Product" OR "Design" OR "digital"
+    notes: Indonesia. Gojek + Tokopedia — super app, digital, AI.
+    enabled: true
+  - name: Bukalapak
+    careers_url: https://www.careers-page.com/bukalapak
+    scan_method: websearch
+    scan_query: site:careers-page.com/bukalapak "Product" OR "Design" OR "Marketing" OR "AI"
+    notes: Indonesia. E-commerce, web, marketing digital.
+    enabled: true
+  - name: Traveloka
+    careers_url: https://careers.traveloka.com/
+    scan_method: websearch
+    scan_query: site:careers.traveloka.com "AI" OR "Product" OR "Design" OR "web"
+    notes: Indonesia. Travel tech, web, AI, design.
+    enabled: true
+  - name: Saigon Technology
+    careers_url: https://careers.saigontechnology.com/
+    scan_method: websearch
+    scan_query: site:careers.saigontechnology.com "AI" OR "Design" OR "Product" OR "web"
+    notes: Vietnam. AI-driven software, web dev, design.
+    enabled: true
+  - name: VNG Corporation
+    careers_url: https://career.vng.com.vn/en
+    scan_method: websearch
+    scan_query: site:career.vng.com.vn "AI" OR "Product" OR "Design" OR "fintech"
+    notes: Vietnam. Gaming, digital ecosystem, fintech, AI.
+    enabled: false  # timeout — site blocks headless
+  - name: Lazada
+    careers_url: https://www.lazada.com/en/careers/
+    scan_method: websearch
+    scan_query: site:lazada.com/en/careers "AI" OR "Product" OR "Design" OR "Marketing"
+    notes: SEA multi-pays. E-commerce Alibaba, AI, marketing, design.
+    enabled: false  # timeout — site blocks headless
+  - name: USER Experience Researchers
+    careers_url: https://www.user.com.sg/careers/
+    scan_method: websearch
+    scan_query: site:user.com.sg/careers "UX" OR "Design" OR "Research" OR "digital"
+    notes: Singapore. Agence UX/UI, design digital.
+    enabled: true
+  - name: Binance
+    careers_url: https://www.binance.com/en/careers
+    scan_method: websearch
+    scan_query: site:binance.com/en/careers "AI" OR "Product" OR "Design" OR "Solutions" OR "Crypto"
+    notes: Crypto — bureaux SEA importants (SG, ID, TH).
+    enabled: false  # timeout — site blocks headless
+  - name: Stripe
+    careers_url: https://stripe.com/jobs
+    scan_method: websearch
+    scan_query: site:stripe.com/jobs "AI" OR "Product" OR "Solutions" OR "Forward Deployed"
+    notes: Fintech/digital payments — fort bureau Singapour.
+    enabled: false  # timeout — site blocks headless
+eu_job_boards:
+  - name: Welcome to the Jungle — AI Product
+    query: 'site:welcometothejungle.com ("AI Product Manager" OR "Head of AI" OR "Product Manager AI") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Welcome to the Jungle — AI Engineer & Solutions
+    query: 'site:welcometothejungle.com ("Solutions Architect" OR "Forward Deployed" OR "AI Engineer" OR "Agentic") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Welcome to the Jungle — Automation
+    query: 'site:welcometothejungle.com ("Automation" OR "LLM" OR "GenAI") senior ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: JobsDB — AI Roles Global
+    query: 'site:jobsdb.com ("AI Product Manager" OR "Head of AI" OR "Solutions Architect AI" OR "Forward Deployed" OR "AI Engineer" OR "Agentic") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Wellfound — AI Product & Agentic
+    query: 'site:wellfound.com ("AI Product Manager" OR "Head of AI" OR "Agentic" OR "Forward Deployed") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: LinkedIn — AI PM Europe
+    query: 'site:linkedin.com/jobs ("AI Product Manager" OR "Head of AI Product") Europe ("full remote" OR "fully remote" OR remote) 2026'
+    enabled: true
+  - name: LinkedIn — Solutions Architect AI Europe
+    query: 'site:linkedin.com/jobs ("Solutions Architect" OR "Forward Deployed Engineer") AI Europe ("full remote" OR "fully remote" OR remote) 2026'
+    enabled: true
+  - name: Remotive — AI Product & Automation
+    query: 'site:remotive.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Remote.co — AI Roles
+    query: 'site:remote.co ("AI Product Manager" OR "AI Solutions" OR "Forward Deployed") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Working Nomads — AI Product & Design
+    query: 'site:workingnomads.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR "Product Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Himalayas — AI Product & Solutions
+    query: 'site:himalayas.app ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Arc.dev — AI & Solutions Remote
+    query: 'site:arc.dev ("AI Product" OR "Solutions Architect" OR "Forward Deployed" OR "Product Manager" OR "Product Designer") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: We Work Remotely — AI & Design
+    query: 'site:weworkremotely.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Product Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Dynamite Jobs — AI & Product Remote
+    query: 'site:dynamitejobs.com ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: JustRemote — AI & Design
+    query: 'site:justremote.co ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Nodesk — AI & Product Nomad
+    query: 'site:nodesk.co ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX Designer") ("full remote" OR "fully remote" OR remote)'
+    enabled: true
+  - name: Indeed EU — AI Product Manager
+    query: 'site:fr.indeed.com OR site:de.indeed.com OR site:uk.indeed.com ("AI Product Manager" OR "Head of AI") ("full remote" OR "fully remote" OR remote) 2026'
+    enabled: true
+  - name: Tech in Asia Jobs — AI & Product SEA
+    query: 'site:techinasia.com/jobs ("AI" OR "Product Manager" OR "UX" OR "Design" OR "Solutions") ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam OR Thailand)'
+    enabled: true
+  - name: e27 Jobs — AI & Product SEA
+    query: 'site:e27.co/jobs ("AI" OR "Product" OR "Design" OR "Solutions Architect") ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam)'
+    enabled: true
+  - name: CryptoJobsList — SEA Web3
+    query: 'site:cryptojobslist.com ("Product" OR "Design" OR "AI" OR "Solutions") ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam OR Thailand OR "Southeast Asia")'
+    enabled: true
+  - name: Web3.career — SEA
+    query: 'site:web3.career ("Product" OR "Design" OR "AI" OR "Solutions") ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam)'
+    enabled: true
+api_aggregators:
+  - name: TheirStack
+    description: Specializes in stack-based search (e.g. LLM, Agentic, GenAI)
+    api_url: https://api.theirstack.com/v1/jobs/search
+    enabled: true
+    notes: Requires THEIRSTACK_API_KEY in .env. Key configured.
+  - name: SearchAPI Google Jobs
+    description: Universal scraper for Google for Jobs via searchapi.io
+    api_url: https://www.searchapi.io/api/v1/search?engine=google_jobs
+    enabled: true
+    notes: Requires SEARCHAPI_KEY in .env. Key configured.
+rss_feeds:
+  - name: Remotive AI & Data
+    url: https://remotive.com/feed
+    enabled: false  # RSS feed returns 404
+  - name: Himalayas Tech & AI
+    url: https://himalayas.app/jobs/rss
+    enabled: true
+  - name: Real Work From Anywhere - AI
+    url: https://www.realworkfromanywhere.com/rss.xml
+    enabled: true
