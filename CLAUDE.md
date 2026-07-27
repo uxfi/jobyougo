@@ -51,14 +51,20 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 |------|----------|
 | `data/applications.md` | Application tracker |
 | `data/pipeline.md` | Inbox of pending URLs |
-| `data/scan-history.tsv` | Scanner dedup history |
+| `data/scan-history.tsv` | Scanner dedup history (URL-exact; machine-managed, never hand-append) |
+| `data/deleted-applications.tsv` | Company+role permanent exclusions (deleted offers) |
+| `scan-fetch.mjs` | Deterministic scanner — Levels 2/4/5 (Greenhouse/Ashby/Lever, RSS, aggregator APIs) |
+| `verify-scan-history.mjs` | Integrity check / repair (`--fix`) for scan-history.tsv |
+| `lib/scan-filters.mjs` | Shared title/remote filter + dedup helpers (scan-fetch + verify) |
 | `portals.yml` | Query and company config |
 | `templates/cv-template.html` | HTML template for CVs |
 | `generate-pdf.mjs` | Puppeteer: HTML to PDF |
 | `article-digest.md` | Compact proof points from portfolio (optional) |
-| `interview-prep/story-bank.md` | Accumulated STAR+R stories across evaluations |
+| `interview-prep/story-bank.md` | Accumulated STAR+R stories (built by the `interview` mode) |
 | `reports/` | Evaluation reports (format: `{###}-{company-slug}-{YYYY-MM-DD}.md`) |
 | `verify-reports.mjs` | Validates report files are not corrupted |
+| `apply-runner.mjs` | Auto-apply: drives a VISIBLE Chrome through the application (navigate → ATS form → fill with Section F answers → upload regional CV → pause for review/captcha → submit). Spawned by `POST /api/apply/start`, state in `scratch/apply-runs/{runId}/state.json`, commands (submit/rescan/abort) via `command.json` |
+| `lib/apply-spec.mjs` | Builds the apply spec from a report: parses `**URL:**` + Section F Q&A, detects offer region (EU → Paris identity/CV, Asia → Bangkok identity/CV per `profile.yml` declared_policy), picks the CV PDF (offer-tailored in `output/`, else regional default) |
 
 ### First Run — Onboarding (IMPORTANT)
 
@@ -184,6 +190,7 @@ Default modes are in `modes/` (English). Additional language-specific modes are 
 | Asks about application status | `tracker` |
 | Fills out application form | `apply` |
 | Answers a single application question | `question` |
+| Has an interview scheduled, wants prep | `interview` |
 | Searches for new offers | `scan` |
 | Processes pending URLs | `pipeline` |
 | Batch processes offers | `batch` |
@@ -229,7 +236,9 @@ Default modes are in `modes/` (English). Additional language-specific modes are 
 - **RULE: After each batch of evaluations, run `node merge-tracker.mjs`** to merge tracker additions and avoid duplications.
 - **RULE: After writing any report, run `node verify-reports.mjs`** to check for corrupted reports.
 - **RULE: After writing any report, run `node sync-supabase.mjs report reports/{filename}`** to sync it to Supabase (no-op if USE_SUPABASE not set).
-- **RULE: After each scan batch, run `node sync-supabase.mjs pipeline`** to sync new pipeline entries to Supabase (no-op if USE_SUPABASE not set).
+- **RULE: To scan, run `node scan-fetch.mjs jobs` FIRST.** It owns the deterministic discovery levels (2/4/5: Greenhouse/Ashby/Lever boards, RSS, aggregator APIs) — fetch, remote+title filter, dedup, write `pipeline.md` + `scan-history.tsv`, update cooldown, and sync Supabase. The LLM/Playwright `scan` mode then only covers Level 1 (deep SPA scrape) and Level 3 (WebSearch discovery + `missions`). See `modes/scan.md`.
+- **RULE: `scan-history.tsv` is machine-managed — never hand-append titles with raw newlines/tabs.** Validate/repair with `node verify-scan-history.mjs --fix` (writes a `.bak` first). Run it after manual edits or if dedup looks off.
+- **RULE: After each scan batch, run `node sync-supabase.mjs pipeline`** to sync new pipeline entries to Supabase (no-op if USE_SUPABASE not set). `scan-fetch.mjs` already does this automatically.
 - **RULE: After any status change in applications.md (Discarded, Applied, etc.), run `node sync-supabase.mjs applications`** to propagate to Supabase (no-op if USE_SUPABASE not set).
 - **RULE: NEVER create new entries in applications.md if company+role already exists.** Update the existing entry.
 

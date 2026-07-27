@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Health Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    font-family: var(--font-inter);
+    background: #141a12;
+    color: #fff;
+    overflow: hidden;
+  }
+  .screen { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── STATUS BAR ── */
+  .status { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px 0; flex-shrink: 0; }
+  .status-time { font-size: 14px; font-weight: 600; letter-spacing: -.3px; }
+  .status-icons { display: flex; align-items: center; gap: 5px; }
+
+  /* ── HEADER ── */
+  .hdr {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 12px 14px 6px;
+    flex-shrink: 0;
+  }
+  .hdr-left { display: flex; align-items: center; gap: 10px; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg, #4ab890, #2a9068);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .hdr-text {}
+  .hdr-hello { font-size: 10px; color: rgba(255,255,255,.35); letter-spacing: .02em; margin-bottom: 2px; }
+  .hdr-title { font-size: 17px; font-weight: 700; letter-spacing: -.4px; line-height: 1.2; }
+  .notif {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #e86040;
+    margin-top: 4px; flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(232,96,64,.25);
+  }
+
+  /* ── DATE SELECTOR ── */
+  .dates {
+    display: flex; gap: 4px; justify-content: space-between;
+    padding: 6px 14px 10px;
+    flex-shrink: 0;
+  }
+  .date-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 3px; padding: 5px 2px 5px;
+    border-radius: 10px;
+    transition: background 200ms;
+  }
+  .date-item.active { background: rgba(255,255,255,.1); }
+  .date-emoji { font-size: 13px; line-height: 1; }
+  .date-num { font-size: 9px; font-weight: 600; color: rgba(255,255,255,.35); }
+  .date-item.active .date-num { color: rgba(255,255,255,.75); }
+
+  /* ── GRID ── */
+  .grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; padding: 0 14px 14px;
+    flex: 1; min-height: 0;
+  }
+  .widget {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 14px;
+    padding: 11px 12px;
+    display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+  }
+  .widget-label {
+    font-size: 10px; font-weight: 500; color: rgba(255,255,255,.38);
+    margin-bottom: 6px; white-space: nowrap;
+  }
+  .widget-value {
+    font-size: 20px; font-weight: 700; letter-spacing: -.6px; color: #fff; line-height: 1;
+  }
+  .widget-sub { font-size: 10px; color: rgba(255,255,255,.35); margin-top: 2px; }
+
+  /* Widget 1 — Mood Score dots */
+  .dot-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 8px; }
+  .dot { width: 100%; aspect-ratio: 1; border-radius: 50%; }
+
+  /* Widget 2 — Health overview mini ring */
+  .health-ring { position: absolute; bottom: 10px; right: 10px; }
+
+  /* Widget 3 — Growth bars */
+  .bars { display: flex; align-items: flex-end; gap: 3px; margin-top: 8px; flex: 1; }
+  .bar-col { flex: 1; border-radius: 3px 3px 0 0; }
+
+  /* Widget 4 — Mood Statistic */
+  .stat-body { display: flex; flex-direction: column; align-items: center; flex: 1; justify-content: center; }
+  .stat-legend { display: flex; flex-direction: column; gap: 3px; width: 100%; margin-top: 6px; }
+  .stat-row { display: flex; align-items: center; gap: 5px; font-size: 9px; color: rgba(255,255,255,.45); }
+  .stat-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .stat-val { margin-left: auto; font-size: 9px; font-weight: 600; color: rgba(255,255,255,.55); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes dot-pop {
+    0%   { opacity: 0; transform: scale(0); }
+    70%  { transform: scale(1.3); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes bar-rise {
+    from { transform: scaleY(0); transform-origin: bottom; }
+    to   { transform: scaleY(1); transform-origin: bottom; }
+  }
+  @keyframes ring-dash {
+    from { stroke-dasharray: 0 132; }
+    to   { stroke-dasharray: 83 132; }
+  }
+  @keyframes donut-dash {
+    from { stroke-dasharray: 0 220; }
+  }
+
+  .hdr       { animation: fade-in .4s ease .1s both; }
+  .dates     { animation: fade-up .4s ease .25s both; }
+
+  .widget:nth-child(1) { animation: fade-up .5s cubic-bezier(.25,1,.5,1) .4s both; }
+  .widget:nth-child(2) { animation: fade-up .5s cubic-bezier(.25,1,.5,1) .5s both; }
+  .widget:nth-child(3) { animation: fade-up .5s cubic-bezier(.25,1,.5,1) .6s both; }
+  .widget:nth-child(4) { animation: fade-up .5s cubic-bezier(.25,1,.5,1) .7s both; }
+
+  .dot:nth-child(1)  { animation: dot-pop .3s ease .65s both; }
+  .dot:nth-child(2)  { animation: dot-pop .3s ease .68s both; }
+  .dot:nth-child(3)  { animation: dot-pop .3s ease .71s both; }
+  .dot:nth-child(4)  { animation: dot-pop .3s ease .74s both; }
+  .dot:nth-child(5)  { animation: dot-pop .3s ease .77s both; }
+  .dot:nth-child(6)  { animation: dot-pop .3s ease .80s both; }
+  .dot:nth-child(7)  { animation: dot-pop .3s ease .83s both; }
+  .dot:nth-child(8)  { animation: dot-pop .3s ease .86s both; }
+  .dot:nth-child(9)  { animation: dot-pop .3s ease .89s both; }
+  .dot:nth-child(10) { animation: dot-pop .3s ease .92s both; }
+  .dot:nth-child(11) { animation: dot-pop .3s ease .95s both; }
+  .dot:nth-child(12) { animation: dot-pop .3s ease .98s both; }
+  .dot:nth-child(13) { animation: dot-pop .3s ease 1.01s both; }
+  .dot:nth-child(14) { animation: dot-pop .3s ease 1.04s both; }
+  .dot:nth-child(15) { animation: dot-pop .3s ease 1.07s both; }
+  .dot:nth-child(16) { animation: dot-pop .3s ease 1.10s both; }
+  .dot:nth-child(17) { animation: dot-pop .3s ease 1.13s both; }
+  .dot:nth-child(18) { animation: dot-pop .3s ease 1.16s both; }
+  .dot:nth-child(19) { animation: dot-pop .3s ease 1.19s both; }
+  .dot:nth-child(20) { animation: dot-pop .3s ease 1.22s both; }
+  .dot:nth-child(21) { animation: dot-pop .3s ease 1.25s both; }
+
+  .bar-col { animation: bar-rise .6s cubic-bezier(.4,0,.2,1) .8s both; }
+  .bar-col:nth-child(1) { animation-delay: .80s; }
+  .bar-col:nth-child(2) { animation-delay: .88s; }
+  .bar-col:nth-child(3) { animation-delay: .96s; }
+  .bar-col:nth-child(4) { animation-delay: 1.04s; }
+  .bar-col:nth-child(5) { animation-delay: 1.12s; }
+
+  .ring-health { animation: ring-dash .9s cubic-bezier(.4,0,.2,1) .7s both; }
+  .donut-happy { animation: donut-dash .8s cubic-bezier(.4,0,.2,1) .85s both; }
+  .donut-sad   { animation: donut-dash .8s cubic-bezier(.4,0,.2,1) .95s both; }
+  .donut-angry { animation: donut-dash .8s cubic-bezier(.4,0,.2,1) 1.05s both; }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- Status bar -->
+  <div class="status">
+    <div class="status-time">9:41</div>
+    <div class="status-icons">
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="white">
+        <rect x="0" y="7" width="3" height="4" rx=".7" opacity=".3"/>
+        <rect x="4.3" y="4.5" width="3" height="6.5" rx=".7" opacity=".55"/>
+        <rect x="8.6" y="2" width="3" height="9" rx=".7" opacity=".8"/>
+        <rect x="12.9" y="0" width="3" height="11" rx=".7"/>
+      </svg>
+      <svg width="14" height="11" viewBox="0 0 20 14" fill="none">
+        <path d="M1 4.5C4.5 1 15.5 1 19 4.5" stroke="white" stroke-width="2" stroke-linecap="round" opacity=".3"/>
+        <path d="M4 7.5C6.5 5 13.5 5 16 7.5" stroke="white" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+        <path d="M7.5 10.5C8.8 9.2 11.2 9.2 12.5 10.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="10" cy="13.5" r="1.2" fill="white"/>
+      </svg>
+      <svg width="23" height="11" viewBox="0 0 26 12" fill="none">
+        <rect x=".5" y=".5" width="21" height="11" rx="3" stroke="white" stroke-opacity=".3"/>
+        <rect x="2" y="2" width="14" height="8" rx="2" fill="white"/>
+        <path d="M23 4v4a2 2 0 0 0 0-4z" fill="white" opacity=".4"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="avatar">🧑</div>
+      <div class="hdr-text">
+        <div class="hdr-hello">Hello, Zhad</div>
+        <div class="hdr-title">How're You<br>Today?</div>
+      </div>
+    </div>
+    <div class="notif"></div>
+  </div>
+
+  <!-- Date selector -->
+  <div class="dates">
+    <div class="date-item">
+      <div class="date-emoji">😊</div>
+      <div class="date-num">14</div>
+    </div>
+    <div class="date-item">
+      <div class="date-emoji">😌</div>
+      <div class="date-num">15</div>
+    </div>
+    <div class="date-item">
+      <div class="date-emoji">😟</div>
+      <div class="date-num">16</div>
+    </div>
+    <div class="date-item active">
+      <div class="date-emoji">😊</div>
+      <div class="date-num">17</div>
+    </div>
+    <div class="date-item">
+      <div class="date-emoji">😤</div>
+      <div class="date-num">18</div>
+    </div>
+    <div class="date-item">
+      <div class="date-emoji">😠</div>
+      <div class="date-num">19</div>
+    </div>
+    <div class="date-item">
+      <div class="date-emoji">😌</div>
+      <div class="date-num">20</div>
+    </div>
+  </div>
+
+  <!-- 2×2 Widget grid -->
+  <div class="grid">
+
+    <!-- Widget 1: Mood Score -->
+    <div class="widget">
+      <div class="widget-label">Mood Score</div>
+      <div class="widget-value"><span class="count" data-target="36">0</span><span style="font-size:11px;font-weight:400;color:rgba(255,255,255,.35)">/375</span></div>
+      <!-- 3×7 dot grid -->
+      <div class="dot-grid">
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#e89040"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:rgba(255,255,255,.08)"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#88c038"></div>
+
+        <div class="dot" style="background:#e89040"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#e89040"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#e89040"></div>
+        <div class="dot" style="background:rgba(255,255,255,.08)"></div>
+
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:rgba(255,255,255,.08)"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#e89040"></div>
+        <div class="dot" style="background:#88c038"></div>
+        <div class="dot" style="background:#c83838"></div>
+      </div>
+    </div>
+
+    <!-- Widget 2: Health overview -->
+    <div class="widget">
+      <div class="widget-label">Health overview</div>
+      <div class="widget-value"><span class="count" data-target="75">0</span><span style="font-size:11px;font-weight:400;color:rgba(255,255,255,.35)">kg</span></div>
+      <div class="widget-sub">weight</div>
+      <svg class="health-ring" width="56" height="56" viewBox="0 0 56 56">
+        <defs>
+          <linearGradient id="gh" x1="1" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#d4e660"/>
+            <stop offset="100%" stop-color="#88c038"/>
+          </linearGradient>
+        </defs>
+        <circle cx="28" cy="28" r="21" fill="none" stroke="rgba(200,230,100,.12)" stroke-width="7"/>
+        <circle class="ring-health" cx="28" cy="28" r="21" fill="none" stroke="url(#gh)" stroke-width="7"
+          stroke-dasharray="83 132" stroke-linecap="round"
+          transform="rotate(-90 28 28)"/>
+      </svg>
+    </div>
+
+    <!-- Widget 3: Growth -->
+    <div class="widget">
+      <div class="widget-label">Growth</div>
+      <div style="display:flex;align-items:baseline;gap:4px;">
+        <div class="widget-value"><span class="count-pct" data-target="87">0</span><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.35)">%</span></div>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 8L5 2 8 8" stroke="#88c038" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <!-- Bar chart -->
+      <div class="bars">
+        <div class="bar-col" style="height:40%;background:rgba(136,192,56,.5)"></div>
+        <div class="bar-col" style="height:65%;background:rgba(136,192,56,.65)"></div>
+        <div class="bar-col" style="height:50%;background:rgba(136,192,56,.55)"></div>
+        <div class="bar-col" style="height:80%;background:rgba(136,192,56,.8)"></div>
+        <div class="bar-col" style="height:100%;background:#88c038"></div>
+      </div>
+    </div>
+
+    <!-- Widget 4: Mood Statistic -->
+    <div class="widget">
+      <div class="widget-label">Mood Stats</div>
+      <div class="stat-body">
+        <!-- Donut SVG — Happy 52%, Sad 28%, Angry 20% -->
+        <!-- circ at r=26 ≈ 163.4 -->
+        <!-- happy: 163.4×.52=84.9, sad: 163.4×.28=45.8, angry: 163.4×.20=32.7 -->
+        <div style="position:relative;width:60px;height:60px;">
+          <svg width="60" height="60" viewBox="0 0 60 60">
+            <defs>
+              <linearGradient id="gd1" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#b0d848"/>
+                <stop offset="100%" stop-color="#88c038"/>
+              </linearGradient>
+            </defs>
+            <!-- track -->
+            <circle cx="30" cy="30" r="22" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="7"/>
+            <!-- happy — lime -->
+            <circle class="donut-happy" cx="30" cy="30" r="22" fill="none" stroke="url(#gd1)" stroke-width="7"
+              stroke-dasharray="71.9 138.2" stroke-linecap="round"
+              transform="rotate(-90 30 30)"/>
+            <!-- sad — muted lavender (offset by happy arc) -->
+            <circle class="donut-sad" cx="30" cy="30" r="22" fill="none" stroke="#b0a0cc" stroke-width="7"
+              stroke-dasharray="38.7 138.2" stroke-linecap="round"
+              transform="rotate(  84 30 30)"/>
+            <!-- angry — muted red (offset by happy+sad) -->
+            <circle class="donut-angry" cx="30" cy="30" r="22" fill="none" stroke="#c86040" stroke-width="7"
+              stroke-dasharray="27.6 138.2" stroke-linecap="round"
+              transform="rotate( 185 30 30)"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;letter-spacing:-.4px;">
+            <span class="count" data-target="235">0</span>
+          </div>
+        </div>
+        <div class="stat-legend">
+          <div class="stat-row"><span class="stat-dot" style="background:#b0d848"></span>Happy<span class="stat-val">52%</span></div>
+          <div class="stat-row"><span class="stat-dot" style="background:#b0a0cc"></span>Sad<span class="stat-val">28%</span></div>
+          <div class="stat-row"><span class="stat-dot" style="background:#c86040"></span>Angry<span class="stat-val">20%</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+</div>
+<script>
+  function countUp(el, target, duration, delay) {
+    setTimeout(() => {
+      const start = performance.now();
+      const tick = (now) => {
+        const t = Math.min((now - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(ease * target);
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, delay);
+  }
+  document.querySelectorAll('.count').forEach((el, i) => {
+    countUp(el, +el.dataset.target, 600, 600 + i * 100);
+  });
+  // Growth shows 8.7 → display as "8.7" not "87"
+  document.querySelectorAll('.count-pct').forEach(el => {
+    setTimeout(() => {
+      const start = performance.now();
+      const target = +el.dataset.target / 10;
+      const tick = (now) => {
+        const t = Math.min((now - start) / 600, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        el.textContent = (ease * target).toFixed(1);
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, 700);
+  });
+</script>
+</body>
+</html>

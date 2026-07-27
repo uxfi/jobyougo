@@ -3,7 +3,17 @@
   "builds": [
     {
       "src": "ui/server.mjs",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "ui/**",
+          "templates/**",
+          "data/**",
+          "images/**",
+          "modes/**",
+          "fonts/**"
+        ]
+      }
     }
   ],
   "routes": [
@@ -33,6 +43,10 @@
     },
     {
       "src": "/(.*\\.(jpg|png|woff2|pdf))",
+      "dest": "ui/server.mjs"
+    },
+    {
+      "src": "/(.*)",
       "dest": "ui/server.mjs"
     }
   ]

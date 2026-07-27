@@ -12,20 +12,20 @@
 
 | File | Path | When |
 |------|------|------|
-| cv.md | `cv.md` (project root) | ALWAYS |
-| article-digest.md | `article-digest.md` (if exists) | ALWAYS (detailed proof points) |
+| cv.md | `cv.md` (project root) | Offer evaluation, application writing, and PDF generation; not needed for portal scan |
+| article-digest.md | `article-digest.md` (if exists) | Application writing, cover letters, PDF generation, and deep proof-point work |
 | profile.yml | `config/profile.yml` | ALWAYS (candidate identity and targets) |
 | _profile.md | `modes/_profile.md` | ALWAYS (user archetypes, narrative, negotiation) |
 
-**RULE: NEVER hardcode metrics from proof points.** Read them from cv.md + article-digest.md at evaluation time.
-**RULE: For article/project metrics, article-digest.md takes precedence over cv.md.**
+**RULE: NEVER hardcode metrics from proof points.** Read them from the loaded profile sources, primarily `cv.md`; use `article-digest.md` only when that file is loaded for the current mode.
+**RULE: For article/project metrics, article-digest.md takes precedence over cv.md when that file is loaded.**
 **RULE: Read _profile.md AFTER this file. User customizations in _profile.md override defaults here.**
 
 ---
 
 ## Scoring System
 
-The evaluation uses 6 blocks (A-F) with a global score of 1-5:
+The lean evaluation uses 5 blocks (A-E) with a global score of 1-5:
 
 | Dimension | What it measures |
 |-----------|-----------------|
@@ -69,20 +69,23 @@ After detecting archetype, read `modes/_profile.md` for the user's specific fram
 6. Generate a PDF without reading the JD first
 7. Use corporate-speak
 8. Ignore the tracker (every evaluated offer gets registered)
+9. Scan application forms, draft application answers, or generate tailored CV data during `oferta`, `pipeline`, or `scan`
 
 ### ALWAYS
 
-0. **Cover letter:** If the form allows it, ALWAYS include one. Same visual design as CV. JD quotes mapped to proof points. 1 page max.
-1. Read cv.md, _profile.md, and article-digest.md (if exists) before evaluating
+0. **Cover letter:** Only in `coverletter` or `apply` mode. Same visual design as CV if a PDF is explicitly requested.
+1. Read cv.md and _profile.md before evaluating. Load article-digest.md only when the task needs detailed proof points.
 1b. **First evaluation of each session:** Run `node cv-sync-check.mjs`. If warnings, notify user.
 2. Detect the role archetype and adapt framing per _profile.md
 3. Cite exact lines from CV when matching
-4. Use WebSearch for comp and company data
+4. Use WebSearch for comp and company data only in `deep` research or when the user explicitly asks. Lean evaluation should mark missing comp/company data as `Unknown`.
 5. Register in tracker after evaluating
 6. Generate content in the language of the JD (EN default)
 7. Be direct and actionable -- no fluff
 8. Native tech English for generated text. Short sentences, action verbs, no passive voice.
 8b. Case study URLs in PDF Professional Summary (recruiter may only read this).
+8c. **No unnecessary hyphens** — write compound words without hyphens unless grammatically required.
+8d. **Use contractions** — "I've", "I'm", "you're", etc. Avoid stiff constructions where a contraction fits.
 9. **Tracker additions as TSV** -- NEVER edit applications.md directly. Write TSV in `batch/tracker-additions/`.
 10. **Include `**URL:**` in every report header.**
 

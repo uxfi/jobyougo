@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TalentSync — Dashboard</title>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #f0f3f7;
+  --white:     #ffffff;
+  --border:    #e8edf2;
+  --t1:        #1a1d23;
+  --t2:        #5c6472;
+  --t3:        #9ba4b0;
+  --blue:      #4a8ef0;
+  --blue-d:    #2563eb;
+  --blue-l:    #e8f0fe;
+  --green-bg:  #e6f9ef;
+  --green-fg:  #17a84b;
+  --red-bg:    #fde8e8;
+  --red-fg:    #e03030;
+  --cell-0:    #edf2f7;
+  --cell-1:    #c3d9f7;
+  --cell-2:    #7eb8ef;
+  --cell-3:    #4a8ef0;
+  --cell-4:    #1e5cbf;
+  --shadow:    0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+  --shadow-hover: 0 2px 8px rgba(0,0,0,.08), 0 8px 28px rgba(0,0,0,.09);
+  --sidebar-w: 58px;
+}
+
+html, body { height: 100%; background: var(--bg); font-family: var(--font-inter); font-size: 13px; color: var(--t1); -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+/* ── Entrance keyframes ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes donutSpin {
+  from { stroke-dasharray: 0 301.6; }
+  to   { stroke-dasharray: 45.2 256.4; }
+}
+@keyframes cellReveal {
+  from { opacity: 0; transform: scaleY(0); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74,142,240,.4); }
+  50%       { box-shadow: 0 0 0 5px rgba(74,142,240,0); }
+}
+@keyframes coinPulse {
+  0%,100% { color: #f4a523; }
+  50%     { color: #e69020; }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes notifBounce {
+  0%,100% { transform: rotate(0deg); }
+  20%     { transform: rotate(-15deg); }
+  40%     { transform: rotate(15deg); }
+  60%     { transform: rotate(-8deg); }
+  80%     { transform: rotate(8deg); }
+}
+
+/* ── Layout ── */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  background: var(--white); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 0; gap: 2px; z-index: 10;
+  animation: fadeIn .4s ease both;
+}
+.sb-logo {
+  width: 34px; height: 34px; background: var(--blue); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 14px; flex-shrink: 0; cursor: pointer;
+  transition: transform 200ms, box-shadow 200ms;
+}
+.sb-logo:hover { transform: scale(1.08); box-shadow: 0 4px 14px rgba(74,142,240,.4); }
+.sb-logo:active { transform: scale(.96); }
+.sb-logo svg { width: 17px; height: 17px; }
+
+.sb-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--t3); cursor: pointer;
+  transition: background 150ms, color 150ms, transform 150ms;
+  position: relative;
+}
+.sb-icon svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sb-icon:hover { background: var(--bg); color: var(--t2); transform: translateX(2px); }
+.sb-icon:active { transform: scale(.9); }
+.sb-icon.active { background: var(--blue-l); color: var(--blue); }
+
+/* Tooltip */
+.sb-icon::after {
+  content: attr(data-tip);
+  position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  background: var(--t1); color: #fff; font-size: 11px; font-weight: 500;
+  padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transition: opacity 150ms, transform 150ms;
+  transform: translateY(-50%) translateX(-4px);
+}
+.sb-icon:hover::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+.sb-spacer { flex: 1; }
+.sb-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #4a8ef0, #7ab3f7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; cursor: pointer;
+  margin-top: 6px; transition: transform 200ms, box-shadow 200ms;
+  animation: pulse 3s 2s infinite;
+}
+.sb-avatar:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(74,142,240,.4); animation: none; }
+
+.sb-back {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--t3); cursor: pointer; transition: color 150ms, transform 150ms;
+}
+.sb-back:hover { color: var(--t2); transform: translateX(-2px); }
+.sb-back svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+/* ── Main ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  height: 54px; padding: 0 20px;
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  animation: fadeIn .35s ease both;
+}
+.tb-user { display: flex; align-items: center; gap: 9px; }
+.tb-av {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, #4a8ef0, #7ab3f7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+  cursor: pointer; transition: transform 200ms;
+}
+.tb-av:hover { transform: scale(1.08); }
+.tb-name { font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.2; }
+.tb-coins { font-size: 11px; color: var(--t3); }
+.tb-coins b { color: #f4a523; font-weight: 600; animation: coinPulse 3s 1.5s infinite; display: inline-block; }
+.tb-plus {
+  width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--t3); font-size: 14px; cursor: pointer; line-height: 1;
+  transition: background 150ms, border-color 150ms, color 150ms, transform 150ms;
+}
+.tb-plus:hover { background: var(--blue-l); border-color: var(--blue); color: var(--blue); transform: rotate(90deg); }
+
+.tb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.tb-btn-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--t2); cursor: pointer; transition: background 150ms, border-color 150ms, transform 150ms;
+  position: relative;
+}
+.tb-btn-icon svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tb-btn-icon:hover { background: var(--bg); border-color: #d0d7e2; transform: translateY(-1px); }
+.tb-btn-icon:active { transform: scale(.93); }
+
+/* Notification bell animation */
+.tb-btn-icon.notif svg { transform-origin: top center; }
+.tb-btn-icon.notif:hover svg { animation: notifBounce .6s ease; }
+
+/* Notif badge */
+.tb-btn-icon .badge {
+  position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #ef4444; border: 1.5px solid var(--white);
+  animation: pulse 2s .5s infinite;
+}
+
+.btn-new {
+  background: var(--blue); color: #fff; border: none;
+  padding: 0 14px; height: 34px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+  transition: background 150ms, transform 150ms, box-shadow 150ms;
+  box-shadow: 0 2px 8px rgba(74,142,240,.3);
+}
+.btn-new:hover { background: var(--blue-d); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(74,142,240,.45); }
+.btn-new:active { transform: scale(.96) translateY(0); box-shadow: none; }
+.btn-new svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2.5; stroke-linecap: round; transition: transform 200ms; }
+.btn-new:hover svg { transform: rotate(90deg); }
+
+/* ── Content ── */
+.content { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Hero ── */
+.hero {
+  background: var(--white); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 18px 22px;
+  display: flex; align-items: center;
+  animation: fadeUp .4s .1s ease both;
+  transition: box-shadow 200ms;
+}
+.hero:hover { box-shadow: var(--shadow-hover); }
+.hero-left { flex: 1; }
+.hero-greeting { font-size: 12px; color: var(--t3); margin-bottom: 4px; }
+.hero-name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hero-name { font-size: 26px; font-weight: 800; letter-spacing: -.5px; color: var(--t1); }
+.hero-location {
+  font-size: 11px; font-weight: 500; color: var(--t2);
+  background: #f0f3f7; border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: 20px;
+  cursor: pointer; transition: background 150ms, border-color 150ms;
+}
+.hero-location:hover { background: var(--blue-l); border-color: #bcd4fb; color: var(--blue); }
+
+.hero-tabs { display: flex; gap: 6px; margin-top: 12px; }
+.hero-tab {
+  font-size: 12px; font-weight: 500; padding: 6px 16px; border-radius: 20px;
+  cursor: pointer; border: none; background: var(--bg); color: var(--t3);
+  transition: background 200ms, color 200ms, transform 150ms, box-shadow 150ms;
+}
+.hero-tab:hover:not(.active) { background: #e4e8ef; color: var(--t2); }
+.hero-tab:active { transform: scale(.95); }
+.hero-tab.active { background: var(--t1); color: #fff; box-shadow: 0 2px 8px rgba(26,29,35,.25); }
+
+.hero-right { text-align: right; }
+.hero-staff { font-size: 12px; color: var(--t3); margin-bottom: 4px; }
+.hero-count {
+  font-size: 28px; font-weight: 800; letter-spacing: -.6px; color: var(--t1);
+  transition: opacity 200ms, transform 200ms;
+}
+.hero-count.switching { opacity: 0; transform: translateY(4px); }
+
+/* ── Grid ── */
+.grid { display: grid; grid-template-columns: 1fr 252px; gap: 14px; }
+.grid-left { display: flex; flex-direction: column; gap: 14px; }
+.grid-right { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Card ── */
+.card {
+  background: var(--white); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 18px 20px;
+  transition: box-shadow 200ms, transform 200ms;
+}
+.card:hover { box-shadow: var(--shadow-hover); }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--t2); }
+
+.card-contributors { animation: fadeUp .4s .18s ease both; }
+.card-team        { animation: fadeUp .4s .26s ease both; }
+.card-donut       { animation: fadeUp .4s .22s ease both; }
+.promo            { animation: scaleIn .4s .32s ease both; }
+
+/* ── Contributors ── */
+.contrib-nums { display: flex; gap: 28px; margin-bottom: 14px; }
+.cn-val { font-size: 24px; font-weight: 800; letter-spacing: -.5px; color: var(--t1); }
+.cn-lbl { font-size: 10px; color: var(--t3); margin-top: 1px; }
+
+/* Status pill dropdown */
+.status-pill-wrap { position: relative; }
+.status-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--blue-l); color: var(--blue);
+  font-size: 11px; font-weight: 500; padding: 5px 10px; border-radius: 8px;
+  cursor: pointer; white-space: nowrap; user-select: none;
+  transition: background 150ms;
+}
+.status-pill:hover { background: #d6e9fd; }
+.status-pill svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; transition: transform 200ms; }
+.status-pill.open svg { transform: rotate(180deg); }
+
+.pill-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  padding: 4px; min-width: 110px; z-index: 50;
+  display: none;
+}
+.pill-dropdown.open { display: block; animation: slideDown 150ms ease both; }
+.pill-opt {
+  padding: 7px 10px; font-size: 12px; color: var(--t2); border-radius: 7px;
+  cursor: pointer; transition: background 100ms;
+}
+.pill-opt:hover { background: var(--bg); }
+.pill-opt.active { color: var(--blue); font-weight: 600; background: var(--blue-l); }
+
+/* Heatmap */
+.hm-wrap { width: 100%; }
+.hm-months { display: flex; margin-bottom: 5px; padding-left: 30px; }
+.hm-month { font-size: 10px; color: var(--t3); flex: 1; }
+.hm-rows { display: flex; flex-direction: column; gap: 3px; }
+.hm-row { display: flex; align-items: center; gap: 3px; }
+.hm-day { width: 26px; font-size: 10px; color: var(--t3); text-align: right; flex-shrink: 0; }
+.hm-cells { display: flex; gap: 3px; flex: 1; }
+.c {
+  flex: 1; height: 11px; border-radius: 2.5px;
+  background: var(--cell-0); min-width: 0; cursor: pointer;
+  transform-origin: bottom;
+  transition: filter 100ms, transform 100ms;
+}
+.c.l1 { background: var(--cell-1); }
+.c.l2 { background: var(--cell-2); }
+.c.l3 { background: var(--cell-3); }
+.c.l4 { background: var(--cell-4); }
+.c:hover { filter: brightness(1.15); transform: scaleY(1.3); }
+
+.hm-legend { display: flex; align-items: center; gap: 5px; margin-top: 8px; justify-content: flex-end; }
+.hm-legend span { font-size: 10px; color: var(--t3); }
+.hm-legend-cells { display: flex; gap: 3px; }
+.hm-legend-cells .c { width: 10px; height: 10px; flex: none; cursor: default; }
+.hm-legend-cells .c:hover { transform: none; filter: none; }
+
+/* Cell tooltip */
+.cell-tooltip {
+  position: fixed; pointer-events: none; z-index: 200;
+  background: var(--t1); color: #fff;
+  font-size: 10px; font-weight: 500; padding: 4px 8px; border-radius: 6px;
+  white-space: nowrap; opacity: 0;
+  transition: opacity 100ms;
+}
+.cell-tooltip.visible { opacity: 1; }
+
+/* ── Team Table ── */
+.search-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--blue-l); color: var(--blue);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 150ms, transform 150ms;
+}
+.search-btn:hover { background: #d0e4fc; transform: scale(1.1) rotate(10deg); }
+.search-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left; font-size: 11px; font-weight: 500; color: var(--t3);
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 120ms; cursor: pointer;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f7f9fc; }
+tbody tr:hover td:first-child { border-radius: 8px 0 0 8px; }
+tbody tr:hover td:last-child { border-radius: 0 8px 8px 0; }
+tbody td { padding: 11px 0; vertical-align: middle; transition: padding 120ms; }
+td:not(:first-child) { padding-left: 8px; }
+
+.person { display: flex; align-items: center; gap: 9px; }
+.pav {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+  transition: transform 150ms;
+}
+tbody tr:hover .pav { transform: scale(1.1); }
+.pname { font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.2; }
+.pemail { font-size: 10px; color: var(--t3); }
+.role { font-size: 11.5px; color: var(--t2); font-weight: 500; }
+.tenure { font-size: 11px; color: var(--t3); white-space: nowrap; }
+.prod {
+  font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+  display: inline-block; white-space: nowrap; cursor: pointer;
+  transition: transform 150ms, box-shadow 150ms;
+}
+.prod:hover { transform: scale(1.06); }
+.prod.hi { background: var(--green-bg); color: var(--green-fg); }
+.prod.lo { background: var(--red-bg); color: var(--red-fg); }
+.status-cell { font-size: 11.5px; color: var(--t2); white-space: nowrap; }
+.dots {
+  color: var(--t3); font-size: 15px; cursor: pointer; user-select: none; letter-spacing: 1px;
+  padding: 0 4px; border-radius: 4px; transition: background 150ms, color 150ms;
+}
+.dots:hover { background: var(--bg); color: var(--t2); }
+
+/* ── Donut ── */
+.details-link { font-size: 11px; color: var(--blue); cursor: pointer; font-weight: 500; text-decoration: none; transition: opacity 150ms; }
+.details-link:hover { opacity: .7; }
+
+.donut-area { display: flex; flex-direction: column; align-items: center; padding: 6px 0 12px; }
+.donut-rel {
+  position: relative; width: 124px; height: 124px; margin-bottom: 18px;
+  cursor: pointer;
+}
+.donut-rel svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+
+.donut-track { transition: stroke .3s; }
+.donut-arc {
+  stroke-dasharray: 0 301.6;
+  stroke-linecap: round;
+  transition: stroke-dasharray .9s cubic-bezier(.4,0,.2,1), stroke .3s;
+}
+.donut-arc.animated { stroke-dasharray: 45.2 256.4; }
+
+.donut-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 800; letter-spacing: -.4px; color: var(--t1);
+  transition: transform 200ms;
+}
+.donut-rel:hover .donut-label { transform: scale(1.08); }
+
+.donut-stats { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.ds-row { display: flex; justify-content: space-between; align-items: center; }
+.ds-lbl { font-size: 11px; color: var(--t3); }
+.ds-val { font-size: 11.5px; font-weight: 600; color: var(--t2); }
+.ds-sep { height: 1px; background: var(--border); }
+.ds-vs { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
+.ds-vs-lbl { font-size: 11px; color: var(--t3); }
+.badge-up {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+  background: var(--green-bg); color: var(--green-fg);
+  cursor: pointer; transition: transform 150ms;
+}
+.badge-up:hover { transform: scale(1.08); }
+
+/* ── Promo ── */
+.promo {
+  background: #d6e8fb; border-radius: 14px; padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  cursor: pointer; transition: transform 200ms, box-shadow 200ms;
+}
+.promo:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(74,142,240,.2); }
+.promo:active { transform: scale(.98); }
+.promo-brand { display: flex; align-items: center; gap: 7px; }
+.promo-icon {
+  width: 26px; height: 26px; background: var(--blue); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 200ms;
+}
+.promo:hover .promo-icon { transform: rotate(-8deg) scale(1.1); }
+.promo-icon svg { width: 13px; height: 13px; }
+.promo-name { font-size: 12px; font-weight: 700; color: var(--blue-d); }
+.promo-heading { font-size: 15px; font-weight: 700; color: var(--t1); line-height: 1.3; letter-spacing: -.2px; }
+.promo-footer { display: flex; align-items: center; gap: 8px; }
+.promo-stack { display: flex; }
+.promo-stack .av {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid #d6e8fb;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; color: #fff;
+  margin-left: -7px; transition: transform 200ms, z-index 0s;
+}
+.promo-stack .av:first-child { margin-left: 0; }
+.promo-stack .av:hover { transform: translateY(-3px) scale(1.1); z-index: 5; }
+.promo-people { font-size: 11px; font-weight: 600; color: var(--blue-d); }
+</style>
+</head>
+<body>
+
+<!-- Cell tooltip -->
+<div class="cell-tooltip" id="cell-tip"></div>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    </div>
+    <div class="sb-icon active" data-tip="Dashboard">
+      <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    </div>
+    <div class="sb-icon" data-tip="People">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/><circle cx="19" cy="7" r="3"/><path d="M22 21v-2a3 3 0 00-2-2.83"/></svg>
+    </div>
+    <div class="sb-icon" data-tip="Apps">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    </div>
+    <div class="sb-icon" data-tip="Analytics">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    </div>
+    <div class="sb-spacer"></div>
+    <div class="sb-back">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
+    <div class="sb-avatar">GJ</div>
+  </aside>
+
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="tb-user">
+        <div class="tb-av">GJ</div>
+        <div>
+          <div class="tb-name">Your Balance</div>
+          <div class="tb-coins"><b>587 talent coins</b></div>
+        </div>
+        <div class="tb-plus">+</div>
+      </div>
+      <div class="tb-right">
+        <div class="tb-btn-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </div>
+        <div class="tb-btn-icon notif">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <div class="badge"></div>
+        </div>
+        <button class="btn-new">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Job Post
+        </button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Hero -->
+      <div class="hero">
+        <div class="hero-left">
+          <div class="hero-greeting">Good Morning,</div>
+          <div class="hero-name-row">
+            <div class="hero-name">Georg Johnson</div>
+            <div class="hero-location">Buffalo · Last Week</div>
+          </div>
+          <div class="hero-tabs">
+            <button class="hero-tab active" data-count="103" data-label="Company staff">Company</button>
+            <button class="hero-tab" data-count="1240" data-label="Job Seekers active">Job Seekers</button>
+          </div>
+        </div>
+        <div class="hero-right">
+          <div class="hero-staff" id="hero-staff-label">Company staff</div>
+          <div class="hero-count" id="hero-count">103 employee</div>
+        </div>
+      </div>
+
+      <!-- Grid -->
+      <div class="grid">
+        <div class="grid-left">
+
+          <!-- Contributors -->
+          <div class="card card-contributors">
+            <div class="card-head">
+              <div class="card-title">Contributors</div>
+              <div class="status-pill-wrap">
+                <div class="status-pill" id="status-pill">
+                  Status · <span id="pill-text">Month</span>
+                  <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="pill-dropdown" id="pill-dropdown">
+                  <div class="pill-opt" data-val="Week">Week</div>
+                  <div class="pill-opt active" data-val="Month">Month</div>
+                  <div class="pill-opt" data-val="Year">Year</div>
+                </div>
+              </div>
+            </div>
+            <div class="contrib-nums">
+              <div>
+                <div class="cn-val" data-target="142029" id="cn-year">0</div>
+                <div class="cn-lbl">Contributor in this year</div>
+              </div>
+              <div>
+                <div class="cn-val" data-target="42562" id="cn-last">0</div>
+                <div class="cn-lbl">Contributors in the last year</div>
+              </div>
+            </div>
+            <div class="hm-wrap">
+              <div class="hm-months" id="hm-months"></div>
+              <div class="hm-rows" id="hm-rows"></div>
+              <div class="hm-legend">
+                <span>Less</span>
+                <div class="hm-legend-cells">
+                  <div class="c"></div><div class="c l1"></div><div class="c l2"></div><div class="c l3"></div><div class="c l4"></div>
+                </div>
+                <span>More</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Team -->
+          <div class="card card-team">
+            <div class="card-head">
+              <div class="card-title">Team Management</div>
+              <div class="search-btn">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th><th>Role</th><th>Length of employment</th><th>Productivity</th><th>Status</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="person">
+                      <div class="pav" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">AR</div>
+                      <div><div class="pname">Albert Richardson</div><div class="pemail">albert1ich@gmail.com</div></div>
+                    </div>
+                  </td>
+                  <td><span class="role">Product Manager</span></td>
+                  <td><span class="tenure">1 year 8 months 19 days</span></td>
+                  <td><span class="prod hi">High</span></td>
+                  <td><span class="status-cell">Free for project</span></td>
+                  <td><span class="dots">⋮</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="person">
+                      <div class="pav" style="background:linear-gradient(135deg,#38bdf8,#6366f1)">EA</div>
+                      <div><div class="pname">Erik Anamo</div><div class="pemail">erikanamo.1@gmail.com</div></div>
+                    </div>
+                  </td>
+                  <td><span class="role">UI/UX Designer</span></td>
+                  <td><span class="tenure">8 months 30 days</span></td>
+                  <td><span class="prod lo">Low</span></td>
+                  <td><span class="status-cell">Free for project</span></td>
+                  <td><span class="dots">⋮</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div><!-- grid-left -->
+
+        <div class="grid-right">
+
+          <!-- Turnover -->
+          <div class="card card-donut">
+            <div class="card-head">
+              <div class="card-title">Employee Turnover Rate</div>
+              <a class="details-link">Details ›</a>
+            </div>
+            <div class="donut-area">
+              <div class="donut-rel" id="donut-wrap">
+                <svg viewBox="0 0 120 120">
+                  <circle class="donut-track" cx="60" cy="60" r="48" fill="none" stroke="#edf2f7" stroke-width="13"/>
+                  <circle class="donut-arc" id="donut-arc" cx="60" cy="60" r="48" fill="none" stroke="#7ab3f0" stroke-width="13"/>
+                </svg>
+                <div class="donut-label">15%</div>
+              </div>
+              <div class="donut-stats">
+                <div class="ds-row">
+                  <span class="ds-lbl">Company Size</span>
+                  <span class="ds-val">189 People</span>
+                </div>
+                <div class="ds-sep"></div>
+                <div class="ds-row">
+                  <span class="ds-lbl">Company Size</span>
+                  <span class="ds-val">189 People</span>
+                </div>
+                <div class="ds-vs">
+                  <span class="ds-vs-lbl">vs last month</span>
+                  <span class="badge-up">+8%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Promo -->
+          <div class="promo">
+            <div class="promo-brand">
+              <div class="promo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </div>
+              <span class="promo-name">TalentSync</span>
+            </div>
+            <div class="promo-heading">Become super-HR with several features</div>
+            <div class="promo-footer">
+              <div class="promo-stack">
+                <div class="av" style="background:#6366f1"></div>
+                <div class="av" style="background:#4a8ef0"></div>
+                <div class="av" style="background:#38bdf8"></div>
+              </div>
+              <span class="promo-people">230k+ people</span>
+            </div>
+          </div>
+
+        </div><!-- grid-right -->
+      </div><!-- grid -->
+    </div><!-- content -->
+  </div><!-- main -->
+</div><!-- app -->
+
+<script>
+/* ── Sidebar nav ── */
+document.querySelectorAll('.sb-icon').forEach(icon => {
+  icon.addEventListener('click', () => {
+    document.querySelectorAll('.sb-icon').forEach(i => i.classList.remove('active'));
+    icon.classList.add('active');
+  });
+});
+
+/* ── Hero tabs ── */
+const heroCount = document.getElementById('hero-count');
+const heroLabel = document.getElementById('hero-staff-label');
+document.querySelectorAll('.hero-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    if (tab.classList.contains('active')) return;
+    document.querySelectorAll('.hero-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    heroCount.classList.add('switching');
+    heroLabel.style.opacity = '0';
+    setTimeout(() => {
+      heroCount.textContent = tab.dataset.count + ' employee';
+      heroLabel.textContent = tab.dataset.label;
+      heroCount.classList.remove('switching');
+      heroLabel.style.opacity = '1';
+    }, 200);
+  });
+});
+
+/* ── Status pill dropdown ── */
+const pill = document.getElementById('status-pill');
+const dropdown = document.getElementById('pill-dropdown');
+const pillText = document.getElementById('pill-text');
+pill.addEventListener('click', e => {
+  e.stopPropagation();
+  const open = dropdown.classList.toggle('open');
+  pill.classList.toggle('open', open);
+});
+document.querySelectorAll('.pill-opt').forEach(opt => {
+  opt.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.pill-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    pillText.textContent = opt.dataset.val;
+    dropdown.classList.remove('open');
+    pill.classList.remove('open');
+  });
+});
+document.addEventListener('click', () => {
+  dropdown.classList.remove('open');
+  pill.classList.remove('open');
+});
+
+/* ── Counter animation ── */
+function animateCounter(el, target, duration = 1400) {
+  const start = performance.now();
+  const fmt = n => n.toLocaleString('en-US');
+  function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(Math.round(ease * target));
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ── Heatmap ── */
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul'];
+const DAYS   = ['Mon','','Wed','','Fri'];
+const COLS   = 53;
+function seededRand(seed) {
+  let s = seed;
+  return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+}
+const rng = seededRand(0xdeadbeef);
+
+// Month header
+const monthsEl = document.getElementById('hm-months');
+const sp = document.createElement('div'); sp.style.cssText = 'width:30px;flex-shrink:0;'; monthsEl.appendChild(sp);
+MONTHS.forEach(m => {
+  const d = document.createElement('div'); d.className = 'hm-month'; d.textContent = m; monthsEl.appendChild(d);
+});
+
+// Tooltip
+const tip = document.getElementById('cell-tip');
+const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul'];
+
+// Rows + cells
+const rowsEl = document.getElementById('hm-rows');
+const allCells = [];
+DAYS.forEach((label, di) => {
+  const row = document.createElement('div'); row.className = 'hm-row';
+  const dayEl = document.createElement('div'); dayEl.className = 'hm-day'; dayEl.textContent = label; row.appendChild(dayEl);
+  const cells = document.createElement('div'); cells.className = 'hm-cells';
+  for (let c = 0; c < COLS; c++) {
+    const cell = document.createElement('div');
+    const r = rng();
+    const lvl = r < .3 ? 0 : r < .52 ? 1 : r < .72 ? 2 : r < .87 ? 3 : 4;
+    const count = Math.round(lvl * 8 + rng() * 5);
+    cell.className = 'c' + (lvl > 0 ? ' l' + lvl : '');
+    cell.dataset.count = count;
+    cell.dataset.col = c;
+
+    cell.addEventListener('mousemove', e => {
+      const mo = months[Math.floor(c / 7.6)];
+      const day = days[di % 7];
+      tip.textContent = `${count} contributions · ${day}, ${mo}`;
+      tip.classList.add('visible');
+      tip.style.left = (e.clientX + 12) + 'px';
+      tip.style.top  = (e.clientY - 28) + 'px';
+    });
+    cell.addEventListener('mouseleave', () => tip.classList.remove('visible'));
+
+    cells.appendChild(cell);
+    allCells.push({ el: cell, delay: c * 8 + di * 40 });
+  }
+  row.appendChild(cells); rowsEl.appendChild(row);
+});
+
+/* ── Donut ── */
+const arc = document.getElementById('donut-arc');
+
+/* ── Intersection Observer — trigger animations on enter ── */
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+
+    // Counters
+    animateCounter(document.getElementById('cn-year'), 142029, 1600);
+    animateCounter(document.getElementById('cn-last'), 42562, 1300);
+
+    // Heatmap reveal — wave left to right
+    allCells.forEach(({ el, delay }) => {
+      el.style.opacity = '0';
+      el.style.transform = 'scaleY(0)';
+      setTimeout(() => {
+        el.style.transition = 'opacity 180ms ease, transform 180ms ease';
+        el.style.opacity = '1';
+        el.style.transform = 'scaleY(1)';
+      }, 300 + delay);
+    });
+
+    // Donut
+    setTimeout(() => arc.classList.add('animated'), 400);
+
+    observer.disconnect();
+  });
+}, { threshold: .1 });
+
+observer.observe(document.querySelector('.card-contributors'));
+
+/* ── Donut hover — pulse on click ── */
+document.getElementById('donut-wrap').addEventListener('click', () => {
+  arc.style.transition = 'none';
+  arc.classList.remove('animated');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    arc.style.transition = 'stroke-dasharray .9s cubic-bezier(.4,0,.2,1)';
+    arc.classList.add('animated');
+  }));
+});
+</script>
+</body>
+</html>

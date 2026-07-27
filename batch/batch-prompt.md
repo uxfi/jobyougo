@@ -15,6 +15,8 @@ You are a job offer evaluation worker for the candidate (read name from config/p
 | File | Absolute path | When |
 |------|---------------|------|
 | cv.md | `cv.md (project root)` | ALWAYS |
+| _profile.md | `modes/_profile.md` | ALWAYS (search criteria, deal-breakers, comp targets) |
+| profile.yml | `config/profile.yml` | ALWAYS (factual data: salary, remote, location) |
 | llms.txt | `llms.txt (if exists)` | ALWAYS |
 | article-digest.md | `article-digest.md (project root)` | ALWAYS (proof points) |
 | i18n.ts | `i18n.ts (if exists, optional)` | Interviews/deep only |
@@ -91,7 +93,18 @@ Convert "builder" into a professional signal, not a "hobby maker". Framing chang
 
 Table with: Detected archetype, Domain, Function, Seniority, Remote, Team size, TL;DR.
 
-#### Block B — CV Match
+#### Block B — Criteria Check (gatekeeper)
+
+Read `modes/_profile.md` (Préférences de recherche, Deal-breakers, Politique de Localisation, Cibles de Compensation, Rôles Cibles) and `config/profile.yml`. Check the offer against EVERY criterion:
+
+| Criterion | Requirement | This offer | Verdict ✅/⚠️/❌ |
+|-----------|-------------|------------|------------------|
+
+Cover at least: remote policy, contract type, geography/timezone, compensation vs target, product ownership, real AI dimension (not washing), archetype fit.
+
+**Early exit:** If a hard deal-breaker fails, apply the scoring caps from `_profile.md`, jump to the Score Breakdown to justify the score, set tracker status `SKIP`, skip Blocks D and F, and skip the PDF.
+
+#### Block C — CV Match
 
 Read `cv.md`. Table with each JD requirement mapped to exact CV lines or i18n.ts keys.
 
@@ -103,51 +116,37 @@ Read `cv.md`. Table with each JD requirement mapped to exact CV lines or i18n.ts
 - Agentic → prioritize multi-agent, HITL, orchestration
 - Transformation → prioritize change management, adoption, scaling
 
-**Gaps** section with mitigation strategy for each:
-1. Is it a hard blocker or nice-to-have?
-2. Can the candidate demonstrate adjacent experience?
-3. Is there a portfolio project covering this gap?
-4. Concrete mitigation plan
-
-#### Block C — Level and Strategy
-
-1. **Detected level** in the JD vs **candidate's natural level**
-2. **"Sell senior without lying" plan**: specific phrases, concrete achievements, founder as advantage
-3. **"If they downlevel me" plan**: accept if comp is fair, 6-month review, clear promotion criteria
+**Gaps** section: for each gap, one line — hard blocker or nice-to-have, and the closest adjacent experience covering it.
 
 #### Block D — Comp and Demand
 
-Use WebSearch for current salaries (Glassdoor, Levels.fyi, Blind), company comp reputation, demand trend. Table with data and cited sources. If no data, say so.
+Use WebSearch for current salaries (Glassdoor, Levels.fyi, Blind), company comp reputation, demand trend. Short table with data and cited sources. If no data, say so.
 
 Comp score (1-5): 5=top quartile, 4=above market, 3=median, 2=slightly below, 1=well below.
 
-#### Block E — Customization Plan
+#### Block E — Score Breakdown
 
-| # | Section | Current state | Proposed change | Why |
-|---|---------|---------------|-----------------|-----|
+| Dimension | Score | Justification (1 line) |
+|-----------|-------|------------------------|
+| CV Match | X/5 | |
+| North Star alignment | X/5 | |
+| Comp | X/5 | |
+| Cultural signals | X/5 | |
+| Red flags | -X (if any) | |
+| **Global** | **X/5** | |
 
-Top 5 CV changes + Top 5 LinkedIn changes.
+End with the verdict in one sentence (4.5+ apply now / 4.0-4.4 worth applying / 3.5-3.9 only with a reason / <3.5 skip).
 
-#### Block F — Interview Plan
+#### Block F — Application Form Questions & Draft Answers (only if score >= 3.0)
 
-6-10 STAR stories mapped to JD requirements:
+Playwright is NOT available in batch mode. Try WebFetch on the offer/apply URL to extract form questions. If extractable:
+- List every question EXCEPT contact/identity fields (name, email, phone, address, profile URLs, resume uploads, EEO surveys)
+- Draft a ready-to-paste answer for each (2-4 sentences, proof points from cv.md/article-digest.md, factual answers from config/profile.yml)
+- Apply `modes/_profile.md` → **Guidelines de copywriting** → **Application answers — Hugo voice**:
+  proof first, direct, selective, builder/founder energy, no HR polish, no "I'm passionate about", no "excited to", no "I would love the opportunity to".
+- If an answer could be written by any senior candidate, rewrite it around a real project, a hard decision, or a verified metric.
 
-| # | JD Requirement | STAR Story | S | T | A | R |
-
-**Selection adapted to archetype.** Also include:
-- 1 recommended case study (which project to present and how)
-- Red-flag questions and how to answer them
-
-#### Global Score
-
-| Dimension | Score |
-|-----------|-------|
-| CV Match | X/5 |
-| North Star alignment | X/5 |
-| Comp | X/5 |
-| Cultural signals | X/5 |
-| Red flags | -X (if any) |
-| **Global** | **X/5** |
+If not extractable, write `Form scan: pending (batch mode — re-run with Playwright)` and draft answers for the generic questions: why this role, why this company, relevant project, salary expectations, notice period.
 
 ### Step 3 — Save Report .md
 
@@ -175,20 +174,20 @@ Where `{company-slug}` is the company name in lowercase, no spaces, with hyphens
 ## A) Role Summary
 (full content)
 
-## B) CV Match
+## B) Criteria Check
 (full content)
 
-## C) Level and Strategy
+## C) CV Match
 (full content)
 
 ## D) Comp and Demand
 (full content)
 
-## E) Customization Plan
+## E) Score Breakdown
 (full content)
 
-## F) Interview Plan
-(full content)
+## F) Application Form Questions & Draft Answers
+(full content, or skip note if score < 3.0)
 
 ---
 
@@ -355,3 +354,5 @@ If something fails:
 5. Generate content in the JD language (EN default)
 6. Be direct and actionable — no filler
 7. When generating English text (PDF summaries, bullets, STAR stories): short sentences, action verbs, no unnecessary passive voice, no "in order to" or "utilized"
+8. **No unnecessary hyphens** — write compound words without hyphens unless grammatically required.
+9. **Use contractions** — "I've", "I'm", "you're", etc. Avoid stiff constructions where a contraction fits.

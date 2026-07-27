@@ -68,3 +68,7 @@ career-dashboard
 .env
 .env.local
 .vercel
+
+# ── Auto-apply (runner Playwright) ──
+scratch/
+data/chrome-profile/

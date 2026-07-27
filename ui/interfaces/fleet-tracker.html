@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fleety — Fleet Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f0f10;
+  --panel: #151515;
+  --panel-2: #191919;
+  --panel-3: #1f1f1f;
+  --panel-4: #242424;
+  --line: rgba(255,255,255,.07);
+  --line-2: rgba(255,255,255,.1);
+  --text: #f3f3f3;
+  --muted: rgba(255,255,255,.42);
+  --muted-2: rgba(255,255,255,.26);
+  --blue: #4e8cff;
+  --green: #30c760;
+  --red: #ff4d43;
+  --amber: #d99b1f;
+  --app-radius: 4px;
+  --app-radius-lg: 4px;
+  --button-surface: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.018) 60%, rgba(0,0,0,.08));
+  --button-shadow: inset 0 1px 0 rgba(255,255,255,.075), 0 1px 2px rgba(0,0,0,.24);
+}
+html, body { height: 100%; }
+body {
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.app {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 58px 292px minmax(0, 1fr) 382px;
+  grid-template-rows: 52px minmax(0, 1fr);
+  background: #101010;
+}
+
+.topbar {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 58px 292px minmax(0, 1fr) 382px;
+  background: #141414;
+  border-bottom: 1px solid var(--line);
+}
+.topbar-left {
+  grid-column: 1 / 3;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 14px 0 12px;
+  border-right: 1px solid var(--line);
+}
+.collapse-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--app-radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.62);
+  background: var(--button-surface), #1e1e1e;
+  border: 1px solid rgba(255,255,255,.1);
+  box-shadow: var(--button-shadow);
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.collapse-btn:hover { border-color: rgba(255,255,255,.16); background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025)), #1e1e1e; }
+.collapse-btn:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.42); }
+.collapse-btn svg {
+  width: 13px;
+  height: 13px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+}
+.brand svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.55;
+}
+.topbar-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  color: var(--muted);
+  font-size: 12px;
+  border-right: 1px solid var(--line);
+}
+.metric-chip strong {
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 4px;
+}
+.metric-chip.active strong { color: var(--blue); }
+.metric-chip.delayed strong { color: var(--red); }
+.metric-chip.done strong { color: var(--green); }
+.topbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 16px;
+}
+.clock-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,.55);
+  font-size: 12px;
+}
+.clock-wrap svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.65;
+}
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--app-radius);
+  background: var(--button-surface), #1d1d1d;
+  border: 1px solid rgba(255,255,255,.11);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.78);
+  box-shadow: var(--button-shadow);
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.icon-btn:hover { border-color: rgba(255,255,255,.16); background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025)), #1d1d1d; }
+.icon-btn:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.42); }
+.icon-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.6;
+}
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,.88);
+  font-size: 12px;
+  font-weight: 500;
+}
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--app-radius);
+  background: linear-gradient(135deg, #f2d6d6, #8ea8ff);
+  border: 1px solid rgba(255,255,255,.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+  font-weight: 800;
+  font-size: 10px;
+}
+
+.rail {
+  grid-column: 1;
+  grid-row: 2;
+  background: #111112;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 0;
+}
+.rail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+}
+.rail-spacer {
+  flex: 1;
+  width: 100%;
+  border-top: 1px solid var(--line);
+  margin: 14px 0;
+}
+.rail-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--app-radius);
+  color: rgba(255,255,255,.68);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: #181818;
+  border: 1px solid rgba(255,255,255,.055);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.2);
+  cursor: pointer;
+  transition: transform .16s ease, color .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.rail-btn:hover {
+  color: rgba(255,255,255,.86);
+  border-color: rgba(255,255,255,.1);
+  background: #1d1d1d;
+}
+.rail-btn:active {
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.38);
+}
+.rail-btn.active {
+  background: #f2f2f2;
+  color: #111;
+  border-color: rgba(255,255,255,.42);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.2);
+}
+.rail-btn svg { width: 17px; height: 17px; }
+.rail-btn svg * { stroke-width: 1.35; }
+.rail-btn.share svg { width: 14px; height: 14px; }
+.rail-btn.exit { color: #fb6f4b; }
+
+.sidebar {
+  grid-column: 2;
+  grid-row: 2;
+  background: #151515;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sidebar-header {
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.sidebar-title {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.fleet-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.fleet-summary strong {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -.06em;
+}
+.fleet-summary span {
+  font-size: 13px;
+  color: rgba(255,255,255,.84);
+  font-weight: 600;
+}
+.route-pill {
+  margin-left: auto;
+  min-height: 20px;
+  padding: 0 10px;
+  border-radius: var(--app-radius);
+  display: inline-flex;
+  align-items: center;
+  background: rgba(78,140,255,.12);
+  color: #9dc4ff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.summary-card {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--app-radius-lg);
+  background: #202020;
+  border: 1px solid rgba(255,255,255,.055);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.065);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.summary-card strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+.summary-card span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.search-row {
+  display: flex;
+  gap: 10px;
+}
+.search-box,
+.status-select {
+  min-height: 36px;
+  border-radius: var(--app-radius-lg);
+  border: 1px solid var(--line);
+  background: #181818;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+.search-box {
+  flex: 1;
+  gap: 8px;
+  padding: 0 12px;
+}
+.search-box svg,
+.status-select svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.65;
+}
+.search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+.status-select {
+  width: 36px;
+  min-width: 36px;
+  border-radius: var(--app-radius);
+  padding: 0;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0;
+  background: var(--button-surface), #1d1d1d;
+  border-color: rgba(255,255,255,.11);
+  box-shadow: var(--button-shadow);
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.status-select:hover { border-color: rgba(255,255,255,.16); background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025)), #1d1d1d; }
+.status-select:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.42); }
+.fleet-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.fleet-item {
+  padding: 18px 16px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  position: relative;
+  background: #151515;
+}
+.fleet-item.active {
+  background: #1b1b1b;
+}
+.fleet-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #fff;
+}
+.fleet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.fleet-id {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.fleet-id svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+  stroke-width: 1.65;
+}
+.fleet-state {
+  font-size: 13px;
+  font-weight: 600;
+}
+.fleet-state.transit { color: #5e98ff; }
+.fleet-state.done { color: var(--green); }
+.fleet-state.idle { color: #d8a43b; }
+.fleet-route {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.fleet-route-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: rgba(255,255,255,.46);
+  font-size: 12px;
+}
+.fleet-route-row svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+.fleet-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.driver-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.driver-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f2c4a8, #8fa8ff);
+  border: 1px solid rgba(255,255,255,.18);
+  flex-shrink: 0;
+}
+.driver-chip span {
+  font-size: 12px;
+  color: rgba(255,255,255,.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fleet-eta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,.82);
+}
+.fleet-eta svg { width: 13px; height: 13px; }
+.fleet-eta svg { stroke-width: 1.65; }
+.eta-bad { color: #f45f55; font-size: 10px; font-weight: 700; }
+
+.map-panel {
+  grid-column: 3;
+  grid-row: 2;
+  position: relative;
+  overflow: hidden;
+  background: #121212;
+}
+#map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #111;
+}
+.map-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(17,17,17,.1), rgba(17,17,17,.18)),
+    radial-gradient(circle at 50% 40%, rgba(255,255,255,.015), rgba(255,255,255,0) 45%);
+  pointer-events: none;
+  z-index: 200;
+}
+.leaflet-control-attribution,
+.leaflet-control-zoom {
+  display: none !important;
+}
+.map-label {
+  font-family: 'Inter', sans-serif;
+  background: rgba(30,30,30,.92);
+  border: 1px solid rgba(255,255,255,.06);
+  color: rgba(255,255,255,.8);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--app-radius);
+  padding: 4px 8px;
+  box-shadow: 0 8px 16px rgba(0,0,0,.28);
+}
+.map-label::before { display: none; }
+.truck-pin {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(78,140,255,.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 7px rgba(78,140,255,.12);
+}
+.truck-pin-core {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #4e8cff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4e8cff;
+  box-shadow: 0 8px 18px rgba(31,93,203,.35);
+}
+.truck-pin-core svg { width: 18px; height: 18px; }
+.start-end-pin {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(78,140,255,.12);
+  border: 2px solid rgba(255,255,255,.72);
+  box-shadow: 0 0 0 5px rgba(78,140,255,.12);
+}
+.start-end-pin::after {
+  content: '';
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4e8cff;
+  margin: 6px auto;
+}
+.truck-callout {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(31,31,31,.94);
+  border: 1px solid rgba(255,255,255,.06);
+  box-shadow: 0 10px 18px rgba(0,0,0,.3);
+  border-radius: var(--app-radius);
+  padding: 6px 10px;
+  color: rgba(255,255,255,.78);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.truck-callout strong {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.truck-callout .mini-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f2c4a8, #8fa8ff);
+  border: 1px solid rgba(255,255,255,.22);
+}
+.map-callout {
+  position: absolute;
+  z-index: 300;
+  pointer-events: none;
+}
+.map-callout.start { top: 56px; left: 235px; }
+.map-callout.dest { right: 116px; top: 422px; }
+.map-callout.truck { top: 192px; left: 448px; }
+
+.detail {
+  grid-column: 4;
+  grid-row: 2;
+  background: #151515;
+  border-left: 1px solid var(--line);
+  overflow-y: auto;
+}
+.detail-section {
+  padding: 24px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.detail-section:last-child { border-bottom: none; }
+.section-eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.44);
+  margin-bottom: 16px;
+}
+.vehicle-card {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)),
+    repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.02) 9px 10px);
+  border: 1px solid rgba(255,255,255,.05);
+  min-height: 144px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vehicle-illustration {
+  width: 264px;
+  height: 118px;
+  opacity: .96;
+}
+.vehicle-tag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: var(--app-radius-lg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.08);
+  color: rgba(255,255,255,.78);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+.person-card {
+  min-height: 56px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: #202020;
+  border: 1px solid rgba(255,255,255,.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.person-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--app-radius);
+  background: linear-gradient(135deg, #f0b588, #8fa6ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+  font-size: 15px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.person-meta {
+  flex: 1;
+  min-width: 0;
+}
+.person-name {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+.person-sub {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--app-radius);
+  border: 1px solid rgba(255,255,255,.12);
+  background: var(--button-surface), #252525;
+  box-shadow: var(--button-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.75);
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.chat-icon:hover { border-color: rgba(255,255,255,.16); background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025)), #252525; }
+.chat-icon:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.42); }
+.chat-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.55;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.stat-box {
+  min-height: 38px;
+  border-radius: var(--app-radius-lg);
+  background: #202020;
+  border: 1px solid rgba(255,255,255,.055);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.065);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+.stat-box .label {
+  color: rgba(255,255,255,.5);
+  font-size: 12px;
+}
+.stat-box .value {
+  font-size: 14px;
+  font-weight: 700;
+}
+.pill-red,
+.pill-green {
+  min-width: 72px;
+  justify-content: center;
+  border-radius: var(--app-radius);
+  font-size: 12px;
+  font-weight: 700;
+}
+.pill-red {
+  color: #ff5146;
+  background: rgba(255,81,70,.12);
+}
+.pill-green {
+  color: #4bdd70;
+  background: rgba(48,199,96,.12);
+}
+
+.route-top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.route-endpoint {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,.84);
+}
+.route-endpoint.right { text-align: right; }
+.route-progress-chip {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1d1d1d;
+  color: #fff;
+}
+.route-progress-chip svg { width: 16px; height: 16px; }
+.route-progress-chip svg { stroke-width: 1.65; }
+.route-log {
+  display: grid;
+  gap: 12px;
+}
+.route-log-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+}
+.route-log-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-top: 2px;
+  position: relative;
+}
+.route-log-icon.done { background: #49d564; }
+.route-log-icon.current { background: #d99b1f; }
+.route-log-icon.pending {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.28);
+}
+.route-log-icon.done::before,
+.route-log-icon.current::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 16px;
+  width: 2px;
+  height: 24px;
+  background: rgba(255,255,255,.08);
+}
+.route-log-row:last-child .route-log-icon::before { display: none; }
+.route-log-copy {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255,255,255,.44);
+}
+.route-log-copy strong {
+  color: rgba(255,255,255,.78);
+  font-weight: 500;
+}
+
+.cargo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cargo-cell {
+  min-height: 40px;
+  border-radius: var(--app-radius-lg);
+  background: #202020;
+  border: 1px solid rgba(255,255,255,.055);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.065);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+.cargo-cell .label {
+  font-size: 12px;
+  color: rgba(255,255,255,.44);
+}
+.cargo-cell .value {
+  font-size: 14px;
+  font-weight: 700;
+}
+.cargo-bar-label {
+  font-size: 12px;
+  color: rgba(255,255,255,.82);
+  margin-bottom: 10px;
+}
+.cargo-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cargo-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 3px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+}
+.cargo-bar > div {
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, #ffffff 0%, #f4f4f4 100%);
+  box-shadow: 0 0 10px rgba(255,255,255,.1);
+}
+.cargo-bar-wrap span {
+  font-size: 12px;
+  color: rgba(255,255,255,.36);
+}
+
+.alerts {
+  display: grid;
+  gap: 14px;
+}
+.alert-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+}
+.alert-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff5146;
+  margin-top: 8px;
+}
+.alert-copy .time {
+  font-size: 12px;
+  color: rgba(255,255,255,.48);
+  margin-bottom: 4px;
+}
+.alert-copy .text {
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(255,255,255,.9);
+}
+
+@media (max-width: 1280px) {
+  .app {
+    grid-template-columns: 58px 272px minmax(0, 1fr) 330px;
+  }
+  .topbar {
+    grid-template-columns: 58px 272px minmax(0, 1fr) 330px;
+  }
+  .map-callout.truck { left: 380px; }
+}
+
+@media (max-width: 980px) {
+  body { overflow: auto; }
+  .app {
+    height: auto;
+    min-height: 100vh;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto auto;
+  }
+  .topbar,
+  .rail,
+  .sidebar,
+  .map-panel,
+  .detail {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+  .topbar-left,
+  .topbar-center,
+  .topbar-right {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    justify-content: space-between;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+  .topbar-center { justify-content: flex-start; }
+  .rail {
+    flex-direction: row;
+    justify-content: center;
+    padding: 10px 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .rail-stack {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .rail-spacer { display: none; }
+  .sidebar { min-height: 420px; }
+  .map-panel { min-height: 520px; }
+  .detail { min-height: auto; }
+  .map-callout { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="collapse-btn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,3 9,8 5,13"/><polyline points="8,3 12,8 8,13"/></svg>
+      </div>
+      <div class="brand">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.5h10.5M2 12.5l1.7-5.6h6.8l1.7 5.6M5 12.5v2m5.5-2v2"/><rect x="12.5" y="8.7" width="5.5" height="3.8" rx="1"/><circle cx="5.2" cy="14.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="10.4" cy="14.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.3" cy="12.9" r="1.1" fill="currentColor" stroke="none"/></svg>
+        Fleety
+      </div>
+    </div>
+    <div class="topbar-center">
+      <div class="metric-chip active"><strong>10</strong>active</div>
+      <div class="metric-chip delayed"><strong>2</strong>delayed</div>
+      <div class="metric-chip done"><strong>8</strong>delivered</div>
+    </div>
+    <div class="topbar-right">
+      <div class="clock-wrap">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>
+        <span id="live-clock">Sun Apr 19 16:53</span>
+      </div>
+      <div class="user-area">
+        <div class="icon-btn">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 2a3.7 3.7 0 0 1 3.7 3.7v1.7L13 9.5H3l1.3-2.1V5.7A3.7 3.7 0 0 1 8 2z"/><path d="M6.7 12.8a1.3 1.3 0 0 0 2.6 0"/></svg>
+        </div>
+        <div class="user-pill">
+          <div class="user-avatar">TA</div>
+          <span>Tobi Ajayi</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <aside class="rail">
+    <div class="rail-stack">
+      <div class="rail-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 6.5L8 2l5.5 4.5V13a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V6.5z"/></svg></div>
+      <div class="rail-btn active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg></div>
+      <div class="rail-btn share"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8a2 2 0 1 1 0-.01M13 3a2 2 0 1 1 0-.01M13 13a2 2 0 1 1 0-.01"/><path d="M4.7 7L11.3 4M4.7 9l6.6 3"/></svg></div>
+      <div class="rail-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l5 2.8v6.4L8 14 3 11.2V4.8L8 2z"/><path d="M3 4.8L8 8l5-3.2M8 8v6"/></svg></div>
+      <div class="rail-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12.5h10M4.5 10.5l2-3 2.3 1.8L11.5 4"/></svg></div>
+    </div>
+    <div class="rail-spacer"></div>
+    <div class="rail-stack">
+      <div class="rail-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg></div>
+      <div class="rail-btn exit"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v7A1.5 1.5 0 0 0 3.5 13H6"/><path d="M9 11l3-3-3-3"/><path d="M5 8h7"/></svg></div>
+    </div>
+  </aside>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Fleets</div>
+      <div class="fleet-summary">
+        <strong>27</strong>
+        <span>Vehicles</span>
+        <div style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:.88"></div>
+        <div class="route-pill">18 on route</div>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-card"><strong>18</strong><span>Active</span></div>
+        <div class="summary-card"><strong>3</strong><span>Delayed</span></div>
+        <div class="summary-card"><strong>6</strong><span>Done</span></div>
+        <div class="summary-card"><strong>0</strong><span>SOS</span></div>
+      </div>
+      <div class="search-row">
+        <label class="search-box">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <input value="" placeholder="search...">
+        </label>
+        <div class="status-select">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10"/><path d="M5.5 8h5"/><path d="M7 11.5h2"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="fleet-list" id="fleet-list">
+      <div class="fleet-item" data-id="TRK-03">
+        <div class="fleet-head">
+          <div class="fleet-id">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
+            TRK-03
+          </div>
+          <div class="fleet-state transit">In - transit</div>
+        </div>
+        <div class="fleet-route">
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Bang Na, Bangkok, Thailand</div>
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Bang Pa-In, Ayutthaya, Thailand</div>
+        </div>
+        <div class="fleet-meta">
+          <div class="driver-chip"><div class="driver-avatar"></div><span>Amara Kone</span></div>
+          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: 16:45</div>
+        </div>
+      </div>
+
+      <div class="fleet-item active" data-id="TRK-04">
+        <div class="fleet-head">
+          <div class="fleet-id">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
+            TRK-04
+          </div>
+          <div class="fleet-state transit">In - transit</div>
+        </div>
+        <div class="fleet-route">
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Bang Na, Bangkok, Thailand</div>
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Bang Pa-In, Ayutthaya, Thailand</div>
+        </div>
+        <div class="fleet-meta">
+          <div class="driver-chip"><div class="driver-avatar"></div><span>Amara Kone</span></div>
+          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: 16:45</div>
+        </div>
+      </div>
+
+      <div class="fleet-item" data-id="TRK-05">
+        <div class="fleet-head">
+          <div class="fleet-id">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
+            TRK-05
+          </div>
+          <div class="fleet-state transit">In - transit</div>
+        </div>
+        <div class="fleet-route">
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Lat Krabang, Bangkok, Thailand</div>
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Pathum Thani, Thailand</div>
+        </div>
+        <div class="fleet-meta">
+          <div class="driver-chip"><div class="driver-avatar"></div><span>Chijioke Nwosu</span></div>
+          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: 17:30 <span class="eta-bad">Delayed</span></div>
+        </div>
+      </div>
+
+      <div class="fleet-item" data-id="TRK-06">
+        <div class="fleet-head">
+          <div class="fleet-id">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
+            TRK-06
+          </div>
+          <div class="fleet-state done">Completed</div>
+        </div>
+        <div class="fleet-route">
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Rama IV, Bangkok, Thailand</div>
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Laem Chabang, Chonburi, Thailand</div>
+        </div>
+        <div class="fleet-meta">
+          <div class="driver-chip"><div class="driver-avatar"></div><span>Fola Adebayo</span></div>
+          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: 18:00</div>
+        </div>
+      </div>
+
+      <div class="fleet-item" data-id="TRK-07">
+        <div class="fleet-head">
+          <div class="fleet-id">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
+            TRK-07
+          </div>
+          <div class="fleet-state idle">idle</div>
+        </div>
+        <div class="fleet-route">
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Nonthaburi, Thailand</div>
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Nakhon Pathom, Thailand</div>
+        </div>
+        <div class="fleet-meta">
+          <div class="driver-chip"><div class="driver-avatar"></div><span>Ngozi Okafor</span></div>
+          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: N/A</div>
+        </div>
+      </div>
+
+      <div class="fleet-item" data-id="TRK-08">
+        <div class="fleet-head">
+          <div class="fleet-id">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
+            TRK-08
+          </div>
+          <div class="fleet-state idle">idle</div>
+        </div>
+        <div class="fleet-route">
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Samut Prakan, Thailand</div>
+          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Chachoengsao, Thailand</div>
+        </div>
+        <div class="fleet-meta">
+          <div class="driver-chip"><div class="driver-avatar"></div><span>Daniel Umeh</span></div>
+          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: N/A</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="map-panel">
+    <div id="map"></div>
+    <div class="map-callout start"><div class="map-label">Starting Point</div></div>
+    <div class="map-callout truck">
+      <div class="truck-callout"><strong>TRK-04</strong><div class="mini-avatar"></div>Amara Kone</div>
+    </div>
+    <div class="map-callout dest"><div class="map-label">Destination</div></div>
+  </main>
+
+  <aside class="detail">
+    <section class="detail-section">
+      <div class="section-eyebrow">Vehicle Details</div>
+      <div class="vehicle-card">
+        <div class="vehicle-tag">Renault - 32T</div>
+        <svg class="vehicle-illustration" viewBox="0 0 340 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g filter="url(#shadow)">
+            <path d="M28 96h168l24-58h42l26 40h23v18H28V96z" fill="#e9e9e9"/>
+            <path d="M196 40h24l18 36h-55l13-36z" fill="#262626"/>
+            <path d="M223 38h14v62h-14z" fill="#3a3a3a"/>
+            <path d="M238 46h26l17 30h-43V46z" fill="#707070"/>
+            <path d="M31 96h280v12H31z" fill="#cfcfcf"/>
+            <path d="M44 53h118v33H35l9-33z" fill="#f7f7f7"/>
+            <path d="M200 48h20v30h-30l10-30z" fill="#121212"/>
+            <path d="M243 52h24l10 20h-34V52z" fill="#808080"/>
+            <rect x="37" y="57" width="92" height="18" rx="2" fill="#0f1115"/>
+            <circle cx="78" cy="109" r="15" fill="#1b1b1b"/>
+            <circle cx="78" cy="109" r="7" fill="#8a8a8a"/>
+            <circle cx="135" cy="109" r="15" fill="#1b1b1b"/>
+            <circle cx="135" cy="109" r="7" fill="#8a8a8a"/>
+            <circle cx="250" cy="109" r="15" fill="#1b1b1b"/>
+            <circle cx="250" cy="109" r="7" fill="#8a8a8a"/>
+            <circle cx="288" cy="109" r="15" fill="#1b1b1b"/>
+            <circle cx="288" cy="109" r="7" fill="#8a8a8a"/>
+          </g>
+          <defs>
+            <filter id="shadow" x="18" y="30" width="310" height="96" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+              <feDropShadow dx="0" dy="10" stdDeviation="8" flood-opacity=".28"/>
+            </filter>
+          </defs>
+        </svg>
+      </div>
+
+      <div class="person-card">
+        <div class="person-avatar">WJ</div>
+        <div class="person-meta">
+          <div class="person-name">Williams Joe</div>
+          <div class="person-sub">Driver · TRK-04 · Mercedes Actros</div>
+        </div>
+        <div class="chat-icon">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5A2.5 2.5 0 0 1 5.5 2h5A2.5 2.5 0 0 1 13 4.5v4A2.5 2.5 0 0 1 10.5 11H8l-3 2v-2H5.5A2.5 2.5 0 0 1 3 8.5v-4z"/></svg>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box"><span class="label">Status</span><span class="value pill-red">DELAYED</span></div>
+        <div class="stat-box"><span class="label">ETA</span><span class="value">16:45</span></div>
+        <div class="stat-box"><span class="label">Speed</span><span class="value">58 km/h</span></div>
+        <div class="stat-box"><span class="label">Fuel</span><span class="value">67%</span></div>
+        <div class="stat-box"><span class="label">Odomoter</span><span class="value">83,000 km</span></div>
+        <div class="stat-box"><span class="label">Engine</span><span class="value pill-green">NORMAL</span></div>
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <div class="section-eyebrow">Route Progress</div>
+      <div class="route-top">
+        <div class="route-endpoint">Bang Na Depot</div>
+        <div class="route-progress-chip">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
+        </div>
+        <div class="route-endpoint right">Bang Pa-In Hub</div>
+      </div>
+      <div class="route-log">
+        <div class="route-log-row">
+          <div class="route-log-icon done"></div>
+          <div class="route-log-copy"><strong>Bang Na Depot</strong> · Departed 09:14</div>
+        </div>
+        <div class="route-log-row">
+          <div class="route-log-icon done"></div>
+          <div class="route-log-copy"><strong>Checkpoint - Don Mueang</strong> · Passed 11:32</div>
+        </div>
+        <div class="route-log-row">
+          <div class="route-log-icon current"></div>
+          <div class="route-log-copy"><strong>Current - Pathum Thani</strong> · En route · 22 min late</div>
+        </div>
+        <div class="route-log-row">
+          <div class="route-log-icon pending"></div>
+          <div class="route-log-copy"><strong>Delivery - Bang Pa-In Hub</strong> · ETA 16:45 (was 16:23)</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <div class="section-eyebrow">Cargo</div>
+      <div class="cargo-grid">
+        <div class="cargo-cell"><span class="label">Type</span><span class="value">Perishable</span></div>
+        <div class="cargo-cell"><span class="label">Temp</span><span class="value">4°C</span></div>
+        <div class="cargo-cell"><span class="label">Weight</span><span class="value">8.4 t</span></div>
+        <div class="cargo-cell"><span class="label">Seals</span><span class="value pill-green" style="min-width:54px">INTACT</span></div>
+      </div>
+      <div class="cargo-bar-label">Load capacity</div>
+      <div class="cargo-bar-wrap">
+        <div class="cargo-bar"><div></div></div>
+        <span>60%</span>
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <div class="section-eyebrow">Active Alerts</div>
+      <div class="alerts">
+        <div class="alert-item">
+          <div class="alert-dot"></div>
+          <div class="alert-copy">
+            <div class="time">13:58</div>
+            <div class="text">22 min delay - congestion on Vibhavadi Rangsit Rd</div>
+          </div>
+        </div>
+        <div class="alert-item">
+          <div class="alert-dot" style="opacity:.55"></div>
+          <div class="alert-copy">
+            <div class="time">12:03</div>
+            <div class="text">22 min delay - congestion on Vibhavadi Rangsit Rd</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<script>
+const map = L.map('map', {
+  center: [13.95, 100.69],
+  zoom: 10,
+  zoomControl: false,
+  attributionControl: false,
+  dragging: true,
+  scrollWheelZoom: false,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd',
+  maxZoom: 19,
+}).addTo(map);
+
+const routeCoords = [
+  [13.680, 100.612],
+  [13.725, 100.628],
+  [13.780, 100.640],
+  [13.840, 100.660],
+  [13.890, 100.678],
+  [13.950, 100.690],
+  [14.030, 100.708],
+  [14.090, 100.722],
+];
+
+L.polyline(routeCoords, {
+  color: '#4e8cff',
+  weight: 5,
+  opacity: 0.95,
+  lineCap: 'round',
+  lineJoin: 'round',
+}).addTo(map);
+
+const startIcon = L.divIcon({ className: '', html: '<div class="start-end-pin"></div>', iconSize: [26, 26], iconAnchor: [13, 13] });
+const truckIcon = L.divIcon({ className: '', html: '<div class="truck-pin"><div class="truck-pin-core"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg></div></div>', iconSize: [58, 58], iconAnchor: [29, 29] });
+
+L.marker(routeCoords[0], { icon: startIcon }).addTo(map);
+L.marker(routeCoords[routeCoords.length - 1], { icon: startIcon }).addTo(map);
+L.marker(routeCoords[3], { icon: truckIcon }).addTo(map);
+
+document.querySelectorAll('.fleet-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.fleet-item').forEach(el => el.classList.remove('active'));
+    item.classList.add('active');
+  });
+});
+
+function updateClock() {
+  const now = new Date();
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('live-clock').textContent = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()} ${hh}:${mm}`;
+}
+updateClock();
+setInterval(updateClock, 10000);
+</script>
+</body>
+</html>

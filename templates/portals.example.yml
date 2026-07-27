@@ -108,6 +108,28 @@ remote_filter:
     - "remote-first"
     - "work from anywhere"
     - "distributed"
+  # Full remote must also be geographically compatible.
+  # US-only / Canada-only / LATAM-only remote jobs are intentionally skipped.
+  allowed_geo_any:
+    - "worldwide"
+    - "global"
+    - "work from anywhere"
+    - "anywhere in the world"
+    - "europe"
+    - "european"
+    - "european union"
+    - "eu"
+    - "eea"
+    - "emea"
+    - "asia"
+    - "apac"
+    - "asean"
+    - "singapore"
+    - "hong kong"
+    - "japan"
+    - "thailand"
+    - "dubai"
+    - "uae"
   rejected_any:
     - "hybrid"
     - "on-site"
@@ -117,6 +139,24 @@ remote_filter:
     - "relocation"
     - "must be located"
     - "commutable"
+  rejected_geo_any:
+    - "us only"
+    - "usa only"
+    - "united states only"
+    - "remote us"
+    - "remote usa"
+    - "remote united states"
+    - "us remote"
+    - "usa remote"
+    - "united states remote"
+    - "canada only"
+    - "remote canada"
+    - "canada"
+    - "latam"
+    - "latin america"
+    - "south america"
+    - "americas"
+    - "north america"
   ambiguous_policy: skip
 
 # -- Search queries --

@@ -1,0 +1,1931 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marketing Challenge — Live Opt-in</title>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #FFFFFF;
+  --paper: #EEEEEE;
+  --ink: #181B10;
+  --deep: #38461A;
+  --moss: #7D9143;
+  --muted: rgba(24, 27, 16, 0.62);
+  --soft: #F4F4F5;
+  --line: rgba(24, 27, 16, 0.10);
+  --ring: rgba(24, 27, 16, 0.08);
+  --brand: var(--deep);
+  --brand-2: var(--moss);
+  --ok: var(--moss);
+  --live: var(--brand);
+  --shadow-card:
+    rgba(19, 19, 22, 0.70) 0 1px 5px -4px,
+    rgba(24, 27, 16, 0.08) 0 0 0 1px,
+    rgba(24, 27, 16, 0.05) 0 4px 8px 0;
+  --shadow-lift:
+    rgba(19, 19, 22, 0.65) 0 3px 12px -8px,
+    rgba(24, 27, 16, 0.09) 0 0 0 1px,
+    rgba(24, 27, 16, 0.08) 0 18px 46px -22px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  width: 100%;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-inter);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+.page {
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(125, 145, 67, 0.16) 0%, rgba(255,255,255,0) 36%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg) 58%, var(--paper) 100%);
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 clamp(20px, 5vw, 64px);
+  background: rgba(24, 27, 16, 0.94);
+  backdrop-filter: blur(18px);
+  box-shadow: rgba(255, 255, 255, 0.08) 0 1px 0 0;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 750;
+  color: #fff;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #8cff2f;
+  color: var(--ink);
+  box-shadow: inset rgba(255, 255, 255, 0.15) 0 2px 0 0;
+}
+
+.nav-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.72);
+  font-size: 13px;
+}
+
+.nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+  box-shadow: inset rgba(255,255,255,0.10) 0 0 0 1px;
+  white-space: nowrap;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--live);
+  box-shadow: 0 0 0 5px rgba(125, 145, 67, 0.18);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.04fr) minmax(360px, 0.96fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
+  width: min(1220px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: clamp(42px, 7vw, 92px) 0 64px;
+}
+
+.hero > *,
+.form-shell > * {
+  min-width: 0;
+}
+
+.host-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+  border-radius: 8px;
+  padding: 8px 10px 8px 8px;
+  margin-bottom: 24px;
+}
+
+.host-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 3px rgba(125, 145, 67, 0.22);
+}
+
+.host-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.host-meta strong {
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.host-meta span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hero h1 {
+  font-family: var(--font-bricolage);
+  font-size: clamp(44px, 7.5vw, 84px);
+  line-height: 0.96;
+  letter-spacing: 0;
+  font-weight: 750;
+  color: var(--ink);
+  max-width: 760px;
+}
+
+.hero-copy {
+  margin-top: 24px;
+  max-width: 610px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.btn {
+  min-height: 46px;
+  border: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 18px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: transform 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
+}
+
+.btn-primary {
+  color: #fff;
+  background: var(--brand);
+  box-shadow:
+    rgba(255, 255, 255, 0.15) 0 2px 0 inset,
+    rgba(0, 0, 0, 0.18) 0 12px 26px -16px;
+}
+
+.btn-secondary {
+  color: var(--ink);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.btn:hover { transform: translateY(-1px); opacity: 0.88; }
+
+.proof-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 610px;
+  margin-top: 34px;
+}
+
+.proof {
+  padding: 14px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.proof strong {
+  display: block;
+  font-family: var(--font-bricolage);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.proof:first-child strong { color: var(--brand); }
+.proof:nth-child(2) strong { color: var(--brand-2); }
+.proof:nth-child(3) strong { color: var(--deep); }
+
+.proof span {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.right-stack {
+  position: relative;
+}
+
+.live-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #111;
+  box-shadow: var(--shadow-lift);
+}
+
+.live-stage {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  min-height: 340px;
+  overflow: hidden;
+}
+
+.live-stage video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.08) brightness(0.72);
+}
+
+.live-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.70) 100%),
+    linear-gradient(90deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0) 58%);
+}
+
+.stream-top {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.stream-badge,
+.stream-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.54);
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.stream-badge {
+  background: rgba(56, 70, 26, 0.92);
+}
+
+.stream-bottom {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 22px;
+  color: #fff;
+}
+
+.stream-bottom h2 {
+  font-family: var(--font-bricolage);
+  font-size: clamp(26px, 4vw, 44px);
+  line-height: 1.04;
+  font-weight: 750;
+}
+
+.stream-bottom p {
+  margin-top: 10px;
+  max-width: 430px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.schedule-card {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.date-tile {
+  border-radius: 8px;
+  overflow: hidden;
+  text-align: center;
+  background: var(--soft);
+  box-shadow: var(--ring) 0 0 0 1px;
+}
+
+.date-tile span {
+  display: block;
+  padding: 7px 8px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.date-tile strong {
+  display: block;
+  padding: 12px 8px;
+  font-family: var(--font-bricolage);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.schedule-copy h3 {
+  font-family: var(--font-bricolage);
+  font-size: 20px;
+  line-height: 1.15;
+  font-weight: 750;
+}
+
+.schedule-copy p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.conversion-hero {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: calc(100vh - 68px);
+  margin: 0;
+  padding: clamp(46px, 6vw, 86px) clamp(20px, 5vw, 64px) 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 0.72fr);
+  align-items: center;
+  gap: clamp(28px, 5vw, 72px);
+  overflow: hidden;
+  color: #fff;
+  background: #050704;
+}
+
+.conversion-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(90deg, rgba(5,7,4,0.98) 0%, rgba(5,7,4,0.86) 36%, rgba(5,7,4,0.34) 68%, rgba(5,7,4,0.72) 100%),
+    linear-gradient(180deg, rgba(5,7,4,0.18) 0%, rgba(5,7,4,0.88) 100%),
+    url("/ui/assets/challenge-hero-human.png") center right 18% / min(68vw, 900px) auto no-repeat;
+}
+
+.conversion-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 74% 30%, rgba(140, 255, 47, 0.22), transparent 30%),
+    radial-gradient(circle at 10% 20%, rgba(125, 145, 67, 0.18), transparent 28%);
+  pointer-events: none;
+}
+
+.conversion-hero > * {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.hero-content {
+  max-width: 720px;
+}
+
+.hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  color: #8cff2f;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.live-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #ef3f35;
+  color: #fff;
+  box-shadow: 0 0 22px rgba(239,63,53,0.36);
+}
+
+.conversion-hero h1 {
+  max-width: 760px;
+  color: #fff;
+  font-family: var(--font-bricolage);
+  font-size: clamp(44px, 6.5vw, 88px);
+  line-height: 0.88;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.conversion-hero h1 strong {
+  color: #8cff2f;
+  font-weight: inherit;
+}
+
+.conversion-hero .hero-copy {
+  max-width: 540px;
+  margin-top: 22px;
+  color: rgba(255,255,255,0.78);
+  font-size: 17px;
+  line-height: 1.62;
+}
+
+.hero-event {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  align-items: center;
+  max-width: 420px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,0.14);
+}
+
+.hero-event-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: #8cff2f;
+  background: rgba(140,255,47,0.10);
+  box-shadow: inset 0 0 0 1px rgba(140,255,47,0.34);
+}
+
+.hero-event span {
+  display: block;
+  color: rgba(255,255,255,0.64);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-event strong {
+  display: block;
+  margin-top: 3px;
+  color: #8cff2f;
+  font-size: clamp(18px, 2vw, 24px);
+  text-transform: uppercase;
+}
+
+.conversion-hero .hero-actions {
+  max-width: 420px;
+  margin-top: 24px;
+}
+
+.conversion-hero .btn-primary {
+  width: 100%;
+  min-height: 64px;
+  color: #071006;
+  background: #8cff2f;
+  box-shadow: 0 16px 34px rgba(140,255,47,0.24), inset rgba(255,255,255,0.34) 0 1px 0 0;
+  text-transform: uppercase;
+}
+
+.hero-free-note {
+  max-width: 420px;
+  margin-top: 10px;
+  color: rgba(255,255,255,0.54);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.hero-dashboard {
+  min-height: 520px;
+  display: grid;
+  align-content: center;
+  justify-items: end;
+  gap: 14px;
+}
+
+.signup-pill,
+.metric-card,
+.chat-card,
+.countdown-card {
+  width: min(100%, 310px);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  background: rgba(6, 9, 5, 0.72);
+  color: #fff;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(18px);
+}
+
+.signup-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.avatar-stack {
+  display: flex;
+}
+
+.avatar-stack img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #080b06;
+  margin-left: -8px;
+}
+
+.avatar-stack img:first-child { margin-left: 0; }
+
+.signup-pill strong {
+  display: block;
+  font-size: 13px;
+}
+
+.signup-pill span {
+  display: block;
+  color: rgba(255,255,255,0.56);
+  font-size: 11px;
+}
+
+.metric-card {
+  padding: 18px;
+}
+
+.metric-card span,
+.chat-card span,
+.countdown-card span {
+  display: block;
+  color: rgba(255,255,255,0.52);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metric-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #8cff2f;
+  font-family: var(--font-bricolage);
+  font-size: 36px;
+  line-height: 1;
+}
+
+.sparkline {
+  width: 100%;
+  height: 54px;
+  margin-top: 14px;
+}
+
+.chat-card {
+  padding: 16px;
+}
+
+.chat-row {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 9px;
+  align-items: center;
+  margin-top: 11px;
+  color: rgba(255,255,255,0.78);
+  font-size: 12px;
+}
+
+.chat-row img {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.countdown-card {
+  width: min(100%, 390px);
+  justify-self: center;
+  padding: 18px 20px;
+}
+
+.countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.countdown-grid strong {
+  display: block;
+  color: #8cff2f;
+  font-family: var(--font-bricolage);
+  font-size: 32px;
+  line-height: 1;
+}
+
+.countdown-grid small {
+  display: block;
+  margin-top: 5px;
+  color: rgba(255,255,255,0.58);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.form-section {
+  background: var(--paper);
+  padding: 76px 20px 90px;
+}
+
+.form-shell {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 0.88fr) minmax(420px, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.info-panel,
+.form-panel,
+.confirmation-panel,
+.payload-panel {
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.info-panel {
+  padding: 28px;
+}
+
+.section-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.info-panel h2,
+.form-panel h2 {
+  margin-top: 14px;
+  font-family: var(--font-bricolage);
+  font-size: clamp(30px, 3.8vw, 48px);
+  line-height: 1.03;
+  font-weight: 750;
+}
+
+.info-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.info-item {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.info-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--brand);
+  color: #fff;
+}
+
+.info-item strong {
+  display: block;
+  font-size: 14px;
+}
+
+.info-item span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.form-panel {
+  padding: 28px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field.full { grid-column: 1 / -1; }
+
+label {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field label svg {
+  color: var(--moss);
+  flex-shrink: 0;
+}
+
+.vip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #ffffff;
+  color: #b28a24; /* premium gold */
+  border: 1px solid rgba(178, 138, 36, 0.28);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  box-shadow: 0 1px 3px rgba(178, 138, 36, 0.08);
+  text-transform: uppercase;
+}
+
+.vip-badge svg {
+  color: #b28a24;
+  fill: #b28a24;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 13px;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+  box-shadow:
+    var(--line) 0 0 0 1px,
+    rgba(24, 27, 16, 0.04) 0 2px 6px 0 inset;
+}
+
+input:focus,
+select:focus {
+  box-shadow:
+    rgba(125, 145, 67, 0.34) 0 0 0 3px,
+    var(--line) 0 0 0 1px;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--line) 0 0 0 1px;
+}
+
+.choice input {
+  width: 17px;
+  min-height: 17px;
+  height: 17px;
+  accent-color: var(--brand);
+  box-shadow: none;
+}
+
+.choice strong {
+  display: block;
+  font-size: 14px;
+}
+
+.choice span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.submit-row {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.submit-row .btn {
+  width: 100%;
+}
+
+.consent {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.payload-panel {
+  grid-column: 2;
+  padding: 18px;
+  background: var(--ink);
+  color: #fff;
+}
+
+.payload-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.payload-head span {
+  color: rgba(255,255,255,0.54);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.payload-head strong {
+  color: #C9D7A2;
+  font-size: 12px;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(255,255,255,0.78);
+  font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.success {
+  display: none;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  color: var(--deep);
+  background: rgba(125, 145, 67, 0.18);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.success.show { display: block; }
+
+.confirmation-panel {
+  display: none;
+  padding: 28px;
+}
+
+.form-shell.is-submitted .info-panel,
+.form-shell.is-submitted .form-panel {
+  display: none;
+}
+
+.form-shell.is-submitted .confirmation-panel {
+  display: block;
+}
+
+.confirmed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--deep);
+  background: rgba(125, 145, 67, 0.18);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.confirmed-badge svg {
+  flex: 0 0 auto;
+}
+
+.confirmation-panel h2 {
+  margin-top: 18px;
+  font-family: var(--font-bricolage);
+  font-size: clamp(34px, 4.6vw, 56px);
+  line-height: 1;
+  font-weight: 750;
+}
+
+.confirmation-copy {
+  margin-top: 16px;
+  max-width: 620px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.confirmation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.confirmation-item {
+  min-height: 96px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--soft);
+  box-shadow: var(--ring) 0 0 0 1px;
+}
+
+.confirmation-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.confirmation-item strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.next-steps {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+}
+
+.next-step {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.next-step-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,0.10);
+  color: #C9D7A2;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.next-step strong {
+  display: block;
+  font-size: 14px;
+}
+
+.next-step span {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255,255,255,0.62);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.confirmation-actions .btn-secondary {
+  border: 0;
+}
+
+@media (max-width: 980px) {
+  .hero,
+  .form-shell {
+    grid-template-columns: 1fr;
+  }
+  .payload-panel { grid-column: auto; }
+  .hero { padding-top: 42px; }
+  .right-stack { order: -1; }
+  .conversion-hero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding-top: 48px;
+  }
+  .conversion-hero::before {
+    background:
+      linear-gradient(90deg, rgba(5,7,4,0.98) 0%, rgba(5,7,4,0.84) 54%, rgba(5,7,4,0.66) 100%),
+      linear-gradient(180deg, rgba(5,7,4,0.34) 0%, rgba(5,7,4,0.92) 100%),
+      url("/ui/assets/challenge-hero-human.png") top right -120px / 720px auto no-repeat;
+  }
+  .hero-dashboard {
+    min-height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-items: stretch;
+  }
+  .signup-pill,
+  .metric-card,
+  .chat-card,
+  .countdown-card {
+    width: 100%;
+  }
+  .countdown-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .nav { height: auto; padding: 14px 18px; align-items: flex-start; }
+  .nav-meta { display: none; }
+  .hero { width: calc(100% - 28px); padding-bottom: 44px; }
+  .hero h1 { font-size: 38px; overflow-wrap: break-word; }
+  .hero-copy { font-size: 16px; }
+  .hero-actions { align-items: stretch; }
+  .btn { width: 100%; }
+  .proof-row,
+  .form-grid,
+  .confirmation-grid,
+  .choice-grid {
+    grid-template-columns: 1fr;
+  }
+  .live-stage { min-height: 220px; }
+  .form-section { padding: 48px 14px 64px; }
+  .info-panel,
+  .form-panel,
+  .confirmation-panel { padding: 20px; }
+  .schedule-card { grid-template-columns: 78px 1fr; }
+  .conversion-hero {
+    width: 100%;
+    padding: 32px 18px 42px;
+  }
+  .conversion-hero::before {
+    background:
+      linear-gradient(180deg, rgba(5,7,4,0.72) 0%, rgba(5,7,4,0.96) 48%, rgba(5,7,4,0.98) 100%),
+      url("/ui/assets/challenge-hero-human.png") top center / 560px auto no-repeat;
+  }
+  .conversion-hero h1 {
+    margin-top: 200px;
+    font-size: 38px;
+  }
+  .hero-kicker {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 0;
+  }
+  .conversion-hero .hero-copy {
+    font-size: 15px;
+  }
+  .hero-dashboard {
+    grid-template-columns: 1fr;
+  }
+  .chat-card {
+    display: none;
+  }
+}
+
+/* Modal backdrop with glassmorphic blur */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 4, 0.90);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-backdrop.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Modal Card with luminous border and deep styling */
+.modal-card {
+  position: relative;
+  width: min(520px, 100%);
+  background: #0d1109;
+  border: 1px solid rgba(140, 255, 47, 0.16);
+  border-radius: 20px;
+  padding: 36px 32px 32px;
+  box-shadow: 
+    0 24px 64px rgba(0, 0, 0, 0.72),
+    0 0 80px rgba(140, 255, 47, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #fff;
+  transform: scale(0.92) translateY(10px);
+  transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-backdrop.is-active .modal-card {
+  transform: scale(1) translateY(0);
+}
+
+/* Close Button */
+.modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0;
+  color: rgba(255, 255, 255, 0.62);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 160ms, color 160ms;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Header */
+.modal-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.modal-header h2 {
+  font-family: var(--font-bricolage);
+  font-size: clamp(24px, 4vw, 30px);
+  line-height: 1.15;
+  font-weight: 850;
+  margin-top: 16px;
+  color: #fff;
+}
+
+.modal-subtitle {
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Steps Flow */
+.steps-flow {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.step-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  transition: background 220ms, border-color 220ms;
+}
+
+.step-card.is-done {
+  border-color: rgba(140, 255, 47, 0.22);
+  background: rgba(140, 255, 47, 0.03);
+}
+
+.step-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.44);
+}
+
+.step-card.is-done .step-icon {
+  background: rgba(140, 255, 47, 0.12);
+  color: #8cff2f;
+  box-shadow: 0 0 16px rgba(140, 255, 47, 0.14);
+}
+
+.step-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.step-details strong {
+  font-size: 14px;
+  font-weight: 750;
+  color: #fff;
+}
+
+.step-details span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.54);
+}
+
+.step-details code {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: #8cff2f;
+  font-size: 11px;
+}
+
+.step-status {
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.step-card.is-done .step-status {
+  background: rgba(140, 255, 47, 0.16);
+  color: #8cff2f;
+}
+
+/* Animated Checkmark SVG */
+.checkmark {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 2.8;
+  stroke: #8cff2f;
+  stroke-miterlimit: 10;
+  box-shadow: inset 0px 0px 0px #8cff2f;
+  animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+  margin: 0 auto;
+}
+
+.checkmark__circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2.8;
+  stroke-miterlimit: 10;
+  stroke: rgba(140, 255, 47, 0.18);
+  fill: none;
+  animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.checkmark__check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+@keyframes stroke {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes scale {
+  0%, 100% {
+    transform: none;
+  }
+  50% {
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+@keyframes fill {
+  100% {
+    box-shadow: inset 0px 0px 0px 30px rgba(140, 255, 47, 0.06);
+  }
+}
+
+/* Modal Footer */
+.modal-footer {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.modal-footer .btn {
+  width: 100%;
+}
+
+.modal-footer .btn-primary {
+  color: #071006;
+  background: #8cff2f;
+  box-shadow: 0 8px 20px rgba(140,255,47,0.18);
+}
+
+.modal-footer .btn-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.modal-footer .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 640px) {
+  .modal-footer {
+    grid-template-columns: 1fr;
+  }
+  .modal-card {
+    padding: 28px 20px 24px;
+  }
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <nav class="nav" aria-label="Navigation principale">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 3v18"></path><path d="M19 3v18"></path><path d="M5 8h14"></path><path d="M5 16h14"></path>
+        </svg>
+      </div>
+      <span>Marketing Challenge</span>
+    </div>
+    <div class="nav-meta">
+      <span>Dimanche 24 mai</span>
+      <span class="nav-pill"><span class="live-dot"></span>20h00 Paris</span>
+    </div>
+  </nav>
+
+  <section class="hero conversion-hero" aria-labelledby="hero-title">
+    <div class="hero-content">
+      <div class="hero-kicker">
+        <span class="live-label"><span class="live-dot"></span>Live</span>
+        <span>Challenge 100% gratuit & en direct</span>
+      </div>
+      <h1 id="hero-title">5 jours pour transformer ton marketing en machine à <strong>conversion.</strong></h1>
+      <p class="hero-copy">Un challenge en direct pour créateurs, entrepreneurs et marketeurs qui veulent plus de clients, plus de ventes et plus d’impact.</p>
+      <div class="hero-event" id="details">
+        <div class="hero-event-icon" aria-hidden="true">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>
+        </div>
+        <div>
+          <span>Premier live</span>
+          <strong>Dimanche 24 mai à 20h</strong>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#inscription">
+          Réserver ma place gratuitement
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8h10"></path><path d="M9 4l4 4-4 4"></path>
+          </svg>
+        </a>
+      </div>
+      <div class="hero-free-note">100% gratuit · Places limitées</div>
+    </div>
+
+    <aside class="hero-dashboard" aria-label="Indicateurs du challenge">
+      <div class="signup-pill">
+        <div class="avatar-stack" aria-hidden="true">
+          <img src="/ui/assets/challenge-host-carlos-gil-unsplash.jpg" alt="">
+          <img src="/ui/assets/challenge-host-carlos-gil-unsplash.jpg" alt="">
+          <img src="/ui/assets/challenge-host-carlos-gil-unsplash.jpg" alt="">
+          <img src="/ui/assets/challenge-host-carlos-gil-unsplash.jpg" alt="">
+        </div>
+        <div><strong>2,184 inscrits</strong><span>Rejoins le mouvement !</span></div>
+      </div>
+      <div class="metric-card">
+        <span>Taux de conversion</span>
+        <strong>+312%</strong>
+        <svg class="sparkline" viewBox="0 0 220 54" fill="none" aria-hidden="true">
+          <path d="M4 44 28 34 47 39 67 23 88 29 111 17 133 22 154 11 177 18 216 4" stroke="#8cff2f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+          <path d="M4 54 28 44 47 49 67 33 88 39 111 27 133 32 154 21 177 28 216 14V54H4Z" fill="url(#sparkFill)"></path>
+          <defs><linearGradient id="sparkFill" x1="110" x2="110" y1="4" y2="54"><stop stop-color="#8cff2f" stop-opacity=".28"></stop><stop offset="1" stop-color="#8cff2f" stop-opacity="0"></stop></linearGradient></defs>
+        </svg>
+      </div>
+      <div class="metric-card">
+        <span>Chiffre d’affaires</span>
+        <strong>+3.2M€</strong>
+        <svg class="sparkline" viewBox="0 0 220 54" fill="none" aria-hidden="true">
+          <rect x="6" y="36" width="12" height="14" rx="2" fill="rgba(255,255,255,.36)"></rect>
+          <rect x="31" y="29" width="12" height="21" rx="2" fill="rgba(255,255,255,.44)"></rect>
+          <rect x="56" y="33" width="12" height="17" rx="2" fill="rgba(255,255,255,.38)"></rect>
+          <rect x="81" y="23" width="12" height="27" rx="2" fill="rgba(255,255,255,.50)"></rect>
+          <rect x="106" y="16" width="12" height="34" rx="2" fill="rgba(140,255,47,.50)"></rect>
+          <rect x="131" y="10" width="12" height="40" rx="2" fill="rgba(140,255,47,.64)"></rect>
+          <rect x="156" y="6" width="12" height="44" rx="2" fill="rgba(140,255,47,.74)"></rect>
+          <rect x="181" y="1" width="12" height="49" rx="2" fill="rgba(140,255,47,.88)"></rect>
+        </svg>
+      </div>
+
+      <div class="countdown-card">
+        <span>Le live commence dans :</span>
+        <div class="countdown-grid">
+          <div><strong>05</strong><small>jours</small></div>
+          <div><strong>14</strong><small>heures</small></div>
+          <div><strong>37</strong><small>minutes</small></div>
+          <div><strong>42</strong><small>secondes</small></div>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="form-section" id="inscription">
+    <div class="form-shell">
+      <div class="info-panel">
+        <div class="section-label">Au programme</div>
+        <h2>Un cadre simple pour arrêter d’improviser ton marketing.</h2>
+        <div class="info-list">
+          <div class="info-item">
+            <div class="info-icon" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"></path><path d="m22 2-7 20-4-9-9-4Z"></path></svg>
+            </div>
+            <div><strong>Message qui convertit</strong><span>Clarifie ton angle, ta cible et la promesse centrale de ton offre.</span></div>
+          </div>
+          <div class="info-item">
+            <div class="info-icon" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
+            </div>
+            <div><strong>Plan d’acquisition</strong><span>Construis une routine simple pour attirer des prospects sans multiplier les canaux.</span></div>
+          </div>
+          <div class="info-item">
+            <div class="info-icon" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
+            <div><strong>Conversion & relance</strong><span>Apprends quoi dire après un premier contact pour avancer vers la vente.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <form class="form-panel" id="optin-form">
+        <div class="section-label">Inscription</div>
+        <h2>Réserve ta place.</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="first_name">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              Prénom
+            </label>
+            <input id="first_name" name="first_name" autocomplete="given-name" required placeholder="Camille">
+          </div>
+          <div class="field">
+            <label for="last_name">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              Nom
+            </label>
+            <input id="last_name" name="last_name" autocomplete="family-name" required placeholder="Martin">
+          </div>
+          <div class="field">
+            <label for="email">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              Email
+            </label>
+            <input id="email" name="email" type="email" autocomplete="email" required placeholder="camille@email.com">
+          </div>
+          <div class="field">
+            <label for="phone">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              Téléphone
+            </label>
+            <input id="phone" name="phone" inputmode="tel" autocomplete="tel" required placeholder="+33612345678">
+          </div>
+          <div class="field full">
+            <label>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              Type d’inscription
+            </label>
+            <div class="choice-grid">
+              <label class="choice">
+                <input type="radio" name="signup_type" value="free" checked>
+                <span><strong>Gratuite</strong><span>Accès au live</span></span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="signup_type" value="vip">
+                <span>
+                  <strong style="display: inline-flex; align-items: center; gap: 6px;">
+                    VIP
+                    <span class="vip-badge">
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                      VIP
+                    </span>
+                  </strong>
+                  <span>Replay + templates</span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="submit-row">
+          <button class="btn btn-primary" type="submit">Confirmer mon inscription</button>
+          <p class="consent">En validant, tu acceptes de recevoir les informations liées au challenge, y compris les rappels utiles avant le live.</p>
+        </div>
+        <div class="success" id="success">Inscription validée. Ton accès au challenge est prêt.</div>
+      </form>
+
+      <section class="confirmation-panel" id="confirmation-panel" tabindex="-1" aria-live="polite" aria-labelledby="confirmation-title">
+        <div class="confirmed-badge">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13.5 4.5 6.5 11.5 2.5 7.5"></path>
+          </svg>
+          Inscription validée
+        </div>
+        <h2 id="confirmation-title">Ta place est réservée<span id="confirm-name"></span>.</h2>
+        <p class="confirmation-copy">Ton accès est prêt. Tu recevras le lien privé du live, les rappels utiles et la fiche d’exercice du premier atelier.</p>
+        <div class="confirmation-grid" aria-label="Récapitulatif de l’inscription">
+          <div class="confirmation-item"><span>Email</span><strong id="confirm-email">-</strong></div>
+          <div class="confirmation-item"><span>Téléphone</span><strong id="confirm-phone">-</strong></div>
+          <div class="confirmation-item"><span>Canal détecté</span><strong id="confirm-source">-</strong></div>
+          <div class="confirmation-item"><span>Accès</span><strong id="confirm-type">-</strong></div>
+          <div class="confirmation-item"><span>Marché</span><strong id="confirm-market">-</strong></div>
+          <div class="confirmation-item"><span>Token live</span><strong id="confirm-token">-</strong></div>
+        </div>
+        <div class="next-steps" aria-label="Prochaines étapes">
+          <div class="next-step">
+            <div class="next-step-num">1</div>
+            <div><strong>Email de confirmation</strong><span>Le lien privé du live arrive avec le rappel du premier atelier.</span></div>
+          </div>
+          <div class="next-step">
+            <div class="next-step-num">2</div>
+            <div><strong>Rappel avant le live</strong><span>Tu recevras un rappel court pour ne pas manquer le démarrage à 20h.</span></div>
+          </div>
+          <div class="next-step">
+            <div class="next-step-num">3</div>
+            <div><strong>Fiche action</strong><span>Après le live, une fiche te guide pour appliquer la méthode à ton offre.</span></div>
+          </div>
+        </div>
+        <div class="confirmation-actions">
+          <a class="btn btn-primary" href="#details">Voir le programme</a>
+          <button class="btn btn-secondary" type="button" id="edit-registration">Modifier les infos</button>
+        </div>
+      </section>
+
+      <div class="payload-panel" aria-label="Payload normalisé">
+        <div class="payload-head"><span>Payload propre</span><strong id="payload-status">valid</strong></div>
+        <pre id="payload-preview"></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal-backdrop" id="confirmation-modal">
+  <div class="modal-card">
+    <button class="modal-close" id="close-modal" aria-label="Fermer la modal">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+    
+    <div class="modal-header">
+      <div class="success-lottie">
+        <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+      </div>
+      <h2>Ta place est réservée !</h2>
+      <p class="modal-subtitle">Bienvenue dans le challenge. Ton accès est sécurisé.</p>
+    </div>
+    
+    <div class="steps-flow">
+      <!-- Etape 1: Inscription validée -->
+      <div class="step-card is-done">
+        <div class="step-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <div class="step-details">
+          <strong>Inscription validée</strong>
+          <span>Token de participation unique généré : <code id="modal-confirm-token">-</code></span>
+        </div>
+        <div class="step-status">Actif</div>
+      </div>
+      
+      <!-- Etape 2: Confirmation par email -->
+      <div class="step-card is-sending" id="step-email-card">
+        <div class="step-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+        </div>
+        <div class="step-details">
+          <strong>Lien de confirmation envoyé</strong>
+          <span>Lien d’accès privé expédié à <strong id="modal-confirm-email">-</strong></span>
+        </div>
+        <div class="step-status" id="step-email-status">Envoi...</div>
+      </div>
+      
+      <!-- Etape 3: Rappel par SMS -->
+      <div class="step-card is-pending" id="step-sms-card">
+        <div class="step-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        </div>
+        <div class="step-details">
+          <strong>Rappel SMS programmé</strong>
+          <span>Alertes courtes activées sur <strong id="modal-confirm-phone">-</strong></span>
+        </div>
+        <div class="step-status" id="step-sms-status">En attente...</div>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="modal-add-calendar" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        Ajouter à mon agenda
+      </button>
+      <button class="btn btn-secondary" id="modal-close-btn" type="button">Super, merci !</button>
+    </div>
+  </div>
+</div>
+</main>
+
+<script>
+const form = document.getElementById('optin-form');
+const formShell = document.querySelector('.form-shell');
+const confirmationPanel = document.getElementById('confirmation-panel');
+const payloadPreview = document.getElementById('payload-preview');
+const payloadStatus = document.getElementById('payload-status');
+const success = document.getElementById('success');
+const editRegistration = document.getElementById('edit-registration');
+const sourceLabels = {
+  facebook_ads: 'Facebook Ads',
+  youtube_ads: 'YouTube Ads',
+  organic: 'Organique',
+  affiliate: 'Affiliation',
+  tiktok: 'TikTok'
+};
+const signupLabels = {
+  free: 'Gratuite',
+  vip: 'VIP'
+};
+
+function slugName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function normalizePhone(value) {
+  const raw = String(value || '').trim();
+  const digits = raw.replace(/\D+/g, '');
+  if (!digits) return '';
+  if (raw.startsWith('+')) return '+' + digits;
+  if (digits.startsWith('00')) return '+' + digits.slice(2);
+  if (digits.length === 10 && digits.startsWith('0')) return '+33' + digits.slice(1);
+  if (digits.length === 9 && /^[67]/.test(digits)) return '+33' + digits;
+  return '+' + digits;
+}
+
+function getTrackingContext() {
+  const params = new URLSearchParams(window.location.search);
+  const get = (key) => String(params.get(key) || '').trim();
+  const utmSource = get('utm_source').toLowerCase();
+  const utmMedium = get('utm_medium').toLowerCase();
+  const utmCampaign = get('utm_campaign').toLowerCase();
+  const hasPaidMedium = /(paid|cpc|ppc|ads|social_paid)/.test(utmMedium);
+  let acquisitionSource = 'organic';
+  let detail = document.referrer ? 'referrer' : 'direct';
+
+  if (get('fbclid') || /^(facebook|fb|meta)$/.test(utmSource)) {
+    acquisitionSource = 'facebook_ads';
+    detail = get('fbclid') ? 'fbclid' : 'utm_source';
+  } else if (/youtube/.test(utmSource) || (/google/.test(utmSource) && /youtube|yt/.test(utmCampaign)) || (hasPaidMedium && /youtube|yt/.test(utmCampaign))) {
+    acquisitionSource = 'youtube_ads';
+    detail = 'utm_campaign';
+  } else if (get('ttclid') || /tiktok/.test(utmSource)) {
+    acquisitionSource = 'tiktok';
+    detail = get('ttclid') ? 'ttclid' : 'utm_source';
+  } else if (get('aff_id') || get('partner') || /affiliate|affiliation|partner/.test(utmSource)) {
+    acquisitionSource = 'affiliate';
+    detail = get('aff_id') ? 'aff_id' : 'utm_source';
+  } else if (!document.referrer && !window.location.search) {
+    acquisitionSource = 'organic';
+    detail = 'no_tracking';
+  }
+
+  return {
+    acquisition_source: acquisitionSource,
+    acquisition_source_detail: detail,
+    utm_source: get('utm_source'),
+    utm_medium: get('utm_medium'),
+    utm_campaign: get('utm_campaign'),
+    utm_content: get('utm_content'),
+    utm_term: get('utm_term'),
+    click_ids: {
+      fbclid: get('fbclid'),
+      gclid: get('gclid'),
+      ttclid: get('ttclid')
+    },
+    referrer: document.referrer || ''
+  };
+}
+
+function getPayload() {
+  const data = new FormData(form);
+  const firstName = slugName(data.get('first_name'));
+  const lastName = slugName(data.get('last_name'));
+  const email = String(data.get('email') || '').trim().toLowerCase();
+  const phone = normalizePhone(data.get('phone'));
+  const tracking = getTrackingContext();
+  const signupType = data.get('signup_type');
+  return {
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    phone_e164: phone,
+    acquisition_source: tracking.acquisition_source,
+    acquisition_source_detail: tracking.acquisition_source_detail,
+    signup_type: signupType,
+    market: phone.startsWith('+33') || phone.startsWith('+32') || phone.startsWith('+41') || phone.startsWith('+352') ? 'francophone' : 'unknown',
+    live_link_token: firstName && email ? 'live_' + btoa(`${email}:${tracking.acquisition_source}`).replace(/[^a-z0-9]/gi, '').slice(0, 10).toLowerCase() : '',
+    attendance_status: 'not_checked_in',
+    twilio_status: 'not_sent',
+    tracking
+  };
+}
+
+function updatePayload() {
+  const payload = getPayload();
+  const isReady = payload.first_name && payload.last_name && payload.email && payload.phone_e164;
+  const isSubmitted = formShell.classList.contains('is-submitted');
+  payloadStatus.textContent = isSubmitted ? 'validated' : (isReady ? 'valid' : 'draft');
+  payloadStatus.style.color = isReady ? '#C9D7A2' : '#D5B96A';
+  payloadPreview.textContent = JSON.stringify(payload, null, 2);
+}
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value || '-';
+}
+
+function renderConfirmation(payload) {
+  setText('confirm-name', payload.first_name ? `, ${payload.first_name}` : '');
+  setText('confirm-email', payload.email);
+  setText('confirm-phone', payload.phone_e164);
+  setText('confirm-source', sourceLabels[payload.acquisition_source] || payload.acquisition_source);
+  setText('confirm-type', signupLabels[payload.signup_type] || payload.signup_type);
+  setText('confirm-market', payload.market);
+  setText('confirm-token', payload.live_link_token);
+}
+
+form.addEventListener('input', updatePayload);
+form.addEventListener('change', updatePayload);
+
+// Modal functions
+const confirmationModal = document.getElementById('confirmation-modal');
+const closeModal = document.getElementById('close-modal');
+const modalCloseBtn = document.getElementById('modal-close-btn');
+
+function showModal(payload) {
+  // Populate details
+  document.getElementById('modal-confirm-token').textContent = payload.live_link_token || '-';
+  document.getElementById('modal-confirm-email').textContent = payload.email || '-';
+  document.getElementById('modal-confirm-phone').textContent = payload.phone_e164 || '-';
+  
+  // Reset card states
+  const emailCard = document.getElementById('step-email-card');
+  const emailStatus = document.getElementById('step-email-status');
+  const smsCard = document.getElementById('step-sms-card');
+  const smsStatus = document.getElementById('step-sms-status');
+  
+  emailCard.className = 'step-card is-sending';
+  emailStatus.textContent = 'Envoi...';
+  
+  smsCard.className = 'step-card is-pending';
+  smsStatus.textContent = 'En attente...';
+  
+  // Open modal
+  confirmationModal.classList.add('is-active');
+  
+  // Trigger step animations
+  setTimeout(() => {
+    emailCard.className = 'step-card is-done';
+    emailStatus.textContent = 'Envoyé';
+  }, 1000);
+  
+  setTimeout(() => {
+    smsCard.className = 'step-card is-done';
+    smsStatus.textContent = 'Planifié';
+  }, 2000);
+}
+
+function hideModal() {
+  confirmationModal.classList.remove('is-active');
+}
+
+closeModal.addEventListener('click', hideModal);
+modalCloseBtn.addEventListener('click', hideModal);
+
+// Close on background click
+confirmationModal.addEventListener('click', (e) => {
+  if (e.target === confirmationModal) {
+    hideModal();
+  }
+});
+
+// Add to calendar functionality
+document.getElementById('modal-add-calendar').addEventListener('click', () => {
+  const url = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Marketing+Challenge+--+Live+Day+1&dates=20260524T180000Z/20260524T193000Z&details=Rejoins+le+live+ici+:+http://localhost:3210/portfolio/layout-challenge-live-webinar&location=En+Direct";
+  window.open(url, '_blank');
+});
+
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const payload = getPayload();
+  renderConfirmation(payload);
+  formShell.classList.add('is-submitted');
+  success.classList.add('show');
+  updatePayload();
+  showModal(payload);
+});
+
+editRegistration.addEventListener('click', () => {
+  formShell.classList.remove('is-submitted');
+  success.classList.remove('show');
+  updatePayload();
+  document.getElementById('first_name').focus();
+});
+
+updatePayload();
+</script>
+</body>
+</html>

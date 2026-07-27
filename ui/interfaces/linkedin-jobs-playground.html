@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkedIn Jobs - Playground Interface</title>
+<link rel="stylesheet" href="../assets/fonts.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel-soft: #f8fbfd;
+  --line: #dde7ee;
+  --line-strong: #c8d6e0;
+  --ink: #17212b;
+  --ink-2: #53606c;
+  --ink-3: #7b8794;
+  --blue: #0a66c2;
+  --blue-deep: #004182;
+  --blue-soft: #e8f3ff;
+  --green: #057642;
+  --green-soft: #e4f6ed;
+  --orange: #f59b23;
+  --orange-soft: #fff3df;
+  --red: #d9292f;
+  --shadow: none;
+  --shadow-soft: none;
+  --radius: 8px;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  overflow: hidden;
+  height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+}
+
+.app {
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 64px 52px minmax(0, 1fr);
+  background: var(--bg);
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: 48px minmax(240px, 398px) minmax(210px, 338px) 128px minmax(0, 1fr) 42px 70px;
+  align-items: center;
+  gap: 14px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  z-index: 20;
+}
+
+.brand {
+  width: 46px;
+  height: 46px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: #0a66c2;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 850;
+  letter-spacing: -2px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+}
+
+.search-box {
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 15px;
+  box-shadow: 0 1px 0 rgba(15,23,42,.02);
+}
+
+.search-box svg,
+.nav-icon svg,
+.chip svg,
+.mini-btn svg,
+.meta-chip svg,
+.job-card-menu svg,
+.detail-action svg,
+.spec svg,
+.task svg,
+.company-line svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+.search-box input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 520;
+  background: transparent;
+}
+
+.search-btn {
+  height: 48px;
+  padding: 0 24px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #0a66c2, #004b98);
+  color: #fff;
+  font-weight: 760;
+  box-shadow: none;
+  transition: background 150ms ease;
+}
+
+.search-btn:hover {
+  background: #004182;
+}
+
+.main-nav {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.nav-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: #3f454b;
+  position: relative;
+  border-radius: 10px;
+}
+
+.nav-icon:hover {
+  background: #f2f6f8;
+}
+
+.nav-icon.active::after,
+.nav-icon.alert::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 2px solid #fff;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  justify-self: center;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 800;
+  background:
+    radial-gradient(circle at 40% 26%, #f1c1a2 0 16%, transparent 17%),
+    radial-gradient(circle at 50% 42%, #213547 0 20%, transparent 21%),
+    linear-gradient(135deg, #d6e6f8, #83b8ea);
+  box-shadow: inset 0 0 0 2px #fff, 0 0 0 1px var(--line);
+}
+
+.apps {
+  width: 70px;
+  height: 64px;
+  border-left: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: #4b5563;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  z-index: 15;
+  overflow-x: auto;
+  scrollbar-width: none; /* Hide scrollbar Firefox */
+}
+
+.filters::-webkit-scrollbar {
+  display: none; /* Hide scrollbar Chrome/Safari */
+}
+
+.chip,
+.mini-btn {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-2);
+  padding: 0 16px;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: none;
+  transition: all 150ms ease;
+}
+
+.chip:hover,
+.mini-btn:hover {
+  background: #f3f3f3;
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.chip.active {
+  background: #057642;
+  border-color: #057642;
+  color: #fff;
+}
+
+.chip.active:hover {
+  background: #046237;
+}
+
+.chip.primary {
+  background: #087d4f;
+  border-color: transparent;
+  color: #fff;
+  padding-right: 12px;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: var(--line);
+  flex-shrink: 0;
+}
+
+.switch {
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: #8e8e8e;
+  position: relative;
+  transition: background 200ms ease;
+}
+
+.switch.on {
+  background: #057642;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 200ms ease;
+}
+
+.switch.on::after {
+  transform: translateX(16px);
+}
+
+.range-chip {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.range-track {
+  width: 80px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e0e0e0;
+  position: relative;
+}
+
+.range-track::before,
+.range-track::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: #fff;
+  border: 2px solid #057642;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.range-track::before { left: 10%; }
+.range-track::after { left: 70%; }
+
+.reset {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  padding: 0 8px;
+}
+
+.reset:hover {
+  text-decoration: underline;
+  color: var(--blue);
+}
+
+.workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(360px, 34vw) minmax(0, 1fr);
+  background: var(--panel);
+}
+
+.results {
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.results-head {
+  min-height: 64px;
+  padding: 12px 30px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.results-title {
+  color: #0049a8;
+  font-weight: 780;
+  font-size: 16px;
+  letter-spacing: -.01em;
+}
+
+.results-count {
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 520;
+}
+
+.alert-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.job-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 10px;
+}
+
+.job-card {
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr) auto;
+  gap: 18px;
+  padding: 18px 30px;
+  min-height: 152px;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  color: inherit;
+  position: relative;
+  transition: background 150ms ease, box-shadow 150ms ease;
+}
+
+.job-card.is-promoted {
+  position: relative;
+  overflow: hidden;
+}
+
+.job-card.is-promoted::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle at top right, rgba(217, 147, 18, 0.18), transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.job-card.is-promoted::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(225deg, rgba(217, 147, 18, 0.4) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.job-card.is-promoted:hover::before,
+.job-card.is-promoted:hover::after {
+  opacity: 1;
+}
+
+.job-card.is-promoted:hover {
+  background: #fff9ed;
+}
+
+.job-card.is-promoted.active {
+  background: #fff4e2;
+  box-shadow: inset 0 0 0 1px #e6ae41;
+}
+
+.job-card:hover {
+  background: #f8fbff;
+}
+
+.job-card.active {
+  background: #f4f9ff;
+  box-shadow: inset 0 0 0 1px #9cc2ef;
+}
+
+.job-logo {
+  width: 92px;
+  height: 92px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: #16191d;
+  font-weight: 900;
+  letter-spacing: -.08em;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,.05);
+}
+
+.job-logo.has-image {
+  background: #fff;
+}
+
+.job-logo img,
+.mini-logo img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.job-logo.crossing {
+  background: #f6dfaa;
+  color: #5c2e18;
+  font-size: 13px;
+  text-align: center;
+  letter-spacing: -.03em;
+}
+
+.job-logo.crossing span:not(.promoted) {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #111;
+  color: #fff;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.job-logo.hire {
+  background: #0a0a0a;
+  color: #fff;
+  font-size: 52px;
+}
+
+.job-logo.hire::after {
+  content: "";
+  position: absolute;
+  right: 20px;
+  top: 32px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ff5f17;
+}
+
+.job-logo.webi {
+  background: #fff;
+  color: #f1272f;
+  font-size: 58px;
+  font-style: italic;
+}
+
+.job-logo.sums {
+  background:
+    linear-gradient(90deg, transparent 0 16%, #132b4d 16% 25%, transparent 25% 42%, #00d7b4 42% 60%, transparent 60%),
+    linear-gradient(180deg, transparent 0 24%, #00d7b4 24% 36%, transparent 36% 58%, #132b4d 58% 70%, transparent 70%);
+  background-color: #f4fafc;
+}
+
+.job-logo.skeeps {
+  background: #2c2d32;
+  color: #fff;
+  font-size: 42px;
+}
+
+.job-logo.pixel { background: #6366f1; color: #fff; font-size: 32px; }
+.job-logo.cloudscale { background: #0ea5e9; color: #fff; font-size: 32px; }
+.job-logo.insightly { background: #f43f5e; color: #fff; font-size: 32px; }
+.job-logo.userflow { background: #10b981; color: #fff; font-size: 32px; }
+
+.promoted {
+  position: absolute;
+  top: 9px;
+  left: 17px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: #d99312;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .02em;
+}
+
+.job-info {
+  min-width: 0;
+}
+
+.job-title {
+  color: #064db4;
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 1.25;
+  letter-spacing: -.02em;
+}
+
+.job-company {
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 620;
+}
+
+.job-meta,
+.job-foot {
+  margin-top: 6px;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.job-match {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.job-match.warn {
+  color: #a26200;
+}
+
+.job-match::before {
+  content: "";
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: inset 0 0 0 4px #fff;
+}
+
+.job-card-menu {
+  color: #29333d;
+  padding-top: 8px;
+}
+
+.detail {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: #fff;
+  position: relative;
+}
+
+.detail-inner {
+  width: min(100%, 1090px);
+  padding: 28px 46px 112px 32px;
+}
+
+.detail-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.detail-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mini-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: #f6dfaa;
+  color: #5c2e18;
+  font-size: 9px;
+  font-weight: 900;
+  text-align: center;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,.05);
+  overflow: hidden;
+}
+
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.detail-action {
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0 18px;
+  font-weight: 720;
+  box-shadow: none;
+}
+
+.detail-action.icon {
+  width: 46px;
+  padding: 0;
+  justify-content: center;
+}
+
+.detail-title {
+  margin-top: 20px;
+  font-size: clamp(27px, 3vw, 38px);
+  line-height: 1.05;
+  font-weight: 820;
+  letter-spacing: -.05em;
+}
+
+.detail-sub {
+  margin-top: 12px;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.detail-sub strong {
+  color: var(--green);
+  font-weight: 730;
+}
+
+.meta-row {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.meta-chip {
+  min-height: 43px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  padding: 0 18px;
+  color: var(--ink);
+  font-weight: 720;
+  box-shadow: none;
+}
+
+.meta-chip svg {
+  color: var(--green);
+}
+
+.pipeline {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,.88);
+  padding: 16px 22px 18px;
+  box-shadow: none;
+}
+
+.pipeline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 760;
+}
+
+.pipeline-head span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.level {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.level::after {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: #ff6918;
+  vertical-align: 1px;
+}
+
+.pipeline-track {
+  margin-top: 14px;
+  height: 10px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, #0b8b55 0%, #55a948 26%, #e0b928 48%, #ff8a00 68%, #e9eff5 68% 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.pipeline-track::after {
+  content: "";
+  position: absolute;
+  left: 68%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: #ff6918;
+  box-shadow: 0 0 0 3px #fff;
+}
+
+.info-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
+  gap: 18px;
+}
+
+.box {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 20px 22px;
+  box-shadow: none;
+}
+
+.box.company {
+  background: #f1f7ff;
+}
+
+.box-title {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 790;
+  letter-spacing: -.025em;
+  margin-bottom: 15px;
+}
+
+.spec {
+  display: grid;
+  grid-template-columns: 22px minmax(110px, .7fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  color: var(--ink-2);
+  font-size: 14px;
+  padding: 7px 0;
+}
+
+.spec strong {
+  color: var(--ink);
+  font-weight: 640;
+}
+
+.spec svg,
+.company-line svg {
+  width: 16px;
+  height: 16px;
+  color: #4d5660;
+}
+
+.company-copy {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+  margin-bottom: 13px;
+}
+
+.company-line {
+  display: grid;
+  grid-template-columns: 22px minmax(128px, .8fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  color: var(--ink-2);
+  font-size: 13px;
+  padding: 7px 0;
+}
+
+.company-line a {
+  color: #064db4;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.section {
+  margin-top: 24px;
+}
+
+.section h2 {
+  font-size: 19px;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+  margin-bottom: 14px;
+}
+
+.task {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  max-width: 760px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 10px 0;
+}
+
+.task svg {
+  width: 16px;
+  height: 16px;
+  color: var(--green);
+  margin-top: 3px;
+}
+
+.apply-bar {
+  position: fixed;
+  right: 42px;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 30;
+}
+
+.apply-main {
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  padding: 0 26px;
+  border-radius: 999px;
+  background: #0a66c2;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 780;
+  box-shadow: 0 10px 24px rgba(10,102,194,.24);
+}
+
+.apply-main span:first-child {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.18);
+  font-size: 17px;
+  letter-spacing: -1px;
+}
+
+@media (max-width: 1180px) {
+  .app {
+    grid-template-rows: auto auto 1fr;
+    height: 100vh;
+  }
+
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 14px 18px;
+  }
+
+  .topbar .search-box:nth-of-type(2),
+  .search-btn,
+  .main-nav,
+  .apps {
+    display: none;
+  }
+
+  .filters {
+    padding: 12px 18px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .results {
+    border-right: 0;
+    max-height: 520px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .detail-inner {
+    padding: 28px 22px 120px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .avatar {
+    display: none;
+  }
+
+  .range-chip {
+    min-width: 280px;
+  }
+
+  .results-head {
+    grid-template-columns: 1fr;
+    align-items: start;
+    min-height: auto;
+  }
+
+  .job-card {
+    grid-template-columns: 62px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 16px 18px;
+    min-height: 126px;
+  }
+
+  .job-logo {
+    width: 62px;
+    height: 62px;
+  }
+
+  .promoted {
+    left: 8px;
+    top: 7px;
+    font-size: 8px;
+  }
+
+  .detail-top {
+    flex-direction: column;
+  }
+
+  .detail-actions {
+    width: 100%;
+  }
+
+  .detail-action {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .spec,
+  .company-line {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .spec strong,
+  .company-line strong {
+    grid-column: 2;
+  }
+
+  .apply-bar {
+    left: 14px;
+    right: 14px;
+    bottom: 16px;
+  }
+
+  .apply-main {
+    width: 100%;
+    justify-content: center;
+    height: 58px;
+    font-size: 16px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand" aria-label="LinkedIn">in</div>
+    <label class="search-box">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input value="freelance" aria-label="Search">
+    </label>
+    <label class="search-box">
+      <svg viewBox="0 0 24 24"><path d="M20 10c0 5.5-8 11-8 11s-8-5.5-8-11a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+      <input value="France" aria-label="Location">
+    </label>
+    <button class="search-btn">Search</button>
+    <nav class="main-nav" aria-label="Main navigation">
+      <button class="nav-icon active" aria-label="Home"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7"></path><path d="M5 10v10h14V10"></path><path d="M10 20v-6h4v6"></path></svg></button>
+      <button class="nav-icon" aria-label="My Network"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></button>
+      <button class="nav-icon" aria-label="Jobs"><svg viewBox="0 0 24 24"><path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1"></path><rect x="3" y="6" width="18" height="14" rx="2"></rect><path d="M3 12h18"></path></svg></button>
+      <button class="nav-icon" aria-label="Messaging"><svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"></path><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path></svg></button>
+      <button class="nav-icon alert" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></button>
+    </nav>
+    <div class="avatar" aria-label="Me"></div>
+    <button class="apps" aria-label="Work">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="5" r="2"></circle><circle cx="12" cy="5" r="2"></circle><circle cx="19" cy="5" r="2"></circle><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle><circle cx="5" cy="19" r="2"></circle><circle cx="12" cy="19" r="2"></circle><circle cx="19" cy="19" r="2"></circle></svg>
+    </button>
+  </header>
+
+  <section class="filters" aria-label="Filters">
+    <button class="chip active">Jobs <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <div class="divider"></div>
+    <button class="chip"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4"></path><path d="M8 3v4"></path><path d="M3 11h18"></path></svg>Past week <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <div class="divider"></div>
+    <span class="chip">Remote <span class="switch on" aria-hidden="true"></span></span>
+    <button class="chip"><svg viewBox="0 0 24 24"><path d="M20 10c0 5.5-8 11-8 11s-8-5.5-8-11a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>France <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <div class="range-chip"><span>Salary</span><span class="range-track"></span><span>$110K+</span></div>
+    <button class="chip"><svg viewBox="0 0 24 24"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg>Experience <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <button class="chip">Job type <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <button class="chip">More <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <button class="reset">Reset</button>
+  </section>
+
+  <main class="workspace">
+    <aside class="results">
+      <div class="results-head">
+        <div>
+          <div class="results-title">freelance - France</div>
+          <div class="results-count">300+ results</div>
+        </div>
+        <div class="alert-toggle">Job alert <span class="switch on" aria-hidden="true"></span></div>
+        <button class="job-card-menu" aria-label="Results menu"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
+      </div>
+
+      <div class="job-list" id="job-list"></div>
+    </aside>
+
+    <section class="detail" aria-label="Job detail">
+      <div class="detail-inner">
+        <div class="detail-top">
+          <div class="detail-kicker">
+            <div class="mini-logo" id="detail-logo">CH</div>
+            <span><span id="detail-company-kicker">Crossing Hurdles</span></span>
+          </div>
+          <div class="detail-actions">
+            <button class="detail-action"><svg viewBox="0 0 24 24"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"></path></svg>Save</button>
+            <button class="detail-action icon" aria-label="More"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
+          </div>
+        </div>
+
+        <h1 class="detail-title" id="detail-title">Product Manager | Remote</h1>
+        <p class="detail-sub" id="detail-sub">Europe, Middle East and Africa · Posted 3 days ago · Over 100 applicants<br><strong>Application assessment in progress</strong></p>
+
+        <div class="meta-row" id="detail-chips"></div>
+
+        <div class="pipeline">
+          <div class="pipeline-head">
+            <span>Applications <span id="detail-pipeline">(65/100)</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#8a96a3" stroke-width="2"></circle><path d="M12 16v-4" stroke="#8a96a3" stroke-width="2" stroke-linecap="round"></path><path d="M12 8h.01" stroke="#8a96a3" stroke-width="3" stroke-linecap="round"></path></svg>
+            </span>
+            <span class="level">High</span>
+          </div>
+          <div class="pipeline-track"></div>
+        </div>
+
+        <div class="info-grid">
+          <article class="box">
+            <h2 class="box-title">About the job</h2>
+            <div id="detail-specs"></div>
+          </article>
+          <article class="box company">
+            <h2 class="box-title" id="company-title">About Crossing Hurdles</h2>
+            <p class="company-copy" id="company-copy">Crossing Hurdles helps companies design smart and scalable digital products through data and AI.</p>
+            <div class="company-line"><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h8v18"></path><path d="M14 8h6v13"></path><path d="M8 7h2"></path><path d="M8 11h2"></path><path d="M8 15h2"></path></svg><span>Industry</span><strong id="company-industry">Technology, Information & Internet</strong></div>
+            <div class="company-line"><svg viewBox="0 0 24 24"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path></svg><span>Company size</span><strong id="company-size">51-200 employees</strong></div>
+            <div class="company-line"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg><span>Website</span><a href="#" id="company-site">crossinghurdles.com</a></div>
+          </article>
+        </div>
+
+        <section class="section">
+          <h2>Main responsibilities</h2>
+          <div id="detail-tasks"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div class="apply-bar">
+    <button class="apply-main"><span>in</span><span>Easy Apply</span></button>
+  </div>
+</div>
+
+<script>
+const icon = {
+  money: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10"></path><path d="M15 9.5A3 3 0 0 0 12 8a2.4 2.4 0 0 0 0 4.8 2.4 2.4 0 0 1 0 4.8A3 3 0 0 1 9 16.5"></path></svg>',
+  pin: '<svg viewBox="0 0 24 24"><path d="M20 10c0 5.5-8 11-8 11s-8-5.5-8-11a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>',
+  briefcase: '<svg viewBox="0 0 24 24"><path d="M10 6V5a2 2 0 0 1 4 0v1"></path><rect x="3" y="6" width="18" height="14" rx="2"></rect><path d="M3 12h18"></path></svg>',
+  users: '<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>',
+  chart: '<svg viewBox="0 0 24 24"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg>',
+  clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>',
+  check: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="currentColor" stroke="none"></circle><path d="m8.5 12.2 2.2 2.2 4.8-5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>'
+};
+
+const jobs = [
+  {
+    id: 'crossing',
+    title: 'Product Manager | Remote',
+    company: 'Crossing Hurdles',
+    logoClass: 'crossing',
+    logoText: '<span>CH</span>Crossing<br>Hurdles',
+    initial: 'CH',
+    logoImage: '../assets/job-logos/crossing-hurdles.png',
+    place: 'Europe, Middle East and Africa',
+    remote: 'Remote',
+    salary: '$55/h - $110/h',
+    contract: 'Contractor',
+    time: '3 days',
+    foot: '3 days ago',
+    promoted: true,
+    match: '95% match',
+    sub: 'Europe, Middle East and Africa · Posted 3 days ago · Over 100 applicants<br><strong>Application assessment in progress</strong>',
+    pipeline: '(65/100)',
+    chips: [['money', '$55/h - $110/h'], ['pin', 'Remote'], ['briefcase', 'Contractor']],
+    specs: [['users', 'Position', 'Product Manager'], ['briefcase', 'Contract type', 'Contractor'], ['chart', 'Salary', '$55/h - $110/h'], ['pin', 'Location', 'Remote'], ['clock', 'Commitment', '10-40 hours/week']],
+    companyCopy: "Crossing Hurdles helps companies design smart and scalable digital products through data and AI.",
+    industry: 'Technology, Information & Internet',
+    size: '51-200 employees',
+    site: 'crossinghurdles.com',
+    tasks: [
+      "Design and develop high-value product features and workflows using insights from advanced analytics tools.",
+      "Create and refine complex, realistic task prompts to drive continuous product improvement and foster innovation.",
+      "Collaborate closely with cross-functional teams using tools such as Notion, Gmail, and Calendar to ensure seamless project execution."
+    ]
+  },
+  {
+    id: 'hire',
+    title: 'Freelance AI Evaluator (Remote)',
+    company: 'Hire Feed',
+    logoClass: 'hire',
+    logoText: 'H',
+    initial: 'HF',
+    logoImage: '../assets/job-logos/hire-feed.png',
+    place: 'France',
+    remote: 'Remote',
+    salary: '$42/h - $70/h',
+    contract: 'Freelance mission',
+    time: '1 week ago',
+    foot: '1 week ago',
+    promoted: true,
+    match: 'You would be a top applicant',
+    warn: true,
+    sub: 'France · Remote · Posted 1 week ago · 48 applicants<br>Actively recruiting · <strong>Your profile is in the top 12%</strong>',
+    pipeline: '(48/100)',
+    chips: [['money', '$42/h - $70/h'], ['pin', 'Remote'], ['briefcase', 'Freelance']],
+    specs: [['users', 'Position', 'AI Evaluator'], ['briefcase', 'Contract type', 'Freelance'], ['chart', 'Salary', '$42/h - $70/h'], ['pin', 'Location', 'France remote'], ['clock', 'Commitment', '8-20 hours/week']],
+    companyCopy: "Hire Feed builds evaluation loops for AI models, with short missions for domain experts and product profiles.",
+    industry: 'Artificial Intelligence',
+    size: '11-50 employees',
+    site: 'hirefeed.ai',
+    tasks: [
+      "Evaluate the quality of responses generated by AI systems based on accuracy, tone, and usefulness.",
+      "Write short, structured feedback to improve training datasets.",
+      "Identify error patterns and transform them into operational recommendations for the product team."
+    ]
+  },
+  {
+    id: 'webi',
+    title: 'Chief Financial Officer - Freelance',
+    company: 'Liberty Webi',
+    logoClass: 'webi',
+    logoText: 'W',
+    initial: 'LW',
+    logoImage: '../assets/job-logos/liberty-webi.png',
+    place: 'France',
+    remote: 'Remote',
+    salary: '650 EUR/d - 900 EUR/d',
+    contract: 'Interim executive',
+    time: '3 days ago',
+    foot: '3 days ago',
+    promoted: true,
+    match: 'You would be a top applicant',
+    warn: true,
+    sub: 'France · Remote · Posted 3 days ago · 86 applicants<br>Confidential mission · <strong>Priority need for finance</strong>',
+    pipeline: '(86/100)',
+    chips: [['money', '650 EUR/d - 900 EUR/d'], ['pin', 'Hybrid possible'], ['briefcase', 'Freelance']],
+    specs: [['users', 'Position', 'Chief Financial Officer'], ['briefcase', 'Contract type', 'Freelance mission'], ['chart', 'Salary', '650 EUR/d - 900 EUR/d'], ['pin', 'Location', 'France remote'], ['clock', 'Commitment', '3-4 days/week']],
+    companyCopy: "Liberty Webi supports fast-growing SMEs on web, acquisition, and financial operations automation topics.",
+    industry: 'Financial & Digital Consulting',
+    size: '51-200 employees',
+    site: 'libertywebi.fr',
+    tasks: [
+      "Structure monthly financial reporting and reliable cash flow forecasts.",
+      "Drive margin trade-offs with operational and sales teams.",
+      "Prepare management documents for the board and banking partners."
+    ]
+  },
+  {
+    id: 'sums',
+    title: 'Senior Product Designer',
+    company: 'Sumsum',
+    logoClass: 'sums',
+    logoText: '',
+    initial: 'SS',
+    place: 'European Union',
+    remote: 'Remote',
+    salary: '420 EUR/d - 620 EUR/d',
+    contract: 'Contractor',
+    time: '5 days ago',
+    foot: '5 days ago',
+    promoted: true,
+    match: 'Easy Apply',
+    sub: 'European Union · Remote · Posted 5 days ago · 74 applicants<br>Portfolio required · <strong>Applications still open</strong>',
+    pipeline: '(74/100)',
+    chips: [['money', '420 EUR/d - 620 EUR/d'], ['pin', 'Remote EU'], ['briefcase', 'Contractor']],
+    specs: [['users', 'Position', 'Senior Product Designer'], ['briefcase', 'Contract type', 'Contractor'], ['chart', 'Salary', '420 EUR/d - 620 EUR/d'], ['pin', 'Location', 'European Union'], ['clock', 'Commitment', '20-32 hours/week']],
+    companyCopy: "Sumsum designs visual collaboration tools for distributed teams, with a strong focus on accessibility and speed.",
+    industry: 'Design tools',
+    size: '11-50 employees',
+    site: 'sumsum.design',
+    tasks: [
+      "Redesign project creation and sharing flows to reduce time to first value.",
+      "Create high-fidelity prototypes and test multiple directions with European users.",
+      "Maintain a clear UI component library directly usable by the front-end team."
+    ]
+  },
+  {
+    id: 'skeeps',
+    title: 'Customer Success Manager (Freelance)',
+    company: 'Skeepers',
+    logoClass: 'skeeps',
+    logoText: 'S',
+    initial: 'SK',
+    place: 'France',
+    remote: 'Hybrid',
+    salary: '360 EUR/d - 520 EUR/d',
+    contract: 'Freelance',
+    time: '1 day ago',
+    foot: '1 day ago',
+    match: 'Usually responds within 48h',
+    sub: 'France · Hybrid · Posted 1 day ago · 31 applicants<br>Revenue team · <strong>Usually responds within 48h</strong>',
+    pipeline: '(31/100)',
+    chips: [['money', '360 EUR/d - 520 EUR/d'], ['pin', 'Hybrid'], ['briefcase', 'Freelance']],
+    specs: [['users', 'Position', 'Customer Success Manager'], ['briefcase', 'Contract type', 'Freelance'], ['chart', 'Salary', '360 EUR/d - 520 EUR/d'], ['pin', 'Location', 'France hybrid'], ['clock', 'Commitment', '4 days/week']],
+    companyCopy: "Skeepers helps brands activate social proof, customer reviews, and creator content in their e-commerce experience.",
+    industry: 'SaaS marketing',
+    size: '201-500 employees',
+    site: 'skeepers.io',
+    tasks: [
+      "Support a portfolio of mid-market clients in adopting key features.",
+      "Identify churn risks and coordinate action plans with sales and product.",
+      "Transform field feedback into prioritized and actionable product requests."
+    ]
+  },
+  {
+    id: 'pixel',
+    title: 'Senior Frontend Engineer (React)',
+    company: 'Pixel Perfect',
+    logoClass: 'pixel',
+    logoText: 'PP',
+    initial: 'PP',
+    place: 'Berlin, Germany',
+    remote: 'Remote',
+    salary: '€70,000 - €95,000',
+    contract: 'Full-time',
+    time: '2 hours ago',
+    foot: '2 hours ago',
+    match: 'Top 10% match',
+    sub: 'Berlin · Remote · Posted 2 hours ago · 12 applicants<br>Product team · <strong>Highly relevant skills</strong>',
+    pipeline: '(12/50)',
+    chips: [['money', '€70k - €95k'], ['pin', 'Remote'], ['briefcase', 'Full-time']],
+    specs: [['users', 'Position', 'Frontend Engineer'], ['briefcase', 'Contract type', 'Full-time'], ['chart', 'Salary', '€70k - €95k'], ['pin', 'Location', 'Germany remote'], ['clock', 'Commitment', '40 hours/week']],
+    companyCopy: "Pixel Perfect is a design-driven agency building next-generation web applications for creative industries.",
+    industry: 'Design & Tech',
+    size: '11-50 employees',
+    site: 'pixelperfect.io',
+    tasks: [
+      "Architect and implement complex UI components using React and TypeScript.",
+      "Ensure high performance and responsiveness across all devices.",
+      "Collaborate with designers to maintain a consistent design system."
+    ]
+  },
+  {
+    id: 'cloudscale',
+    title: 'SRE / DevOps Engineer',
+    company: 'CloudScale',
+    logoClass: 'cloudscale',
+    logoText: 'CS',
+    initial: 'CS',
+    place: 'London, UK',
+    remote: 'Hybrid',
+    salary: '£80,000 - £110,000',
+    contract: 'Full-time',
+    time: '4 days ago',
+    foot: '4 days ago',
+    match: '85% match',
+    sub: 'London · Hybrid · Posted 4 days ago · 45 applicants<br>Infrastructure · <strong>Active hiring</strong>',
+    pipeline: '(45/150)',
+    chips: [['money', '£80k - £110k'], ['pin', 'Hybrid'], ['briefcase', 'Full-time']],
+    specs: [['users', 'Position', 'DevOps Engineer'], ['briefcase', 'Contract type', 'Full-time'], ['chart', 'Salary', '£80k - £110k'], ['pin', 'Location', 'London, UK'], ['clock', 'Commitment', 'Full-time']],
+    companyCopy: "CloudScale provides automated scaling solutions for high-traffic SaaS platforms.",
+    industry: 'Cloud Infrastructure',
+    size: '51-200 employees',
+    site: 'cloudscale.net',
+    tasks: [
+      "Manage and optimize Kubernetes clusters across multiple regions.",
+      "Implement CI/CD pipelines to improve deployment frequency.",
+      "Monitor system health and respond to incidents in a timely manner."
+    ]
+  },
+  {
+    id: 'insightly',
+    title: 'Lead Data Analyst',
+    company: 'Insightly',
+    logoClass: 'insightly',
+    logoText: 'I',
+    initial: 'IN',
+    place: 'New York, USA',
+    remote: 'On-site',
+    salary: '$120,000 - $160,000',
+    contract: 'Full-time',
+    time: '6 hours ago',
+    foot: '6 hours ago',
+    match: 'Match based on your experience',
+    sub: 'New York · On-site · Posted 6 hours ago · 28 applicants<br>Data team · <strong>Direct application</strong>',
+    pipeline: '(28/80)',
+    chips: [['money', '$120k - $160k'], ['pin', 'On-site'], ['briefcase', 'Full-time']],
+    specs: [['users', 'Position', 'Data Analyst'], ['briefcase', 'Contract type', 'Full-time'], ['chart', 'Salary', '$120k - $160k'], ['pin', 'Location', 'New York, USA'], ['clock', 'Commitment', 'Full-time']],
+    companyCopy: "Insightly turns complex business data into actionable growth strategies using machine learning.",
+    industry: 'Data Analytics',
+    size: '201-500 employees',
+    site: 'insightly.ai',
+    tasks: [
+      "Analyze large datasets to identify market trends and customer behavior.",
+      "Build interactive dashboards for executive stakeholders.",
+      "Collaborate with engineering to improve data quality and collection."
+    ]
+  },
+  {
+    id: 'userflow',
+    title: 'UX Researcher',
+    company: 'UserFlow',
+    logoClass: 'userflow',
+    logoText: 'UF',
+    initial: 'UF',
+    place: 'Amsterdam, Netherlands',
+    remote: 'Remote',
+    salary: '€50,000 - €75,000',
+    contract: 'Contract',
+    time: '1 week ago',
+    foot: '1 week ago',
+    match: '90% match',
+    sub: 'Amsterdam · Remote · Posted 1 week ago · 19 applicants<br>Design team · <strong>Urgent need</strong>',
+    pipeline: '(19/40)',
+    chips: [['money', '€50k - €75k'], ['pin', 'Remote'], ['briefcase', 'Contract']],
+    specs: [['users', 'Position', 'UX Researcher'], ['briefcase', 'Contract type', 'Contract'], ['chart', 'Salary', '€50k - €75k'], ['pin', 'Location', 'Netherlands remote'], ['clock', 'Commitment', '32 hours/week']],
+    companyCopy: "UserFlow helps SaaS products optimize their onboarding through continuous user testing.",
+    industry: 'UX Research',
+    size: '11-50 employees',
+    site: 'userflow.design',
+    tasks: [
+      "Conduct user interviews and usability tests for new product features.",
+      "Synthesize findings into actionable design recommendations.",
+      "Advocate for the user throughout the product development lifecycle."
+    ]
+  }
+];
+
+const list = document.getElementById('job-list');
+
+function renderList() {
+  list.innerHTML = jobs.map((job, index) => `
+    <button class="job-card ${index === 0 ? 'active' : ''} ${job.promoted ? 'is-promoted' : ''}" data-id="${job.id}">
+      <div class="job-logo ${job.logoClass} ${job.logoImage ? 'has-image' : ''}">
+        ${job.logoImage ? `<img src="${job.logoImage}" alt="${job.company}">` : job.logoText}
+      </div>
+      <div class="job-info">
+        <div class="job-title">${job.title}</div>
+        <div class="job-company">${job.company}</div>
+        <div class="job-meta">${job.place} · ${job.remote}<br>${job.salary} · ${job.contract}</div>
+        <div class="job-match ${job.warn ? 'warn' : ''}">${job.match}</div>
+        <div class="job-foot">${job.foot}</div>
+      </div>
+      <span class="job-card-menu" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></span>
+    </button>
+  `).join('');
+}
+
+function setDetail(job) {
+  const logo = document.getElementById('detail-logo');
+  logo.innerHTML = job.logoImage ? `<img src="${job.logoImage}" alt="${job.company}">` : '';
+  if (!job.logoImage) logo.textContent = job.initial || job.company.slice(0, 2).toUpperCase();
+  logo.style.background = getComputedStyle(document.querySelector(`.job-logo.${job.logoClass}`)).background;
+  document.getElementById('detail-company-kicker').textContent = job.company;
+  document.getElementById('detail-title').textContent = job.title;
+  document.getElementById('detail-sub').innerHTML = job.sub;
+  document.getElementById('detail-pipeline').textContent = job.pipeline;
+  document.getElementById('detail-chips').innerHTML = job.chips.map(([name, label]) => `<span class="meta-chip">${icon[name]}${label}</span>`).join('');
+  document.getElementById('detail-specs').innerHTML = job.specs.map(([name, label, value]) => `<div class="spec">${icon[name]}<span>${label}</span><strong>${value}</strong></div>`).join('');
+  document.getElementById('company-title').textContent = `About ${job.company}`;
+  document.getElementById('company-copy').textContent = job.companyCopy;
+  document.getElementById('company-industry').textContent = job.industry;
+  document.getElementById('company-size').textContent = job.size;
+  document.getElementById('company-site').textContent = job.site;
+  document.getElementById('detail-tasks').innerHTML = job.tasks.map(task => `<div class="task">${icon.check}<p>${task}</p></div>`).join('');
+}
+
+renderList();
+setDetail(jobs[0]);
+
+list.addEventListener('click', event => {
+  const card = event.target.closest('.job-card');
+  if (!card) return;
+  const job = jobs.find(item => item.id === card.dataset.id);
+  if (!job) return;
+  document.querySelectorAll('.job-card').forEach(item => item.classList.toggle('active', item === card));
+  setDetail(job);
+});
+</script>
+</body>
+</html>

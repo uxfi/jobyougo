@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bloomly — Living Brands</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    min-height: 100vh;
+    font-family: var(--font-inter);
+    color: #3a2415;
+    background: #e8cfa8;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Scene with bg image ───────────────────────────────────── */
+  .scene {
+    position: relative;
+    min-height: 100vh;
+    padding: 40px 28px 0;
+    background-image:
+      linear-gradient(180deg, rgba(246,225,192,.35) 0%, rgba(230,195,150,.1) 40%, rgba(60,30,15,.25) 100%),
+      url('/ui/assets/bloomly-bg.png');
+    background-size: cover, cover;
+    background-position: center top, center bottom;
+    background-repeat: no-repeat;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  /* ─── Fluffy terrain layers ─────────────────────────────────── */
+  .terrain {
+    position: absolute;
+    left: -5%;
+    right: -5%;
+    bottom: 0;
+    height: 55%;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .hill {
+    position: absolute;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    filter: blur(1px);
+  }
+  .hill::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    background-image:
+      radial-gradient(circle at 30% 20%, rgba(255,255,255,.6) 0 1.5px, transparent 2px),
+      radial-gradient(circle at 70% 60%, rgba(255,255,255,.45) 0 1.2px, transparent 1.8px),
+      radial-gradient(circle at 50% 80%, rgba(255,255,255,.35) 0 1px, transparent 1.6px),
+      radial-gradient(circle at 20% 70%, rgba(90,70,180,.3) 0 1.2px, transparent 1.8px),
+      radial-gradient(circle at 85% 30%, rgba(255,255,255,.5) 0 1px, transparent 1.6px);
+    background-size: 8px 8px, 11px 11px, 9px 9px, 13px 13px, 7px 7px;
+    mix-blend-mode: overlay;
+    opacity: .85;
+  }
+  .hill-back {
+    left: -10%; right: -10%;
+    bottom: 12%;
+    height: 60%;
+    background:
+      radial-gradient(ellipse at 30% 30%, #a293ea 0%, #7f6fd1 55%, #5f52a8 100%);
+    box-shadow: inset 0 40px 60px rgba(255,255,255,.35),
+                inset 0 -30px 40px rgba(40,30,90,.35);
+  }
+  .hill-mid-left {
+    left: -12%;
+    bottom: 0;
+    width: 62%;
+    height: 82%;
+    background:
+      radial-gradient(ellipse at 35% 40%, #b7a8f2 0%, #8877cf 50%, #4d4298 100%);
+    box-shadow: inset 0 40px 80px rgba(255,255,255,.45),
+                inset 0 -40px 60px rgba(30,20,80,.45);
+  }
+  .hill-mid-right {
+    right: -12%;
+    bottom: 0;
+    width: 62%;
+    height: 78%;
+    background:
+      radial-gradient(ellipse at 60% 40%, #b5a6f0 0%, #8676ce 50%, #49408f 100%);
+    box-shadow: inset 0 40px 80px rgba(255,255,255,.45),
+                inset 0 -40px 60px rgba(30,20,80,.45);
+  }
+  .hill-front {
+    left: 20%;
+    right: 20%;
+    bottom: -8%;
+    height: 45%;
+    background:
+      radial-gradient(ellipse at 50% 40%, #9f8fe4 0%, #6e5ebe 55%, #3d3480 100%);
+    box-shadow: inset 0 30px 60px rgba(255,255,255,.4),
+                inset 0 -30px 50px rgba(20,10,60,.5);
+  }
+
+  /* ─── Metallic coin spheres ─────────────────────────────────── */
+  .coin {
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    z-index: 3;
+    filter: drop-shadow(0 30px 50px rgba(30,15,90,.45));
+  }
+  .coin-left {
+    bottom: 28%;
+    left: 6%;
+    transform: rotate(-10deg);
+  }
+  .coin-right {
+    bottom: 26%;
+    right: 6%;
+    transform: rotate(12deg);
+  }
+  .coin-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 28%,
+        #e8edff 0%, #a9b7ee 18%,
+        #6b7dcf 40%, #3f4fa5 65%,
+        #242b70 88%, #14184a 100%);
+    box-shadow:
+      inset 0 0 30px rgba(255,255,255,.35),
+      inset 0 -20px 40px rgba(10,5,40,.5);
+  }
+  .coin-face::before {
+    content: '';
+    position: absolute;
+    top: 12%; left: 18%;
+    width: 45%; height: 28%;
+    background: radial-gradient(ellipse, rgba(255,255,255,.7) 0%, transparent 70%);
+    border-radius: 50%;
+    filter: blur(6px);
+  }
+  .coin-face::after {
+    content: '';
+    position: absolute;
+    bottom: 14%; right: 22%;
+    width: 30%; height: 18%;
+    background: radial-gradient(ellipse, rgba(180,195,255,.5) 0%, transparent 70%);
+    border-radius: 50%;
+    filter: blur(8px);
+  }
+  .coin-edge {
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%) rotate(8deg);
+    width: 28px;
+    height: 94%;
+    border-radius: 50%;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        #e4ebff 0px, #e4ebff 1px,
+        #8b9bd6 2px, #8b9bd6 3px,
+        #2b3478 4px, #2b3478 5px
+      ),
+      linear-gradient(90deg, #3f4ba0 0%, #1a1f5c 100%);
+    box-shadow: inset 2px 0 4px rgba(255,255,255,.3),
+                inset -2px 0 4px rgba(0,0,0,.5);
+    z-index: -1;
+  }
+  .coin-right .coin-edge {
+    right: auto; left: -14px;
+    transform: translateY(-50%) rotate(-8deg);
+  }
+
+  /* ─── Glass card overlay ────────────────────────────────────── */
+  .glass-card {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+    border-radius: 28px;
+    background: linear-gradient(180deg,
+      rgba(255,240,220,.22) 0%,
+      rgba(255,225,195,.08) 100%);
+    border: 1px solid rgba(255,240,220,.4);
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    box-shadow:
+      0 30px 80px -20px rgba(90,50,20,.35),
+      inset 0 1px 1px rgba(255,245,225,.55),
+      inset 0 -1px 1px rgba(255,235,210,.15);
+    padding: 18px 28px 0;
+    overflow: hidden;
+  }
+
+  /* ─── Top navigation ────────────────────────────────────────── */
+  .topnav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 8px 18px;
+    border-bottom: 1px solid rgba(255,240,220,.28);
+  }
+  .brand {
+    font-family: var(--font-bricolage);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -.4px;
+    color: #3a2415;
+  }
+  .brand-mark {
+    width: 24px;
+    height: 24px;
+    position: relative;
+  }
+  .brand-mark svg { width: 100%; height: 100%; }
+
+  .navlinks {
+    display: flex;
+    gap: 4px;
+  }
+  .navlink {
+    font-family: var(--font-bricolage);
+    padding: 7px 14px;
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: -.1px;
+    color: rgba(58,36,21,.72);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background 150ms, color 150ms;
+  }
+  .navlink:hover { background: rgba(255,240,220,.3); color: #3a2415; }
+  .navlink.active { color: #3a2415; font-weight: 600; }
+
+  .cta-primary {
+    font-family: var(--font-bricolage);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -.1px;
+    color: #fff;
+    background: linear-gradient(180deg, #c67d3e 0%, #9a5424 60%, #733616 100%);
+    border-radius: 100px;
+    text-decoration: none;
+    box-shadow:
+      0 8px 20px -4px rgba(120,60,25,.55),
+      inset 0 1px 1px rgba(255,225,195,.4),
+      inset 0 -2px 4px rgba(60,25,10,.35);
+    transition: transform 150ms, box-shadow 150ms;
+    border: none;
+    cursor: pointer;
+  }
+  .cta-primary:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 12px 26px -4px rgba(120,60,25,.65),
+      inset 0 1px 1px rgba(255,225,195,.45),
+      inset 0 -2px 4px rgba(60,25,10,.4);
+  }
+
+  /* ─── Hero content ──────────────────────────────────────────── */
+  .hero-content {
+    position: relative;
+    z-index: 4;
+    text-align: center;
+    padding: 48px 24px 0;
+  }
+  .hero-title {
+    font-family: var(--font-bricolage);
+    font-size: clamp(2.4rem, 5.2vw, 4.4rem);
+    font-weight: 700;
+    letter-spacing: -1.8px;
+    color: #3a2415;
+    line-height: 1.05;
+    margin-bottom: 4px;
+    text-shadow: 0 2px 30px rgba(255,240,220,.4);
+  }
+  .hero-title .script {
+    font-family: var(--font-instrument);
+    font-weight: 400;
+    font-style: italic;
+    font-size: 1.15em;
+    background: linear-gradient(180deg, #d68a48 0%, #8a4620 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+    padding: 0 6px;
+  }
+  .hero-sub {
+    font-family: var(--font-inter);
+    margin-top: 22px;
+    font-size: 14.5px;
+    font-weight: 400;
+    color: rgba(58,36,21,.72);
+    max-width: 460px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.55;
+  }
+
+  /* ─── Input bar ─────────────────────────────────────────────── */
+  .input-bar {
+    margin: 22px auto 0;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    padding: 6px 6px 6px 20px;
+    background: rgba(255,240,220,.32);
+    border: 1px solid rgba(255,240,220,.5);
+    border-radius: 100px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow:
+      0 10px 30px -8px rgba(90,50,20,.25),
+      inset 0 1px 1px rgba(255,245,225,.5);
+  }
+  .input-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    color: #3a2415;
+    font-family: var(--font-inter);
+    padding: 10px 8px;
+  }
+  .input-bar input::placeholder { color: rgba(58,36,21,.5); }
+  .input-bar-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(180deg, #c67d3e 0%, #9a5424 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      0 6px 14px -2px rgba(120,60,25,.55),
+      inset 0 1px 1px rgba(255,225,195,.4);
+    transition: transform 150ms;
+    flex-shrink: 0;
+  }
+  .input-bar-btn:hover { transform: translateX(2px); }
+
+  /* ─── Globe — only the top half is visible ──────────────────── */
+  .globe-wrap {
+    position: relative;
+    margin: 28px auto 0;               /* stays fully inside glass-card */
+    width: min(480px, 82%);
+    aspect-ratio: 2 / 1;               /* exact half-dome ratio */
+    overflow: hidden;                  /* crop the lower hemisphere */
+    pointer-events: none;
+  }
+  .globe-canvas-wrap {
+    position: absolute;
+    left: 50%;
+    top: 0;                            /* canvas top flush with wrap top */
+    transform: translateX(-50%);
+    width: 100%;
+    aspect-ratio: 1 / 1;               /* full sphere, wrap crops lower half */
+    pointer-events: auto;
+    filter: drop-shadow(0 -20px 40px rgba(90,50,20,.25));
+  }
+  .globe-canvas-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 50%;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+    touch-action: none;
+  }
+
+  .globe-label {
+    --gl-rot: 0deg;
+    position: absolute;
+    padding: 6px 11px 5px;
+    color: #fff;
+    font-family: var(--font-bricolage);
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    white-space: nowrap;
+    border-radius: 5px;
+    box-shadow:
+      0 1px 3px rgba(0,0,0,.2),
+      0 6px 14px rgba(0,0,0,.12),
+      inset 0 -1px 0 rgba(0,0,0,.18);
+    text-shadow: 0 1px 1px rgba(0,0,0,.25);
+    overflow: hidden;
+    pointer-events: auto;
+    cursor: default;
+    z-index: 5;
+    transform-origin: center center;
+    animation:
+      gl-pop .6s ease-out backwards,
+      gl-float 5.5s ease-in-out infinite;
+    transition: box-shadow .3s ease, filter .3s ease, scale .25s ease;
+  }
+  .globe-label:hover {
+    box-shadow:
+      0 3px 8px rgba(0,0,0,.3),
+      0 14px 28px rgba(0,0,0,.22),
+      inset 0 -1px 0 rgba(0,0,0,.22);
+    filter: brightness(1.08);
+    scale: 1.08;
+    z-index: 9;
+  }
+  .globe-label::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,.1) 60%, transparent 100%);
+    border-radius: 5px 5px 50% 50%;
+    pointer-events: none;
+  }
+  @keyframes gl-pop {
+    from { opacity: 0; transform: translateY(8px) scale(.9) rotate(var(--gl-rot)); }
+    to   { opacity: 1; transform: translateY(0)   scale(1)  rotate(var(--gl-rot)); }
+  }
+  @keyframes gl-float {
+    0%, 100% { transform: translateY(0)    rotate(var(--gl-rot)); }
+    50%      { transform: translateY(-6px) rotate(calc(var(--gl-rot) + 1.2deg)); }
+  }
+
+  /* ─── Interactive feedback ──────────────────────────────────── */
+  .input-bar:focus-within {
+    background: rgba(255,245,225,.42);
+    border-color: rgba(255,240,220,.7);
+    box-shadow:
+      0 14px 36px -8px rgba(90,50,20,.3),
+      inset 0 1px 1px rgba(255,245,225,.6),
+      0 0 0 3px rgba(198,125,62,.18);
+  }
+  .input-bar.success .input-bar-btn {
+    background: linear-gradient(180deg, #4aa168 0%, #2e7a45 100%);
+    box-shadow:
+      0 6px 14px -2px rgba(46,122,69,.55),
+      inset 0 1px 1px rgba(255,255,255,.3);
+  }
+  .cta-primary:active { transform: scale(.96); }
+
+  .globe-canvas-wrap canvas {
+    transition: opacity 1.2s ease, filter .4s ease;
+  }
+  .globe-canvas-wrap:hover canvas { filter: saturate(1.12) brightness(1.04); }
+
+  .sparkle {
+    position: absolute;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, #d68a48 60%, transparent 100%);
+    pointer-events: none;
+    animation: sparkle-pop .7s ease-out forwards;
+  }
+  @keyframes sparkle-pop {
+    0%   { opacity: 1; transform: translate(-50%,-50%) scale(.4); }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(1); }
+  }
+
+  @media (max-width: 860px) {
+    .navlinks { display: none; }
+    .coin { width: 170px; height: 170px; }
+    .coin-left { left: -4%; }
+    .coin-right { right: -4%; }
+  }
+  @media (max-width: 560px) {
+    .scene { padding: 18px 14px 0; }
+    .glass-card { padding: 12px 18px 0; border-radius: 22px; }
+    .brand { font-size: 15px; }
+    .cta-primary { padding: 8px 16px; font-size: 12.5px; }
+    .hero-content { padding: 48px 14px 120px; }
+    .coin { width: 130px; height: 130px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <div class="glass-card">
+    <nav class="topnav">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 32 32" fill="none">
+            <defs>
+              <linearGradient id="sx-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#e8a96a"/>
+                <stop offset="100%" stop-color="#8a4620"/>
+              </linearGradient>
+            </defs>
+            <path d="M16 3 L28 27 L16 21 L4 27 Z" fill="url(#sx-grad)" stroke="#4a2915" stroke-width="1.2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        Bloomly
+      </div>
+      <div class="navlinks">
+        <a href="#" class="navlink active">Home</a>
+        <a href="#" class="navlink">Studio</a>
+        <a href="#" class="navlink">Templates</a>
+        <a href="#" class="navlink">Pricing</a>
+        <a href="#" class="navlink">Showcase</a>
+        <a href="#" class="navlink">Contact</a>
+      </div>
+      <a href="#" class="cta-primary">Get Started</a>
+    </nav>
+
+    <div class="hero-content">
+      <h1 class="hero-title">
+        Where Ideas Bloom into<br>
+        <span class="script">Living Brands</span>
+      </h1>
+      <p class="hero-sub">
+        Craft your brand's universe with AI-powered design tools — from logo
+        to launch, built for founders who want to move fast and feel premium.
+      </p>
+      <form class="input-bar" onsubmit="event.preventDefault()">
+        <input type="email" placeholder="Enter email address" />
+        <button type="submit" class="input-bar-btn" aria-label="Submit">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </form>
+
+      <div class="globe-wrap" id="globe-wrap">
+        <div class="globe-canvas-wrap">
+          <canvas id="cobe-globe"></canvas>
+        </div>
+        <!-- Decorative floating labels around the visible (top) hemisphere -->
+        <div class="globe-label" style="--gl-rot:-8deg; background:#c67d3e; top: 12%; left: 10%;  animation-delay:.10s, 0s;">bold identity</div>
+        <div class="globe-label" style="--gl-rot:5deg;  background:#8a4620; top: 28%; left: 50%; margin-left:-60px; animation-delay:.25s, .6s;">brand magic</div>
+        <div class="globe-label" style="--gl-rot:-3deg; background:#d68a48; top: 10%; right: 12%; animation-delay:.40s, 1.2s;">logo love</div>
+        <div class="globe-label" style="--gl-rot:7deg;  background:#6b3820; top: 62%; left: 4%;   animation-delay:.55s, .3s;">made to bloom</div>
+        <div class="globe-label" style="--gl-rot:-5deg; background:#e8a96a; top: 66%; right: 5%;  animation-delay:.70s, .9s;">premium feel</div>
+        <div class="globe-label" style="--gl-rot:4deg;  background:#9a5424; top: 48%; left: 20%;  animation-delay:.85s, 1.5s;">founder-first</div>
+        <div class="globe-label" style="--gl-rot:-6deg; background:#733616; top: 46%; right: 22%; animation-delay:1.00s, 2s;">brand soul</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+  import createGlobe from 'https://cdn.jsdelivr.net/npm/cobe@0.6.3/+esm';
+
+  const canvas = document.getElementById('cobe-globe');
+  const wrap = document.getElementById('globe-wrap');
+  if (canvas && wrap) {
+    let phi = 0;
+    let width = 0;
+    let dragging = null;
+    let phiOff = 0, thetaOff = 0;
+    let dragPhi = 0, dragTheta = 0;
+    let paused = false;
+
+    const markers = [
+      { location: [48.86, 2.35],    size: .04 },
+      { location: [35.68, 139.65],  size: .04 },
+      { location: [40.71, -74.01],  size: .05 },
+      { location: [-33.87, 151.21], size: .04 },
+      { location: [51.51, -0.13],   size: .04 },
+      { location: [-22.91, -43.17], size: .04 },
+      { location: [55.75, 37.62],   size: .04 },
+      { location: [25.2, 55.27],    size: .04 },
+      { location: [1.35, 103.82],   size: .04 },
+      { location: [-34.6, -58.38],  size: .04 },
+    ];
+
+    const onResize = () => {
+      const r = canvas.getBoundingClientRect();
+      width = r.width;
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+
+    const W = Math.max(640, width * 2);
+    let currentSpeed = 0.003;
+    let targetSpeed = 0.003;
+
+    const globe = createGlobe(canvas, {
+      devicePixelRatio: 2,
+      width: W,
+      height: W,
+      phi: 0,
+      theta: 0.22,
+      dark: 0,
+      diffuse: 1.2,
+      mapSamples: 16000,
+      mapBrightness: 6,
+      baseColor:   [0.98, 0.90, 0.78],
+      markerColor: [0.78, 0.45, 0.20],
+      glowColor:   [1, 0.95, 0.85],
+      markers,
+      onRender: (state) => {
+        currentSpeed += (targetSpeed - currentSpeed) * 0.05;
+        if (!paused) phi += currentSpeed;
+        state.phi = phi + phiOff + dragPhi;
+        state.theta = 0.22 + thetaOff + dragTheta;
+      },
+    });
+
+    requestAnimationFrame(() => canvas.style.opacity = '1');
+
+    // Globe accelerates on hover
+    const cWrap = canvas.closest('.globe-canvas-wrap');
+    cWrap?.addEventListener('pointerenter', () => { targetSpeed = 0.010; });
+    cWrap?.addEventListener('pointerleave', () => { targetSpeed = 0.003; });
+
+    // Drag interaction
+    canvas.addEventListener('pointerdown', (e) => {
+      dragging = { x: e.clientX, y: e.clientY };
+      canvas.style.cursor = 'grabbing';
+      paused = true;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      dragPhi   = (e.clientX - dragging.x) / 300;
+      dragTheta = (e.clientY - dragging.y) / 1000;
+    }, { passive: true });
+    window.addEventListener('pointerup', () => {
+      if (dragging) {
+        phiOff += dragPhi;
+        thetaOff += dragTheta;
+        dragPhi = 0; dragTheta = 0;
+      }
+      dragging = null;
+      canvas.style.cursor = 'grab';
+      paused = false;
+    });
+  }
+
+  /* ─── Nav link click → active state ─────────────────────────── */
+  document.querySelectorAll('.navlink').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.querySelectorAll('.navlink').forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
+
+  /* ─── CTA magnet effect ─────────────────────────────────────── */
+  const cta = document.querySelector('.cta-primary');
+  if (cta) {
+    const strength = 0.35;
+    cta.addEventListener('pointermove', (e) => {
+      const r = cta.getBoundingClientRect();
+      const x = (e.clientX - r.left - r.width / 2) * strength;
+      const y = (e.clientY - r.top  - r.height / 2) * strength;
+      cta.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    });
+    cta.addEventListener('pointerleave', () => { cta.style.transform = ''; });
+  }
+
+  /* ─── Email submit → success animation + sparkle burst ────── */
+  const form = document.querySelector('.input-bar');
+  const btn = form?.querySelector('.input-bar-btn');
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = form.querySelector('input');
+    if (!input?.value) { input?.focus(); return; }
+
+    form.classList.add('success');
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+    // Sparkle burst around the submit button
+    const brect = btn.getBoundingClientRect();
+    const frect = form.getBoundingClientRect();
+    const cx = brect.left - frect.left + brect.width / 2;
+    const cy = brect.top  - frect.top  + brect.height / 2;
+    for (let i = 0; i < 12; i++) {
+      const s = document.createElement('span');
+      s.className = 'sparkle';
+      s.style.left = cx + 'px';
+      s.style.top  = cy + 'px';
+      const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.4;
+      const dist = 40 + Math.random() * 30;
+      s.style.setProperty('--sx', Math.cos(angle) * dist + 'px');
+      s.style.setProperty('--sy', Math.sin(angle) * dist + 'px');
+      form.appendChild(s);
+      setTimeout(() => s.remove(), 750);
+    }
+
+    setTimeout(() => {
+      form.classList.remove('success');
+      input.value = '';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+    }, 2200);
+  });
+</script>
+
+</body>
+</html>

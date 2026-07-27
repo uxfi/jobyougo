@@ -39,11 +39,11 @@ Built by someone who used it to evaluate 740+ job offers, generate 100+ tailored
 | Feature | Description |
 |---------|-------------|
 | **Auto-Pipeline** | Paste a URL, get a full evaluation + PDF + tracker entry |
-| **6-Block Evaluation** | Role summary, CV match, level strategy, comp research, personalization, interview prep (STAR+R) |
+| **6-Block Evaluation** | Role summary, criteria check (deal-breakers), CV match, comp research, score breakdown, application form questions + draft answers |
 | **Interview Story Bank** | Accumulates STAR+Reflection stories across evaluations -- 5-10 master stories that answer any behavioral question |
 | **Negotiation Scripts** | Salary negotiation frameworks, geographic discount pushback, competing offer leverage |
 | **ATS PDF Generation** | Keyword-injected CVs with Space Grotesk + DM Sans design |
-| **Portal Scanner** | 45+ companies pre-configured (Anthropic, OpenAI, ElevenLabs, Retool, n8n...) + custom queries across Ashby, Greenhouse, Lever, Wellfound |
+| **Portal Scanner** | 50+ companies, 90+ enabled search sources, RSS feeds, public remote APIs, and optional aggregators across Europe/Asia |
 | **Batch Processing** | Parallel evaluation with `claude -p` workers |
 | **Dashboard TUI** | Terminal UI to browse, filter, and sort your pipeline |
 | **Human-in-the-Loop** | AI evaluates and recommends, you decide and act. The system never submits an application -- you always have the final call |
@@ -114,7 +114,7 @@ You paste a job URL or description
 └────────┬─────────┘
          │
 ┌────────▼─────────┐
-│  A-F Evaluation   │  Match, gaps, comp research, STAR stories
+│  A-F Evaluation   │  Criteria check, match, comp, form questions
 │  (reads cv.md)    │
 └────────┬─────────┘
          │
@@ -126,7 +126,7 @@ You paste a job URL or description
 
 ## Pre-configured Portals
 
-The scanner comes with **45+ companies** ready to scan and **19 search queries** across major job boards. Copy `templates/portals.example.yml` to `portals.yml` and add your own:
+The scanner comes with **50+ enabled companies**, **90+ enabled search sources**, RSS feeds, public remote APIs, and optional aggregator APIs. Copy `templates/portals.example.yml` to `portals.yml` and add your own:
 
 **AI Labs:** Anthropic, OpenAI, Mistral, Cohere, LangChain, Pinecone
 **Voice AI:** ElevenLabs, PolyAI, Parloa, Hume AI, Deepgram, Vapi, Bland AI
@@ -137,7 +137,14 @@ The scanner comes with **45+ companies** ready to scan and **19 search queries**
 **Automation:** n8n, Zapier, Make.com
 **European:** Factorial, Attio, Tinybird, Clarity AI, Travelperk
 
-**Job boards searched:** Ashby, Greenhouse, Lever, Wellfound, Workable, RemoteFront
+**ATS/direct sources:** Ashby, Greenhouse, Lever, Workable, company career pages
+**Search discovery:** Indeed, LinkedIn, Glassdoor, EURES, France Travail, Arbeitsagentur, Nordic public boards, JobStreet, JobsDB, Naukri, Foundit, Glints, VietnamWorks, TopCV, Japan/Korea boards
+**RSS/API feeds:** Remotive, Jobicy, Himalayas, Arbeitnow, RemoteOK, We Work Remotely, Authentic Jobs
+**Optional aggregators:** SearchAPI/SerpApi Google Jobs, TheirStack, Adzuna, Jooble, Careerjet
+
+**Remote policy:** the scanner keeps only explicit full-remote roles with compatible geography: worldwide/global, Europe/EMEA/EU, Asia/APAC, or Dubai/UAE. US-only, Canada-only, LATAM, Americas, North America, and South America remote roles are skipped. URLs/domains are not proof of remote geography.
+
+See [docs/job-source-coverage.md](docs/job-source-coverage.md) for source coverage, API keys, and platform restrictions.
 
 ## Dashboard TUI
 
@@ -266,7 +273,7 @@ Guia completa en [docs/SETUP.md](docs/SETUP.md).
 
 ## Portales incluidos
 
-El scanner viene con **45+ empresas** pre-configuradas y **19 queries** en los principales portales de empleo. Copia `templates/portals.example.yml` a `portals.yml` y añade las tuyas:
+El scanner viene con **50+ empresas activas**, **90+ fuentes de busqueda activas**, RSS feeds, APIs remotas publicas y APIs agregadoras opcionales. Copia `templates/portals.example.yml` a `portals.yml` y añade las tuyas:
 
 **AI Labs:** Anthropic, OpenAI, Mistral, Cohere, LangChain, Pinecone
 **Voice AI:** ElevenLabs, PolyAI, Parloa, Hume AI, Deepgram, Vapi, Bland AI
@@ -277,7 +284,14 @@ El scanner viene con **45+ empresas** pre-configuradas y **19 queries** en los p
 **Automatizacion:** n8n, Zapier, Make.com
 **Europa:** Factorial, Attio, Tinybird, Clarity AI, Travelperk
 
-**Portales de empleo:** Ashby, Greenhouse, Lever, Wellfound, Workable, RemoteFront
+**Fuentes ATS/directas:** Ashby, Greenhouse, Lever, Workable, paginas de carreras de empresas
+**Busqueda amplia:** Indeed, LinkedIn, Glassdoor, EURES, France Travail, Arbeitsagentur, portales publicos nordicos, JobStreet, JobsDB, Naukri, Foundit, Glints, VietnamWorks, TopCV, portales de Japon/Corea
+**RSS/API:** Remotive, Jobicy, Himalayas, Arbeitnow, RemoteOK, We Work Remotely, Authentic Jobs
+**Agregadores opcionales:** SearchAPI/SerpApi Google Jobs, TheirStack, Adzuna, Jooble, Careerjet
+
+**Politica remote:** el scanner conserva solo puestos full remote explicitos con geografia compatible: worldwide/global, Europe/EMEA/EU, Asia/APAC o Dubai/UAE. Los puestos remote solo para US, Canada, LATAM, Americas, North America o South America se descartan. Las URLs/dominios no cuentan como prueba de geografia remote.
+
+Consulta [docs/job-source-coverage.md](docs/job-source-coverage.md) para cobertura de fuentes, claves API y restricciones de plataformas.
 
 ## Uso
 

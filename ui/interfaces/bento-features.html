@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feature Bento</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #edecea;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+  }
+
+  .bento {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    max-width: 760px;
+    width: 100%;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 24px 22px 22px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.07);
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111;
+    letter-spacing: -0.3px;
+    line-height: 1.35;
+    margin-bottom: 5px;
+  }
+
+  .card-desc {
+    font-size: 11.5px;
+    color: #aaa;
+    line-height: 1.65;
+  }
+
+  /* ── Shared visual zone ── */
+  .visual { margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="bento">
+
+  <!-- ── Card 1: Automate Growth ── -->
+  <div class="card">
+    <div class="visual" style="display:flex;justify-content:center;align-items:center;padding:14px 0 18px;">
+      <svg width="148" height="148" viewBox="0 0 148 148">
+        <!-- Track -->
+        <circle cx="74" cy="74" r="54" fill="none" stroke="#ebebeb" stroke-width="17"/>
+        <!-- 24% arc — circumference = 2π×54 ≈ 339.3; 24% ≈ 81.4 -->
+        <circle cx="74" cy="74" r="54" fill="none" stroke="#3bc8d4" stroke-width="17"
+          stroke-dasharray="81.4 257.9"
+          stroke-linecap="round"
+          transform="rotate(-90 74 74)"/>
+        <!-- Center -->
+        <text x="74" y="70" text-anchor="middle"
+              font-family="Inter,system-ui,sans-serif"
+              font-size="26" font-weight="800" fill="#111">24%</text>
+        <text x="74" y="86" text-anchor="middle"
+              font-family="Inter,system-ui,sans-serif"
+              font-size="10" fill="#ccc" letter-spacing="0.8">growth</text>
+      </svg>
+    </div>
+    <div class="card-title">Automate Your Growth Engine</div>
+    <div class="card-desc">Set up self-running campaigns that capture leads, nurture relationships, and close sales—while you sleep.</div>
+  </div>
+
+  <!-- ── Card 2: Real-Time Performance ── -->
+  <div class="card">
+    <div class="visual">
+      <!-- Header -->
+      <div style="font-size:10px;font-weight:600;color:#c8c8c8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;">Sales Revenue</div>
+      <div style="font-size:25px;font-weight:800;color:#111;letter-spacing:-0.9px;margin-bottom:18px;">$28,890.10</div>
+
+      <!-- Bar chart: ascending, all same teal, value label on tallest -->
+      <div style="position:relative;">
+        <svg width="100%" height="88" viewBox="0 0 248 88" preserveAspectRatio="none">
+          <!-- Floating value label -->
+          <text x="225" y="9" text-anchor="end"
+                font-family="Inter,sans-serif" font-size="8.5" fill="#bbb" font-weight="500">$9,562.50</text>
+          <!-- Tick line from label -->
+          <line x1="228" y1="7" x2="236" y2="7" stroke="#ddd" stroke-width="1"/>
+
+          <!-- Bars — ascending left to right, all teal -->
+          <rect x="0"   y="70" width="26" height="18" rx="4" fill="#a8e6ed"/>
+          <rect x="31"  y="58" width="26" height="30" rx="4" fill="#6dd5e0"/>
+          <rect x="62"  y="50" width="26" height="38" rx="4" fill="#6dd5e0"/>
+          <rect x="93"  y="40" width="26" height="48" rx="4" fill="#3bc8d4"/>
+          <rect x="124" y="32" width="26" height="56" rx="4" fill="#3bc8d4"/>
+          <rect x="155" y="22" width="26" height="66" rx="4" fill="#2ab8c4"/>
+          <rect x="186" y="12" width="26" height="76" rx="4" fill="#2ab8c4"/>
+          <rect x="217" y="4"  width="26" height="84" rx="4" fill="#1fa8b4"/>
+        </svg>
+      </div>
+    </div>
+    <div class="card-title">Real-Time Performance Tracking</div>
+    <div class="card-desc">Monitor key metrics — sales, traffic, and customer behavior. Make data-driven decisions with live updates.</div>
+  </div>
+
+  <!-- ── Card 3: Smarter Pipeline ── -->
+  <div class="card">
+    <div class="visual" style="display:flex;align-items:center;gap:16px;padding:10px 0 18px;">
+      <!-- Ring chart -->
+      <svg width="118" height="118" viewBox="0 0 118 118" style="flex-shrink:0;">
+        <!-- Outer dotted decoration -->
+        <circle cx="59" cy="59" r="56" fill="none" stroke="#efefef" stroke-width="1"
+          stroke-dasharray="2.5 5.5"/>
+        <!-- Track -->
+        <circle cx="59" cy="59" r="42" fill="none" stroke="#ebebeb" stroke-width="14"/>
+        <!-- ~66% fill — circumference = 2π×42 ≈ 263.9; 66% ≈ 174.2 -->
+        <circle cx="59" cy="59" r="42" fill="none" stroke="#2563eb" stroke-width="14"
+          stroke-dasharray="174.2 89.7"
+          stroke-linecap="round"
+          transform="rotate(-90 59 59)"/>
+        <!-- Inner subtle ring -->
+        <circle cx="59" cy="59" r="27" fill="none" stroke="#f3f3f3" stroke-width="1.5"/>
+        <!-- Center -->
+        <text x="59" y="55" text-anchor="middle"
+              font-family="Inter,system-ui,sans-serif"
+              font-size="18" font-weight="800" fill="#111">66%</text>
+        <text x="59" y="69" text-anchor="middle"
+              font-family="Inter,system-ui,sans-serif"
+              font-size="8.5" fill="#ccc" letter-spacing=".5">pipeline</text>
+      </svg>
+
+      <!-- Legend -->
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#2563eb;flex-shrink:0;"></div>
+          <span style="font-size:11.5px;font-weight:600;color:#555;">Sales Team</span>
+        </div>
+        <div style="font-size:10.5px;color:#bbb;line-height:1.6;">Team conversion<br>rate this quarter</div>
+      </div>
+    </div>
+    <div class="card-title">Smarter Pipeline, Higher Conversions</div>
+    <div class="card-desc">Gain visibility into sales to identify opportunities. Automate follow-ups and track progress.</div>
+  </div>
+
+  <!-- ── Card 4: Sell Everywhere ── -->
+  <div class="card">
+    <div class="visual">
+      <!-- Stat top-right -->
+      <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+        <div style="font-size:16px;font-weight:800;color:#111;letter-spacing:-0.4px;">$18,890.70</div>
+      </div>
+
+      <!-- World map SVG -->
+      <svg width="100%" height="98" viewBox="0 0 268 106" style="overflow:visible;">
+        <!-- North America -->
+        <path d="M12,16 Q20,8 38,10 Q54,8 62,16 Q68,26 64,40 Q58,53 46,51 Q28,48 16,38 Q8,30 12,16Z" fill="#e8e8e8"/>
+        <!-- Greenland -->
+        <path d="M46,2 Q54,0 58,5 Q62,10 58,16 Q52,20 46,16 Q41,10 46,2Z" fill="#e8e8e8"/>
+        <!-- South America -->
+        <path d="M40,64 Q53,57 64,61 Q73,66 71,83 Q66,96 56,98 Q45,96 41,84 Q38,72 40,64Z" fill="#e8e8e8"/>
+        <!-- Europe -->
+        <path d="M106,10 Q120,6 128,12 Q134,18 130,30 Q124,38 114,36 Q106,30 106,20Z" fill="#e8e8e8"/>
+        <!-- Africa -->
+        <path d="M108,44 Q120,39 130,44 Q139,51 137,68 Q132,84 121,88 Q110,85 106,70 Q102,57 108,44Z" fill="#e8e8e8"/>
+        <!-- N. Asia / Russia -->
+        <path d="M140,2 Q172,0 204,6 Q224,10 230,22 Q226,36 210,42 Q188,48 164,44 Q144,38 140,24Z" fill="#e8e8e8"/>
+        <!-- Middle East -->
+        <path d="M136,42 Q148,38 158,44 Q166,50 162,62 Q155,70 144,68 Q136,60 136,50Z" fill="#e8e8e8"/>
+        <!-- SE Asia -->
+        <path d="M190,54 Q204,50 214,57 Q220,65 215,76 Q207,82 198,77 Q190,70 190,58Z" fill="#e8e8e8"/>
+        <!-- Australia -->
+        <path d="M200,72 Q218,68 228,76 Q235,84 230,95 Q220,103 208,100 Q198,93 200,79Z" fill="#e8e8e8"/>
+
+        <!-- USA pulse -->
+        <circle cx="36" cy="28" r="10" fill="#3bc8d4" opacity="0.12"/>
+        <circle cx="36" cy="28" r="5" fill="#3bc8d4"/>
+        <!-- Brazil pulse -->
+        <circle cx="54" cy="76" r="8" fill="#3bc8d4" opacity="0.12"/>
+        <circle cx="54" cy="76" r="4" fill="#3bc8d4"/>
+        <!-- UK pulse -->
+        <circle cx="116" cy="20" r="8" fill="#3bc8d4" opacity="0.12"/>
+        <circle cx="116" cy="20" r="4" fill="#3bc8d4"/>
+        <!-- Indonesia pulse -->
+        <circle cx="202" cy="65" r="8" fill="#3bc8d4" opacity="0.12"/>
+        <circle cx="202" cy="65" r="4" fill="#3bc8d4"/>
+      </svg>
+
+      <!-- Location labels -->
+      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div style="width:5px;height:5px;border-radius:50%;background:#3bc8d4;"></div>
+          <span style="font-size:10px;color:#aaa;font-weight:500;">USA</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div style="width:5px;height:5px;border-radius:50%;background:#3bc8d4;"></div>
+          <span style="font-size:10px;color:#aaa;font-weight:500;">Brazil</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div style="width:5px;height:5px;border-radius:50%;background:#3bc8d4;"></div>
+          <span style="font-size:10px;color:#aaa;font-weight:500;">Indonesia</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div style="width:5px;height:5px;border-radius:50%;background:#3bc8d4;"></div>
+          <span style="font-size:10px;color:#aaa;font-weight:500;">UK</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-title">Sell Everywhere, Seamlessly</div>
+    <div class="card-desc">Manage and sell your products across websites, social media, and marketplaces from one unified dashboard.</div>
+  </div>
+
+</div>
+</body>
+</html>

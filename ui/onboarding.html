@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Career Ops — Set up your profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #08090a;
+    --panel:     #0f1011;
+    --surface:   #191a1b;
+    --surface-2: #28282c;
+    --text-1:    #f7f8f8;
+    --text-2:    #d0d6e0;
+    --text-3:    #8a8f98;
+    --text-4:    #62666d;
+    --brand:     #5e6ad2;
+    --accent:    #7170ff;
+    --accent-h:  #828fff;
+    --border:    rgba(255,255,255,0.08);
+    --border-s:  rgba(255,255,255,0.05);
+    --red:       #ef4444;
+    --green:     #27a644;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-feature-settings: "cv01","ss03";
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 32px 24px 80px;
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-icon {
+    width: 28px; height: 28px;
+    background: var(--brand);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff;
+  }
+  .brand-name {
+    font-size: 15px;
+    font-weight: 590;
+    letter-spacing: -0.2px;
+  }
+
+  .topbar-meta {
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .topbar-meta a {
+    color: var(--text-3);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 1px;
+  }
+  .topbar-meta a:hover { color: var(--text-1); }
+
+  .progress {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 500;
+  }
+  .progress-track {
+    height: 4px;
+    background: var(--surface);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--brand);
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+  }
+
+  .step-header {
+    margin-bottom: 24px;
+  }
+  .step-eyebrow {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .step-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-1);
+    letter-spacing: -0.4px;
+    margin-bottom: 6px;
+  }
+  .step-sub {
+    font-size: 13px;
+    color: var(--text-3);
+    line-height: 1.55;
+  }
+
+  .step { display: none; }
+  .step.active { display: block; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .grid .full { grid-column: 1 / -1; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-3);
+    letter-spacing: 0.01em;
+  }
+  .field .hint {
+    font-size: 11px;
+    color: var(--text-4);
+    margin-top: 2px;
+  }
+  .field .err {
+    font-size: 11px;
+    color: #fca5a5;
+    margin-top: 2px;
+    display: none;
+  }
+  .field.invalid .err { display: block; }
+  .field.invalid input,
+  .field.invalid select,
+  .field.invalid textarea,
+  .field.invalid .tags {
+    border-color: rgba(239,68,68,0.5);
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-1);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+    line-height: 1.4;
+  }
+  textarea {
+    resize: vertical;
+    min-height: 96px;
+    line-height: 1.5;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+  }
+  input::placeholder, textarea::placeholder { color: var(--text-4); }
+  input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 7px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    min-height: 38px;
+    align-items: center;
+    cursor: text;
+    transition: border-color 0.15s;
+  }
+  .tags:focus-within { border-color: var(--accent); }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px 3px 9px;
+    background: var(--surface-2);
+    border-radius: 5px;
+    font-size: 13px;
+    color: var(--text-1);
+  }
+  .tag button {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+  }
+  .tag button:hover { color: var(--text-1); }
+  .tags input.tag-input {
+    flex: 1;
+    min-width: 80px;
+    background: transparent;
+    border: none;
+    padding: 4px 4px;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .repeater {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .repeater-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+  }
+  .repeater-row .row-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .repeater-row .row-3 { grid-template-columns: 2fr 1fr 1fr; }
+  .repeater-row .row-2 { grid-template-columns: 1fr 1fr; }
+  .repeater-row input { padding: 7px 10px; font-size: 13px; }
+  .repeater-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .btn-tiny {
+    padding: 5px 9px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-3);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-tiny:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--text-1);
+    border-color: rgba(255,255,255,0.15);
+  }
+  .btn-add {
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 7px;
+    color: var(--text-3);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .btn-add:hover {
+    border-color: var(--accent);
+    color: var(--text-1);
+  }
+
+  .btn {
+    padding: 10px 16px;
+    background: var(--brand);
+    border: none;
+    border-radius: 7px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 590;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    letter-spacing: -0.1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn:hover { background: var(--accent-h); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .btn-ghost {
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-2);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.15);
+    color: var(--text-1);
+  }
+  .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .nav-right { display: flex; gap: 8px; align-items: center; }
+
+  .alert {
+    padding: 10px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    margin-top: 14px;
+    display: none;
+  }
+  .alert.error { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; display: block; }
+  .alert.success { background: rgba(39,166,68,0.12); border: 1px solid rgba(39,166,68,0.25); color: #86efac; display: block; }
+  .alert.info { background: rgba(94,106,210,0.12); border: 1px solid rgba(94,106,210,0.25); color: #c0c8ff; display: block; }
+
+  /* CV import step */
+  .cv-options {
+    display: grid;
+    gap: 12px;
+  }
+  .dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--surface);
+    transition: all 0.15s;
+  }
+  .dropzone:hover {
+    border-color: var(--accent);
+    background: rgba(94,106,210,0.05);
+  }
+  .dropzone.drag {
+    border-color: var(--accent);
+    background: rgba(94,106,210,0.08);
+  }
+  .dropzone-icon {
+    width: 32px; height: 32px;
+    margin: 0 auto 10px;
+    color: var(--text-3);
+  }
+  .dropzone-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-1);
+    margin-bottom: 4px;
+  }
+  .dropzone-sub {
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .dropzone-file {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .or-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-4);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .or-divider::before, .or-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .cv-textarea {
+    min-height: 200px;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 13px;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .review-summary {
+    background: var(--surface);
+    border: 1px solid var(--border-s);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.7;
+  }
+  .review-summary strong { color: var(--text-1); font-weight: 590; }
+  .review-summary .muted { color: var(--text-4); }
+
+  @media (max-width: 600px) {
+    body { padding: 20px 12px 60px; }
+    .card { padding: 22px; }
+    .grid { grid-template-columns: 1fr; }
+    .repeater-row .row-3, .repeater-row .row-2 { grid-template-columns: 1fr; }
+    .step-title { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">C</div>
+      <span class="brand-name">Career Ops</span>
+    </div>
+    <div class="topbar-meta" id="topbar-meta">
+      <span id="topbar-email"></span>
+      &nbsp;·&nbsp;
+      <a href="#" id="signout-link">Sign out</a>
+    </div>
+  </div>
+
+  <div class="progress">
+    <div class="progress-label">
+      <span id="step-label">Step 1 of 8</span>
+      <span id="step-name">Import your CV</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+
+  <div class="card">
+
+    <!-- ── Step 0: CV Import ─────────────────────────────────────── -->
+    <section class="step active" data-step="0">
+      <div class="step-header">
+        <div class="step-eyebrow">Get started</div>
+        <h1 class="step-title">Import your CV to auto-fill</h1>
+        <p class="step-sub">Upload a PDF or paste your CV text — we'll extract your profile and pre-fill the next steps. You can review and edit everything.</p>
+      </div>
+
+      <div class="cv-options">
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="cv-file" accept="application/pdf,.pdf,.txt,.md" hidden>
+          <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="dropzone-title">Drop a PDF or click to upload</div>
+          <div class="dropzone-sub">PDF, .txt or .md — up to 5 MB</div>
+          <div class="dropzone-file" id="dropzone-file"></div>
+        </label>
+
+        <div class="or-divider">or</div>
+
+        <div class="field full">
+          <label for="cv-text">Paste CV text</label>
+          <textarea class="cv-textarea" id="cv-text" placeholder="# Jane Smith&#10;## Experience&#10;- Senior Engineer at..."></textarea>
+        </div>
+
+        <div class="alert" id="cv-alert"></div>
+      </div>
+
+      <div class="nav">
+        <button class="btn-ghost" id="cv-skip">Fill manually</button>
+        <button class="btn" id="cv-parse-btn">
+          <span id="cv-parse-label">Auto-fill profile</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ── Step 1: Identity ──────────────────────────────────────── -->
+    <section class="step" data-step="1">
+      <div class="step-header">
+        <div class="step-eyebrow">Step 1</div>
+        <h1 class="step-title">Your identity</h1>
+        <p class="step-sub">Used in the header of every tailored CV and cover letter.</p>
+      </div>
+
+      <div class="grid">
+        <div class="field full">
+          <label for="full_name">Full name *</label>
+          <input id="full_name" data-required type="text" placeholder="Jane Doe">
+          <div class="err">Required</div>
+        </div>
+        <div class="field">
+          <label for="email">Email *</label>
+          <input id="email" data-required type="email" disabled>
+          <div class="hint">From your account</div>
+        </div>
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input id="phone" type="tel" placeholder="+33 6 12 34 56 78">
+        </div>
+        <div class="field">
+          <label for="location">Current location *</label>
+          <input id="location" data-required type="text" placeholder="Paris, France">
+          <div class="err">Required</div>
+        </div>
+        <div class="field">
+          <label for="linkedin">LinkedIn</label>
+          <input id="linkedin" type="text" placeholder="linkedin.com/in/hugo">
+        </div>
+        <div class="field">
+          <label for="portfolio_url">Portfolio URL</label>
+          <input id="portfolio_url" type="url" placeholder="https://yourname.dev">
+        </div>
+        <div class="field">
+          <label for="github">GitHub</label>
+          <input id="github" type="text" placeholder="github.com/hugo">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 2: Target Roles ──────────────────────────────────── -->
+    <section class="step" data-step="2">
+      <div class="step-header">
+        <div class="step-eyebrow">Step 2</div>
+        <h1 class="step-title">Target roles</h1>
+        <p class="step-sub">The North Star for the scanner — offers will be filtered against these titles and archetypes.</p>
+      </div>
+
+      <div class="field" data-tags-for="primary">
+        <label>Primary target roles *</label>
+        <div class="tags" data-tags-input data-required>
+          <input class="tag-input" type="text" placeholder="Type a role and press Enter — e.g. Senior AI Engineer">
+        </div>
+        <div class="hint">1–3 specific job titles you're optimizing for</div>
+        <div class="err">Add at least one role</div>
+      </div>
+
+      <div style="margin-top: 18px;">
+        <label style="font-size:12px;font-weight:500;color:var(--text-3);display:block;margin-bottom:8px;">Role archetypes (optional)</label>
+        <div class="repeater" id="archetypes-list"></div>
+        <button class="btn-add" id="add-archetype" style="margin-top:8px;width:100%;">+ Add archetype</button>
+        <div class="hint" style="font-size:11px;color:var(--text-4);margin-top:6px;">Family of roles to score against (e.g. "AI/ML Engineer", level "Senior", fit "primary")</div>
+      </div>
+    </section>
+
+    <!-- ── Step 3: Narrative ─────────────────────────────────────── -->
+    <section class="step" data-step="3">
+      <div class="step-header">
+        <div class="step-eyebrow">Step 3</div>
+        <h1 class="step-title">Your narrative</h1>
+        <p class="step-sub">Used by the LLM to pitch you in cover letters and tailor the CV summary.</p>
+      </div>
+
+      <div class="grid">
+        <div class="field full">
+          <label for="headline">Professional headline</label>
+          <input id="headline" type="text" placeholder="ML Engineer turned AI product builder" maxlength="100">
+          <div class="hint">One line, max 100 chars</div>
+        </div>
+        <div class="field full">
+          <label for="exit_story">Exit story / what makes you unique</label>
+          <textarea id="exit_story" placeholder="Built and sold my SaaS after 5 years. Now focused on applied AI at scale." rows="3"></textarea>
+        </div>
+        <div class="field full" data-tags-for="superpowers">
+          <label>Superpowers</label>
+          <div class="tags" data-tags-input>
+            <input class="tag-input" type="text" placeholder="Press Enter — e.g. End-to-end ML pipelines">
+          </div>
+          <div class="hint">3–5 short capabilities</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px;">
+        <label style="font-size:12px;font-weight:500;color:var(--text-3);display:block;margin-bottom:8px;">Proof points</label>
+        <div class="repeater" id="proof-list"></div>
+        <button class="btn-add" id="add-proof" style="margin-top:8px;width:100%;">+ Add proof point</button>
+        <div class="hint" style="font-size:11px;color:var(--text-4);margin-top:6px;">Projects, articles, case studies with a hard metric or outcome</div>
+      </div>
+    </section>
+
+    <!-- ── Step 4: Compensation ──────────────────────────────────── -->
+    <section class="step" data-step="4">
+      <div class="step-header">
+        <div class="step-eyebrow">Step 4</div>
+        <h1 class="step-title">Compensation</h1>
+        <p class="step-sub">Used to filter offers and as your anchor in negotiation prompts.</p>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="target_range">Target total comp</label>
+          <input id="target_range" type="text" placeholder="$150K–200K">
+        </div>
+        <div class="field">
+          <label for="currency">Currency</label>
+          <select id="currency">
+            <option value="EUR">EUR</option>
+            <option value="USD">USD</option>
+            <option value="GBP">GBP</option>
+            <option value="CHF">CHF</option>
+            <option value="CAD">CAD</option>
+            <option value="AUD">AUD</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="minimum">Walk-away minimum</label>
+          <input id="minimum" type="text" placeholder="$120K">
+        </div>
+        <div class="field">
+          <label for="location_flexibility">Location flexibility</label>
+          <input id="location_flexibility" type="text" placeholder="Remote preferred, 1 week/month on-site">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 5: Location ──────────────────────────────────────── -->
+    <section class="step" data-step="5">
+      <div class="step-header">
+        <div class="step-eyebrow">Step 5</div>
+        <h1 class="step-title">Location & mobility</h1>
+        <p class="step-sub">Geographic filter for the scanner — offers outside this scope will be excluded.</p>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="loc_country">Country *</label>
+          <input id="loc_country" data-required type="text" placeholder="France">
+          <div class="err">Required</div>
+        </div>
+        <div class="field">
+          <label for="loc_city">City</label>
+          <input id="loc_city" type="text" placeholder="Paris">
+        </div>
+        <div class="field">
+          <label for="loc_timezone">Timezone</label>
+          <input id="loc_timezone" type="text" placeholder="CET">
+        </div>
+        <div class="field">
+          <label for="loc_visa">Visa status</label>
+          <input id="loc_visa" type="text" placeholder="EU citizen — no sponsorship needed">
+        </div>
+        <div class="field full">
+          <label for="loc_remote">Remote policy</label>
+          <input id="loc_remote" type="text" placeholder="Full remote preferred, hybrid OK in Paris">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 6: Search Preferences ────────────────────────────── -->
+    <section class="step" data-step="6">
+      <div class="step-header">
+        <div class="step-eyebrow">Step 6</div>
+        <h1 class="step-title">Search preferences</h1>
+        <p class="step-sub">Hard and soft filters applied during scan and pipeline evaluation.</p>
+      </div>
+
+      <div class="grid">
+        <div class="field full" data-tags-for="contract_types">
+          <label>Contract types</label>
+          <div class="tags" data-tags-input>
+            <input class="tag-input" type="text" placeholder="Salaried, Freelance, Contractor…">
+          </div>
+        </div>
+        <div class="field full" data-tags-for="sector_preferences">
+          <label>Sector preferences</label>
+          <div class="tags" data-tags-input>
+            <input class="tag-input" type="text" placeholder="AI / SaaS, Fintech, Climate…">
+          </div>
+        </div>
+        <div class="field full" data-tags-for="geography_preferences">
+          <label>Geography preferences</label>
+          <div class="tags" data-tags-input>
+            <input class="tag-input" type="text" placeholder="EU, US (if remote)…">
+          </div>
+        </div>
+        <div class="field full" data-tags-for="must_haves">
+          <label>Must-haves</label>
+          <div class="tags" data-tags-input>
+            <input class="tag-input" type="text" placeholder="Strong AI/ML stack, remote-friendly…">
+          </div>
+        </div>
+        <div class="field full" data-tags-for="nice_to_haves">
+          <label>Nice-to-haves</label>
+          <div class="tags" data-tags-input>
+            <input class="tag-input" type="text" placeholder="Equity, builder culture, growth path…">
+          </div>
+        </div>
+        <div class="field full" data-tags-for="deal_breakers">
+          <label>Deal breakers</label>
+          <div class="tags" data-tags-input>
+            <input class="tag-input" type="text" placeholder="4+ days on-site, no AI focus…">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 7: CV Review ────────────────────────────────────── -->
+    <section class="step" data-step="7">
+      <div class="step-header">
+        <div class="step-eyebrow">Step 7</div>
+        <h1 class="step-title">Review your CV</h1>
+        <p class="step-sub">This markdown is the source of truth for tailored PDFs. Edit anything that's wrong.</p>
+      </div>
+
+      <div class="field full">
+        <label for="cv_markdown">CV (markdown) *</label>
+        <textarea id="cv_markdown" data-required class="cv-textarea" style="min-height:380px;" placeholder="# Your Name&#10;&#10;## Summary&#10;&#10;## Experience&#10;..."></textarea>
+        <div class="hint">Standard sections: Summary, Experience, Projects, Education, Skills</div>
+        <div class="err">Required</div>
+      </div>
+
+      <div class="alert" id="submit-alert"></div>
+    </section>
+
+    <!-- ── Nav (shared) ─────────────────────────────────────────── -->
+    <div class="nav" id="main-nav" style="display:none;">
+      <button class="btn-ghost" id="back-btn">← Back</button>
+      <div class="nav-right">
+        <span id="nav-status" style="font-size:12px;color:var(--text-4);"></span>
+        <button class="btn" id="next-btn">Continue →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- pdf.js for client-side PDF text extraction -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.js';
+  }
+</script>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  const SUPABASE_URL  = '__SUPABASE_URL__';
+  const SUPABASE_ANON = '__SUPABASE_ANON_KEY__';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // ── Auth gate ──────────────────────────────────────────────────
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { window.location.href = '/login'; }
+  const userEmail = session.user.email;
+  document.getElementById('topbar-email').textContent = userEmail;
+  document.getElementById('email').value = userEmail;
+
+  document.getElementById('signout-link').addEventListener('click', async (e) => {
+    e.preventDefault();
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  });
+
+  // Authed fetch helper
+  async function authFetch(url, opts = {}) {
+    const headers = { ...(opts.headers || {}), Authorization: `Bearer ${session.access_token}` };
+    if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    return fetch(url, { ...opts, headers });
+  }
+
+  // ── State ──────────────────────────────────────────────────────
+  const TOTAL_STEPS = 8;
+  const STEP_NAMES = [
+    'Import your CV', 'Identity', 'Target roles', 'Narrative',
+    'Compensation', 'Location & mobility', 'Search preferences', 'Review CV'
+  ];
+  const DRAFT_KEY = `careerops:onboarding-draft:${session.user.id}`;
+
+  const state = {
+    step: 0,
+    cvImported: false,
+    profile: {
+      candidate: { full_name: '', email: userEmail, phone: '', location: '', linkedin: '', portfolio_url: '', github: '' },
+      target_roles: { primary: [], archetypes: [] },
+      narrative: { headline: '', exit_story: '', superpowers: [], proof_points: [] },
+      compensation: { target_range: '', currency: 'EUR', minimum: '', location_flexibility: '' },
+      location: { country: '', city: '', timezone: '', visa_status: '', remote_policy: '' },
+      search: { contract_types: [], sector_preferences: [], geography_preferences: [], must_haves: [], nice_to_haves: [], deal_breakers: [] },
+    },
+    cv_markdown: '',
+  };
+
+  // Restore draft if any
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      const draft = JSON.parse(raw);
+      if (draft && draft.profile) {
+        Object.assign(state.profile, draft.profile);
+        state.profile.candidate.email = userEmail;
+        state.cv_markdown = draft.cv_markdown || '';
+        state.step = Math.min(draft.step || 0, TOTAL_STEPS - 1);
+        state.cvImported = !!draft.cvImported;
+      }
+    }
+  } catch {}
+
+  function saveDraft() {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        step: state.step,
+        cvImported: state.cvImported,
+        profile: state.profile,
+        cv_markdown: state.cv_markdown,
+      }));
+    } catch {}
+  }
+
+  // ── Tag inputs ─────────────────────────────────────────────────
+  function getTagsField(name) {
+    return document.querySelector(`[data-tags-for="${name}"]`);
+  }
+  function renderTags(name, values) {
+    const field = getTagsField(name);
+    if (!field) return;
+    const container = field.querySelector('.tags');
+    container.querySelectorAll('.tag').forEach(el => el.remove());
+    const input = container.querySelector('input');
+    values.forEach((val, idx) => {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = val;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = '×';
+      btn.addEventListener('click', () => {
+        const list = readTagsState(name);
+        list.splice(idx, 1);
+        writeTagsState(name, list);
+        renderTags(name, list);
+      });
+      tag.appendChild(btn);
+      container.insertBefore(tag, input);
+    });
+  }
+  function readTagsState(name) {
+    if (name === 'primary') return [...state.profile.target_roles.primary];
+    if (name === 'superpowers') return [...state.profile.narrative.superpowers];
+    if (state.profile.search[name]) return [...state.profile.search[name]];
+    return [];
+  }
+  function writeTagsState(name, list) {
+    if (name === 'primary') state.profile.target_roles.primary = list;
+    else if (name === 'superpowers') state.profile.narrative.superpowers = list;
+    else if (state.profile.search[name] !== undefined) state.profile.search[name] = list;
+    saveDraft();
+  }
+  function setupTagsInput(field) {
+    const name = field.getAttribute('data-tags-for');
+    const container = field.querySelector('.tags');
+    const input = container.querySelector('input');
+    container.addEventListener('click', () => input.focus());
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const v = input.value.trim().replace(/,$/, '').trim();
+        if (!v) return;
+        const list = readTagsState(name);
+        if (!list.includes(v)) {
+          list.push(v);
+          writeTagsState(name, list);
+          renderTags(name, list);
+        }
+        input.value = '';
+        field.classList.remove('invalid');
+      } else if (e.key === 'Backspace' && !input.value) {
+        const list = readTagsState(name);
+        if (list.length) {
+          list.pop();
+          writeTagsState(name, list);
+          renderTags(name, list);
+        }
+      }
+    });
+  }
+  document.querySelectorAll('[data-tags-for]').forEach(f => setupTagsInput(f));
+
+  // ── Repeater: archetypes ───────────────────────────────────────
+  function renderArchetypes() {
+    const list = document.getElementById('archetypes-list');
+    list.innerHTML = '';
+    state.profile.target_roles.archetypes.forEach((arch, idx) => {
+      const row = document.createElement('div');
+      row.className = 'repeater-row';
+      row.innerHTML = `
+        <div class="row-grid row-3">
+          <input type="text" placeholder="Role family" value="${escapeHtml(arch.name || '')}" data-key="name">
+          <select data-key="level">
+            <option value="">Level</option>
+            ${['Junior','Mid','Senior','Staff','Principal'].map(l =>
+              `<option value="${l}" ${arch.level===l?'selected':''}>${l}</option>`).join('')}
+          </select>
+          <select data-key="fit">
+            <option value="">Fit</option>
+            ${['primary','secondary','adjacent'].map(f =>
+              `<option value="${f}" ${arch.fit===f?'selected':''}>${f}</option>`).join('')}
+          </select>
+        </div>
+        <div class="repeater-actions"><button class="btn-tiny" type="button">Remove</button></div>
+      `;
+      row.querySelectorAll('[data-key]').forEach(input => {
+        input.addEventListener('input', () => {
+          arch[input.dataset.key] = input.value;
+          saveDraft();
+        });
+        input.addEventListener('change', () => {
+          arch[input.dataset.key] = input.value;
+          saveDraft();
+        });
+      });
+      row.querySelector('.btn-tiny').addEventListener('click', () => {
+        state.profile.target_roles.archetypes.splice(idx, 1);
+        renderArchetypes();
+        saveDraft();
+      });
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('add-archetype').addEventListener('click', () => {
+    state.profile.target_roles.archetypes.push({ name: '', level: '', fit: '' });
+    renderArchetypes();
+    saveDraft();
+  });
+
+  // ── Repeater: proof points ─────────────────────────────────────
+  function renderProofs() {
+    const list = document.getElementById('proof-list');
+    list.innerHTML = '';
+    state.profile.narrative.proof_points.forEach((p, idx) => {
+      const row = document.createElement('div');
+      row.className = 'repeater-row';
+      row.innerHTML = `
+        <input type="text" placeholder="Project name" value="${escapeHtml(p.name || '')}" data-key="name">
+        <div class="row-grid row-2">
+          <input type="text" placeholder="URL (optional)" value="${escapeHtml(p.url || '')}" data-key="url">
+          <input type="text" placeholder="Hero metric (e.g. 40% latency cut)" value="${escapeHtml(p.hero_metric || '')}" data-key="hero_metric">
+        </div>
+        <div class="repeater-actions"><button class="btn-tiny" type="button">Remove</button></div>
+      `;
+      row.querySelectorAll('[data-key]').forEach(input => {
+        input.addEventListener('input', () => {
+          p[input.dataset.key] = input.value;
+          saveDraft();
+        });
+      });
+      row.querySelector('.btn-tiny').addEventListener('click', () => {
+        state.profile.narrative.proof_points.splice(idx, 1);
+        renderProofs();
+        saveDraft();
+      });
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('add-proof').addEventListener('click', () => {
+    state.profile.narrative.proof_points.push({ name: '', url: '', hero_metric: '' });
+    renderProofs();
+    saveDraft();
+  });
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ── Bind simple inputs to state ───────────────────────────────
+  const SIMPLE_BINDINGS = [
+    ['full_name', 'profile.candidate.full_name'],
+    ['phone', 'profile.candidate.phone'],
+    ['location', 'profile.candidate.location'],
+    ['linkedin', 'profile.candidate.linkedin'],
+    ['portfolio_url', 'profile.candidate.portfolio_url'],
+    ['github', 'profile.candidate.github'],
+    ['headline', 'profile.narrative.headline'],
+    ['exit_story', 'profile.narrative.exit_story'],
+    ['target_range', 'profile.compensation.target_range'],
+    ['currency', 'profile.compensation.currency'],
+    ['minimum', 'profile.compensation.minimum'],
+    ['location_flexibility', 'profile.compensation.location_flexibility'],
+    ['loc_country', 'profile.location.country'],
+    ['loc_city', 'profile.location.city'],
+    ['loc_timezone', 'profile.location.timezone'],
+    ['loc_visa', 'profile.location.visa_status'],
+    ['loc_remote', 'profile.location.remote_policy'],
+    ['cv_markdown', 'cv_markdown'],
+  ];
+  function getByPath(obj, path) {
+    return path.split('.').reduce((o, k) => (o || {})[k], obj);
+  }
+  function setByPath(obj, path, value) {
+    const keys = path.split('.');
+    const last = keys.pop();
+    const target = keys.reduce((o, k) => (o[k] = o[k] || {}), obj);
+    target[last] = value;
+  }
+  SIMPLE_BINDINGS.forEach(([id, path]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      const ctx = { state };
+      setByPath(ctx, `state.${path}`, el.value);
+      el.closest('.field')?.classList.remove('invalid');
+      saveDraft();
+    });
+  });
+
+  // ── Hydrate UI from state ─────────────────────────────────────
+  function hydrate() {
+    SIMPLE_BINDINGS.forEach(([id, path]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const v = getByPath({ state }, `state.${path}`);
+      if (typeof v === 'string') el.value = v;
+    });
+    renderTags('primary', state.profile.target_roles.primary);
+    renderTags('superpowers', state.profile.narrative.superpowers);
+    ['contract_types','sector_preferences','geography_preferences','must_haves','nice_to_haves','deal_breakers']
+      .forEach(name => renderTags(name, state.profile.search[name]));
+    renderArchetypes();
+    renderProofs();
+  }
+
+  // ── Step navigation ────────────────────────────────────────────
+  function showStep(n) {
+    state.step = n;
+    document.querySelectorAll('.step').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.step) === n);
+    });
+    document.getElementById('progress-fill').style.width = `${((n + 1) / TOTAL_STEPS) * 100}%`;
+    document.getElementById('step-label').textContent = `Step ${n + 1} of ${TOTAL_STEPS}`;
+    document.getElementById('step-name').textContent = STEP_NAMES[n];
+    document.getElementById('main-nav').style.display = n === 0 ? 'none' : 'flex';
+    document.getElementById('back-btn').disabled = n <= 1;
+    document.getElementById('next-btn').textContent = n === TOTAL_STEPS - 1 ? 'Finish' : 'Continue →';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    saveDraft();
+  }
+
+  function validateStep(n) {
+    let ok = true;
+    document.querySelector(`.step[data-step="${n}"]`)?.querySelectorAll('[data-required]').forEach(el => {
+      const field = el.closest('.field');
+      let invalid = false;
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        invalid = !el.value.trim();
+      } else if (el.classList.contains('tags')) {
+        const name = field.getAttribute('data-tags-for');
+        invalid = readTagsState(name).length === 0;
+      }
+      if (invalid) {
+        field.classList.add('invalid');
+        ok = false;
+      } else {
+        field.classList.remove('invalid');
+      }
+    });
+    return ok;
+  }
+
+  document.getElementById('back-btn').addEventListener('click', () => {
+    if (state.step > 1) showStep(state.step - 1);
+  });
+  document.getElementById('next-btn').addEventListener('click', async () => {
+    if (!validateStep(state.step)) return;
+    if (state.step < TOTAL_STEPS - 1) {
+      showStep(state.step + 1);
+    } else {
+      await submit();
+    }
+  });
+
+  // ── Step 0: CV import logic ────────────────────────────────────
+  const dropzone = document.getElementById('dropzone');
+  const cvFile = document.getElementById('cv-file');
+  const cvText = document.getElementById('cv-text');
+  const cvAlert = document.getElementById('cv-alert');
+  const cvParseBtn = document.getElementById('cv-parse-btn');
+  const cvParseLabel = document.getElementById('cv-parse-label');
+  const dropzoneFile = document.getElementById('dropzone-file');
+
+  function showCvAlert(msg, type = 'error') {
+    cvAlert.className = `alert ${type}`;
+    cvAlert.textContent = msg;
+  }
+  function clearCvAlert() {
+    cvAlert.className = 'alert';
+    cvAlert.textContent = '';
+  }
+
+  ['dragover', 'dragenter'].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+  dropzone.addEventListener('drop', async (e) => {
+    const file = e.dataTransfer?.files?.[0];
+    if (file) await handleFile(file);
+  });
+  cvFile.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (file) await handleFile(file);
+  });
+
+  async function handleFile(file) {
+    if (file.size > 5 * 1024 * 1024) {
+      showCvAlert('File too large (max 5 MB)');
+      return;
+    }
+    dropzoneFile.textContent = `${file.name} — ${(file.size/1024).toFixed(0)} KB`;
+    clearCvAlert();
+    try {
+      const text = await extractText(file);
+      cvText.value = text;
+      showCvAlert('Text extracted — click "Auto-fill profile" to continue.', 'info');
+    } catch (err) {
+      showCvAlert(`Could not read file: ${err.message}`);
+    }
+  }
+
+  async function extractText(file) {
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (ext === 'txt' || ext === 'md' || file.type.startsWith('text/')) {
+      return await file.text();
+    }
+    if (ext === 'pdf' || file.type === 'application/pdf') {
+      if (!window.pdfjsLib) throw new Error('PDF reader not loaded');
+      const buf = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+      let out = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        out += content.items.map(it => it.str).join(' ') + '\n\n';
+      }
+      return out.trim();
+    }
+    throw new Error('Unsupported file type');
+  }
+
+  document.getElementById('cv-skip').addEventListener('click', () => {
+    state.cvImported = false;
+    showStep(1);
+  });
+
+  cvParseBtn.addEventListener('click', async () => {
+    const text = cvText.value.trim();
+    if (!text) {
+      showCvAlert('Upload a PDF or paste your CV text first.');
+      return;
+    }
+    cvParseBtn.disabled = true;
+    cvParseLabel.innerHTML = '<span class="spinner"></span> Parsing…';
+    clearCvAlert();
+    try {
+      const res = await authFetch('/api/profile/cv-parse', {
+        method: 'POST',
+        body: JSON.stringify({ markdown: text }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Parse failed (${res.status})`);
+      }
+      const data = await res.json();
+      mergeParsedProfile(data.profile, text);
+      state.cvImported = true;
+      saveDraft();
+      hydrate();
+      showStep(1);
+    } catch (err) {
+      showCvAlert(err.message || 'Parse failed');
+    } finally {
+      cvParseBtn.disabled = false;
+      cvParseLabel.textContent = 'Auto-fill profile';
+    }
+  });
+
+  function mergeParsedProfile(parsed, originalText) {
+    if (!parsed) return;
+    const c = parsed.candidate || {};
+    Object.entries(c).forEach(([k, v]) => {
+      if (v && state.profile.candidate[k] !== undefined) {
+        // Don't overwrite the locked email
+        if (k === 'email') return;
+        if (!state.profile.candidate[k]) state.profile.candidate[k] = v;
+      }
+    });
+    if (parsed.target_roles) {
+      const t = parsed.target_roles;
+      if (Array.isArray(t.primary) && !state.profile.target_roles.primary.length) {
+        state.profile.target_roles.primary = t.primary.filter(Boolean).slice(0, 5);
+      }
+      if (Array.isArray(t.archetypes) && !state.profile.target_roles.archetypes.length) {
+        state.profile.target_roles.archetypes = t.archetypes
+          .filter(a => a && a.name)
+          .map(a => ({ name: a.name || '', level: a.level || '', fit: a.fit || '' }));
+      }
+    }
+    if (parsed.narrative) {
+      const n = parsed.narrative;
+      if (n.headline && !state.profile.narrative.headline) state.profile.narrative.headline = n.headline;
+      if (n.exit_story && !state.profile.narrative.exit_story) state.profile.narrative.exit_story = n.exit_story;
+      if (Array.isArray(n.superpowers) && !state.profile.narrative.superpowers.length) {
+        state.profile.narrative.superpowers = n.superpowers.filter(Boolean).slice(0, 6);
+      }
+      if (Array.isArray(n.proof_points) && !state.profile.narrative.proof_points.length) {
+        state.profile.narrative.proof_points = n.proof_points
+          .filter(p => p && p.name)
+          .map(p => ({ name: p.name || '', url: p.url || '', hero_metric: p.hero_metric || '' }));
+      }
+    }
+    if (parsed.compensation) {
+      Object.entries(parsed.compensation).forEach(([k, v]) => {
+        if (v && state.profile.compensation[k] !== undefined && !state.profile.compensation[k]) {
+          state.profile.compensation[k] = v;
+        }
+      });
+      if (state.profile.compensation.currency === 'EUR' && parsed.compensation.currency) {
+        state.profile.compensation.currency = parsed.compensation.currency;
+      }
+    }
+    if (parsed.location) {
+      Object.entries(parsed.location).forEach(([k, v]) => {
+        if (v && state.profile.location[k] !== undefined && !state.profile.location[k]) {
+          state.profile.location[k] = v;
+        }
+      });
+    }
+    if (parsed.search) {
+      Object.entries(parsed.search).forEach(([k, v]) => {
+        if (Array.isArray(v) && state.profile.search[k] !== undefined && !state.profile.search[k].length) {
+          state.profile.search[k] = v.filter(Boolean);
+        }
+      });
+    }
+    if (originalText && !state.cv_markdown) {
+      state.cv_markdown = originalText;
+    }
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────
+  async function submit() {
+    const submitAlert = document.getElementById('submit-alert');
+    submitAlert.className = 'alert';
+    const btn = document.getElementById('next-btn');
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.innerHTML = '<span class="spinner"></span> Saving…';
+
+    try {
+      const profileRes = await authFetch('/api/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          profile: state.profile,
+          context_markdown: '',
+        }),
+      });
+      if (!profileRes.ok) {
+        const err = await profileRes.json().catch(() => ({}));
+        throw new Error(err.error || `Save profile failed (${profileRes.status})`);
+      }
+
+      const cvRes = await authFetch('/api/profile/cv', {
+        method: 'PUT',
+        body: JSON.stringify({ markdown: state.cv_markdown }),
+      });
+      if (!cvRes.ok) {
+        const err = await cvRes.json().catch(() => ({}));
+        throw new Error(err.error || `Save CV failed (${cvRes.status})`);
+      }
+
+      localStorage.removeItem(DRAFT_KEY);
+      window.location.href = '/dashboard';
+    } catch (err) {
+      submitAlert.className = 'alert error';
+      submitAlert.textContent = err.message || 'Could not save your profile';
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+
+  // ── Initial render ─────────────────────────────────────────────
+  hydrate();
+  showStep(state.step || 0);
+</script>
+</body>
+</html>

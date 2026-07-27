@@ -82,7 +82,7 @@ Use the template in `cv-template.html`. Replace `{{...}}` placeholders with pers
 | `{{LINKEDIN_DISPLAY}}` | (from profile.yml) |
 | `{{PORTFOLIO_URL}}` | (from profile.yml) |
 | `{{PORTFOLIO_DISPLAY}}` | (from profile.yml) |
-| `{{LOCATION}}` | (from profile.yml) |
+| `{{LOCATION}}` | (from profile.yml — ADAPTIVE: follow `location.declared_policy`: Paris for EU offers, Bangkok for Asia offers; must match the form answers and cover letter of the same application) |
 | `{{SECTION_SUMMARY}}` | Professional Summary |
 | `{{SUMMARY_TEXT}}` | Personalized summary with keywords |
 | `{{SECTION_COMPETENCIES}}` | Core Competencies |

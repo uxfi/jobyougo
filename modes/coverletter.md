@@ -112,13 +112,13 @@ Apply the same language to all three versions.
 - **Selective, not pretentious:** "I've been deliberate about where I apply. Your scope maps exactly to what I'm building toward."
 - **Specific and concrete:** Every claim must be backed by a real proof point from cv.md or the report.
 - **Direct:** No filler. No "I'm passionate about…", "I would love the opportunity to…", or "I am writing to express my interest in…"
-- **Lead with proof, not claims:** Instead of "I'm great at AI product management", say "I shipped Creads.io solo — full pipeline from brand scraping to video generation."
+- **Lead with proof, not claims:** Instead of "I'm great at X", cite a real shipped project from `cv.md` / `_profile.md` and describe what it does in one concrete sentence.
 
 ---
 
 ## Proof point selection
 
-From the evaluation report, identify which proof points scored highest in Block B (CV match). Prioritize:
+From the evaluation report, identify which proof points scored highest in Block C (CV match). Prioritize:
 
 1. The one proof point that most directly mirrors the JD's core ask
 2. A quantified enterprise impact (if the role is enterprise-facing)
@@ -128,16 +128,9 @@ From the evaluation report, identify which proof points scored highest in Block 
 
 ---
 
-## Archetype-specific framing (from _profile.md)
+## Archetype-specific framing
 
-| Role archetype | Lead with | Proof point priority |
-|----------------|-----------|---------------------|
-| AI PM / Head of AI | Product ownership, roadmap, metrics | Creads roadmap, UpViral overhaul |
-| AI Product Designer | UX depth + AI understanding | LVMH, Shiseido, Société Générale |
-| Agentic / Automation | End-to-end pipeline, speed of delivery | Creads pipeline (scrape → match → brief → video) |
-| AI Solutions Architect | Full-stack architecture, solo delivery | Creads stack (Vercel, Supabase, Claude, Firecrawl) |
-| AI Forward Deployed | Client-facing delivery speed, prototyping | Agence V0, Creads MVP to prod |
-| Product Design (senior) | Systems thinking, measurable impact | +20% Shiseido, +12% SG, LVMH multi-maisons |
+The archetype → "lead with" → proof-point mapping lives in `modes/_profile.md` under the **Framing Adaptatif** section. Read that table at runtime and apply it to the detected role archetype. Do NOT hardcode candidate-specific projects or clients here — they belong to the user layer.
 
 ---
 

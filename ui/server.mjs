@@ -1,47 +1,166 @@
 import 'dotenv/config';
 import { createServer } from 'http';
-import { readFile, writeFile, readdir, stat } from 'fs/promises';
-import { watch } from 'fs';
+import { readFile, writeFile, readdir, stat, mkdir } from 'fs/promises';
+import { watch, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { load as yamlLoad, dump as yamlDump } from 'js-yaml';
 import { supabase, isEnabled as useSupabase } from '../lib/supabase.mjs';
-import { chatStream, MODELS } from '../lib/openrouter.mjs';
+import { chat, chatStream, MODELS } from '../lib/openrouter.mjs';
+import { aggregateUsageEvents, readAiUsageEvents } from '../lib/ai-usage-log.mjs';
 import { loadCvTemplateData } from '../lib/cv-template-data.mjs';
+import { buildApplySpec } from '../lib/apply-spec.mjs';
+import { STYLE_RULES, polishApplicationAnswer } from '../lib/apply-llm.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const PORT = process.env.PORT || 3210;
-const activePlaywrightBrowsers = new Set();
+
+// On Vercel, the deployment dir is read-only. Redirect all writes to /tmp.
+const IS_VERCEL = !!process.env.VERCEL || ROOT.startsWith('/var/task');
+const WRITE_ROOT = IS_VERCEL ? '/tmp/career-ops' : ROOT;
+
+// Ensure writable dirs exist on Vercel
+if (IS_VERCEL) {
+  import('fs').then(({ mkdirSync }) => {
+    for (const dir of ['reports', 'batch/tracker-additions', 'data', 'output']) {
+      try { mkdirSync(join(WRITE_ROOT, dir), { recursive: true }); } catch {}
+    }
+  });
+}
+const SUPABASE_URL_VALUE  = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_VALUE = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const activePinchtabTabs = new Set();
 let isShuttingDown = false;
+
+// ─── PinchTab HTTP client ─────────────────────────────────────────────────────
+const PINCHTAB_URL = (process.env.PINCHTAB_URL || 'http://localhost:9867').replace(/\/$/, '');
+let _pinchtabToken = null;
+function getPinchtabToken() {
+  if (_pinchtabToken !== null) return _pinchtabToken;
+  if (process.env.PINCHTAB_TOKEN) { _pinchtabToken = process.env.PINCHTAB_TOKEN; return _pinchtabToken; }
+  try {
+    const cfgPath = `${process.env.HOME}/.pinchtab/config.json`;
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
+    _pinchtabToken = cfg?.server?.token || '';
+  } catch { _pinchtabToken = ''; }
+  return _pinchtabToken;
+}
+
+async function pinchtabFetch(method, path, body, { timeout = 30000 } = {}) {
+  const token = getPinchtabToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const init = { method, headers, signal: AbortSignal.timeout(timeout) };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  const r = await fetch(`${PINCHTAB_URL}${path}`, init);
+  const text = await r.text();
+  let data;
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  if (!r.ok) {
+    const err = new Error(data?.error || `pinchtab ${method} ${path} → HTTP ${r.status}`);
+    err.status = r.status; err.body = data;
+    throw err;
+  }
+  return data;
+}
+
+async function pinchtabNavigate(url, { timeout = 20000 } = {}) {
+  const data = await pinchtabFetch('POST', '/navigate', { url, newTab: true, timeout }, { timeout: timeout + 5000 });
+  if (!data?.tabId) throw new Error(`pinchtab navigate returned no tabId for ${url}`);
+  activePinchtabTabs.add(data.tabId);
+  return data.tabId;
+}
+
+async function pinchtabEvaluate(tabId, expression, { awaitPromise = true, timeout = 15000 } = {}) {
+  const data = await pinchtabFetch('POST', `/tabs/${tabId}/evaluate`, { expression, awaitPromise }, { timeout });
+  return data?.result;
+}
+
+async function pinchtabText(tabId, { maxChars = 15000, mode = 'raw' } = {}) {
+  const params = new URLSearchParams({ maxChars: String(maxChars), mode });
+  const data = await pinchtabFetch('GET', `/tabs/${tabId}/text?${params.toString()}`);
+  return data;
+}
+
+async function pinchtabClose(tabId) {
+  if (!tabId) return;
+  activePinchtabTabs.delete(tabId);
+  try { await pinchtabFetch('POST', '/close', { tabId }, { timeout: 5000 }); } catch {}
+}
+
+// On-demand challenge solver: opt-in per-call instead of running on every nav.
+// Returns true if a challenge was detected AND solved.
+// Defaults raised: modern CAPTCHAs (DDG/Brave/Google) frequently need >3 attempts
+// and >20s wall-clock to clear, especially when the page renders multiple frames.
+//
+// Per-run circuit breaker: if the solver fails N times in a row, we stop trying
+// for the rest of the scan run. Most modern challenges (Cloudflare Turnstile,
+// reCAPTCHA enterprise) are essentially unsolvable by a stock headless browser,
+// so retrying 100 queries × 6 attempts × 40s wastes ~10 minutes for nothing.
+let _pinchtabSolveConsecFail = 0;
+const PINCHTAB_SOLVE_FAIL_BUDGET = 5;
+function pinchtabSolveCircuitOpen() {
+  return _pinchtabSolveConsecFail >= PINCHTAB_SOLVE_FAIL_BUDGET;
+}
+function resetPinchtabSolveCircuit() {
+  if (_pinchtabSolveConsecFail) {
+    console.log(`[scan] [pinchtab-solve] resetting circuit-breaker (had ${_pinchtabSolveConsecFail} consecutive failures)`);
+  }
+  _pinchtabSolveConsecFail = 0;
+}
+async function pinchtabSolve(tabId, { maxAttempts = 6, timeout = 40000 } = {}) {
+  if (!tabId) return false;
+  if (pinchtabSolveCircuitOpen()) return false;
+  try {
+    const data = await pinchtabFetch('POST', `/tabs/${tabId}/solve`, { maxAttempts, timeout }, { timeout: timeout + 5000 });
+    const ok = Boolean(data?.solved && data?.attempts > 0);
+    if (ok) _pinchtabSolveConsecFail = 0;
+    else _pinchtabSolveConsecFail += 1;
+    if (_pinchtabSolveConsecFail === PINCHTAB_SOLVE_FAIL_BUDGET) {
+      console.warn(`[scan] [pinchtab-solve] circuit-breaker tripped after ${PINCHTAB_SOLVE_FAIL_BUDGET} consecutive failures — skipping further solve attempts this run`);
+    }
+    return ok;
+  } catch {
+    _pinchtabSolveConsecFail += 1;
+    return false;
+  }
+}
+
+async function pinchtabHealth() {
+  try {
+    const data = await pinchtabFetch('GET', '/health', undefined, { timeout: 3000 });
+    return data?.status === 'ok' && data?.defaultInstance?.status === 'running';
+  } catch { return false; }
+}
+let _interfaceShowcaseCache = null;
+
+// ─── Admin user lookup (Supabase) ─────────────────────────────────────────────
+let _adminUserId = null;
+async function getAdminUserId() {
+  if (_adminUserId) return _adminUserId;
+  if (!useSupabase || !supabase) return null;
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail) {
+    const { data } = await supabase.auth.admin.listUsers().catch(() => ({ data: null }));
+    const found = (data?.users || []).find(u => u.email === adminEmail);
+    if (found) { _adminUserId = found.id; return _adminUserId; }
+  }
+  const { data } = await supabase.from('applications').select('user_id').not('user_id', 'is', null).limit(1).single().catch(() => ({ data: null }));
+  if (data?.user_id) { _adminUserId = data.user_id; return _adminUserId; }
+  return null;
+}
 
 function buildPlaywrightResult(company = {}, overrides = {}) {
   return {
     ok: false,
     section: null,
     jobs: [],
-    engine: 'playwright',
+    engine: 'pinchtab',
     company: company.name,
     ...overrides,
   };
-}
-
-function markPlaywrightBrowser(browser) {
-  if (!browser) return () => {};
-  activePlaywrightBrowsers.add(browser);
-
-  const cleanup = () => {
-    activePlaywrightBrowsers.delete(browser);
-  };
-
-  browser.on?.('disconnected', cleanup);
-  return cleanup;
-}
-
-function isPlaywrightShutdownError(err) {
-  const message = String(err?.message || err || '');
-  return /Target page, context or browser has been closed|Target closed|Browser has been closed|browser has been disconnected/i.test(message);
 }
 
 function cancelRemainingPlaywrightResults(results, companies, startIndex, reason) {
@@ -71,7 +190,7 @@ function setupGracefulShutdown(server) {
     });
 
     await Promise.allSettled(
-      [...activePlaywrightBrowsers].map(browser => browser.close().catch(() => {}))
+      [...activePinchtabTabs].map(tabId => pinchtabClose(tabId))
     );
 
     setTimeout(() => process.exit(0), 5000).unref();
@@ -95,6 +214,186 @@ function parseMarkdownTable(content) {
       return obj;
     })
     .filter(row => Object.values(row).some(v => v));
+}
+
+async function loadInterfaceShowcaseData() {
+  if (_interfaceShowcaseCache) return _interfaceShowcaseCache;
+
+  const html = await readFile(join(__dirname, 'portfolio.html'), 'utf-8');
+  const match = html.match(/const INTERFACES\s*=\s*\[([\s\S]*?)\];\s*\n\s*\/\*/);
+  if (!match) throw new Error('Could not find INTERFACES array in portfolio.html');
+
+  const arrayText = `[${match[1]}]`;
+  const interfaces = new Function(`return ${arrayText}`)();
+  _interfaceShowcaseCache = interfaces;
+  return interfaces;
+}
+
+function renderInterfaceLayoutPage(iface, pathname) {
+  const title = escapeHtml(iface.name || iface.id);
+  const tag = escapeHtml(iface.tag || '');
+  const shareUrl = escapeHtml(pathname);
+  const thumb = iface.thumb ? `/${iface.thumb.replace(/^\/+/, '')}` : '';
+  const screens = Array.isArray(iface.screens) ? iface.screens : [];
+  const isMobile = iface.type === 'mobile';
+  const desktopSrc = iface.src ? `/${iface.src.replace(/^\/+/, '')}` : '';
+  const mobileShells = screens.map((screen) => {
+    const src = `/${String(screen.src || '').replace(/^\/+/, '')}`;
+    const label = screens.length > 1
+      ? `<div class="phone-label">${escapeHtml(screen.label || iface.name)}</div>`
+      : '';
+
+    return `
+      <div class="phone-wrap">
+        <div class="phone-shell">
+          <iframe src="${src}" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+        ${label}
+      </div>
+    `;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${title}</title>
+  ${thumb ? `<meta property="og:image" content="${thumb}">` : ''}
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d10;
+      --panel: rgba(255,255,255,.05);
+      --panel-2: rgba(255,255,255,.08);
+      --text: rgba(255,255,255,.94);
+      --muted: rgba(255,255,255,.56);
+      --border: rgba(255,255,255,.1);
+    }
+    html, body { width: 100%; min-height: 100%; background: var(--bg); color: var(--text); font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { display: flex; flex-direction: column; }
+    .bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,12,.88);
+      backdrop-filter: blur(18px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .meta { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+    .title { font-size: 15px; font-weight: 600; white-space: nowrap; }
+    .tag { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .url {
+      margin-left: auto;
+      min-width: 0;
+      max-width: min(720px, 60vw);
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: rgba(255,255,255,.72);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .main {
+      flex: 1;
+      min-height: 0;
+      padding: 18px;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+    .browser {
+      width: 100%;
+      min-height: calc(100vh - 92px);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #111;
+      box-shadow: 0 30px 80px rgba(0,0,0,.35);
+    }
+    .browser iframe {
+      width: 100%;
+      height: calc(100vh - 128px);
+      border: none;
+      background: #fff;
+      display: block;
+    }
+    .phones {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 28px;
+      padding: 18px 0 28px;
+      flex-wrap: wrap;
+    }
+    .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .phone-shell {
+      width: 300px;
+      height: 612px;
+      border-radius: 44px;
+      overflow: hidden;
+      border: 8px solid #1e1e22;
+      background: #141417;
+      box-shadow: 0 26px 60px rgba(0,0,0,.38);
+      position: relative;
+    }
+    .phone-shell::before {
+      content: '';
+      position: absolute;
+      top: 11px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 76px;
+      height: 5px;
+      border-radius: 999px;
+      background: #111;
+      z-index: 2;
+    }
+    .phone-shell iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
+      display: block;
+    }
+    .phone-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+    }
+    @media (max-width: 900px) {
+      .bar { flex-wrap: wrap; }
+      .url { max-width: 100%; width: 100%; }
+      .main { padding: 12px; }
+      .browser iframe { height: calc(100vh - 174px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div class="meta">
+      <div class="title">${title}</div>
+      <div class="tag">${tag}</div>
+    </div>
+    <div class="url">${shareUrl}</div>
+  </div>
+  <main class="main">
+    ${isMobile
+      ? `<div class="phones">${mobileShells}</div>`
+      : `<div class="browser"><iframe src="${desktopSrc}" sandbox="allow-scripts allow-same-origin"></iframe></div>`}
+  </main>
+</body>
+</html>`;
 }
 
 function getMarkdownTableRowNumber(line = '') {
@@ -137,6 +436,11 @@ function normalizeDateValue(value = '') {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  if (/^\d{10,13}$/.test(raw)) {
+    const millis = raw.length === 10 ? Number(raw) * 1000 : Number(raw);
+    const parsedNumeric = new Date(millis);
+    if (!Number.isNaN(parsedNumeric.getTime())) return parsedNumeric.toISOString().split('T')[0];
+  }
 
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return raw;
@@ -375,7 +679,7 @@ async function findHistoricJobUrl(company = '', role = '') {
   return scored[0]?.url || '';
 }
 
-async function enrichApplicationsWithJobUrl(apps) {
+async function enrichApplicationsWithJobUrl(apps, userId) {
   return Promise.all((apps || []).map(async (app) => {
     const existingUrl = app.JobURL ?? app.job_url ?? app.jobUrl ?? '';
     if (existingUrl) return app;
@@ -385,7 +689,7 @@ async function enrichApplicationsWithJobUrl(apps) {
     if (!filename) return app;
 
     try {
-      const reportContent = await getReport(filename);
+      const reportContent = await getReport(filename, userId);
       const jobUrl = extractJobUrlFromReport(reportContent);
       const fallbackUrl = jobUrl || await findHistoricJobUrl(app.Company ?? app.company ?? '', app.Role ?? app.role ?? '');
       if (!fallbackUrl) return app;
@@ -404,14 +708,13 @@ async function enrichApplicationsWithJobUrl(apps) {
 
 // ─── Data Accessors ───────────────────────────────────────────────────────────
 
-async function getApplications() {
+async function getApplications(userId) {
   if (useSupabase) {
-    const { data, error } = await supabase
-      .from('applications')
-      .select('*')
-      .order('num', { ascending: true });
+    let q = supabase.from('applications').select('*').order('num', { ascending: true });
+    if (userId) q = q.eq('user_id', userId);
+    const { data, error } = await q;
     if (error) throw error;
-    return enrichApplicationsWithJobUrl(data);
+    return enrichApplicationsWithJobUrl(data, userId);
   }
   try {
     const raw = await readFile(join(ROOT, 'data/applications.md'), 'utf-8');
@@ -419,28 +722,34 @@ async function getApplications() {
   } catch { return []; }
 }
 
-async function getPipeline() {
+async function getPipeline(userId) {
   if (useSupabase) {
-    const { data, error } = await supabase
-      .from('pipeline')
-      .select('*')
-      .eq('processed', false)
-      .order('created_at', { ascending: true });
+    let q = supabase.from('pipeline').select('*').eq('processed', false).order('created_at', { ascending: true });
+    if (userId) q = q.eq('user_id', userId);
+    const { data, error } = await q;
     if (error) throw error;
-    return (data || []).map(normalizePipelineItem);
+    const pipeline = (data || []).map(normalizePipelineItem);
+    const includeLocalOrphans = await shouldIncludeLocalScanHistoryOrphans(userId);
+    const orphaned = includeLocalOrphans
+      ? await getOrphanedScanPipelineItems(pipeline).catch(() => [])
+      : [];
+    return [...pipeline, ...orphaned];
   }
   try {
     const raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8');
-    return parsePipeline(raw).map(normalizePipelineItem);
-  } catch { return []; }
+    const pipeline = parsePipeline(raw).map(normalizePipelineItem);
+    const orphaned = await getOrphanedScanPipelineItems(pipeline).catch(() => []);
+    return [...pipeline, ...orphaned];
+  } catch {
+    return getOrphanedScanPipelineItems([]).catch(() => []);
+  }
 }
 
-async function getReports() {
+async function getReports(userId) {
   if (useSupabase) {
-    const { data, error } = await supabase
-      .from('reports')
-      .select('filename, num, company, date')
-      .order('num', { ascending: false });
+    let q = supabase.from('reports').select('filename, num, company, date').order('num', { ascending: false });
+    if (userId) q = q.eq('user_id', userId);
+    const { data, error } = await q;
     if (error) throw error;
     return data;
   }
@@ -475,47 +784,191 @@ async function getCVs() {
     return cvs.sort((a,b) => new Date(b.date) - new Date(a.date));
   } catch { return []; }
 }
-async function getReport(filename) {
+async function getReport(filename, userId) {
   if (filename.includes('/') || filename.includes('..')) throw new Error('Invalid filename');
   if (useSupabase) {
-    const { data, error } = await supabase
-      .from('reports')
-      .select('content')
-      .eq('filename', filename)
-      .single();
-    if (error) throw error;
-    return data.content;
+    // Try with user_id first
+    if (userId) {
+      const { data } = await supabase.from('reports').select('content').eq('filename', filename).eq('user_id', userId).single();
+      if (data?.content) return data.content;
+    }
+    // Fallback: try without user_id filter (covers reports synced before user_id was added)
+    const { data } = await supabase.from('reports').select('content').eq('filename', filename).single();
+    if (data?.content) return data.content;
+    // Last resort: read from disk
+    return readFile(join(ROOT, 'reports', filename), 'utf-8');
   }
   return readFile(join(ROOT, 'reports', filename), 'utf-8');
 }
 
-async function addToPipeline(url, note) {
+// Atomic batch insert: single Supabase upsert OR single read+write of pipeline.md.
+// Avoids the read-modify-write race that occurs when callers Promise.all([addToPipeline, ...]).
+async function addManyToPipeline(entries = [], userId) {
+  const clean = (entries || []).filter(e => e?.url);
+  if (!clean.length) return;
+
   if (useSupabase) {
+    const rows = clean.map(({ url, note }) => {
+      const row = { url, note: note || '', processed: false };
+      if (userId) row.user_id = userId;
+      return row;
+    });
     const { error } = await supabase
       .from('pipeline')
-      .upsert({ url, note, processed: false }, { onConflict: 'url' });
+      .upsert(rows, { onConflict: 'url,user_id' });
     if (error) throw error;
     return;
   }
   const raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8');
-  const entry = note ? `${url} — ${note}` : url;
-  await writeFile(join(ROOT, 'data/pipeline.md'), raw.trimEnd() + '\n' + entry + '\n', 'utf-8');
+  const lines = clean.map(({ url, note }) => note ? `${url} — ${note}` : url);
+  await writeFile(join(WRITE_ROOT, 'data/pipeline.md'), raw.trimEnd() + '\n' + lines.join('\n') + '\n', 'utf-8');
+}
+
+async function addToPipeline(url, note, userId) {
+  return addManyToPipeline([{ url, note }], userId);
 }
 
 // ─── Portals (portals.yml) ────────────────────────────────────────────────────
 
 const PORTALS_FILE = join(ROOT, 'portals.yml');
-const DIRECT_JOB_FILTER_REGEX = /AI|Product|Manager|Deployed|Solution|Agent|LLM|Automation/i;
+const DIRECT_JOB_POSITIVE_PATTERNS = [
+  /\b(ai|artificial intelligence|genai|generative ai|llm|agentic|agent\s+builder|automation)\b/i,
+  /\b(product\s+(manager|designer|lead|director|owner|strategist)|head\s+of\s+product|vp\s+product)\b/i,
+  /\b(ux|ui|ux\/ui|ui\/ux)\s+(designer|lead|director|researcher)\b/i,
+  /\b(product\s+design|design\s+lead|head\s+of\s+design|design\s+director)\b/i,
+  /\b(solutions?\s+(architect|engineer|consultant)|forward\s+deployed|deployed\s+engineer|field\s+(cto|engineer))\b/i,
+  /\b(no-?code|low-?code|transformation|consultant|fractional|freelance|contract)\b/i,
+];
+const DIRECT_JOB_NEGATIVE_PATTERNS = [
+  /\b(engineering|sales|account|customer|community|office|people|finance|legal|recruit|talent|marketing|operations|support|success)\s+manager\b/i,
+  /\b(program|project|delivery|partner|channel|vendor|incident|release|site reliability)\s+manager\b/i,
+  /\b(junior|intern|internship|working student|graduate)\b/i,
+  /\b(android|ios|php|ruby|embedded|firmware|fpga|asic|mainframe|cobol)\b/i,
+  /\b(blockchain|web3|crypto)\b/i,
+  /\b(data scientist|ml engineer|mlops|research scientist)\b/i,
+];
+const DIRECT_JOB_FILTER_REGEX = {
+  test(title = '') {
+    return isDirectJobTitleMatch(title);
+  },
+};
 const SERPAPI_KEY = process.env.SERPAPI_KEY || process.env.SEARCHAPI_KEY || '';
 const DUCKDUCKGO_HTML_SEARCH_URL = 'https://html.duckduckgo.com/html/';
 
-// Circuit breaker: once SearchAPI/SerpApi returns 401 in a scan run, skip it for all remaining queries
+function isDirectJobTitleMatch(title = '') {
+  const value = cleanString(title);
+  if (!value) return false;
+  if (DIRECT_JOB_NEGATIVE_PATTERNS.some(pattern => pattern.test(value))) return false;
+  return DIRECT_JOB_POSITIVE_PATTERNS.some(pattern => pattern.test(value));
+}
+
+// ── DuckDuckGo anti-bot ────────────────────────────────────────────────────
+// DDG blocks requests that arrive in burst (all parallel) or with bot UAs.
+// Fix: serialize via a throttle queue + rotate realistic browser UAs.
+const DDG_USER_AGENTS = [
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:125.0) Gecko/20100101 Firefox/125.0',
+];
+let _ddgUaIndex = Math.floor(Math.random() * DDG_USER_AGENTS.length);
+function nextDdgUserAgent() {
+  _ddgUaIndex = (_ddgUaIndex + 1) % DDG_USER_AGENTS.length;
+  return DDG_USER_AGENTS[_ddgUaIndex];
+}
+// Shared throttle: min 4s + up to 3s jitter between DDG requests.
+// DDG aggressively rate-limits; with the previous 2-3.5s window we routinely
+// hit "challenge page" walls. Raising to 4-7s typically lets the IP cool down.
+const DDG_MIN_DELAY_MS = 4000;
+const DDG_JITTER_MS   = 3000;
+let _ddgLastRequest = 0;
+let _ddgThrottleChain = Promise.resolve();
+function ddgThrottle() {
+  _ddgThrottleChain = _ddgThrottleChain.then(() => new Promise(resolve => {
+    const elapsed = Date.now() - _ddgLastRequest;
+    const wait = DDG_MIN_DELAY_MS + Math.floor(Math.random() * DDG_JITTER_MS);
+    const remaining = Math.max(0, wait - elapsed);
+    setTimeout(() => { _ddgLastRequest = Date.now(); resolve(); }, remaining);
+  }));
+  return _ddgThrottleChain;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── PinchTab search anti-burst ───────────────────────────────────────────────
+// Browser-backed Google/Brave fallback is more resilient than raw HTTP, but the
+// fast pace was triggering the same rate-limit that pushed us off DDG. Raising
+// the floor reduces the rate of challenges we have to solve in the first place.
+const PINCHTAB_SEARCH_MIN_DELAY_MS = 3000;
+const PINCHTAB_SEARCH_JITTER_MS = 2000;
+let _pinchtabSearchLastRequest = 0;
+let _pinchtabSearchChain = Promise.resolve();
+function pinchtabSearchThrottle() {
+  _pinchtabSearchChain = _pinchtabSearchChain.then(() => new Promise(resolve => {
+    const elapsed = Date.now() - _pinchtabSearchLastRequest;
+    const wait = PINCHTAB_SEARCH_MIN_DELAY_MS + Math.floor(Math.random() * PINCHTAB_SEARCH_JITTER_MS);
+    const remaining = Math.max(0, wait - elapsed);
+    setTimeout(() => {
+      _pinchtabSearchLastRequest = Date.now();
+      resolve();
+    }, remaining);
+  }));
+  return _pinchtabSearchChain;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Circuit breaker: once SearchAPI/SerpApi is unavailable in a scan run, skip it for all remaining queries.
 let serpApiCircuitOpen = false;
 function resetSerpApiCircuit() { serpApiCircuitOpen = false; }
-function tripSerpApiCircuit() {
+function tripSerpApiCircuit(reason = 'unavailable') {
   if (!serpApiCircuitOpen) {
-    console.warn('[scan] [circuit-breaker] SearchAPI/SerpApi returned 401 — skipping it for all remaining queries this run');
+    console.warn(`[scan] [circuit-breaker] SearchAPI/SerpApi ${reason} — skipping it for all remaining queries this run`);
     serpApiCircuitOpen = true;
+  }
+}
+
+// Per-run web-search circuit breaker. When SearchAPI is rate-limited and DDG /
+// PinchTab solver are blocked by anti-bot, every webSearch query becomes a slow
+// no-op: throttled DDG fetch (timeout) → throttled PinchTab/Brave nav (challenge)
+// → throttled PinchTab/Google nav (challenge). With 90 enabled queries this can
+// cost 10+ minutes for zero results. After N consecutive empty results, stop.
+let _webSearchConsecFail = 0;
+const WEB_SEARCH_FAIL_BUDGET = 8;
+function webSearchCircuitOpen() { return _webSearchConsecFail >= WEB_SEARCH_FAIL_BUDGET; }
+function resetWebSearchCircuit() {
+  if (_webSearchConsecFail) console.log(`[scan] [websearch] resetting circuit-breaker (had ${_webSearchConsecFail} consecutive failures)`);
+  _webSearchConsecFail = 0;
+}
+function recordWebSearchOutcome(ok) {
+  if (ok) {
+    _webSearchConsecFail = 0;
+    return;
+  }
+  _webSearchConsecFail += 1;
+  if (_webSearchConsecFail === WEB_SEARCH_FAIL_BUDGET) {
+    console.warn(`[scan] [websearch] circuit-breaker tripped after ${WEB_SEARCH_FAIL_BUDGET} consecutive failures — skipping remaining web-search queries this run`);
+  }
+}
+
+// Pre-flight probe: test the SearchAPI/SerpApi key BEFORE dispatching all parallel queries.
+// Without this, all ~90 parallel calls go out before the first 401 trips the circuit.
+async function probeSearchApi() {
+  const key = process.env.SEARCHAPI_KEY || process.env.SERPAPI_KEY;
+  if (!key) return;
+  const useSearchApi = Boolean(process.env.SEARCHAPI_KEY);
+  const baseUrl = useSearchApi
+    ? 'https://www.searchapi.io/api/v1/search'
+    : 'https://serpapi.com/search.json';
+  const params = new URLSearchParams({ engine: 'google', q: 'test', hl: 'en', api_key: key, num: '1' });
+  try {
+    const r = await fetch(`${baseUrl}?${params.toString()}`, { signal: AbortSignal.timeout(8000) });
+    if (r.status === 401 || r.status === 403 || r.status === 429) {
+      console.warn(`[scan] [pre-flight] SearchAPI/SerpApi unavailable (HTTP ${r.status}) — skipping all web searches via API`);
+      tripSerpApiCircuit(`returned HTTP ${r.status}`);
+    }
+  } catch {
+    // Timeout or network error — let individual calls handle it
   }
 }
 
@@ -525,20 +978,72 @@ async function readPortalsYaml() {
 }
 
 function inferGreenhouseApiUrl(company = {}) {
-  if (company.api) return company.api;
   const careersUrl = company.careers_url || '';
   const match = careersUrl.match(/^https:\/\/job-boards(?:\.eu)?\.greenhouse\.io\/([^/?#]+)/i);
   if (!match?.[1]) return '';
   return `https://boards-api.greenhouse.io/v1/boards/${match[1]}/jobs`;
 }
 
+function inferAshbyApiUrl(company = {}) {
+  const careersUrl = company.careers_url || '';
+  const match = careersUrl.match(/^https:\/\/jobs\.ashbyhq\.com\/([^/?#]+)/i);
+  if (!match?.[1]) return '';
+  return `https://api.ashbyhq.com/posting-api/job-board/${match[1]}`;
+}
+
+function inferLeverApiUrl(company = {}) {
+  const careersUrl = company.careers_url || '';
+  const match = careersUrl.match(/^https:\/\/jobs(\.eu)?\.lever\.co\/([^/?#]+)/i);
+  if (!match?.[2]) return '';
+  const baseUrl = match[1] ? 'https://api.eu.lever.co' : 'https://api.lever.co';
+  return `${baseUrl}/v0/postings/${match[2]}?mode=json`;
+}
+
+function inferApiProviderFromUrl(url = '') {
+  const value = String(url || '');
+  if (/boards-api\.greenhouse\.io/i.test(value) || /job-boards(?:\.eu)?\.greenhouse\.io/i.test(value)) return 'greenhouse';
+  if (/api\.ashbyhq\.com\/posting-api\/job-board/i.test(value) || /jobs\.ashbyhq\.com/i.test(value)) return 'ashby';
+  if (/api(?:\.eu)?\.lever\.co\/v0\/postings/i.test(value) || /jobs(?:\.eu)?\.lever\.co/i.test(value)) return 'lever';
+  return '';
+}
+
 function getCompanyScanAccess(company = {}) {
+  if (company.api) {
+    return {
+      mode: 'api',
+      apiUrl: company.api,
+      apiKind: inferApiProviderFromUrl(company.api || company.careers_url || '') || 'json',
+      apiSource: 'explicit',
+    };
+  }
+
   const apiUrl = inferGreenhouseApiUrl(company);
   if (apiUrl) {
     return {
       mode: 'api',
       apiUrl,
-      apiKind: company.api ? 'explicit' : 'derived_greenhouse',
+      apiKind: 'greenhouse',
+      apiSource: 'derived_greenhouse',
+    };
+  }
+
+  const ashbyApiUrl = inferAshbyApiUrl(company);
+  if (ashbyApiUrl) {
+    return {
+      mode: 'api',
+      apiUrl: ashbyApiUrl,
+      apiKind: 'ashby',
+      apiSource: 'derived_ashby',
+    };
+  }
+
+  const leverApiUrl = inferLeverApiUrl(company);
+  if (leverApiUrl) {
+    return {
+      mode: 'api',
+      apiUrl: leverApiUrl,
+      apiKind: 'lever',
+      apiSource: 'derived_lever',
     };
   }
 
@@ -550,13 +1055,37 @@ function getCompanyScanAccess(company = {}) {
 }
 
 function isAggregatorConfigured(aggregator = {}) {
-  const haystack = `${aggregator.name || ''} ${aggregator.notes || ''}`.toLowerCase();
-  if (haystack.includes('serpapi')) return Boolean(SERPAPI_KEY);
-  if (haystack.includes('searchapi')) return Boolean(process.env.SEARCHAPI_KEY);
-  if (haystack.includes('theirstack') || haystack.includes('their stack')) {
-    return Boolean(process.env.THEIR_STACK_API_KEY);
+  const provider = getAggregatorProvider(aggregator);
+  if (provider === 'serpapi') return Boolean(SERPAPI_KEY || process.env.SEARCHAPI_KEY);
+  if (provider === 'searchapi') return Boolean(process.env.SEARCHAPI_KEY || SERPAPI_KEY);
+  if (provider === 'theirstack') {
+    return Boolean(process.env.THEIRSTACK_API_KEY || process.env.THEIR_STACK_API_KEY);
   }
+  if (provider === 'adzuna') return Boolean(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);
+  if (provider === 'jooble') return Boolean(process.env.JOOBLE_API_KEY);
+  if (provider === 'careerjet') return Boolean(process.env.CAREERJET_AFFID || process.env.CAREERJET_AFFILIATE_ID);
+  if (['remotive', 'jobicy', 'himalayas', 'arbeitnow'].includes(provider)) return true;
   return false;
+}
+
+function aggregatorRequiresKey(aggregator = {}) {
+  const provider = getAggregatorProvider(aggregator);
+  return !['remotive', 'jobicy', 'himalayas', 'arbeitnow'].includes(provider);
+}
+
+function getAggregatorProvider(aggregator = {}) {
+  const value = `${aggregator.provider || ''} ${aggregator.name || ''} ${aggregator.api_url || ''} ${aggregator.notes || ''}`.toLowerCase();
+  if (value.includes('theirstack') || value.includes('their stack')) return 'theirstack';
+  if (value.includes('searchapi')) return 'searchapi';
+  if (value.includes('serpapi')) return 'serpapi';
+  if (value.includes('adzuna')) return 'adzuna';
+  if (value.includes('jooble')) return 'jooble';
+  if (value.includes('careerjet')) return 'careerjet';
+  if (value.includes('remotive')) return 'remotive';
+  if (value.includes('jobicy')) return 'jobicy';
+  if (value.includes('himalayas')) return 'himalayas';
+  if (value.includes('arbeitnow')) return 'arbeitnow';
+  return '';
 }
 
 function buildJobSection(name, jobs, { includeCompany = false } = {}) {
@@ -612,6 +1141,163 @@ function dedupeScanCandidates(candidates = []) {
   });
 }
 
+// ─── Published-date enrichment ────────────────────────────────────────────────
+// API/RSS sources already include publishedAt. WebSearch results (Brave/Google/
+// DDG) only have a URL — for those we look up the date via the per-posting ATS
+// API when possible (Greenhouse/Lever/Ashby), or by extracting JSON-LD from the
+// rendered page via PinchTab.
+
+const DEFAULT_SCAN_MAX_AGE_DAYS = 7;
+const PUBLISHED_DATE_CACHE_PATH = join(WRITE_ROOT, 'data', 'published-dates-cache.json');
+const PUBLISHED_DATE_NEGATIVE_TTL_MS = 24 * 60 * 60 * 1000;
+
+let _publishedDateCache = null;
+async function loadPublishedDateCache() {
+  if (_publishedDateCache) return _publishedDateCache;
+  try {
+    _publishedDateCache = JSON.parse(await readFile(PUBLISHED_DATE_CACHE_PATH, 'utf-8'));
+  } catch { _publishedDateCache = {}; }
+  return _publishedDateCache;
+}
+async function savePublishedDateCache() {
+  if (!_publishedDateCache) return;
+  await writeFile(PUBLISHED_DATE_CACHE_PATH, JSON.stringify(_publishedDateCache, null, 2)).catch(() => {});
+}
+
+const _ashbyBoardCache = new Map();
+async function getAshbyBoardCached(slug) {
+  if (_ashbyBoardCache.has(slug)) return _ashbyBoardCache.get(slug);
+  let data = {};
+  try {
+    const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}`, { signal: AbortSignal.timeout(8000) });
+    if (r.ok) data = await r.json().catch(() => ({}));
+  } catch {}
+  _ashbyBoardCache.set(slug, data);
+  return data;
+}
+
+async function tryApiPublishedDate(url) {
+  let m = url.match(/^https:\/\/job-boards(?:\.eu)?\.greenhouse\.io\/([^/]+)\/jobs\/(\d+)/i);
+  if (m) {
+    try {
+      const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${m[1]}/jobs/${m[2]}`, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return null;
+      const d = await r.json().catch(() => ({}));
+      const raw = d.first_published || d.updated_at || '';
+      return raw ? String(raw).slice(0, 10) : null;
+    } catch { return null; }
+  }
+  m = url.match(/^https:\/\/jobs(\.eu)?\.lever\.co\/([^/]+)\/([a-f0-9-]+)/i);
+  if (m) {
+    try {
+      const base = m[1] ? 'https://api.eu.lever.co' : 'https://api.lever.co';
+      const r = await fetch(`${base}/v0/postings/${m[2]}/${m[3]}?mode=json`, { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return null;
+      const d = await r.json().catch(() => ({}));
+      return d.createdAt ? new Date(d.createdAt).toISOString().slice(0, 10) : null;
+    } catch { return null; }
+  }
+  m = url.match(/^https:\/\/jobs\.ashbyhq\.com\/([^/]+)\/([a-f0-9-]+)/i);
+  if (m) {
+    const board = await getAshbyBoardCached(m[1]);
+    const job = (board.jobs || []).find(j => (j.jobUrl || j.applyUrl || '').includes(m[2]));
+    return job?.publishedAt ? String(job.publishedAt).slice(0, 10) : null;
+  }
+  return null;
+}
+
+const PINCHTAB_DATE_EXTRACT_SCRIPT = `(() => {
+  for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+    try {
+      const data = JSON.parse(s.textContent || '{}');
+      const arr = Array.isArray(data) ? data : [data];
+      for (const o of arr) {
+        if (o && o.datePosted) return String(o.datePosted);
+        if (o && o['@graph']) {
+          for (const g of o['@graph']) if (g && g.datePosted) return String(g.datePosted);
+        }
+      }
+    } catch (e) {}
+  }
+  const t = document.querySelector('time[datetime]');
+  if (t && /^\\d{4}-\\d{2}-\\d{2}/.test(t.getAttribute('datetime') || '')) return t.getAttribute('datetime');
+  const m = document.querySelector('meta[property="article:published_time"], meta[name="date"], meta[itemprop="datePosted"]');
+  if (m && /^\\d{4}-\\d{2}-\\d{2}/.test(m.getAttribute('content') || '')) return m.getAttribute('content');
+  return null;
+})()`;
+
+async function tryPinchtabPublishedDate(url) {
+  if (!(await pinchtabHealth())) return null;
+  let tabId;
+  try {
+    tabId = await pinchtabNavigate(url, { timeout: 20000 });
+    await new Promise(r => setTimeout(r, 1500));
+    const raw = await pinchtabEvaluate(tabId, PINCHTAB_DATE_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 10000 });
+    if (!raw) return null;
+    const m = String(raw).match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : null;
+  } catch { return null; }
+  finally { await pinchtabClose(tabId); }
+}
+
+async function lookupPublishedDate(url) {
+  if (!url) return null;
+  const cache = await loadPublishedDateCache();
+  const cached = cache[url];
+  if (cached) {
+    if (cached.publishedAt) return cached.publishedAt;
+    if (cached.fetchedAt && Date.now() - new Date(cached.fetchedAt).getTime() < PUBLISHED_DATE_NEGATIVE_TTL_MS) {
+      return null;
+    }
+  }
+  let date = await tryApiPublishedDate(url).catch(() => null);
+  if (!date) date = await tryPinchtabPublishedDate(url).catch(() => null);
+  cache[url] = { publishedAt: date || null, fetchedAt: new Date().toISOString() };
+  return date || null;
+}
+
+async function enrichCandidatesWithPublishedDates(candidates = [], { concurrency = 5 } = {}) {
+  const undated = candidates.filter(c => !c.publishedAt && c.url);
+  if (!undated.length) return candidates;
+  const pinchOk = await pinchtabHealth().catch(() => false);
+  const ATS_RE = /^https:\/\/(job-boards(?:\.eu)?\.greenhouse\.io|jobs(?:\.eu)?\.lever\.co|jobs\.ashbyhq\.com)\//i;
+  const atsCount = undated.filter(c => ATS_RE.test(c.url)).length;
+  console.log(`[scan] [date-enrich] looking up dates for ${undated.length} candidate(s) (ats-api=${atsCount}, pinchtab=${pinchOk ? 'up' : 'down'})`);
+  let i = 0, hits = 0;
+  const workers = Array.from({ length: Math.min(concurrency, undated.length) }, async () => {
+    while (i < undated.length) {
+      const c = undated[i++];
+      const date = await lookupPublishedDate(c.url);
+      if (date) { c.publishedAt = date; hits += 1; }
+    }
+  });
+  await Promise.all(workers);
+  await savePublishedDateCache();
+  if (hits === 0 && undated.length > 0) {
+    const reason = !pinchOk && atsCount === 0
+      ? 'Pinchtab is down and no candidate URLs match Greenhouse/Lever/Ashby APIs'
+      : !pinchOk
+      ? 'Pinchtab is down (only ATS-API candidates were attempted)'
+      : 'no dates found via ATS APIs or Pinchtab';
+    console.warn(`[scan] [date-enrich] resolved 0/${undated.length} dates — ${reason}`);
+  } else {
+    console.log(`[scan] [date-enrich] resolved ${hits}/${undated.length} dates`);
+  }
+  return candidates;
+}
+
+function applyAgeFilter(candidates = [], { maxAgeDays = DEFAULT_SCAN_MAX_AGE_DAYS } = {}) {
+  const cutoff = new Date(Date.now() - maxAgeDays * 86400 * 1000).toISOString().slice(0, 10);
+  let droppedOld = 0, droppedUnknown = 0;
+  const kept = candidates.filter(c => {
+    if (!c.publishedAt) { droppedUnknown += 1; return false; }
+    if (c.publishedAt < cutoff) { droppedOld += 1; return false; }
+    return true;
+  });
+  console.log(`[scan] [age-filter] kept ${kept.length}/${candidates.length} (max age ${maxAgeDays}d, cutoff ${cutoff}); dropped ${droppedOld} old + ${droppedUnknown} unknown-date`);
+  return kept;
+}
+
 function buildScanCandidateManifest(candidates = [], limit = 120) {
   const lines = candidates.slice(0, limit).map(candidate => {
     const meta = [
@@ -647,20 +1333,88 @@ function normalizeRemoteFilterConfig(raw = {}) {
     mode: cleanString(raw.mode || ''),
     requiredAny: Array.isArray(raw.required_any) ? raw.required_any.map(cleanString).filter(Boolean) : [],
     rejectedAny: Array.isArray(raw.rejected_any) ? raw.rejected_any.map(cleanString).filter(Boolean) : [],
+    allowedGeoAny: Array.isArray(raw.allowed_geo_any) ? raw.allowed_geo_any.map(cleanString).filter(Boolean) : [],
+    rejectedGeoAny: Array.isArray(raw.rejected_geo_any) ? raw.rejected_geo_any.map(cleanString).filter(Boolean) : [],
     ambiguousPolicy: cleanString(raw.ambiguous_policy || 'skip').toLowerCase() || 'skip',
   };
+}
+
+function normalizeMatchText(value = '') {
+  return normalizeInline(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function escapeRegex(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function phraseInText(text = '', phrase = '') {
+  const cleanPhrase = normalizeMatchText(phrase);
+  if (!cleanPhrase) return false;
+
+  const pattern = cleanPhrase
+    .split(/\s+/)
+    .map(escapeRegex)
+    .join('[\\s\\-/_,.()]+');
+
+  return new RegExp(`(^|[^a-z0-9])${pattern}([^a-z0-9]|$)`, 'i').test(text);
+}
+
+function firstPhraseMatch(text = '', phrases = []) {
+  return phrases.map(cleanString).find(phrase => phrase && phraseInText(text, phrase)) || '';
 }
 
 function candidateRemoteAssessment(candidate = {}, remoteFilterRaw = {}) {
   const remoteFilter = normalizeRemoteFilterConfig(remoteFilterRaw);
   const strictMode = remoteFilter.mode === 'strict_full_remote_only';
-  const text = [
-    cleanString(candidate.title),
-    cleanString(candidate.location),
-    cleanString(candidate.remoteEvidence),
-    cleanString(candidate.url),
+  const titleText = cleanString(candidate.title);
+  const locationText = cleanString(candidate.location);
+  const evidenceText = cleanString(candidate.remoteEvidence);
+  const urlText = cleanString(candidate.url);
+  const remoteSignalText = [
+    titleText,
+    locationText,
+    evidenceText,
+    urlText,
   ].filter(Boolean).join(' | ');
-  const lower = text.toLowerCase();
+  const geoSignalText = [
+    locationText,
+    evidenceText,
+    urlText,
+  ].filter(Boolean).join(' | ');
+  const lower = normalizeMatchText(remoteSignalText);
+  const geoLower = normalizeMatchText(geoSignalText);
+  const titleLower = normalizeMatchText(titleText);
+
+  const explicitTitleGeoPhrases = [
+    'remote worldwide',
+    'worldwide remote',
+    'remote global',
+    'global remote',
+    'remote europe',
+    'europe remote',
+    'remote emea',
+    'emea remote',
+    'remote eu',
+    'eu remote',
+    'remote asia',
+    'asia remote',
+    'remote apac',
+    'apac remote',
+    'remote dubai',
+    'dubai remote',
+    'remote uae',
+    'uae remote',
+    'work from anywhere',
+  ];
+  const titleGeoMatch = firstPhraseMatch(titleLower, explicitTitleGeoPhrases);
+  const titleGeoTerms = titleGeoMatch
+    ? titleGeoMatch
+        .split(/\s+/)
+        .filter(term => term !== 'remote')
+    : [];
 
   const defaultRejectedTerms = [
     'remote-friendly',
@@ -673,28 +1427,141 @@ function candidateRemoteAssessment(candidate = {}, remoteFilterRaw = {}) {
     'partly remote',
   ];
 
-  const rejectedMatch = [...remoteFilter.rejectedAny, ...defaultRejectedTerms]
-    .map(term => cleanString(term).toLowerCase())
-    .find(term => term && lower.includes(term));
+  const rejectedMatch = firstPhraseMatch(lower, [...remoteFilter.rejectedAny, ...defaultRejectedTerms]);
   if (rejectedMatch) {
     return { keep: false, reason: `matched rejected remote term "${rejectedMatch}"`, evidence: rejectedMatch };
-  }
-
-  const requiredMatch = remoteFilter.requiredAny
-    .map(term => cleanString(term).toLowerCase())
-    .find(term => term && lower.includes(term));
-  if (requiredMatch) {
-    return { keep: true, reason: `matched required remote term "${requiredMatch}"`, evidence: requiredMatch };
   }
 
   if (!strictMode) {
     return { keep: true, reason: 'remote filter not strict', evidence: '' };
   }
 
+  const requiredMatch = firstPhraseMatch(lower, remoteFilter.requiredAny);
+  if (!requiredMatch) {
+    return {
+      keep: remoteFilter.ambiguousPolicy !== 'skip',
+      reason: 'remote status is ambiguous',
+      evidence: '',
+    };
+  }
+
+  const defaultAllowedGeoTerms = [
+    'worldwide',
+    'global',
+    'globally',
+    'work from anywhere',
+    'anywhere in the world',
+    'europe',
+    'european',
+    'european union',
+    'eu',
+    'eea',
+    'emea',
+    'cet',
+    'cest',
+    'france',
+    'paris',
+    'spain',
+    'madrid',
+    'barcelona',
+    'portugal',
+    'lisbon',
+    'germany',
+    'berlin',
+    'netherlands',
+    'amsterdam',
+    'belgium',
+    'brussels',
+    'italy',
+    'milan',
+    'ireland',
+    'dublin',
+    'uk',
+    'united kingdom',
+    'london',
+    'switzerland',
+    'zurich',
+    'asia',
+    'apac',
+    'asean',
+    'singapore',
+    'hong kong',
+    'japan',
+    'tokyo',
+    'thailand',
+    'bangkok',
+    'malaysia',
+    'kuala lumpur',
+    'indonesia',
+    'philippines',
+    'vietnam',
+    'india',
+    'dubai',
+    'uae',
+    'united arab emirates',
+  ];
+  const defaultRejectedGeoTerms = [
+    'us only',
+    'u.s. only',
+    'usa only',
+    'united states only',
+    'only us',
+    'only usa',
+    'only united states',
+    'remote us',
+    'remote usa',
+    'remote u.s.',
+    'remote united states',
+    'us remote',
+    'usa remote',
+    'u.s. remote',
+    'united states remote',
+    'based in us',
+    'based in the us',
+    'based in usa',
+    'based in the usa',
+    'based in united states',
+    'based in the united states',
+    'united states',
+    'usa',
+    'u.s.',
+    'us-based',
+    'us based',
+    'canada only',
+    'only canada',
+    'remote canada',
+    'canada',
+    'latam',
+    'latin america',
+    'south america',
+    'americas',
+    'north america',
+  ];
+  const allowedGeoMatch =
+    firstPhraseMatch(geoLower, [...remoteFilter.allowedGeoAny, ...defaultAllowedGeoTerms]) ||
+    firstPhraseMatch(titleGeoTerms.join(' '), [...remoteFilter.allowedGeoAny, ...defaultAllowedGeoTerms]);
+  const rejectedGeoMatch = firstPhraseMatch(lower, [...remoteFilter.rejectedGeoAny, ...defaultRejectedGeoTerms]);
+  const vagueAllowedGeo = ['work from anywhere'].includes(normalizeMatchText(allowedGeoMatch));
+  if (rejectedGeoMatch && (!allowedGeoMatch || vagueAllowedGeo)) {
+    return { keep: false, reason: `matched rejected remote geography "${rejectedGeoMatch}"`, evidence: rejectedGeoMatch };
+  }
+
+  if (allowedGeoMatch) {
+    return {
+      keep: true,
+      reason: `matched required remote term "${requiredMatch}" and allowed geo "${allowedGeoMatch}"`,
+      evidence: [requiredMatch, allowedGeoMatch].filter(Boolean).join(' / '),
+    };
+  }
+
+  if (rejectedGeoMatch) {
+    return { keep: false, reason: `matched rejected remote geography "${rejectedGeoMatch}"`, evidence: rejectedGeoMatch };
+  }
+
   return {
     keep: remoteFilter.ambiguousPolicy !== 'skip',
-    reason: 'remote status is ambiguous',
-    evidence: '',
+    reason: 'remote geography is ambiguous',
+    evidence: requiredMatch,
   };
 }
 
@@ -824,9 +1691,697 @@ function decodeDuckDuckGoResultUrl(rawUrl = '') {
   }
 }
 
-async function loadPlaywrightChromium() {
-  const mod = await import('playwright');
-  return mod.chromium;
+const JOB_DESCRIPTION_BROWSER_PATTERNS = [
+  /[?&]gh_jid=/i,
+  /jobs\.greenhouse\.io/i,
+  /job-boards\.greenhouse\.io/i,
+  /boards\.eu\.greenhouse\.io/i,
+  /jobs\.lever\.co/i,
+  /jobs\.ashbyhq\.com/i,
+  /apply\.workable\.com/i,
+  /careers\.smartrecruiters\.com/i,
+  /(?:^|\/\/)(?:[a-z]{2}\.)?jobsdb\.com\//i,
+];
+
+const WEWORKREMOTELY_RSS_FEEDS = [
+  'https://weworkremotely.com/remote-jobs.rss',
+  'https://weworkremotely.com/categories/remote-product-jobs.rss',
+  'https://weworkremotely.com/categories/remote-design-jobs.rss',
+  'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+  'https://weworkremotely.com/categories/remote-sales-and-marketing-jobs.rss',
+  'https://weworkremotely.com/categories/remote-management-and-finance-jobs.rss',
+  'https://weworkremotely.com/categories/all-other-remote-jobs.rss',
+];
+
+function shouldUseBrowserForJobDescription(url = '') {
+  return JOB_DESCRIPTION_BROWSER_PATTERNS.some(pattern => pattern.test(url));
+}
+
+function isWeWorkRemotelyJobUrl(url = '') {
+  try {
+    const parsed = new URL(String(url || ''));
+    return /(^|\.)weworkremotely\.com$/i.test(parsed.hostname) && parsed.pathname.startsWith('/remote-jobs/');
+  } catch {
+    return false;
+  }
+}
+
+function extractTextFromHtml(html = '') {
+  return String(html || '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function readXmlTag(section = '', tag = '') {
+  const match = String(section || '').match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+  if (!match) return '';
+  return decodeHtmlEntities(match[1].trim().replace(/^<!\[CDATA\[/, '').replace(/\]\]>$/, '')).trim();
+}
+
+function decodeHtmlEntitiesDeep(value = '') {
+  let out = String(value || '');
+  for (let i = 0; i < 3; i += 1) {
+    const next = decodeHtmlEntities(out);
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
+function parseWeWorkRemotelyRssItem(section = '', sourceUrl = '') {
+  const titleRaw = readXmlTag(section, 'title');
+  const link = readXmlTag(section, 'link') || readXmlTag(section, 'guid');
+  const descriptionHtml = decodeHtmlEntitiesDeep(readXmlTag(section, 'description'));
+  const descriptionText = extractTextFromHtml(descriptionHtml);
+  const region = readXmlTag(section, 'region');
+  const country = readXmlTag(section, 'country');
+  const state = readXmlTag(section, 'state');
+  const category = readXmlTag(section, 'category');
+  const type = readXmlTag(section, 'type');
+  const publishedAt = normalizeDateValue(readXmlTag(section, 'pubDate'));
+  const expiresAt = normalizeDateValue(readXmlTag(section, 'expires_at'));
+  const [companyPart, ...roleParts] = titleRaw.split(':');
+  const company = roleParts.length ? cleanString(companyPart) : '';
+  const role = cleanString(roleParts.length ? roleParts.join(':') : titleRaw);
+  const locationParts = [region, country, state].map(cleanString).filter(Boolean);
+  const location = [...new Set(locationParts)].join(', ');
+  const metaLines = [
+    `Source: We Work Remotely RSS (${sourceUrl})`,
+    company ? `Company: ${company}` : '',
+    role ? `Role: ${role}` : '',
+    category ? `Category: ${category}` : '',
+    type ? `Job type: ${type}` : '',
+    location ? `WWR region/location: ${location}` : '',
+    publishedAt ? `Published: ${publishedAt}` : '',
+    expiresAt ? `Apply before: ${expiresAt}` : '',
+  ].filter(Boolean);
+
+  return {
+    title: titleRaw,
+    link,
+    location,
+    text: [
+      '## We Work Remotely metadata',
+      metaLines.join('\n'),
+      '',
+      '## Job description',
+      descriptionText,
+    ].join('\n').trim(),
+  };
+}
+
+async function fetchWeWorkRemotelyJobDescriptionFromRss(jobUrl, { maxChars = 15000 } = {}) {
+  if (!isWeWorkRemotelyJobUrl(jobUrl)) return null;
+  const targetKey = normalizeUrlKey(jobUrl);
+  for (const feedUrl of WEWORKREMOTELY_RSS_FEEDS) {
+    let response;
+    try {
+      response = await fetch(feedUrl, {
+        signal: AbortSignal.timeout(12000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0; +https://weworkremotely.com/rss)',
+          'Accept': 'application/rss+xml, application/xml;q=0.9, text/xml;q=0.8',
+        },
+      });
+    } catch (err) {
+      console.warn(`[pipeline] [wwr-rss] failed ${feedUrl}: ${err.message}`);
+      continue;
+    }
+    if (!response.ok) {
+      console.warn(`[pipeline] [wwr-rss] HTTP ${response.status} ${feedUrl}`);
+      continue;
+    }
+
+    const xml = await response.text();
+    const itemRe = /<item>([\s\S]*?)<\/item>/gi;
+    let match;
+    while ((match = itemRe.exec(xml)) !== null) {
+      const item = parseWeWorkRemotelyRssItem(match[1], feedUrl);
+      const itemKeys = [item.link, readXmlTag(match[1], 'guid')].map(normalizeUrlKey).filter(Boolean);
+      if (!itemKeys.includes(targetKey)) continue;
+      return {
+        ok: true,
+        text: item.text.slice(0, maxChars),
+        mode: 'wwr-rss',
+        status: 200,
+      };
+    }
+  }
+  return null;
+}
+
+const SOURCE_JD_CACHE = new Map();
+
+async function fetchJsonWithSourceCache(url, { timeoutMs = 20000 } = {}) {
+  const key = String(url || '');
+  if (!SOURCE_JD_CACHE.has(key)) {
+    SOURCE_JD_CACHE.set(key, fetchJsonWithTimeout(key, { timeoutMs }));
+  }
+  return SOURCE_JD_CACHE.get(key);
+}
+
+function parseJobicyId(url = '') {
+  try {
+    const parsed = new URL(String(url || ''));
+    const match = parsed.pathname.match(/\/jobs\/(\d+)(?:[-/]|$)/i);
+    return match?.[1] || '';
+  } catch {
+    return '';
+  }
+}
+
+function parseHimalayasPath(url = '') {
+  try {
+    const parsed = new URL(String(url || ''));
+    const match = parsed.pathname.match(/\/companies\/([^/]+)\/jobs\/([^/?#]+)/i);
+    return {
+      companySlug: match?.[1] || '',
+      jobSlug: match?.[2] || '',
+    };
+  } catch {
+    return { companySlug: '', jobSlug: '' };
+  }
+}
+
+function parseRemoteFirstPath(url = '') {
+  try {
+    const parsed = new URL(String(url || ''));
+    const match = parsed.pathname.match(/\/companies\/([^/]+)\/jobs\/([^/?#]+)/i);
+    if (!match) return { company: '', title: '' };
+    const titleSlug = match[2].replace(/-\d+$/, '');
+    return {
+      company: match[1].split('-').map(part => part ? part[0].toUpperCase() + part.slice(1) : '').join(' '),
+      title: titleSlug.split('-').map(part => part ? part[0].toUpperCase() + part.slice(1) : '').join(' '),
+    };
+  } catch {
+    return { company: '', title: '' };
+  }
+}
+
+function normalizeLoose(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function titleCompanyMatch(job = {}, hints = {}) {
+  const title = normalizeLoose(job.title || job.jobTitle || job.name || job.text || job.job_title || '');
+  const company = normalizeLoose(job.companyName || job.company?.name || job.company || job.company_name || '');
+  const hintTitle = normalizeLoose(hints.title || '');
+  const hintCompany = normalizeLoose(hints.company || '');
+  const titleOk = !hintTitle || title.includes(hintTitle) || hintTitle.includes(title);
+  const companyOk = !hintCompany || company.includes(hintCompany) || hintCompany.includes(company);
+  return titleOk && companyOk;
+}
+
+function hasStrongJobHints(hints = {}) {
+  return Boolean(normalizeLoose(hints.title || '') && normalizeLoose(hints.company || ''));
+}
+
+function formatSourceJobDescription(source, job = {}, targetUrl = '', { maxChars = 15000 } = {}) {
+  const title = cleanString(job.title || job.jobTitle || job.name || job.text || job.job_title || '');
+  const company = cleanString(job.companyName || job.company?.name || job.company || job.company_name || '');
+  const location = cleanString(
+    job.jobGeo ||
+    job.location ||
+    job.country ||
+    (Array.isArray(job.locationRestrictions) ? job.locationRestrictions.join(', ') : '') ||
+    (Array.isArray(job.timezoneRestrictions) ? `Timezone UTC ${job.timezoneRestrictions.join(', ')}` : '')
+  );
+  const jobType = cleanString(
+    Array.isArray(job.jobType) ? job.jobType.join(', ') : (job.jobType || job.employmentType || job.type || '')
+  );
+  const salaryParts = [
+    job.salaryMin || job.minSalary,
+    job.salaryMax || job.maxSalary,
+    job.salaryCurrency || job.currency,
+    job.salaryPeriod,
+  ].map(value => cleanString(value)).filter(Boolean);
+  const publishedAt = normalizeDateValue(job.pubDate || job.publishedAt || job.createdAt || job.publication_date || '');
+  const applyUrl = cleanString(
+    job.url ||
+    job.guid ||
+    job.applicationLink ||
+    job.applicationUrl ||
+    job.link ||
+    ((job.apply_options || []).find(opt => opt?.link) || {}).link ||
+    ''
+  );
+  const rawDescription =
+    job.jobDescription ||
+    job.description ||
+    job.content ||
+    job.descriptionPlain ||
+    job.jobExcerpt ||
+    job.excerpt ||
+    job.snippet ||
+    '';
+  const description = extractTextFromHtml(decodeHtmlEntitiesDeep(rawDescription));
+  if (!description || description.length < 250) return null;
+
+  const metaLines = [
+    `Source fallback: ${source}`,
+    targetUrl ? `Requested URL: ${targetUrl}` : '',
+    applyUrl ? `Source/apply URL: ${applyUrl}` : '',
+    company ? `Company: ${company}` : '',
+    title ? `Role: ${title}` : '',
+    location ? `Location / remote: ${location}` : '',
+    jobType ? `Job type: ${jobType}` : '',
+    salaryParts.length ? `Compensation: ${salaryParts.join(' ')}` : '',
+    publishedAt ? `Published: ${publishedAt}` : '',
+  ].filter(Boolean);
+
+  return [
+    '## Job metadata',
+    metaLines.join('\n'),
+    '',
+    '## Job description',
+    description,
+  ].join('\n').slice(0, maxChars);
+}
+
+function isJobicyUrl(url = '') {
+  try {
+    return /(^|\.)jobicy\.com$/i.test(new URL(String(url || '')).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isHimalayasUrl(url = '') {
+  try {
+    return /(^|\.)himalayas\.app$/i.test(new URL(String(url || '')).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isRemotiveUrl(url = '') {
+  try {
+    return /(^|\.)remotive\.com$/i.test(new URL(String(url || '')).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isRemoteFirstJobsUrl(url = '') {
+  try {
+    return /(^|\.)remotefirstjobs\.com$/i.test(new URL(String(url || '')).hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function fetchJobicyJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  if (!isJobicyUrl(jobUrl)) return null;
+  const targetKey = normalizeUrlKey(jobUrl);
+  const targetId = parseJobicyId(jobUrl);
+  const tags = [...new Set(['product', 'design', 'management'])];
+  const geos = ['', 'emea', 'europe', 'apac'];
+
+  for (const tag of tags) {
+    for (const geo of geos) {
+      const params = new URLSearchParams({ count: '100', tag });
+      if (geo) params.set('geo', geo);
+      const data = await fetchJsonWithSourceCache(`https://jobicy.com/api/v2/remote-jobs?${params.toString()}`).catch(() => null);
+      for (const job of (data?.jobs || [])) {
+        const keys = [job.url, job.jobUrl, job.guid].map(normalizeUrlKey).filter(Boolean);
+        const idOk = targetId && String(job.id || '') === targetId;
+        const hintedOk = hasStrongJobHints(hints) && titleCompanyMatch(job, hints);
+        if (!idOk && !keys.includes(targetKey) && !hintedOk) continue;
+        const text = formatSourceJobDescription('Jobicy API', job, jobUrl, { maxChars });
+        if (text) return { ok: true, text, mode: 'jobicy-api', status: 200 };
+      }
+    }
+  }
+  return null;
+}
+
+async function fetchHimalayasJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  if (!isHimalayasUrl(jobUrl)) return null;
+  const targetKey = normalizeUrlKey(jobUrl);
+  const { companySlug, jobSlug } = parseHimalayasPath(jobUrl);
+  const queries = [...new Set([
+    hints.title,
+    jobSlug.split('-').join(' '),
+    [hints.company, hints.title].filter(Boolean).join(' '),
+  ].map(cleanString).filter(Boolean))];
+
+  const considerJobs = (records = []) => {
+    for (const job of records) {
+      const keys = [job.applicationLink, job.applicationUrl, job.guid, job.url, job.link]
+        .map(normalizeUrlKey)
+        .filter(Boolean);
+      const slugOk = jobSlug && (
+        cleanString(job.guid).includes(`/jobs/${jobSlug}`) ||
+        cleanString(job.applicationLink).includes(`/jobs/${jobSlug}`) ||
+        slugify(job.title || '') === jobSlug
+      );
+      const companyOk = !companySlug || !job.companySlug || cleanString(job.companySlug) === companySlug;
+      const hintedOk = hasStrongJobHints(hints) && titleCompanyMatch(job, hints);
+      if (!keys.includes(targetKey) && !(slugOk && companyOk) && !hintedOk) continue;
+      const text = formatSourceJobDescription('Himalayas API', job, jobUrl, { maxChars });
+      if (text) return { ok: true, text, mode: 'himalayas-api', status: 200 };
+    }
+    return null;
+  };
+
+  for (const query of queries.slice(0, 4)) {
+    const params = new URLSearchParams({ q: query, limit: '20', worldwide: 'true' });
+    const data = await fetchJsonWithSourceCache(`https://himalayas.app/jobs/api/search?${params.toString()}`).catch(() => null);
+    const records = Array.isArray(data) ? data : (data?.jobs || data?.data || []);
+    const found = considerJobs(records);
+    if (found) return found;
+  }
+
+  for (let offset = 0; offset < 500; offset += 20) {
+    const data = await fetchJsonWithSourceCache(`https://himalayas.app/jobs/api?limit=20&offset=${offset}`).catch(() => null);
+    const records = Array.isArray(data) ? data : (data?.jobs || data?.data || []);
+    const found = considerJobs(records);
+    if (found) return found;
+    if (records.length < 20) break;
+  }
+
+  return null;
+}
+
+async function fetchRemotiveJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  if (!isRemotiveUrl(jobUrl)) return null;
+  const targetKey = normalizeUrlKey(jobUrl);
+  const data = await fetchJsonWithSourceCache('https://remotive.com/api/remote-jobs').catch(() => null);
+  for (const job of (data?.jobs || [])) {
+    const keys = [job.url].map(normalizeUrlKey).filter(Boolean);
+    const hintedOk = hasStrongJobHints(hints) && titleCompanyMatch(job, hints);
+    if (!keys.includes(targetKey) && !hintedOk) continue;
+    const text = formatSourceJobDescription('Remotive API', job, jobUrl, { maxChars });
+    if (text) return { ok: true, text, mode: 'remotive-api', status: 200 };
+  }
+  return null;
+}
+
+async function fetchGreenhouseJobDescriptionFromGuessedApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  let parsed;
+  try {
+    parsed = new URL(String(jobUrl || ''));
+  } catch {
+    return null;
+  }
+  const jobId = parsed.searchParams.get('gh_jid') || (parsed.pathname.match(/\/jobs\/(\d+)/i) || [])[1] || '';
+  if (!jobId) return null;
+  const hostSlug = parsed.hostname.replace(/^www\./, '').split('.')[0];
+  const candidates = [...new Set([
+    hostSlug,
+    hostSlug.replace(/[^a-z0-9]/gi, ''),
+    slugify(hints.company || '').replace(/-/g, ''),
+    slugify(hints.company || ''),
+  ].map(value => cleanString(value).toLowerCase()).filter(Boolean))];
+
+  for (const board of candidates) {
+    const data = await fetchJsonWithSourceCache(`https://boards-api.greenhouse.io/v1/boards/${board}/jobs/${jobId}`).catch(() => null);
+    if (!data?.id && !data?.title) continue;
+    const text = formatSourceJobDescription('Greenhouse API', {
+      ...data,
+      title: data.title,
+      companyName: hints.company || board,
+      location: data.location?.name || '',
+      description: data.content || data.description || '',
+      url: data.absolute_url || jobUrl,
+      publishedAt: data.updated_at || data.first_published || '',
+    }, jobUrl, { maxChars });
+    if (text) return { ok: true, text, mode: 'greenhouse-api', status: 200 };
+  }
+  return null;
+}
+
+async function fetchGoogleJobsDescriptionFromHints(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  const title = cleanString(hints.title || '');
+  const company = cleanString(hints.company || '');
+  const key = process.env.SEARCHAPI_KEY || SERPAPI_KEY;
+  if (!key || !hasStrongJobHints(hints)) return null;
+
+  const useSearchApi = Boolean(process.env.SEARCHAPI_KEY) && !SERPAPI_KEY;
+  const baseUrl = useSearchApi
+    ? 'https://www.searchapi.io/api/v1/search'
+    : 'https://serpapi.com/search.json';
+  const query = [title && `"${title}"`, company && `"${company}"`].filter(Boolean).join(' ');
+  const params = new URLSearchParams({ engine: 'google_jobs', q: query, hl: 'en', api_key: key });
+  const data = await fetchJsonWithSourceCache(`${baseUrl}?${params.toString()}`, { timeoutMs: 15000 }).catch(() => null);
+  const records = data?.jobs_results || data?.jobs || [];
+  for (const job of records) {
+    if (!titleCompanyMatch({
+      title: job.title,
+      companyName: job.company_name,
+    }, hints)) continue;
+    const text = formatSourceJobDescription(`${useSearchApi ? 'SearchAPI' : 'SerpApi'} Google Jobs`, {
+      ...job,
+      companyName: job.company_name || company,
+      description: job.description || job.snippet || '',
+      location: job.location || (job.detected_extensions?.work_from_home ? 'Remote' : ''),
+      url: ((job.apply_options || []).find(opt => opt?.link) || {}).link || job.share_link || job.link || jobUrl,
+      publishedAt: job.detected_extensions?.posted_at || job.detected_extensions?.posted || job.posted_at || '',
+    }, jobUrl, { maxChars });
+    if (text) return { ok: true, text, mode: useSearchApi ? 'searchapi-google-jobs' : 'serpapi-google-jobs', status: 200 };
+  }
+  return null;
+}
+
+async function fetchKnownSourceJobDescription(jobUrl, { maxChars = 15000, logLabel = 'pipeline', hints = {} } = {}) {
+  const attempts = [
+    ['jobicy-api', () => fetchJobicyJobDescriptionFromApi(jobUrl, { maxChars, hints })],
+    ['himalayas-api', () => fetchHimalayasJobDescriptionFromApi(jobUrl, { maxChars, hints })],
+    ['remotive-api', () => fetchRemotiveJobDescriptionFromApi(jobUrl, { maxChars, hints })],
+    ['greenhouse-api', () => fetchGreenhouseJobDescriptionFromGuessedApi(jobUrl, { maxChars, hints })],
+    ['google-jobs', () => fetchGoogleJobsDescriptionFromHints(jobUrl, { maxChars, hints })],
+  ];
+
+  for (const [mode, run] of attempts) {
+    try {
+      const result = await run();
+      if (result?.ok && result.text) {
+        console.log(`[${logLabel}] [${mode}] fetched ${result.text.length} chars for ${jobUrl}`);
+        return result;
+      }
+    } catch (err) {
+      console.warn(`[${logLabel}] [${mode}] failed for ${jobUrl}: ${err.message}`);
+    }
+  }
+  return null;
+}
+
+function isBlockedJobDescriptionResponse({ url = '', status = 200, html = '', text = '' } = {}) {
+  const rawHtml = String(html || '');
+  const bodyText = String(text || extractTextFromHtml(rawHtml)).toLowerCase();
+  if (status === 401 || status === 403 || status === 429) return true;
+  if (!bodyText) return true;
+
+  return [
+    'cf-mitigated',
+    'just a moment',
+    'enable javascript and cookies',
+    'verify you are human',
+    'checking your browser',
+    'security check',
+    'access denied',
+    'cloudflare',
+  ].some(fragment => rawHtml.toLowerCase().includes(fragment) || bodyText.includes(fragment)) ||
+    (/jobsdb\.com/i.test(url) && bodyText.length < 800);
+}
+
+// Headed-Chrome fallback for anti-bot / Cloudflare-protected job pages (LOCAL ONLY —
+// never on Vercel serverless). Reuses the SAME persistent profile the apply-runner
+// drives (data/chrome-profile), so a cf_clearance cookie solved once during an
+// auto-apply run is reused here for free. If that profile is locked by a running
+// Chrome, falls back to a dedicated persistent JD profile that accumulates its own
+// clearance cookies. When a challenge is present, polls so a human can solve it once
+// in the visible window; subsequent fetches on the same domain then pass automatically.
+let _playwrightChromium = null;
+async function getChromium() {
+  if (!_playwrightChromium) ({ chromium: _playwrightChromium } = await import('playwright'));
+  return _playwrightChromium;
+}
+
+async function fetchJobDescriptionViaBrowser(url, { maxChars = 15000, logLabel = 'pipeline', timeoutMs = 75000 } = {}) {
+  if (IS_VERCEL) return { ok: false, status: 0, html: '', text: '', blocked: true, error: 'browser fallback unavailable on Vercel' };
+  let chromium;
+  try { chromium = await getChromium(); }
+  catch (err) { return { ok: false, status: 0, html: '', text: '', blocked: true, error: `playwright unavailable: ${err.message}` }; }
+
+  const profiles = [join(ROOT, 'data', 'chrome-profile'), join(WRITE_ROOT, 'data', 'chrome-jd-profile')];
+  const launchOpts = { headless: false, viewport: null, args: ['--disable-blink-features=AutomationControlled', '--window-size=1280,920'] };
+  let ctx = null, usedIsolated = false, lastErr;
+  for (let i = 0; i < profiles.length && !ctx; i++) {
+    for (const channel of ['chrome', undefined]) {
+      try {
+        ctx = await chromium.launchPersistentContext(profiles[i], channel ? { ...launchOpts, channel } : launchOpts);
+        usedIsolated = i > 0;
+        break;
+      } catch (err) { lastErr = err; }
+    }
+  }
+  if (!ctx) return { ok: false, status: 0, html: '', text: '', blocked: true, error: `browser launch failed: ${lastErr?.message || 'unknown'}` };
+
+  try {
+    await ctx.addInitScript(() => {
+      try {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        window.chrome = window.chrome || { runtime: {} };
+      } catch { /* best effort */ }
+    }).catch(() => {});
+    const page = ctx.pages()[0] || await ctx.newPage();
+    console.log(`[${logLabel}] [browser] navigating (${usedIsolated ? 'isolated JD' : 'shared apply'} profile) → ${url}`);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+
+    const deadline = Date.now() + timeoutMs;
+    let html = '', text = '', blocked = true, announced = false;
+    do {
+      await page.waitForTimeout(2500);
+      html = await page.content().catch(() => '');
+      text = extractTextFromHtml(html);
+      blocked = isBlockedJobDescriptionResponse({ url, status: 200, html, text });
+      if (!blocked && text && text.length > 400) {
+        console.log(`[${logLabel}] [browser] challenge cleared — ${text.length} chars for ${url}`);
+        return { ok: true, status: 200, html, text, blocked: false };
+      }
+      if (blocked && !announced) {
+        console.log(`[${logLabel}] [browser] anti-bot challenge present — solve it in the Chrome window (waiting up to ${Math.round(timeoutMs / 1000)}s)…`);
+        announced = true;
+      }
+    } while (Date.now() < deadline);
+    return { ok: !blocked, status: 200, html, text, blocked };
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+}
+
+async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'pipeline', hintCompany = '', hintTitle = '', note = '' } = {}) {
+  const url = String(jobUrl || '').trim();
+  if (!url) return { ok: false, text: '', mode: 'none', error: 'Missing URL' };
+  const noteParts = extractPipelineNoteParts(note || '');
+  const remoteFirstParts = parseRemoteFirstPath(url);
+  const hints = {
+    company: cleanString(hintCompany || noteParts.company || remoteFirstParts.company || ''),
+    title: cleanString(hintTitle || noteParts.title || remoteFirstParts.title || ''),
+  };
+
+  if (isWeWorkRemotelyJobUrl(url)) {
+    const rssResult = await fetchWeWorkRemotelyJobDescriptionFromRss(url, { maxChars });
+    if (rssResult?.ok && rssResult.text) {
+      console.log(`[${logLabel}] [wwr-rss] fetched ${rssResult.text.length} chars for ${url}`);
+      return rssResult;
+    }
+  }
+
+  const knownSourceResult = await fetchKnownSourceJobDescription(url, { maxChars, logLabel, hints });
+  if (knownSourceResult?.ok && knownSourceResult.text) {
+    return knownSourceResult;
+  }
+
+  const fetchViaHttp = async () => {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+    const html = await response.text();
+    const text = extractTextFromHtml(html);
+    return {
+      ok: response.ok,
+      status: response.status,
+      html,
+      text,
+      blocked: isBlockedJobDescriptionResponse({ url, status: response.status, html, text }),
+    };
+  };
+
+  const fetchViaPinchtab = async () => {
+    if (!(await pinchtabHealth())) {
+      throw new Error('pinchtab daemon not reachable');
+    }
+    let tabId;
+    try {
+      tabId = await pinchtabNavigate(url, { timeout: 25000 });
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const html = await pinchtabEvaluate(tabId, 'document.documentElement.outerHTML', { timeout: 10000 });
+      const text = extractTextFromHtml(String(html || ''));
+      return {
+        ok: true,
+        status: 200,
+        html: String(html || ''),
+        text,
+        blocked: isBlockedJobDescriptionResponse({ url, status: 200, html, text }),
+      };
+    } finally {
+      await pinchtabClose(tabId);
+    }
+  };
+
+  const preferBrowser = shouldUseBrowserForJobDescription(url);
+  const attempts = preferBrowser
+    ? [
+        { mode: 'pinchtab', run: fetchViaPinchtab },
+        { mode: 'fetch', run: fetchViaHttp },
+      ]
+    : [
+        { mode: 'fetch', run: fetchViaHttp },
+        { mode: 'pinchtab', run: fetchViaPinchtab },
+      ];
+
+  let lastError = '';
+  for (const attempt of attempts) {
+    try {
+      const result = await attempt.run();
+      if (result.ok && !result.blocked && result.text) {
+        console.log(`[${logLabel}] [${attempt.mode}] fetched ${result.text.length} chars for ${url}`);
+        return {
+          ok: true,
+          text: result.text.slice(0, maxChars),
+          mode: attempt.mode,
+          status: result.status,
+        };
+      }
+
+      lastError = result.blocked
+        ? `Blocked by anti-bot/challenge (${attempt.mode}, status ${result.status})`
+        : `Failed to load content (${attempt.mode}, status ${result.status})`;
+      console.warn(`[${logLabel}] [${attempt.mode}] ${lastError} for ${url}`);
+    } catch (err) {
+      lastError = `${attempt.mode}: ${err.message}`;
+      console.warn(`[${logLabel}] [${attempt.mode}] failed for ${url}: ${err.message}`);
+    }
+  }
+
+  const lateKnownSourceResult = await fetchKnownSourceJobDescription(url, { maxChars, logLabel, hints });
+  if (lateKnownSourceResult?.ok && lateKnownSourceResult.text) {
+    return lateKnownSourceResult;
+  }
+
+  // Last resort: headed Chrome with the persistent (apply-runner) profile — the only
+  // path that clears Cloudflare/anti-bot challenges. Local only; skipped on Vercel.
+  if (!IS_VERCEL) {
+    try {
+      const browserResult = await fetchJobDescriptionViaBrowser(url, { maxChars, logLabel });
+      if (browserResult.ok && !browserResult.blocked && browserResult.text) {
+        console.log(`[${logLabel}] [browser] fetched ${browserResult.text.length} chars for ${url}`);
+        return { ok: true, text: browserResult.text.slice(0, maxChars), mode: 'browser', status: browserResult.status };
+      }
+      lastError = browserResult.error || `Blocked by anti-bot/challenge (browser, status ${browserResult.status})`;
+      console.warn(`[${logLabel}] [browser] ${lastError} for ${url}`);
+    } catch (err) {
+      lastError = `browser: ${err.message}`;
+      console.warn(`[${logLabel}] [browser] failed for ${url}: ${err.message}`);
+    }
+  }
+
+  return { ok: false, text: '', mode: 'failed', error: lastError || 'Unknown fetch error' };
 }
 
 function mergePublishedDates(index, jobs = []) {
@@ -843,84 +2398,184 @@ function mergePublishedDates(index, jobs = []) {
   });
 }
 
-async function fetchSourceSection({ name, url, type }) {
-  console.log(`[scan] [${type.toUpperCase()}] Fetching "${name}" → ${url}`);
+async function fetchSourceSection(source = {}) {
+  const { name, url, type, query = '', careers_url = '' } = source;
+  const provider = inferApiProviderFromUrl(url);
+  const logType = provider || type;
+  const fallbackSource = {
+    name,
+    query,
+    careers_url,
+  };
+  const fallbackToSecondarySource = async (reason) => {
+    if (fallbackSource.query) {
+      console.warn(`[scan] [${logType.toUpperCase()}] Falling back to web search for "${name}" (${reason})`);
+      return fetchWebSearchSection(fallbackSource);
+    }
+    if (fallbackSource.careers_url) {
+      console.warn(`[scan] [${logType.toUpperCase()}] Falling back to careers_url pinchtab for "${name}" (${reason})`);
+      return fetchCareersUrlFallback(fallbackSource);
+    }
+    return { ok: false, section: null, jobs: [], engine: `${logType}-api`, error: reason };
+  };
+
+  console.log(`[scan] [${logType.toUpperCase()}] Fetching "${name}" → ${url}`);
+  // Some feeds (e.g. Jobicy RSS) reject default Node requests with HTTP 403.
+  // Send a realistic browser UA + Accept header tuned to the source type.
+  const fetchHeaders = {
+    'User-Agent': nextDdgUserAgent(),
+    'Accept': type === 'json'
+      ? 'application/json, */*;q=0.5'
+      : 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5',
+    'Accept-Language': 'en-US,en;q=0.9',
+  };
   let r;
   try {
-    r = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    r = await fetch(url, { signal: AbortSignal.timeout(20000), headers: fetchHeaders });
   } catch (err) {
-    console.error(`[scan] [${type.toUpperCase()}] TIMEOUT/ERROR "${name}": ${err.message}`);
-    return { ok: false, section: null };
+    console.error(`[scan] [${logType.toUpperCase()}] TIMEOUT/ERROR "${name}": ${err.message}`);
+    return fallbackToSecondarySource(`network error: ${err.message}`);
   }
   if (!r.ok) {
-    console.error(`[scan] [${type.toUpperCase()}] HTTP ${r.status} "${name}"`);
-    return { ok: false, section: null };
+    console.error(`[scan] [${logType.toUpperCase()}] HTTP ${r.status} "${name}"`);
+    return fallbackToSecondarySource(`HTTP ${r.status}`);
   }
 
   let jobs = [];
   if (type === 'json') {
-    const data = await r.json();
-    jobs = (data.jobs || []).map(job => ({
-      title: job.title || '',
-      url: job.absolute_url || '',
-      location: cleanString(
-        job.location?.name ||
-        job.location ||
-        (Array.isArray(job.offices)
-          ? job.offices
-              .map(office => cleanString(office?.name || office?.location?.name || office?.location || ''))
-              .filter(Boolean)
-              .join(', ')
-          : '')
-      ),
-      remoteEvidence: cleanString(
-        job.location?.name ||
-        job.location ||
-        (Array.isArray(job.offices)
-          ? job.offices
-              .map(office => cleanString(office?.name || office?.location?.name || office?.location || ''))
-              .filter(Boolean)
-              .join(', ')
-          : '')
-      ),
-      publishedAt: normalizeDateValue(
-        job.published_at ||
-        job.publishedAt ||
-        job.created_at ||
-        job.createdAt ||
-        job.updated_at ||
-        job.updatedAt ||
-        job.date_posted ||
-        job.datePosted ||
-        ''
-      ),
-    }));
-    console.log(`[scan] [JSON] "${name}" → ${jobs.length} jobs total, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after title filter`);
+    let data;
+    try {
+      data = await r.json();
+    } catch (err) {
+      console.error(`[scan] [${logType.toUpperCase()}] Invalid JSON "${name}": ${err.message}`);
+      return fallbackToSecondarySource(`invalid JSON: ${err.message}`);
+    }
+
+    if (provider === 'ashby') {
+      jobs = (data.jobs || [])
+        .filter(job => job?.isListed !== false)
+        .map(job => {
+          const secondaryLocations = Array.isArray(job.secondaryLocations)
+            ? job.secondaryLocations.map(location => cleanString(location?.location || '')).filter(Boolean)
+            : [];
+          const location = cleanString([job.location, ...secondaryLocations].filter(Boolean).join(', '));
+          const remoteEvidence = cleanString([...new Set([
+            location,
+            job.workplaceType || '',
+            job.isRemote ? 'Remote' : '',
+          ].filter(Boolean))].join(' | '));
+          return {
+            title: cleanString(job.title || ''),
+            url: cleanString(job.jobUrl || job.applyUrl || ''),
+            location,
+            remoteEvidence,
+            publishedAt: normalizeDateValue(job.publishedAt || ''),
+          };
+        });
+    } else if (provider === 'lever') {
+      const records = Array.isArray(data) ? data : (data.data || data.postings || []);
+      jobs = records.map(job => {
+        const categories = job.categories || {};
+        const allLocations = Array.isArray(categories.allLocations) ? categories.allLocations : [];
+        const location = cleanString(
+          categories.location ||
+          allLocations.join(', ') ||
+          job.location ||
+          ''
+        );
+        const remoteEvidence = cleanString([
+          location,
+          job.workplaceType || '',
+          job.descriptionPlain || '',
+        ].filter(Boolean).join(' | ')).slice(0, 240);
+        return {
+          title: cleanString(job.text || job.title || ''),
+          url: cleanString(job.hostedUrl || job.applyUrl || job.url || ''),
+          location,
+          remoteEvidence,
+          publishedAt: normalizeDateValue(job.createdAt || job.updatedAt || ''),
+        };
+      });
+    } else {
+      jobs = (data.jobs || []).map(job => ({
+        title: job.title || '',
+        url: job.absolute_url || '',
+        location: cleanString(
+          job.location?.name ||
+          job.location ||
+          (Array.isArray(job.offices)
+            ? job.offices
+                .map(office => cleanString(office?.name || office?.location?.name || office?.location || ''))
+                .filter(Boolean)
+                .join(', ')
+            : '')
+        ),
+        remoteEvidence: cleanString(
+          job.location?.name ||
+          job.location ||
+          (Array.isArray(job.offices)
+            ? job.offices
+                .map(office => cleanString(office?.name || office?.location?.name || office?.location || ''))
+                .filter(Boolean)
+                .join(', ')
+            : '')
+        ),
+        publishedAt: normalizeDateValue(
+          job.published_at ||
+          job.publishedAt ||
+          job.created_at ||
+          job.createdAt ||
+          job.updated_at ||
+          job.updatedAt ||
+          job.date_posted ||
+          job.datePosted ||
+          ''
+        ),
+      }));
+    }
+    console.log(`[scan] [${logType.toUpperCase()}] "${name}" → ${jobs.length} jobs total, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after title filter`);
   } else if (type === 'rss') {
     const txt = await r.text();
-    const itemRe = /<item>([\s\S]*?)<\/item>/gi;
+    const itemRe = /<(item|entry)[^>]*>([\s\S]*?)<\/\1>/gi;
     let match;
     while ((match = itemRe.exec(txt)) !== null) {
-      const section = match[1];
-      const titleMatch = section.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
-        || section.match(/<title>([\s\S]*?)<\/title>/i);
-      const linkMatch = section.match(/<link>([\s\S]*?)<\/link>/i);
-      const dateMatch = section.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)
-        || section.match(/<published>([\s\S]*?)<\/published>/i)
-        || section.match(/<updated>([\s\S]*?)<\/updated>/i)
-        || section.match(/<dc:date>([\s\S]*?)<\/dc:date>/i);
-      if (titleMatch && linkMatch) {
+      const section = match[2];
+      const title = readXmlTag(section, 'title');
+      let link = readXmlTag(section, 'link');
+      if (!link) {
+        const hrefMatch = section.match(/<link[^>]+href=["']([^"']+)["']/i);
+        if (hrefMatch) link = hrefMatch[1];
+      }
+      if (!link) {
+        link = readXmlTag(section, 'guid') || readXmlTag(section, 'id');
+      }
+      const publishedAt = readXmlTag(section, 'pubDate') ||
+        readXmlTag(section, 'published') ||
+        readXmlTag(section, 'updated') ||
+        readXmlTag(section, 'dc:date');
+      if (title && link) {
+        const region = readXmlTag(section, 'region');
+        const country = readXmlTag(section, 'country');
+        const state = readXmlTag(section, 'state');
+        const rawDesc = readXmlTag(section, 'content:encoded') ||
+          readXmlTag(section, 'description') ||
+          readXmlTag(section, 'content') ||
+          readXmlTag(section, 'summary');
+        const descriptionText = extractTextFromHtml(decodeHtmlEntitiesDeep(rawDesc));
+        const location = [...new Set([region, country, state].map(cleanString).filter(Boolean))].join(', ');
         jobs.push({
-          title: titleMatch[1].trim(),
-          url: linkMatch[1].trim(),
-          publishedAt: normalizeDateValue(dateMatch?.[1]?.trim() || ''),
+          title,
+          url: link,
+          location,
+          remoteEvidence: cleanString([location, descriptionText].filter(Boolean).join(' | ')).slice(0, 240),
+          publishedAt: normalizeDateValue(publishedAt),
         });
       }
     }
     console.log(`[scan] [RSS] "${name}" → ${jobs.length} items, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after title filter`);
   }
 
-  return { ok: true, section: buildJobSection(name, jobs), jobs };
+  return { ok: true, section: buildJobSection(name, jobs), jobs, engine: provider ? `${provider}-api` : type };
 }
 
 async function fetchSerpApiSection({ name, query }) {
@@ -954,7 +2609,7 @@ async function fetchSerpApiSection({ name, query }) {
   if (!r.ok) {
     const errText = await r.text().catch(() => '');
     console.error(`[scan] [${apiLabel}] HTTP ${r.status} "${name}": ${errText.slice(0, 200)}`);
-    if (r.status === 401 || r.status === 403) tripSerpApiCircuit();
+    if (r.status === 401 || r.status === 403 || r.status === 429) tripSerpApiCircuit(`returned HTTP ${r.status}`);
     return { ok: false, section: null };
   }
 
@@ -999,16 +2654,35 @@ async function fetchSerpApiSection({ name, query }) {
 async function fetchDuckDuckGoSection({ name, query }) {
   if (!query) return { ok: false, section: null };
 
+  // Serialize + throttle: DDG challenge pages are triggered by parallel bursts
+  await ddgThrottle();
+
   console.log(`[scan] [DuckDuckGo] "${name}" → q: ${query.slice(0, 80)}...`);
-  const params = new URLSearchParams({ q: query, kl: 'wt-wt' });
+  // POST is less flagged than GET on the HTML endpoint
+  const body = new URLSearchParams({ q: query, kl: 'wt-wt', b: '', df: '' });
+  const ua = nextDdgUserAgent();
   let r;
   try {
-    r = await fetch(`${DUCKDUCKGO_HTML_SEARCH_URL}?${params.toString()}`, {
-      signal: AbortSignal.timeout(15000),
+    r = await fetch(DUCKDUCKGO_HTML_SEARCH_URL, {
+      method: 'POST',
+      signal: AbortSignal.timeout(20000),
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0; +https://career-ops.local)',
+        'User-Agent': ua,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Origin': 'https://duckduckgo.com',
+        'Referer': 'https://duckduckgo.com/',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
       },
+      body: body.toString(),
     });
   } catch (err) {
     console.error(`[scan] [DuckDuckGo] TIMEOUT/ERROR "${name}": ${err.message}`);
@@ -1080,6 +2754,190 @@ async function fetchCareersUrlFallback(source) {
   return result || { ok: false, section: null, jobs: [], engine: 'playwright-fallback' };
 }
 
+const PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT = `(() => {
+  const normalizeText = value => String(value || '').replace(/\\s+/g, ' ').trim();
+  const navLike = /^(read more|learn more|apply now|view all|see all|more)$/i;
+  const decodeHref = href => {
+    try {
+      const parsed = new URL(String(href || ''), window.location.origin);
+      if (parsed.pathname === '/url') {
+        return parsed.searchParams.get('q') || '';
+      }
+      return parsed.href || '';
+    } catch {
+      return String(href || '');
+    }
+  };
+  const isGoogleHost = host => /(^|\\.)google\\./i.test(host || '');
+  const seen = new Set();
+  const results = [];
+
+  document.querySelectorAll('a[href]').forEach(anchor => {
+    const title = normalizeText(
+      (anchor.querySelector('h3') || {}).textContent ||
+      anchor.getAttribute('aria-label') ||
+      anchor.textContent
+    );
+    if (!title || title.length < 4 || title.length > 220) return;
+    if (navLike.test(title)) return;
+
+    const decodedHref = decodeHref(anchor.getAttribute('href') || anchor.href || '');
+    if (!/^https?:\\/\\//i.test(decodedHref)) return;
+
+    let host = '';
+    try { host = new URL(decodedHref).hostname || ''; } catch {}
+    if (!host || isGoogleHost(host)) return;
+
+    const card = anchor.closest('div[data-snc], div.g, div[lang], article, section, div');
+    const snippet = normalizeText((card && card.innerText) || '').replace(title, '').trim();
+    const key = decodedHref + '::' + title.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    results.push({
+      title,
+      url: decodedHref,
+      location: snippet,
+      remoteEvidence: snippet,
+    });
+  });
+
+  return {
+    title: document.title || '',
+    bodyText: normalizeText(document.body && document.body.innerText || '').slice(0, 4000),
+    jobs: results.slice(0, 20),
+  };
+})()`;
+
+const PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT = `(() => {
+  const normalizeText = value => String(value || '').replace(/\\s+/g, ' ').trim();
+  const seen = new Set();
+  const results = [];
+  document.querySelectorAll('.snippet[data-type="web"]').forEach(snippet => {
+    const anchor = snippet.querySelector('a[href]');
+    if (!anchor) return;
+    const url = anchor.href || '';
+    if (!/^https?:\\/\\//i.test(url)) return;
+    let host = '';
+    try { host = new URL(url).hostname || ''; } catch {}
+    if (/(^|\\.)brave\\./i.test(host)) return;
+    const title = normalizeText(
+      (snippet.querySelector('.title') || {}).textContent ||
+      anchor.getAttribute('aria-label') ||
+      anchor.textContent
+    );
+    if (!title || title.length < 4 || title.length > 220) return;
+    const desc = normalizeText((snippet.querySelector('.snippet-description') || {}).textContent || '');
+    const key = url + '::' + title.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({ title, url, location: desc, remoteEvidence: desc });
+  });
+  return {
+    title: document.title || '',
+    bodyText: normalizeText(document.body && document.body.innerText || '').slice(0, 4000),
+    jobs: results.slice(0, 20),
+  };
+})()`;
+
+// Smart-solve: only invokes the autosolver when challenge text is detected on
+// the page. Re-runs the extract script once if solve succeeds. Returns the new
+// jobs array (or original if no solve attempted / solve failed).
+const CHALLENGE_TEXT_REGEX = /(captcha|verify you are human|unusual traffic|robot|just a moment|cloudflare|checking your browser)/i;
+async function smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript, label }) {
+  if (jobs.length || !CHALLENGE_TEXT_REGEX.test(bodyText)) return jobs;
+  if (pinchtabSolveCircuitOpen()) {
+    return jobs;
+  }
+  console.log(`[scan] [${label}] challenge detected, attempting solve...`);
+  let solved = await pinchtabSolve(tabId);
+  if (!solved && !pinchtabSolveCircuitOpen()) {
+    // Brief cooldown then retry once — some Turnstile/reCAPTCHA flows accept the
+    // second attempt after the iframe has settled. Skip if circuit is now open.
+    console.log(`[scan] [${label}] first solve attempt failed, cooling down 4s and retrying...`);
+    await new Promise(r => setTimeout(r, 4000));
+    solved = await pinchtabSolve(tabId, { maxAttempts: 4, timeout: 30000 });
+  }
+  if (!solved) {
+    console.warn(`[scan] [${label}] solve failed`);
+    return jobs;
+  }
+  console.log(`[scan] [${label}] solved, re-extracting...`);
+  await new Promise(r => setTimeout(r, 1200));
+  const retry = await pinchtabEvaluate(tabId, extractScript, { awaitPromise: false, timeout: 12000 }) || {};
+  return Array.isArray(retry.jobs) ? retry.jobs : jobs;
+}
+
+async function fetchPinchtabBraveSection({ name, query }) {
+  if (!query) return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave' };
+  if (!(await pinchtabHealth())) {
+    console.warn(`[scan] [PinchTab/Brave] daemon not reachable for "${name}"`);
+    return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave' };
+  }
+
+  await pinchtabSearchThrottle();
+
+  let tabId;
+  try {
+    const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}`;
+    console.log(`[scan] [PinchTab/Brave] "${name}" → q: ${query.slice(0, 80)}...`);
+    tabId = await pinchtabNavigate(searchUrl, { timeout: 25000 });
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    const result = await pinchtabEvaluate(tabId, PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 12000 }) || {};
+    let jobs = Array.isArray(result.jobs) ? result.jobs : [];
+    const bodyText = cleanString(result.bodyText || '');
+    jobs = await smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript: PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT, label: 'PinchTab/Brave' });
+
+    if (!jobs.length && CHALLENGE_TEXT_REGEX.test(bodyText)) {
+      console.warn(`[scan] [PinchTab/Brave] Challenge page detected for "${name}" (solve unsuccessful)`);
+      return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave', error: 'challenge page' };
+    }
+
+    console.log(`[scan] [PinchTab/Brave] "${name}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+    return { ok: jobs.length > 0, section: buildJobSection(name, jobs), jobs, engine: 'pinchtab-brave' };
+  } catch (err) {
+    console.error(`[scan] [PinchTab/Brave] Failed "${name}": ${err.message}`);
+    return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave', error: err.message };
+  } finally {
+    await pinchtabClose(tabId);
+  }
+}
+
+async function fetchPinchtabSearchSection({ name, query }) {
+  if (!query) return { ok: false, section: null, jobs: [], engine: 'pinchtab-google' };
+  if (!(await pinchtabHealth())) {
+    console.warn(`[scan] [PinchTab/Google] daemon not reachable for "${name}"`);
+    return { ok: false, section: null, jobs: [], engine: 'pinchtab-google' };
+  }
+
+  await pinchtabSearchThrottle();
+
+  let tabId;
+  try {
+    const searchUrl = `https://www.google.com/search?hl=en&num=10&q=${encodeURIComponent(query)}`;
+    console.log(`[scan] [PinchTab/Google] "${name}" → q: ${query.slice(0, 80)}...`);
+    tabId = await pinchtabNavigate(searchUrl, { timeout: 25000 });
+    await new Promise(resolve => setTimeout(resolve, 1800));
+    const result = await pinchtabEvaluate(tabId, PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 12000 }) || {};
+    let jobs = Array.isArray(result.jobs) ? result.jobs : [];
+    const bodyText = cleanString(result.bodyText || '');
+    jobs = await smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript: PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, label: 'PinchTab/Google' });
+
+    if (!jobs.length && CHALLENGE_TEXT_REGEX.test(bodyText)) {
+      console.warn(`[scan] [PinchTab/Google] Challenge page detected for "${name}" (solve unsuccessful)`);
+      return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: 'challenge page' };
+    }
+
+    console.log(`[scan] [PinchTab/Google] "${name}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+    return { ok: jobs.length > 0, section: buildJobSection(name, jobs), jobs, engine: 'pinchtab-google' };
+  } catch (err) {
+    console.error(`[scan] [PinchTab/Google] Failed "${name}": ${err.message}`);
+    return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: err.message };
+  } finally {
+    await pinchtabClose(tabId);
+  }
+}
+
 function buildTheirStackPayload(portalsConfig = {}) {
   const titleFilter = normalizeTitleFilterConfig(portalsConfig.title_filter || {});
   const jobTitleOr = [...new Set([...titleFilter.positive, ...titleFilter.seniorityBoost])].slice(0, 25);
@@ -1096,7 +2954,7 @@ function buildTheirStackPayload(portalsConfig = {}) {
 }
 
 async function fetchTheirStackSection(aggregator = {}, portalsConfig = {}) {
-  const apiKey = process.env.THEIRSTACK_API_KEY;
+  const apiKey = process.env.THEIRSTACK_API_KEY || process.env.THEIR_STACK_API_KEY;
   const apiUrl = aggregator.api_url || 'https://api.theirstack.com/v1/jobs/search';
   if (!apiKey) return { ok: false, section: null, jobs: [], engine: 'theirstack' };
 
@@ -1142,11 +3000,359 @@ async function fetchTheirStackSection(aggregator = {}, portalsConfig = {}) {
   };
 }
 
+const DEFAULT_AGGREGATOR_KEYWORDS = [
+  'AI Product Manager',
+  'Head of AI',
+  'Product Manager AI',
+  'Solutions Architect AI',
+  'Forward Deployed',
+  'AI Engineer',
+  'Agentic',
+  'LLM',
+  'Automation',
+  'Product Designer AI',
+  'UX AI',
+];
+const DEFAULT_AGGREGATOR_LOCATIONS = [
+  'Remote',
+  'Europe',
+  'EMEA',
+  'Asia',
+  'APAC',
+  'Singapore',
+  'Hong Kong',
+  'Japan',
+  'India',
+];
+
+function getAggregatorKeywords(aggregator = {}, { asArray = false } = {}) {
+  const configured = cleanList(aggregator.keywords);
+  if (configured.length) return asArray ? configured : configured.join(' OR ');
+  if (aggregator.what) return asArray ? [cleanString(aggregator.what)] : cleanString(aggregator.what);
+  if (aggregator.query) return asArray ? [cleanString(aggregator.query)] : cleanString(aggregator.query);
+  return asArray ? DEFAULT_AGGREGATOR_KEYWORDS : DEFAULT_AGGREGATOR_KEYWORDS.join(' OR ');
+}
+
+function getAggregatorLocations(aggregator = {}) {
+  const configured = cleanList(aggregator.locations);
+  if (configured.length) return configured;
+  if (aggregator.where) return [cleanString(aggregator.where)];
+  return DEFAULT_AGGREGATOR_LOCATIONS;
+}
+
+function buildAggregatorSearchQuery(aggregator = {}) {
+  if (aggregator.query) return cleanString(aggregator.query);
+  const keywords = getAggregatorKeywords(aggregator, { asArray: true }).map(keyword => `"${keyword}"`).join(' OR ');
+  const locations = getAggregatorLocations(aggregator).map(location => `"${location}"`).join(' OR ');
+  return `(${keywords}) ("full remote" OR "fully remote" OR remote OR "remote-first" OR distributed) (${locations})`;
+}
+
+async function fetchJsonWithTimeout(url, { method = 'GET', headers = {}, body, timeoutMs = 20000 } = {}) {
+  const response = await fetch(url, {
+    method,
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: {
+      'Accept': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+      ...headers,
+    },
+    body,
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${text.slice(0, 180)}`);
+  }
+  return text ? JSON.parse(text) : {};
+}
+
+function pushUniqueJobs(target, jobs = []) {
+  const seen = new Set(target.map(job => `${normalizeUrlKey(job.url)}::${cleanString(job.title).toLowerCase()}`));
+  for (const job of jobs) {
+    const key = `${normalizeUrlKey(job.url)}::${cleanString(job.title).toLowerCase()}`;
+    if (!job?.title || !job?.url || seen.has(key)) continue;
+    seen.add(key);
+    target.push(job);
+  }
+}
+
+async function fetchSearchApiAggregatorSection(aggregator = {}) {
+  const query = buildAggregatorSearchQuery(aggregator);
+  return fetchSerpApiSection({ name: aggregator.name || 'SearchAPI Google Jobs', query });
+}
+
+async function fetchAdzunaSection(aggregator = {}) {
+  const appId = process.env.ADZUNA_APP_ID;
+  const appKey = process.env.ADZUNA_APP_KEY;
+  if (!appId || !appKey) return { ok: false, section: null, jobs: [], engine: 'adzuna', error: 'missing ADZUNA_APP_ID/ADZUNA_APP_KEY' };
+
+  const countries = cleanList(aggregator.countries).length
+    ? cleanList(aggregator.countries)
+    : ['gb', 'fr', 'de', 'nl', 'be', 'es', 'it', 'at', 'pl', 'ch', 'se', 'dk', 'no', 'fi', 'in', 'sg', 'hk', 'jp'];
+  const what = getAggregatorKeywords(aggregator);
+  const where = cleanString(aggregator.where || 'remote');
+  const resultsPerPage = String(aggregator.results_per_page || 20);
+  const jobs = [];
+
+  for (const country of countries.slice(0, 24)) {
+    const params = new URLSearchParams({
+      app_id: appId,
+      app_key: appKey,
+      results_per_page: resultsPerPage,
+      what,
+      where,
+      'content-type': 'application/json',
+    });
+    const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
+    try {
+      const data = await fetchJsonWithTimeout(url);
+      pushUniqueJobs(jobs, (data.results || []).map(job => ({
+        title: cleanString(job.title || ''),
+        company: cleanString(job.company?.display_name || ''),
+        url: cleanString(job.redirect_url || ''),
+        location: cleanString(job.location?.display_name || (job.location?.area || []).join(', ')),
+        remoteEvidence: cleanString([where, job.location?.display_name, job.description].filter(Boolean).join(' | ')).slice(0, 240),
+        publishedAt: normalizeDateValue(job.created || ''),
+      })));
+    } catch (err) {
+      console.warn(`[scan] [Adzuna] ${country} failed: ${err.message}`);
+    }
+  }
+
+  console.log(`[scan] [Adzuna] "${aggregator.name || 'Adzuna'}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+  return { ok: jobs.length > 0, section: buildJobSection(aggregator.name || 'Adzuna', jobs, { includeCompany: true }), jobs, engine: 'adzuna' };
+}
+
+async function fetchJoobleSection(aggregator = {}) {
+  const apiKey = process.env.JOOBLE_API_KEY;
+  if (!apiKey) return { ok: false, section: null, jobs: [], engine: 'jooble', error: 'missing JOOBLE_API_KEY' };
+
+  const keywords = getAggregatorKeywords(aggregator);
+  const locations = getAggregatorLocations(aggregator).slice(0, 12);
+  const jobs = [];
+  const url = `https://jooble.org/api/${encodeURIComponent(apiKey)}`;
+
+  for (const location of locations) {
+    try {
+      const data = await fetchJsonWithTimeout(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keywords,
+          location,
+          radius: cleanString(aggregator.radius || '80'),
+          page: '1',
+          ResultOnPage: Number(aggregator.results_per_page || 20),
+          companysearch: 'false',
+        }),
+      });
+      pushUniqueJobs(jobs, (data.jobs || []).map(job => ({
+        title: cleanString(job.title || ''),
+        company: cleanString(job.company || ''),
+        url: cleanString(job.link || ''),
+        location: cleanString(job.location || location),
+        remoteEvidence: cleanString([location, job.location, job.type, job.snippet].filter(Boolean).join(' | ')).slice(0, 240),
+        publishedAt: normalizeDateValue(job.updated || ''),
+      })));
+    } catch (err) {
+      console.warn(`[scan] [Jooble] ${location} failed: ${err.message}`);
+    }
+  }
+
+  console.log(`[scan] [Jooble] "${aggregator.name || 'Jooble'}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+  return { ok: jobs.length > 0, section: buildJobSection(aggregator.name || 'Jooble', jobs, { includeCompany: true }), jobs, engine: 'jooble' };
+}
+
+async function fetchCareerjetSection(aggregator = {}) {
+  const affid = process.env.CAREERJET_AFFID || process.env.CAREERJET_AFFILIATE_ID;
+  if (!affid) return { ok: false, section: null, jobs: [], engine: 'careerjet', error: 'missing CAREERJET_AFFID' };
+
+  const locales = cleanList(aggregator.locales).length
+    ? cleanList(aggregator.locales)
+    : ['en_GB', 'fr_FR', 'de_DE', 'es_ES', 'it_IT', 'nl_NL', 'en_IN', 'en_SG', 'en_HK'];
+  const keywords = getAggregatorKeywords(aggregator);
+  const location = cleanString(aggregator.location || aggregator.where || 'remote');
+  const jobs = [];
+
+  for (const locale of locales.slice(0, 18)) {
+    const params = new URLSearchParams({
+      locale,
+      affid,
+      keywords,
+      location,
+      pagesize: String(aggregator.results_per_page || 20),
+      page: '1',
+      user_ip: '127.0.0.1',
+      user_agent: 'career-ops/1.0',
+    });
+    const url = `https://public.api.careerjet.net/search?${params.toString()}`;
+    try {
+      const data = await fetchJsonWithTimeout(url);
+      pushUniqueJobs(jobs, (data.jobs || []).map(job => ({
+        title: cleanString(job.title || ''),
+        company: cleanString(job.company || ''),
+        url: cleanString(job.url || ''),
+        location: cleanString(job.locations || location),
+        remoteEvidence: cleanString([location, job.locations, job.description].filter(Boolean).join(' | ')).slice(0, 240),
+        publishedAt: normalizeDateValue(job.date || ''),
+      })));
+    } catch (err) {
+      console.warn(`[scan] [Careerjet] ${locale} failed: ${err.message}`);
+    }
+  }
+
+  console.log(`[scan] [Careerjet] "${aggregator.name || 'Careerjet'}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+  return { ok: jobs.length > 0, section: buildJobSection(aggregator.name || 'Careerjet', jobs, { includeCompany: true }), jobs, engine: 'careerjet' };
+}
+
+async function fetchRemotiveSection(aggregator = {}) {
+  const queries = cleanList(aggregator.queries).length ? cleanList(aggregator.queries) : getAggregatorKeywords(aggregator, { asArray: true }).slice(0, 8);
+  const jobs = [];
+  for (const query of queries) {
+    const params = new URLSearchParams({ search: query });
+    const url = `https://remotive.com/api/remote-jobs?${params.toString()}`;
+    try {
+      const data = await fetchJsonWithTimeout(url);
+      pushUniqueJobs(jobs, (data.jobs || []).map(job => ({
+        title: cleanString(job.title || ''),
+        company: cleanString(job.company_name || ''),
+        url: cleanString(job.url || ''),
+        location: cleanString(job.candidate_required_location || 'Remote'),
+        remoteEvidence: cleanString(['Remote', job.candidate_required_location, job.job_type, job.description].filter(Boolean).join(' | ')).slice(0, 240),
+        publishedAt: normalizeDateValue(job.publication_date || ''),
+      })));
+    } catch (err) {
+      console.warn(`[scan] [Remotive] ${query} failed: ${err.message}`);
+    }
+  }
+
+  console.log(`[scan] [Remotive] "${aggregator.name || 'Remotive'}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+  return { ok: jobs.length > 0, section: buildJobSection(aggregator.name || 'Remotive', jobs, { includeCompany: true }), jobs, engine: 'remotive' };
+}
+
+async function fetchJobicySection(aggregator = {}) {
+  // Jobicy v2 API: valid geo slugs are emea, europe, americas, apac, usa, canada, uk, australia.
+  // 'anywhere' / 'all' / '' must be sent as an omitted geo param (not as a value).
+  // tag must be 3-50 chars.
+  const VALID_JOBICY_GEOS = new Set(['emea', 'europe', 'americas', 'apac', 'usa', 'canada', 'uk', 'australia']);
+  const ALL_GEO_TOKENS = new Set(['anywhere', 'all', 'worldwide', 'global', '']);
+
+  const rawGeos = cleanList(aggregator.geos).length ? cleanList(aggregator.geos) : ['emea', 'europe', 'apac', 'all'];
+  const rawTag = cleanString(aggregator.tag || 'product');
+  const tag = rawTag.length < 3 ? 'product' : rawTag.slice(0, 50);
+  if (rawTag !== tag) console.warn(`[scan] [Jobicy] tag "${rawTag}" invalid (must be 3-50 chars) — using "${tag}"`);
+
+  const jobs = [];
+
+  for (const geoRaw of rawGeos.slice(0, 8)) {
+    const geo = String(geoRaw || '').toLowerCase();
+    const params = new URLSearchParams({ count: String(aggregator.results_per_page || 50), tag });
+    let label = geo;
+    if (ALL_GEO_TOKENS.has(geo)) {
+      label = '(no-geo)';
+      // intentionally do not append geo param
+    } else if (!VALID_JOBICY_GEOS.has(geo)) {
+      console.warn(`[scan] [Jobicy] skipping unknown geo "${geo}" (valid: ${[...VALID_JOBICY_GEOS].join(', ')})`);
+      continue;
+    } else {
+      params.set('geo', geo);
+    }
+    const url = `https://jobicy.com/api/v2/remote-jobs?${params.toString()}`;
+    try {
+      const data = await fetchJsonWithTimeout(url);
+      pushUniqueJobs(jobs, (data.jobs || []).map(job => ({
+        title: cleanString(job.jobTitle || job.title || ''),
+        company: cleanString(job.companyName || job.company || ''),
+        url: cleanString(job.url || job.jobUrl || ''),
+        location: cleanString(job.jobGeo || geo || 'Remote'),
+        remoteEvidence: cleanString(['Remote', job.jobGeo, job.jobIndustry, job.jobDescription].filter(Boolean).join(' | ')).slice(0, 240),
+        publishedAt: normalizeDateValue(job.pubDate || ''),
+      })));
+    } catch (err) {
+      console.warn(`[scan] [Jobicy] ${label} failed: ${err.message}`);
+    }
+  }
+
+  console.log(`[scan] [Jobicy] "${aggregator.name || 'Jobicy'}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+  return { ok: jobs.length > 0, section: buildJobSection(aggregator.name || 'Jobicy', jobs, { includeCompany: true }), jobs, engine: 'jobicy' };
+}
+
+async function fetchHimalayasSection(aggregator = {}) {
+  const queries = cleanList(aggregator.queries).length ? cleanList(aggregator.queries) : getAggregatorKeywords(aggregator, { asArray: true }).slice(0, 8);
+  const jobs = [];
+
+  for (const query of queries) {
+    const params = new URLSearchParams({
+      q: query,
+      limit: String(Math.min(Number(aggregator.results_per_page || 20), 20)),
+      worldwide: 'true',
+    });
+    const url = `https://himalayas.app/jobs/api/search?${params.toString()}`;
+    try {
+      const data = await fetchJsonWithTimeout(url);
+      const records = Array.isArray(data) ? data : (data.jobs || data.data || []);
+      pushUniqueJobs(jobs, records.map(job => ({
+        title: cleanString(job.title || job.name || ''),
+        company: cleanString(job.companyName || job.company?.name || job.company || ''),
+        url: cleanString(job.applicationLink || job.applicationUrl || job.url || job.link || ''),
+        location: cleanString(job.location || job.country || job.countries?.join?.(', ') || 'Remote'),
+        remoteEvidence: cleanString(['Remote', job.location, job.country, job.timezone, job.description].filter(Boolean).join(' | ')).slice(0, 240),
+        publishedAt: normalizeDateValue(job.publishedAt || job.createdAt || ''),
+      })));
+    } catch (err) {
+      console.warn(`[scan] [Himalayas] ${query} failed: ${err.message}`);
+    }
+  }
+
+  console.log(`[scan] [Himalayas] "${aggregator.name || 'Himalayas'}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+  return { ok: jobs.length > 0, section: buildJobSection(aggregator.name || 'Himalayas', jobs, { includeCompany: true }), jobs, engine: 'himalayas' };
+}
+
+async function fetchArbeitnowSection(aggregator = {}) {
+  const url = aggregator.api_url || 'https://www.arbeitnow.com/api/job-board-api';
+  try {
+    const data = await fetchJsonWithTimeout(url);
+    const records = Array.isArray(data) ? data : (data.data || data.jobs || []);
+    const jobs = records.map(job => ({
+      title: cleanString(job.title || ''),
+      company: cleanString(job.company_name || job.company || ''),
+      url: cleanString(job.url || job.slug && `https://www.arbeitnow.com/jobs/${job.slug}` || ''),
+      location: cleanString(job.location || (job.remote ? 'Remote, Europe' : '')),
+      remoteEvidence: cleanString([job.remote ? 'Remote, Europe' : '', job.location, ...(Array.isArray(job.tags) ? job.tags : [])].filter(Boolean).join(' | ')).slice(0, 240),
+      publishedAt: normalizeDateValue(job.created_at || job.createdAt || ''),
+    }));
+    console.log(`[scan] [Arbeitnow] "${aggregator.name || 'Arbeitnow'}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+    return { ok: jobs.length > 0, section: buildJobSection(aggregator.name || 'Arbeitnow', jobs, { includeCompany: true }), jobs, engine: 'arbeitnow' };
+  } catch (err) {
+    console.warn(`[scan] [Arbeitnow] failed: ${err.message}`);
+    return { ok: false, section: null, jobs: [], engine: 'arbeitnow', error: err.message };
+  }
+}
+
+async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
+  const provider = getAggregatorProvider(aggregator);
+  if (!isAggregatorConfigured(aggregator)) {
+    return { ok: false, section: null, jobs: [], engine: provider || 'aggregator', error: 'missing credentials or unsupported provider' };
+  }
+  if (provider === 'theirstack') return fetchTheirStackSection(aggregator, portalsConfig);
+  if (provider === 'searchapi' || provider === 'serpapi') return fetchSearchApiAggregatorSection(aggregator, portalsConfig);
+  if (provider === 'adzuna') return fetchAdzunaSection(aggregator, portalsConfig);
+  if (provider === 'jooble') return fetchJoobleSection(aggregator, portalsConfig);
+  if (provider === 'careerjet') return fetchCareerjetSection(aggregator, portalsConfig);
+  if (provider === 'remotive') return fetchRemotiveSection(aggregator, portalsConfig);
+  if (provider === 'jobicy') return fetchJobicySection(aggregator, portalsConfig);
+  if (provider === 'himalayas') return fetchHimalayasSection(aggregator, portalsConfig);
+  if (provider === 'arbeitnow') return fetchArbeitnowSection(aggregator, portalsConfig);
+  return { ok: false, section: null, jobs: [], engine: 'aggregator', error: 'unsupported provider' };
+}
+
 async function fetchWebSearchSection(source) {
-  if (!serpApiCircuitOpen && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
+  if (webSearchCircuitOpen()) {
+    return { ok: false, section: null, error: 'web-search circuit open' };
+  }
+  if (!serpApiCircuitOpen() && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
     try {
       const result = await fetchSerpApiSection(source);
-      if (result.ok && result.section) return result;
+      if (result.ok && result.section) { recordWebSearchOutcome(true); return result; }
       console.warn(`[scan] [WebSearch] SearchAPI/SerpApi failed for "${source.name}", falling back...`);
     } catch (err) {
       console.warn(`[scan] [WebSearch] SearchAPI/SerpApi threw for "${source.name}": ${err.message}, falling back...`);
@@ -1156,7 +3362,7 @@ async function fetchWebSearchSection(source) {
   if (process.env.BRAVE_API_KEY) {
     try {
       const result = await fetchBraveSection(source);
-      if (result.ok && result.section) return result;
+      if (result.ok && result.section) { recordWebSearchOutcome(true); return result; }
       console.warn(`[scan] [WebSearch] Brave failed for "${source.name}", falling back to DuckDuckGo`);
     } catch (err) {
       console.warn(`[scan] [WebSearch] Brave threw for "${source.name}": ${err.message}, falling back to DuckDuckGo`);
@@ -1165,14 +3371,201 @@ async function fetchWebSearchSection(source) {
     console.log(`[scan] [WebSearch] No API key — using DuckDuckGo fallback for "${source.name}"`);
   }
 
+  // Re-check before each remaining engine: a parallel sibling query may have
+  // tripped the circuit while we were waiting on a throttle slot.
+  if (webSearchCircuitOpen()) return { ok: false, section: null, error: 'web-search circuit open' };
   const duckDuckGoResult = await fetchDuckDuckGoSection(source);
-  if (duckDuckGoResult.ok && duckDuckGoResult.section) return duckDuckGoResult;
+  if (duckDuckGoResult.ok && duckDuckGoResult.section) { recordWebSearchOutcome(true); return duckDuckGoResult; }
+
+  if (webSearchCircuitOpen()) return { ok: false, section: null, error: 'web-search circuit open' };
+  const pinchtabBraveResult = await fetchPinchtabBraveSection(source);
+  if (pinchtabBraveResult.ok && pinchtabBraveResult.section) { recordWebSearchOutcome(true); return pinchtabBraveResult; }
+
+  if (webSearchCircuitOpen()) return { ok: false, section: null, error: 'web-search circuit open' };
+  const pinchtabSearchResult = await fetchPinchtabSearchSection(source);
+  if (pinchtabSearchResult.ok && pinchtabSearchResult.section) { recordWebSearchOutcome(true); return pinchtabSearchResult; }
+
   if (source?.careers_url) {
-    console.warn(`[scan] [WebSearch] Falling back to careers_url Playwright for "${source.name}"`);
-    return fetchCareersUrlFallback(source);
+    console.warn(`[scan] [WebSearch] Falling back to careers_url pinchtab for "${source.name}"`);
+    const fallback = await fetchCareersUrlFallback(source);
+    recordWebSearchOutcome(Boolean(fallback?.ok && fallback?.section));
+    return fallback;
   }
-  return duckDuckGoResult;
+  recordWebSearchOutcome(false);
+  return pinchtabSearchResult.ok ? pinchtabSearchResult : (pinchtabBraveResult.ok ? pinchtabBraveResult : duckDuckGoResult);
 }
+
+const PINCHTAB_SCROLL_SCRIPT = `(async () => {
+  for (let i = 0; i < 6; i += 1) {
+    window.scrollTo(0, document.body.scrollHeight);
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
+  window.scrollTo(0, 0);
+  return true;
+})()`;
+
+const PINCHTAB_EXTRACT_SCRIPT = `(() => {
+  const normalizeText = value => String(value || '').replace(/\\s+/g, ' ').trim();
+  const parseDate = value => {
+    const raw = normalizeText(value);
+    if (!raw) return '';
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+  };
+  const host = window.location.hostname;
+  const navLike = /^(home|jobs|careers|open roles|open positions|learn more|view all|see all|apply now)$/i;
+  const isLikelyJobHref = href => /\\/jobs?\\/|\\/positions?\\/|\\/open-roles?\\/|\\/projects?\\/|\\/missions?\\/|\\/job-mission\\/|jobs\\.ashbyhq\\.com|jobs\\.lever\\.co|apply\\.workable\\.com/i.test(href);
+  const results = [];
+  const seen = new Set();
+  const pushJob = entry => {
+    const title = normalizeText(entry && entry.title);
+    const url = normalizeText(entry && entry.url);
+    if (!title || !url || navLike.test(title)) return;
+    const key = url + '::' + title.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({
+      title,
+      url,
+      location: normalizeText(entry && entry.location),
+      publishedAt: normalizeText(entry && entry.publishedAt),
+    });
+  };
+
+  if (host.includes('jobs.lever.co')) {
+    document.querySelectorAll('a.posting, a[href*="jobs.lever.co"]').forEach(anchor => {
+      const title = normalizeText(
+        (anchor.querySelector('h5, h4, [class*="posting-title"]') || {}).textContent ||
+        anchor.textContent
+      );
+      const location = normalizeText(
+        (anchor.querySelector('.sort-by-location, [class*="location"]') || {}).textContent || ''
+      );
+      pushJob({ title, url: anchor.href, location });
+    });
+  } else if (host.includes('jobs.ashbyhq.com')) {
+    const boardSlug = window.location.pathname.split('/').filter(Boolean)[0] || '';
+    const toAshbyUrl = posting => {
+      const raw = normalizeText(
+        posting.jobUrl ||
+        posting.applyUrl ||
+        posting.hostedUrl ||
+        posting.url ||
+        posting.absoluteUrl ||
+        ''
+      );
+      if (/^https?:\\/\\//i.test(raw)) return raw;
+      const id = normalizeText(posting.id || posting.jobId || posting.externalId || '');
+      if (id && boardSlug) return new URL('/' + boardSlug + '/' + id, window.location.origin).href;
+      return raw ? new URL(raw, window.location.href).href : '';
+    };
+    const normalizeAshbyLocation = posting => normalizeText(
+      posting.locationName ||
+      posting.primaryLocation ||
+      posting.primaryLocationName ||
+      (posting.location && posting.location.name) ||
+      (typeof posting.location === 'string' ? posting.location : '') ||
+      ''
+    );
+    const normalizeAshbyDate = posting => parseDate(
+      posting.publishedDate ||
+      posting.publishedAt ||
+      posting.createdAt ||
+      posting.updatedAt ||
+      ''
+    );
+    const addAshbyPosting = posting => {
+      if (!posting || typeof posting !== 'object') return;
+      pushJob({
+        title: normalizeText(posting.title || posting.name || posting.jobTitle || ''),
+        url: toAshbyUrl(posting),
+        location: normalizeAshbyLocation(posting),
+        publishedAt: normalizeAshbyDate(posting),
+      });
+    };
+    const collectAshbyPostings = value => {
+      const stack = [value];
+      const visited = new Set();
+      while (stack.length) {
+        const current = stack.pop();
+        if (!current || typeof current !== 'object' || visited.has(current)) continue;
+        visited.add(current);
+        if (Array.isArray(current)) {
+          const looksLikeJobs = current.some(item =>
+            item && typeof item === 'object' &&
+            normalizeText(item.title || item.name || item.jobTitle) &&
+            (normalizeText(item.jobUrl || item.applyUrl || item.hostedUrl || item.url || item.absoluteUrl || item.id || item.jobId))
+          );
+          if (looksLikeJobs) current.forEach(addAshbyPosting);
+          else current.forEach(item => stack.push(item));
+          continue;
+        }
+        Object.values(current).forEach(item => {
+          if (item && typeof item === 'object') stack.push(item);
+        });
+      }
+    };
+
+    collectAshbyPostings(window.__appData);
+    collectAshbyPostings(window.__NEXT_DATA__);
+    document.querySelectorAll('script[type="application/json"], script:not([src])').forEach(script => {
+      const text = script.textContent || '';
+      if (!/jobPostings|jobBoard|posting-api|publishedAt|publishedDate|ashby/i.test(text)) return;
+      try { collectAshbyPostings(JSON.parse(text)); } catch {}
+    });
+
+    document.querySelectorAll('a[href]').forEach(anchor => {
+      const href = anchor.href || '';
+      if (!/jobs\\.ashbyhq\\.com/i.test(href)) return;
+      const parsedPath = (() => {
+        try { return new URL(href).pathname.split('/').filter(Boolean); } catch { return []; }
+      })();
+      if (parsedPath.length < 2 && !/\\/job\\//i.test(href)) return;
+      const card = anchor.closest('[data-testid*="job"], [class*="job"], article, li, a, section, div');
+      const title = normalizeText(
+        (anchor.querySelector('h1, h2, h3, h4, h5, [class*="title"], [data-testid*="title"]') || {}).textContent ||
+        (card && (card.querySelector('h1, h2, h3, h4, h5, [class*="title"], [data-testid*="title"]') || {}).textContent) ||
+        anchor.textContent
+      );
+      if (title.length < 4 || title.length > 180) return;
+      const domLocation = normalizeText(
+        (card && (card.querySelector('[class*="location"], [data-testid*="location"], [class*="Location"]') || {}).textContent) || ''
+      );
+      const time = card && card.querySelector('time');
+      const publishedAt = parseDate(
+        (time && time.getAttribute('datetime')) || (time && time.textContent) || ''
+      );
+      pushJob({ title, url: href, location: domLocation, publishedAt });
+    });
+  } else {
+    document.querySelectorAll('a[href]').forEach(anchor => {
+      const href = anchor.href || '';
+      if (!isLikelyJobHref(href)) return;
+      const title = normalizeText(
+        (anchor.querySelector('h1, h2, h3, h4, h5, [class*="title"]') || {}).textContent ||
+        anchor.textContent
+      );
+      if (title.length < 4 || title.length > 160) return;
+      const card = anchor.closest('a, article, li, section, div');
+      const location = normalizeText(
+        (card && card.querySelector('[class*="location"], [data-testid*="location"]') || {}).textContent || ''
+      );
+      const time = card && card.querySelector('time');
+      const publishedAt = parseDate(
+        (time && time.getAttribute('datetime')) || (time && time.textContent) || ''
+      );
+      pushJob({ title, url: href, location, publishedAt });
+    });
+  }
+
+  return results.map(job => ({
+    title: job.location ? job.title + ' (' + job.location + ')' : job.title,
+    location: job.location,
+    remoteEvidence: job.location,
+    url: job.url,
+    publishedAt: job.publishedAt,
+  }));
+})()`;
 
 async function fetchPlaywrightSections(companies = []) {
   if (!companies.length) return [];
@@ -1183,178 +3576,67 @@ async function fetchPlaywrightSections(companies = []) {
     }));
   }
 
-  let chromium;
-  try {
-    chromium = await loadPlaywrightChromium();
-  } catch (err) {
-    console.error(`[scan] [Playwright] Failed to load Playwright: ${err.message}`);
-    return companies.map(company => buildPlaywrightResult(company, { error: err.message }));
+  if (!(await pinchtabHealth())) {
+    const reason = `pinchtab daemon not reachable at ${PINCHTAB_URL} — start it with: pinchtab server`;
+    console.error(`[scan] [pinchtab] ${reason}`);
+    return companies.map(company => buildPlaywrightResult(company, { error: reason }));
   }
-
-  let browser;
-  try {
-    browser = await chromium.launch({ headless: true });
-  } catch (err) {
-    console.error(`[scan] [Playwright] Failed to launch Chromium: ${err.message}`);
-    return companies.map(company => buildPlaywrightResult(company, { error: err.message }));
-  }
-  const unmarkBrowser = markPlaywrightBrowser(browser);
 
   const results = [];
   for (let index = 0; index < companies.length; index += 1) {
     const company = companies[index];
-    if (isShuttingDown || !browser.isConnected()) {
-      cancelRemainingPlaywrightResults(
-        results,
-        companies,
-        index,
-        'Cancelled because the UI server is restarting or the browser disconnected'
-      );
+    if (isShuttingDown) {
+      cancelRemainingPlaywrightResults(results, companies, index, 'Cancelled because the UI server is restarting');
       break;
     }
 
-    let page;
+    let tabId;
     try {
-      page = await browser.newPage();
-      console.log(`[scan] [Playwright] Fetching "${company.name}" → ${company.careers_url}`);
-      await page.goto(company.careers_url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await page.waitForTimeout(1200);
-      await page.evaluate(async () => {
-        for (let i = 0; i < 6; i += 1) {
-          window.scrollTo(0, document.body.scrollHeight);
-          await new Promise(resolve => setTimeout(resolve, 250));
+      console.log(`[scan] [pinchtab] Fetching "${company.name}" → ${company.careers_url}`);
+      tabId = await pinchtabNavigate(company.careers_url, { timeout: 20000 });
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      await pinchtabEvaluate(tabId, PINCHTAB_SCROLL_SCRIPT, { awaitPromise: true, timeout: 10000 });
+      let jobs = (await pinchtabEvaluate(tabId, PINCHTAB_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 10000 })) || [];
+
+      // If empty, check for a challenge wall and try solving once before giving up.
+      if (!jobs.length) {
+        const bodyText = String(await pinchtabEvaluate(tabId, '(document.body && document.body.innerText || "").slice(0, 2000)', { awaitPromise: false, timeout: 5000 }) || '');
+        if (CHALLENGE_TEXT_REGEX.test(bodyText)) {
+          console.log(`[scan] [pinchtab] "${company.name}" challenge detected, attempting solve...`);
+          const solved = await pinchtabSolve(tabId);
+          if (solved) {
+            console.log(`[scan] [pinchtab] "${company.name}" solved, re-scrolling + extracting...`);
+            await pinchtabEvaluate(tabId, PINCHTAB_SCROLL_SCRIPT, { awaitPromise: true, timeout: 10000 });
+            jobs = (await pinchtabEvaluate(tabId, PINCHTAB_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 10000 })) || [];
+          } else {
+            console.warn(`[scan] [pinchtab] "${company.name}" solve failed`);
+          }
         }
-        window.scrollTo(0, 0);
-      });
+      }
 
-      const jobs = await page.evaluate(() => {
-        const normalizeText = value => String(value || '').replace(/\s+/g, ' ').trim();
-        const parseDate = value => {
-          const raw = normalizeText(value);
-          if (!raw) return '';
-          const parsed = new Date(raw);
-          return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
-        };
-        const host = window.location.hostname;
-        const navLike = /^(home|jobs|careers|open roles|open positions|learn more|view all|see all|apply now)$/i;
-        const isLikelyJobHref = href => /\/job(s)?\/|\/positions?\/|\/open-roles?\/|jobs\.ashbyhq\.com|jobs\.lever\.co|apply\.workable\.com/i.test(href);
-        const results = [];
-        const seen = new Set();
-        const pushJob = entry => {
-          const title = normalizeText(entry?.title);
-          const url = normalizeText(entry?.url);
-          if (!title || !url || navLike.test(title)) return;
-          const key = `${url}::${title.toLowerCase()}`;
-          if (seen.has(key)) return;
-          seen.add(key);
-          results.push({
-            title,
-            url,
-            location: normalizeText(entry?.location),
-            publishedAt: normalizeText(entry?.publishedAt),
-          });
-        };
-
-        if (host.includes('jobs.lever.co')) {
-          document.querySelectorAll('a.posting, a[href*="jobs.lever.co"]').forEach(anchor => {
-            const title = normalizeText(
-              anchor.querySelector('h5, h4, [class*="posting-title"]')?.textContent ||
-              anchor.textContent
-            );
-            const location = normalizeText(
-              anchor.querySelector('.sort-by-location, [class*="location"]')?.textContent || ''
-            );
-            pushJob({ title, url: anchor.href, location });
-          });
-        } else if (host.includes('jobs.ashbyhq.com')) {
-          const ashbyMeta = new Map(
-            ((window.__appData && window.__appData.jobBoard && window.__appData.jobBoard.jobPostings) || []).map(posting => [
-              `${normalizeText(posting.title)}::${normalizeText(posting.locationName)}`,
-              {
-                location: normalizeText(posting.locationName),
-                publishedAt: parseDate(posting.publishedDate || posting.updatedAt || ''),
-              },
-            ])
-          );
-          document.querySelectorAll('a[href*="/job/"], a[href*="jobs.ashbyhq.com"]').forEach(anchor => {
-            const card = anchor.closest('a, article, li, section, div');
-            const title = normalizeText(
-              anchor.querySelector('h1, h2, h3, h4, h5, [class*="title"]')?.textContent ||
-              anchor.textContent
-            );
-            const domLocation = normalizeText(
-              card?.querySelector('[class*="location"], [data-testid*="location"]')?.textContent || ''
-            );
-            const meta = ashbyMeta.get(`${title}::${domLocation}`) || ashbyMeta.get(`${title}::`) || null;
-            const publishedAt = meta?.publishedAt || parseDate(
-              card?.querySelector('time')?.getAttribute('datetime') ||
-              card?.querySelector('time')?.textContent ||
-              ''
-            );
-            pushJob({ title, url: anchor.href, location: meta?.location || domLocation, publishedAt });
-          });
-        } else {
-          document.querySelectorAll('a[href]').forEach(anchor => {
-            const href = anchor.href || '';
-            if (!isLikelyJobHref(href)) return;
-            const title = normalizeText(
-              anchor.querySelector('h1, h2, h3, h4, h5, [class*="title"]')?.textContent ||
-              anchor.textContent
-            );
-            if (title.length < 4 || title.length > 160) return;
-            const card = anchor.closest('a, article, li, section, div');
-            const location = normalizeText(
-              card?.querySelector('[class*="location"], [data-testid*="location"]')?.textContent || ''
-            );
-            const publishedAt = parseDate(
-              card?.querySelector('time')?.getAttribute('datetime') ||
-              card?.querySelector('time')?.textContent ||
-              ''
-            );
-            pushJob({ title, url: href, location, publishedAt });
-          });
-        }
-
-        return results.map(job => ({
-          title: job.location ? `${job.title} (${job.location})` : job.title,
-          location: job.location,
-          remoteEvidence: job.location,
-          url: job.url,
-          publishedAt: job.publishedAt,
-        }));
-      });
-
-      console.log(`[scan] [Playwright] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+      console.log(`[scan] [pinchtab] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
       results.push({
         ok: true,
         section: buildJobSection(company.name, jobs),
         jobs,
-        engine: 'playwright',
+        engine: 'pinchtab',
         company: company.name,
       });
     } catch (err) {
-      if (isShuttingDown || isPlaywrightShutdownError(err) || !browser.isConnected()) {
-        const reason = isShuttingDown
-          ? 'Cancelled because the UI server is restarting or shutting down'
-          : 'Cancelled because the Playwright browser was closed during the scan';
-        console.warn(`[scan] [Playwright] Stopping "${company.name}": ${reason}`);
-        results.push(buildPlaywrightResult(company, {
-          error: reason,
-          cancelled: true,
-        }));
+      if (isShuttingDown) {
+        const reason = 'Cancelled because the UI server is restarting or shutting down';
+        console.warn(`[scan] [pinchtab] Stopping "${company.name}": ${reason}`);
+        results.push(buildPlaywrightResult(company, { error: reason, cancelled: true }));
         cancelRemainingPlaywrightResults(results, companies, index + 1, reason);
         break;
       }
-
-      console.error(`[scan] [Playwright] Failed "${company.name}": ${err.message}`);
+      console.error(`[scan] [pinchtab] Failed "${company.name}": ${err.message}`);
       results.push(buildPlaywrightResult(company, { error: err.message }));
     } finally {
-      await page?.close().catch(() => {});
+      await pinchtabClose(tabId);
     }
   }
 
-  unmarkBrowser();
-  await browser.close().catch(() => {});
   return results;
 }
 
@@ -1367,6 +3649,7 @@ async function getPortals() {
     scan_method: c.scan_method || '',
     scan_query: c.scan_query || '',
     notes: c.notes || '',
+    kind: c.kind === 'freelance' ? 'freelance' : 'job',
     enabled: c.enabled !== false,
   }));
 }
@@ -1380,6 +3663,7 @@ async function addPortal(company) {
   if (company.scan_method) entry.scan_method = company.scan_method;
   if (company.scan_query)  entry.scan_query = company.scan_query;
   if (company.notes)       entry.notes = company.notes;
+  if (company.kind === 'freelance') entry.kind = 'freelance';
   list.push(entry);
   parsed.tracked_companies = list;
   await writeFile(PORTALS_FILE, yamlDump(parsed, { lineWidth: 120, quotingType: '"' }), 'utf-8');
@@ -1390,11 +3674,14 @@ async function updatePortal(originalName, company) {
   const list = parsed.tracked_companies || [];
   const idx = list.findIndex(c => c.name === originalName);
   if (idx === -1) throw new Error('Company not found');
+  const previous = list[idx] || {};
   const entry = { name: company.name, careers_url: company.careers_url, enabled: company.enabled !== false };
   if (company.api)         entry.api = company.api;
   if (company.scan_method) entry.scan_method = company.scan_method;
   if (company.scan_query)  entry.scan_query = company.scan_query;
   if (company.notes)       entry.notes = company.notes;
+  const nextKind = company.kind ?? previous.kind;
+  if (nextKind === 'freelance') entry.kind = 'freelance';
   list[idx] = entry;
   parsed.tracked_companies = list;
   await writeFile(PORTALS_FILE, yamlDump(parsed, { lineWidth: 120, quotingType: '"' }), 'utf-8');
@@ -1412,8 +3699,8 @@ async function deletePortal(name) {
 
 // ─── Scan State (data/scan-state.json) ───────────────────────────────────────
 
-const SCAN_STATE_FILE      = join(ROOT, 'data/scan-state.json');
-const SCAN_SELECTION_FILE  = join(ROOT, 'data/scan-selection.json');
+const SCAN_STATE_FILE      = join(WRITE_ROOT, 'data/scan-state.json');
+const SCAN_SELECTION_FILE  = join(WRITE_ROOT, 'data/scan-selection.json');
 
 async function getScanState() {
   try {
@@ -1446,21 +3733,27 @@ async function getScanSources() {
         access: access.mode,
         hasApi: access.mode === 'api',
         apiKind: access.apiKind || '',
+        kind: c.kind === 'freelance' ? 'freelance' : 'job',
         lastScanned: scanState[c.name] || null,
       };
     });
   const rss = (parsed.rss_feeds || [])
     .filter(r => r.enabled !== false)
-    .map(r => ({ name: r.name, lastScanned: scanState[r.name] || null }));
-  const queries = [...(parsed.search_queries || []), ...(parsed.eu_job_boards || [])]
+    .map(r => ({ name: r.name, kind: 'job', lastScanned: scanState[r.name] || null }));
+  const queries = [
+    ...((parsed.search_queries  || []).map(q => ({ ...q, kind: 'job' }))),
+    ...((parsed.eu_job_boards   || []).map(q => ({ ...q, kind: 'job' }))),
+    ...((parsed.freelance_portals || []).map(q => ({ ...q, kind: 'freelance' }))),
+  ]
     .filter(q => q.enabled !== false)
-    .map(q => ({ name: q.name, lastScanned: scanState[q.name] || null }));
+    .map(q => ({ name: q.name, kind: q.kind, lastScanned: scanState[q.name] || null }));
   const aggregators = (parsed.api_aggregators || [])
     .filter(a => a.enabled !== false)
     .map(a => ({
       name: a.name,
       configured: isAggregatorConfigured(a),
-      requiresKey: true,
+      requiresKey: aggregatorRequiresKey(a),
+      kind: 'job',
       lastScanned: scanState[a.name] || null,
     }));
   return { companies, rss, queries, aggregators };
@@ -1476,7 +3769,7 @@ async function saveScanSelection(sel) {
 }
 
 async function getScanHistoryRows() {
-  const scanHistoryFile = join(ROOT, 'data/scan-history.tsv');
+  const scanHistoryFile = join(WRITE_ROOT, 'data/scan-history.tsv');
   try {
     const raw = await readFile(scanHistoryFile, 'utf-8');
     return raw.split('\n').filter(Boolean);
@@ -1492,6 +3785,48 @@ async function getScanHistoryUrlSet() {
       .map(line => line.split('\t')[0]?.trim())
       .filter(url => url && url !== 'url')
   );
+}
+
+function scanHistoryStatusBlocksReadd(status = '') {
+  const s = String(status || '').trim().toLowerCase();
+  if (!s) return true;
+  return !['added', 'skipped_dup'].includes(s);
+}
+
+async function getBlockingScanHistoryUrlSet() {
+  const rows = await getScanHistoryRows();
+  const latestStatusByUrl = new Map();
+  rows.forEach(line => {
+    const cells = line.split('\t');
+    const url = cells[0]?.trim();
+    if (!url || url === 'url') return;
+    const status = cells[5]?.trim() || '';
+    latestStatusByUrl.set(normalizeUrlKey(url), status);
+  });
+  return new Set(
+    [...latestStatusByUrl.entries()]
+      .filter(([, status]) => scanHistoryStatusBlocksReadd(status))
+      .map(([url]) => url)
+  );
+}
+
+async function getLatestScanHistoryEntryMap() {
+  const rows = await getScanHistoryRows();
+  const latestByUrl = new Map();
+  rows.forEach(line => {
+    const cells = line.split('\t');
+    const url = cells[0]?.trim();
+    if (!url || url === 'url') return;
+    latestByUrl.set(normalizeUrlKey(url), {
+      url,
+      first_seen: cells[1]?.trim() || '',
+      portal: cells[2]?.trim() || '',
+      title: cells[3]?.trim() || '',
+      company: cells[4]?.trim() || '',
+      status: cells[5]?.trim() || '',
+    });
+  });
+  return latestByUrl;
 }
 
 async function getReportUrlSet() {
@@ -1511,9 +3846,43 @@ async function getReportUrlSet() {
   } catch { return new Set(); }
 }
 
+async function getOrphanedScanPipelineItems(existingPipeline = []) {
+  const [latestHistory, reportUrls] = await Promise.all([
+    getLatestScanHistoryEntryMap().catch(() => new Map()),
+    getReportUrlSet().catch(() => new Set()),
+  ]);
+  const knownUrls = new Set([
+    ...(existingPipeline || []).map(item => normalizeUrlKey(item?.url || '')).filter(Boolean),
+    ...[...reportUrls].map(url => normalizeUrlKey(url)).filter(Boolean),
+  ]);
+
+  return [...latestHistory.values()]
+    .filter(entry => String(entry.status || '').trim().toLowerCase() === 'added')
+    .filter(entry => {
+      const key = normalizeUrlKey(entry.url);
+      return key && !knownUrls.has(key);
+    })
+    .map(entry => normalizePipelineItem({
+      url: entry.url,
+      note: [entry.company, entry.title, entry.first_seen].filter(Boolean).join(' | '),
+      company: entry.company,
+      title: entry.title,
+      created_at: entry.first_seen,
+      scan_history_orphan: true,
+      source: entry.portal,
+    }));
+}
+
+async function shouldIncludeLocalScanHistoryOrphans(userId) {
+  if (!useSupabase) return true;
+  if (!userId) return true;
+  const adminId = await getAdminUserId().catch(() => null);
+  return Boolean(adminId && userId === adminId);
+}
+
 async function appendScanHistoryEntries(entries = []) {
   if (!entries.length) return;
-  const scanHistoryFile = join(ROOT, 'data/scan-history.tsv');
+  const scanHistoryFile = join(WRITE_ROOT, 'data/scan-history.tsv');
   const existingRows = await getScanHistoryRows();
   const payload = `${existingRows.join('\n').replace(/\n+$/,'')}\n${entries.join('\n')}\n`;
   await writeFile(scanHistoryFile, payload, 'utf-8');
@@ -1642,50 +4011,223 @@ async function toggleQuery(name, enabled) {
 const PROFILE_FILE = join(ROOT, 'config/profile.yml');
 const PROFILE_CONTEXT_FILE = join(ROOT, 'modes/_profile.md');
 
-async function getProfile() {
+async function getProfile(userId) {
+  if (useSupabase && userId) {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || {};
+  }
   const raw = await readFile(PROFILE_FILE, 'utf-8');
   return yamlLoad(raw);
 }
 
-async function saveProfile(data) {
+async function saveProfile(data, userId) {
+  if (useSupabase && userId) {
+    // Le frontend envoie le format imbriqué YAML — on l'aplatit pour la table profiles
+    const candidate = data.candidate || {};
+    const row = {
+      id:           userId,
+      full_name:    candidate.full_name  || data.full_name  || '',
+      email:        candidate.email      || data.email      || '',
+      location:     candidate.location   || '',
+      linkedin:     candidate.linkedin   || data.linkedin   || '',
+      target_roles:   data.target_roles    || null,
+      narrative:      data.narrative       || null,
+      compensation:   data.compensation    || null,
+      search_prefs:   data.search          || data.search_prefs || null,
+      location_prefs: data.location        || null,
+    };
+    const { error } = await supabase.from('profiles').upsert(row);
+    if (error) throw error;
+    return;
+  }
   await writeFile(PROFILE_FILE, yamlDump(data, { lineWidth: 120, quotingType: '"' }), 'utf-8');
 }
 
-async function getProfileContext() {
+async function getProfileContext(userId) {
+  if (useSupabase && userId) {
+    const { data } = await supabase.from('profiles').select('profile_context').eq('id', userId).single();
+    return data?.profile_context || '';
+  }
   return readFile(PROFILE_CONTEXT_FILE, 'utf-8').catch(() => '');
 }
 
-async function saveProfileContext(markdown = '') {
+async function saveProfileContext(markdown = '', userId) {
   const normalized = String(markdown ?? '').replace(/\r\n/g, '\n');
+  if (useSupabase && userId) {
+    const { error } = await supabase.from('profiles').upsert({ id: userId, profile_context: normalized });
+    if (error) throw error;
+    return;
+  }
   await writeFile(PROFILE_CONTEXT_FILE, normalized, 'utf-8');
 }
 
-async function saveProfileBundle(payload = {}) {
+async function getCvMarkdown(userId) {
+  if (useSupabase && userId) {
+    const { data } = await supabase.from('profiles').select('cv_markdown').eq('id', userId).single();
+    return data?.cv_markdown || '';
+  }
+  return readFile(join(ROOT, 'cv.md'), 'utf-8').catch(() => '');
+}
+
+async function saveCvMarkdown(markdown = '', userId) {
+  const normalized = String(markdown ?? '').replace(/\r\n/g, '\n');
+  if (useSupabase && userId) {
+    const { error } = await supabase.from('profiles').upsert({ id: userId, cv_markdown: normalized });
+    if (error) throw error;
+    return;
+  }
+  await writeFile(join(WRITE_ROOT, 'cv.md'), normalized, 'utf-8');
+}
+
+async function saveProfileBundle(payload = {}, userId) {
   const profile = payload?.profile ?? payload;
   const hasContext = Object.prototype.hasOwnProperty.call(payload || {}, 'context_markdown');
 
   if (!hasContext) {
-    await saveProfile(profile);
+    await saveProfile(profile, userId);
     return;
   }
 
+  // Supabase path : tout en une seule upsert atomique
+  if (useSupabase && userId) {
+    await saveProfile(profile, userId);
+    await saveProfileContext(payload.context_markdown, userId);
+    return;
+  }
+
+  // Fichiers locaux : rollback en cas d'erreur
   const previousProfile = await readFile(PROFILE_FILE, 'utf-8').catch(() => null);
   const previousContext = await readFile(PROFILE_CONTEXT_FILE, 'utf-8').catch(() => null);
   const nextProfile = yamlDump(profile, { lineWidth: 120, quotingType: '"' });
   const nextContext = String(payload?.context_markdown ?? '').replace(/\r\n/g, '\n');
-
   try {
     await writeFile(PROFILE_FILE, nextProfile, 'utf-8');
     await writeFile(PROFILE_CONTEXT_FILE, nextContext, 'utf-8');
   } catch (error) {
-    if (previousProfile !== null) {
-      await writeFile(PROFILE_FILE, previousProfile, 'utf-8').catch(() => {});
-    }
-    if (previousContext !== null) {
-      await writeFile(PROFILE_CONTEXT_FILE, previousContext, 'utf-8').catch(() => {});
-    }
+    if (previousProfile !== null) await writeFile(PROFILE_FILE, previousProfile, 'utf-8').catch(() => {});
+    if (previousContext !== null) await writeFile(PROFILE_CONTEXT_FILE, previousContext, 'utf-8').catch(() => {});
     throw error;
   }
+}
+
+// ─── Profile completeness ────────────────────────────────────────────────────
+
+function isMissing(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim().length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+
+async function getProfileStatus(userId) {
+  const data = await getProfile(userId).catch(() => ({}));
+  const cv = await getCvMarkdown(userId).catch(() => '');
+  const candidate = data.candidate || data || {};
+  const targetRoles = data.target_roles || {};
+  const primary = Array.isArray(targetRoles.primary) ? targetRoles.primary : [];
+  // location is stored under `location_prefs` in DB (jsonb) or `location` in YAML
+  const loc = data.location_prefs || data.location || {};
+
+  const missing = [];
+  if (isMissing(data.full_name) && isMissing(candidate.full_name)) missing.push('identity');
+  if (isMissing(primary)) missing.push('target_roles');
+  if (isMissing(loc.country) && isMissing(candidate.location)) missing.push('location');
+  if (isMissing(cv)) missing.push('cv');
+
+  return { complete: missing.length === 0, missing };
+}
+
+// ─── CV parsing via OpenRouter ───────────────────────────────────────────────
+
+const CV_PARSE_SYSTEM_PROMPT = `You extract structured profile data from a candidate's CV.
+
+Return ONLY a JSON object — no prose, no markdown fences, no commentary. Match this exact shape:
+
+{
+  "candidate": {
+    "full_name": "string",
+    "email": "string",
+    "phone": "string",
+    "location": "string",
+    "linkedin": "string (just the URL or handle, no prefix)",
+    "portfolio_url": "string",
+    "github": "string",
+    "twitter": "string"
+  },
+  "target_roles": {
+    "primary": ["array of 1-3 role titles inferred from the CV's most recent / strongest experience"],
+    "archetypes": [
+      { "name": "role family", "level": "Junior|Mid|Senior|Staff|Principal", "fit": "primary|secondary|adjacent" }
+    ]
+  },
+  "narrative": {
+    "headline": "one-line professional headline (max 80 chars)",
+    "exit_story": "1-2 sentences on what makes this candidate unique",
+    "superpowers": ["3-5 short capabilities, one phrase each"],
+    "proof_points": [
+      { "name": "project name", "url": "string or empty", "hero_metric": "concrete metric or outcome" }
+    ]
+  },
+  "compensation": {
+    "target_range": "",
+    "currency": "infer from location, e.g. EUR/USD/GBP",
+    "minimum": "",
+    "location_flexibility": ""
+  },
+  "location": {
+    "country": "string",
+    "city": "string",
+    "timezone": "string (e.g. CET, PST)",
+    "visa_status": "",
+    "remote_policy": ""
+  },
+  "search": {
+    "contract_types": [],
+    "sector_preferences": [],
+    "geography_preferences": [],
+    "must_haves": [],
+    "nice_to_haves": [],
+    "deal_breakers": []
+  }
+}
+
+Rules:
+- If a field is unknown, use "" or [] — never guess or invent.
+- Never invent metrics, companies, or projects. Only extract what's literally in the CV.
+- Keep strings concise. No newlines inside string values.
+- Respond with the raw JSON object only.`;
+
+async function parseCvForProfile(cvText) {
+  const trimmed = String(cvText || '').trim();
+  if (!trimmed) throw new Error('CV text is empty');
+  const truncated = trimmed.length > 30000 ? trimmed.slice(0, 30000) : trimmed;
+
+  const response = await chat({
+    model: MODELS.CLAUDE_HAIKU,
+    systemPrompt: CV_PARSE_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: `CV content:\n\n${truncated}` }],
+    temperature: 0.1,
+    max_tokens: 3000,
+  });
+
+  let raw = String(response || '').trim();
+  // Strip markdown fences if model added them despite instructions
+  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const firstBrace = raw.indexOf('{');
+  const lastBrace = raw.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    raw = raw.slice(firstBrace, lastBrace + 1);
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`Failed to parse CV JSON: ${err.message}`);
+  }
+  return parsed;
 }
 
 function slugify(value = '') {
@@ -1932,26 +4474,62 @@ async function togglePortal(name, enabled) {
   await writeFile(PORTALS_FILE, yamlDump(parsed, { lineWidth: 120, quotingType: '"' }), 'utf-8');
 }
 
-async function removeFromPipeline(url) {
+// Atomic batch remove: one Supabase update + one read+write of pipeline.md +
+// one appendScanHistoryEntries call. Replaces parallel removeFromPipeline calls
+// that clobbered each other on pipeline.md.
+async function removeManyFromPipeline(urls = [], userId, { historyStatus = 'deleted', historyPortal = 'manual-delete' } = {}) {
+  const cleanUrls = (urls || []).map(u => String(u || '').trim()).filter(u => u.startsWith('http'));
+  if (!cleanUrls.length) return;
+  const removeSet = new Set(cleanUrls);
+
+  // Fetch metadata for scan-history before we mutate anything
+  const itemsByUrl = new Map();
   if (useSupabase) {
-    const { error } = await supabase
-      .from('pipeline')
-      .update({ processed: true })
-      .eq('url', url);
-    if (error) console.error('Supabase update error:', error);
-    // Don't return here! Fall through to sync local file as well
+    let q = supabase.from('pipeline').select('*').in('url', cleanUrls);
+    if (userId) q = q.eq('user_id', userId);
+    const { data } = await q;
+    (data || []).forEach(d => itemsByUrl.set(d.url, normalizePipelineItem(d)));
+  } else {
+    const all = await getPipeline().catch(() => []);
+    all.forEach(it => { if (removeSet.has(it.url)) itemsByUrl.set(it.url, it); });
   }
+
+  // Mark processed in Supabase (single statement)
+  if (useSupabase) {
+    let q = supabase.from('pipeline').update({ processed: true }).in('url', cleanUrls);
+    if (userId) q = q.eq('user_id', userId);
+    const { error } = await q;
+    if (error) console.error('Supabase update error:', error);
+  }
+
+  // Single read+write of pipeline.md
   const raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8');
   const updated = raw
     .split('\n')
     .filter(l => {
       const trimmed = l.trim();
-      // Remove line if it contains the URL directly or if the URL part within markers matches
       const cleanUrlOnLine = trimmed.replace(/^[-*+]\s*(\[[ xX]\]\s*)?/, '').trim().split(/\s+(?:[—–|]|-(?!\s*[\w]))\s+/)[0];
-      return cleanUrlOnLine !== url && !trimmed.startsWith(url) && !trimmed.includes(url);
+      if (removeSet.has(cleanUrlOnLine)) return false;
+      for (const url of cleanUrls) {
+        if (trimmed.startsWith(url) || trimmed.includes(url)) return false;
+      }
+      return true;
     })
     .join('\n');
-  await writeFile(join(ROOT, 'data/pipeline.md'), updated, 'utf-8');
+  await writeFile(join(WRITE_ROOT, 'data/pipeline.md'), updated, 'utf-8');
+
+  // Append all scan-history entries in one shot
+  const today = new Date().toISOString().split('T')[0];
+  const historyRows = cleanUrls.map(url => {
+    const item = itemsByUrl.get(url);
+    return `${url}\t${today}\t${historyPortal}\t${item?.title || ''}\t${item?.company || ''}\t${historyStatus}`;
+  });
+  await appendScanHistoryEntries(historyRows)
+    .catch(err => console.warn('[pipeline] Failed to append to scan-history:', err.message));
+}
+
+async function removeFromPipeline(url, userId, opts) {
+  return removeManyFromPipeline([url], userId, opts);
 }
 
 // ─── Script runner ────────────────────────────────────────────────────────────
@@ -1960,9 +4538,7 @@ const ALLOWED_SCRIPTS = {
   'merge':     'node merge-tracker.mjs',
   'normalize': 'node normalize-statuses.mjs',
   'dedup':     'node dedup-tracker.mjs',
-  'verify':    'node verify-pipeline.mjs',
   'verify-reports': 'node verify-reports.mjs',
-  'sync-check':'node cv-sync-check.mjs',
   'pdf-gen':   'node generate-pdf.mjs',
 };
 
@@ -2021,7 +4597,7 @@ function validateReportContent(content, scoreRaw, company, role) {
     return { valid: false, reason: 'Could not extract company/role from response — evaluation may have failed' };
   }
 
-  // Check 4: Must have at least 2 structured sections (A-F blocks)
+  // Check 4: Must have at least 2 structured evaluation sections
   const sectionCount = REPORT_SECTION_PATTERNS.filter(p => p.test(content)).length;
   if (sectionCount < 2) {
     return { valid: false, reason: `Only ${sectionCount} evaluation sections found (need at least 2)` };
@@ -2326,17 +4902,32 @@ function tplRender(template, context, globalData) {
     res = res.slice(0, pos) + rendered + res.slice(closePos + 9);
   }
 
-  // 2. Process IF blocks (with {{else}} support)
-  pos = 0;
-  while ((pos = res.indexOf('{{#if')) !== -1) {
+  // 2. Process IF blocks (with nesting-aware {{else}} support)
+  while (true) {
+    let pos = res.indexOf('{{#if');
+    if (pos === -1) break;
     const endOpen = res.indexOf('}}', pos);
     const path = res.slice(pos + 5, endOpen).trim();
     const closePos = tplFindClosingTag(res, '{{#if', '{{/if}}', endOpen + 2);
-    if (closePos === -1) break;
-    const inner = res.slice(endOpen + 2, closePos);
+    if (closePos === -1) {
+      res = res.slice(0, pos) + '<!-- BROKEN IF: ' + path + ' -->' + res.slice(endOpen + 2);
+      continue;
+    }
+    let inner = res.slice(endOpen + 2, closePos);
     const val = tplGetValue(context, path, globalData);
     const truthy = val && (!Array.isArray(val) || val.length > 0);
-    const elseIdx = inner.indexOf('{{else}}');
+    
+    let elseIdx = -1;
+    let depth = 0;
+    for (let i = 0; i < inner.length - 8; i++) {
+      if (inner.slice(i, i + 5) === '{{#if') depth++;
+      if (inner.slice(i, i + 7) === '{{/if}}') depth--;
+      if (depth === 0 && inner.slice(i, i + 8) === '{{else}}') {
+        elseIdx = i;
+        break;
+      }
+    }
+
     let rendered;
     if (elseIdx !== -1) {
       rendered = truthy ? tplRender(inner.slice(0, elseIdx), context, globalData) : tplRender(inner.slice(elseIdx + 8), context, globalData);
@@ -2368,7 +4959,8 @@ async function renderPremiumCV(profileKey = 'ai_builder', tailoredData = {}) {
   let html = tplRender(templateContent, data, data);
 
   // Inject preview download bar
-  const pdfFilename = `Hugo_Vermot_CV_${profileKey}.pdf`;
+  const candidateName = (data.shared.contact.name || 'Candidate').replace(/\s+/g, '_');
+  const pdfFilename = `${candidateName}_CV_${profileKey}.pdf`;
   const downloadBar = `
 <style>
   .preview-bar {
@@ -2390,7 +4982,7 @@ async function renderPremiumCV(profileKey = 'ai_builder', tailoredData = {}) {
 </style>
 <div class="preview-bar">
   <span>Preview — ${pdfFilename}</span>
-  <a href="/output/${pdfFilename}" download="${pdfFilename}">
+  <a href="#" onclick="(window.top || window).open('/output/${pdfFilename}', '_blank'); return false;">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Download PDF
   </a>
@@ -2399,10 +4991,10 @@ async function renderPremiumCV(profileKey = 'ai_builder', tailoredData = {}) {
   return html;
 }
 
-async function renderBaseCV(profileKey = 'ai_builder') {
+async function renderBaseCV(profileKey = 'ai_builder', userId) {
   const [template, cvSource, data] = await Promise.all([
     readFile(join(ROOT, 'templates/cv-template.html'), 'utf-8'),
-    readFile(join(ROOT, 'cv.md'), 'utf-8'),
+    getCvMarkdown(userId),
     loadCvTemplateData(ROOT, profileKey)
   ]);
 
@@ -2413,7 +5005,7 @@ async function renderBaseCV(profileKey = 'ai_builder') {
   let html = template
     .replace(/{{LANG}}/g, 'en')
     .replace(/{{PAGE_WIDTH}}/g, '210mm')
-    .replace(/{{NAME}}/g, data.shared.contact.name || 'Hugo Vermot')
+    .replace(/{{NAME}}/g, data.shared.contact.name || '')
     .replace(/{{EMAIL}}/g, email)
     .replace(/{{LINKEDIN_URL}}/g, linkedin?.[2] || data.shared.contact.linkedin_url || '')
     .replace(/{{LINKEDIN_DISPLAY}}/g, linkedin?.[1] || data.shared.contact.linkedin_display || '')
@@ -2483,30 +5075,319 @@ function readBody(req) {
   });
 }
 
+// ─── Public AI usage snapshot ─────────────────────────────────────────────────
+
+const AI_USAGE_CACHE_TTL_MS = 10 * 60 * 1000;
+let aiUsageCache = null;
+
+function getTodayRange() {
+  const end = new Date();
+  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+
+  return {
+    start,
+    end,
+    startUnix: Math.floor(start.getTime() / 1000),
+    endUnix: Math.floor(end.getTime() / 1000),
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+    window: '24h',
+  };
+}
+
+function emptyProvider(id, name, status, note = '') {
+  return {
+    id,
+    name,
+    status,
+    note,
+    input_tokens: 0,
+    output_tokens: 0,
+    total_tokens: 0,
+    requests: 0,
+    cost_usd: null,
+    models: [],
+  };
+}
+
+function addNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function flattenUsageResults(payload) {
+  const buckets = Array.isArray(payload?.data) ? payload.data : [];
+  return buckets.flatMap(bucket => Array.isArray(bucket?.results) ? bucket.results : []);
+}
+
+function estimateTokensFromUsd(costUsd, usdPerMillionTokens = 1.5) {
+  const cost = addNumber(costUsd);
+  const rate = addNumber(usdPerMillionTokens) || 1.5;
+  return cost > 0 ? Math.round((cost / rate) * 1_000_000) : 0;
+}
+
+function applyLocalUsage(provider, localUsage = {}, noteWhenPresent = '') {
+  if (!localUsage.total_tokens) return provider;
+  provider.input_tokens += localUsage.input_tokens;
+  provider.output_tokens += localUsage.output_tokens;
+  provider.total_tokens += localUsage.total_tokens;
+  provider.requests += localUsage.requests;
+  provider.cost_usd = typeof localUsage.cost_usd === 'number' ? (provider.cost_usd || 0) + localUsage.cost_usd : provider.cost_usd;
+  provider.models = [...new Set([...(provider.models || []), ...(localUsage.models || [])])].slice(0, 8);
+  provider.status = localUsage.estimated ? 'estimated' : 'tracked';
+  if (noteWhenPresent) provider.note = noteWhenPresent;
+  return provider;
+}
+
+async function getOpenAiCosts(range) {
+  const key = process.env.OPENAI_ADMIN_KEY || process.env.OPENAI_MANAGEMENT_KEY || process.env.OPENAI_ORG_ADMIN_KEY || process.env.OPENAI_API_ADMIN_KEY || '';
+  if (!key) return null;
+
+  const params = new URLSearchParams({
+    start_time: String(range.startUnix),
+    end_time: String(range.endUnix),
+    bucket_width: '1d',
+    limit: '1',
+  });
+
+  const data = await fetchJsonWithTimeout(`https://api.openai.com/v1/organization/costs?${params}`, {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  return flattenUsageResults(data).reduce((sum, row) => sum + addNumber(row.amount?.value), 0);
+}
+
+async function getOpenAiUsage(range) {
+  const key = process.env.OPENAI_ADMIN_KEY || process.env.OPENAI_MANAGEMENT_KEY || process.env.OPENAI_ORG_ADMIN_KEY || process.env.OPENAI_API_ADMIN_KEY || '';
+  const provider = emptyProvider('openai', 'OpenAI', key ? 'live' : 'missing_key', key ? '' : 'Set OPENAI_ADMIN_KEY');
+  if (!key) return provider;
+
+  const params = new URLSearchParams({
+    start_time: String(range.startUnix),
+    end_time: String(range.endUnix),
+    bucket_width: '1d',
+    limit: '1',
+  });
+  params.append('group_by[]', 'model');
+
+  try {
+    const data = await fetchJsonWithTimeout(`https://api.openai.com/v1/organization/usage/completions?${params}`, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    for (const row of flattenUsageResults(data)) {
+      const input = addNumber(row.input_tokens);
+      const output = addNumber(row.output_tokens);
+      provider.input_tokens += input;
+      provider.output_tokens += output;
+      provider.total_tokens += input + output;
+      provider.requests += addNumber(row.num_model_requests);
+      if (row.model && !provider.models.includes(row.model)) provider.models.push(row.model);
+    }
+    try {
+      provider.cost_usd = await getOpenAiCosts(range);
+    } catch (costErr) {
+      provider.cost_note = costErr.message;
+    }
+    provider.status = 'live';
+  } catch (err) {
+    provider.status = 'error';
+    provider.note = err.message;
+  }
+  return provider;
+}
+
+function sumOpenRouterKeyUsage(keys = []) {
+  return keys.reduce((acc, key) => {
+    acc.usage_daily += addNumber(key.usage_daily) + addNumber(key.byok_usage_daily);
+    acc.usage_weekly += addNumber(key.usage_weekly) + addNumber(key.byok_usage_weekly);
+    acc.usage_monthly += addNumber(key.usage_monthly) + addNumber(key.byok_usage_monthly);
+    acc.usage_all_time += addNumber(key.usage) + addNumber(key.byok_usage);
+    acc.key_count += 1;
+    return acc;
+  }, { usage_daily: 0, usage_weekly: 0, usage_monthly: 0, usage_all_time: 0, key_count: 0 });
+}
+
+async function getOpenRouterManagedUsage(managementKey) {
+  const keys = [];
+  for (let offset = 0; offset < 500; offset += 100) {
+    const params = new URLSearchParams({ offset: String(offset) });
+    const data = await fetchJsonWithTimeout(`https://openrouter.ai/api/v1/keys?${params}`, {
+      headers: { Authorization: `Bearer ${managementKey}` },
+    });
+    const page = Array.isArray(data?.data) ? data.data : [];
+    keys.push(...page);
+    if (page.length < 100) break;
+  }
+  return sumOpenRouterKeyUsage(keys);
+}
+
+async function getOpenRouterUsage(range, localEvents = []) {
+  const managementKey = process.env.OPENROUTER_MANAGEMENT_KEY || process.env.OPENROUTER_MANAGEMENT_API_KEY || process.env.OPENROUTER_ADMIN_KEY || '';
+  const key = process.env.OPENROUTER_ADMIN_KEY || process.env.OPENROUTER_API_KEY || '';
+  const localUsage = aggregateUsageEvents(localEvents, 'openrouter');
+  const provider = emptyProvider(
+    'openrouter',
+    'OpenRouter',
+    managementKey || key ? 'limited' : 'missing_key',
+    managementKey
+      ? 'Account-level spend across OpenRouter API keys via Management key. Tokens are estimated from spend.'
+      : (key ? 'Current API key spend only. Set OPENROUTER_MANAGEMENT_KEY to sum every OpenRouter key.' : 'Set OPENROUTER_API_KEY or OPENROUTER_MANAGEMENT_KEY')
+  );
+  if (!managementKey && !key) return applyLocalUsage(provider, localUsage, 'Tracked from local app calls.');
+
+  try {
+    if (managementKey) {
+      const managed = await getOpenRouterManagedUsage(managementKey);
+      provider.account_scope = 'all_keys';
+      provider.key_count = managed.key_count;
+      provider.cost_usd = managed.usage_daily;
+      provider.usage_daily_usd = managed.usage_daily;
+      provider.usage_weekly_usd = managed.usage_weekly;
+      provider.usage_monthly_usd = managed.usage_monthly;
+    } else {
+      const data = await fetchJsonWithTimeout('https://openrouter.ai/api/v1/key', {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      provider.account_scope = 'current_key';
+      provider.credit_remaining = data?.data?.limit_remaining ?? null;
+      provider.credit_limit = data?.data?.limit ?? null;
+      provider.cost_usd = addNumber(data?.data?.usage_daily) + addNumber(data?.data?.byok_usage_daily);
+      provider.usage_daily_usd = provider.cost_usd;
+      provider.usage_weekly_usd = addNumber(data?.data?.usage_weekly) + addNumber(data?.data?.byok_usage_weekly);
+      provider.usage_monthly_usd = addNumber(data?.data?.usage_monthly) + addNumber(data?.data?.byok_usage_monthly);
+    }
+    if (!localUsage.total_tokens && provider.cost_usd > 0) {
+      provider.total_tokens = estimateTokensFromUsd(provider.cost_usd);
+      provider.status = 'estimated';
+      provider.note = managementKey
+        ? 'Spend-based estimate across OpenRouter account keys. Exact account-level tokens are not exposed by the key list API.'
+        : 'Spend-based estimate for this OpenRouter key only. Use OPENROUTER_MANAGEMENT_KEY for all account keys.';
+    } else {
+      provider.status = 'limited';
+    }
+  } catch (err) {
+    provider.status = 'error';
+    provider.note = err.message;
+  }
+  return applyLocalUsage(provider, localUsage, localUsage.estimated ? 'Estimated from local app calls.' : 'Tracked from OpenRouter generation stats for local app calls.');
+}
+
+async function getAiUsageToday({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && aiUsageCache && now - aiUsageCache.cachedAt < AI_USAGE_CACHE_TTL_MS) return aiUsageCache.data;
+
+  const range = getTodayRange();
+  const localEvents = await readAiUsageEvents({ start: range.startIso, end: range.endIso });
+  const providers = await Promise.all([
+    getOpenAiUsage(range),
+    getOpenRouterUsage(range, localEvents),
+  ]);
+
+  const totals = providers.reduce((acc, provider) => {
+    acc.input_tokens += provider.input_tokens;
+    acc.output_tokens += provider.output_tokens;
+    acc.total_tokens += provider.total_tokens;
+    acc.requests += provider.requests;
+    if (typeof provider.cost_usd === 'number') acc.cost_usd += provider.cost_usd;
+    return acc;
+  }, { input_tokens: 0, output_tokens: 0, total_tokens: 0, requests: 0, cost_usd: 0 });
+
+  const data = {
+    ok: true,
+    generated_at: new Date().toISOString(),
+    range: { start: range.startIso, end: range.endIso, window: range.window },
+    totals,
+    providers,
+  };
+  aiUsageCache = { cachedAt: now, data };
+  return data;
+}
+
+// ─── Auth helper ─────────────────────────────────────────────────────────────
+
+async function getRequestUser(req) {
+  if (!useSupabase || !supabase) return null;
+  // Header (fetch/XHR)
+  const auth = req.headers['authorization'] || '';
+  let token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  // Query param fallback pour EventSource (SSE) qui ne supporte pas les headers
+  if (!token) {
+    const urlObj = new URL(req.url, `http://localhost`);
+    token = urlObj.searchParams.get('_token') || '';
+  }
+  if (!token) return null;
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return null;
+  return user;
+}
+
 // ─── Server ───────────────────────────────────────────────────────────────────
 
 const server = createServer(async (req, res) => {
   const urlObj = new URL(req.url, `http://localhost:${PORT}`);
   const path = urlObj.pathname;
   const method = req.method;
+  const APP_ROUTES = new Set([
+    '/index.html',
+    '/dashboard',
+    '/applications',
+    '/pipeline',
+    '/reports',
+    '/portals',
+    '/cvs',
+    '/profile',
+  ]);
+  const LANDING_ROUTES = new Set(['/', '/landing', '/landing.html']);
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   try {
-    // Static files
-    if (path === '/' || path === '/index.html') {
-      const html = await readFile(join(__dirname, 'index.html'), 'utf-8');
+    // Public landing page (homepage)
+    if (LANDING_ROUTES.has(path)) {
+      let html = await readFile(join(__dirname, 'landing.html'), 'utf-8');
+      html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
+                 .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.writeHead(200);
       res.end(html);
       return;
     }
 
-    if (path === '/portfolio' || path === '/portfolio.html') {
+    // Authenticated SPA (dashboard, applications, etc.)
+    if (APP_ROUTES.has(path)) {
+      let html = await readFile(join(__dirname, 'index.html'), 'utf-8');
+      html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
+                 .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.writeHead(200);
+      res.end(html);
+      return;
+    }
+
+    if (path === '/login' || path === '/login.html') {
+      let html = await readFile(join(__dirname, 'login.html'), 'utf-8');
+      html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
+                 .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.writeHead(200);
+      res.end(html);
+      return;
+    }
+
+    if (path === '/onboarding' || path === '/onboarding.html') {
+      let html = await readFile(join(__dirname, 'onboarding.html'), 'utf-8');
+      html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
+                 .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.writeHead(200);
+      res.end(html);
+      return;
+    }
+
+    if (path === '/portfolio' || path === '/portfolio.html' || path.startsWith('/portfolio/layout-')) {
       const html = await readFile(join(__dirname, 'portfolio.html'), 'utf-8');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.writeHead(200);
@@ -2514,11 +5395,87 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (path.startsWith('/covers/') && path.match(/\.jpe?g$/i)) {
+    if (path.startsWith('/interfaces/') && path.endsWith('.html')) {
+      try {
+        const safeName = path.slice('/interfaces/'.length).replace(/[^a-z0-9\-_.]/gi, '');
+        const html = await readFile(join(__dirname, 'interfaces', safeName), 'utf-8');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        res.writeHead(200);
+        res.end(html);
+      } catch {
+        res.writeHead(404); res.end('Not found');
+      }
+      return;
+    }
+
+    if (path === '/api/ai-usage/today' && method === 'GET') {
+      const force = urlObj.searchParams.get('refresh') === '1';
+      return json(res, await getAiUsageToday({ force }));
+    }
+
+    // ── Auth guard (toutes les routes /api/* sauf /api/hrhv) ─────────────────
+    // Read-only GET routes are accessible without auth (view-only mode)
+    const VIEW_ONLY_PATHS = ['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs', '/api/portals', '/api/queries', '/api/profile', '/api/scan-state', '/api/scan-sources'];
+    const AUTH_REQUIRED_PROFILE_PATHS = new Set(['/api/profile/status', '/api/profile/cv-parse']);
+    const isViewOnlyGet = method === 'GET'
+      && !AUTH_REQUIRED_PROFILE_PATHS.has(path)
+      && VIEW_ONLY_PATHS.some(p => path === p || path.startsWith(p + '/'));
+
+    if (path.startsWith('/api/') && path !== '/api/hrhv' && path !== '/api/template-preview' && !path.startsWith('/api/cvs/') && useSupabase && !isViewOnlyGet) {
+      const user = await getRequestUser(req);
+      if (!user) {
+        json(res, { error: 'Unauthorized' }, 401);
+        return;
+      }
+      req.userId = user.id;
+      req.userEmail = user.email;
+    }
+
+    // ── /api/me ───────────────────────────────────────────────────────────────
+    if (path === '/api/me' && method === 'GET') {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, is_admin, location, linkedin, target_roles, narrative, compensation')
+        .eq('id', req.userId)
+        .single();
+      if (error) return json(res, { error: error.message }, 500);
+      return json(res, data);
+    }
+
+    if (path.startsWith('/covers/') && path.match(/\.(jpe?g|png|svg|webp)$/i)) {
       try {
         const file = await readFile(join(__dirname, decodeURIComponent(path)));
-        res.setHeader('Content-Type', 'image/jpeg');
+        const ext = path.split('.').pop().toLowerCase();
+        const types = {
+          png: 'image/png',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          svg: 'image/svg+xml',
+          webp: 'image/webp'
+        };
+        res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
         res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.writeHead(200);
+        res.end(file);
+        return;
+      } catch { /* fall through to 404 */ }
+    }
+
+    if (path.startsWith('/assets/')) {
+      try {
+        const assetPath = decodeURIComponent(path.slice('/assets/'.length));
+        const file = await readFile(join(__dirname, 'assets', assetPath));
+        const ext = assetPath.split('.').pop().toLowerCase();
+        const types = {
+          png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+          svg: 'image/svg+xml', webp: 'image/webp',
+          css: 'text/css; charset=utf-8',
+          woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf',
+          mp4: 'video/mp4', webm: 'video/webm'
+        };
+        res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
+        res.setHeader('Cache-Control', ext === 'css' ? 'no-cache' : 'public, max-age=31536000, immutable');
         res.writeHead(200);
         res.end(file);
         return;
@@ -2527,7 +5484,7 @@ const server = createServer(async (req, res) => {
 
     // API routes
     if (path === '/api/applications' && method === 'GET') {
-      return json(res, await getApplications());
+      return json(res, await getApplications(req.userId));
     }
 
     if (path.startsWith('/api/applications/') && method === 'PATCH') {
@@ -2543,7 +5500,7 @@ const server = createServer(async (req, res) => {
 
         // Also update applications.md to keep it in sync with Supabase
         try {
-          const appFile = join(ROOT, 'data/applications.md');
+          const appFile = join(WRITE_ROOT, 'data/applications.md');
           const raw = await readFile(appFile, 'utf-8');
           const newLines = raw.split('\n').map(line => {
             if (!line.trim().startsWith('|')) return line;
@@ -2601,7 +5558,7 @@ const server = createServer(async (req, res) => {
 
         // Also remove from applications.md so merge-tracker doesn't re-add it
         try {
-          const appFile = join(ROOT, 'data/applications.md');
+          const appFile = join(WRITE_ROOT, 'data/applications.md');
           const raw = await readFile(appFile, 'utf-8');
           const newLines = raw.split('\n').filter(line => {
             if (!line.trim().startsWith('|')) return true;
@@ -2659,22 +5616,27 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === '/api/pipeline') {
-      if (method === 'GET') return json(res, await getPipeline());
+      if (method === 'GET') return json(res, await getPipeline(req.userId));
       if (method === 'POST') {
         const { url, note } = await readBody(req);
         if (!url?.startsWith('http')) return json(res, { error: 'Invalid URL' }, 400);
-        await addToPipeline(url, note || '');
+        await addToPipeline(url, note || '', req.userId);
         return json(res, { ok: true });
       }
       if (method === 'DELETE') {
-        const { url } = await readBody(req);
-        await removeFromPipeline(url);
+        const { url, urls } = await readBody(req);
+        const targets = Array.isArray(urls) ? urls : [url];
+        const validUrls = targets
+          .map(value => String(value || '').trim())
+          .filter(value => value.startsWith('http'));
+        if (!validUrls.length) return json(res, { error: 'Invalid URL' }, 400);
+        await removeManyFromPipeline(validUrls, req.userId);
         return json(res, { ok: true });
       }
     }
 
     if (path === '/api/reports' && method === 'GET') {
-      return json(res, await getReports());
+      return json(res, await getReports(req.userId));
     }
 
     if (path === '/api/cvs' && method === 'GET') {
@@ -2698,7 +5660,11 @@ const server = createServer(async (req, res) => {
       try {
         const urlParams = new URL('http://localhost' + req.url).searchParams;
         const profileKey = urlParams.get('profile') || 'ai_builder';
-        const renderedContent = await renderPremiumCV(profileKey);
+        const location = cleanString(urlParams.get('location') || '');
+        const tailoredData = location
+          ? { shared: { contact: { location } } }
+          : {};
+        const renderedContent = await renderPremiumCV(profileKey, tailoredData);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -2796,20 +5762,45 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === '/api/profile') {
-      if (method === 'GET') return json(res, await getProfile());
+      if (method === 'GET') return json(res, await getProfile(req.userId));
       if (method === 'PUT') {
         const body = await readBody(req);
-        await saveProfileBundle(body);
+        await saveProfileBundle(body, req.userId);
         return json(res, { ok: true });
       }
     }
 
     if (path === '/api/profile/context') {
-      if (method === 'GET') return json(res, { markdown: await getProfileContext() });
+      if (method === 'GET') return json(res, { markdown: await getProfileContext(req.userId) });
       if (method === 'PUT') {
         const body = await readBody(req);
-        await saveProfileContext(body?.markdown ?? '');
+        await saveProfileContext(body?.markdown ?? '', req.userId);
         return json(res, { ok: true });
+      }
+    }
+
+    if (path === '/api/profile/cv') {
+      if (method === 'GET') return json(res, { markdown: await getCvMarkdown(req.userId) });
+      if (method === 'PUT') {
+        const body = await readBody(req);
+        await saveCvMarkdown(body?.markdown ?? '', req.userId);
+        return json(res, { ok: true });
+      }
+    }
+
+    if (path === '/api/profile/status' && method === 'GET') {
+      return json(res, await getProfileStatus(req.userId));
+    }
+
+    if (path === '/api/profile/cv-parse' && method === 'POST') {
+      const body = await readBody(req);
+      const markdown = String(body?.markdown ?? '').trim();
+      if (!markdown) return json(res, { error: 'markdown is required' }, 400);
+      try {
+        const parsed = await parseCvForProfile(markdown);
+        return json(res, { ok: true, profile: parsed, cv_markdown: markdown });
+      } catch (err) {
+        return json(res, { error: err.message || 'Parse failed' }, 500);
       }
     }
 
@@ -2817,6 +5808,119 @@ const server = createServer(async (req, res) => {
       const script = path.slice('/api/run/'.length);
       const result = await runScript(script);
       return json(res, result, result.ok ? 200 : 500);
+    }
+
+    // ── Auto-apply (Playwright headed runner) ────────────────────────────────
+    // Older reports have no "F) Application Form Questions" section — generate
+    // standard answers on the fly from the report so the runner can still fill
+    // free-text questions. Best-effort: returns [] if no OpenRouter key.
+    async function generateFallbackAnswers(spec) {
+      let reportText = '';
+      try { reportText = await readFile(join(ROOT, 'reports', spec.report), 'utf-8'); } catch { return []; }
+      const regionLine = spec.region === 'asia'
+        ? 'The candidate is based in Bangkok, Thailand (ICT, UTC+7).'
+        : 'The candidate is based in Paris, France (CET/CEST).';
+      const prompt = `Here is an evaluation report for a job offer (company: ${spec.company}, role: ${spec.role}):\n\n${reportText.slice(0, 9000).replace(/\s*[—–]\s*/g, ', ')}\n\n${regionLine}\nSalary target: ${spec.identity.salary}. Availability: ${spec.identity.startDate}.\n\nWrite application-form answers for these standard questions, as the candidate (first person), drawing proof points from the report.\n\n${STYLE_RULES}\n\nEach of the 7 answers must be DISTINCT. Questions 1, 2 and 4 are different angles: role scope, the company and its product, overall fit. Never reuse the same sentences across them.\n\nReply with ONLY a JSON array: [{"question": "...", "answer": "..."}] for these questions:\n1. Why are you interested in this role?\n2. Why do you want to work at ${spec.company}?\n3. Tell us about a relevant project or achievement\n4. What makes you a good fit for this position?\n5. Salary expectations\n6. Notice period / availability\n7. Cover letter (4-6 sentences combining the above)`;
+      try {
+        const raw = await chat({
+          model: MODELS.CLAUDE_HAIKU,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.5,
+          max_tokens: 1800,
+        });
+        const jsonText = raw.match(/\[[\s\S]*\]/)?.[0];
+        const parsed = JSON.parse(jsonText || '[]');
+        return Array.isArray(parsed)
+          ? parsed.filter(a => a?.question && a?.answer).map(a => ({ question: String(a.question), answer: String(a.answer) }))
+              .map(a => ({ ...a, answer: polishApplicationAnswer(a.answer) }))
+          : [];
+      } catch (err) {
+        console.warn('[apply] fallback answers generation failed:', err.message);
+        return [];
+      }
+    }
+
+    if (path === '/api/apply/start' && method === 'POST') {
+      if (IS_VERCEL) return json(res, { error: 'Auto-apply requires a local server (visible Chrome)' }, 400);
+      const body = await readBody(req);
+      const report = cleanString(body.report);
+      if (!report || report.includes('/') || report.includes('..')) {
+        return json(res, { error: 'report filename is required' }, 400);
+      }
+      try {
+        const spec = await buildApplySpec({
+          root: ROOT,
+          reportFilename: report,
+          company: cleanString(body.company),
+          role: cleanString(body.role),
+          region: cleanString(body.region) || undefined,
+          autoSubmit: !!body.autoSubmit,
+        });
+        if (!spec.answers.length) {
+          spec.answers = await generateFallbackAnswers(spec);
+        }
+        const runId = `${Date.now().toString(36)}-${slugify(spec.company || 'offer').slice(0, 30)}`;
+        const runDir = join(ROOT, 'scratch/apply-runs', runId);
+        await mkdir(runDir, { recursive: true });
+        await writeFile(join(runDir, 'spec.json'), JSON.stringify(spec, null, 2), 'utf-8');
+        const child = spawn('node', ['apply-runner.mjs', '--run-dir', `scratch/apply-runs/${runId}`], {
+          cwd: ROOT,
+          detached: true,
+          stdio: 'ignore',
+        });
+        child.unref();
+        return json(res, {
+          ok: true,
+          runId,
+          region: spec.region,
+          cv: spec.cvPath.split('/').pop(),
+          answersCount: spec.answers.length,
+          jobUrl: spec.jobUrl,
+        });
+      } catch (err) {
+        return json(res, { error: String(err?.message || err) }, 500);
+      }
+    }
+
+    if (path.startsWith('/api/apply/runs/')) {
+      const parts = path.slice('/api/apply/runs/'.length).split('/');
+      const runId = decodeURIComponent(parts[0] || '').replace(/[^a-z0-9_-]/gi, '');
+      if (!runId) return json(res, { error: 'runId required' }, 400);
+      const runDir = join(ROOT, 'scratch/apply-runs', runId);
+
+      if (method === 'GET' && parts[1] === 'shots' && parts[2]) {
+        try {
+          const shot = decodeURIComponent(parts[2]).replace(/[^a-z0-9.-]/gi, '');
+          const img = await readFile(join(runDir, shot));
+          res.setHeader('Content-Type', 'image/png');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.writeHead(200);
+          res.end(img);
+        } catch {
+          res.writeHead(404); res.end('Not found');
+        }
+        return;
+      }
+      if (method === 'GET') {
+        try {
+          const raw = await readFile(join(runDir, 'state.json'), 'utf-8');
+          res.setHeader('Content-Type', 'application/json');
+          res.writeHead(200);
+          res.end(raw);
+        } catch {
+          json(res, { error: 'run not found or not started yet', runId }, 404);
+        }
+        return;
+      }
+      if (method === 'POST' && parts[1] === 'command') {
+        const body = await readBody(req);
+        const action = cleanString(body.action);
+        if (!['submit', 'rescan', 'abort'].includes(action)) {
+          return json(res, { error: 'action must be submit | rescan | abort' }, 400);
+        }
+        await writeFile(join(runDir, 'command.json'), JSON.stringify({ action, ts: Date.now() }), 'utf-8');
+        return json(res, { ok: true });
+      }
     }
 
     if (path === '/api/cv-pdf' && method === 'POST') {
@@ -2834,7 +5938,7 @@ const server = createServer(async (req, res) => {
       }
 
       const html = await renderPremiumCV('ai_builder', tailoredData);
-      const htmlPath = join(ROOT, 'batch/temp', `cv-${companySlug}.html`);
+      const htmlPath = join(WRITE_ROOT, 'batch/temp', `cv-${companySlug}.html`);
       const pdfFilename = `cv-hugo-vermot-${companySlug}-${today}.pdf`;
       const pdfPath = join(ROOT, 'output', pdfFilename);
 
@@ -2852,12 +5956,12 @@ const server = createServer(async (req, res) => {
 
       const company = cleanString(body.company) || 'company';
       const role = cleanString(body.role) || 'role';
-      const profileData = await getProfile().catch(() => ({}));
+      const profileData = await getProfile(req.userId).catch(() => ({}));
       const today = new Date().toISOString().slice(0, 10);
       const companySlug = slugify(company);
       const roleSlug = slugify(role).slice(0, 40);
       const baseName = `cover-letter-${companySlug}-${roleSlug}-${today}`;
-      const htmlPath = join(ROOT, 'batch/temp', `${baseName}.html`);
+      const htmlPath = join(WRITE_ROOT, 'batch/temp', `${baseName}.html`);
       const pdfPath = join(ROOT, 'output', `${baseName}.pdf`);
 
       const html = await renderCoverLetterPdfHtml({ company, role, markdown, profileData });
@@ -2895,16 +5999,27 @@ const server = createServer(async (req, res) => {
         const [shared, modeFile, cv, profile, profileConfig, apps, pipeline, articleDigest] = await Promise.all([
           readFile(join(ROOT, 'modes/_shared.md'), 'utf-8').catch(() => ''),
           readFile(join(ROOT, `modes/${activeModeFile}.md`), 'utf-8').catch(() => ''),
-          readFile(join(ROOT, 'cv.md'), 'utf-8').catch(() => ''),
-          readFile(join(ROOT, 'modes/_profile.md'), 'utf-8').catch(() => ''),
-          readFile(join(ROOT, 'config/profile.yml'), 'utf-8').catch(() => ''),
+          getCvMarkdown(req.userId),
+          getProfileContext(req.userId),
+          // profileConfig : données structurées depuis Supabase (objet) ou fichier YAML (string)
+          (async () => {
+            if (useSupabase && req.userId) {
+              const data = await getProfile(req.userId);
+              return (data && Object.keys(data).length) ? data : {};
+            }
+            return readFile(join(ROOT, 'config/profile.yml'), 'utf-8').catch(() => '');
+          })(),
           readFile(join(ROOT, 'data/applications.md'), 'utf-8').catch(() => ''),
           readFile(join(ROOT, 'data/pipeline.md'), 'utf-8').catch(() => ''),
           readFile(join(ROOT, 'article-digest.md'), 'utf-8').catch(() => ''),
         ]);
 
         // ── Pre-fetch for scan & pipeline ───
-        const profileStruct = profileConfig ? (yamlLoad(profileConfig) || {}) : {};
+        const profileStruct = !profileConfig
+          ? {}
+          : typeof profileConfig === 'object'
+            ? profileConfig
+            : (yamlLoad(profileConfig) || {});
         const profileCriteriaBlock = buildProfileCriteriaBlock(profileStruct, profile);
 
         let prefetchData = '';
@@ -2916,6 +6031,8 @@ const server = createServer(async (req, res) => {
         let profileGate = null;
         if (mode === 'scan') {
           resetSerpApiCircuit();
+          resetPinchtabSolveCircuit();
+          resetWebSearchCircuit();
           send('status', { text: 'Fetching direct scan sources...' });
           const { parsed: portalsConfig } = await readPortalsYaml();
           const selection = await getScanSelection();
@@ -2924,7 +6041,7 @@ const server = createServer(async (req, res) => {
 
           const inSel = (key, name) => !sel || (sel[key]?.includes(name));
 
-          // ── Direct fetch sources (Greenhouse API + RSS) ───────────────────
+          // ── Direct fetch sources (Greenhouse/Ashby/Lever APIs + RSS) ──────
           const directSources = [];
           const webSearchSources = [];
           const playwrightCos = [];
@@ -2934,7 +6051,13 @@ const server = createServer(async (req, res) => {
           selectedCompanies.forEach(company => {
             const access = getCompanyScanAccess(company);
             if (access.mode === 'api' && access.apiUrl) {
-              directSources.push({ name: company.name, url: access.apiUrl, type: 'json' });
+              directSources.push({
+                name: company.name,
+                url: access.apiUrl,
+                type: 'json',
+                query: company.scan_query || '',
+                careers_url: company.careers_url || '',
+              });
               return;
             }
             if (access.mode === 'websearch' && access.query) {
@@ -2949,15 +6072,18 @@ const server = createServer(async (req, res) => {
               directSources.push({ name: r.name, url: r.url, type: 'rss' });
           });
 
-          const allQueries = [...(portalsConfig.search_queries || []), ...(portalsConfig.eu_job_boards || [])];
+          const allQueries = [
+            ...(portalsConfig.search_queries || []),
+            ...(portalsConfig.eu_job_boards || []),
+            ...(portalsConfig.freelance_portals || []),
+          ];
           allQueries
             .filter(q => q.enabled !== false && inSel('queries', q.name))
             .forEach(q => webSearchSources.push({ name: q.name, query: q.query }));
 
           const selectedAggregators = (portalsConfig.api_aggregators || [])
             .filter(a => a.enabled !== false && inSel('aggregators', a.name));
-          const runnableAggregators = selectedAggregators
-            .filter(aggregator => /theirstack/i.test(aggregator.name || ''));
+          const runnableAggregators = selectedAggregators.filter(isAggregatorConfigured);
           const scannedSourceNames = [
             ...directSources.map(source => source.name),
             ...webSearchSources.map(source => source.name),
@@ -2967,10 +6093,12 @@ const server = createServer(async (req, res) => {
 
           const directResults = await Promise.allSettled(directSources.map(source => fetchSourceSection(source)));
           const serpApiConfigured = Boolean(SERPAPI_KEY || process.env.SEARCHAPI_KEY);
+          // Pre-flight: validate API key once before dispatching all parallel web searches
+          if (serpApiConfigured) await probeSearchApi();
           const webSearchResults = await Promise.allSettled(webSearchSources.map(source => fetchWebSearchSection(source)));
           const playwrightResults = await fetchPlaywrightSections(playwrightCos);
           const aggregatorResults = await Promise.allSettled(runnableAggregators.map(aggregator =>
-            fetchTheirStackSection(aggregator, portalsConfig)
+            fetchAggregatorSection(aggregator, portalsConfig)
           ));
           await updateScanState(scannedSourceNames).catch(err => {
             console.warn(`[scan] Failed to update scan-state.json: ${err.message}`);
@@ -2993,7 +6121,9 @@ const server = createServer(async (req, res) => {
           const allScanCandidates = dedupeScanCandidates([
             ...directResults.flatMap((result, index) =>
               result.status === 'fulfilled' && result.value?.jobs?.length
-                ? buildScanCandidateRecords(directSources[index]?.name, result.value.jobs)
+                ? buildScanCandidateRecords(directSources[index]?.name, result.value.jobs, {
+                    engine: result.value.engine || '',
+                  })
                 : []
             ),
             ...webSearchResults.flatMap((result, index) =>
@@ -3037,7 +6167,7 @@ const server = createServer(async (req, res) => {
           {
             const [existingPipeline, existingHistory, existingReports] = await Promise.all([
               getPipeline().catch(() => []),
-              getScanHistoryUrlSet().catch(() => new Set()),
+              getBlockingScanHistoryUrlSet().catch(() => new Set()),
               getReportUrlSet().catch(() => new Set()),
             ]);
             const knownNormalized = new Set([
@@ -3056,6 +6186,14 @@ const server = createServer(async (req, res) => {
             }
             scanCandidates = freshCandidates;
           }
+
+          // Look up missing publishedAt (API for Greenhouse/Lever/Ashby URLs,
+          // PinchTab JSON-LD fallback) then drop anything older than max_age_days.
+          const maxAgeDays = Number.isFinite(portalsConfig.scan_max_age_days)
+            ? portalsConfig.scan_max_age_days
+            : DEFAULT_SCAN_MAX_AGE_DAYS;
+          await enrichCandidatesWithPublishedDates(scanCandidates);
+          scanCandidates = applyAgeFilter(scanCandidates, { maxAgeDays });
 
           const sections = [
             ...directResults.filter(r => r.status === 'fulfilled' && r.value?.section).map(r => r.value.section),
@@ -3144,7 +6282,7 @@ const server = createServer(async (req, res) => {
 
           send('status', { text: 'Analyzing filtered results with Claude...' });
         } else if (mode === 'pipeline') {
-          const pipe = await getPipeline();
+          const pipe = await getPipeline(req.userId);
           if (pipe.length === 0) {
             send('done', { ok: true, saves: ['Pipeline is empty'] });
             res.end();
@@ -3158,62 +6296,39 @@ const server = createServer(async (req, res) => {
             throw new Error('Selected pipeline item was not found. Refresh and try again.');
           }
           send('status', { text: `Fetching JD for: ${pipelineTarget.url}...` });
-
-          // JS-rendered job boards (Greenhouse embeds, Lever, Ashby, Workday, etc.)
-          // need Playwright — a plain fetch() returns empty shell HTML
-          const JS_RENDERED_PATTERNS = [
-            /[?&]gh_jid=/i,           // Greenhouse embedded widget
-            /jobs\.greenhouse\.io/i,
-            /job-boards\.greenhouse\.io/i,
-            /jobs\.lever\.co/i,
-            /jobs\.ashbyhq\.com/i,
-            /apply\.workable\.com/i,
-            /careers\.smartrecruiters\.com/i,
-            /boards\.eu\.greenhouse\.io/i,
-          ];
-          const needsPlaywright = JS_RENDERED_PATTERNS.some(p => p.test(pipelineTarget.url));
-
-          const extractTextFromHtml = html =>
-            html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-                .replace(/<[^>]+>/g, ' ')
-                .replace(/\s+/g, ' ').trim();
-
-          if (needsPlaywright) {
-            try {
-              const chromium = await loadPlaywrightChromium();
-              const browser = await chromium.launch({ headless: true });
-              const unmark = markPlaywrightBrowser(browser);
-              try {
-                const page = await browser.newPage();
-                await page.goto(pipelineTarget.url, { waitUntil: 'networkidle', timeout: 25000 });
-                await page.waitForTimeout(1500);
-                const html = await page.content();
-                const textContent = extractTextFromHtml(html);
-                prefetchData = `## Job Description from ${pipelineTarget.url}\n${pipelineTarget.note ? `Context note: ${pipelineTarget.note}\n` : ''}\n${textContent.slice(0, 15000)}`;
-                console.log(`[pipeline] [Playwright] fetched ${textContent.length} chars for ${pipelineTarget.url}`);
-              } finally {
-                await browser.close().catch(() => {});
-                unmark();
-              }
-            } catch (err) {
-              console.warn(`[pipeline] [Playwright] failed for ${pipelineTarget.url}: ${err.message}`);
-              prefetchData = `## Job Description from ${pipelineTarget.url}\nFailed to load content (${err.message}). Assess based on URL and Note: ${pipelineTarget.note || 'None'}`;
-            }
-          } else {
-            try {
-              const r = await fetch(pipelineTarget.url, { signal: AbortSignal.timeout(10000) });
-              if (r.ok) {
-                const html = await r.text();
-                const textContent = extractTextFromHtml(html);
-                prefetchData = `## Job Description from ${pipelineTarget.url}\n${pipelineTarget.note ? `Context note: ${pipelineTarget.note}\n` : ''}\n${textContent.slice(0, 15000)}`;
-              } else {
-                prefetchData = `## Job Description from ${pipelineTarget.url}\nFailed to load content (Status ${r.status}). Assess based on URL and Note: ${pipelineTarget.note || 'None'}`;
-              }
-            } catch (err) {
-              prefetchData = `## Job Description from ${pipelineTarget.url}\nFailed to load content (${err.message}). Assess based on URL and Note: ${pipelineTarget.note || 'None'}`;
-            }
+          const pipelineNoteParts = extractPipelineNoteParts(pipelineTarget.note || '');
+          const jdResult = await fetchJobDescriptionText(pipelineTarget.url, {
+            maxChars: 15000,
+            logLabel: 'pipeline',
+            note: pipelineTarget.note || '',
+            hintCompany: pipelineNoteParts.company,
+            hintTitle: pipelineNoteParts.title,
+          });
+          if (!jdResult.ok || !String(jdResult.text || '').trim()) {
+            // Even the headed-Chrome fallback couldn't load it (dead URL, or the
+            // anti-bot challenge wasn't solved in time). Park it as `skipped_blocked`
+            // so it leaves the active queue instead of re-failing on every scan.
+            await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'skipped_blocked', historyPortal: 'pipeline-blocked' })
+              .catch(err => console.warn(`[pipeline] failed to park blocked URL: ${err.message}`));
+            const message = `JD not loaded for ${pipelineTarget.url}: ${jdResult.error || 'empty content'}. Parked as blocked and removed from the active queue — re-add the URL to retry.`;
+            console.warn(`[pipeline] ${message}`);
+            send('warning', { text: message });
+            send('chunk', {
+              text: [
+                `# Evaluation blocked`,
+                '',
+                `**URL:** ${pipelineTarget.url}`,
+                pipelineTarget.note ? `**Note:** ${pipelineTarget.note}` : '',
+                '',
+                'The job description could not be loaded, even with the visible-Chrome fallback, so I did not generate a score, report, tracker row, or application-answer fallback.',
+                'This URL has been parked (status `skipped_blocked`) and removed from the active queue so it no longer blocks the pipeline. Paste the JD text, or re-add the URL to retry when the page is accessible.',
+              ].filter(Boolean).join('\n')
+            });
+            send('done', { ok: false, blocked: true, saves: ['Evaluation blocked: JD content missing. URL parked as skipped_blocked (removed from active queue).'] });
+            res.end();
+            return;
           }
+          prefetchData = `## Job Description from ${pipelineTarget.url}\n${pipelineTarget.note ? `Context note: ${pipelineTarget.note}\n` : ''}\n${jdResult.text}`;
           console.log(`[pipeline] prefetchData length: ${prefetchData.length} chars`);
           profileGate = evaluateOfferAgainstProfile(prefetchData, profileStruct, profile);
           console.log(`[pipeline] profileGate: hardReject=${profileGate.hardReject}, reasons=${JSON.stringify(profileGate.reasons)}`);
@@ -3246,7 +6361,7 @@ const server = createServer(async (req, res) => {
           }
 
           send('status', { text: 'Loading selected offer context...' });
-          const applications = await getApplications();
+          const applications = await getApplications(req.userId);
           const companyKey = normalizeLookup(selectedCompany);
           const roleKey = normalizeLookup(selectedRole);
 
@@ -3274,7 +6389,7 @@ const server = createServer(async (req, res) => {
 
           let reportContent = '';
           try {
-            reportContent = await getReport(reportFilename);
+            reportContent = await getReport(reportFilename, req.userId);
           } catch {
             throw new Error(`Selected report not found: ${reportFilename}`);
           }
@@ -3293,16 +6408,11 @@ const server = createServer(async (req, res) => {
           if (mode === 'coverletter' && jobUrl) {
             send('status', { text: `Fetching JD for cover letter: ${jobUrl}...` });
             try {
-              const r = await fetch(jobUrl, { signal: AbortSignal.timeout(10000) });
-              if (r.ok) {
-                const html = await r.text();
-                rawJD = html
-                  .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-                  .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-                  .replace(/<[^>]+>/g, ' ')
-                  .replace(/\s+/g, ' ').trim()
-                  .slice(0, 12000);
-              }
+              const jdResult = await fetchJobDescriptionText(jobUrl, {
+                maxChars: 12000,
+                logLabel: 'coverletter',
+              });
+              if (jdResult.ok) rawJD = jdResult.text;
             } catch (_) {
               // fallback: report already has JD summary
             }
@@ -3327,21 +6437,30 @@ const server = createServer(async (req, res) => {
 
         // ── Build prompt ──────────────────────────────────────────────────
         const systemPrompt = [shared, modeFile].filter(Boolean).join('\n\n---\n\n');
+        const leanEvaluationModes = new Set(['scan', 'oferta', 'pipeline']);
+        const includeGlobalTrackingContext = !['apply', 'coverletter', 'question', 'scan', 'oferta', 'pipeline'].includes(mode);
+        const includeCvContext = mode !== 'scan';
+        const includeArticleDigest = articleDigest && !leanEvaluationModes.has(mode);
         const parts = [
-          `## CV du candidat\n${cv}`,
           `## Profil personnalisé\n${profile}`,
           `## Profil structuré (config/profile.yml)\n${profileConfig}`,
           `## Critères de matching dérivés du profil\n${profileCriteriaBlock}`,
-          `## Tracker actuel\n${apps}`,
-          `## Pipeline actuel\n${pipeline}`,
         ];
-        if (articleDigest) parts.push(`## Proof points détaillés (article-digest.md)\n${articleDigest}`);
+        if (includeCvContext) {
+          parts.unshift(`## CV du candidat\n${cv}`);
+        }
+        if (includeGlobalTrackingContext) {
+          parts.push(`## Tracker actuel\n${apps}`);
+          parts.push(`## Pipeline actuel\n${pipeline}`);
+        }
+        if (includeArticleDigest) parts.push(`## Proof points détaillés (article-digest.md)\n${articleDigest}`);
         if (prefetchData) parts.push(`## Offres récupérées en direct\n${prefetchData}`);
         if (mode === 'scan') {
           parts.push(`---\nRÈGLES STRICTES :
 1. Travaille UNIQUEMENT avec les offres présentes dans "## Offres récupérées en direct" ci-dessus. N'invente PAS d'offres et n'ajoute pas d'URL qui n'apparaît pas déjà dans ces sections.
 1b. La section "## Candidate Roster" est la source de vérité la plus fiable. Si tu gardes une offre, son URL doit apparaître telle quelle dans cette section.
 1c. Pour le remote: garde UNIQUEMENT les offres avec preuve EXPLICITE de remote dans les données récupérées. Si le remote est "probable", "compatible", "à confirmer", "remote-friendly", ou simplement supposé, EXCLUS l'offre.
+1d. Pour le full remote: garde UNIQUEMENT worldwide/global, Europe/EMEA/EU, Asia/APAC, ou Dubai/UAE. EXCLUS les offres remote US-only, Canada-only, LATAM/Latin America, Americas/North America/South America, même si elles disent "fully remote".
 2. FILTRE: garde uniquement les offres qui correspondent aux critères du profil. Si une offre viole une contrainte dure du profil, exclue-la immédiatement. Si l'offre n'est pas explicitement full remote / remote, hard pass direct.
 2b. EXCLUS immédiatement toute URL qui est une page catégorie, une page entreprise, une page de listing, ou une page de recherche (ex: /role/r/*, /companies/*, /web3-companies/*, /jobs?*, /search?*). Seules les URLs pointant vers UN poste précis sont valides.
 2c. EXCLUS les offres junior (Associate, Junior, "entry-level") si le profil cible des rôles senior. EXCLUS les offres hors domaine produit/design/AI (marketing, finance, juridique, RH, payroll) sauf si le lien avec l'AI est central et explicite.
@@ -3363,10 +6482,10 @@ Règles:
 - indique clairement que l'offre est rejetée parce qu'elle viole les critères du profil
 - la politique remote du profil est une contrainte dure ici
 - ne cherche pas à sauver l'offre ni à proposer d'exception
-- garde le format A-F suffisamment structuré pour que le report reste exploitable
+- garde le format A-E suffisamment structuré pour que le report reste exploitable
 - conclusion explicite: HARD PASS / DO NOT APPLY`);
           } else {
-            parts.push(`---\nExécute l'évaluation complète (mode oferta) sur l'offre récupérée ci-dessus. L'URL est ${pipelineTarget.url}. Vérifie l'offre contre TOUS les critères dérivés du profil avant de scorer. Si une contrainte dure du profil est violée, rejette l'offre immédiatement. Génère directement le rapport final de A à F avec le bon format. Ne mentionne pas tes actions au préalable, sois direct et commence avec "# Evaluation: {Company} — {Role}".`);
+            parts.push(`---\nExécute l'évaluation complète (mode oferta) sur l'offre récupérée ci-dessus. L'URL est ${pipelineTarget.url}. Vérifie l'offre contre TOUS les critères dérivés du profil avant de scorer. Si une contrainte dure du profil est violée, rejette l'offre immédiatement. Génère directement le rapport final de A à E avec le bon format. Ne scanne pas le formulaire de candidature, ne génère pas de questions/réponses de candidature, ne génère pas de JSON de CV tailoré et ne demande pas de PDF. Ne mentionne pas tes actions au préalable, sois direct et commence avec "# Evaluation: {Company} — {Role}".`);
           }
         } else if (mode === 'apply') {
           parts.push(`---\nTu démarres le mode apply pour une offre déjà sélectionnée. Utilise le report complet fourni ci-dessus pour préparer un starter pack d'application: résumé ciblé de l'offre, 3-5 angles forts à réutiliser, pièces à joindre, valeurs probables pour les champs standards (salaire, préavis, visa/remote) basées sur profile.yml si disponibles, puis une liste concise de ce qu'il faut partager ensuite (screenshot ou copier-coller des questions). N'invente aucun champ de formulaire non visible et ne prétends pas voir le formulaire tant qu'il n'a pas été fourni.`);
@@ -3378,27 +6497,36 @@ Tu dois répondre à une question de formulaire de candidature pour l'offre ci-d
 **Question posée dans le formulaire :**
 ${userQuestion || '(aucune question fournie — demande à l\'utilisateur de la préciser)'}
 
-SOURCES À UTILISER (par ordre de priorité) :
-1. Le report d'évaluation ci-dessus — blocs B (proof points calés sur la JD), F (STAR stories), G (drafts si présents)
-2. article-digest.md — proof points détaillés avec métriques réelles
-3. cv.md — expériences, projets, stack
-4. _profile.md — archétypes, narrative de transition, avantage distinctif, style de travail, scripts de négociation
-5. profile.yml — données factuelles (salaire cible, remote, notice period, localisation)
+SOURCES À UTILISER :
+1. Pour les questions d'expérience / produit / projet : cv.md + article-digest.md + _profile.md d'abord. Le report sert à reprendre le vocabulaire de la JD, pas à inventer des analogies.
+2. Pour les questions de motivation : report d'évaluation ci-dessus — blocs B/C/D (critères, match CV, signaux pratiques)
+3. Pour les questions factuelles : profile.yml
+
+RÈGLES DE FOND :
+1. Réponds à la question LITTÉRALEMENT. Si elle contient plusieurs sous-questions, couvre-les toutes dans le même ordre.
+2. Pour une question d'expérience, cite un produit ou projet réel dès la première phrase.
+3. Si l'expérience exacte demandée n'existe pas, dis-le clairement en une courte clause, puis bascule vers l'expérience adjacente la plus crédible.
+4. Ne transforme jamais une expérience adjacente en expérience directe.
+5. N'invente jamais les utilisateurs. Nomme les vrais users du projet cité.
+6. N'utilise jamais du langage de translation flou du type "maps closely to", "similar infrastructure field", "this experience translates to", "internal AI operators", "robust pipeline orchestration", sauf si c'est un fait exact présent dans les sources.
+7. Privilégie une réponse simple, concrète, courte. 40 à 110 mots par défaut.
+8. Si la question demande produit + utilisateurs + problème + impact, réponds exactement dans cet ordre.
 
 RÈGLES DE COPYWRITING :
 1. Première personne, voix active — aucun passif.
-2. 2–5 phrases max sauf si la question demande clairement plus (ex: "décrivez un projet en détail").
+2. 2–4 phrases max sauf si la question demande clairement plus (ex: "décrivez un projet en détail").
 3. Lead avec un fait concret ou une métrique — JAMAIS "Je suis passionné par…" ou "I would love the opportunity to…".
-4. Ancre dans le spécifique : cite quelque chose de précis du JD/report ET un proof point réel du candidat.
+4. Ancre dans le spécifique : cite quelque chose de précis du JD/report ET un proof point réel du candidat, mais sans détourner la question.
 5. Ton "I'm choosing you" : confiant, direct, pas arrogant. On postule parce qu'on a analysé et que ça matche — pas par désespoir.
 6. Adapte l'archétype au contexte du rôle (cf. _profile.md section "Framing Adaptatif").
 7. Langue = celle de la question (FR si FR, EN si EN).
 8. Zéro corporate speak, zéro filler, zéro générique.
 9. N'invente aucune expérience ni métrique — si un gap existe, contourne intelligemment.
+10. Pour les questions niche ou domaine spécifique, l'honnêteté factuelle passe avant le framing.
 
 CLASSIFICATION DE LA QUESTION :
 - Motivation ("Pourquoi nous / ce rôle ?") → signal spécifique de l'offre + proof point qui y mappe directement
-- Expérience / projet → une STAR story du report bloc F réduite à 2 phrases (situation + résultat chiffré)
+- Expérience / projet → réponds d'abord "direct" ou "adjacent", puis : produit construit → utilisateurs → problème résolu → impact réel
 - Compétence ("Comment gérez-vous X ?") → méthode concrète + outcome, pas de liste générique
 - Valeurs / style de travail → honnête + cohérent avec _profile.md (autonomie, systèmes, ownership)
 - Factuel (salaire, préavis, remote, visa) → réponse directe depuis profile.yml
@@ -3459,13 +6587,21 @@ Contraintes :
         // ── Stream response ───────────────────────────────────────────────
         const promptLength = parts.join('\n\n').length;
         console.log(`[${mode}] sending prompt to Claude — ${promptLength} chars, systemPrompt=${systemPrompt?.length || 0} chars`);
+        const generationModel = MODELS.GPT4_1_MINI;
+        const generationTemperature = mode === 'question' ? 0.1 : 0.3;
+        const generationMaxTokens = mode === 'question'
+          ? 2048
+          : (mode === 'scan' || mode === 'oferta' || mode === 'pipeline')
+            ? 4096
+            : 8192;
         let fullResponse = '';
         try {
           for await (const chunk of chatStream({
-            model: MODELS.GPT4_1_MINI,
+            model: generationModel,
             messages: [{ role: 'user', content: parts.join('\n\n') }],
             systemPrompt,
-            max_tokens: 8192,
+            temperature: generationTemperature,
+            max_tokens: generationMaxTokens,
           })) {
             fullResponse += chunk;
             send('chunk', { text: chunk });
@@ -3492,20 +6628,24 @@ Contraintes :
           );
           const validParsed = parsed.filter(({ url }) => candidateUrlIndex.has(url) || candidateUrlIndex.has(normalizeUrlKey(url)));
           const rejectedParsed = parsed.filter(({ url }) => !(candidateUrlIndex.has(url) || candidateUrlIndex.has(normalizeUrlKey(url))));
-          const currentPipeline = await getPipeline().catch(() => []);
+          const currentPipeline = await getPipeline(req.userId).catch(() => []);
           const existingPipelineUrls = new Set(
             currentPipeline
-              .map(entry => String(entry?.url || '').trim())
+              .map(entry => normalizeUrlKey(String(entry?.url || '').trim()))
               .filter(Boolean)
           );
-          const existingHistoryUrls = await getScanHistoryUrlSet().catch(() => new Set());
+          const existingHistoryUrls = await getBlockingScanHistoryUrlSet().catch(() => new Set());
           const existingReportUrls = await getReportUrlSet().catch(() => new Set());
-          const isKnown = (url) => existingPipelineUrls.has(url) || existingHistoryUrls.has(url) || existingReportUrls.has(url);
+          const normalizedReportUrls = new Set([...existingReportUrls].map(url => normalizeUrlKey(url)).filter(Boolean));
+          const isKnown = (url) => {
+            const key = normalizeUrlKey(url);
+            return existingPipelineUrls.has(key) || existingHistoryUrls.has(key) || normalizedReportUrls.has(key);
+          };
           const newEntries = validParsed.filter(({ url }) => !isKnown(url));
           const duplicateEntries = validParsed.filter(({ url }) => isKnown(url));
 
           if (newEntries.length) {
-            await Promise.all(newEntries.map(({ url, note }) => addToPipeline(url, note)));
+            await addManyToPipeline(newEntries, req.userId);
           }
 
           if (validParsed.length) {
@@ -3593,20 +6733,32 @@ Contraintes :
           console.log(`[${mode}] parsed: company=${company}, role=${role.slice(0, 40)}, score=${scoreRaw}, status=${trackerStatus}`);
           if (validation.valid) {
             console.log(`[${mode}] writing report → reports/${filename}`);
-            await writeFile(join(ROOT, `reports/${filename}`), reportContent, 'utf-8');
+            await writeFile(join(WRITE_ROOT, `reports/${filename}`), reportContent, 'utf-8');
+
+            // On Vercel, also sync report directly to Supabase (watcher can't run there)
+            if (IS_VERCEL && useSupabase) {
+              const parts = filename.replace('.md', '').split('-');
+              const rNum = parseInt(parts[0], 10);
+              const rDate = parts.slice(-3).join('-');
+              const rCompany = parts.slice(1, -3).join('-');
+              const adminId = await getAdminUserId().catch(() => null);
+              const row = { filename, content: reportContent, num: rNum, company: rCompany, date: rDate };
+              if (adminId) row.user_id = adminId;
+              await supabase.from('reports').upsert(row, { onConflict: 'filename' });
+            }
 
             // TSV entry
-            const tsvDir = join(ROOT, 'batch/tracker-additions');
+            const tsvDir = join(WRITE_ROOT, 'batch/tracker-additions');
             console.log(`[${mode}] writing TSV → batch/tracker-additions/${num}-${company}.tsv`);
             await writeFile(join(tsvDir, `${num}-${company}.tsv`),
               `${parseInt(num)}\t${today}\t${companyMatch?.[1]?.trim() || 'Unknown'}\t${role}\t${trackerStatus}\t${scoreRaw}\t❌\t[${parseInt(num)}](reports/${filename})\t${trackerNote}\n`
             );
-            await runScript('merge');
+            if (!IS_VERCEL) await runScript('merge');
             saves.push(`Report saved: ${filename}`);
             saves.push(`Tracker updated`);
 
             if (mode === 'pipeline' && pipelineTarget) {
-              await removeFromPipeline(pipelineTarget.url);
+              await removeFromPipeline(pipelineTarget.url, req.userId);
               saves.push(`Removed URL from pipeline queue`);
             }
 
@@ -3636,24 +6788,31 @@ Contraintes :
               // 2. Load template & sources
               const [template, cvSource] = await Promise.all([
                 readFile(join(ROOT, 'templates/cv-template.html'), 'utf-8'),
-                readFile(join(ROOT, 'cv.md'), 'utf-8'),
+                getCvMarkdown(req.userId),
               ]);
 
-              // 3. Extract profile info from cv.md
-              const email = cvSource.match(/Email:\*\*\s*([^\s\n]+)/)?.[1] || 'chilka.v@gmail.com';
-              const linkedin = cvSource.match(/LinkedIn:\*\*\s*\[([^\]]+)\]\(([^)]+)\)/);
-              
+              // 3. Load normalized contact info via existing utility
+              const profileData = await loadCvTemplateData(ROOT);
+              const contact = profileData.shared.contact;
+              const profileName = contact.name || '';
+              const profileEmail = contact.email || '';
+              const linkedinUrl = contact.linkedin_url || '';
+              const linkedinDisplay = contact.linkedin_display || '';
+              const portfolioUrl = contact.portfolio || '';
+              const portfolioDisplay = contact.portfolio_display || '';
+              const profileLocation = contact.location || '';
+
               // 4. Populate template
               let html = template
                 .replace(/{{LANG}}/g, 'en')
                 .replace(/{{PAGE_WIDTH}}/g, '210mm')
-                .replace(/{{NAME}}/g, 'Hugo Vermot')
-                .replace(/{{EMAIL}}/g, email)
-                .replace(/{{LINKEDIN_URL}}/g, linkedin?.[2] || '')
-                .replace(/{{LINKEDIN_DISPLAY}}/g, linkedin?.[1] || '')
-                .replace(/{{PORTFOLIO_URL}}/g, 'https://www.figma.com/deck/EtKxJy1KsPXtr7nUhYSp1B/PRESENTATION?node-id=19-1888&viewport=-100%2C-23%2C0.48&t=3HnbXZU4NVQcKZXJ-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1')
-                .replace(/{{PORTFOLIO_DISPLAY}}/g, 'figma.com/deck/EtKxJy1KsPXtr7nUhYSp1B/PRESENTATION')
-                .replace(/{{LOCATION}}/g, 'Based in Paris & Bangkok')
+                .replace(/{{NAME}}/g, profileName)
+                .replace(/{{EMAIL}}/g, profileEmail)
+                .replace(/{{LINKEDIN_URL}}/g, linkedinUrl)
+                .replace(/{{LINKEDIN_DISPLAY}}/g, linkedinDisplay)
+                .replace(/{{PORTFOLIO_URL}}/g, portfolioUrl)
+                .replace(/{{PORTFOLIO_DISPLAY}}/g, portfolioDisplay)
+                .replace(/{{LOCATION}}/g, profileLocation)
                 .replace(/{{SECTION_SUMMARY}}/g, 'Professional Summary')
                 .replace(/{{SUMMARY_TEXT}}/g, summary_text)
                 .replace(/{{SECTION_COMPETENCIES}}/g, 'Core Competencies')
@@ -3674,9 +6833,10 @@ Contraintes :
               const companyMatch = fullResponse.match(/Step 10:.*cv-candidate-([a-z0-9-]+)\.html/i) || fullResponse.match(/### COMPANY\s*(.+)/i);
               const companySlug = companyMatch ? (companyMatch[1] || companyMatch[0]).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'custom';
               
-              const tempDir = join(ROOT, 'batch/temp');
+              const tempDir = join(WRITE_ROOT, 'batch/temp');
               const htmlPath = join(tempDir, `cv-${companySlug}.html`);
-              const pdfPath = join(ROOT, `output/cv-hugo-vermot-${companySlug}-${today}.pdf`);
+              const nameSlug = profileName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'candidate';
+              const pdfPath = join(ROOT, `output/cv-${nameSlug}-${companySlug}-${today}.pdf`);
 
               await writeFile(htmlPath, html, 'utf-8');
 
@@ -3708,11 +6868,23 @@ Contraintes :
 
     if (path.startsWith('/api/reports/') && method === 'GET') {
       const filename = decodeURIComponent(path.slice('/api/reports/'.length));
-      const content = await getReport(filename);
+      const content = await getReport(filename, req.userId);
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.writeHead(200);
       res.end(content);
       return;
+    }
+
+    if (path === '/Hugo_Vermot_CV_Paris.pdf' || path === '/Hugo_Vermot_CV.pdf') {
+      try {
+        const filename = 'Hugo_Vermot_CV_Paris.pdf';
+        const content = await readFile(join(__dirname, filename));
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.writeHead(200);
+        res.end(content);
+        return;
+      } catch { /* fall through to 404 */ }
     }
 
     if (path.startsWith('/output/') && path.endsWith('.pdf')) {
@@ -3732,15 +6904,17 @@ Contraintes :
       try {
         const content = await readFile(join(ROOT, 'images', filename));
         const ext = filename.split('.').pop().toLowerCase();
-        const types = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', svg: 'image/svg+xml' };
+        const types = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', svg: 'image/svg+xml', mp4: 'video/mp4', webm: 'video/webm', glb: 'model/gltf-binary', gltf: 'model/gltf+json' };
         res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
+        // Images & videos are versioned by filename — long-lived cache
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         res.writeHead(200);
         res.end(content);
         return;
       } catch { /* fall through to 404 */ }
     }
 
-    if (path.match(/\.(jpg|png|woff2)$/)) {
+    if (path.match(/\.(jpg|jpeg|png|svg|webp|css|woff2|woff|ttf|otf|mp4|webm)$/)) {
       try {
         // Strip leading slash to join correctly within ROOT
         const decodedPath = decodeURIComponent(path);
@@ -3748,18 +6922,25 @@ Contraintes :
         const fullPath = join(ROOT, relPath);
         const content = await readFile(fullPath);
         const ext = decodedPath.split('.').pop().toLowerCase();
-        const types = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', woff2: 'font/woff2' };
+        const types = {
+          png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+          svg: 'image/svg+xml', webp: 'image/webp',
+          css: 'text/css; charset=utf-8',
+          woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf',
+          mp4: 'video/mp4', webm: 'video/webm'
+        };
         res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
+        res.setHeader('Cache-Control', ext === 'css' ? 'no-cache' : 'public, max-age=31536000, immutable');
         res.writeHead(200);
         res.end(content);
         return;
       } catch (err) {
         console.error(`Failed to serve static file: ${path}`, err);
-        /* fall through to 404 */ 
+        /* fall through to 404 */
       }
     }
 
-    // ── HRHV: Agent RH de Hugo Vermot ─────────────────────────────────────────
+    // ── HRHV: Personal HR Agent ────────────────────────────────────────────────
     if (path === '/api/hrhv' && method === 'POST') {
       const body = await readBody(req);
 
@@ -3825,10 +7006,21 @@ server.listen(PORT, () => {
 setupGracefulShutdown(server);
 
 // ─── Reports watcher (auto-sync nouveaux rapports → Supabase) ─────────────────
+// Local-dev only: on Vercel the deployment dir is read-only and `reports/` is
+// excluded from the bundle, so fs.watch('/var/task/reports') throws ENOENT and
+// crashes the function at module load (FUNCTION_INVOCATION_FAILED). Serverless
+// functions are ephemeral anyway, so a filesystem watcher would never fire.
 
-if (useSupabase) {
+if (useSupabase && !IS_VERCEL) {
   const reportsDir = join(ROOT, 'reports');
   const pending = new Set();
+
+  const adminUserIdCache = { value: null };
+  async function getWatcherUserId() {
+    if (adminUserIdCache.value) return adminUserIdCache.value;
+    adminUserIdCache.value = await getAdminUserId().catch(() => null);
+    return adminUserIdCache.value;
+  }
 
   async function syncReport(filename) {
     if (!filename.endsWith('.md')) return;
@@ -3838,9 +7030,12 @@ if (useSupabase) {
       const num = parseInt(parts[0], 10);
       const date = parts.slice(-3).join('-');
       const company = parts.slice(1, -3).join('-');
+      const row = { filename, content, num, company, date };
+      const userId = await getWatcherUserId();
+      if (userId) row.user_id = userId;
       const { error } = await supabase
         .from('reports')
-        .upsert({ filename, content, num, company, date }, { onConflict: 'filename' });
+        .upsert(row, { onConflict: 'filename' });
       if (error) throw error;
       console.log(`  ☁️  Report synced → Supabase: ${filename}`);
     } catch (err) {

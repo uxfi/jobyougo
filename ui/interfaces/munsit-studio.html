@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Munsit — Arabic TTS Studio</title>
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/munsit-mobile.css">
+<style>
+  .voice-orb.is-webgl,
+  .voice-orb.is-webgl.voice-tone-layla,
+  .voice-orb.is-webgl.voice-tone-noor,
+  .voice-orb.is-webgl.voice-tone-clone {
+    background: transparent !important;
+    box-shadow: none !important;
+    animation: none !important;
+    filter: none !important;
+  }
+  .voice-orb.is-webgl::before,
+  .voice-orb.is-webgl::after { content: none !important; display: none !important; }
+  .voice-orb.is-webgl .voice-orb-core { display: none !important; }
+  .voice-orb-webgl-mount {
+    position: absolute;
+    inset: -18%;
+    pointer-events: none;
+  }
+  .voice-orb-webgl-mount canvas { display: block; width: 100%; height: 100%; background: transparent; }
+
+  /* Deep purple-black canvas */
+  body.screen-studio {
+    background: #06030f;
+    background-image:
+      radial-gradient(circle at 14% 18%, rgba(124, 58, 237, 0.22), transparent 38%),
+      radial-gradient(circle at 88% 12%, rgba(99, 51, 217, 0.14), transparent 36%),
+      radial-gradient(circle at 50% 92%, rgba(167, 95, 255, 0.12), transparent 42%),
+      linear-gradient(180deg, #08051a 0%, #050210 100%);
+  }
+  .screen-studio .screen.studio-chat-screen::before { background: none; }
+
+  /* Re-color text + chrome for dark canvas */
+  .screen-studio .statusbar,
+  .screen-studio .conversation-meta strong,
+  .screen-studio .conversation-meta small,
+  .screen-studio .conversation-back,
+  .screen-studio .conversation-more {
+    color: rgba(245, 240, 255, 0.92) !important;
+  }
+  .screen-studio .brand-copy small,
+  .screen-studio .mini-label,
+  .screen-studio .conversation-meta small,
+  .screen-studio .chat-bubble p,
+  .screen-studio .result-head p,
+  .screen-studio .flow-player-copy span,
+  .screen-studio .chat-recorder-copy p {
+    color: rgba(220, 210, 245, 0.55);
+  }
+  .screen-studio .conversation-back:hover,
+  .screen-studio .conversation-more:hover {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  /* AI loader on dark */
+  .studio-chat-screen .ai-loader-text { color: rgba(245, 240, 255, 0.95); }
+
+  /* Result bubble on dark — glassy violet */
+  .studio-chat-screen .chat-message-result .chat-bubble {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(167, 130, 255, 0.14);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+  .studio-chat-screen .chat-message-result .chat-bubble strong,
+  .studio-chat-screen .chat-message-result .chat-bubble p,
+  .studio-chat-screen .flow-player-copy strong,
+  .studio-chat-screen .flow-player-copy span,
+  .studio-chat-screen .mini-label {
+    color: rgba(245, 240, 255, 0.92);
+  }
+  .studio-chat-screen .flow-player-copy span,
+  .studio-chat-screen .result-head p,
+  .studio-chat-screen .mini-label {
+    color: rgba(220, 210, 245, 0.6);
+  }
+  .studio-chat-screen [data-result-title] {
+    font-weight: 500;
+  }
+  .studio-chat-screen .flow-timeline-bar {
+    background: rgba(245, 242, 255, 0.16);
+  }
+  .studio-chat-screen .flow-timeline-progress {
+    width: 0;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.98), rgba(232, 235, 242, 0.9));
+  }
+  .studio-chat-screen .flow-play {
+    background: rgba(255, 255, 255, 0.92);
+    color: #1a0d3d;
+  }
+
+  /* Result kebab adapts to dark */
+  .studio-chat-screen .result-options-trigger {
+    color: rgba(220, 210, 245, 0.6);
+  }
+  .studio-chat-screen .result-options-trigger:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Maximize chat width and dock real estate on studio screen */
+  .screen-studio .screen.studio-chat-screen {
+    padding-left: 2px;
+    padding-right: 2px;
+    padding-bottom: calc(132px + env(safe-area-inset-bottom));
+  }
+  .studio-chat-screen .statusbar { padding-left: 12px; padding-right: 12px; }
+  .studio-chat-screen .conversation-header { padding-left: 12px; padding-right: 12px; }
+  .studio-chat-screen .chat-feed { padding-left: 2px; padding-right: 2px; }
+  .studio-chat-screen .chat-dock {
+    left: 2px;
+    right: 2px;
+    bottom: calc(4px + env(safe-area-inset-bottom));
+  }
+  .studio-chat-screen .idle-orb-stage { left: 2px; right: 2px; bottom: 152px; }
+
+  /* Voice picker opens upward to stay in viewport */
+  .studio-chat-screen .model-picker-menu {
+    top: auto;
+    bottom: calc(100% + 8px);
+    left: -20px;
+    transform-origin: bottom left;
+    min-width: 276px;
+    width: min(276px, calc(100vw - 24px));
+  }
+
+  /* Voice avatars: real images inside the picker orbs */
+  .studio-chat-screen .model-picker-orb {
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .studio-chat-screen .model-picker-orb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .studio-chat-screen .model-picker-trigger .model-picker-orb {
+    width: 22px;
+    height: 22px;
+  }
+  .studio-chat-screen .model-option .model-picker-orb {
+    width: 28px;
+    height: 28px;
+  }
+  .studio-chat-screen .model-option {
+    justify-content: space-between;
+  }
+  .studio-chat-screen .model-option-copy {
+    min-width: 0;
+    flex: 1;
+  }
+  .studio-chat-screen .model-option-copy strong,
+  .studio-chat-screen .model-option-copy small {
+    white-space: nowrap;
+  }
+  .studio-chat-screen .model-option-preview {
+    margin-left: 10px;
+    min-width: 58px;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(245, 240, 255, 0.92);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .studio-chat-screen .model-option-preview:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+  .studio-chat-screen .model-option-preview-icon {
+    display: block;
+    width: 12px;
+    height: 12px;
+    color: currentColor;
+    fill: currentColor;
+    flex-shrink: 0;
+  }
+  .studio-chat-screen .model-option-preview.is-previewing {
+    background: rgba(140, 91, 255, 0.18);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+  .studio-chat-screen .model-option-preview.is-previewing .model-option-preview-icon {
+    animation: model-preview-pulse 0.48s ease-in-out infinite alternate;
+  }
+  @keyframes model-preview-pulse {
+    0% { transform: scale(1); opacity: 0.72; }
+    100% { transform: scale(1.16); opacity: 1; }
+  }
+
+  /* Strip tile backgrounds from icon-only header buttons */
+  .screen-studio .conversation-back,
+  .screen-studio .conversation-more {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: rgba(25, 23, 35, 0.65);
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .screen-studio .conversation-back:hover,
+  .screen-studio .conversation-more:hover {
+    color: #191723;
+    background: rgba(25, 23, 35, 0.06) !important;
+  }
+
+  /* Result options: kebab trigger + popover menu */
+  .studio-chat-screen .result-bubble {
+    position: relative;
+    overflow: visible;
+  }
+  .studio-chat-screen .flow-player {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .studio-chat-screen .flow-player-main {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .studio-chat-screen .flow-player-copy {
+    min-width: 0;
+    flex: 1;
+  }
+  .studio-chat-screen .result-options {
+    position: relative;
+    flex-shrink: 0;
+    z-index: 5;
+  }
+  .studio-chat-screen .result-options-trigger {
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: rgba(43, 37, 64, 0.06);
+    border: none;
+    color: rgba(245, 240, 255, 0.86);
+    cursor: pointer;
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .studio-chat-screen .result-options-trigger:hover {
+    color: #fff;
+    background: rgba(43, 37, 64, 0.06);
+  }
+  .studio-chat-screen .result-options-trigger,
+  .studio-chat-screen .result-options-item {
+    color: #f5f2ff;
+  }
+  .studio-chat-screen .result-options-trigger svg {
+    color: currentColor !important;
+    fill: currentColor !important;
+  }
+  .studio-chat-screen .result-options-trigger svg * {
+    fill: currentColor !important;
+    stroke: currentColor !important;
+  }
+  .studio-chat-screen .result-options-item svg {
+    color: currentColor !important;
+    fill: none !important;
+    stroke: currentColor !important;
+  }
+  .studio-chat-screen .result-options-item svg * {
+    stroke: currentColor !important;
+  }
+  .studio-chat-screen .result-options-menu {
+    position: absolute;
+    top: auto;
+    bottom: calc(100% + 8px);
+    right: 0;
+    left: auto;
+    min-width: 172px;
+    max-width: min(172px, calc(100vw - 28px));
+    padding: 6px;
+    border-radius: 14px;
+    background: #1f2023;
+    border: 1px solid #333;
+    box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    transform-origin: bottom right;
+    z-index: 30;
+  }
+  .studio-chat-screen .result-options.is-open .result-options-menu { display: flex; }
+  .studio-chat-screen .result-options-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #f3f4f6;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 100ms ease;
+  }
+  .studio-chat-screen .result-options-item:hover { background: rgba(255, 255, 255, 0.06); }
+  .studio-chat-screen .result-options-item svg { flex-shrink: 0; opacity: 0.85; }
+
+  /* Tighter vertical padding so bubbles match horizontal proportions */
+  .studio-chat-screen .chat-bubble {
+    padding: 10px 14px;
+    border-radius: 22px;
+  }
+
+  /* Record pastille: solid red square while recording, white round bubble when paused. No rotation. */
+  .studio-chat-screen .chat-record-btn span {
+    background: transparent;
+    position: relative;
+    transition: width 220ms ease, height 220ms ease, border-radius 220ms ease;
+  }
+  /* Recording → solid red square */
+  .studio-chat-screen .chat-record-btn.is-recording {
+    animation: none;
+  }
+  .studio-chat-screen .chat-record-btn.is-recording span {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background: #ff3b30;
+  }
+  .studio-chat-screen .chat-record-btn.is-recording span::before,
+  .studio-chat-screen .chat-record-btn.is-recording span::after {
+    content: none;
+  }
+  /* Not recording (paused) → white round bubble */
+  .studio-chat-screen .chat-record-btn:not(.is-recording) span {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+  }
+  .studio-chat-screen .chat-record-btn:not(.is-recording) span::before,
+  .studio-chat-screen .chat-record-btn:not(.is-recording) span::after {
+    content: none;
+  }
+
+  /* Frequency bars: appear progressively (left → right) when recording starts, then pulse continuously.
+     Each bar runs two animations — a one-shot scaleY 0→1 reveal, then an infinite pulse. */
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span {
+    transform-origin: bottom;
+    animation:
+      recordBarAppear 240ms ease-out both,
+      recordBarPulse 1s ease-in-out 240ms infinite;
+  }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(1)  { animation-delay: 0ms,   240ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(2)  { animation-delay: 60ms,  300ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(3)  { animation-delay: 120ms, 360ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(4)  { animation-delay: 180ms, 420ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(5)  { animation-delay: 240ms, 480ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(6)  { animation-delay: 300ms, 540ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(7)  { animation-delay: 360ms, 600ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(8)  { animation-delay: 420ms, 660ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(9)  { animation-delay: 480ms, 720ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(10) { animation-delay: 540ms, 780ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(11) { animation-delay: 600ms, 840ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(12) { animation-delay: 660ms, 900ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(13) { animation-delay: 720ms, 960ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(14) { animation-delay: 780ms, 1020ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(15) { animation-delay: 840ms, 1080ms; }
+  .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span:nth-child(16) { animation-delay: 900ms, 1140ms; }
+  @keyframes recordBarAppear {
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: scaleY(1); opacity: 1; }
+  }
+  @keyframes recordBarPulse {
+    0%   { transform: scaleY(0.95); }
+    20%  { transform: scaleY(0.4); }
+    40%  { transform: scaleY(0.85); }
+    60%  { transform: scaleY(0.3); }
+    80%  { transform: scaleY(0.7); }
+    100% { transform: scaleY(0.95); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .studio-chat-screen .chat-audio-strip:has(.chat-record-btn.is-recording) .chat-wave span {
+      animation: none !important;
+    }
+  }
+
+  /* AI messages: flush left, no avatar, just the bubble */
+  .studio-chat-screen .chat-message-processing,
+  .studio-chat-screen .chat-message-result {
+    justify-content: flex-start;
+    gap: 0;
+    padding-left: 0;
+  }
+  .studio-chat-screen .chat-message-processing .chat-avatar,
+  .studio-chat-screen .chat-message-result .chat-avatar { display: none; }
+  .studio-chat-screen .chat-message-processing .chat-bubble,
+  .studio-chat-screen .chat-message-result .chat-bubble {
+    flex: 0 1 auto;
+    max-width: 98%;
+  }
+
+  /* User message bubble (right-aligned, accent) */
+  .studio-chat-screen .chat-message-user { justify-content: flex-end; }
+  .studio-chat-screen .chat-message-user .chat-bubble.user-bubble {
+    flex: 0 1 auto;
+    max-width: 78%;
+    background: linear-gradient(135deg, #5b34e6 0%, #8c5bff 100%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    box-shadow: 0 14px 28px rgba(91, 52, 230, 0.22);
+  }
+  .studio-chat-screen .chat-message-user .chat-bubble p {
+    margin: 0;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .studio-chat-screen .user-audio-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 4px 10px 4px 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .studio-chat-screen .user-audio-chip.is-hidden { display: none; }
+  .studio-chat-screen .user-audio-play {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.95);
+    color: #5b34e6;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 120ms ease, transform 120ms ease;
+  }
+  .studio-chat-screen .user-audio-play svg { margin-left: 1px; }
+  .studio-chat-screen .user-audio-play:hover { background: #fff; }
+  .studio-chat-screen .user-audio-play:active { transform: scale(0.94); }
+  .studio-chat-screen .user-audio-wave {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 14px;
+  }
+  .studio-chat-screen .user-audio-wave span {
+    display: block;
+    width: 2px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.7);
+  }
+  .studio-chat-screen .user-audio-wave span:nth-child(1)  { height: 4px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(2)  { height: 8px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(3)  { height: 12px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(4)  { height: 6px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(5)  { height: 10px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(6)  { height: 14px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(7)  { height: 8px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(8)  { height: 4px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(9)  { height: 12px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(10) { height: 9px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(11) { height: 5px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(12) { height: 11px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(13) { height: 14px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(14) { height: 7px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(15) { height: 10px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(16) { height: 6px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(17) { height: 4px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(18) { height: 8px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(19) { height: 5px; }
+  .studio-chat-screen .user-audio-wave span:nth-child(20) { height: 3px; }
+  .studio-chat-screen .user-audio-time {
+    color: rgba(255, 255, 255, 0.85);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Send button: arrow rotates from vertical to horizontal when there's content */
+  .studio-chat-screen .prompt-send svg {
+    transition: transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1.05);
+  }
+  .studio-chat-screen .prompt-send.is-ready svg {
+    transform: rotate(90deg);
+  }
+  .studio-chat-screen .prompt-send.is-ready {
+    background: linear-gradient(135deg, #8c5bff, #5b34e6);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(91, 52, 230, 0.36);
+  }
+
+  /* Single-line input that auto-grows */
+  .studio-chat-screen .chat-input {
+    min-height: 0;
+    height: auto;
+    max-height: 140px;
+    margin-top: 0;
+    padding-top: 8px;
+    padding-bottom: 6px;
+    overflow-y: auto;
+  }
+
+  /* AI loader bubble (animated letters + spinning orb) */
+  .studio-chat-screen .ai-loader-bubble {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    padding: 6px 4px;
+  }
+  .studio-chat-screen .ai-loader {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .studio-chat-screen .ai-loader-orb {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #1a0d3d;
+    animation: ai-loader-rotate 2.6s linear infinite;
+  }
+  .studio-chat-screen .ai-loader-text {
+    display: inline-flex;
+    color: rgba(245, 240, 255, 0.95) !important;
+    -webkit-text-fill-color: rgba(245, 240, 255, 0.95);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .studio-chat-screen .ai-loader-text span {
+    display: inline-block;
+    opacity: 0.4;
+    color: inherit !important;
+    -webkit-text-fill-color: inherit;
+    animation: ai-loader-letter 1.6s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+  .studio-chat-screen .chat-message-processing,
+  .studio-chat-screen .chat-message-processing .chat-bubble,
+  .studio-chat-screen .chat-message-processing .ai-loader,
+  .studio-chat-screen .chat-message-processing .ai-loader-text,
+  .studio-chat-screen .chat-message-processing .ai-loader-text span {
+    color: rgba(245, 240, 255, 0.95) !important;
+  }
+  @keyframes ai-loader-rotate {
+    0% {
+      transform: rotate(90deg);
+      box-shadow:
+        0 3px 6px 0 rgba(255, 255, 255, 0.9) inset,
+        0 6px 9px 0 #ad5fff inset,
+        0 16px 18px 0 #471eec inset;
+    }
+    50% {
+      transform: rotate(270deg);
+      box-shadow:
+        0 3px 6px 0 rgba(255, 255, 255, 0.9) inset,
+        0 6px 4px 0 #d60a47 inset,
+        0 12px 18px 0 #311e80 inset;
+    }
+    100% {
+      transform: rotate(450deg);
+      box-shadow:
+        0 3px 6px 0 rgba(255, 255, 255, 0.9) inset,
+        0 6px 9px 0 #ad5fff inset,
+        0 16px 18px 0 #471eec inset;
+    }
+  }
+  @keyframes ai-loader-letter {
+    0%, 100% { opacity: 0.4; transform: translateY(0); }
+    20% { opacity: 1; transform: scale(1.15); }
+    40% { opacity: 0.7; transform: translateY(0); }
+  }
+
+  /* Discreet top toast with subtle intro/outro */
+  .studio-chat-screen .flow-toast {
+    top: calc(env(safe-area-inset-top, 0px) + 52px);
+    bottom: auto;
+    min-width: 0;
+    width: auto;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(15, 15, 22, 0.72);
+    -webkit-backdrop-filter: saturate(160%) blur(18px);
+    backdrop-filter: saturate(160%) blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+    transform: translateX(-50%) translateY(-10px) scale(0.94);
+    transition:
+      opacity 200ms ease,
+      transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1.05);
+  }
+  .studio-chat-screen .flow-toast.is-visible {
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  /* In-app primer (shown before the native iOS-style alert) */
+  .mic-primer {
+    position: absolute;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    background: rgba(15, 12, 32, 0.55);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    padding: 0 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  .mic-primer[hidden] { display: none; }
+  .mic-primer.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .mic-primer-card {
+    position: relative;
+    width: 100%;
+    max-width: 280px;
+    padding: 22px 20px 16px;
+    border-radius: 22px;
+    background: linear-gradient(160deg, #1c1336 0%, #2a1758 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 26px 60px rgba(0, 0, 0, 0.45);
+    text-align: center;
+    color: #fff;
+    transform: translateY(8px) scale(0.96);
+    transition: transform 240ms cubic-bezier(0.2, 0.9, 0.3, 1.05);
+  }
+  .mic-primer.is-visible .mic-primer-card { transform: translateY(0) scale(1); }
+  .mic-primer-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.65);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+  }
+  .mic-primer-close:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+  .mic-primer-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 12px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #5b34e6 0%, #8c5bff 100%);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 14px 28px rgba(91, 52, 230, 0.45);
+  }
+  .mic-primer-card h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .mic-primer-card p {
+    margin: 0 0 16px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .mic-primer-cta {
+    width: 100%;
+    padding: 11px 14px;
+    border: none;
+    border-radius: 14px;
+    background: #fff;
+    color: #2a1758;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 120ms ease, background 120ms ease;
+  }
+  .mic-primer-cta:hover { background: rgba(255, 255, 255, 0.92); }
+  .mic-primer-cta:active { transform: scale(0.98); }
+  .mic-primer-link {
+    margin-top: 6px;
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 120ms ease;
+  }
+  .mic-primer-link:hover { color: rgba(255, 255, 255, 0.85); }
+
+  /* iOS-style microphone permission alert */
+  .mic-permission {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    background: rgba(20, 18, 28, 0.32);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    padding: 0 28px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+  .mic-permission[hidden] { display: none; }
+  .mic-permission.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .mic-permission-card {
+    width: 100%;
+    max-width: 270px;
+    background: rgba(245, 245, 247, 0.96);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    transform: scale(0.94);
+    transition: transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.05);
+  }
+  .mic-permission.is-visible .mic-permission-card { transform: scale(1); }
+  .mic-permission-body {
+    padding: 18px 16px 14px;
+    text-align: center;
+  }
+  .mic-permission-body h3 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #000;
+  }
+  .mic-permission-body p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    line-height: 1.38;
+    color: #1c1c1e;
+    opacity: 0.82;
+  }
+  .mic-permission-actions {
+    display: flex;
+    border-top: 0.5px solid rgba(60, 60, 67, 0.36);
+  }
+  .mic-permission-actions button {
+    flex: 1;
+    padding: 11px 0;
+    border: none;
+    background: transparent;
+    color: #007aff;
+    font-size: 15px;
+    font-weight: 400;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 120ms ease;
+  }
+  .mic-permission-actions button:hover { background: rgba(0, 122, 255, 0.06); }
+  .mic-permission-actions button:active { background: rgba(0, 122, 255, 0.12); }
+  .mic-permission-actions button + button {
+    border-left: 0.5px solid rgba(60, 60, 67, 0.36);
+  }
+  .mic-permission-actions button.is-primary { font-weight: 600; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "ogl": "https://esm.sh/ogl@1.0.11"
+  }
+}
+</script>
+</head>
+<body class="screen-studio">
+  <main class="screen studio-chat-screen">
+    <div class="statusbar">
+      <span>9:41</span>
+      <div class="status-icons"><span>5G</span><span class="dot"></span><span>100%</span></div>
+    </div>
+
+    <div class="conversation-header">
+      <button class="conversation-back" aria-label="Back">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <div class="conversation-meta">
+        <strong>New conversation</strong>
+      </div>
+      <button class="conversation-more" aria-label="Options">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+      </button>
+    </div>
+
+    <section class="idle-orb-stage" data-empty-stage>
+      <div class="voice-orb voice-tone-layla" data-voice-orb aria-hidden="true">
+        <span class="voice-orb-core"></span>
+        <div class="voice-orb-webgl-mount" data-voice-orb-mount></div>
+      </div>
+    </section>
+
+    <section class="chat-feed" data-feed>
+      <article class="chat-message chat-message-processing is-hidden" data-processing-card>
+        <div class="chat-avatar orb">AI</div>
+        <div class="chat-bubble ai-loader-bubble">
+          <div class="ai-loader">
+            <span class="ai-loader-orb" aria-hidden="true"></span>
+            <span class="ai-loader-text" data-processing-letters aria-live="polite"></span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <template data-user-template>
+      <article class="chat-message chat-message-user">
+        <div class="chat-bubble user-bubble">
+          <p data-user-text></p>
+          <span class="user-audio-chip is-hidden" data-user-audio>
+            <button class="user-audio-play" type="button" aria-label="Play voice note" data-action="play-user-audio">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>
+            </button>
+            <span class="user-audio-wave" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </span>
+            <span class="user-audio-time" data-user-audio-label>0:00</span>
+          </span>
+        </div>
+      </article>
+    </template>
+
+    <template data-result-template>
+      <article class="chat-message chat-message-result" data-result-card>
+        <div class="chat-avatar success">A</div>
+        <div class="chat-bubble result-bubble" data-result-bubble tabindex="0">
+          <div class="flow-player">
+            <div class="flow-player-main">
+              <button class="flow-play" type="button" aria-label="Play audio" data-action="play">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" data-play-icon><path d="M8 6.5v11l9-5.5-9-5.5Z"/></svg>
+              </button>
+              <div class="flow-player-copy">
+                <strong data-player-voice></strong>
+                <span data-player-source></span>
+              </div>
+            </div>
+            <div class="result-options" data-result-options>
+              <button class="result-options-trigger" type="button" data-action="toggle-options" aria-label="More options" aria-haspopup="menu" aria-expanded="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+              </button>
+              <div class="result-options-menu" role="menu" data-result-options-menu>
+                <button class="result-options-item" type="button" role="menuitem" data-action="download">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 19h14"/></svg>
+                  <span>Download</span>
+                </button>
+                <button class="result-options-item" type="button" role="menuitem" data-action="share">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="m8 11 8-4"/><path d="m8 13 8 4"/></svg>
+                  <span>Share</span>
+                </button>
+                <button class="result-options-item" type="button" role="menuitem" data-action="regenerate">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 4v5h-5"/></svg>
+                  <span>Regenerate</span>
+                </button>
+                <button class="result-options-item" type="button" role="menuitem" data-action="save">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8"/><path d="M9 20v-5h6v5"/></svg>
+                  <span>Save</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="flow-timeline">
+            <div class="flow-timeline-bar"><div class="flow-timeline-progress" data-progress-bar></div></div>
+            <div class="flow-row">
+              <span class="mini-label" data-progress-current>00:00</span>
+              <span class="mini-label" data-progress-total>00:24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <section class="chat-dock prompt-shell">
+      <div class="chat-composer prompt-composer" data-panel="text">
+        <textarea class="chat-input prompt-textarea" data-text-input dir="auto" rows="1" maxlength="5000" placeholder="Message"></textarea>
+        <div class="prompt-footer">
+          <div class="prompt-footer-left">
+            <button class="chat-icon-btn prompt-icon-btn" type="button" data-action="attach" aria-label="Attach">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-8.49 8.49a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.5 3.5 0 1 1 4.95 4.95l-9.2 9.19a1.5 1.5 0 0 1-2.12-2.12l8.48-8.49"/></svg>
+            </button>
+            <details class="model-picker" data-model-picker>
+              <summary class="model-picker-trigger">
+                <span class="model-picker-orb">
+                  <img data-selected-orb src="https://api.dicebear.com/9.x/notionists/svg?seed=Layla&backgroundColor=fde2e4,ffd6a5,ffcad4" alt="">
+                </span>
+                <span class="model-picker-label" data-selected-voice-label>Layla</span>
+                <span class="model-picker-caret"></span>
+              </summary>
+              <div class="model-picker-menu">
+                <button class="model-option is-selected" type="button" data-voice="Layla" data-voice-meta="Gulf · Warm" data-voice-orb="orb-layla" data-voice-avatar="https://api.dicebear.com/9.x/notionists/svg?seed=Layla&backgroundColor=fde2e4,ffd6a5,ffcad4">
+                  <span class="model-picker-orb"><img src="https://api.dicebear.com/9.x/notionists/svg?seed=Layla&backgroundColor=fde2e4,ffd6a5,ffcad4" alt=""></span>
+                  <span class="model-option-copy">
+                    <strong>Layla</strong>
+                    <small>Gulf · Warm</small>
+                  </span>
+                  <span class="model-option-preview" role="button" tabindex="0" aria-label="Preview Layla voice" data-action="preview-voice">
+                    <svg class="model-option-preview-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 6.5v11l9-5.5-9-5.5Z"/></svg>
+                  </span>
+                </button>
+                <button class="model-option" type="button" data-voice="Noor" data-voice-meta="Modern · Soft" data-voice-orb="orb-noor" data-voice-avatar="https://api.dicebear.com/9.x/notionists/svg?seed=Noor&backgroundColor=b6e3f4,c0aede,d1d4f9">
+                  <span class="model-picker-orb"><img src="https://api.dicebear.com/9.x/notionists/svg?seed=Noor&backgroundColor=b6e3f4,c0aede,d1d4f9" alt=""></span>
+                  <span class="model-option-copy">
+                    <strong>Noor</strong>
+                    <small>Modern · Soft</small>
+                  </span>
+                  <span class="model-option-preview" role="button" tabindex="0" aria-label="Preview Noor voice" data-action="preview-voice">
+                    <svg class="model-option-preview-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 6.5v11l9-5.5-9-5.5Z"/></svg>
+                  </span>
+                </button>
+                <button class="model-option" type="button" data-voice="My Clone" data-voice-meta="Arabic · Clone" data-voice-orb="orb-clone" data-voice-avatar="https://images.unsplash.com/photo-1664359028599-c3ac398825e0?auto=format&fit=crop&fm=jpg&q=80&w=240&h=240">
+                  <span class="model-picker-orb"><img src="https://images.unsplash.com/photo-1664359028599-c3ac398825e0?auto=format&fit=crop&fm=jpg&q=80&w=240&h=240" alt=""></span>
+                  <span class="model-option-copy">
+                    <strong>My Clone</strong>
+                    <small>Personal voice</small>
+                  </span>
+                  <span class="model-option-preview" role="button" tabindex="0" aria-label="Preview My Clone voice" data-action="preview-voice">
+                    <svg class="model-option-preview-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 6.5v11l9-5.5-9-5.5Z"/></svg>
+                  </span>
+                </button>
+              </div>
+            </details>
+          </div>
+          <div class="prompt-footer-right">
+            <button class="chat-icon-btn prompt-icon-btn" type="button" data-action="open-audio" aria-label="Open audio recorder">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+            </button>
+            <button class="prompt-send" type="button" data-action="generate" aria-label="Send">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-composer prompt-composer is-hidden" data-panel="audio">
+        <div class="chat-audio-strip prompt-audio-strip">
+          <button class="chat-record-btn is-recording" type="button" data-action="record-toggle" aria-label="Record speech">
+            <span></span>
+          </button>
+          <div class="chat-audio-track">
+            <div class="chat-wave prompt-wave">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <strong class="chat-audio-timer" data-audio-timer>00:00</strong>
+          </div>
+        </div>
+        <div class="prompt-footer">
+          <div class="prompt-footer-left">
+            <button class="chat-icon-btn prompt-icon-btn" type="button" data-action="discard-audio" aria-label="Discard recording">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
+          <div class="prompt-footer-right">
+            <button class="prompt-send" type="button" data-action="process-speech" aria-label="Send audio">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="flow-toast" data-toast aria-live="polite"></div>
+
+    <div class="mic-primer" data-mic-primer role="dialog" aria-modal="true" aria-labelledby="mic-primer-title" hidden>
+      <div class="mic-primer-card">
+        <button class="mic-primer-close" type="button" data-action="mic-primer-dismiss" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <div class="mic-primer-icon" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="3" width="6" height="11" rx="3"/>
+            <path d="M19 11a7 7 0 0 1-14 0"/>
+            <line x1="12" y1="18" x2="12" y2="22"/>
+          </svg>
+        </div>
+        <h3 id="mic-primer-title">Enable your microphone</h3>
+        <p>Munsit needs access to your microphone to record voice messages and generate Arabic speech with your tone.</p>
+        <button class="mic-primer-cta" type="button" data-action="mic-primer-continue">Continue</button>
+        <button class="mic-primer-link" type="button" data-action="mic-primer-dismiss">Not now</button>
+      </div>
+    </div>
+
+    <div class="mic-permission" data-mic-permission role="dialog" aria-modal="true" aria-labelledby="mic-permission-title" hidden>
+      <div class="mic-permission-card">
+        <div class="mic-permission-body">
+          <h3 id="mic-permission-title">Allow "Munsit" to access the microphone?</h3>
+          <p>Munsit needs the microphone to record your voice for transcription and AI voice generation.</p>
+        </div>
+        <div class="mic-permission-actions">
+          <button type="button" data-action="mic-deny">Don't Allow</button>
+          <button type="button" data-action="mic-allow" class="is-primary">Allow</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { Renderer, Program, Mesh, Triangle, Vec3 } from "ogl";
+
+    const vert = `
+      precision highp float;
+      attribute vec2 position;
+      attribute vec2 uv;
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position, 0.0, 1.0);
+      }
+    `;
+
+    const frag = `
+      precision highp float;
+
+      uniform float iTime;
+      uniform vec3 iResolution;
+      uniform float hue;
+      uniform float hover;
+      uniform float rot;
+      uniform float hoverIntensity;
+      varying vec2 vUv;
+
+      vec3 rgb2yiq(vec3 c) {
+        float y = dot(c, vec3(0.299, 0.587, 0.114));
+        float i = dot(c, vec3(0.596, -0.274, -0.322));
+        float q = dot(c, vec3(0.211, -0.523, 0.312));
+        return vec3(y, i, q);
+      }
+      vec3 yiq2rgb(vec3 c) {
+        float r = c.x + 0.956 * c.y + 0.621 * c.z;
+        float g = c.x - 0.272 * c.y - 0.647 * c.z;
+        float b = c.x - 1.106 * c.y + 1.703 * c.z;
+        return vec3(r, g, b);
+      }
+      vec3 adjustHue(vec3 color, float hueDeg) {
+        float hueRad = hueDeg * 3.14159265 / 180.0;
+        vec3 yiq = rgb2yiq(color);
+        float cosA = cos(hueRad);
+        float sinA = sin(hueRad);
+        float i = yiq.y * cosA - yiq.z * sinA;
+        float q = yiq.y * sinA + yiq.z * cosA;
+        yiq.y = i; yiq.z = q;
+        return yiq2rgb(yiq);
+      }
+      vec3 hash33(vec3 p3) {
+        p3 = fract(p3 * vec3(0.1031, 0.11369, 0.13787));
+        p3 += dot(p3, p3.yxz + 19.19);
+        return -1.0 + 2.0 * fract(vec3(p3.x + p3.y, p3.x + p3.z, p3.y + p3.z) * p3.zyx);
+      }
+      float snoise3(vec3 p) {
+        const float K1 = 0.333333333;
+        const float K2 = 0.166666667;
+        vec3 i = floor(p + (p.x + p.y + p.z) * K1);
+        vec3 d0 = p - (i - (i.x + i.y + i.z) * K2);
+        vec3 e = step(vec3(0.0), d0 - d0.yzx);
+        vec3 i1 = e * (1.0 - e.zxy);
+        vec3 i2 = 1.0 - e.zxy * (1.0 - e);
+        vec3 d1 = d0 - (i1 - K2);
+        vec3 d2 = d0 - (i2 - K1);
+        vec3 d3 = d0 - 0.5;
+        vec4 h = max(0.6 - vec4(dot(d0, d0), dot(d1, d1), dot(d2, d2), dot(d3, d3)), 0.0);
+        vec4 n = h * h * h * h * vec4(
+          dot(d0, hash33(i)),
+          dot(d1, hash33(i + i1)),
+          dot(d2, hash33(i + i2)),
+          dot(d3, hash33(i + 1.0))
+        );
+        return dot(vec4(31.316), n);
+      }
+      vec4 extractAlpha(vec3 colorIn) {
+        float a = max(max(colorIn.r, colorIn.g), colorIn.b);
+        return vec4(colorIn.rgb / (a + 1e-5), a);
+      }
+      const vec3 baseColor1 = vec3(0.611765, 0.262745, 0.996078);
+      const vec3 baseColor2 = vec3(0.298039, 0.760784, 0.913725);
+      const vec3 baseColor3 = vec3(0.062745, 0.078431, 0.600000);
+      const float innerRadius = 0.6;
+      const float noiseScale = 0.65;
+      float light1(float intensity, float attenuation, float dist) { return intensity / (1.0 + dist * attenuation); }
+      float light2(float intensity, float attenuation, float dist) { return intensity / (1.0 + dist * dist * attenuation); }
+      vec4 draw(vec2 uv) {
+        vec3 color1 = adjustHue(baseColor1, hue);
+        vec3 color2 = adjustHue(baseColor2, hue);
+        vec3 color3 = adjustHue(baseColor3, hue);
+        float ang = atan(uv.y, uv.x);
+        float len = length(uv);
+        float invLen = len > 0.0 ? 1.0 / len : 0.0;
+        float n0 = snoise3(vec3(uv * noiseScale, iTime * 0.5)) * 0.5 + 0.5;
+        float r0 = mix(mix(innerRadius, 1.0, 0.4), mix(innerRadius, 1.0, 0.6), n0);
+        float d0 = distance(uv, (r0 * invLen) * uv);
+        float v0 = light1(1.0, 10.0, d0);
+        v0 *= smoothstep(r0 * 1.05, r0, len);
+        float cl = cos(ang + iTime * 2.0) * 0.5 + 0.5;
+        float a = iTime * -1.0;
+        vec2 pos = vec2(cos(a), sin(a)) * r0;
+        float d = distance(uv, pos);
+        float v1 = light2(1.5, 5.0, d);
+        v1 *= light1(1.0, 50.0, d0);
+        float v2 = smoothstep(1.0, mix(innerRadius, 1.0, n0 * 0.5), len);
+        float v3 = smoothstep(innerRadius, mix(innerRadius, 1.0, 0.5), len);
+        vec3 col = mix(color1, color2, cl);
+        col = mix(color3, col, v0);
+        col = (col + v1) * v2 * v3;
+        col = clamp(col, 0.0, 1.0);
+        return extractAlpha(col);
+      }
+      vec4 mainImage(vec2 fragCoord) {
+        vec2 center = iResolution.xy * 0.5;
+        float size = min(iResolution.x, iResolution.y);
+        vec2 uv = (fragCoord - center) / size * 2.0;
+        float angle = rot;
+        float s = sin(angle);
+        float c = cos(angle);
+        uv = vec2(c * uv.x - s * uv.y, s * uv.x + c * uv.y);
+        uv.x += hover * hoverIntensity * 0.1 * sin(uv.y * 10.0 + iTime);
+        uv.y += hover * hoverIntensity * 0.1 * sin(uv.x * 10.0 + iTime);
+        return draw(uv);
+      }
+      void main() {
+        vec2 fragCoord = vUv * iResolution.xy;
+        vec4 col = mainImage(fragCoord);
+        gl_FragColor = vec4(col.rgb * col.a, col.a);
+      }
+    `;
+
+    function createVoiceOrb(container, opts = {}) {
+      const config = {
+        hue: opts.hue ?? 0,
+        enableVoiceControl: opts.enableVoiceControl ?? false,
+        voiceSensitivity: opts.voiceSensitivity ?? 1.5,
+        maxRotationSpeed: opts.maxRotationSpeed ?? 1.2,
+        maxHoverIntensity: opts.maxHoverIntensity ?? 0.8,
+      };
+
+      const renderer = new Renderer({ alpha: true, premultipliedAlpha: false, antialias: true, dpr: window.devicePixelRatio || 1 });
+      const gl = renderer.gl;
+      gl.clearColor(0, 0, 0, 0);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      while (container.firstChild) container.removeChild(container.firstChild);
+      container.appendChild(gl.canvas);
+
+      const geometry = new Triangle(gl);
+      const program = new Program(gl, {
+        vertex: vert,
+        fragment: frag,
+        uniforms: {
+          iTime: { value: 0 },
+          iResolution: { value: new Vec3(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height) },
+          hue: { value: config.hue },
+          hover: { value: 0 },
+          rot: { value: 0 },
+          hoverIntensity: { value: 0 },
+        },
+      });
+      const mesh = new Mesh(gl, { geometry, program });
+
+      const resize = () => {
+        const dpr = window.devicePixelRatio || 1;
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        if (!width || !height) return;
+        renderer.setSize(width * dpr, height * dpr);
+        gl.canvas.style.width = width + "px";
+        gl.canvas.style.height = height + "px";
+        program.uniforms.iResolution.value.set(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height);
+      };
+      window.addEventListener("resize", resize);
+      const ro = new ResizeObserver(resize);
+      ro.observe(container);
+      resize();
+
+      let audioCtx = null, analyser = null, micSource = null, dataArr = null, mediaStream = null;
+      let micReady = false;
+
+      const stopMic = () => {
+        try {
+          if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+          if (micSource) { micSource.disconnect(); micSource = null; }
+          if (analyser) { analyser.disconnect(); analyser = null; }
+          if (audioCtx && audioCtx.state !== "closed") { audioCtx.close(); audioCtx = null; }
+          dataArr = null; micReady = false;
+        } catch (e) { /* noop */ }
+      };
+
+      const startMic = async () => {
+        try {
+          stopMic();
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 44100 }
+          });
+          mediaStream = stream;
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === "suspended") await audioCtx.resume();
+          analyser = audioCtx.createAnalyser();
+          micSource = audioCtx.createMediaStreamSource(stream);
+          analyser.fftSize = 512;
+          analyser.smoothingTimeConstant = 0.3;
+          analyser.minDecibels = -90;
+          analyser.maxDecibels = -10;
+          micSource.connect(analyser);
+          dataArr = new Uint8Array(analyser.frequencyBinCount);
+          micReady = true;
+        } catch (e) {
+          micReady = false;
+          console.warn("Mic unavailable:", e);
+        }
+      };
+
+      const analyze = () => {
+        if (!analyser || !dataArr) return 0;
+        analyser.getByteFrequencyData(dataArr);
+        let sum = 0;
+        for (let i = 0; i < dataArr.length; i++) {
+          const v = dataArr[i] / 255;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / dataArr.length);
+        return Math.min(rms * config.voiceSensitivity * 3.0, 1);
+      };
+
+      let rafId, lastT = 0, currentRot = 0;
+      const baseRotSpeed = 0.3;
+      const tick = (t) => {
+        rafId = requestAnimationFrame(tick);
+        const dt = (t - lastT) * 0.001;
+        lastT = t;
+        program.uniforms.iTime.value = t * 0.001;
+        program.uniforms.hue.value = config.hue;
+
+        if (config.enableVoiceControl && micReady) {
+          const lvl = analyze();
+          const speed = baseRotSpeed + lvl * config.maxRotationSpeed * 2.0;
+          if (lvl > 0.05) currentRot += dt * speed;
+          program.uniforms.hover.value = Math.min(lvl * 2.0, 1.0);
+          program.uniforms.hoverIntensity.value = Math.min(lvl * config.maxHoverIntensity * 0.8, config.maxHoverIntensity);
+        } else {
+          currentRot += dt * baseRotSpeed * 0.6;
+          program.uniforms.hover.value = 0;
+          program.uniforms.hoverIntensity.value = 0;
+        }
+        program.uniforms.rot.value = currentRot;
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        renderer.render({ scene: mesh });
+      };
+      rafId = requestAnimationFrame(tick);
+
+      if (config.enableVoiceControl) startMic();
+
+      return {
+        setHue(h) { config.hue = h; },
+        setVoiceControl(on) {
+          config.enableVoiceControl = on;
+          if (on) startMic(); else stopMic();
+        },
+        destroy() {
+          cancelAnimationFrame(rafId);
+          window.removeEventListener("resize", resize);
+          ro.disconnect();
+          stopMic();
+          try { if (gl.canvas.parentNode === container) container.removeChild(gl.canvas); } catch (e) {}
+          gl.getExtension("WEBGL_lose_context")?.loseContext();
+        }
+      };
+    }
+
+    const mount = document.querySelector("[data-voice-orb-mount]");
+    const orbHost = document.querySelector("[data-voice-orb]");
+    if (mount && orbHost) {
+      orbHost.classList.add("is-webgl");
+      const orb = createVoiceOrb(mount, { hue: 0, enableVoiceControl: false });
+      window.MunsitOrb = orb;
+    }
+  </script>
+
+  <script>
+    const textInput = document.querySelector("[data-text-input]");
+    const panels = Array.from(document.querySelectorAll("[data-panel]"));
+    const modelPicker = document.querySelector("[data-model-picker]");
+    const modelOptions = Array.from(document.querySelectorAll(".model-option"));
+    const modelPreviewButtons = Array.from(document.querySelectorAll("[data-action='preview-voice']"));
+    const selectedVoiceLabel = document.querySelector("[data-selected-voice-label]");
+    const selectedOrb = document.querySelector("[data-selected-orb]");
+    const emptyStage = document.querySelector("[data-empty-stage]");
+    const voiceOrb = document.querySelector("[data-voice-orb]");
+    const screen = document.querySelector(".studio-chat-screen");
+    const feed = document.querySelector("[data-feed]");
+    const userTemplate = document.querySelector("[data-user-template]");
+    const resultTemplate = document.querySelector("[data-result-template]");
+    const processingCard = document.querySelector("[data-processing-card]");
+    const processingLetters = document.querySelector("[data-processing-letters]");
+    const toast = document.querySelector("[data-toast]");
+    const speechStatus = document.querySelector("[data-speech-status]");
+    const audioTimer = document.querySelector("[data-audio-timer]");
+
+    const state = {
+      mode: "text",
+      voice: "Layla",
+      voiceMeta: "Gulf · Warm",
+      voiceOrb: "orb-layla",
+      recording: false,
+      speechReady: false,
+      hasMessages: false,
+      audioSeconds: 0,
+      micGranted: false
+    };
+
+    let currentPlayback = null;
+    let previewTimer = null;
+
+    const micPrimer = document.querySelector("[data-mic-primer]");
+    const micPermission = document.querySelector("[data-mic-permission]");
+    function showMicPrimer() {
+      if (!micPrimer) return;
+      micPrimer.hidden = false;
+      requestAnimationFrame(() => micPrimer.classList.add("is-visible"));
+    }
+    function hideMicPrimer() {
+      if (!micPrimer) return;
+      micPrimer.classList.remove("is-visible");
+      setTimeout(() => { micPrimer.hidden = true; }, 220);
+    }
+    function showMicPermission() {
+      if (!micPermission) return;
+      micPermission.hidden = false;
+      requestAnimationFrame(() => micPermission.classList.add("is-visible"));
+    }
+    function hideMicPermission() {
+      if (!micPermission) return;
+      micPermission.classList.remove("is-visible");
+      setTimeout(() => { micPermission.hidden = true; }, 200);
+    }
+    function startAudioFlow() {
+      switchMode("audio");
+      resetSpeechState();
+      startRecording();
+    }
+
+    let toastTimer = null;
+    let recordTimer = null;
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("is-visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 1800);
+    }
+
+    function autoGrowInput() {
+      textInput.style.height = "auto";
+      textInput.style.height = Math.min(textInput.scrollHeight, 140) + "px";
+    }
+
+    const textSendBtn = document.querySelector('.prompt-send[data-action="generate"]');
+    const audioSendBtn = document.querySelector('.prompt-send[data-action="process-speech"]');
+    function syncSendButtons() {
+      if (textSendBtn) textSendBtn.classList.toggle("is-ready", textInput.value.trim().length > 0);
+      if (audioSendBtn) audioSendBtn.classList.toggle("is-ready", state.recording || state.speechReady);
+    }
+
+    function updateTextCount() {
+      autoGrowInput();
+      syncSendButtons();
+      syncOrbState();
+    }
+
+    function orbToneClass() {
+      if (state.voiceOrb === "orb-noor") return "voice-tone-noor";
+      if (state.voiceOrb === "orb-clone") return "voice-tone-clone";
+      return "voice-tone-layla";
+    }
+
+    function syncOrbState() {
+      const showOrb =
+        !state.hasMessages &&
+        processingCard.classList.contains("is-hidden") &&
+        (state.mode === "audio" || !textInput.value.trim());
+      emptyStage.classList.toggle("is-hidden", !showOrb);
+      voiceOrb.className = "voice-orb " + orbToneClass();
+      voiceOrb.classList.toggle("is-recording", state.recording);
+      voiceOrb.classList.toggle("is-listening", state.mode === "audio");
+    }
+
+    function scrollFeedToBottom() {
+      if (!screen) return;
+      requestAnimationFrame(() => {
+        screen.scrollTo({ top: screen.scrollHeight, behavior: "smooth" });
+      });
+    }
+
+    function switchMode(mode) {
+      state.mode = mode;
+      panels.forEach((panel) => panel.classList.toggle("is-hidden", panel.dataset.panel !== mode));
+      syncOrbState();
+    }
+
+    const voiceHueMap = { "orb-layla": 0, "orb-noor": -30, "orb-clone": 40 };
+
+    function switchVoice(option) {
+      stopVoicePreview();
+      modelOptions.forEach((node) => node.classList.toggle("is-selected", node === option));
+      state.voice = option.dataset.voice;
+      state.voiceMeta = option.dataset.voiceMeta;
+      state.voiceOrb = option.dataset.voiceOrb;
+      selectedVoiceLabel.textContent = state.voice;
+      if (option.dataset.voiceAvatar) selectedOrb.src = option.dataset.voiceAvatar;
+      modelPicker.open = false;
+      if (window.MunsitOrb) window.MunsitOrb.setHue(voiceHueMap[state.voiceOrb] ?? 0);
+      showToast(state.voice + " selected");
+    }
+
+    function stopVoicePreview() {
+      clearTimeout(previewTimer);
+      modelPreviewButtons.forEach((node) => node.classList.remove("is-previewing"));
+    }
+
+    function previewVoice(option) {
+      if (!option) return;
+      stopVoicePreview();
+      const trigger = option.querySelector("[data-action='preview-voice']");
+      if (!trigger) return;
+      trigger.classList.add("is-previewing");
+      previewTimer = setTimeout(() => {
+        trigger.classList.remove("is-previewing");
+      }, 1400);
+    }
+
+    function setLoaderText(label) {
+      if (!processingLetters) return;
+      processingLetters.innerHTML = "";
+      const chars = [...label];
+      const stagger = 1.6 / Math.max(chars.length, 1);
+      chars.forEach((ch, i) => {
+        const span = document.createElement("span");
+        span.textContent = ch === " " ? " " : ch;
+        span.style.animationDelay = (i * stagger).toFixed(3) + "s";
+        processingLetters.appendChild(span);
+      });
+    }
+
+    function showProcessing(title) {
+      setLoaderText(title);
+      feed.appendChild(processingCard);
+      processingCard.classList.remove("is-hidden");
+      state.hasMessages = true;
+      syncOrbState();
+      scrollFeedToBottom();
+    }
+
+    function appendResultMessage(sourceLabel) {
+      const fragment = resultTemplate.content.cloneNode(true);
+      const article = fragment.querySelector("article");
+      article.querySelector("[data-player-voice]").textContent = state.voice;
+      article.querySelector("[data-player-source]").textContent = sourceLabel;
+      article.dataset.progress = "0";
+      const bar = article.querySelector("[data-progress-bar]");
+      if (bar) bar.style.width = "0%";
+      feed.appendChild(article);
+      scrollFeedToBottom();
+      return article;
+    }
+
+    function finishGeneration(sourceLabel) {
+      processingCard.classList.add("is-hidden");
+      appendResultMessage(sourceLabel);
+      state.hasMessages = true;
+      syncOrbState();
+      showToast("Audio ready");
+    }
+
+    function stopPlayback() {
+      if (!currentPlayback) return;
+      clearInterval(currentPlayback.timer);
+      const icon = currentPlayback.card.querySelector("[data-play-icon]");
+      if (icon) icon.innerHTML = '<path d="M8 6.5v11l9-5.5-9-5.5Z"/>';
+      currentPlayback = null;
+    }
+
+    function startPlayback(card) {
+      stopPlayback();
+      const icon = card.querySelector("[data-play-icon]");
+      const bar = card.querySelector("[data-progress-bar]");
+      const current = card.querySelector("[data-progress-current]");
+      let progress = parseFloat(card.dataset.progress || "0");
+      if (progress >= 100) progress = 0;
+      icon.innerHTML = '<path d="M9 6h2v12H9zm4 0h2v12h-2z"/>';
+      const timer = setInterval(() => {
+        progress += 100 / 24;
+        if (progress >= 100) {
+          progress = 100;
+          bar.style.width = "100%";
+          current.textContent = "00:24";
+          card.dataset.progress = "0";
+          stopPlayback();
+          return;
+        }
+        bar.style.width = progress + "%";
+        current.textContent = "00:" + String(Math.floor((progress / 100) * 24)).padStart(2, "0");
+        card.dataset.progress = String(progress);
+      }, 220);
+      currentPlayback = { card, timer };
+    }
+
+    function resetSpeechState() {
+      clearInterval(recordTimer);
+      state.recording = false;
+      state.speechReady = false;
+      state.audioSeconds = 0;
+      if (speechStatus) speechStatus.textContent = "Ready";
+      audioTimer.textContent = "00:00";
+      document.querySelector(".chat-record-btn").classList.remove("is-recording");
+      syncOrbState();
+      syncSendButtons();
+    }
+
+    function formatTime(totalSeconds) {
+      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+      const seconds = String(totalSeconds % 60).padStart(2, "0");
+      return minutes + ":" + seconds;
+    }
+
+    function startRecording() {
+      clearInterval(recordTimer);
+      state.recording = true;
+      state.speechReady = false;
+      if (speechStatus) speechStatus.textContent = "Recording...";
+      document.querySelector(".chat-record-btn").classList.add("is-recording");
+      syncOrbState();
+      syncSendButtons();
+      if (window.MunsitOrb) window.MunsitOrb.setVoiceControl(true);
+      recordTimer = setInterval(() => {
+        state.audioSeconds += 1;
+        audioTimer.textContent = formatTime(state.audioSeconds);
+      }, 1000);
+    }
+
+    function stopRecording(markReady = true) {
+      clearInterval(recordTimer);
+      state.recording = false;
+      state.speechReady = markReady && state.audioSeconds > 0;
+      if (speechStatus) speechStatus.textContent = state.speechReady ? "Ready" : "Ready";
+      document.querySelector(".chat-record-btn").classList.remove("is-recording");
+      syncOrbState();
+      syncSendButtons();
+      if (window.MunsitOrb) window.MunsitOrb.setVoiceControl(false);
+    }
+
+    function appendUserMessage(text, audioSeconds) {
+      const hasText = text.length > 0;
+      const hasAudio = audioSeconds > 0;
+      const fragment = userTemplate.content.cloneNode(true);
+      const article = fragment.querySelector("article");
+      const p = article.querySelector("[data-user-text]");
+      const audio = article.querySelector("[data-user-audio]");
+      const audioLabel = article.querySelector("[data-user-audio-label]");
+
+      if (hasText) p.textContent = text;
+      else p.remove();
+
+      if (hasAudio) {
+        audioLabel.textContent = formatTime(audioSeconds);
+        audio.classList.remove("is-hidden");
+      } else {
+        audio.remove();
+      }
+
+      feed.appendChild(article);
+      state.hasMessages = true;
+      syncOrbState();
+      scrollFeedToBottom();
+      return article;
+    }
+
+    function submitRequest(origin) {
+      if (state.recording) stopRecording(true);
+      const trimmed = textInput.value.trim();
+      const hasText = trimmed.length > 0;
+      const hasAudio = state.speechReady;
+
+      if (!hasText && !hasAudio) {
+        showToast(origin === "audio" ? "Record audio first" : "Add text first");
+        return;
+      }
+
+      let title, sourceLabel;
+      if (hasText && hasAudio) {
+        title = "Generating from text and voice";
+        sourceLabel = "Text + speech to speech";
+      } else if (hasAudio) {
+        title = "Processing voice";
+        sourceLabel = "Speech to speech";
+      } else {
+        title = "Generating audio";
+        sourceLabel = "Text to speech";
+      }
+
+      appendUserMessage(trimmed, hasAudio ? state.audioSeconds : 0);
+      showProcessing(title);
+      setTimeout(() => finishGeneration(sourceLabel), 1100);
+
+      textInput.value = "";
+      autoGrowInput();
+      updateTextCount();
+      resetSpeechState();
+      switchMode("text");
+    }
+
+    modelOptions.forEach((option) => {
+      option.addEventListener("click", (event) => {
+        if (event.target.closest("[data-action='preview-voice']")) return;
+        switchVoice(option);
+      });
+    });
+
+    modelPreviewButtons.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        previewVoice(button.closest(".model-option"));
+      });
+      button.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        previewVoice(button.closest(".model-option"));
+      });
+    });
+
+    textInput.addEventListener("input", updateTextCount);
+
+    function closeAllResultOptions(except) {
+      document.querySelectorAll("[data-result-options].is-open").forEach((el) => {
+        if (el === except) return;
+        el.classList.remove("is-open");
+        const trigger = el.querySelector("[data-action='toggle-options']");
+        if (trigger) trigger.setAttribute("aria-expanded", "false");
+      });
+    }
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest("[data-result-options]")) closeAllResultOptions();
+    });
+
+    document.addEventListener("click", async (event) => {
+      const actionNode = event.target.closest("[data-action]");
+      if (!actionNode) return;
+      const action = actionNode.dataset.action;
+
+      if (action === "toggle-options") {
+        const optionsHost = actionNode.closest("[data-result-options]");
+        if (!optionsHost) return;
+        const willOpen = !optionsHost.classList.contains("is-open");
+        closeAllResultOptions(optionsHost);
+        optionsHost.classList.toggle("is-open", willOpen);
+        actionNode.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        return;
+      }
+
+      if (action === "download" || action === "share" || action === "regenerate" || action === "save") {
+        closeAllResultOptions();
+      }
+
+      if (action === "attach") {
+        showToast("Native attachment");
+      }
+
+      if (action === "open-audio") {
+        if (!state.micGranted) {
+          showMicPrimer();
+        } else {
+          startAudioFlow();
+        }
+      }
+
+      if (action === "mic-primer-continue") {
+        hideMicPrimer();
+        setTimeout(showMicPermission, 180);
+      }
+
+      if (action === "mic-primer-dismiss") {
+        hideMicPrimer();
+      }
+
+      if (action === "mic-allow") {
+        state.micGranted = true;
+        hideMicPermission();
+        startAudioFlow();
+      }
+
+      if (action === "mic-deny") {
+        hideMicPermission();
+        showToast("Microphone access denied");
+      }
+
+      if (action === "generate" || action === "process-speech") {
+        submitRequest(action === "process-speech" ? "audio" : "text");
+      }
+
+      if (action === "record-toggle") {
+        if (state.recording) {
+          stopRecording(true);
+          showToast("Recording saved");
+        } else {
+          startRecording();
+          showToast("Recording started");
+        }
+      }
+
+      if (action === "close-audio") {
+        stopRecording(true);
+        switchMode("text");
+        if (state.speechReady) showToast("Audio attached");
+      }
+
+      if (action === "discard-audio") {
+        resetSpeechState();
+        switchMode("text");
+        showToast("Audio discarded");
+      }
+
+      if (action === "play") {
+        const card = actionNode.closest("[data-result-card]");
+        if (!card) return;
+        if (currentPlayback && currentPlayback.card === card) {
+          stopPlayback();
+          return;
+        }
+        startPlayback(card);
+      }
+
+      if (action === "download") showToast("Audio downloaded");
+      if (action === "share") showToast("Share sheet opened");
+      if (action === "save") showToast("Saved to library");
+
+      if (action === "regenerate") {
+        textInput.focus();
+        showToast("Regenerate from composer");
+      }
+    });
+
+    updateTextCount();
+    switchMode("text");
+    resetSpeechState();
+    syncOrbState();
+  </script>
+</body>
+</html>

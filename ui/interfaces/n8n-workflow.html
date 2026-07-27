@@ -1,0 +1,2921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>n8n — AI Agent Workflow</title>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #090914;
+    --panel: #131321;
+    --panel-2: #18182a;
+    --panel-3: #0f1020;
+    --stroke: rgba(255,255,255,.08);
+    --stroke-strong: rgba(255,255,255,.14);
+    --text: #f4f3fa;
+    --muted: #a4a0b7;
+    --muted-2: #77728b;
+    --purple: #8d4dff;
+    --orange: #ff7a2f;
+    --orange-2: #ff573a;
+    --green: #38d17a;
+    --danger: #ff7b5d;
+    --shadow: 0 24px 64px rgba(0,0,0,.45);
+    --sidebar-fit: 1;
+    --sidebar-w: calc(172px * var(--sidebar-fit));
+    --sidebar-collapsed-w: calc(76px * var(--sidebar-fit));
+    --sidebar-pad-y: calc(10px * var(--sidebar-fit));
+    --sidebar-pad-x: calc(10px * var(--sidebar-fit));
+    --sidebar-gap: calc(8px * var(--sidebar-fit));
+    --sidebar-top-gap: calc(8px * var(--sidebar-fit));
+    --radius-xs: calc(8px * var(--sidebar-fit));
+    --radius-sm: calc(10px * var(--sidebar-fit));
+    --radius-md: calc(12px * var(--sidebar-fit));
+    --radius-lg: calc(14px * var(--sidebar-fit));
+    --sidebar-brand-size: calc(21px * var(--sidebar-fit));
+    --sidebar-brand-mark-w: calc(52px * var(--sidebar-fit));
+    --sidebar-brand-mark-h: calc(26px * var(--sidebar-fit));
+    --sidebar-toggle-size: calc(30px * var(--sidebar-fit));
+    --sidebar-toggle-icon: calc(14px * var(--sidebar-fit));
+    --sidebar-item-h: calc(36px * var(--sidebar-fit));
+    --sidebar-item-radius: calc(10px * var(--sidebar-fit));
+    --sidebar-item-px: calc(10px * var(--sidebar-fit));
+    --sidebar-item-gap: calc(10px * var(--sidebar-fit));
+    --sidebar-icon-size: calc(15px * var(--sidebar-fit));
+    --sidebar-badge-font: calc(9px * var(--sidebar-fit));
+    --sidebar-avatar-size: calc(34px * var(--sidebar-fit));
+    --sidebar-avatar-font: calc(12px * var(--sidebar-fit));
+    --sidebar-name-font: calc(12px * var(--sidebar-fit));
+    --sidebar-mail-font: calc(10px * var(--sidebar-fit));
+    --canvas-scale: 1;
+    --map-zoom: 1;
+    --map-x: 0px;
+    --map-y: 0px;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top left, rgba(141,77,255,.18), transparent 26%),
+      radial-gradient(circle at top right, rgba(255,122,47,.08), transparent 22%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--font-inter);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    align-items: stretch;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)),
+      var(--bg);
+    transition: grid-template-columns 220ms ease;
+  }
+
+  .app.sidebar-collapsed {
+    grid-template-columns: var(--sidebar-collapsed-w) minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    border-right: 1px solid var(--stroke);
+    background: linear-gradient(180deg, rgba(12,12,22,.84), rgba(8,8,18,.93));
+    backdrop-filter: blur(14px);
+    padding: var(--sidebar-pad-y) var(--sidebar-pad-x) calc(var(--sidebar-pad-y) - 2px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sidebar-gap);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .sidebar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sidebar-top-gap);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-family: var(--font-bricolage);
+    font-size: var(--sidebar-brand-size);
+    font-weight: 700;
+    letter-spacing: -.04em;
+  }
+
+  .brand-mark {
+    width: var(--sidebar-brand-mark-w);
+    height: var(--sidebar-brand-mark-h);
+    flex-shrink: 0;
+  }
+
+  .brand-word {
+    white-space: nowrap;
+    transition: opacity 180ms ease, width 180ms ease;
+  }
+
+  .sidebar-toggle-btn {
+    width: var(--sidebar-toggle-size);
+    height: var(--sidebar-toggle-size);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,.03);
+    color: rgba(255,255,255,.72);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+
+  .sidebar-toggle-btn svg {
+    width: var(--sidebar-toggle-icon);
+    height: var(--sidebar-toggle-icon);
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 180ms ease;
+  }
+
+  .app.sidebar-collapsed .sidebar-toggle-btn svg {
+    transform: rotate(180deg);
+  }
+
+  .sidebar-nav,
+  .sidebar-group {
+    display: grid;
+    gap: calc(var(--sidebar-gap) - 1px);
+  }
+
+  .sidebar-footer { margin-top: auto; }
+
+  .nav-link,
+  .nav-link-secondary {
+    display: flex;
+    align-items: center;
+    gap: var(--sidebar-item-gap);
+    min-height: var(--sidebar-item-h);
+    padding: 0 var(--sidebar-item-px);
+    border-radius: var(--sidebar-item-radius);
+    color: rgba(255,255,255,.78);
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, color 160ms ease;
+  }
+
+  .nav-link svg,
+  .nav-link-secondary svg {
+    width: var(--sidebar-icon-size);
+    height: var(--sidebar-icon-size);
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+
+  .nav-link:hover,
+  .nav-link-secondary:hover {
+    background: rgba(255,255,255,.03);
+    border-color: rgba(255,255,255,.06);
+    transform: translateX(1px);
+  }
+
+  .nav-link.active {
+    color: #fff;
+    background: linear-gradient(180deg, rgba(118,54,234,.24), rgba(77,36,139,.3));
+    border-color: rgba(162,112,255,.18);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  }
+
+  .nav-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 180ms ease, width 180ms ease, margin 180ms ease;
+  }
+
+  .beta {
+    margin-left: auto;
+    padding: 2px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(141,77,255,.22);
+    background: rgba(141,77,255,.12);
+    color: #be86ff;
+    font-size: var(--sidebar-badge-font);
+    font-weight: 700;
+    letter-spacing: .04em;
+    transition: opacity 180ms ease, width 180ms ease;
+  }
+
+  .sidebar-rule {
+    height: 1px;
+    margin: 2px 0 calc(var(--sidebar-gap) - 2px);
+    background: var(--stroke);
+  }
+
+  .profile {
+    display: flex;
+    align-items: center;
+    gap: var(--sidebar-item-gap);
+    padding: calc(var(--sidebar-gap) - 1px) 4px 0;
+  }
+
+  .avatar {
+    width: var(--sidebar-avatar-size);
+    height: var(--sidebar-avatar-size);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: var(--sidebar-avatar-font);
+    font-weight: 700;
+    background: linear-gradient(135deg, rgba(141,77,255,.82), rgba(255,122,47,.65));
+    box-shadow: 0 10px 24px rgba(141,77,255,.22);
+    flex-shrink: 0;
+  }
+
+  .profile-meta {
+    min-width: 0;
+    transition: opacity 180ms ease, width 180ms ease;
+  }
+
+  .profile-name {
+    font-size: var(--sidebar-name-font);
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .profile-mail {
+    font-size: var(--sidebar-mail-font);
+    color: var(--muted-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .workspace {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .topbar {
+    min-height: 56px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--stroke);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: rgba(8,8,18,.78);
+    backdrop-filter: blur(16px);
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .breadcrumb svg {
+    width: 17px;
+    height: 17px;
+    stroke: rgba(255,255,255,.72);
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+
+  .crumb-label,
+  .crumb-divider {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .crumb-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+  }
+
+  .pill-btn {
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--stroke);
+    background: rgba(255,255,255,.02);
+    color: rgba(255,255,255,.84);
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+
+  .pill-btn svg,
+  .top-icon-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .topbar-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 0 16px;
+    min-width: 0;
+  }
+
+  .topbar-search {
+    width: 100%;
+    max-width: 280px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.04);
+    color: rgba(255,255,255,.38);
+    font-size: 13px;
+    cursor: text;
+    transition: border-color 150ms ease, background 150ms ease;
+  }
+  .topbar-search:hover {
+    border-color: rgba(255,255,255,.13);
+    background: rgba(255,255,255,.06);
+  }
+  .topbar-search svg {
+    width: 13px; height: 13px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+  .topbar-search span { flex: 1; white-space: nowrap; }
+  .topbar-search kbd {
+    font-size: 11px;
+    padding: 1px 5px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.06);
+    color: rgba(255,255,255,.3);
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+
+  .toggle-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .toggle {
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.08);
+    position: relative;
+  }
+
+  .toggle::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+  }
+
+  .top-icon-btn,
+  .upgrade-btn {
+    min-height: 40px;
+    padding: 0 15px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke-strong);
+    background: rgba(255,255,255,.02);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  }
+
+  .upgrade-btn {
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+    border-color: rgba(255,255,255,.1);
+    box-shadow: 0 14px 32px rgba(34,197,94,.28), inset 0 1px 0 rgba(255,255,255,.24);
+  }
+  .upgrade-btn:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 16px 40px rgba(34,197,94,.4), inset 0 1px 0 rgba(255,255,255,.24);
+  }
+
+  .main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .canvas-panel {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--stroke);
+    overflow: hidden;
+  }
+
+  /* ── Right panel (inspector + AI chat) ── */
+  .right-panel {
+    width: 286px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width 240ms cubic-bezier(.4,0,.2,1), opacity 200ms ease;
+  }
+  .right-panel.is-hidden { width: 0; opacity: 0; pointer-events: none; }
+
+  .inspector {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    background: linear-gradient(180deg, rgba(21,22,35,.98), rgba(18,18,31,.98));
+    padding: 18px 14px 14px;
+  }
+  .right-panel.ai-mode .inspector { display: none; }
+
+  /* ── AI Chat ── */
+  .ai-chat {
+    flex: 1;
+    min-height: 0;
+    display: none;
+    flex-direction: column;
+    background: linear-gradient(180deg, rgba(21,22,35,.98), rgba(18,18,31,.98));
+  }
+  .right-panel.ai-mode .ai-chat { display: flex; }
+
+  .ai-chat-header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--stroke);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ai-chat-title {
+    font-size: 13px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; gap: 8px; flex: 1;
+  }
+  .ai-chat-title svg {
+    width: 15px; height: 15px;
+    stroke: #c49aff; fill: none; stroke-width: 1.8;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ai-chat-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    padding: 2px 7px; border-radius: 999px;
+    background: rgba(141,77,255,.18); color: #c49aff;
+    border: 1px solid rgba(141,77,255,.28);
+  }
+  .ai-chat-messages {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 14px 14px 8px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .ai-msg, .user-msg {
+    max-width: 94%; padding: 9px 12px;
+    border-radius: var(--radius-md);
+    font-size: 12.5px; line-height: 1.55;
+  }
+  .ai-msg {
+    background: rgba(255,255,255,.05); border: 1px solid var(--stroke);
+    color: rgba(255,255,255,.8); align-self: flex-start;
+  }
+  .ai-msg strong { color: #c49aff; font-weight: 600; }
+  .user-msg {
+    background: rgba(141,77,255,.16); border: 1px solid rgba(141,77,255,.22);
+    color: rgba(255,255,255,.9); align-self: flex-end;
+  }
+  .ai-typing {
+    display: flex; gap: 4px; align-items: center;
+    padding: 9px 12px;
+    background: rgba(255,255,255,.04); border: 1px solid var(--stroke);
+    border-radius: var(--radius-md); width: fit-content;
+  }
+  .ai-typing span {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--muted);
+    animation: dot-pulse 1.2s ease-in-out infinite;
+  }
+  .ai-typing span:nth-child(2) { animation-delay: .2s; }
+  .ai-typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes dot-pulse {
+    0%,80%,100% { opacity:.3; transform:scale(.8); }
+    40% { opacity:1; transform:scale(1); }
+  }
+  .ai-chat-footer {
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--stroke);
+    display: flex; gap: 8px; align-items: flex-end;
+  }
+  .ai-chat-input {
+    flex: 1; min-height: 36px; max-height: 96px;
+    padding: 8px 12px; border-radius: var(--radius-md);
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(11,11,22,.6); color: rgba(255,255,255,.86);
+    font-size: 13px; font-family: inherit; resize: none; outline: none;
+    transition: border-color 150ms ease;
+  }
+  .ai-chat-input::placeholder { color: rgba(255,255,255,.28); }
+  .ai-chat-input:focus { border-color: rgba(141,77,255,.5); }
+  .ai-send-btn {
+    width: 36px; height: 36px; flex-shrink: 0;
+    border-radius: var(--radius-md); border: 0;
+    background: linear-gradient(135deg, #8d4dff, rgba(100,50,220,.9));
+    color: #fff; display: grid; place-items: center;
+    transition: filter 140ms, transform 100ms;
+  }
+  .ai-send-btn:hover { filter: brightness(1.12); }
+  .ai-send-btn:active { transform: scale(.92); }
+  .ai-send-btn svg {
+    width: 14px; height: 14px; stroke: #fff; fill: none;
+    stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  /* ── Topbar icon-only buttons ── */
+  .topbar-divider { width: 1px; height: 20px; background: var(--stroke); margin: 0 2px; flex-shrink: 0; }
+  .icon-only-btn {
+    width: 34px; height: 34px;
+    border-radius: var(--radius-md); border: 1px solid transparent;
+    background: transparent; color: rgba(255,255,255,.52);
+    display: grid; place-items: center; flex-shrink: 0;
+    transition: background 140ms, border-color 140ms, color 140ms;
+  }
+  .icon-only-btn:hover { background: rgba(255,255,255,.06); border-color: var(--stroke); color: #fff; }
+  .icon-only-btn.active { background: rgba(141,77,255,.14); border-color: rgba(141,77,255,.3); color: #c49aff; }
+  .icon-only-btn svg {
+    width: 16px; height: 16px; stroke: currentColor; fill: none;
+    stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .builder {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 16px 12px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at center, rgba(141,77,255,.05), transparent 42%),
+      radial-gradient(circle, rgba(255,255,255,.1) 1px, transparent 1.6px);
+    background-size: auto, 18px 18px;
+    background-position: center, 0 0;
+    cursor: grab;
+    user-select: none;
+  }
+
+  .builder-viewport {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .builder.is-dragging {
+    cursor: grabbing;
+  }
+
+  .builder.is-pointer-mode {
+    cursor: default;
+  }
+
+  .builder-camera {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(calc(-50% + var(--map-x)), calc(-50% + var(--map-y)));
+    will-change: transform;
+  }
+
+  .builder-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .builder-overlay > * {
+    pointer-events: auto;
+  }
+
+  .selection-marquee {
+    position: absolute;
+    z-index: 3;
+    display: none;
+    border: 1px solid rgba(160,105,255,.92);
+    background: rgba(141,77,255,.12);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    pointer-events: none;
+  }
+
+  .builder-inner {
+    position: relative;
+    width: 2400px;
+    min-height: 1600px;
+    transform: scale(calc(var(--canvas-scale) * var(--map-zoom)));
+    transform-origin: center center;
+    will-change: transform;
+  }
+
+  .map-hud {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+  }
+
+  .map-controls {
+    pointer-events: auto;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(14,15,28,.88);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 8px 20px rgba(0,0,0,.22);
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 3px;
+    border-radius: var(--radius-sm);
+  }
+
+  .map-hint {
+    pointer-events: none;
+    border: 1px solid rgba(255,255,255,.07);
+    background: rgba(14,15,28,.88);
+    backdrop-filter: blur(14px);
+    padding: 5px 10px;
+    border-radius: var(--radius-sm);
+    color: rgba(255,255,255,.5);
+    font-size: 11px;
+    letter-spacing: -.01em;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+  .map-hud:hover .map-hint {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .map-btn,
+  .map-zoom-readout {
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+  }
+
+  .map-btn {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    background: transparent;
+    color: rgba(255,255,255,.72);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .map-btn:hover {
+    background: rgba(255,255,255,.07);
+    color: #fff;
+  }
+
+  .map-zoom-readout {
+    min-width: 40px;
+    height: 28px;
+    color: rgba(255,255,255,.7);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+
+  .mode-switch {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke-strong);
+    background: rgba(16,17,30,.92);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 14px 30px rgba(0,0,0,.2);
+  }
+
+  .mode-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: rgba(255,255,255,.74);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+
+  .mode-btn svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .mode-btn.active {
+    background: linear-gradient(180deg, rgba(115,57,219,.94), rgba(79,36,152,.95));
+    color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(190,155,255,.22);
+  }
+
+  .segmented {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: fit-content;
+    margin: 0;
+    padding: 4px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--stroke);
+    background: rgba(20,20,34,.85);
+    display: flex;
+    gap: 4px;
+    box-shadow: 0 12px 28px rgba(0,0,0,.22);
+    transform: translateX(-50%);
+  }
+
+  .segmented button {
+    border: 0;
+    min-width: 90px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: rgba(255,255,255,.8);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .segmented .active {
+    background: rgba(255,255,255,.1);
+    color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  }
+
+  .template-chip {
+    position: absolute;
+    top: 54px;
+    left: 12px;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke);
+    background: rgba(27,28,41,.9);
+    color: rgba(255,255,255,.82);
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13px;
+    box-shadow: 0 10px 24px rgba(0,0,0,.18);
+  }
+
+  .template-chip svg,
+  .tool-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .canvas-bottom-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .execute-btn {
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: linear-gradient(180deg, #ff7a3a 0%, #e8541e 100%);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    outline: 1.5px solid #b83d10;
+    outline-offset: -1px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.28),
+      inset 0 -1px 0 rgba(0,0,0,.22),
+      0 2px 0 #7a2408,
+      0 4px 12px rgba(0,0,0,.35);
+    transition: filter 100ms ease, transform 80ms ease, box-shadow 80ms ease;
+  }
+  .execute-btn svg { width: 14px; height: 14px; fill: currentColor; stroke: currentColor; stroke-width: 0; }
+  .execute-btn#add-node-btn svg { fill: none; stroke-width: 2.5; }
+  .execute-btn:hover { filter: brightness(1.06); }
+  .execute-btn:active {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.18),
+      inset 0 2px 4px rgba(0,0,0,.2),
+      0 0 0 #7a2408,
+      0 2px 6px rgba(0,0,0,.25);
+  }
+
+  .canvas {
+    position: relative;
+    width: 100%;
+    height: 1600px;
+    margin-top: 74px;
+  }
+
+  .flow-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .flow-lines path {
+    fill: none;
+    stroke: #9255ff;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 10 8;
+    opacity: .9;
+  }
+
+  .flow-lines path.main {
+    stroke: #a35fff;
+    stroke-dasharray: none;
+  }
+
+  .flow-lines circle {
+    fill: #a35fff;
+    filter: drop-shadow(0 0 8px rgba(163,95,255,.6));
+  }
+
+  .node,
+  .mini-node {
+    position: absolute;
+    overflow: visible;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255,255,255,.14);
+    background: linear-gradient(180deg, rgba(27,28,41,.98), rgba(22,23,35,.98));
+    box-shadow: 0 18px 42px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.04);
+    color: #fff;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .draggable-node.is-dragging {
+    cursor: grabbing;
+  }
+
+  .draggable-node.is-selected {
+    border-color: rgba(171,111,255,.92);
+    box-shadow:
+      0 0 0 2px rgba(171,111,255,.22),
+      0 18px 42px rgba(76,30,166,.18),
+      inset 0 1px 0 rgba(255,255,255,.04);
+  }
+
+  .node {
+    width: 220px;
+    min-height: 106px;
+    padding: 20px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .node.active {
+    border-color: rgba(171,111,255,.8);
+    box-shadow: 0 0 0 1px rgba(171,111,255,.45), 0 24px 48px rgba(76,30,166,.28);
+  }
+
+  .node-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,.06);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+
+  .node-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: #c8c2df;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .node-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+  }
+
+  .node-sub {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #b4aec6;
+  }
+
+  .node-check,
+  .node-warning {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+  }
+
+  .node-check {
+    background: rgba(141,77,255,.2);
+    color: #d8b6ff;
+    border: 1px solid rgba(186,131,255,.36);
+  }
+
+  .node-warning { color: var(--danger); }
+
+  .port {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #9558ff;
+    box-shadow: 0 0 0 3px rgba(149,88,255,.12);
+  }
+
+  .port.right { right: -8px; top: 44px; }
+  .port.left { left: -8px; top: 44px; }
+  .port.bottom { bottom: -8px; left: 50%; transform: translateX(-50%); }
+
+  .trigger-bolt {
+    position: absolute;
+    left: -18px;
+    top: 38px;
+    color: var(--orange);
+  }
+
+  .trigger-bolt svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+  }
+
+  .label-row {
+    position: absolute;
+    top: 326px;
+    left: 346px;
+    display: flex;
+    gap: 34px;
+    color: rgba(255,255,255,.78);
+    font-size: 14px;
+  }
+
+  .label-chip { text-align: center; }
+
+  .plus-slot {
+    width: 32px;
+    height: 32px;
+    margin: 12px auto 0;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.03);
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+    color: rgba(255,255,255,.84);
+    line-height: 1;
+  }
+
+  .mini-node {
+    width: 122px;
+    min-height: 108px;
+    padding: 18px 14px 14px;
+    text-align: center;
+  }
+
+  .mini-node .node-icon {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+  }
+
+  .mini-node .node-title {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .mini-node .node-sub {
+    margin-top: 6px;
+    font-size: 12px;
+  }
+
+  .canvas-actions {
+    position: absolute;
+    left: 0;
+    bottom: 8px;
+    display: flex;
+    gap: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+  }
+  .is-pointer-mode .canvas-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .tool-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke);
+    background: rgba(20,20,35,.88);
+    color: rgba(255,255,255,.85);
+    display: grid;
+    place-items: center;
+    box-shadow: 0 10px 24px rgba(0,0,0,.18);
+  }
+
+
+  /* inspector styles merged into right-panel section above */
+
+  .panel {
+    height: 100%;
+    padding: 18px 16px;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .panel-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .panel-bolt {
+    width: 20px;
+    height: 20px;
+    color: var(--orange);
+    flex-shrink: 0;
+  }
+
+  .panel-bolt svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+  }
+
+  .panel-title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .icon-close {
+    width: 18px;
+    height: 18px;
+    stroke: rgba(255,255,255,.68);
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--stroke);
+  }
+
+  .tab {
+    position: relative;
+    padding-bottom: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .tab.active {
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .tab.active::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--orange), var(--orange-2));
+  }
+
+  .field-group + .field-group { margin-top: 20px; }
+
+  .field-label {
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,.92);
+  }
+
+  .field {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(11,11,20,.5);
+    color: rgba(255,255,255,.84);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .field svg {
+    width: 16px;
+    height: 16px;
+    stroke: var(--muted);
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .field.textarea {
+    min-height: 84px;
+    padding-top: 12px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    color: var(--muted);
+  }
+
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+
+  .switch-row:last-of-type { margin-bottom: 0; }
+
+  .switch {
+    width: 40px;
+    height: 24px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #7338df, #a954ff);
+    position: relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
+  }
+
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+  }
+
+  .save-btn {
+    width: 100%;
+    height: 44px;
+    margin-top: 18px;
+    border: 0;
+    border-radius: var(--radius-md);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    background: #1a1a2e;
+    border: 1px solid rgba(255,255,255,.1);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  }
+
+  .bottom {
+    border-top: 1px solid var(--stroke);
+    background: rgba(8,8,18,.9);
+  }
+
+  .bottom-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 18px 10px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 200ms ease;
+  }
+  .bottom-head.open { border-bottom-color: var(--stroke); }
+  .bottom-head:hover .section-title { color: #fff; }
+
+  .bottom-head-tabs {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    transition: color 140ms ease;
+  }
+  .section-title.active { color: #fff; }
+
+  .collapse-toggle {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    border: 0; background: none;
+    border-radius: 6px;
+    color: rgba(255,255,255,.35);
+    transition: background 140ms ease, color 140ms ease, transform 240ms cubic-bezier(.4,0,.2,1);
+    flex-shrink: 0;
+  }
+  .collapse-toggle svg {
+    width: 13px; height: 13px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .collapse-toggle:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.72); }
+  .bottom.is-collapsed .collapse-toggle { transform: rotate(-90deg); }
+
+  .bottom-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1.1fr;
+    overflow: hidden;
+    transition: height 260ms cubic-bezier(.4,0,.2,1);
+  }
+  .bottom-body.no-anim { transition: none; }
+
+  .logs,
+  .stats {
+    padding: 14px 18px 18px;
+  }
+  .logs { border-right: 1px solid var(--stroke); }
+
+  .log-card {
+    min-height: 58px;
+    padding: 16px 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke);
+    background: rgba(16,17,29,.84);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: rgba(255,255,255,.82);
+  }
+
+  .status-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(56,209,122,.18);
+    border: 1px solid rgba(56,209,122,.45);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .status-dot::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  .log-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .log-line strong { color: #fff; }
+  .log-line span { color: var(--muted); }
+
+  .divider {
+    width: 1px;
+    height: 18px;
+    background: var(--stroke);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .stat-card {
+    min-height: 86px;
+    padding: 14px 14px 10px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke);
+    background: linear-gradient(180deg, rgba(27,28,41,.92), rgba(17,18,28,.96));
+  }
+
+  .stat-label {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .stat-value {
+    margin-top: 7px;
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  .spark {
+    width: 100%;
+    height: 32px;
+    margin-top: 10px;
+  }
+
+  .spark polyline {
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .spark-green polyline { stroke: #39d979; }
+  .spark-purple polyline { stroke: #a259ff; }
+  .spark-orange polyline { stroke: #ff7b32; }
+
+  /* ── Generic button interactivity ── */
+  .execute-btn,
+  .tool-btn, .map-btn, .mode-btn, .segmented button,
+  .top-icon-btn, .upgrade-btn, .pill-btn, .save-btn,
+  .nav-link, .nav-link-secondary,
+  .picker-item {
+    cursor: pointer;
+  }
+  .tool-btn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.12); }
+  .top-icon-btn:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.14); }
+  .pill-btn:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); }
+  .save-btn:hover { filter: brightness(1.08); }
+  .save-btn:active { filter: brightness(.95); transform: translateY(1px); }
+  .upgrade-btn:hover { filter: brightness(1.07); box-shadow: 0 16px 40px rgba(141,77,255,.35), inset 0 1px 0 rgba(255,255,255,.24); }
+  .segmented button:not(.active):hover { background: rgba(255,255,255,.06); }
+  .map-btn:hover { background: rgba(255,255,255,.07); }
+
+  /* toast feedback */
+  .btn-toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    padding: 9px 18px;
+    border-radius: 999px;
+    background: rgba(30,31,50,.97);
+    border: 1px solid rgba(255,255,255,.1);
+    color: rgba(255,255,255,.86);
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 16px 40px rgba(0,0,0,.35);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 200ms ease, transform 200ms ease;
+    z-index: 999;
+  }
+  .btn-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── Node Picker ── */
+  .node-picker {
+    position: absolute;
+    bottom: 68px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(14,14,28,.98);
+    backdrop-filter: blur(28px);
+    box-shadow: 0 -4px 24px rgba(0,0,0,.2), 0 24px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(141,77,255,.08);
+    overflow: hidden;
+    transform-origin: bottom center;
+    transition: opacity 170ms ease, transform 170ms ease;
+    z-index: 10;
+  }
+  .node-picker.hidden {
+    opacity: 0;
+    transform: scale(.98) translateY(8px);
+    pointer-events: none;
+  }
+  .picker-search {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,.03);
+    gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .picker-search svg {
+    width: 13px; height: 13px;
+    stroke: rgba(255,255,255,.3);
+    fill: none; stroke-width: 1.9;
+    stroke-linecap: round; stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+  .picker-search input {
+    flex: 1; background: none; border: none; outline: none;
+    color: rgba(255,255,255,.86); font-size: 12.5px; font-family: inherit;
+    min-width: 160px;
+  }
+  .picker-search input::placeholder { color: rgba(255,255,255,.24); }
+
+  .picker-items {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 8px 8px 10px;
+    gap: 4px;
+  }
+  .picker-item {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 130ms ease;
+    min-width: 0;
+  }
+  .picker-item:hover { background: rgba(255,255,255,.06); }
+  .picker-icon {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    background: rgba(255,255,255,.05);
+    display: grid; place-items: center; flex-shrink: 0;
+  }
+  .picker-icon svg {
+    width: 16px; height: 16px;
+    stroke: rgba(255,255,255,.7); fill: none;
+    stroke-width: 1.85; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .picker-icon.purple { background: rgba(141,77,255,.16); }
+  .picker-icon.purple svg { stroke: #c49aff; }
+  .picker-icon.blue   { background: rgba(80,130,255,.13); }
+  .picker-icon.blue svg { stroke: #85aaff; }
+  .picker-icon.cyan   { background: rgba(0,205,225,.1); }
+  .picker-icon.cyan svg { stroke: #5ee4f0; }
+  .picker-icon.green  { background: rgba(56,209,122,.1); }
+  .picker-icon.green svg { stroke: #5cdea0; }
+  .picker-icon.orange { background: rgba(255,122,47,.12); }
+  .picker-icon.orange svg { stroke: #ffaa6a; }
+  .picker-icon.rose   { background: rgba(255,80,120,.1); }
+  .picker-icon.rose svg { stroke: #ff8aaa; }
+  .picker-icon.bolt   { background: rgba(255,122,47,.12); }
+  .picker-icon.bolt svg { stroke: none; fill: var(--orange); }
+
+  .picker-text { flex: 1; min-width: 0; }
+  .picker-label { font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; }
+  .picker-item.trigger .picker-label { color: var(--orange); }
+  .picker-desc {
+    display: block;
+    margin-top: 3px; font-size: 11px; color: rgba(255,255,255,.38);
+    line-height: 1.4;
+    white-space: normal;
+  }
+  .picker-arrow { display: none; }
+  .picker-rule {
+    display: none;
+  }
+
+  .app.sidebar-collapsed .brand-word,
+  .app.sidebar-collapsed .nav-text,
+  .app.sidebar-collapsed .profile-meta,
+  .app.sidebar-collapsed .beta {
+    opacity: 0;
+    width: 0;
+    margin: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .app.sidebar-collapsed .sidebar {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .app.sidebar-collapsed .sidebar-top {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .app.sidebar-collapsed .brand {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .app.sidebar-collapsed .sidebar-nav,
+  .app.sidebar-collapsed .sidebar-group {
+    justify-items: center;
+  }
+
+  .app.sidebar-collapsed .nav-link,
+  .app.sidebar-collapsed .nav-link-secondary {
+    width: 38px;
+    min-height: 38px;
+    justify-content: center;
+    padding: 0;
+    gap: 0;
+  }
+
+  .app.sidebar-collapsed .profile {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .app:not(.sidebar-collapsed) {
+    --sidebar-w: calc(186px * var(--sidebar-fit));
+    --sidebar-pad-y: calc(14px * var(--sidebar-fit));
+    --sidebar-pad-x: calc(14px * var(--sidebar-fit));
+    --sidebar-gap: calc(11px * var(--sidebar-fit));
+    --sidebar-top-gap: calc(10px * var(--sidebar-fit));
+    --sidebar-item-h: calc(40px * var(--sidebar-fit));
+    --sidebar-item-px: calc(12px * var(--sidebar-fit));
+    --sidebar-item-gap: calc(11px * var(--sidebar-fit));
+  }
+
+  .app:not(.sidebar-collapsed) .sidebar-top {
+    margin-bottom: calc(2px * var(--sidebar-fit));
+  }
+
+  .app:not(.sidebar-collapsed) .sidebar-nav,
+  .app:not(.sidebar-collapsed) .sidebar-group {
+    gap: var(--sidebar-gap);
+  }
+
+  .app:not(.sidebar-collapsed) .profile {
+    padding-top: calc(8px * var(--sidebar-fit));
+  }
+
+  @media (max-width: 1280px) {
+    :root { --canvas-scale: .9; }
+    .main { grid-template-columns: minmax(0, 1fr); }
+    .inspector { border-top: 1px solid var(--stroke); }
+    .bottom { grid-template-columns: 1fr; }
+    .logs { border-right: 0; border-bottom: 1px solid var(--stroke); }
+  }
+
+  @media (max-width: 1160px) {
+    :root { --canvas-scale: .82; }
+    .topbar {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    :root { --canvas-scale: .74; }
+  }
+
+  @media (max-width: 900px) {
+    .app,
+    .app.sidebar-collapsed { grid-template-columns: 1fr; }
+    .sidebar {
+      position: relative;
+      top: auto;
+      align-self: stretch;
+      padding: 10px 12px;
+      border-right: 0;
+      border-bottom: 1px solid var(--stroke);
+      min-height: auto;
+      overflow: visible;
+    }
+    .sidebar-top { flex-direction: row; }
+    .sidebar-nav,
+    .sidebar-group { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .app.sidebar-collapsed .brand-word,
+    .app.sidebar-collapsed .nav-text,
+    .app.sidebar-collapsed .profile-meta,
+    .app.sidebar-collapsed .beta {
+      opacity: 1;
+      width: auto;
+      pointer-events: auto;
+    }
+    .app.sidebar-collapsed .nav-link,
+    .app.sidebar-collapsed .nav-link-secondary {
+      width: auto;
+      min-height: 36px;
+      padding: 0 10px;
+      justify-content: flex-start;
+      gap: 10px;
+    }
+    .sidebar-group { margin-top: 0; }
+    .topbar {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .topbar-right { justify-content: flex-start; }
+    .builder-viewport {
+      min-height: 520px;
+    }
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 640px) {
+    .sidebar-nav,
+    .sidebar-group { grid-template-columns: 1fr 1fr; }
+    .topbar { padding: 16px 14px; }
+    .logs, .stats, .inspector { padding-left: 14px; padding-right: 14px; }
+    .builder-viewport {
+      min-height: 460px;
+    }
+    .map-hud {
+      right: 12px;
+      bottom: 12px;
+      gap: 8px;
+    }
+    .map-hint {
+      font-size: 11px;
+      padding: 8px 10px;
+    }
+    .mode-btn {
+      width: 30px;
+      height: 30px;
+      padding: 0 10px;
+      font-size: 11px;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="app" id="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="brand">
+          <svg class="brand-mark" viewBox="0 0 72 36" aria-hidden="true">
+            <defs>
+              <linearGradient id="brandGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%" stop-color="#ff7b32"/>
+                <stop offset="55%" stop-color="#ff5a4f"/>
+                <stop offset="100%" stop-color="#8d4dff"/>
+              </linearGradient>
+            </defs>
+            <circle cx="10" cy="18" r="5.5" fill="none" stroke="url(#brandGrad)" stroke-width="3"/>
+            <circle cx="26" cy="18" r="5.5" fill="none" stroke="url(#brandGrad)" stroke-width="3"/>
+            <circle cx="46" cy="8" r="5.5" fill="none" stroke="url(#brandGrad)" stroke-width="3"/>
+            <circle cx="60" cy="18" r="5.5" fill="none" stroke="url(#brandGrad)" stroke-width="3"/>
+            <path d="M15.5 18h5M31 18h8l6-8h-4M31 18h8l6 8" fill="none" stroke="url(#brandGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="brand-word">n8n</span>
+        </div>
+        <button class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Toggle sidebar" aria-expanded="true">
+          <svg viewBox="0 0 24 24"><path d="M9 6 15 12 9 18"/></svg>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-link-secondary" href="#">
+          <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg>
+          <span class="nav-text">Overview</span>
+        </a>
+        <a class="nav-link active" href="#">
+          <svg viewBox="0 0 24 24"><path d="M16 19a4 4 0 0 0-8 0"/><circle cx="12" cy="8" r="4"/><path d="M4 20h16"/></svg>
+          <span class="nav-text">Personal</span>
+        </a>
+        <a class="nav-link-secondary" href="#">
+          <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-14.5 6L3 21l3.5-3.5A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+          <span class="nav-text">Chat</span>
+          <span class="beta">Beta</span>
+        </a>
+        <a class="nav-link-secondary" href="#">
+          <svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Z"/><path d="m4 12 8 4 8-4"/><path d="m4 17 8 4 8-4"/></svg>
+          <span class="nav-text">Templates</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-group sidebar-footer">
+        <a class="nav-link-secondary" href="#">
+          <svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 12h14"/><path d="M5 17h14"/></svg>
+          <span class="nav-text">Admin Panel</span>
+        </a>
+        <a class="nav-link-secondary" href="#">
+          <svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M7 15V9"/><path d="M12 15V5"/><path d="M17 15v-3"/></svg>
+          <span class="nav-text">Insights</span>
+        </a>
+      </div>
+
+      <div class="sidebar-rule"></div>
+
+      <div class="sidebar-group">
+        <a class="nav-link-secondary" href="#">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 1 1 5.8 0c0 2-3 2.3-3 4"/><path d="M12 17h.01"/></svg>
+          <span class="nav-text">Help</span>
+        </a>
+        <a class="nav-link-secondary" href="#">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.08 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.08-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.08H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.84a1.7 1.7 0 0 0-.34-1.87L4.2 6.9a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.7 1.7 0 0 0 8.96 4.6 1.7 1.7 0 0 0 10.04 3H10a2 2 0 1 1 4 0h-.04a1.7 1.7 0 0 0 1.08 1.6 1.7 1.7 0 0 0 1.87-.35l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87 1.7 1.7 0 0 0 1.56 1.08H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+          <span class="nav-text">Settings</span>
+        </a>
+      </div>
+
+      <div class="profile">
+        <div class="avatar">AJ</div>
+        <div class="profile-meta">
+          <div class="profile-name">Alex Johnson</div>
+          <div class="profile-mail">alex@example.com</div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumb">
+            <svg viewBox="0 0 24 24"><path d="M16 19a4 4 0 0 0-8 0"/><circle cx="12" cy="8" r="4"/></svg>
+            <span class="crumb-label">Personal</span>
+            <span class="crumb-divider">/</span>
+            <span class="crumb-title">AI Agent workflow</span>
+          </div>
+          <div class="pill-btn">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            <span>Add tag</span>
+          </div>
+        </div>
+
+        <div class="topbar-center">
+          <div class="topbar-search" id="topbar-search-btn">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></svg>
+            <span>Search or type command</span>
+            <kbd>⌘K</kbd>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="toggle-wrap">
+            <span>Inactive</span>
+            <div class="toggle"></div>
+          </div>
+          <button class="top-icon-btn">Share</button>
+          <button class="top-icon-btn">···</button>
+          <button class="top-icon-btn">
+            <svg viewBox="0 0 24 24"><path d="m12 17.3-5.56 3.2 1.52-6.21L3 10.17l6.47-.52L12 3.8l2.53 5.85 6.47.52-4.96 4.12 1.52 6.21z"/></svg>
+            <span>Star</span>
+            <span style="color:rgba(255,255,255,.8);font-weight:500;">185,352</span>
+          </button>
+          <button class="upgrade-btn">
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+            <span>Upgrade Now</span>
+          </button>
+          <div class="topbar-divider"></div>
+          <button class="icon-only-btn" id="btn-inspector-toggle" title="Toggle inspector">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
+          </button>
+          <button class="icon-only-btn" id="btn-ai-chat" title="AI Assistant">
+            <svg viewBox="0 0 24 24"><path d="M12 2c-1 2.8-2.8 4.6-5.5 5.5C9.2 8.4 11 10.2 12 13c1-2.8 2.8-4.6 5.5-5.5C14.8 6.6 13 4.8 12 2z"/><path d="M4.5 14c-.5 1.3-1.3 2.1-2.8 2.6 1.5.5 2.3 1.3 2.8 2.6.5-1.3 1.3-2.1 2.8-2.6C5.8 16.1 5 15.3 4.5 14z"/><path d="M19.5 3c-.4 1-1 1.6-2 2 1 .4 1.6 1 2 2 .4-1 1-1.6 2-2-1-.4-1.6-1-2-2z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="main">
+        <section class="canvas-panel">
+          <div class="builder" id="builder-map">
+            <div class="builder-viewport" id="builder-viewport">
+              <div class="builder-overlay">
+                <div class="selection-marquee" id="selection-marquee"></div>
+                <div class="segmented">
+                  <button class="active">Editor</button>
+                  <button>Executions</button>
+                  <button>Evaluations</button>
+                </div>
+
+
+
+                <div class="mode-switch" id="mode-switch">
+                  <button class="mode-btn active" id="mode-hand" aria-pressed="true" title="Hand">
+                    <svg viewBox="0 0 24 24"><path d="M9 11V5a1.5 1.5 0 0 1 3 0v5"/><path d="M12 10V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11V6a1.5 1.5 0 0 1 3 0v7"/><path d="M9 11 7.8 9.8a1.7 1.7 0 0 0-2.4 2.4l4.5 4.5A4 4 0 0 0 12.8 18H16a4 4 0 0 0 4-4v-3"/></svg>
+                  </button>
+                  <button class="mode-btn" id="mode-pointer" aria-pressed="false" title="Pointer">
+                    <svg viewBox="0 0 24 24"><path d="m5 3 12 8-5 1 3 7-2.5 1-3-7-4.5 3z"/></svg>
+                  </button>
+                </div>
+
+
+                <!-- Node Picker -->
+                <div class="node-picker hidden" id="node-picker" role="menu">
+                  <div class="picker-search">
+                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></svg>
+                    <input type="text" id="picker-search-input" placeholder="Search nodes…" autocomplete="off">
+                  </div>
+                  <div class="picker-items" id="picker-items">
+
+                    <div class="picker-item" role="menuitem" tabindex="0">
+                      <div class="picker-icon purple">
+                        <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
+                      </div>
+                      <div class="picker-text">
+                        <div class="picker-label">AI & Agents</div>
+                        <div class="picker-desc">LLMs, autonomous agents, document Q&A</div>
+                      </div>
+                      <span class="picker-arrow">›</span>
+                    </div>
+
+                    <div class="picker-item" role="menuitem" tabindex="0">
+                      <div class="picker-icon blue">
+                        <svg viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2z"/><path d="M7 7h.01"/></svg>
+                      </div>
+                      <div class="picker-text">
+                        <div class="picker-label">App Integrations</div>
+                        <div class="picker-desc">Google, Slack, Notion, Airtable & 400+ apps</div>
+                      </div>
+                      <span class="picker-arrow">›</span>
+                    </div>
+
+                    <div class="picker-item" role="menuitem" tabindex="0">
+                      <div class="picker-icon cyan">
+                        <svg viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
+                      </div>
+                      <div class="picker-text">
+                        <div class="picker-label">Transform</div>
+                        <div class="picker-desc">Filter, map, merge or reshape data</div>
+                      </div>
+                      <span class="picker-arrow">›</span>
+                    </div>
+
+                    <div class="picker-item" role="menuitem" tabindex="0">
+                      <div class="picker-icon green">
+                        <svg viewBox="0 0 24 24"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6H9a6 6 0 0 0 0 12h3"/></svg>
+                      </div>
+                      <div class="picker-text">
+                        <div class="picker-label">Logic & Flow</div>
+                        <div class="picker-desc">Branch, loop, merge, wait, retry</div>
+                      </div>
+                      <span class="picker-arrow">›</span>
+                    </div>
+
+                    <div class="picker-item" role="menuitem" tabindex="0">
+                      <div class="picker-icon orange">
+                        <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                      </div>
+                      <div class="picker-text">
+                        <div class="picker-label">HTTP & Code</div>
+                        <div class="picker-desc">REST calls, webhooks, custom JS / Python</div>
+                      </div>
+                      <span class="picker-arrow">›</span>
+                    </div>
+
+                    <div class="picker-item" role="menuitem" tabindex="0">
+                      <div class="picker-icon rose">
+                        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+                      </div>
+                      <div class="picker-text">
+                        <div class="picker-label">Human in the Loop</div>
+                        <div class="picker-desc">Pause for approval before proceeding</div>
+                      </div>
+                      <span class="picker-arrow">›</span>
+                    </div>
+
+                    <div class="picker-rule" id="picker-rule"></div>
+
+                    <div class="picker-item trigger" role="menuitem" tabindex="0">
+                      <div class="picker-icon bolt">
+                        <svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+                      </div>
+                      <div class="picker-text">
+                        <div class="picker-label">Add Trigger</div>
+                        <div class="picker-desc">Schedule, webhook or event — multiple triggers supported</div>
+                      </div>
+                      <span class="picker-arrow">›</span>
+                    </div>
+
+                  </div>
+                </div>
+
+                <div class="canvas-actions">
+                  <div class="tool-btn"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M21 15v4a2 2 0 0 1-2 2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg></div>
+                  <div class="tool-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/><path d="M11 8v6"/><path d="M8 11h6"/></svg></div>
+                  <div class="tool-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/><path d="M8.5 11H13.5"/></svg></div>
+                  <div class="tool-btn"><svg viewBox="0 0 24 24"><path d="m9 14-4-4 4-4"/><path d="M5 10h8a5 5 0 0 1 5 5"/></svg></div>
+                  <div class="tool-btn"><svg viewBox="0 0 24 24"><path d="m5 3 14 9-14 9 3-9z"/></svg></div>
+                </div>
+
+                <div class="canvas-bottom-bar">
+                  <button class="execute-btn" id="add-node-btn" aria-label="Add node" aria-expanded="false">
+                    <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  </button>
+                  <button class="execute-btn execute-run">
+                    <svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></svg>
+                    <span>Execute workflow</span>
+                  </button>
+                </div>
+              </div>
+              <div class="builder-camera" id="builder-camera">
+                <div class="builder-inner" id="builder-inner">
+                <div class="canvas">
+                  <svg class="flow-lines" id="flow-lines" viewBox="0 0 2400 1600" preserveAspectRatio="none" aria-hidden="true"></svg>
+
+                  <div class="node active draggable-node" data-node="trigger" style="left:753px;top:681px;">
+                    <div class="trigger-bolt"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
+                    <div class="node-icon">
+                      <svg viewBox="0 0 24 24"><path d="m12 19 7-7-7-7"/><path d="M5 12h14"/></svg>
+                    </div>
+                    <div>
+                      <div class="node-title">Trigger</div>
+                      <div class="node-sub">Workflow trigger</div>
+                    </div>
+                    <div class="node-check">✓</div>
+                    <div class="port right"></div>
+                  </div>
+
+                  <div class="node draggable-node" data-node="agent" style="left:1023px;top:681px;width:240px;">
+                    <div class="node-icon">
+                      <svg viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="10" rx="3"/><path d="M9 19h6"/><path d="M12 6V3"/><path d="M7 11h.01"/><path d="M17 11h.01"/></svg>
+                    </div>
+                    <div>
+                      <div class="node-title">AI Agent</div>
+                      <div class="node-sub">Double-click to open</div>
+                    </div>
+                    <div class="port left"></div>
+                    <div class="port right"></div>
+                    <div class="port bottom" style="left:25%;"></div>
+                    <div class="port bottom"></div>
+                    <div class="port bottom" style="left:75%;"></div>
+                  </div>
+
+                  <div class="node draggable-node" data-node="output" style="left:1311px;top:681px;width:220px;">
+                    <div class="node-icon">
+                      <svg viewBox="0 0 24 24"><path d="M8 16h8"/><path d="M8 12h8"/><path d="M8 8h5"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg>
+                    </div>
+                    <div>
+                      <div class="node-title">Output</div>
+                      <div class="node-sub">News summary</div>
+                    </div>
+                    <div class="port left"></div>
+                    <div class="port right"></div>
+                  </div>
+
+                  <div class="node draggable-node" data-node="gmail" style="left:1579px;top:681px;width:220px;">
+                    <div class="node-icon">
+                      <svg viewBox="0 0 24 24"><path d="M4 7.5 12 13l8-5.5"/><rect x="3.5" y="5" width="17" height="14" rx="3"/></svg>
+                    </div>
+                    <div>
+                      <div class="node-title">Gmail</div>
+                      <div class="node-sub">Send summary</div>
+                    </div>
+                    <div class="node-warning">△</div>
+                    <div class="port left"></div>
+                  </div>
+
+                  <div class="label-row">
+                    <div class="label-chip">Model<div class="plus-slot">+</div></div>
+                    <div class="label-chip">Memory<div class="plus-slot">+</div></div>
+                    <div class="label-chip">Tools<div class="plus-slot">+</div></div>
+                  </div>
+
+                  <div class="mini-node draggable-node" data-node="model" style="left:989px;top:919px;">
+                    <div class="node-icon">
+                      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9.5 9.5c.8-1 1.6-1.5 2.5-1.5 2.4 0 4 3.2 4 5.2 0 2.5-1.6 4.3-4 4.3-1.6 0-2.8-.8-3.7-2.3"/><path d="M8.6 14.1c.3 1.8 1.7 3.4 3.4 3.4"/></svg>
+                    </div>
+                    <div class="node-title">OpenAI Model</div>
+                    <div class="node-sub">Free plan</div>
+                  </div>
+
+                  <div class="mini-node draggable-node" data-node="tech" style="left:1119px;top:919px;">
+                    <div class="node-icon">
+                      <svg viewBox="0 0 24 24"><path d="M6 17a8 8 0 0 1 12 0"/><path d="M8.8 14.2a4.2 4.2 0 0 1 6.4 0"/><circle cx="12" cy="18" r="1.4"/></svg>
+                    </div>
+                    <div class="node-title">Get Tech News</div>
+                  </div>
+
+                  <div class="mini-node draggable-node" data-node="world" style="left:1259px;top:919px;">
+                    <div class="node-icon">
+                      <svg viewBox="0 0 24 24"><path d="M6 17a8 8 0 0 1 12 0"/><path d="M8.8 14.2a4.2 4.2 0 0 1 6.4 0"/><circle cx="12" cy="18" r="1.4"/></svg>
+                    </div>
+                    <div class="node-title">Get World News</div>
+                  </div>
+                </div>
+              </div>
+              </div>
+              <div class="map-hud">
+                <div class="map-hint">Drag to move · Scroll to zoom</div>
+                <div class="map-controls">
+                  <button class="map-btn" id="map-zoom-out" aria-label="Zoom out">−</button>
+                  <div class="map-zoom-readout" id="map-zoom-readout">100%</div>
+                  <button class="map-btn" id="map-zoom-in" aria-label="Zoom in">+</button>
+                  <button class="map-btn" id="map-reset" aria-label="Reset view">⌂</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottom is-collapsed" id="bottom-panel">
+            <div class="bottom-head" id="bottom-head">
+              <div class="bottom-head-tabs">
+                <div class="section-title active">Logs</div>
+                <div class="section-title">Workflow Stats</div>
+              </div>
+              <button class="collapse-toggle" aria-label="Toggle panel">
+                <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+            </div>
+            <div class="bottom-body" id="bottom-body">
+              <div class="logs">
+                <div class="log-card">
+                  <div class="status-dot"></div>
+                  <div class="log-line">
+                    <strong>13:45:30</strong>
+                    <span>Workflow executed successfully</span>
+                    <span class="divider"></span>
+                    <span>Execution time: 2.45s</span>
+                    <span class="divider"></span>
+                    <span>ID: #89342</span>
+                  </div>
+                  <span style="font-size:20px;color:rgba(255,255,255,.55);">›</span>
+                </div>
+              </div>
+              <div class="stats">
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <div class="stat-label">Success Rate</div>
+                    <div class="stat-value">98.6%</div>
+                    <svg class="spark spark-green" viewBox="0 0 120 32" aria-hidden="true">
+                      <polyline points="0,26 14,19 28,23 42,14 56,18 70,8 84,21 98,17 112,7 120,8"/>
+                    </svg>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-label">Avg. Execution Time</div>
+                    <div class="stat-value">2.45s</div>
+                    <svg class="spark spark-purple" viewBox="0 0 120 32" aria-hidden="true">
+                      <polyline points="0,24 12,18 24,12 36,19 48,10 60,14 72,8 84,21 96,16 108,9 120,4"/>
+                    </svg>
+                  </div>
+                  <div class="stat-card">
+                    <div class="stat-label">Total Executions</div>
+                    <div class="stat-value">12,429</div>
+                    <svg class="spark spark-orange" viewBox="0 0 120 32" aria-hidden="true">
+                      <polyline points="0,23 12,17 24,24 36,10 48,19 60,11 72,22 84,12 96,21 108,9 120,15"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="right-panel" id="right-panel">
+
+        <!-- AI Chat -->
+        <div class="ai-chat" id="ai-chat-panel">
+          <div class="ai-chat-header">
+            <div class="ai-chat-title">
+              <svg viewBox="0 0 24 24"><path d="M12 2c-1 2.8-2.8 4.6-5.5 5.5C9.2 8.4 11 10.2 12 13c1-2.8 2.8-4.6 5.5-5.5C14.8 6.6 13 4.8 12 2z"/><path d="M4.5 14c-.5 1.3-1.3 2.1-2.8 2.6 1.5.5 2.3 1.3 2.8 2.6.5-1.3 1.3-2.1 2.8-2.6C5.8 16.1 5 15.3 4.5 14z"/><path d="M19.5 3c-.4 1-1 1.6-2 2 1 .4 1.6 1 2 2 .4-1 1-1.6 2-2-1-.4-1.6-1-2-2z"/></svg>
+              AI Assistant
+              <span class="ai-chat-badge">Beta</span>
+            </div>
+          </div>
+          <div class="ai-chat-messages" id="ai-messages">
+            <div class="ai-msg">Hi! I can help you <strong>build, debug, and optimize</strong> this workflow. What would you like to do?</div>
+          </div>
+          <div class="ai-chat-footer">
+            <textarea class="ai-chat-input" id="ai-input" placeholder="Ask about your workflow…" rows="1"></textarea>
+            <button class="ai-send-btn" id="ai-send-btn">
+              <svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7z"/><path d="M22 2 11 13"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <aside class="inspector">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <div class="panel-bolt"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
+                <div class="panel-title">Workflow Trigger</div>
+              </div>
+            </div>
+
+            <div class="tabs">
+              <div class="tab active">Parameters</div>
+              <div class="tab">Settings</div>
+              <div class="tab">Docs ↗</div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">Trigger Mode</div>
+              <div class="field">
+                <span>On Workflow Start</span>
+                <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">Input Data (optional)</div>
+              <div class="field textarea">No input data</div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">Options</div>
+              <div class="switch-row">
+                <span>Execute Once</span>
+                <div class="switch"></div>
+              </div>
+              <div class="switch-row">
+                <span>Save Execution Logs</span>
+                <div class="switch"></div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <div class="field-label">Timeout (seconds)</div>
+              <div class="field"><span>300</span></div>
+            </div>
+
+            <button class="save-btn">Save</button>
+          </div>
+        </aside>
+        </div><!-- /.right-panel -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const app = document.getElementById('app-shell');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const root = document.documentElement;
+    const builderMap = document.getElementById('builder-map');
+    const builderViewport = document.getElementById('builder-viewport');
+    const selectionMarquee = document.getElementById('selection-marquee');
+    const flowLines = document.getElementById('flow-lines');
+    const canvasEl = document.querySelector('.canvas');
+    const zoomReadout = document.getElementById('map-zoom-readout');
+    const zoomInBtn = document.getElementById('map-zoom-in');
+    const zoomOutBtn = document.getElementById('map-zoom-out');
+    const resetMapBtn = document.getElementById('map-reset');
+    const modeHandBtn = document.getElementById('mode-hand');
+    const modePointerBtn = document.getElementById('mode-pointer');
+    const nodeElements = Object.fromEntries(
+      [...document.querySelectorAll('[data-node]')].map((el) => [el.dataset.node, el])
+    );
+    const allNodes = Object.values(nodeElements);
+
+    const mapState = {
+      x: 0,
+      y: 0,
+      zoom: 0.82,
+      minZoom: 0.72,
+      maxZoom: 1.5,
+      isDragging: false,
+      startX: 0,
+      startY: 0,
+      originX: 0,
+      originY: 0,
+    };
+
+    const interactionState = {
+      mode: 'hand',
+      selectedNodes: new Set(),
+      marquee: {
+        active: false,
+        startX: 0,
+        startY: 0,
+      },
+    };
+
+    const nodeDragState = {
+      active: null,
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      moved: false,
+      nodePositions: [],
+    };
+
+    function getBaseScale() {
+      return parseFloat(getComputedStyle(root).getPropertyValue('--canvas-scale')) || 1;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function updateSidebarFit() {
+      const previewHeight = window.innerHeight;
+      const fit = clamp(previewHeight / 900, 0.68, 1);
+      root.style.setProperty('--sidebar-fit', fit.toFixed(3));
+    }
+
+    function updateModeUI() {
+      const isHand = interactionState.mode === 'hand';
+      builderMap.classList.toggle('is-pointer-mode', !isHand);
+      modeHandBtn.classList.toggle('active', isHand);
+      modePointerBtn.classList.toggle('active', !isHand);
+      modeHandBtn.setAttribute('aria-pressed', String(isHand));
+      modePointerBtn.setAttribute('aria-pressed', String(!isHand));
+      document.querySelector('.map-hint').textContent = isHand
+        ? 'Hand mode · Drag to move · Scroll to zoom'
+        : 'Pointer mode · Drag to select · Drag nodes to move';
+    }
+
+    function setInteractionMode(mode) {
+      interactionState.mode = mode;
+      interactionState.marquee.active = false;
+      selectionMarquee.style.display = 'none';
+      updateModeUI();
+    }
+
+    function renderSelection() {
+      allNodes.forEach((node) => {
+        node.classList.toggle('is-selected', interactionState.selectedNodes.has(node.dataset.node));
+      });
+    }
+
+    function clearSelection() {
+      interactionState.selectedNodes.clear();
+      renderSelection();
+    }
+
+    function selectOnly(nodeId) {
+      interactionState.selectedNodes = new Set([nodeId]);
+      renderSelection();
+    }
+
+    function toggleNodeSelection(nodeId) {
+      if (interactionState.selectedNodes.has(nodeId)) interactionState.selectedNodes.delete(nodeId);
+      else interactionState.selectedNodes.add(nodeId);
+      renderSelection();
+    }
+
+    function clampMapPosition(nextX = mapState.x, nextY = mapState.y, nextZoom = mapState.zoom) {
+      const rect = builderViewport.getBoundingClientRect();
+      const contentWidth = 2400 * getBaseScale() * nextZoom;
+      const contentHeight = 1600 * getBaseScale() * nextZoom;
+      const maxX = Math.max(48, (contentWidth - rect.width) / 2 + 120);
+      const maxY = Math.max(36, (contentHeight - rect.height) / 2 + 120);
+
+      return {
+        x: clamp(nextX, -maxX, maxX),
+        y: clamp(nextY, -maxY, maxY),
+      };
+    }
+
+    function applyMapState() {
+      const clamped = clampMapPosition(mapState.x, mapState.y, mapState.zoom);
+      mapState.x = clamped.x;
+      mapState.y = clamped.y;
+      root.style.setProperty('--map-x', `${mapState.x}px`);
+      root.style.setProperty('--map-y', `${mapState.y}px`);
+      root.style.setProperty('--map-zoom', mapState.zoom.toFixed(3));
+      zoomReadout.textContent = `${Math.round(mapState.zoom * 100)}%`;
+    }
+
+    function getNodeBox(id) {
+      const el = nodeElements[id];
+      return {
+        el,
+        x: el.offsetLeft,
+        y: el.offsetTop,
+        w: el.offsetWidth,
+        h: el.offsetHeight,
+        cx: el.offsetLeft + el.offsetWidth / 2,
+        cy: el.offsetTop + el.offsetHeight / 2,
+        left: el.offsetLeft,
+        right: el.offsetLeft + el.offsetWidth,
+        top: el.offsetTop,
+        bottom: el.offsetTop + el.offsetHeight,
+      };
+    }
+
+    function curveHorizontal(x1, y1, x2, y2) {
+      const bend = Math.min(76, Math.max(42, Math.abs(x2 - x1) * 0.4));
+      return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+    }
+
+    function curveDown(x1, y1, x2, y2) {
+      const midY = y1 + Math.max(42, (y2 - y1) * 0.36);
+      return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+    }
+
+    function updateConnections() {
+      const trigger = getNodeBox('trigger');
+      const agent = getNodeBox('agent');
+      const output = getNodeBox('output');
+      const gmail = getNodeBox('gmail');
+      const model = getNodeBox('model');
+      const tech = getNodeBox('tech');
+      const world = getNodeBox('world');
+
+      const agentPorts = {
+        model: { x: agent.left + agent.w * 0.25, y: agent.bottom },
+        tech:  { x: agent.left + agent.w * 0.5,  y: agent.bottom },
+        world: { x: agent.left + agent.w * 0.75, y: agent.bottom },
+      };
+
+      const paths = [
+        { cls: 'main', d: curveHorizontal(trigger.right, trigger.cy, agent.left, agent.cy) },
+        { cls: 'main', d: curveHorizontal(agent.right, agent.cy, output.left, output.cy) },
+        { cls: 'main', d: curveHorizontal(output.right, output.cy, gmail.left, gmail.cy) },
+        { cls: '', d: curveDown(agentPorts.model.x, agentPorts.model.y, model.cx, model.top) },
+        { cls: '', d: curveDown(agentPorts.tech.x, agentPorts.tech.y, tech.cx, tech.top) },
+        { cls: '', d: curveDown(agentPorts.world.x, agentPorts.world.y, world.cx, world.top) },
+      ];
+
+      const dots = [
+        { x: trigger.right, y: trigger.cy },
+        { x: agent.left, y: agent.cy },
+        { x: agent.right, y: agent.cy },
+        { x: output.left, y: output.cy },
+        { x: output.right, y: output.cy },
+        { x: gmail.left, y: gmail.cy },
+        { x: agentPorts.model.x, y: agentPorts.model.y },
+        { x: agentPorts.tech.x, y: agentPorts.tech.y },
+        { x: agentPorts.world.x, y: agentPorts.world.y },
+        { x: model.cx, y: model.top },
+        { x: tech.cx, y: tech.top },
+        { x: world.cx, y: world.top },
+      ];
+
+      flowLines.innerHTML = `
+        ${paths.map((path) => `<path${path.cls ? ` class="${path.cls}"` : ''} d="${path.d}"></path>`).join('')}
+        ${dots.map((dot) => `<circle cx="${dot.x}" cy="${dot.y}" r="6"></circle>`).join('')}
+      `;
+    }
+
+    function updateMarquee(x1, y1, x2, y2) {
+      const left = Math.min(x1, x2);
+      const top = Math.min(y1, y2);
+      const width = Math.abs(x2 - x1);
+      const height = Math.abs(y2 - y1);
+
+      selectionMarquee.style.display = 'block';
+      selectionMarquee.style.left = `${left}px`;
+      selectionMarquee.style.top = `${top}px`;
+      selectionMarquee.style.width = `${width}px`;
+      selectionMarquee.style.height = `${height}px`;
+
+      const marqueeRect = { left, top, right: left + width, bottom: top + height };
+      const viewportRect = builderViewport.getBoundingClientRect();
+
+      interactionState.selectedNodes = new Set(
+        allNodes.filter((node) => {
+          const rect = node.getBoundingClientRect();
+          const nodeRect = {
+            left: rect.left - viewportRect.left,
+            top: rect.top - viewportRect.top,
+            right: rect.right - viewportRect.left,
+            bottom: rect.bottom - viewportRect.top,
+          };
+
+          return !(
+            nodeRect.right < marqueeRect.left ||
+            nodeRect.left > marqueeRect.right ||
+            nodeRect.bottom < marqueeRect.top ||
+            nodeRect.top > marqueeRect.bottom
+          );
+        }).map((node) => node.dataset.node)
+      );
+
+      renderSelection();
+    }
+
+    function zoomTo(nextZoom, clientX, clientY) {
+      const rect = builderViewport.getBoundingClientRect();
+      const baseScale = getBaseScale();
+      const targetZoom = clamp(nextZoom, mapState.minZoom, mapState.maxZoom);
+      const oldScale = baseScale * mapState.zoom;
+      const newScale = baseScale * targetZoom;
+
+      const focusX = (clientX ?? (rect.left + rect.width / 2)) - rect.left - rect.width / 2;
+      const focusY = (clientY ?? (rect.top + rect.height / 2)) - rect.top - rect.height / 2;
+
+      const worldX = (focusX - mapState.x) / oldScale;
+      const worldY = (focusY - mapState.y) / oldScale;
+
+      mapState.zoom = targetZoom;
+      mapState.x = focusX - worldX * newScale;
+      mapState.y = focusY - worldY * newScale;
+      applyMapState();
+    }
+
+    function syncSidebarButton() {
+      const expanded = !app.classList.contains('sidebar-collapsed');
+      sidebarToggle.setAttribute('aria-expanded', String(expanded));
+    }
+
+    function applyAutoSidebar() {
+      if (window.innerWidth <= 1280 || (window.innerHeight <= 760 && window.innerWidth > 900)) {
+        app.classList.add('sidebar-collapsed');
+      } else if (!app.dataset.sidebarManual) {
+        app.classList.remove('sidebar-collapsed');
+      }
+      syncSidebarButton();
+    }
+
+    sidebarToggle.addEventListener('click', () => {
+      app.dataset.sidebarManual = 'true';
+      app.classList.toggle('sidebar-collapsed');
+      syncSidebarButton();
+    });
+
+    modeHandBtn.addEventListener('click', () => setInteractionMode('hand'));
+    modePointerBtn.addEventListener('click', () => setInteractionMode('pointer'));
+
+    window.addEventListener('resize', () => {
+      updateSidebarFit();
+      if (!app.dataset.sidebarManual) applyAutoSidebar();
+      else syncSidebarButton();
+      applyMapState();
+    });
+
+    builderViewport.addEventListener('pointerdown', (event) => {
+      const target = event.target.closest('button, a');
+      if (target) return;
+
+      if (interactionState.mode === 'hand') {
+        mapState.isDragging = true;
+        mapState.startX = event.clientX;
+        mapState.startY = event.clientY;
+        mapState.originX = mapState.x;
+        mapState.originY = mapState.y;
+        builderMap.classList.add('is-dragging');
+        builderViewport.setPointerCapture(event.pointerId);
+        return;
+      }
+
+      clearSelection();
+      const viewportRect = builderViewport.getBoundingClientRect();
+      interactionState.marquee.active = true;
+      interactionState.marquee.startX = event.clientX - viewportRect.left;
+      interactionState.marquee.startY = event.clientY - viewportRect.top;
+      updateMarquee(
+        interactionState.marquee.startX,
+        interactionState.marquee.startY,
+        interactionState.marquee.startX,
+        interactionState.marquee.startY
+      );
+      builderViewport.setPointerCapture(event.pointerId);
+    });
+
+    builderViewport.addEventListener('pointermove', (event) => {
+      if (mapState.isDragging) {
+        mapState.x = mapState.originX + (event.clientX - mapState.startX);
+        mapState.y = mapState.originY + (event.clientY - mapState.startY);
+        applyMapState();
+      }
+
+      if (interactionState.marquee.active) {
+        const viewportRect = builderViewport.getBoundingClientRect();
+        updateMarquee(
+          interactionState.marquee.startX,
+          interactionState.marquee.startY,
+          event.clientX - viewportRect.left,
+          event.clientY - viewportRect.top
+        );
+      }
+    });
+
+    function stopDragging(event) {
+      if (event && builderViewport.hasPointerCapture?.(event.pointerId)) {
+        builderViewport.releasePointerCapture(event.pointerId);
+      }
+      mapState.isDragging = false;
+      builderMap.classList.remove('is-dragging');
+      interactionState.marquee.active = false;
+      selectionMarquee.style.display = 'none';
+    }
+
+    builderViewport.addEventListener('pointerup', stopDragging);
+    builderViewport.addEventListener('pointercancel', stopDragging);
+    builderViewport.addEventListener('pointerleave', (event) => {
+      if (mapState.isDragging && event.buttons === 0) stopDragging(event);
+    });
+
+    builderViewport.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const direction = event.deltaY > 0 ? -0.1 : 0.1;
+      zoomTo(mapState.zoom + direction, event.clientX, event.clientY);
+    }, { passive: false });
+
+    Object.values(nodeElements).forEach((nodeEl) => {
+      nodeEl.addEventListener('pointerdown', (event) => {
+        if (interactionState.mode === 'hand') return;
+        event.stopPropagation();
+
+        if (event.shiftKey || event.metaKey || event.ctrlKey) {
+          toggleNodeSelection(nodeEl.dataset.node);
+        } else if (!interactionState.selectedNodes.has(nodeEl.dataset.node)) {
+          selectOnly(nodeEl.dataset.node);
+        }
+
+        nodeDragState.active = nodeEl;
+        nodeDragState.pointerId = event.pointerId;
+        nodeDragState.startX = event.clientX;
+        nodeDragState.startY = event.clientY;
+        nodeDragState.moved = false;
+        nodeDragState.nodePositions = [...interactionState.selectedNodes].map((nodeId) => {
+          const current = nodeElements[nodeId];
+          return {
+            id: nodeId,
+            el: current,
+            left: current.offsetLeft,
+            top: current.offsetTop,
+          };
+        });
+        nodeDragState.nodePositions.forEach(({ el }) => el.classList.add('is-dragging'));
+        nodeEl.setPointerCapture?.(event.pointerId);
+      });
+    });
+
+    window.addEventListener('pointermove', (event) => {
+      if (!nodeDragState.active) return;
+      const zoomFactor = getBaseScale() * mapState.zoom;
+      const dx = (event.clientX - nodeDragState.startX) / zoomFactor;
+      const dy = (event.clientY - nodeDragState.startY) / zoomFactor;
+      nodeDragState.moved = nodeDragState.moved || Math.abs(dx) > 1 || Math.abs(dy) > 1;
+      nodeDragState.nodePositions.forEach(({ el, left, top }) => {
+        const nextLeft = clamp(left + dx, 0, canvasEl.clientWidth - el.offsetWidth);
+        const nextTop = clamp(top + dy, 0, canvasEl.clientHeight - el.offsetHeight);
+        el.style.left = `${nextLeft}px`;
+        el.style.top = `${nextTop}px`;
+      });
+      updateConnections();
+    });
+
+    function stopNodeDrag(event) {
+      if (!nodeDragState.active) return;
+      nodeDragState.active.releasePointerCapture?.(nodeDragState.pointerId);
+      nodeDragState.nodePositions.forEach(({ el }) => el.classList.remove('is-dragging'));
+      nodeDragState.active = null;
+      nodeDragState.pointerId = null;
+      nodeDragState.nodePositions = [];
+    }
+
+    window.addEventListener('pointerup', stopNodeDrag);
+    window.addEventListener('pointercancel', stopNodeDrag);
+
+    zoomInBtn.addEventListener('click', () => zoomTo(mapState.zoom + 0.12));
+    zoomOutBtn.addEventListener('click', () => zoomTo(mapState.zoom - 0.12));
+    resetMapBtn.addEventListener('click', () => {
+      mapState.x = 0;
+      mapState.y = 0;
+      mapState.zoom = 1;
+      applyMapState();
+    });
+
+    updateSidebarFit();
+    updateModeUI();
+    renderSelection();
+    applyAutoSidebar();
+    applyMapState();
+    updateConnections();
+
+    // ── Right panel controls ──
+    const rightPanel   = document.getElementById('right-panel');
+    const btnInspector = document.getElementById('btn-inspector-toggle');
+    const btnAiChat    = document.getElementById('btn-ai-chat');
+
+    // Collapse / show the inspector panel
+    btnInspector.addEventListener('click', () => {
+      const willHide = !rightPanel.classList.contains('is-hidden');
+      rightPanel.classList.toggle('is-hidden', willHide);
+      if (willHide) {
+        rightPanel.classList.remove('ai-mode');
+        btnAiChat.classList.remove('active');
+      }
+    });
+
+    // Switch to AI chat (opens panel if collapsed, then sets ai-mode)
+    btnAiChat.addEventListener('click', () => {
+      const isAlreadyAi = rightPanel.classList.contains('ai-mode') && !rightPanel.classList.contains('is-hidden');
+      if (isAlreadyAi) {
+        // Toggle off — go back to inspector
+        rightPanel.classList.remove('ai-mode');
+        btnAiChat.classList.remove('active');
+      } else {
+        rightPanel.classList.remove('is-hidden');
+        rightPanel.classList.add('ai-mode');
+        btnAiChat.classList.add('active');
+      }
+    });
+
+    // AI chat send
+    const aiInput    = document.getElementById('ai-input');
+    const aiSendBtn  = document.getElementById('ai-send-btn');
+    const aiMessages = document.getElementById('ai-messages');
+
+    const aiResponses = [
+      'The <strong>AI Agent</strong> node looks good. Try connecting a <strong>Memory</strong> sub-node to retain context across runs.',
+      'Your Gmail node has a warning — double-check the OAuth credentials in the node settings.',
+      'To add error handling, insert an <strong>IF</strong> node after the AI Agent and branch on failure.',
+      'You can add a <strong>Schedule Trigger</strong> to run this workflow automatically every morning.',
+      'Consider adding a <strong>Set</strong> node before Output to clean up the data structure.',
+    ];
+    let aiIdx = 0;
+
+    function sendAiMessage() {
+      const text = aiInput.value.trim();
+      if (!text) return;
+      const userBubble = document.createElement('div');
+      userBubble.className = 'user-msg';
+      userBubble.textContent = text;
+      aiMessages.appendChild(userBubble);
+      aiInput.value = '';
+      aiInput.style.height = '';
+      aiMessages.scrollTop = aiMessages.scrollHeight;
+
+      const typing = document.createElement('div');
+      typing.className = 'ai-typing';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+      aiMessages.appendChild(typing);
+      aiMessages.scrollTop = aiMessages.scrollHeight;
+
+      setTimeout(() => {
+        typing.remove();
+        const reply = document.createElement('div');
+        reply.className = 'ai-msg';
+        reply.innerHTML = aiResponses[aiIdx % aiResponses.length];
+        aiIdx++;
+        aiMessages.appendChild(reply);
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+      }, 1200);
+    }
+
+    aiSendBtn.addEventListener('click', sendAiMessage);
+    aiInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage(); }
+    });
+    aiInput.addEventListener('input', () => {
+      aiInput.style.height = 'auto';
+      aiInput.style.height = Math.min(aiInput.scrollHeight, 96) + 'px';
+    });
+
+    // ── Button interactivity ──
+    const toast = document.createElement('div');
+    toast.className = 'btn-toast';
+    document.body.appendChild(toast);
+    let toastTimer;
+    function showToast(msg) {
+      clearTimeout(toastTimer);
+      toast.textContent = msg;
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    // Topbar buttons
+    document.querySelector('.toggle').addEventListener('click', function() {
+      const isActive = this.style.background.includes('linear');
+      this.style.background = isActive ? '' : 'linear-gradient(90deg,#7338df,#a954ff)';
+      this.style.justifyContent = isActive ? '' : 'flex-end';
+      this.style.display = 'flex'; this.style.alignItems = 'center'; this.style.padding = '3px';
+      const knob = this.querySelector('::after') || this;
+      showToast(isActive ? 'Workflow inactive' : 'Workflow active');
+    });
+    document.querySelector('.pill-btn').addEventListener('click', () => showToast('Tag added'));
+    document.querySelectorAll('.top-icon-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = btn.textContent.trim();
+        if (t === 'Share') showToast('Share link copied');
+        else if (t.includes('Star')) showToast('Workflow starred ★');
+        else if (t === '···') showToast('More options');
+      });
+    });
+    document.querySelector('.upgrade-btn').addEventListener('click', () => showToast('Redirecting to pricing…'));
+
+    // Segmented tabs
+    document.querySelectorAll('.segmented button').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.segmented button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+
+    // Panel tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+
+    // Mode switch
+    document.getElementById('mode-hand').addEventListener('click', () => showToast('Hand mode'));
+    document.getElementById('mode-pointer').addEventListener('click', () => showToast('Pointer mode'));
+
+    // Save button
+    document.querySelector('.save-btn')?.addEventListener('click', () => showToast('Node settings saved'));
+
+    // Execute
+    document.querySelector('.execute-run')?.addEventListener('click', () => showToast('Workflow executing…'));
+
+    // Canvas tools
+    document.querySelectorAll('.tool-btn').forEach((btn, i) => {
+      const labels = ['Fit to screen','Zoom in','Zoom out','Undo','Run test'];
+      btn.addEventListener('click', () => showToast(labels[i] || 'Action'));
+    });
+
+
+    // Search bar
+    document.getElementById('topbar-search-btn')?.addEventListener('click', () => showToast('⌘K — Command palette'));
+
+    // Template chip
+    document.querySelector('.template-chip')?.addEventListener('click', () => showToast('Open template library'));
+
+    // Node double-click to show toast
+    allNodes.forEach(node => {
+      node.addEventListener('dblclick', () => {
+        const title = node.querySelector('.node-title')?.textContent || 'Node';
+        showToast(`Opening ${title} settings…`);
+      });
+    });
+
+    // ── Single collapsible bottom panel ──
+    const bottomPanel = document.getElementById('bottom-panel');
+    const bottomHead  = document.getElementById('bottom-head');
+    const bottomBody  = document.getElementById('bottom-body');
+
+    function collapseBottom() {
+      bottomBody.style.height = bottomBody.scrollHeight + 'px';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        bottomBody.style.height = '0';
+        bottomPanel.classList.add('is-collapsed');
+        bottomHead.classList.remove('open');
+      }));
+    }
+    function expandBottom() {
+      bottomPanel.classList.remove('is-collapsed');
+      bottomHead.classList.add('open');
+      bottomBody.style.height = bottomBody.scrollHeight + 'px';
+      bottomBody.addEventListener('transitionend', () => { bottomBody.style.height = ''; }, { once: true });
+    }
+    bottomHead.addEventListener('click', () => {
+      bottomPanel.classList.contains('is-collapsed') ? expandBottom() : collapseBottom();
+    });
+    // start collapsed
+    bottomBody.classList.add('no-anim');
+    bottomBody.style.height = '0';
+    requestAnimationFrame(() => bottomBody.classList.remove('no-anim'));
+
+    // Node picker
+    const nodePicker = document.getElementById('node-picker');
+    const addNodeBtn = document.getElementById('add-node-btn');
+    const pickerSearchInput = document.getElementById('picker-search-input');
+    const pickerRule = document.getElementById('picker-rule');
+    const pickerItemEls = document.querySelectorAll('#picker-items .picker-item');
+
+    function openPicker() {
+      nodePicker.classList.remove('hidden');
+      addNodeBtn.setAttribute('aria-expanded', 'true');
+      pickerSearchInput.focus();
+    }
+
+    function closePicker() {
+      nodePicker.classList.add('hidden');
+      addNodeBtn.setAttribute('aria-expanded', 'false');
+      pickerSearchInput.value = '';
+      pickerItemEls.forEach(el => el.style.display = '');
+      pickerRule.style.display = '';
+    }
+
+    addNodeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      nodePicker.classList.contains('hidden') ? openPicker() : closePicker();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!nodePicker.contains(e.target) && e.target !== addNodeBtn) closePicker();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePicker();
+    });
+
+    pickerSearchInput.addEventListener('input', () => {
+      const q = pickerSearchInput.value.toLowerCase();
+      let anyVisible = false;
+      pickerItemEls.forEach(el => {
+        if (el.classList.contains('trigger')) { el.style.display = q ? 'none' : ''; return; }
+        const label = el.querySelector('.picker-label')?.textContent.toLowerCase() || '';
+        const desc  = el.querySelector('.picker-desc')?.textContent.toLowerCase() || '';
+        const match = !q || label.includes(q) || desc.includes(q);
+        el.style.display = match ? '' : 'none';
+        if (match) anyVisible = true;
+      });
+      pickerRule.style.display = q ? 'none' : '';
+    });
+  </script>
+</body>
+</html>

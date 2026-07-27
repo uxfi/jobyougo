@@ -4,6 +4,10 @@
   "description": "AI-powered job search pipeline built on Claude Code",
   "scripts": {
     "dev": "lsof -ti:3210 | xargs kill -9 2>/dev/null; node --watch ui/server.mjs",
+    "scan": "node scan-fetch.mjs jobs",
+    "scan:dry": "node scan-fetch.mjs jobs --dry-run --debug",
+    "scan:verify": "node verify-scan-history.mjs",
+    "scan:fix": "node verify-scan-history.mjs --fix",
     "verify": "node verify-pipeline.mjs",
     "normalize": "node normalize-statuses.mjs",
     "dedup": "node dedup-tracker.mjs",
@@ -12,7 +16,8 @@
     "sync-check": "node cv-sync-check.mjs",
     "update:check": "node update-system.mjs check",
     "update": "node update-system.mjs apply",
-    "rollback": "node update-system.mjs rollback"
+    "rollback": "node update-system.mjs rollback",
+    "migrate:admin": "node migrate-admin.mjs"
   },
   "keywords": [
     "ai",
@@ -32,7 +37,10 @@
     "@supabase/supabase-js": "^2.101.1",
     "dotenv": "^17.4.1",
     "js-yaml": "^4.1.1",
-    "playwright": "^1.58.1",
-    "sharp": "^0.34.5"
+    "playwright": "^1.58.1"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.4.0",
+    "sharp": "^0.35.1"
   }
 }

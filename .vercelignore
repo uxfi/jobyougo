@@ -1,0 +1,30 @@
+# .vercelignore — controls what the Vercel CLI uploads on `vercel`/`vercel --prod`.
+#
+# IMPORTANT: the Vercel CLI does NOT read .gitignore. Anything heavy that lives
+# locally must be excluded HERE, or the CLI tries to hash all ~18k files and
+# runs out of heap (JS "Reached heap limit" OOM during upload).
+
+# ── Dependencies (Vercel installs these from package.json on build) ──
+node_modules
+
+# ── Playwright auto-apply runtime state ──
+# Chrome profiles = thousands of tiny files + Unix sockets (SingletonSocket,
+# SingletonLock, SingletonCookie) that the CLI can't hash → the OOM trigger.
+scratch
+data/chrome-profile
+
+# ── Local-only artifacts not needed by ui/server.mjs ──
+reports
+outputs
+batch
+jds
+interview-prep
+docs
+
+# ── Env / secrets / build + editor state ──
+.env
+.env.local
+.git
+.vercel
+.DS_Store
+.claude

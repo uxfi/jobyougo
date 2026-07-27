@@ -42,7 +42,7 @@
     max-width: 210mm;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 32% 68%;
+    grid-template-columns: 28% 72%;
     min-height: 297mm;
     background: #fff;
   }
@@ -50,11 +50,11 @@
   /* SIDEBAR */
   .sidebar {
     background: var(--bg-sidebar);
-    padding: 40px 24px;
+    padding: 32px 20px;
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 22px;
   }
 
   .profile-header {
@@ -104,8 +104,7 @@
     font-family: 'Space Grotesk', sans-serif;
     font-size: 8px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.02em;
     color: var(--primary);
     margin-top: 4px;
   }
@@ -116,8 +115,7 @@
     font-family: 'Space Grotesk', sans-serif;
     font-size: 11px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.02em;
     margin-bottom: 12px;
     color: var(--primary);
     display: flex;
@@ -130,6 +128,69 @@
   .contact-item { font-size: 10px; display: flex; align-items: center; gap: 8px; }
   .contact-icon { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; color: var(--accent); }
   .contact-item a { color: var(--text); text-decoration: none; font-weight: 500; }
+  .contact-item a:hover { color: var(--accent); }
+  
+  .portfolio-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff !important;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 10px;
+    margin-top: 6px;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .portfolio-btn:hover { background: var(--primary); transform: translateY(-1px); }
+
+  .tools-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: center;
+    padding: 10px;
+    background: rgba(0,0,0,0.02);
+    border-radius: 12px;
+    border: 1px dashed var(--border);
+  }
+  .tool-logo {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    filter: grayscale(100%);
+    opacity: 0.5;
+    transition: all 0.2s ease;
+  }
+  .tool-logo:hover { filter: grayscale(0%); opacity: 1; transform: scale(1.1); }
+
+  .founder-project {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    align-items: flex-start;
+  }
+  .founder-project-logo {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 2px;
+  }
+  .founder-project-info { flex: 1; }
+  .founder-project-name { font-size: 10px; font-weight: 700; color: var(--primary); }
+  .founder-project-desc { font-size: 8.5px; color: var(--text-muted); line-height: 1.3; margin-top: 1px; }
+  .founder-project-meta { display: flex; gap: 6px; margin-top: 4px; align-items: center; }
+  .founder-project-tag { font-size: 7.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+  .founder-project-year { font-size: 8px; color: var(--text-muted); font-weight: 500; }
   .contact-item span { color: var(--text); font-weight: 500; }
 
   .skill-group { margin-bottom: 16px; }
@@ -138,7 +199,6 @@
     font-size: 9px; 
     color: var(--accent); 
     margin-bottom: 8px; 
-    text-transform: uppercase;
     font-weight: 700;
   }
   .skill-list { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -165,16 +225,16 @@
 
   /* MAIN CONTENT */
   .main-content {
-    padding: 40px 48px;
+    padding: 32px 40px;
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 22px;
   }
 
   header { 
     border-left: 4px solid var(--accent);
-    padding-left: 24px;
-    margin-bottom: 8px;
+    padding-left: 20px;
+    margin-bottom: 2px;
   }
   h1 {
     font-family: 'Space Grotesk', sans-serif;
@@ -196,7 +256,7 @@
   .summary {
     color: var(--text-muted);
     font-size: 11px;
-    line-height: 1.9;
+    line-height: 1.65;
     max-width: 95%;
     white-space: pre-line;
   }
@@ -206,16 +266,15 @@
     font-size: 14px;
     font-weight: 700;
     color: var(--primary);
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.01em;
   }
   .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); margin-left: 16px; }
 
   .experience-item { 
-    margin-bottom: 24px; 
+    margin-bottom: 11px; 
     position: relative; 
     padding-left: 20px;
     border-left: 1px solid var(--border);
@@ -224,40 +283,56 @@
     content: ""; position: absolute; left: -4px; top: 4px;
     width: 7px; height: 7px; background: var(--accent); border-radius: 50%;
   }
-  .experience-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .experience-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+  .company-with-logo { display: flex; align-items: center; gap: 7px; }
+  .company-logo { width: 18px; height: 18px; min-width: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
   .company { font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: var(--primary); font-size: 13px; }
   .period { font-size: 10px; font-weight: 700; color: var(--text-muted); background: var(--bg-sidebar); padding: 2px 8px; border-radius: 20px; }
-  .role { font-weight: 700; color: var(--accent); font-size: 11px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.02em; }
+  .role { font-weight: 600; color: var(--accent); font-size: 10px; margin-bottom: 5px; letter-spacing: 0; }
   
   .experience-item ul { padding-left: 4px; list-style: none; }
-  .experience-item li { margin-bottom: 6px; color: var(--text); font-size: 10.5px; position: relative; padding-left: 12px; }
+  .experience-item li {
+    margin-bottom: 2px;
+    color: var(--text);
+    font-size: 9.3px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.28;
+    position: relative;
+    padding-left: 12px;
+  }
   .experience-item li::before { content: "→"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
 
-  /* BENTO PROJECTS */
-  .projects-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  
-  /* Priority (1st project) */
-  .project-card:nth-child(1) { grid-column: 1 / -1; }
-  .project-card:nth-child(1) .project-visual { height: 160px; }
-  .project-card:nth-child(1) .project-name { font-size: 16px; }
-  .project-card:nth-child(1) .project-info { padding: 20px; }
-  
-  /* Secondary (2nd and 3rd project) */
-  .project-card:nth-child(2), .project-card:nth-child(3) { grid-column: span 1; }
+  .outcome-tag {
+    display: inline-block;
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 8.5px;
+    font-weight: 700;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
 
-  /* Tertiary (4th and beyond) */
-  .project-card:nth-child(n+4) {
+  /* BENTO PROJECTS */
+  .projects-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  
+  /* Tertiary (5th and beyond) */
+  .project-card:nth-child(n+5) {
     grid-column: 1 / -1;
     flex-direction: row;
     align-items: center;
     padding: 10px 16px;
   }
-  .project-card:nth-child(n+4) .project-visual { display: none; }
-  .project-card:nth-child(n+4) .project-info { padding: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; }
-  .project-card:nth-child(n+4) .project-header { margin-bottom: 0; }
-  .project-card:nth-child(n+4) .project-name { font-size: 11px; }
-  .project-card:nth-child(n+4) .project-desc { margin-bottom: 0; font-size: 9px; flex: 1; text-align: right; }
-  .project-card:nth-child(n+4) ul { display: none; }
+  .project-card:nth-child(n+5) .project-visual { display: none; }
+  .project-card:nth-child(n+5) .project-info { padding: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; }
+  .project-card:nth-child(n+5) .project-header { margin-bottom: 0; }
+  .project-card:nth-child(n+5) .project-name { font-size: 11px; }
+  .project-card:nth-child(n+5) .project-desc { margin-bottom: 0; font-size: 9px; flex: 1; text-align: right; }
+  .project-card:nth-child(n+5) ul { display: none; }
 
   /* Minor project cards */
   .project-card-minor {
@@ -283,7 +358,7 @@
 
   .project-card {
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: 12px;
     background: #fff;
     overflow: hidden;
     transition: all 0.2s ease;
@@ -306,11 +381,11 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: top;
+    object-position: center;
     transition: transform 0.3s ease;
   }
   
-  .project-info { padding: 16px; flex: 1; }
+  .project-info { padding: 12px; flex: 1; }
   .project-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; overflow: hidden; }
   .project-logo { width: 28px; height: 28px; min-width: 28px; min-height: 28px; max-width: 28px; max-height: 28px; object-fit: contain; flex-shrink: 0; display: block; overflow: hidden; }
   .project-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--primary); }
@@ -318,14 +393,14 @@
   .project-tag { display: inline-block; font-size: 9px; font-weight: 700; color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 20px; margin-bottom: 8px; }
   
   .project-card ul { list-style: none; }
-  .project-card li { font-size: 9px; color: var(--text-muted); margin-bottom: 4px; line-height: 1.4; position: relative; padding-left: 10px; }
+  .project-card li { font-size: 8.8px; color: var(--text-muted); margin-bottom: 2px; line-height: 1.32; position: relative; padding-left: 10px; }
   .project-card li::before { content: "•"; position: absolute; left: 0; color: var(--border); }
 
   /* === TRANSFORMATION SECTION === */
   .transformation-block {
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    border-radius: 20px;
-    padding: 26px 30px;
+    border-radius: 12px;
+    padding: 14px 18px;
     color: #fff;
     position: relative;
     overflow: hidden;
@@ -360,25 +435,24 @@
   .transformation-subtitle {
     font-size: 9px;
     color: rgba(255,255,255,0.45);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.04em;
     font-weight: 700;
-    margin-bottom: 13px;
+    margin-bottom: 6px;
     position: relative;
   }
   .transformation-desc {
     font-size: 10px;
     color: rgba(255,255,255,0.7);
-    line-height: 1.75;
-    margin-bottom: 18px;
+    line-height: 1.55;
+    margin-bottom: 8px;
     max-width: 92%;
     position: relative;
   }
   .transformation-skills {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 18px;
+    gap: 4px;
+    margin-bottom: 8px;
     position: relative;
   }
   .transformation-skill {
@@ -395,14 +469,14 @@
   .transformation-products {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 7px;
+    gap: 5px;
     position: relative;
   }
   .transformation-product {
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 10px;
-    padding: 10px;
+    border-radius: 8px;
+    padding: 7px 8px;
     text-align: center;
   }
   .transformation-product-name {
@@ -410,13 +484,13 @@
     font-size: 9.5px;
     font-weight: 700;
     color: #fff;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
   .transformation-product-desc {
     font-size: 7.5px;
     color: rgba(255,255,255,0.45);
-    line-height: 1.35;
-    margin-bottom: 7px;
+    line-height: 1.3;
+    margin-bottom: 0;
   }
   .transformation-product-status {
     display: inline-block;
@@ -463,9 +537,12 @@
         {{/each}}
       </div>
       {{/if}}
+      {{#if profile.maxim}}
+      <div style="margin-top:14px; padding:8px 12px; border-left:2px solid var(--accent); font-size:9.5px; font-style:italic; color:#475569; line-height:1.5; text-align:left;">{{profile.maxim}}</div>
+      {{/if}}
     </div>
 
-    <div class="sidebar-section" style="margin-top:24px;">
+    <div class="sidebar-section" style="margin-top:6px;">
       <h2>Contact</h2>
       <div class="contact-list">
         {{#if shared.contact.email}}
@@ -474,10 +551,10 @@
           <a href="mailto:{{shared.contact.email}}">{{shared.contact.email}}</a>
         </div>
         {{/if}}
-        {{#if shared.contact.location}}
+        {{#if profile.phone}}
         <div class="contact-item">
-          <div class="contact-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
-          <span>{{shared.contact.location}}</span>
+          <div class="contact-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></div>
+          <a href="tel:{{profile.phone_link}}">{{profile.phone}}</a>
         </div>
         {{/if}}
         {{#if shared.contact.linkedin_url}}
@@ -493,51 +570,42 @@
         </div>
         {{/if}}
         {{#if shared.contact.portfolio}}
-        <div class="contact-item">
-          <div class="contact-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></div>
-          <a href="{{shared.contact.portfolio}}" target="_blank">{{shared.contact.portfolio_display}}</a>
-        </div>
+        <a href="{{shared.contact.portfolio}}" class="portfolio-btn" target="_blank">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          {{shared.contact.portfolio_display}}
+        </a>
         {{/if}}
       </div>
     </div>
 
     <div class="sidebar-section">
       <h2>Top Skills</h2>
+      {{#each profile.skill_sections}}
       <div class="skill-group">
-        <h3>AI Builder</h3>
+        <h3>{{this.title}}</h3>
         <div class="skill-list">
-          {{#each shared.skills.ai}}
+          {{#each this.items}}
           <span class="skill-tag">
             {{#if this.logo}}<img src="../images/{{this.logo}}" class="skill-logo" alt="">{{/if}}
-            {{#if this.name}}{{this.name}}{{/if}}
+            {{#if this.name}}{{this.name}}{{else}}{{this}}{{/if}}
           </span>
           {{/each}}
         </div>
       </div>
-      <div class="skill-group">
-        <h3>Product Design</h3>
-        <div class="skill-list">
-          {{#each shared.skills.design}}
-          <span class="skill-tag">
-            {{#if this.logo}}<img src="../images/{{this.logo}}" class="skill-logo" alt="">{{/if}}
-            {{this.name}}
-          </span>
-          {{/each}}
+      {{/each}}
+
+      <div class="skill-group" style="margin-top:20px;">
+        <div class="tools-grid">
+          <img src="../images/figma.png" class="tool-logo" alt="Figma">
+          <img src="../images/supabase.png" class="tool-logo" alt="Supabase">
+          <img src="../images/cursor-logo.jpg" class="tool-logo" alt="Cursor">
+          <img src="../images/gemini.jpg" class="tool-logo" alt="Gemini">
+          <img src="../images/firecrawl.png" class="tool-logo" alt="Firecrawl">
+          <img src="../images/javascript.png" class="tool-logo" alt="JavaScript">
+          <img src="../images/jira.png" class="tool-logo" alt="Jira">
+          <img src="../images/slack.png" class="tool-logo" alt="Slack">
         </div>
       </div>
-      {{#if shared.skills.tech}}
-      <div class="skill-group">
-        <h3>Tech & Tools</h3>
-        <div class="skill-list">
-          {{#each shared.skills.tech}}
-          <span class="skill-tag">
-            {{#if this.logo}}<img src="../images/{{this.logo}}" class="skill-logo" alt="">{{/if}}
-            {{this.name}}
-          </span>
-          {{/each}}
-        </div>
-      </div>
-      {{/if}}
     </div>
 
     {{#if shared.languages}}
@@ -552,6 +620,25 @@
         </div>
         {{/each}}
       </div>
+    </div>
+    {{/if}}
+
+    {{#if profile.founder_projects}}
+    <div class="sidebar-section">
+      <h2>Founder Projects</h2>
+      {{#each profile.founder_projects}}
+      <div class="founder-project">
+        <img src="../images/{{this.logo}}" class="founder-project-logo" alt="">
+        <div class="founder-project-info">
+          <div class="founder-project-name">{{this.name}}</div>
+          <div class="founder-project-desc">{{this.desc}}</div>
+          <div class="founder-project-meta">
+            <span class="founder-project-tag">{{this.tag}}</span>
+            <span class="founder-project-year">{{this.year}}</span>
+          </div>
+        </div>
+      </div>
+      {{/each}}
     </div>
     {{/if}}
 
@@ -589,15 +676,16 @@
         <div class="transformation-product">
           <div class="transformation-product-name">{{this.name}}</div>
           <div class="transformation-product-desc">{{this.desc}}</div>
-          <span class="transformation-product-status">{{this.status}}</span>
+          {{#if this.status}}<span class="transformation-product-status">{{this.status}}</span>{{/if}}
         </div>
         {{/each}}
       </div>
     </div>
     {{/if}}
 
+    {{#if profile.highlights}}
     <div class="section">
-      <div class="section-title">Key Achievement Highlights</div>
+      <div class="section-title">{{profile.highlights_title}}</div>
       <div style="display:grid; grid-template-columns: 1fr; gap: 10px;">
         {{#each profile.highlights}}
         <div style="display:flex; gap:12px; align-items: flex-start; padding: 14px; background: var(--accent-soft); border-radius: 12px; border-left: 4px solid var(--accent);">
@@ -607,10 +695,11 @@
         {{/each}}
       </div>
     </div>
+    {{/if}}
 
     {{#if profile.projects}}
     <div class="section">
-      <div class="section-title">Products & Ventures</div>
+      <div class="section-title">{{profile.projects_title}}</div>
       <div class="projects-grid">
         {{#each profile.projects}}
         {{#if this.minor}}
@@ -657,10 +746,18 @@
 
     <div class="section">
       <div class="section-title">Professional Experience</div>
-      {{#each shared.experience}}
+      {{#if profile.experience_note}}
+      <div style="font-size:10.5px; color:var(--text-muted); line-height:1.5; margin-bottom:16px; padding:10px 12px; border-left:3px solid var(--border); background:var(--bg-sidebar);">
+        {{profile.experience_note}}
+      </div>
+      {{/if}}
+      {{#each profile.experience}}
       <div class="experience-item">
         <div class="experience-header">
-          <span class="company">{{#if this.url}}<a href="{{this.url}}" target="_blank" style="color:inherit; text-decoration:none;">{{this.company}}</a>{{else}}{{this.company}}{{/if}}</span>
+          <span class="company company-with-logo">
+            {{#if this.logo}}<img src="../images/{{this.logo}}" class="company-logo" alt="">{{/if}}
+            {{#if this.url}}<a href="{{this.url}}" target="_blank" style="color:inherit; text-decoration:none;">{{this.company}}</a>{{else}}{{this.company}}{{/if}}
+          </span>
           <span class="period">{{this.period}}</span>
         </div>
         <div class="role">{{this.role}}</div>

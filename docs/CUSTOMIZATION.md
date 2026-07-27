@@ -31,8 +31,17 @@ Copy from `templates/portals.example.yml` and customize:
 
 1. **title_filter.positive**: Keywords matching your target roles
 2. **title_filter.negative**: Tech stacks or domains to exclude
-3. **search_queries**: WebSearch queries for job boards (Ashby, Greenhouse, Lever)
-4. **tracked_companies**: Companies to check directly
+3. **remote_filter.required_any**: Explicit remote wording required before an offer can pass
+4. **remote_filter.allowed_geo_any**: Compatible full-remote geographies, such as worldwide/global, Europe/EMEA/EU, Asia/APAC, Singapore, Hong Kong, Japan, Thailand, and Dubai/UAE
+5. **remote_filter.rejected_geo_any**: Remote geographies to skip, such as US-only, Canada-only, LATAM/Latin America, Americas, North America, and South America
+6. **search_queries / eu_job_boards / freelance_portals**: WebSearch queries for job boards, national portals, Asia boards, and freelance/contract marketplaces
+7. **rss_feeds**: Public RSS/XML feeds such as Jobicy, Himalayas, RemoteOK, We Work Remotely, and Authentic Jobs
+8. **api_aggregators**: Public or credentialed APIs such as Remotive, Jobicy, Himalayas, Arbeitnow, SearchAPI/SerpApi, TheirStack, Adzuna, Jooble, and Careerjet
+9. **tracked_companies**: Companies to check directly
+
+Remote filtering is deliberately conservative. A listing must show both explicit remote wording and compatible geography in the extracted title/location/remote evidence. The scanner does not treat the URL or domain as proof, and a title like "Global Product Manager - Remote" is not enough unless the location or remote evidence confirms worldwide/global remote.
+
+Every source `name` must be unique across all scanner sections because selection and cooldown state use `name` as the key. See `docs/job-source-coverage.md` for provider names, optional API keys, and platform restrictions.
 
 ## CV Template (templates/cv-template.html)
 

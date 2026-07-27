@@ -180,17 +180,6 @@
     gap: 12px;
     margin-bottom: 28px;
   }
-  .stat-card {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    transition: background 120ms;
-  }
-  .stat-card:hover { background: rgba(255,255,255,0.04); }
   .stat-label {
     font-size: 12px;
     font-weight: 510;
@@ -208,6 +197,383 @@
     width: 6px; height: 6px;
     border-radius: 50%;
     margin-top: 2px;
+  }
+
+  /* ─── Dashboard redesign ─────────────────────────────────────── */
+  .dashboard-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .dashboard-onboarding {
+    display: none;
+    padding: 18px 20px;
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at top right, rgba(130,143,255,0.16), transparent 34%),
+      linear-gradient(180deg, rgba(94,106,210,0.12), rgba(255,255,255,0.02));
+    border: 1px solid rgba(130,143,255,0.2);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .dashboard-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.95fr);
+    gap: 16px;
+    padding: 22px;
+    border-radius: 22px;
+    overflow: hidden;
+    border: 1px solid rgba(130,143,255,0.15);
+    background:
+      radial-gradient(circle at 0% 0%, rgba(113,112,255,0.22), transparent 34%),
+      radial-gradient(circle at 100% 0%, rgba(59,130,246,0.14), transparent 28%),
+      linear-gradient(145deg, rgba(15,16,17,0.98), rgba(20,22,27,0.96));
+    box-shadow: 0 28px 70px rgba(0,0,0,0.28);
+  }
+  .dashboard-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,0.04), transparent 28%),
+      linear-gradient(180deg, transparent, rgba(255,255,255,0.02));
+    pointer-events: none;
+  }
+  .dashboard-hero-main,
+  .dashboard-focus-card {
+    position: relative;
+    z-index: 1;
+  }
+  .dashboard-hero-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .dashboard-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-3);
+    font-size: 11px;
+    font-weight: 620;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .dashboard-eyebrow::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #8ea0ff, #5e6ad2);
+    box-shadow: 0 0 16px rgba(130,143,255,0.55);
+  }
+  .dashboard-hero-heading {
+    max-width: 720px;
+  }
+  .dashboard-hero-title {
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.02;
+    letter-spacing: -0.05em;
+    font-weight: 640;
+    color: var(--text-1);
+    margin-bottom: 10px;
+  }
+  .dashboard-hero-copy {
+    max-width: 680px;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text-2);
+  }
+  .dashboard-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .dashboard-hero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 7px 11px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 510;
+    letter-spacing: -0.01em;
+  }
+  .dashboard-hero-chip strong {
+    color: var(--text-1);
+    font-weight: 620;
+  }
+  .dashboard-command-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .dashboard-command-row .btn-action {
+    min-height: 36px;
+    padding: 7px 12px;
+    border-radius: 10px;
+  }
+  .dashboard-command-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding-left: 12px;
+    margin-left: 4px;
+    border-left: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-3);
+    font-size: 12px;
+  }
+  .dashboard-focus-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 18px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    backdrop-filter: blur(10px);
+  }
+  .dashboard-focus-label {
+    font-size: 11px;
+    font-weight: 620;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-4);
+  }
+  .dashboard-focus-title {
+    font-size: 24px;
+    line-height: 1.08;
+    letter-spacing: -0.04em;
+    color: var(--text-1);
+    font-weight: 610;
+  }
+  .dashboard-focus-copy {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-3);
+  }
+  .dashboard-focus-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .dashboard-stats-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 0;
+  }
+  .stat-card {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)),
+      linear-gradient(145deg, rgba(15,16,17,0.98), rgba(20,22,27,0.94));
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 140ms, border-color 140ms, background 140ms;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .stat-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255,255,255,0.14);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025)),
+      linear-gradient(145deg, rgba(15,16,17,0.98), rgba(24,26,31,0.94));
+  }
+  .stat-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .dashboard-grid,
+  .dashboard-bottom-grid {
+    display: grid;
+    gap: 16px;
+  }
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  }
+  .dashboard-bottom-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+  }
+  .dashboard-panel {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)),
+      linear-gradient(145deg, rgba(15,16,17,0.98), rgba(20,22,27,0.94));
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    min-width: 0;
+  }
+  .dashboard-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .dashboard-panel-title {
+    font-size: 18px;
+    line-height: 1.15;
+    color: var(--text-1);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .dashboard-panel-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-3);
+    font-size: 11px;
+    font-weight: 510;
+    white-space: nowrap;
+  }
+  .dashboard-status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .dashboard-status-row {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .dashboard-status-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .dashboard-status-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dashboard-status-bar {
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.06);
+  }
+  .dashboard-status-fill {
+    height: 100%;
+    border-radius: inherit;
+  }
+  .dashboard-status-value {
+    font-size: 12px;
+    color: var(--text-4);
+    white-space: nowrap;
+  }
+  .dashboard-pipeline-list,
+  .dashboard-watch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dashboard-pipeline-item,
+  .dashboard-watch-item {
+    padding: 12px 13px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .dashboard-pipeline-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .dashboard-pipeline-head,
+  .dashboard-watch-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .dashboard-pipeline-title,
+  .dashboard-watch-company {
+    font-size: 13px;
+    color: var(--text-1);
+    font-weight: 560;
+    line-height: 1.45;
+  }
+  .dashboard-pipeline-meta,
+  .dashboard-watch-role {
+    font-size: 12px;
+    color: var(--text-4);
+    line-height: 1.5;
+  }
+  .dashboard-pipeline-tags,
+  .dashboard-watch-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .dashboard-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-3);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .dashboard-watch-score {
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 620;
+    color: var(--text-1);
+    letter-spacing: -0.04em;
+  }
+  .dashboard-panel-stack {
+    display: flex;
+    flex-direction: column;
+  }
+  .dashboard-table-wrap {
+    border-radius: 14px;
+  }
+  .dashboard-section-header {
+    margin-bottom: 16px;
+  }
+  .dashboard-section-header .section-title {
+    display: block;
+    font-size: 18px;
+    color: var(--text-1);
+    letter-spacing: -0.03em;
+  }
+  .dashboard-panel-empty {
+    padding: 20px 0 6px;
+    color: var(--text-4);
+    font-size: 13px;
   }
 
   /* ─── Section Header ───────────────────────────────────────────── */
@@ -288,6 +654,97 @@
   .td-role { color: var(--text-2); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .td-date { color: var(--text-4); font-size: 12px; white-space: nowrap; }
   .td-notes { color: var(--text-3); font-size: 12px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ─── Merged offer cell (company + role + note) ───────────── */
+  .td-offer { max-width: 320px; }
+  .td-offer .offer-name {
+    color: var(--text-1);
+    font-weight: 510;
+    font-size: 13px;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .td-offer .offer-role {
+    color: var(--text-3);
+    font-size: 12px;
+    line-height: 1.3;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .td-offer .offer-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-4);
+    cursor: help;
+    position: relative;
+  }
+  .td-offer .offer-note .offer-note-text {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-style: italic;
+  }
+  .td-offer .offer-note:hover { color: var(--text-2); }
+  .td-offer .offer-note[data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    z-index: 50;
+    background: var(--panel, #0f1011);
+    color: var(--text-1);
+    border: 1px solid var(--border-s);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    max-width: 360px;
+    width: max-content;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms;
+  }
+  .td-offer .offer-note[data-tip]:hover::after { opacity: 1; }
+
+  /* ─── Action button group ────────────────────────────────── */
+  .td-actions { white-space: nowrap; text-align: right; }
+  .btn-group {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border-s);
+    border-radius: 7px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.02);
+  }
+  .btn-group .icon-action {
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    width: 28px; height: 28px;
+    padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 120ms, color 120ms;
+    border-right: 1px solid var(--border-s);
+    text-decoration: none;
+  }
+  .btn-group .icon-action:last-child { border-right: none; }
+  .btn-group .icon-action:hover { background: rgba(255,255,255,0.07); color: var(--text-1); }
+  .btn-group .icon-action.is-primary { color: #60a5fa; }
+  .btn-group .icon-action.is-primary:hover { background: rgba(96,165,250,0.12); color: #60a5fa; }
+  .btn-group .icon-action.is-danger:hover { background: rgba(239,68,68,0.12); color: var(--red); }
+  .btn-group .icon-action[disabled] { opacity: 0.4; cursor: not-allowed; }
   .td-report a {
     color: var(--accent);
     text-decoration: none;
@@ -363,6 +820,15 @@
     border: 1px solid var(--border);
   }
   .btn-ghost:hover { background: rgba(255,255,255,0.07); color: var(--text-1); }
+  .btn-danger {
+    background: rgba(239,68,68,0.16);
+    color: #fecaca;
+    border: 1px solid rgba(239,68,68,0.36);
+  }
+  .btn-danger:hover {
+    background: rgba(239,68,68,0.24);
+    color: #fff;
+  }
   .btn-sm { padding: 4px 8px; font-size: 12px; }
   .btn-icon {
     background: rgba(255,255,255,0.04);
@@ -406,9 +872,40 @@
     background: rgba(255,255,255,0.02);
     border: 1px solid var(--border-s);
     border-radius: 8px;
-    transition: background 120ms;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms, box-shadow 120ms;
   }
   .pipeline-item:hover { background: rgba(255,255,255,0.04); }
+  .pipeline-item.selected {
+    background: rgba(94,106,210,0.1);
+    border-color: rgba(130,143,255,0.38);
+    box-shadow: inset 0 0 0 1px rgba(130,143,255,0.08);
+  }
+  .pipeline-select {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 120ms, border-color 120ms;
+  }
+  .pipeline-item.selected .pipeline-select {
+    background: var(--brand);
+    border-color: var(--brand);
+  }
+  .pipeline-select svg {
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .pipeline-item.selected .pipeline-select svg {
+    opacity: 1;
+  }
   .pipeline-main {
     min-width: 0;
     flex: 1;
@@ -462,6 +959,72 @@
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+  }
+  .app-scan-queue {
+    margin: 0 0 18px;
+    padding: 14px;
+    border: 1px solid var(--border-s);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.018);
+  }
+  .app-scan-queue .section-header {
+    margin: 0 0 10px;
+  }
+  .app-scan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .app-scan-item {
+    cursor: default;
+  }
+  .app-scan-more {
+    margin-top: 10px;
+    color: var(--text-4);
+    font-size: 12px;
+  }
+  .pipeline-bulk-bar {
+    margin: 12px 0 16px;
+    padding: 10px 12px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid rgba(130,143,255,0.22);
+    border-radius: 8px;
+    background: rgba(94,106,210,0.08);
+  }
+  .pipeline-bulk-bar.open {
+    display: flex;
+  }
+  .pipeline-bulk-meta {
+    font-size: 12px;
+    color: var(--text-2);
+    min-width: 0;
+  }
+  .pipeline-bulk-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  @media (max-width: 760px) {
+    .pipeline-item {
+      flex-wrap: wrap;
+    }
+    .pipeline-actions {
+      width: 100%;
+      padding-left: 30px;
+      justify-content: flex-start;
+    }
+    .pipeline-bulk-bar {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .pipeline-bulk-actions {
+      width: 100%;
+      justify-content: flex-start;
+    }
   }
 
   /* ─── Add URL form ─────────────────────────────────────────────── */
@@ -518,10 +1081,11 @@
     justify-content: center;
     padding: 24px;
     opacity: 0;
+    visibility: hidden;
     transition: opacity 160ms;
     pointer-events: none;
   }
-  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+  .modal-backdrop.open { opacity: 1; visibility: visible; pointer-events: all; }
   .modal {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -549,6 +1113,198 @@
     padding: 20px;
     overflow-y: auto;
     flex: 1;
+  }
+
+  /* ─── Native confirmation ─────────────────────────────────────── */
+  .confirm-backdrop {
+    background:
+      radial-gradient(circle at 50% 44%, rgba(239,68,68,0.14), transparent 34%),
+      rgba(5,7,18,0.68);
+    backdrop-filter: blur(10px);
+    z-index: 230;
+  }
+  .confirm-card {
+    width: min(420px, calc(100vw - 40px));
+    background: linear-gradient(180deg, rgba(25,28,36,0.98), rgba(13,15,22,0.98));
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+    padding: 18px;
+    transform: translateY(10px) scale(0.98);
+    transition: transform 160ms, opacity 160ms;
+  }
+  .confirm-backdrop.open .confirm-card {
+    transform: translateY(0) scale(1);
+  }
+  .confirm-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .confirm-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fecaca;
+    background: rgba(239,68,68,0.14);
+    border: 1px solid rgba(239,68,68,0.24);
+    flex-shrink: 0;
+  }
+  .confirm-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .confirm-title {
+    font-size: 15px;
+    font-weight: 620;
+    color: var(--text-1);
+    letter-spacing: -0.2px;
+  }
+  .confirm-message {
+    margin: 0;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  /* ─── Command notification ────────────────────────────────────── */
+  .cmd-dock {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: min(560px, calc(100vw - 40px));
+    max-height: min(720px, calc(100vh - 40px));
+    z-index: 120;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(20px) translateY(8px);
+    transition: opacity 180ms, transform 180ms, visibility 0s linear 180ms;
+  }
+  .cmd-dock.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0) translateY(0);
+    transition: opacity 180ms, transform 180ms;
+  }
+  .cmd-panel {
+    pointer-events: none;
+    width: 100%;
+    max-height: inherit;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025)),
+      var(--panel);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    box-shadow: 0 22px 70px rgba(0,0,0,0.52), 0 0 0 1px rgba(0,0,0,0.2);
+  }
+  .cmd-dock.open .cmd-panel {
+    pointer-events: auto;
+  }
+  .cmd-dock.collapsed {
+    width: min(380px, calc(100vw - 40px));
+  }
+  .cmd-dock.collapsed .cmd-panel {
+    grid-template-rows: auto;
+  }
+  .cmd-dock.collapsed .cmd-body,
+  .cmd-dock.collapsed .cmd-actions {
+    display: none;
+  }
+  .cmd-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 12px 12px 12px 14px;
+    border-bottom: 1px solid var(--border-s);
+  }
+  .cmd-dock.collapsed .cmd-head {
+    border-bottom: none;
+  }
+  .cmd-title-wrap {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .cmd-title {
+    font-size: 13px;
+    font-weight: 620;
+    color: var(--text-1);
+    letter-spacing: -0.12px;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cmd-status {
+    min-height: 16px;
+    font-size: 11px;
+    color: var(--text-4);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cmd-controls {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  #cmd-modal-toggle svg {
+    transition: transform 160ms;
+  }
+  .cmd-dock.collapsed #cmd-modal-toggle svg {
+    transform: rotate(180deg);
+  }
+  .cmd-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 10px 14px 0;
+  }
+  .cmd-body {
+    min-height: 180px;
+    max-height: min(560px, calc(100vh - 152px));
+    padding: 14px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  @media (max-width: 720px) {
+    .cmd-dock,
+    .cmd-dock.collapsed {
+      right: 10px;
+      left: 10px;
+      bottom: 10px;
+      width: auto;
+      max-height: min(72vh, 620px);
+    }
+    .cmd-head {
+      padding: 11px;
+    }
+    .cmd-body {
+      max-height: calc(72vh - 108px);
+      min-height: 150px;
+    }
   }
 
   /* ─── Markdown render ──────────────────────────────────────────── */
@@ -919,10 +1675,485 @@
     color: var(--text-3);
     background: rgba(255,255,255,0.06);
   }
+
+  /* ─── Profile v2 (Apple HIG + Airbnb DLS) ─────────────────────── */
+  .profile-v2 {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 4px 4px 120px;
+    font-family: -apple-system, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  }
+
+  /* Hero */
+  .profile-hero {
+    display: flex;
+    gap: 22px;
+    align-items: center;
+    padding: 28px 4px 32px;
+    border-bottom: 1px solid var(--border-s);
+    margin-bottom: 28px;
+  }
+  .profile-avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff5a6f 0%, #e0386b 50%, #b1297c 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; font-weight: 600; color: #fff;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+    box-shadow: 0 10px 28px rgba(224,56,107,0.32), inset 0 1px 0 rgba(255,255,255,0.18);
+    user-select: none;
+  }
+  .profile-hero-meta { flex: 1; min-width: 0; }
+  .profile-hero-eyebrow {
+    font-size: 12px;
+    font-weight: 590;
+    color: var(--text-3);
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+  }
+  .profile-hero-title {
+    font-size: 32px;
+    font-weight: 680;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    color: var(--text-1);
+    margin: 0;
+  }
+  .profile-hero-sub {
+    font-size: 14px;
+    color: var(--text-3);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .profile-completion {
+    margin-top: 14px;
+    max-width: 380px;
+  }
+  .profile-completion-track {
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+  .profile-completion-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff5a6f, #e0386b 60%, var(--accent));
+    border-radius: 999px;
+    transition: width 320ms cubic-bezier(0.32,0.72,0,1);
+  }
+  .profile-completion-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-4);
+    margin-top: 7px;
+    gap: 12px;
+  }
+  .profile-completion-meta strong {
+    color: var(--text-2);
+    font-weight: 600;
+  }
+
+  /* Sticky anchor nav (segmented) */
+  .profile-nav {
+    position: sticky;
+    top: 52px;
+    z-index: 9;
+    display: flex;
+    gap: 4px;
+    padding: 10px 0;
+    margin: 0 0 28px;
+    background: rgba(8,9,10,0.78);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border-s);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .profile-nav::-webkit-scrollbar { display: none; }
+  .profile-nav a {
+    text-decoration: none;
+    padding: 7px 13px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 510;
+    color: var(--text-3);
+    white-space: nowrap;
+    transition: background 140ms, color 140ms;
+  }
+  .profile-nav a:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-1);
+  }
+  .profile-nav a.active {
+    background: var(--text-1);
+    color: var(--bg);
+  }
+
+  /* Sections */
+  .profile-section {
+    scroll-margin-top: 120px;
+    margin-bottom: 36px;
+  }
+  .profile-section + .profile-section {
+    padding-top: 32px;
+    border-top: 1px solid var(--border-s);
+  }
+  .profile-section-head {
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .profile-section-title {
+    font-size: 22px;
+    font-weight: 640;
+    letter-spacing: -0.012em;
+    line-height: 1.25;
+    color: var(--text-1);
+    margin: 0;
+  }
+  .profile-section-desc {
+    font-size: 14px;
+    color: var(--text-3);
+    margin-top: 4px;
+    max-width: 580px;
+    line-height: 1.55;
+  }
+
+  /* Card */
+  .profile-card {
+    background: var(--panel);
+    border: 1px solid var(--border-s);
+    border-radius: 16px;
+    padding: 22px 24px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset;
+  }
+  .profile-card + .profile-card { margin-top: 12px; }
+
+  /* Field grid */
+  .profile-v2 .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 16px;
+  }
+  .profile-v2 .field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .profile-v2 .field.span-2 { grid-column: span 2; }
+  .profile-v2 .field-label {
+    font-size: 12px;
+    font-weight: 590;
+    color: var(--text-2);
+    letter-spacing: 0.005em;
+  }
+  .profile-v2 .field-hint {
+    font-size: 12px;
+    color: var(--text-4);
+    font-weight: 400;
+  }
+
+  /* Inputs (Apple-refined) */
+  .profile-v2 input[type="text"],
+  .profile-v2 input[type="email"],
+  .profile-v2 input[type="url"],
+  .profile-v2 textarea,
+  .profile-v2 select {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 11px 13px;
+    border-radius: 10px;
+    outline: none;
+    width: 100%;
+    transition: border-color 140ms, box-shadow 140ms, background 140ms;
+  }
+  .profile-v2 input:hover,
+  .profile-v2 textarea:hover,
+  .profile-v2 select:hover { background: rgba(255,255,255,0.04); }
+  .profile-v2 input:focus,
+  .profile-v2 textarea:focus,
+  .profile-v2 select:focus {
+    border-color: rgba(113,112,255,0.55);
+    box-shadow: 0 0 0 4px rgba(113,112,255,0.16);
+    background: rgba(255,255,255,0.04);
+  }
+  .profile-v2 textarea { line-height: 1.55; }
+  .profile-v2 input::placeholder,
+  .profile-v2 textarea::placeholder { color: var(--text-4); }
+
+  /* Sticky save dock */
+  .profile-save-dock {
+    position: sticky;
+    bottom: 0;
+    margin: 36px -24px 0;
+    padding: 14px 28px;
+    background: rgba(15,16,17,0.82);
+    backdrop-filter: saturate(180%) blur(22px);
+    -webkit-backdrop-filter: saturate(180%) blur(22px);
+    border-top: 1px solid var(--border-s);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    z-index: 14;
+  }
+  .profile-save-dock .save-status {
+    font-size: 13px;
+    color: var(--text-3);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .profile-save-dock .save-status .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-4);
+    box-shadow: 0 0 0 0 rgba(255,255,255,0);
+  }
+  .profile-save-dock .save-status[data-state="dirty"] .dot { background: var(--amber); }
+  .profile-save-dock .save-status[data-state="saved"] .dot { background: var(--green); }
+  .profile-save-dock .btn-primary {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 590;
+    border-radius: 999px;
+    letter-spacing: -0.005em;
+  }
+
+  /* Inline add button (refined) */
+  .profile-v2 .btn-inline-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-s);
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 510;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 120ms, color 120ms;
+  }
+  .profile-v2 .btn-inline-add:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--text-1);
+  }
+
+  /* Roles list header */
+  .profile-v2 .arch-grid-head {
+    display: grid;
+    grid-template-columns: 1fr 130px 110px 28px;
+    gap: 10px;
+    padding: 0 4px;
+    margin-bottom: 8px;
+  }
+  .profile-v2 .arch-grid-head span {
+    font-size: 11px;
+    color: var(--text-4);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-weight: 590;
+  }
+
+  /* Tighten criteria sub-cards inside profile-v2 */
+  .profile-v2 .criteria-card {
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .profile-v2 .criteria-card.hard {
+    background: linear-gradient(180deg, rgba(113,112,255,0.10), rgba(255,255,255,0.02));
+    border-color: rgba(113,112,255,0.28);
+  }
+
+  @media (max-width: 720px) {
+    .profile-v2 .field-grid { grid-template-columns: 1fr; }
+    .profile-v2 .field.span-2 { grid-column: span 1; }
+    .profile-hero { flex-direction: column; align-items: flex-start; gap: 14px; }
+    .profile-avatar { width: 64px; height: 64px; font-size: 24px; }
+    .profile-hero-title { font-size: 26px; }
+    .profile-card { padding: 18px; }
+    .profile-save-dock { margin: 24px -16px 0; padding: 12px 18px; }
+  }
+
+  @media (max-width: 1180px) {
+    .dashboard-hero,
+    .dashboard-grid,
+    .dashboard-bottom-grid {
+      grid-template-columns: 1fr;
+    }
+    .dashboard-stats-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
   @media (max-width: 960px) {
     .criteria-grid {
       grid-template-columns: 1fr;
     }
+    .dashboard-stats-grid {
+      grid-template-columns: 1fr;
+    }
+    .dashboard-status-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .dashboard-command-toggle {
+      width: 100%;
+      margin-left: 0;
+      padding-left: 0;
+      border-left: none;
+    }
+    .dashboard-hero {
+      padding: 18px;
+      border-radius: 18px;
+    }
+    .dashboard-panel {
+      padding: 16px;
+    }
+  }
+
+  /* ─── User pill (sidebar bottom) ──────────────────────────────── */
+  .sidebar-user {
+    margin-top: auto;
+    padding: 12px 12px 4px;
+    border-top: 1px solid var(--border-s);
+  }
+  .user-pill {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 8px;
+    border-radius: 7px;
+    cursor: default;
+  }
+  .user-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--brand);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .user-info { overflow: hidden; flex: 1; }
+  .user-name  { font-size: 12px; font-weight: 580; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-email { font-size: 11px; color: var(--text-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn-signout {
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-3);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s, color 0.12s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .btn-signout:hover { background: rgba(239,68,68,0.08); color: #fca5a5; border-color: rgba(239,68,68,0.2); }
+
+  /* ─── Mobile menu (hamburger) ─────────────────────────────────── */
+  .menu-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .menu-toggle:hover { background: rgba(255,255,255,0.04); color: var(--text-1); }
+  .menu-toggle:active { background: rgba(255,255,255,0.06); }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 49;
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+  .sidebar-backdrop.open { opacity: 1; }
+
+  /* ─── Mobile breakpoint ──────────────────────────────────────── */
+  @media (max-width: 860px) {
+    .menu-toggle { display: inline-flex; }
+
+    .app { height: 100dvh; }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 50;
+      width: 80vw;
+      max-width: 280px;
+      transform: translateX(-100%);
+      transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-backdrop.visible { display: block; }
+
+    .topbar {
+      padding: 0 14px;
+      gap: 10px;
+    }
+    .topbar-title {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .topbar-actions { gap: 6px; }
+    .btn-portfolio-switch { padding: 5px 10px; font-size: 11px; }
+
+    .content { padding: 16px 14px; }
+
+    /* Tables become horizontally scrollable */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrap table { min-width: 640px; }
+    #app-table { min-width: 760px; }
+    #recent-table { min-width: 560px; }
+
+    /* Generated CVs view: stack the table and the preview */
+    #view-cvs > div[style*="grid-template-columns"] {
+      grid-template-columns: 1fr !important;
+      gap: 16px !important;
+    }
+    #template-preview-frame { height: 60vh !important; }
+
+    /* Add-form stacks */
+    .add-form { flex-direction: column; align-items: stretch; }
+
+    /* Dashboard hero polish */
+    .dashboard-hero { padding: 16px; border-radius: 16px; }
+    .dashboard-hero-title { font-size: 26px !important; }
+  }
+
+  @media (max-width: 480px) {
+    .content { padding: 14px 10px; }
+    .topbar { padding: 0 10px; }
+    .table-wrap table { min-width: 560px; }
+    #app-table { min-width: 680px; }
   }
 </style>
 </head>
@@ -930,8 +2161,11 @@
 
 <div class="app">
 
+  <!-- Mobile sidebar backdrop -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+
   <!-- ─── Sidebar ─────────────────────────────────────────────── -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <div class="logo-icon">C</div>
       Career Ops
@@ -982,6 +2216,21 @@
         Add URL
       </button>
     </div>
+
+    <!-- User pill -->
+    <div class="sidebar-user">
+      <div class="user-pill">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="user-name">Loading…</div>
+          <div class="user-email" id="user-email"></div>
+        </div>
+      </div>
+      <button class="btn-signout" id="btn-signout">
+        <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M6 2H3a1 1 0 00-1 1v9a1 1 0 001 1h3M10 10l3-3-3-3M5 7.5h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Sign out
+      </button>
+    </div>
   </aside>
 
   <!-- ─── Main ─────────────────────────────────────────────────── -->
@@ -989,6 +2238,9 @@
 
     <!-- Topbar -->
     <div class="topbar">
+      <button class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+        <svg width="18" height="18" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M2 7.5h11M2 11h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
       <div class="topbar-actions" id="topbar-actions">
         <!-- Portfolio switch -->
@@ -1006,83 +2258,86 @@
 
     <!-- ─── Dashboard ────────────────────────────────────────── -->
     <div class="content view active" id="view-dashboard">
-      <div class="action-bar">
-        <span class="action-bar-label">Actions</span>
-        <button class="btn-action claude" data-cmd="scan" data-desc="Scans all configured portals (WTTJ, JobsDB, Lever, Ashby…) and adds new offers into the pipeline.">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.5v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-          Run Scan
-        </button>
-        <button class="btn-action claude" data-cmd="pipeline" data-desc="Evaluates all pending URLs in the pipeline.">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2 7.5h11M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Process Pipeline
-        </button>
-        <div style="display:flex;align-items:center;gap:6px;margin-left:8px;padding-left:12px;border-left:1px solid var(--border-s)">
-          <label class="toggle">
-            <input type="checkbox" id="auto-next-toggle">
-            <span class="toggle-track"></span>
-            <span class="toggle-thumb"></span>
-          </label>
-          <span style="font-size:11px;color:var(--text-3);white-space:nowrap">Auto-Next</span>
+      <div class="dashboard-shell">
+        <div id="onboarding-banner" class="dashboard-onboarding">
+          <div style="font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:8px;">
+            Complete your profile to start evaluating offers
+          </div>
+          <div id="onboarding-steps" style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-2);"></div>
+          <button data-dashboard-view="profile" style="margin-top:12px;padding:8px 14px;background:var(--brand);border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:590;font-family:inherit;cursor:pointer;">
+            Set up my profile
+          </button>
         </div>
-        <button class="btn-action" data-run="verify" data-title="Pipeline verification">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2.5 7.5l3 3 7-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Verify
-        </button>
-        <button class="btn-action" data-run="sync-check" data-title="CV Sync Check">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M3 3h9v9H3z" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 7.5h4M7.5 5.5v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-          Sync CV
-        </button>
-      </div>
-      <div class="stats-grid" id="stats-grid"></div>
-      <div class="section-header">
-        <span class="section-title">Recent Applications</span>
-        <button class="btn btn-ghost btn-sm" data-view="applications">View all →</button>
-      </div>
-      <div class="table-wrap">
-        <table id="recent-table">
-          <thead><tr>
-            <th>#</th><th>Company</th><th>Role</th><th>Score</th><th>Status</th><th>Date</th>
-          </tr></thead>
-          <tbody id="recent-tbody"></tbody>
-        </table>
+
+        <section class="dashboard-hero">
+          <div class="dashboard-hero-main">
+            <span class="dashboard-eyebrow">Overview</span>
+            <div class="dashboard-hero-heading">
+              <h1 class="dashboard-hero-title" id="dashboard-hero-title">Keep the funnel moving.</h1>
+              <p class="dashboard-hero-copy" id="dashboard-hero-copy">Track signals, process the queue, and turn strong evaluations into real applications.</p>
+            </div>
+            <div class="dashboard-hero-meta" id="dashboard-hero-meta"></div>
+            <div class="dashboard-command-row">
+              <button class="btn-action claude" data-cmd="scan" data-desc="Scans all configured portals (WTTJ, JobsDB, Lever, Ashby…) and adds new offers into the pipeline.">
+                <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.5v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                Run Scan
+              </button>
+              <button class="btn-action claude" data-cmd="pipeline" data-desc="Evaluates all pending URLs in the pipeline.">
+                <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2 7.5h11M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Process Pipeline
+              </button>
+              <div class="dashboard-command-toggle">
+                <label class="toggle">
+                  <input type="checkbox" id="auto-next-toggle">
+                  <span class="toggle-track"></span>
+                  <span class="toggle-thumb"></span>
+                </label>
+                <span>Auto-Next</span>
+              </div>
+            </div>
+          </div>
+          <aside class="dashboard-focus-card" id="dashboard-focus-card"></aside>
+        </section>
+
+        <div class="stats-grid dashboard-stats-grid" id="stats-grid"></div>
+
+        <div class="dashboard-grid">
+          <section class="dashboard-panel" id="dashboard-status-panel"></section>
+          <section class="dashboard-panel" id="dashboard-pipeline-panel"></section>
+        </div>
+
+        <div class="dashboard-bottom-grid">
+          <section class="dashboard-panel">
+            <div class="section-header dashboard-section-header">
+              <div>
+                <span class="section-title">Latest Applications</span>
+              </div>
+              <button class="btn btn-ghost btn-sm" data-dashboard-view="applications">View all</button>
+            </div>
+            <div class="table-wrap dashboard-table-wrap">
+              <table id="recent-table">
+                <thead><tr>
+                  <th>#</th><th>Company</th><th>Role</th><th>Score</th><th>Status</th><th>Date</th>
+                </tr></thead>
+                <tbody id="recent-tbody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="dashboard-panel dashboard-panel-stack" id="dashboard-watch-panel"></section>
+        </div>
       </div>
     </div>
 
     <!-- ─── Applications ─────────────────────────────────────── -->
     <div class="content view" id="view-applications">
-      <div class="action-bar">
-        <span class="action-bar-label">Actions</span>
-        <button class="btn-action claude" data-cmd="apply" data-desc="Fill out a job application form. Share a screenshot of the form — Claude generates copy-paste answers from the existing report + CV.">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2.5 7.5l3 3 7-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Apply
-        </button>
-        <button class="btn-action claude" data-cmd="pdf" data-desc="Génère un CV PDF ATS-optimisé adapté à l'offre cible. Colle l'URL ou le texte du JD dans Claude Code après la commande.">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M3 1.5h9a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1v-10a1 1 0 011-1z" stroke="currentColor" stroke-width="1.2"/><path d="M5 5h5M5 7.5h5M5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-          Générer CV/PDF
-        </button>
-        <button class="btn-action claude" data-cmd="tracker" data-desc="Affiche un résumé du tracker avec stats et permet de mettre à jour des statuts.">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2 3h11M2 7h11M2 11h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-          Voir tracker
-        </button>
-        <button class="btn-action" data-run="merge" data-title="Merge tracker">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M3.5 9l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Merge tracker
-        </button>
-        <button class="btn-action" data-run="normalize" data-title="Normaliser statuts">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M4.5 7.5h6M6.5 10.5h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-          Normaliser
-        </button>
-        <button class="btn-action" data-run="dedup" data-title="Dédupliquer">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="3.5" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 1.5h8v8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Dédupliquer
-        </button>
-      </div>
       <div class="filters" id="app-filters"></div>
+      <div id="app-scan-queue"></div>
       <div class="table-wrap" style="overflow-x:auto">
-        <table id="app-table" style="min-width:900px">
+        <table id="app-table" style="min-width:820px">
           <thead><tr>
-            <th>#</th><th>Company</th><th>Role</th><th>Score</th>
-            <th>Status</th><th>PDF</th><th>Report</th><th>Date</th><th>Notes</th><th style="width:170px"></th>
+            <th>#</th><th>Offer</th><th>Score</th>
+            <th>Status</th><th>Report</th><th>Date</th><th style="width:160px;text-align:right">Actions</th>
           </tr></thead>
           <tbody id="app-tbody"></tbody>
         </table>
@@ -1203,7 +2458,7 @@
     <div class="content view" id="view-reports">
       <div class="action-bar">
         <span class="action-bar-label">Actions</span>
-        <button class="btn-action claude" data-cmd="oferta" data-desc="Evaluates a single offer in A-F mode (no auto-PDF). Paste URL or JD text into Claude Code after command.">
+        <button class="btn-action claude" data-cmd="oferta" data-desc="Evaluates a single offer in lean A-E mode. No auto-PDF, form scan, or tailored CV.">
           <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 1.5L9.18 5.91l4.82.42-3.64 3.16 1.09 4.71L7.5 11.77l-3.95 2.43 1.09-4.71L1 6.33l4.82-.42z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
           Evaluate Offer
         </button>
@@ -1220,241 +2475,267 @@
     </div>
 
     <!-- ─── Profile ─────────────────────────────────────────────── -->
-    <div class="content view" id="view-profile">
-      <div class="profile-save-bar">
-        <button class="btn btn-primary" id="profile-save-btn">
-          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2.5 7.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Save Profile
-        </button>
-        <span id="profile-save-status" style="font-size:12px;color:var(--text-4)"></span>
-      </div>
+    <div class="content view profile-v2" id="view-profile">
+
+      <!-- Hero -->
+      <header class="profile-hero">
+        <div class="profile-avatar" id="profile-avatar">·</div>
+        <div class="profile-hero-meta">
+          <div class="profile-hero-eyebrow">Mon profil</div>
+          <h1 class="profile-hero-title" id="profile-hero-name">Votre profil</h1>
+          <div class="profile-hero-sub" id="profile-hero-sub">Ces informations alimentent toutes les évaluations, lettres de motivation et CV générés.</div>
+          <div class="profile-completion">
+            <div class="profile-completion-track"><div class="profile-completion-fill" id="profile-completion-fill" style="width:0%"></div></div>
+            <div class="profile-completion-meta">
+              <span><strong id="profile-completion-pct">0%</strong> complété</span>
+              <span id="profile-completion-hint">Plus votre profil est riche, plus les recommandations sont précises.</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Sticky anchor nav -->
+      <nav class="profile-nav" id="profile-nav">
+        <a href="#sec-identity" data-anchor="sec-identity" class="active">Identité</a>
+        <a href="#sec-roles" data-anchor="sec-roles">Postes</a>
+        <a href="#sec-narrative" data-anchor="sec-narrative">Narratif</a>
+        <a href="#sec-proof" data-anchor="sec-proof">Preuves</a>
+        <a href="#sec-comp" data-anchor="sec-comp">Rémunération</a>
+        <a href="#sec-location" data-anchor="sec-location">Localisation</a>
+        <a href="#sec-search" data-anchor="sec-search">Critères</a>
+        <a href="#sec-cv" data-anchor="sec-cv">CV</a>
+        <a href="#sec-advanced" data-anchor="sec-advanced">Avancé</a>
+      </nav>
 
       <!-- Identity -->
-      <div class="profile-block">
-        <div class="profile-block-header">
-          <span class="profile-block-title">Identity</span>
-        </div>
-        <div class="profile-grid">
-          <div class="profile-field">
-            <label>Full Name</label>
-            <input type="text" id="prof-name" placeholder="e.g. Jane Doe">
-          </div>
-          <div class="profile-field">
-            <label>Email</label>
-            <input type="email" id="prof-email" placeholder="you@example.com">
-          </div>
-          <div class="profile-field">
-            <label>Phone</label>
-            <input type="text" id="prof-phone" placeholder="+33 6 ...">
-          </div>
-          <div class="profile-field">
-            <label>Location</label>
-            <input type="text" id="prof-location" placeholder="e.g. Based in Paris & Bangkok">
-          </div>
-          <div class="profile-field">
-            <label>LinkedIn</label>
-            <input type="text" id="prof-linkedin" placeholder="linkedin.com/in/...">
-          </div>
-          <div class="profile-field">
-            <label>Portfolio URL</label>
-            <input type="text" id="prof-portfolio" placeholder="https://...">
-          </div>
-          <div class="profile-field">
-            <label>GitHub</label>
-            <input type="text" id="prof-github" placeholder="github.com/...">
-          </div>
-          <div class="profile-field">
-            <label>Twitter / X</label>
-            <input type="text" id="prof-twitter" placeholder="twitter.com/...">
+      <section class="profile-section" id="sec-identity">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Identité</h2>
+            <p class="profile-section-desc">Vos informations personnelles et liens professionnels. Utilisés en en-tête de CV et dans les lettres de motivation.</p>
           </div>
         </div>
-      </div>
+        <div class="profile-card">
+          <div class="field-grid">
+            <div class="field"><label class="field-label" for="prof-name">Nom complet</label><input type="text" id="prof-name" placeholder="ex. Jane Doe"></div>
+            <div class="field"><label class="field-label" for="prof-email">Email</label><input type="email" id="prof-email" placeholder="vous@exemple.com"></div>
+            <div class="field"><label class="field-label" for="prof-phone">Téléphone</label><input type="text" id="prof-phone" placeholder="+33 6 ..."></div>
+            <div class="field"><label class="field-label" for="prof-location">Localisation</label><input type="text" id="prof-location" placeholder="ex. Paris & Bangkok"></div>
+            <div class="field"><label class="field-label" for="prof-linkedin">LinkedIn</label><input type="text" id="prof-linkedin" placeholder="linkedin.com/in/..."></div>
+            <div class="field"><label class="field-label" for="prof-portfolio">Portfolio</label><input type="text" id="prof-portfolio" placeholder="https://..."></div>
+            <div class="field"><label class="field-label" for="prof-github">GitHub</label><input type="text" id="prof-github" placeholder="github.com/..."></div>
+            <div class="field"><label class="field-label" for="prof-twitter">Twitter / X</label><input type="text" id="prof-twitter" placeholder="twitter.com/..."></div>
+          </div>
+        </div>
+      </section>
 
       <!-- Target Roles -->
-      <div class="profile-block">
-        <div class="profile-block-header">
-          <span class="profile-block-title">Target Roles</span>
+      <section class="profile-section" id="sec-roles">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Postes ciblés</h2>
+            <p class="profile-section-desc">Les rôles que vous visez et leurs archétypes — utilisés pour scorer la pertinence d'une offre.</p>
+          </div>
         </div>
-        <div class="profile-field" style="margin-bottom:14px">
-          <label>Primary roles <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
-          <textarea id="prof-primary-roles" rows="3" style="resize:vertical" placeholder="AI Product Manager&#10;Head of AI Product&#10;AI Product Designer"></textarea>
-        </div>
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <label style="font-size:11px;font-weight:510;color:var(--text-4)">Archetypes</label>
-            <button class="btn btn-ghost btn-sm" id="add-archetype-btn">
+        <div class="profile-card">
+          <div class="field" style="margin-bottom:18px">
+            <label class="field-label" for="prof-primary-roles">Rôles principaux <span class="field-hint">(un par ligne)</span></label>
+            <textarea id="prof-primary-roles" rows="3" style="resize:vertical" placeholder="AI Product Manager&#10;Head of AI Product&#10;AI Product Designer"></textarea>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span class="field-label">Archétypes</span>
+            <button type="button" class="btn-inline-add" id="add-archetype-btn">
               <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              Add
+              Ajouter
             </button>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 130px 110px 28px;gap:8px;padding:0 2px;margin-bottom:6px">
-            <span style="font-size:10px;color:var(--text-4);text-transform:uppercase;letter-spacing:.04em">Name</span>
-            <span style="font-size:10px;color:var(--text-4);text-transform:uppercase;letter-spacing:.04em">Level</span>
-            <span style="font-size:10px;color:var(--text-4);text-transform:uppercase;letter-spacing:.04em">Fit</span>
-            <span></span>
+          <div class="arch-grid-head">
+            <span>Nom</span><span>Niveau</span><span>Fit</span><span></span>
           </div>
           <div id="archetypes-list"></div>
         </div>
-      </div>
+      </section>
 
       <!-- Narrative -->
-      <div class="profile-block">
-        <div class="profile-block-header">
-          <span class="profile-block-title">Narrative</span>
-        </div>
-        <div class="profile-grid">
-          <div class="profile-field span-2">
-            <label>Headline</label>
-            <input type="text" id="prof-headline" placeholder="e.g. Senior Product Designer turned AI Product Builder">
-          </div>
-          <div class="profile-field span-2">
-            <label>Exit Story</label>
-            <textarea id="prof-exit-story" rows="4" style="resize:vertical" placeholder="Your positioning narrative..."></textarea>
-          </div>
-          <div class="profile-field span-2">
-            <label>Superpowers <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
-            <textarea id="prof-superpowers" rows="4" style="resize:vertical" placeholder="End-to-end AI product delivery&#10;Cross-functional leadership&#10;..."></textarea>
+      <section class="profile-section" id="sec-narrative">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Narratif</h2>
+            <p class="profile-section-desc">Votre positionnement en quelques phrases — réutilisé en accroche de CV et de lettres.</p>
           </div>
         </div>
-      </div>
+        <div class="profile-card">
+          <div class="field-grid">
+            <div class="field span-2"><label class="field-label" for="prof-headline">Headline</label><input type="text" id="prof-headline" placeholder="ex. Senior Product Designer turned AI Product Builder"></div>
+            <div class="field span-2"><label class="field-label" for="prof-exit-story">Exit story</label><textarea id="prof-exit-story" rows="4" style="resize:vertical" placeholder="Votre récit de positionnement..."></textarea></div>
+            <div class="field span-2"><label class="field-label" for="prof-superpowers">Superpouvoirs <span class="field-hint">(un par ligne)</span></label><textarea id="prof-superpowers" rows="4" style="resize:vertical" placeholder="End-to-end AI product delivery&#10;Cross-functional leadership&#10;..."></textarea></div>
+          </div>
+        </div>
+      </section>
 
       <!-- Proof Points -->
-      <div class="profile-block">
-        <div class="profile-block-header">
-          <span class="profile-block-title">Proof Points</span>
-          <button class="btn btn-ghost btn-sm" id="add-proof-btn">
+      <section class="profile-section" id="sec-proof">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Preuves</h2>
+            <p class="profile-section-desc">Réalisations concrètes, métriques et résultats — réutilisés comme proof points dans les évaluations.</p>
+          </div>
+          <button type="button" class="btn-inline-add" id="add-proof-btn">
             <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-            Add
+            Ajouter une preuve
           </button>
         </div>
-        <div id="proofpoints-list"></div>
-      </div>
+        <div class="profile-card">
+          <div id="proofpoints-list"></div>
+        </div>
+      </section>
 
       <!-- Compensation -->
-      <div class="profile-block">
-        <div class="profile-block-header">
-          <span class="profile-block-title">Compensation</span>
-        </div>
-        <div class="profile-grid">
-          <div class="profile-field">
-            <label>Target Range</label>
-            <input type="text" id="prof-target-range" placeholder="e.g. €70K-110K salary / €600-900/day">
-          </div>
-          <div class="profile-field">
-            <label>Minimum</label>
-            <input type="text" id="prof-minimum" placeholder="e.g. €60K salary / €500/day">
-          </div>
-          <div class="profile-field">
-            <label>Currency</label>
-            <input type="text" id="prof-currency" placeholder="EUR">
-          </div>
-          <div class="profile-field">
-            <label>Employment Type</label>
-            <input type="text" id="prof-employment-type" placeholder="e.g. Open to both salaried and freelance">
-          </div>
-          <div class="profile-field span-2">
-            <label>Location Flexibility</label>
-            <input type="text" id="prof-location-flex" placeholder="e.g. Full remote only — no relocation">
+      <section class="profile-section" id="sec-comp">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Rémunération</h2>
+            <p class="profile-section-desc">Vos attentes financières et le type d'engagement souhaité — utilisés pour filtrer les offres.</p>
           </div>
         </div>
-      </div>
+        <div class="profile-card">
+          <div class="field-grid">
+            <div class="field"><label class="field-label" for="prof-target-range">Fourchette cible</label><input type="text" id="prof-target-range" placeholder="ex. €70K-110K / €600-900 j"></div>
+            <div class="field"><label class="field-label" for="prof-minimum">Minimum</label><input type="text" id="prof-minimum" placeholder="ex. €60K / €500 j"></div>
+            <div class="field"><label class="field-label" for="prof-currency">Devise</label><input type="text" id="prof-currency" placeholder="EUR"></div>
+            <div class="field"><label class="field-label" for="prof-employment-type">Type de contrat</label><input type="text" id="prof-employment-type" placeholder="ex. Salarié et freelance"></div>
+            <div class="field span-2"><label class="field-label" for="prof-location-flex">Flexibilité géographique</label><input type="text" id="prof-location-flex" placeholder="ex. Remote uniquement — pas de relocation"></div>
+          </div>
+        </div>
+      </section>
 
       <!-- Location & Search -->
-      <div class="profile-block">
-        <div class="profile-block-header">
-          <span class="profile-block-title">Location &amp; Search</span>
-        </div>
-        <div class="profile-grid">
-          <div class="profile-field">
-            <label>Country</label>
-            <input type="text" id="prof-country" placeholder="France">
-          </div>
-          <div class="profile-field">
-            <label>City / Region</label>
-            <input type="text" id="prof-city" placeholder="Remote">
-          </div>
-          <div class="profile-field">
-            <label>Timezone</label>
-            <input type="text" id="prof-timezone" placeholder="CET">
-          </div>
-          <div class="profile-field">
-            <label>Visa Status</label>
-            <input type="text" id="prof-visa" placeholder="EU citizen, no sponsorship needed">
-          </div>
-          <div class="profile-field span-2">
-            <label>Remote Policy</label>
-            <input type="text" id="prof-remote-policy" placeholder="Full remote required — all sectors considered">
+      <section class="profile-section" id="sec-location">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Localisation</h2>
+            <p class="profile-section-desc">Pays, fuseau, statut visa et politique remote — utilisés pour filtrer les zones géographiques.</p>
           </div>
         </div>
-      </div>
+        <div class="profile-card">
+          <div class="field-grid">
+            <div class="field"><label class="field-label" for="prof-country">Pays</label><input type="text" id="prof-country" placeholder="France"></div>
+            <div class="field"><label class="field-label" for="prof-city">Ville / Région</label><input type="text" id="prof-city" placeholder="Remote"></div>
+            <div class="field"><label class="field-label" for="prof-timezone">Fuseau horaire</label><input type="text" id="prof-timezone" placeholder="CET"></div>
+            <div class="field"><label class="field-label" for="prof-visa">Statut visa</label><input type="text" id="prof-visa" placeholder="Citoyen UE, pas de sponsorship requis"></div>
+            <div class="field span-2"><label class="field-label" for="prof-remote-policy">Politique remote</label><input type="text" id="prof-remote-policy" placeholder="Full remote requis — tous secteurs"></div>
+          </div>
+        </div>
+      </section>
 
       <!-- Search Criteria -->
-      <div class="profile-block">
-        <div class="profile-block-header">
-          <span class="profile-block-title">Search Criteria</span>
-        </div>
-        <div class="profile-subsection">
-          <div class="profile-subtitle">Hard Filters</div>
-          <div class="profile-subhint">These are the rules that should eliminate an offer immediately before we spend time on it.</div>
-          <div class="criteria-grid">
-            <div class="criteria-card hard">
-              <div class="criteria-badge hard">Work Setup</div>
-              <div class="profile-field">
-                <label>Contract Types <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
-                <textarea id="prof-search-contract-types" rows="3" style="resize:vertical" placeholder="Salaried&#10;Freelance / Contractor"></textarea>
-              </div>
-              <div class="profile-field" style="margin-top:12px">
-                <label>On-site Availability</label>
-                <input type="text" id="prof-search-onsite" placeholder="Occasional on-site only if exceptional opportunity">
-              </div>
-            </div>
-            <div class="criteria-card hard">
-              <div class="criteria-badge hard">Elimination Rules</div>
-              <div class="profile-field">
-                <label>Must-Haves <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
-                <textarea id="prof-search-must-haves" rows="3" style="resize:vertical" placeholder="Real AI scope&#10;Product ownership&#10;Full remote"></textarea>
-              </div>
-              <div class="profile-field" style="margin-top:12px">
-                <label>Deal Breakers <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
-                <textarea id="prof-search-deal-breakers" rows="4" style="resize:vertical" placeholder="No pure execution roles&#10;No 4-5 days/week on-site&#10;No AI-washing"></textarea>
-              </div>
-            </div>
+      <section class="profile-section" id="sec-search">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Critères de recherche</h2>
+            <p class="profile-section-desc">Règles strictes (filtres) et préférences (boost) qui pilotent le scoring des offres.</p>
           </div>
         </div>
-        <div class="profile-subsection">
-          <div class="profile-subtitle">Preference Signals</div>
-          <div class="profile-subhint">These shape ranking and recommendations once an offer passes the hard filters.</div>
-          <div class="criteria-grid">
-            <div class="criteria-card soft">
-              <div class="criteria-badge soft">Market Scope</div>
-              <div class="profile-field">
-                <label>Sector Preferences <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
-                <textarea id="prof-search-sectors" rows="3" style="resize:vertical" placeholder="AI / SaaS&#10;All sectors considered"></textarea>
-              </div>
-              <div class="profile-field" style="margin-top:12px">
-                <label>Geography Preferences <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
-                <textarea id="prof-search-geography" rows="3" style="resize:vertical" placeholder="EU preferred&#10;International if remote"></textarea>
-              </div>
-            </div>
-            <div class="criteria-card soft">
-              <div class="criteria-badge soft">Ranking Boosts</div>
-              <div class="profile-field">
-                <label>Nice-to-Haves <span style="color:var(--text-4);font-weight:400">(one per line)</span></label>
-                <textarea id="prof-search-nice-to-haves" rows="4" style="resize:vertical" placeholder="Strong product culture&#10;Builder environment"></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <div class="profile-block">
-        <div class="profile-block-header">
-          <span class="profile-block-title">Advanced Context</span>
+        <div class="profile-card">
+          <div class="profile-subsection">
+            <div class="profile-subtitle">Filtres stricts</div>
+            <div class="profile-subhint">Règles qui éliminent une offre immédiatement avant analyse.</div>
+            <div class="criteria-grid">
+              <div class="criteria-card hard">
+                <div class="criteria-badge hard">Work Setup</div>
+                <div class="field">
+                  <label class="field-label" for="prof-search-contract-types">Types de contrat <span class="field-hint">(un par ligne)</span></label>
+                  <textarea id="prof-search-contract-types" rows="3" style="resize:vertical" placeholder="Salarié&#10;Freelance"></textarea>
+                </div>
+                <div class="field" style="margin-top:14px">
+                  <label class="field-label" for="prof-search-onsite">Disponibilité on-site</label>
+                  <input type="text" id="prof-search-onsite" placeholder="On-site occasionnel uniquement si exceptionnel">
+                </div>
+              </div>
+              <div class="criteria-card hard">
+                <div class="criteria-badge hard">Elimination Rules</div>
+                <div class="field">
+                  <label class="field-label" for="prof-search-must-haves">Indispensables <span class="field-hint">(un par ligne)</span></label>
+                  <textarea id="prof-search-must-haves" rows="3" style="resize:vertical" placeholder="Vrai scope IA&#10;Ownership produit&#10;Full remote"></textarea>
+                </div>
+                <div class="field" style="margin-top:14px">
+                  <label class="field-label" for="prof-search-deal-breakers">Deal-breakers <span class="field-hint">(un par ligne)</span></label>
+                  <textarea id="prof-search-deal-breakers" rows="4" style="resize:vertical" placeholder="Pas de rôles d'exécution&#10;Pas de 4-5j on-site&#10;Pas d'AI-washing"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-subsection">
+            <div class="profile-subtitle">Préférences</div>
+            <div class="profile-subhint">Signaux qui ajustent le ranking une fois les filtres stricts passés.</div>
+            <div class="criteria-grid">
+              <div class="criteria-card soft">
+                <div class="criteria-badge soft">Market Scope</div>
+                <div class="field">
+                  <label class="field-label" for="prof-search-sectors">Secteurs préférés <span class="field-hint">(un par ligne)</span></label>
+                  <textarea id="prof-search-sectors" rows="3" style="resize:vertical" placeholder="AI / SaaS&#10;Tous secteurs"></textarea>
+                </div>
+                <div class="field" style="margin-top:14px">
+                  <label class="field-label" for="prof-search-geography">Géographies préférées <span class="field-hint">(un par ligne)</span></label>
+                  <textarea id="prof-search-geography" rows="3" style="resize:vertical" placeholder="EU prioritaire&#10;International si remote"></textarea>
+                </div>
+              </div>
+              <div class="criteria-card soft">
+                <div class="criteria-badge soft">Ranking Boosts</div>
+                <div class="field">
+                  <label class="field-label" for="prof-search-nice-to-haves">Nice-to-haves <span class="field-hint">(un par ligne)</span></label>
+                  <textarea id="prof-search-nice-to-haves" rows="4" style="resize:vertical" placeholder="Forte culture produit&#10;Environnement builder"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="profile-field">
-          <label>Strategic profile notes <span style="color:var(--text-4);font-weight:400">(synced with `modes/_profile.md`)</span></label>
-          <textarea id="prof-advanced-context" rows="18" style="resize:vertical;min-height:360px" placeholder="Long-form strategic context, differentiators, advanced positioning, private notes for the system..."></textarea>
+      </section>
+
+      <!-- CV -->
+      <section class="profile-section" id="sec-cv">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">CV</h2>
+            <p class="profile-section-desc">Source de vérité pour chaque génération de CV PDF et chaque évaluation d'offre.</p>
+          </div>
         </div>
+        <div class="profile-card">
+          <div class="field">
+            <label class="field-label" for="prof-cv-markdown">Contenu du CV <span class="field-hint">(Markdown)</span></label>
+            <textarea id="prof-cv-markdown" rows="22" style="resize:vertical;min-height:420px;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.65" placeholder="# Votre Nom&#10;&#10;## Expérience&#10;&#10;**Entreprise** — Rôle (2022–aujourd'hui)&#10;- Réalisation 1&#10;- Réalisation 2&#10;&#10;## Formation&#10;&#10;## Compétences"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Advanced -->
+      <section class="profile-section" id="sec-advanced">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Contexte avancé</h2>
+            <p class="profile-section-desc">Notes stratégiques privées transmises au système — différenciateurs, positionnement long-form, instructions internes.</p>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div class="field">
+            <label class="field-label" for="prof-advanced-context">Notes stratégiques <span class="field-hint">(narratif, différenciateurs, contexte privé pour l'IA)</span></label>
+            <textarea id="prof-advanced-context" rows="18" style="resize:vertical;min-height:360px" placeholder="Contexte stratégique long-form, différenciateurs, positionnement avancé, notes privées pour le système..."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sticky save dock -->
+      <div class="profile-save-dock">
+        <span class="save-status" id="profile-save-status" data-state="idle">
+          <span class="dot"></span>
+          <span id="profile-save-status-text">Tout est à jour</span>
+        </span>
+        <button class="btn btn-primary" id="profile-save-btn">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2.5 7.5l3 3 7-7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Enregistrer
+        </button>
       </div>
     </div>
 
@@ -1641,11 +2922,19 @@
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div style="padding:16px 20px;border-bottom:1px solid var(--border-s);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span id="scan-sel-count" style="font-size:12px;color:var(--text-3);flex:1">Loading sources…</span>
-      <button class="btn btn-ghost btn-sm" id="scan-sel-all">Select all</button>
-      <button class="btn btn-ghost btn-sm" id="scan-sel-none">Deselect all</button>
-      <button class="btn btn-ghost btn-sm" id="scan-sel-fresh">Fresh only</button>
+    <div style="padding:14px 20px 8px;border-bottom:1px solid var(--border-s);display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text-4);text-transform:uppercase;letter-spacing:.04em;margin-right:4px">Type</span>
+        <button class="filter-btn active" data-scan-kind="all">All</button>
+        <button class="filter-btn" data-scan-kind="job">Jobs</button>
+        <button class="filter-btn" data-scan-kind="freelance">Freelance / Missions</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span id="scan-sel-count" style="font-size:12px;color:var(--text-3);flex:1">Loading sources…</span>
+        <button class="btn btn-ghost btn-sm" id="scan-sel-all">Select all</button>
+        <button class="btn btn-ghost btn-sm" id="scan-sel-none">Deselect all</button>
+        <button class="btn btn-ghost btn-sm" id="scan-sel-fresh">Fresh only</button>
+      </div>
     </div>
     <div id="scan-modal-body" style="padding:16px 20px;max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:20px"></div>
     <div style="padding:14px 20px;border-top:1px solid var(--border-s);display:flex;justify-content:flex-end;gap:10px">
@@ -1661,22 +2950,48 @@
 <!-- ─── Toast stack ───────────────────────────────────────────── -->
 <div class="toast-stack" id="toasts"></div>
 
-<!-- ─── Claude Stream Modal ───────────────────────────────────── -->
-<div class="modal-backdrop" id="cmd-modal">
-  <div class="modal" style="max-width:720px">
-    <div class="modal-header">
-      <span class="modal-title" id="cmd-modal-title">Claude</span>
-      <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn btn-ghost btn-sm" id="cmd-cv-pdf-btn" style="display:none">Generate CV</button>
-        <button class="btn btn-ghost btn-sm" id="cmd-cover-pdf-btn" style="display:none">Generate PDF</button>
-        <button class="btn btn-ghost btn-sm" id="cmd-copy-short-btn" style="display:none">Copy short version</button>
-        <span id="cmd-status" style="font-size:11px;color:var(--text-4);display:flex;align-items:center;gap:5px"></span>
-        <button class="btn-icon" id="cmd-modal-close">
+<!-- ─── Native confirmation ───────────────────────────────────── -->
+<div class="modal-backdrop confirm-backdrop" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="confirm-card">
+    <div class="confirm-head">
+      <div class="confirm-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 15 15" fill="none"><path d="M7.5 4.5v3.25M7.5 10.5h.01M13 7.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0Z" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="confirm-copy">
+        <div class="confirm-title" id="confirm-title">Confirmer l'action</div>
+        <p class="confirm-message" id="confirm-message">Cette action ne peut pas etre annulee.</p>
+      </div>
+    </div>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" id="confirm-cancel">Annuler</button>
+      <button class="btn btn-danger" id="confirm-accept">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Claude Stream Notification ─────────────────────────────── -->
+<div class="cmd-dock" id="cmd-modal" aria-live="polite">
+  <div class="cmd-panel">
+    <div class="cmd-head">
+      <div class="cmd-title-wrap">
+        <span class="cmd-title" id="cmd-modal-title">Claude</span>
+        <span class="cmd-status" id="cmd-status"></span>
+      </div>
+      <div class="cmd-controls">
+        <button class="btn-icon" id="cmd-modal-toggle" title="Collapse">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M3 6l4.5 4L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="btn-icon" id="cmd-modal-close" title="Close">
           <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
       </div>
     </div>
-    <div id="cmd-stream-output" class="md-content" style="padding:20px;min-height:160px;max-height:65vh;overflow-y:auto;font-size:13px;line-height:1.7"></div>
+    <div class="cmd-actions">
+      <button class="btn btn-ghost btn-sm" id="cmd-cv-pdf-btn" style="display:none">Generate CV</button>
+      <button class="btn btn-ghost btn-sm" id="cmd-cover-pdf-btn" style="display:none">Generate PDF</button>
+      <button class="btn btn-ghost btn-sm" id="cmd-copy-short-btn" style="display:none">Copy short version</button>
+    </div>
+    <div id="cmd-stream-output" class="md-content cmd-body"></div>
   </div>
 </div>
 
@@ -1728,6 +3043,12 @@ const state = {
   queries: [],
   scanState: {},
   filter: 'All',
+  appSearch: '',
+  appMinScore: 0,
+  pipeSearch: '',
+  pipeSource: 'all',
+  pipeSort: 'newest',
+  selectedPipelineUrls: new Set(),
   portalsFilter: 'all',
   portalsSearch: '',
   queriesFilter: 'all',
@@ -1838,14 +3159,19 @@ function renderMd(md) {
 
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
-  const res = await fetch(path, opts);
+  const token = window.__authToken;
+  const headers = { ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+  const res = await fetch(path, { ...opts, headers });
+  if (res.status === 401) { if (!window.__viewOnly) window.location.href = '/login'; return; }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   const ct = res.headers.get('content-type') || '';
   return ct.includes('json') ? res.json() : res.text();
 }
 
 // ─── Load data ────────────────────────────────────────────────────────────────
-async function loadAll() {
+window.loadAll = async function loadAll() {
   const [apps, pipe, reports, portals, queries, cvs, scanState] = await Promise.all([
     api('/api/applications').catch(() => []),
     api('/api/pipeline').catch(() => []),
@@ -1903,37 +3229,228 @@ function updateBadges() {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
+function renderDashboardNavButton(view, label, className = 'btn btn-ghost btn-sm') {
+  return `<button class="${className}" data-dashboard-view="${view}">${escapeHtml(label)}</button>`;
+}
+
 function renderDashboard() {
   const apps = state.applications;
+  const pipeline = state.pipeline;
   const statuses = {};
   apps.forEach(a => {
     const s = a.Status || 'Unknown';
     statuses[s] = (statuses[s] || 0) + 1;
   });
 
-  const avgScore = apps.length
-    ? (apps.reduce((s, a) => s + (parseFloat(a.Score) || 0), 0) / apps.filter(a => parseFloat(a.Score)).length || 0).toFixed(1)
-    : '—';
-
   const countStatus = (...keys) => keys.reduce((sum, k) => sum + (statuses[k] || 0), 0);
+  const scoredApps = apps.filter(a => !isNaN(parseFloat(a.Score)));
+  const avgScore = scoredApps.length
+    ? (scoredApps.reduce((sum, a) => sum + parseFloat(a.Score), 0) / scoredApps.length).toFixed(1)
+    : '—';
+  const bestScore = scoredApps.length
+    ? Math.max(...scoredApps.map(a => parseFloat(a.Score))).toFixed(1)
+    : '—';
+  const appliedCount = countStatus('Applied', 'Aplicado');
+  const respondedCount = countStatus('Responded', 'Respondido');
+  const interviewCount = countStatus('Interview', 'Entrevista');
+  const offerCount = countStatus('Offer', 'Oferta');
+  const evaluatedCount = countStatus('Evaluated', 'Evaluada');
+  const rejectedCount = countStatus('Rejected', 'Rechazado');
+  const discardedCount = countStatus('Discarded', 'Descartado', 'SKIP', 'NO APLICAR');
+  const activeCount = appliedCount + respondedCount + interviewCount + offerCount;
+  const highFitCount = scoredApps.filter(a => parseFloat(a.Score) >= 4).length;
+  const pipelineSources = [...new Set(pipeline.map(item => getPipelineSource(item.url)).filter(Boolean))];
+  const formatCount = (count, singular, plural = `${singular}s`) => `${count} ${count === 1 ? singular : plural}`;
+
+  let heroTitle = 'Keep the funnel moving.';
+  let heroCopy = 'Scan, score, apply.';
+  let focusTitle = 'Start by filling the queue';
+  let focusCopy = '';
+  let focusPrimary = '<button class="btn btn-primary" data-cmd="scan">Run scan</button>';
+  let focusSecondary = renderDashboardNavButton('pipeline', 'Open pipeline');
+
+  if (!apps.length && !pipeline.length) {
+    heroTitle = 'The board is ready. The funnel is empty.';
+    heroCopy = 'Start with a scan.';
+  } else if (pipeline.length > 0) {
+    heroTitle = `${formatCount(pipeline.length, 'role')} waiting in the queue.`;
+    heroCopy = pipelineSources.length ? pipelineSources.slice(0, 3).join(' • ') : 'Ready to process.';
+    focusTitle = `Process the next ${Math.min(pipeline.length, 4)}`;
+    focusPrimary = '<button class="btn btn-primary" data-cmd="pipeline">Process pipeline</button>';
+    focusSecondary = renderDashboardNavButton('pipeline', 'Review queue');
+  } else if (apps.length > 0 && activeCount === 0) {
+    heroTitle = 'Reports are ready.';
+    heroCopy = 'Move the best ones forward.';
+    focusTitle = highFitCount > 0 ? `${highFitCount} strong match${highFitCount > 1 ? 'es' : ''}` : 'Open applications';
+    focusPrimary = renderDashboardNavButton('applications', 'Open applications', 'btn btn-primary');
+    focusSecondary = renderDashboardNavButton('reports', 'Review reports');
+  } else if (activeCount > 0) {
+    heroTitle = `${formatCount(activeCount, 'live application')} currently in play.`;
+    heroCopy = 'Keep momentum.';
+    focusTitle = interviewCount + offerCount > 0 ? `${interviewCount + offerCount} late-stage` : 'Source more roles';
+    focusPrimary = renderDashboardNavButton('applications', 'Open applications', 'btn btn-primary');
+    focusSecondary = '<button class="btn btn-ghost btn-sm" data-cmd="scan">Source more roles</button>';
+  }
+
+  document.getElementById('dashboard-hero-title').textContent = heroTitle;
+  document.getElementById('dashboard-hero-copy').textContent = heroCopy;
+  document.getElementById('dashboard-hero-meta').innerHTML = [
+    `<span class="dashboard-hero-chip"><strong>${apps.length}</strong> tracked applications</span>`,
+    `<span class="dashboard-hero-chip"><strong>${activeCount}</strong> active in funnel</span>`,
+    `<span class="dashboard-hero-chip"><strong>${pipeline.length}</strong> queued URLs</span>`,
+    scoredApps.length ? `<span class="dashboard-hero-chip"><strong>${avgScore}</strong> average fit score</span>` : '',
+  ].filter(Boolean).join('');
+
+  document.getElementById('dashboard-focus-card').innerHTML = `
+    <div>
+      <div class="dashboard-focus-label">Best next move</div>
+      <div class="dashboard-focus-title">${escapeHtml(focusTitle)}</div>
+    </div>
+    ${focusCopy ? `<div class="dashboard-focus-copy">${escapeHtml(focusCopy)}</div>` : ''}
+    <div class="dashboard-focus-footer">
+      ${focusPrimary}
+      ${focusSecondary}
+    </div>
+  `;
+
   const cards = [
-    { label: 'Total', value: apps.length, dot: '#8a8f98' },
-    { label: 'Applied', value: countStatus('Applied', 'Aplicado'), dot: '#60a5fa' },
-    { label: 'Interviews', value: countStatus('Interview', 'Entrevista'), dot: '#fbbf24' },
-    { label: 'Offers', value: countStatus('Offer', 'Oferta'), dot: '#34d399' },
-    { label: 'Avg Score', value: avgScore, dot: '#828fff' },
-    { label: 'Pipeline', value: state.pipeline.length, dot: '#a78bfa' },
+    {
+      label: 'Tracked',
+      value: apps.length,
+      dot: '#8a8f98',
+      sub: apps.length ? `${highFitCount} at 4.0+` : 'No reports yet',
+    },
+    {
+      label: 'Applied',
+      value: appliedCount,
+      dot: '#60a5fa',
+      sub: activeCount ? `${activeCount} active` : 'Nothing live',
+    },
+    {
+      label: 'Active',
+      value: activeCount,
+      dot: '#34d399',
+      sub: interviewCount + offerCount ? `${interviewCount + offerCount} late-stage` : 'No late-stage',
+    },
+    {
+      label: 'Avg Score',
+      value: avgScore,
+      dot: '#828fff',
+      sub: bestScore !== '—' ? `Best ${bestScore}` : 'No score yet',
+    },
+    {
+      label: 'Pipeline',
+      value: pipeline.length,
+      dot: '#a78bfa',
+      sub: pipelineSources.length ? `${pipelineSources.length} sources` : 'Queue empty',
+    },
   ];
 
   document.getElementById('stats-grid').innerHTML = cards.map(c => `
     <div class="stat-card">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="stat-dot" style="background:${c.dot}"></div>
-        <span class="stat-label">${c.label}</span>
+      <div class="stat-card-top">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="stat-dot" style="background:${c.dot}"></div>
+          <span class="stat-label">${c.label}</span>
+        </div>
       </div>
       <div class="stat-value">${c.value}</div>
+      ${c.sub ? `<div class="dashboard-focus-copy">${escapeHtml(c.sub)}</div>` : ''}
     </div>
   `).join('');
+
+  const statusRows = [
+    { label: 'Evaluated', count: evaluatedCount, color: '#828fff' },
+    { label: 'Applied', count: appliedCount, color: '#60a5fa' },
+    { label: 'Responded', count: respondedCount, color: '#a78bfa' },
+    { label: 'Interview', count: interviewCount, color: '#fbbf24' },
+    { label: 'Rejected', count: rejectedCount, color: '#f87171' },
+    { label: 'Discarded', count: discardedCount, color: '#8a8f98' },
+  ];
+  const statusMax = Math.max(...statusRows.map(row => row.count), 1);
+  document.getElementById('dashboard-status-panel').innerHTML = `
+    <div class="dashboard-panel-head">
+      <div>
+        <div class="dashboard-panel-title">Funnel</div>
+      </div>
+      <span class="dashboard-panel-chip">${activeCount} active</span>
+    </div>
+    <div class="dashboard-status-list">
+      ${statusRows.map(row => `
+        <div class="dashboard-status-row">
+          <div class="dashboard-status-meta">
+            <span class="dashboard-status-swatch" style="background:${row.color}"></span>
+            <span>${row.label}</span>
+          </div>
+          <div class="dashboard-status-bar">
+            <div class="dashboard-status-fill" style="width:${(row.count / statusMax) * 100}%;background:${row.color}"></div>
+          </div>
+          <div class="dashboard-status-value">${row.count}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  const pipelinePreview = pipeline.slice(0, 4);
+  document.getElementById('dashboard-pipeline-panel').innerHTML = `
+    <div class="dashboard-panel-head">
+      <div>
+        <div class="dashboard-panel-title">Queue</div>
+      </div>
+      <span class="dashboard-panel-chip">${pipelineSources.length ? `${pipelineSources.length} sources` : 'Queue view'}</span>
+    </div>
+    ${pipelinePreview.length ? `
+      <div class="dashboard-pipeline-list">
+        ${pipelinePreview.map(item => {
+          const source = getPipelineSource(item.url || '');
+          const title = item.title || item.company || item.url || 'Untitled role';
+          const dateMeta = getPipelineDateMeta(item);
+          return `
+            <div class="dashboard-pipeline-item">
+              <div class="dashboard-pipeline-head">
+                <div class="dashboard-pipeline-title">${escapeHtml(title)}</div>
+              </div>
+              <div class="dashboard-pipeline-tags">
+                ${source ? `<span class="dashboard-tag">${escapeHtml(source)}</span>` : ''}
+                ${dateMeta ? `<span class="dashboard-tag">${escapeHtml(dateMeta)}</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : `<div class="dashboard-panel-empty">Pipeline is clear.</div>`}
+  `;
+
+  const topFits = [...scoredApps]
+    .sort((a, b) => parseFloat(b.Score) - parseFloat(a.Score))
+    .slice(0, 4);
+  document.getElementById('dashboard-watch-panel').innerHTML = `
+    <div class="dashboard-panel-head">
+      <div>
+        <div class="dashboard-panel-title">Top Matches</div>
+      </div>
+      <span class="dashboard-panel-chip">${highFitCount} high-fit</span>
+    </div>
+    ${topFits.length ? `
+      <div class="dashboard-watch-list">
+        ${topFits.map(app => `
+          <div class="dashboard-watch-item">
+            <div class="dashboard-watch-head">
+              <div>
+                <div class="dashboard-watch-company">${escapeHtml(app.Company || 'Unknown company')}</div>
+                <div class="dashboard-watch-role">${escapeHtml(app.Role || 'Unknown role')}</div>
+              </div>
+              <div class="dashboard-watch-score">${escapeHtml(String(app.Score || '—'))}</div>
+            </div>
+            <div class="dashboard-watch-meta">
+              ${badge(app.Status)}
+              ${app.Date ? `<span class="dashboard-tag">${escapeHtml(app.Date)}</span>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    ` : `<div class="dashboard-panel-empty">No scored applications yet.</div>`}
+  `;
 
   // Recent 5
   const recent = [...apps].slice(-5).reverse();
@@ -1952,102 +3469,259 @@ function renderDashboard() {
 }
 
 // ─── Applications ─────────────────────────────────────────────────────────────
+function renderApplicationScanQueue() {
+  const el = document.getElementById('app-scan-queue');
+  if (!el) return;
+
+  const pending = Array.isArray(state.pipeline) ? state.pipeline : [];
+  if (!pending.length) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const getDate = item => item.published_at || item.publishedAt || item.publication_date || item.created_at || item.createdAt || '';
+  const preview = [...pending].sort((a, b) => {
+    const da = getDate(a), db = getDate(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return db.localeCompare(da);
+  }).slice(0, 5);
+  const moreCount = Math.max(0, pending.length - preview.length);
+
+  el.innerHTML = `
+    <section class="app-scan-queue">
+      <div class="section-header">
+        <div>
+          <span class="section-title">Offres scannées à traiter</span>
+          <span style="margin-left:8px;font-size:12px;color:var(--text-4)">${pending.length} en attente</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-app-open-pipeline>Voir pipeline</button>
+      </div>
+      <div class="app-scan-list">
+        ${preview.map(item => {
+          const title = item.title || item.company || 'Offre scannée';
+          const company = item.company || '';
+          const source = getPipelineSource(item.url || '');
+          const dateMeta = getPipelineDateMeta(item);
+          const note = item.display_note || item.displayNote || item.note || '';
+          return `
+            <div class="pipeline-item app-scan-item">
+              <div class="pipeline-main">
+                <div class="pipeline-heading">
+                  <span class="pipeline-title">${escapeHtml(title)}</span>
+                  ${company ? `<span class="pipeline-company">${escapeHtml(company)}</span>` : ''}
+                  ${source ? `<span class="pipeline-date">${escapeHtml(source)}</span>` : ''}
+                  ${dateMeta ? `<span class="pipeline-date">${escapeHtml(dateMeta)}</span>` : ''}
+                </div>
+                <span class="pipeline-url" title="${escapeHtml(item.url || '')}">${escapeHtml(item.url || '')}</span>
+                ${note ? `<span class="pipeline-note">${escapeHtml(note)}</span>` : ''}
+              </div>
+              <div class="pipeline-actions">
+                <button class="btn btn-primary btn-sm" data-app-process-url="${escapeHtml(item.url || '')}">Traiter</button>
+                <a href="${escapeHtml(item.url || '#')}" target="_blank" class="btn btn-ghost btn-sm">Open</a>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      ${moreCount ? `<div class="app-scan-more">+${moreCount} autre${moreCount > 1 ? 's' : ''} dans le pipeline</div>` : ''}
+    </section>
+  `;
+
+  el.querySelectorAll('[data-app-open-pipeline]').forEach(btn => {
+    btn.addEventListener('click', () => navigate('pipeline'));
+  });
+  el.querySelectorAll('[data-app-process-url]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const url = btn.dataset.appProcessUrl;
+      if (url) openCmdModal('pipeline', { url });
+    });
+  });
+}
+
 function renderApplications() {
+  renderApplicationScanQueue();
+
   const apps = state.applications;
   const all_statuses = ['All', ...new Set(apps.map(a => a.Status).filter(Boolean))];
-  const filtered = state.filter === 'All' ? apps : apps.filter(a => a.Status === state.filter);
 
-  // Filters
-  document.getElementById('app-filters').innerHTML = all_statuses.map(s => `
-    <button class="filter-btn ${s === state.filter ? 'active' : ''}" data-filter="${s}">${s}
-      <span style="margin-left:4px;opacity:0.5;font-size:11px">${s === 'All' ? apps.length : apps.filter(a => a.Status === s).length}</span>
-    </button>
-  `).join('');
+  // Apply all filters
+  let filtered = state.filter === 'All' ? apps : apps.filter(a => a.Status === state.filter);
+  if (state.appSearch) {
+    const q = state.appSearch.toLowerCase();
+    filtered = filtered.filter(a =>
+      (a.Company || '').toLowerCase().includes(q) ||
+      (a.Role    || '').toLowerCase().includes(q) ||
+      (a.Notes   || '').toLowerCase().includes(q)
+    );
+  }
+  if (state.appMinScore > 0) {
+    filtered = filtered.filter(a => {
+      const n = parseFloat(String(a.Score));
+      return !isNaN(n) && n >= state.appMinScore;
+    });
+  }
 
-  document.querySelectorAll('.filter-btn').forEach(btn => {
+  // Filters + search bar
+  const scoreOpts = [
+    { label: 'All scores', val: 0 },
+    { label: '3.0+', val: 3.0 },
+    { label: '3.5+', val: 3.5 },
+    { label: '4.0+', val: 4.0 },
+    { label: '4.5+', val: 4.5 },
+  ];
+
+  document.getElementById('app-filters').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+        ${all_statuses.map(s => `
+          <button class="filter-btn ${s === state.filter ? 'active' : ''}" data-filter="${s}">${s}
+            <span style="margin-left:4px;opacity:0.5;font-size:11px">${s === 'All' ? apps.length : apps.filter(a => a.Status === s).length}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div style="display:flex;gap:4px;align-items:center;margin-left:8px;padding-left:8px;border-left:1px solid var(--border-s)">
+        ${scoreOpts.map(o => `
+          <button class="filter-btn score-filter-btn ${state.appMinScore === o.val ? 'active' : ''}" data-min-score="${o.val}">${o.label}</button>
+        `).join('')}
+      </div>
+      <div style="flex:1;min-width:180px;max-width:300px;margin-left:8px">
+        <input id="app-search-input" type="text" value="${escapeHtml(state.appSearch)}"
+          placeholder="Search company, role, notes…"
+          style="width:100%;box-sizing:border-box;padding:4px 10px;border-radius:6px;border:1px solid var(--border-s);background:rgba(255,255,255,0.04);color:var(--text-1);font-size:13px;outline:none">
+      </div>
+      <span style="font-size:12px;color:var(--text-4);white-space:nowrap">${filtered.length} result${filtered.length !== 1 ? 's' : ''}</span>
+    </div>
+  `;
+
+  document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.filter = btn.dataset.filter;
       renderApplications();
     });
   });
 
+  document.querySelectorAll('.score-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.appMinScore = parseFloat(btn.dataset.minScore);
+      renderApplications();
+    });
+  });
+
+  const searchInput = document.getElementById('app-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', e => {
+      state.appSearch = e.target.value;
+      renderApplications();
+    });
+    // Keep focus after re-render if user was typing
+    if (document.activeElement === searchInput || state.appSearch) {
+      searchInput.focus();
+      const len = searchInput.value.length;
+      searchInput.setSelectionRange(len, len);
+    }
+  }
+
   document.getElementById('app-tbody').innerHTML = filtered.length
     ? [...filtered].reverse().map(a => {
         const hasReport = !!extractReportFilename(a.Report);
-	        const applyBtn = hasReport
-	          ? `<button class="btn btn-primary btn-sm apply-row-btn"
-	               data-company="${(a.Company||'').replace(/"/g,'&quot;')}"
-	               data-role="${(a.Role||'').replace(/"/g,'&quot;')}"
-	               data-report="${(extractReportFilename(a.Report)||'').replace(/"/g,'&quot;')}"
-	               data-job-url="${(a.JobURL||'').replace(/"/g,'&quot;')}"
-	               title="Open the original offer page"
-	               style="white-space:nowrap;font-size:11px;padding:3px 8px">
-	               Apply
-	             </button>`
-	          : '';
-	        const coverPdf = findLatestCoverLetterPdf(a);
-	        const coverPdfBtn = coverPdf?.filename
-	          ? `<a class="btn btn-ghost btn-sm"
-	               href="/output/${encodeURIComponent(coverPdf.filename)}"
-	               download="${escapeHtml(coverPdf.filename)}"
-	               title="Download the latest generated cover letter PDF for this application"
-	               style="white-space:nowrap;font-size:11px;padding:3px 8px">
-	               CL PDF
-	             </a>`
-	          : '';
-	        const coverBtn = hasReport
-	          ? `<button class="btn btn-ghost btn-sm cover-letter-row-btn"
-	               data-company="${(a.Company||'').replace(/"/g,'&quot;')}"
-	               data-role="${(a.Role||'').replace(/"/g,'&quot;')}"
-               data-report="${(extractReportFilename(a.Report)||'').replace(/"/g,'&quot;')}"
-               title="Generate a tailored cover letter"
-               style="white-space:nowrap;font-size:11px;padding:3px 8px">
-               Cover Letter
+        const reportName = (extractReportFilename(a.Report) || '').replace(/"/g,'&quot;');
+        const companyAttr = (a.Company || '').replace(/"/g,'&quot;');
+        const roleAttr = (a.Role || '').replace(/"/g,'&quot;');
+        const num = String(a['#'] ?? '');
+
+        const autoApplyBtn = hasReport
+          ? `<button class="icon-action is-primary auto-apply-row-btn"
+               data-company="${companyAttr}"
+               data-role="${roleAttr}"
+               data-report="${reportName}"
+               data-num="${num}"
+               title="Postuler automatiquement (Chrome piloté)">
+               <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M4.5 10.5c-1 .8-1.3 2.5-1.3 2.5s1.7-.3 2.5-1.3M6 9l-2-2c.5-2 1.5-3.5 3-5 2.5-2.4 5.5-1.5 5.5-1.5S13.4 3.5 11 6c-1.5 1.5-3 2.5-5 3zM6 9l1.5 1.5M10 4.5v.01" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+             </button>`
+          : '';
+        const applyBtn = hasReport
+          ? `<button class="icon-action is-primary apply-row-btn"
+               data-company="${companyAttr}"
+               data-role="${roleAttr}"
+               data-report="${reportName}"
+               data-job-url="${(a.JobURL||'').replace(/"/g,'&quot;')}"
+               title="Ouvrir l'offre">
+               <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M9 2h4v4M13 2L7 8M11 9v3a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+             </button>`
+          : '';
+        const coverPdf = findLatestCoverLetterPdf(a);
+        const coverPdfBtn = coverPdf?.filename
+          ? `<a class="icon-action"
+               href="/output/${encodeURIComponent(coverPdf.filename)}"
+               download="${escapeHtml(coverPdf.filename)}"
+               title="Télécharger la cover letter PDF">
+               <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v8m0 0L4.5 7m3 3l3-3M2.5 12.5h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+             </a>`
+          : '';
+        const coverBtn = hasReport
+          ? `<button class="icon-action cover-letter-row-btn"
+               data-company="${companyAttr}"
+               data-role="${roleAttr}"
+               data-report="${reportName}"
+               title="Générer une cover letter">
+               <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 4l5.5 4L13 4M2 4v7a1 1 0 001 1h9a1 1 0 001-1V4M2 4a1 1 0 011-1h9a1 1 0 011 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
              </button>`
           : '';
         const questionBtn = hasReport
-          ? `<button class="btn btn-ghost btn-sm question-row-btn"
-               data-company="${(a.Company||'').replace(/"/g,'&quot;')}"
-               data-role="${(a.Role||'').replace(/"/g,'&quot;')}"
-               data-report="${(extractReportFilename(a.Report)||'').replace(/"/g,'&quot;')}"
-               title="Answer an application question using this offer's report"
-               style="white-space:nowrap;font-size:11px;padding:3px 8px">
-               Q?
+          ? `<button class="icon-action question-row-btn"
+               data-company="${companyAttr}"
+               data-role="${roleAttr}"
+               data-report="${reportName}"
+               title="Répondre à une question du formulaire">
+               <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M5.5 5.5a2 2 0 114 0c0 1-.5 1.5-1.5 2-.5.3-1 .7-1 1.5M7.5 11v.01" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.2"/></svg>
              </button>`
           : '';
         const markAppliedBtn = !isAppliedStatus(a.Status)
-          ? `<button class="btn btn-ghost btn-sm mark-applied-btn"
-               data-num="${String(a['#'] ?? '')}"
-               title="Marquer comme postulé"
-               style="white-space:nowrap;font-size:11px;padding:3px 8px;color:#60a5fa;border-color:#60a5fa">
-               ✓ Applied
+          ? `<button class="icon-action is-primary mark-applied-btn"
+               data-num="${num}"
+               title="Marquer comme postulé">
+               <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M3 7.5l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
              </button>`
           : '';
         const deleteBtn = !isAppliedStatus(a.Status)
-          ? `<button class="btn btn-ghost btn-sm delete-application-btn"
-               data-num="${String(a['#'] ?? '')}"
+          ? `<button class="icon-action is-danger delete-application-btn"
+               data-num="${num}"
                data-company="${escapeHtml(a.Company || '')}"
                data-role="${escapeHtml(a.Role || '')}"
-               title="Supprimer cette offre"
-               style="white-space:nowrap;font-size:11px;padding:3px 8px;color:var(--red);border-color:rgba(239,68,68,0.35)">
-               Supprimer
+               title="Supprimer cette offre">
+               <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2.5 4h10M5.5 4V2.5h4V4M3.5 4l.5 8a1 1 0 001 1h5a1 1 0 001-1l.5-8M6 6.5v4M9 6.5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
              </button>`
           : '';
+
+        const actions = [markAppliedBtn, questionBtn, coverPdfBtn, coverBtn, applyBtn, autoApplyBtn, deleteBtn].filter(Boolean).join('');
+
+        const noteText = (a.Notes || '').trim();
+        const notePreview = noteText
+          ? `<div class="offer-note" data-tip="${escapeHtml(noteText)}" aria-label="Note">
+               <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 6.5v4M7.5 4.5v.01" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+               <span class="offer-note-text">${escapeHtml(noteText)}</span>
+             </div>`
+          : '';
+
+        const dateLabel = formatDaysAgo(a.Date);
         return `
         <tr>
           <td class="td-num">${a['#'] || ''}</td>
-          <td class="td-company">${a.Company || '—'}</td>
-          <td class="td-role">${a.Role || '—'}</td>
+          <td class="td-offer">
+            <div class="offer-name">${escapeHtml(a.Company || '—')}</div>
+            <div class="offer-role">${escapeHtml(a.Role || '—')}</div>
+            ${notePreview}
+          </td>
           <td>${scoreEl(a.Score)}</td>
           <td>${badge(a.Status)}</td>
-          <td style="text-align:center;font-size:16px">${a.PDF === '✓' || a.PDF === '✅' ? '✓' : '—'}</td>
-	          <td class="td-report">${renderReportLink(a.Report)}</td>
-	          <td class="td-date">${a.Date || ''}</td>
-	          <td class="td-notes" title="${a.Notes || ''}">${a.Notes || ''}</td>
-	          <td style="text-align:right;white-space:nowrap">${markAppliedBtn}${markAppliedBtn && (questionBtn || coverPdfBtn || coverBtn || applyBtn || deleteBtn) ? ' ' : ''}${questionBtn}${questionBtn && (coverPdfBtn || coverBtn || applyBtn || deleteBtn) ? ' ' : ''}${coverPdfBtn}${coverPdfBtn && coverBtn ? ' ' : ''}${coverBtn}${(coverPdfBtn || coverBtn) && applyBtn ? ' ' : ''}${applyBtn}${(markAppliedBtn || questionBtn || coverPdfBtn || coverBtn || applyBtn) && deleteBtn ? ' ' : ''}${deleteBtn}</td>
-	        </tr>`;
-	      }).join('')
-	    : `<tr><td colspan="10"><div class="empty"><strong>No applications match this filter</strong></div></td></tr>`;
+          <td class="td-report">${renderReportLink(a.Report)}</td>
+          <td class="td-date" title="${escapeHtml(a.Date || '')}">${dateLabel}</td>
+          <td class="td-actions">${actions ? `<div class="btn-group">${actions}</div>` : ''}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="7"><div class="empty"><strong>No applications match this filter</strong></div></td></tr>`;
 
   // Apply row button — opens the offer and a quick-fill helper
   document.querySelectorAll('.apply-row-btn').forEach(btn => {
@@ -2095,6 +3769,17 @@ function renderApplications() {
     });
   });
 
+  document.querySelectorAll('.auto-apply-row-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openAutoApplyModal({
+        company: btn.dataset.company,
+        role: btn.dataset.role,
+        report: btn.dataset.report,
+        num: btn.dataset.num,
+      });
+    });
+  });
+
   document.querySelectorAll('.question-row-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       openQuestionModal(btn.dataset.company, btn.dataset.role, btn.dataset.report);
@@ -2105,13 +3790,12 @@ function renderApplications() {
     btn.addEventListener('click', async () => {
       const num = btn.dataset.num;
       btn.disabled = true;
-      btn.textContent = '…';
+      btn.style.opacity = '0.5';
       try {
-        await fetch(`/api/applications/${encodeURIComponent(num)}`, {
+        await api(`/api/applications/${encodeURIComponent(num)}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'Applied' }),
-        }).then(r => { if (!r.ok) throw new Error(r.statusText); });
+        });
         const apps = await api('/api/applications');
         state.applications = normalizeApplications(apps);
         renderAll();
@@ -2119,7 +3803,7 @@ function renderApplications() {
       } catch (err) {
         toast(`Erreur: ${err.message}`, true);
         btn.disabled = false;
-        btn.textContent = '✓ Applied';
+        btn.style.opacity = '';
       }
     });
   });
@@ -2128,11 +3812,9 @@ function renderApplications() {
     btn.addEventListener('click', async () => {
       const num = btn.dataset.num;
       btn.disabled = true;
-      btn.textContent = '…';
+      btn.style.opacity = '0.5';
       try {
-        await fetch(`/api/applications/${encodeURIComponent(num)}`, {
-          method: 'DELETE',
-        }).then(async r => { if (!r.ok) { const b = await r.json().catch(()=>({})); throw new Error(b.error || r.statusText); } });
+        await api(`/api/applications/${encodeURIComponent(num)}`, { method: 'DELETE' });
         const apps = await api('/api/applications');
         state.applications = normalizeApplications(apps);
         renderAll();
@@ -2140,7 +3822,7 @@ function renderApplications() {
       } catch (err) {
         toast(`Erreur: ${err.message}`, true);
         btn.disabled = false;
-        btn.textContent = 'Supprimer';
+        btn.style.opacity = '';
       }
     });
   });
@@ -2195,6 +3877,20 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#39;');
 }
 
+function formatDaysAgo(rawDate) {
+  if (!rawDate) return '';
+  const s = String(rawDate).trim();
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return escapeHtml(s);
+  const today = new Date();
+  const a = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const b = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const days = Math.round((b - a) / 86400000);
+  if (days <= 0) return "aujourd'hui";
+  if (days === 1) return 'hier';
+  return `il y a ${days} j`;
+}
+
 function normalizeExternalUrl(value = '') {
   const trimmed = String(value).trim();
   if (!trimmed) return '';
@@ -2230,6 +3926,192 @@ function buildApplyHelperFields(app, profile) {
     { label: 'Visa status', value: location.visa_status || '' },
     { label: 'Remote policy', value: location.remote_policy || compensation.location_flexibility || '' },
   ].filter(field => field.value);
+}
+
+// ── Auto-apply (Playwright headed runner) ─────────────────────────────────────
+
+const AUTO_APPLY_STATE_LABELS = {
+  launching: { label: 'Lancement de Chrome…', color: '#60a5fa', spin: true },
+  navigating: { label: "Ouverture de l'offre…", color: '#60a5fa', spin: true },
+  finding_form: { label: 'Recherche du formulaire…', color: '#60a5fa', spin: true },
+  filling: { label: 'Remplissage…', color: '#60a5fa', spin: true },
+  needs_human: { label: 'Intervention requise', color: '#fbbf24', spin: false },
+  ready_to_review: { label: 'Prêt — vérifie puis confirme', color: '#34d399', spin: false },
+  submitting: { label: 'Envoi…', color: '#60a5fa', spin: true },
+  submitted: { label: 'Candidature envoyée', color: '#34d399', spin: false },
+  aborted: { label: 'Annulée', color: '#9ca3af', spin: false },
+  error: { label: 'Erreur', color: '#f87171', spin: false },
+};
+
+function openAutoApplyModal(app) {
+  document.getElementById('auto-apply-overlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'auto-apply-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:1000;display:grid;place-items:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="width:min(560px,100%);max-height:88vh;overflow:auto;background:var(--panel,#171a22);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;color:var(--text-1,#f3f4f6);font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px">
+        <div>
+          <div style="font-size:16px;font-weight:700">🚀 Postuler automatiquement</div>
+          <div style="color:var(--text-3,#9ca3af);margin-top:4px">${escapeHtml(app.company)} — ${escapeHtml(app.role)}</div>
+        </div>
+        <button id="aa-close" class="btn btn-ghost btn-sm" title="Fermer (la candidature continue en arrière-plan)">✕</button>
+      </div>
+
+      <div id="aa-setup" style="margin-top:14px">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <label style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3,#9ca3af)">Région (CV + infos déclarées)</span>
+            <select id="aa-region" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 10px;color:inherit;font:inherit">
+              <option value="">Auto-détection depuis le rapport</option>
+              <option value="europe">Europe → CV Paris, infos Paris (CET)</option>
+              <option value="asia">Asie → CV Bangkok, infos Bangkok (ICT)</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="aa-autosubmit">
+            <span>Envoi automatique sans confirmation finale <span style="color:var(--text-3,#9ca3af)">(sinon : pause avant le clic Submit)</span></span>
+          </label>
+          <button id="aa-start" class="btn btn-primary" style="justify-content:center">Lancer la candidature dans Chrome</button>
+          <div style="color:var(--text-3,#9ca3af);font-size:11px;line-height:1.5">Une fenêtre Chrome visible va s'ouvrir : navigation vers l'offre, remplissage du formulaire avec les réponses du rapport, upload du CV régional. En cas de captcha ou de champ inconnu, interviens directement dans Chrome.</div>
+        </div>
+      </div>
+
+      <div id="aa-run" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span id="aa-chip" style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;background:rgba(96,165,250,0.12);font-weight:600;font-size:12px"></span>
+          <span id="aa-meta" style="color:var(--text-3,#9ca3af);font-size:11px"></span>
+        </div>
+        <div id="aa-message" style="margin-top:10px;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:10px;line-height:1.5"></div>
+        <div id="aa-stale" style="display:none;margin-top:10px;padding:10px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);border-radius:10px;line-height:1.5;color:#fca5a5;font-size:13px">⚠️ Le processus d'auto-candidature semble arrêté (aucune mise à jour récente). Les boutons ci-dessous n'auront aucun effet — relance la candidature.</div>
+        <div id="aa-pending-box" style="display:none;margin-top:10px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#fbbf24;margin-bottom:6px">Champs à compléter dans Chrome</div>
+          <ul id="aa-pending" style="margin:0;padding-left:18px;color:var(--text-2,#d1d5db);line-height:1.6"></ul>
+        </div>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;color:var(--text-3,#9ca3af);font-size:12px">Champs remplis (<span id="aa-filled-count">0</span>)</summary>
+          <ul id="aa-filled" style="margin:6px 0 0;padding-left:18px;color:var(--text-2,#d1d5db);line-height:1.6;font-size:12px"></ul>
+        </details>
+        <details style="margin-top:6px">
+          <summary style="cursor:pointer;color:var(--text-3,#9ca3af);font-size:12px">Journal</summary>
+          <pre id="aa-log" style="margin:6px 0 0;max-height:160px;overflow:auto;background:rgba(0,0,0,0.25);border-radius:8px;padding:10px;font-size:11px;line-height:1.5;white-space:pre-wrap"></pre>
+        </details>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button id="aa-submit" class="btn btn-primary" style="display:none">✓ Confirmer l'envoi</button>
+          <button id="aa-rescan" class="btn btn-ghost" style="display:none">↻ Re-scanner le formulaire</button>
+          <button id="aa-abort" class="btn btn-danger">Abandonner</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  let runId = null;
+  let pollTimer = null;
+  let finished = false;
+  let appliedMarked = false;
+
+  const $ = (id) => overlay.querySelector('#' + id);
+  const stopPolling = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
+  const close = () => { stopPolling(); overlay.remove(); };
+  $('aa-close').addEventListener('click', close);
+
+  $('aa-start').addEventListener('click', async () => {
+    $('aa-start').disabled = true;
+    $('aa-start').textContent = 'Lancement…';
+    try {
+      const r = await api('/api/apply/start', {
+        method: 'POST',
+        body: JSON.stringify({
+          report: app.report,
+          company: app.company,
+          role: app.role,
+          region: $('aa-region').value,
+          autoSubmit: $('aa-autosubmit').checked,
+        }),
+      });
+      runId = r.runId;
+      $('aa-setup').style.display = 'none';
+      $('aa-run').style.display = 'block';
+      $('aa-meta').textContent = `${r.region === 'asia' ? '🌏 Asie → Bangkok' : '🇪🇺 Europe → Paris'} · CV: ${r.cv} · ${r.answersCount} réponse(s) pré-écrites`;
+      pollTimer = setInterval(poll, 1500);
+      poll();
+    } catch (err) {
+      toast(`Erreur au lancement: ${err.message}`, true);
+      $('aa-start').disabled = false;
+      $('aa-start').textContent = 'Lancer la candidature dans Chrome';
+    }
+  });
+
+  async function sendCommand(action) {
+    try { await api(`/api/apply/runs/${runId}/command`, { method: 'POST', body: JSON.stringify({ action }) }); }
+    catch (err) { toast(`Erreur: ${err.message}`, true); }
+  }
+  let submitDebounceUntil = 0;
+  $('aa-submit').addEventListener('click', () => { $('aa-submit').disabled = true; submitDebounceUntil = Date.now() + 4000; sendCommand('submit'); });
+  $('aa-rescan').addEventListener('click', () => sendCommand('rescan'));
+  $('aa-abort').addEventListener('click', () => {
+    if (finished) return close();
+    sendCommand('abort');
+  });
+
+  async function poll() {
+    if (!runId) return;
+    let s;
+    try { s = await api(`/api/apply/runs/${runId}`); }
+    catch { return; } // state.json pas encore écrit
+    if (s.error) return;
+
+    const meta = AUTO_APPLY_STATE_LABELS[s.state] || { label: s.state, color: '#9ca3af', spin: false };
+    $('aa-chip').style.color = meta.color;
+    $('aa-chip').style.background = meta.color + '20';
+    $('aa-chip').innerHTML = `${meta.spin ? '<span style="display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span>' : ''}${escapeHtml(meta.label)}`;
+    $('aa-message').textContent = s.message || '';
+
+    const pending = s.pending || [];
+    $('aa-pending-box').style.display = pending.length ? 'block' : 'none';
+    $('aa-pending').innerHTML = pending.map(p => `<li><strong>${escapeHtml(p.label)}</strong> — ${escapeHtml(p.reason)}</li>`).join('');
+
+    const filled = s.filled || [];
+    $('aa-filled-count').textContent = filled.length;
+    $('aa-filled').innerHTML = filled.map(f => `<li><strong>${escapeHtml(f.label)}</strong> → ${escapeHtml(f.value)}</li>`).join('');
+    $('aa-log').textContent = (s.steps || []).map(st => st.text).join('\n');
+
+    const waiting = s.state === 'needs_human' || s.state === 'ready_to_review';
+    $('aa-submit').style.display = waiting ? 'inline-flex' : 'none';
+    $('aa-rescan').style.display = waiting ? 'inline-flex' : 'none';
+
+    // Staleness watchdog: in a waiting state the runner rewrites state.json every
+    // ~1.5s (waitForCommand). If updatedAt is old, the process died — a command
+    // would be written to command.json but never consumed, so the buttons would
+    // silently do nothing. Warn and disable them.
+    const ageMs = s.updatedAt ? (Date.now() - new Date(s.updatedAt).getTime()) : 0;
+    const stale = waiting && ageMs > 20000;
+    $('aa-stale').style.display = stale ? 'block' : 'none';
+    $('aa-submit').disabled = stale || Date.now() < submitDebounceUntil;
+    $('aa-rescan').disabled = stale;
+
+    if (['submitted', 'aborted', 'error'].includes(s.state)) {
+      finished = true;
+      stopPolling();
+      $('aa-abort').textContent = 'Fermer';
+      if (s.state === 'submitted' && !appliedMarked && app.num) {
+        appliedMarked = true;
+        try {
+          await api(`/api/applications/${encodeURIComponent(app.num)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'Applied' }),
+          });
+          const apps = await api('/api/applications');
+          state.applications = normalizeApplications(apps);
+          renderAll();
+          toast(`🎉 ${app.company} — candidature envoyée, statut → Applied`);
+        } catch (err) {
+          toast(`Candidature envoyée mais échec du passage en Applied: ${err.message}`, true);
+        }
+      }
+    }
+  }
 }
 
 function renderApplyHelper(win, app, profile) {
@@ -2444,27 +4326,211 @@ function getPipelineDateMeta(item = {}) {
 }
 
 // ─── Pipeline ─────────────────────────────────────────────────────────────────
+function getPipelineSource(url = '') {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    if (host.includes('linkedin'))    return 'LinkedIn';
+    if (host.includes('lever'))       return 'Lever';
+    if (host.includes('greenhouse'))  return 'Greenhouse';
+    if (host.includes('welcometoth')) return 'WTTJ';
+    if (host.includes('ashbyhq'))     return 'Ashby';
+    if (host.includes('indeed'))      return 'Indeed';
+    if (host.includes('jobsdb'))      return 'JobsDB';
+    if (host.includes('jobs.'))       return host;
+    return host.split('.').slice(-2).join('.');
+  } catch { return ''; }
+}
+
 function renderPipeline() {
   const items = state.pipeline;
-  document.getElementById('pipe-count-label').textContent =
-    items.length ? `${items.length} URL${items.length > 1 ? 's' : ''} pending` : 'Empty';
 
-  document.getElementById('pipeline-list').innerHTML = items.length
-    ? items.map((item, i) => {
+  // Collect unique sources for filter buttons
+  const sources = ['all', ...new Set(items.map(it => getPipelineSource(it.url)).filter(Boolean))].sort((a, b) => a === 'all' ? -1 : b === 'all' ? 1 : a.localeCompare(b));
+
+  // Apply filters
+  let filtered = items;
+  if (state.pipeSource !== 'all') {
+    filtered = filtered.filter(it => getPipelineSource(it.url) === state.pipeSource);
+  }
+  if (state.pipeSearch) {
+    const q = state.pipeSearch.toLowerCase();
+    filtered = filtered.filter(it =>
+      (it.url     || '').toLowerCase().includes(q) ||
+      (it.company || '').toLowerCase().includes(q) ||
+      (it.title   || '').toLowerCase().includes(q) ||
+      (it.note    || '').toLowerCase().includes(q) ||
+      (it.display_note || '').toLowerCase().includes(q)
+    );
+  }
+
+  // Sort
+  const getDate = it => it.published_at || it.publishedAt || it.publication_date || it.created_at || it.createdAt || '';
+  filtered = [...filtered].sort((a, b) => {
+    const da = getDate(a), db = getDate(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return state.pipeSort === 'oldest' ? da.localeCompare(db) : db.localeCompare(da);
+  });
+
+  const pipelineUrls = new Set(items.map(item => item.url).filter(Boolean));
+  state.selectedPipelineUrls = new Set([...state.selectedPipelineUrls].filter(url => pipelineUrls.has(url)));
+  const visibleUrls = filtered.map(item => item.url).filter(Boolean);
+  const selectedVisibleCount = visibleUrls.filter(url => state.selectedPipelineUrls.has(url)).length;
+  const selectedCount = state.selectedPipelineUrls.size;
+
+  document.getElementById('pipe-count-label').textContent =
+    filtered.length !== items.length
+      ? `${filtered.length} / ${items.length} URLs`
+      : items.length ? `${items.length} URL${items.length > 1 ? 's' : ''} pending` : 'Empty';
+
+  // Render filters + search bar just before the list
+  const listEl = document.getElementById('pipeline-list');
+  let controlsEl = document.getElementById('pipeline-controls');
+  if (!controlsEl) {
+    controlsEl = document.createElement('div');
+    controlsEl.id = 'pipeline-controls';
+    controlsEl.style.cssText = 'margin-bottom:16px';
+    listEl.parentNode.insertBefore(controlsEl, listEl);
+  }
+
+  controlsEl.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${sources.map(s => `
+          <button class="filter-btn pipe-source-btn ${state.pipeSource === s ? 'active' : ''}" data-source="${s}">
+            ${s === 'all' ? `All <span style="margin-left:4px;opacity:0.5;font-size:11px">${items.length}</span>` : s}
+          </button>
+        `).join('')}
+      </div>
+      <div style="flex:1;min-width:180px;max-width:320px">
+        <input id="pipe-search-input" type="text" value="${escapeHtml(state.pipeSearch)}"
+          placeholder="Search company, title, URL…"
+          style="width:100%;box-sizing:border-box;padding:4px 10px;border-radius:6px;border:1px solid var(--border-s);background:rgba(255,255,255,0.04);color:var(--text-1);font-size:13px;outline:none">
+      </div>
+      <button id="pipe-sort-btn" class="filter-btn active" style="white-space:nowrap;display:flex;align-items:center;gap:5px">
+        <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M4 4.5h7M4 7.5h5M4 10.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        ${state.pipeSort === 'newest' ? 'Newest first' : 'Oldest first'}
+      </button>
+      ${filtered.length ? `
+        <button id="pipe-select-visible-btn" class="filter-btn" style="white-space:nowrap">
+          ${selectedVisibleCount === visibleUrls.length ? 'Unselect visible' : 'Select visible'}
+        </button>
+      ` : ''}
+      ${(state.pipeSearch || state.pipeSource !== 'all') ? `<span style="font-size:12px;color:var(--text-4)">${filtered.length} result${filtered.length !== 1 ? 's' : ''}</span>` : ''}
+    </div>
+    <div id="pipeline-bulk-bar" class="pipeline-bulk-bar ${selectedCount ? 'open' : ''}">
+      <div class="pipeline-bulk-meta">
+        <strong>${selectedCount}</strong> selected${selectedCount && selectedVisibleCount !== selectedCount ? ` • ${selectedVisibleCount} visible` : ''}
+      </div>
+      <div class="pipeline-bulk-actions">
+        <button class="btn btn-primary btn-sm" id="pipe-bulk-process" ${selectedCount ? '' : 'disabled'}>Traiter</button>
+        <button class="btn btn-ghost btn-sm" id="pipe-bulk-open" ${selectedCount ? '' : 'disabled'}>Open</button>
+        <button class="btn btn-ghost btn-sm" id="pipe-bulk-scan">Scan</button>
+        <button class="btn btn-ghost btn-sm" id="pipe-bulk-clear" ${selectedCount ? '' : 'disabled'}>Clear</button>
+        <button class="btn btn-ghost btn-sm" id="pipe-bulk-delete" ${selectedCount ? '' : 'disabled'} style="color:#fca5a5;border-color:rgba(239,68,68,0.25)">Supprimer</button>
+      </div>
+    </div>
+  `;
+
+  document.querySelectorAll('.pipe-source-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.pipeSource = btn.dataset.source;
+      renderPipeline();
+    });
+  });
+
+  const sortBtn = document.getElementById('pipe-sort-btn');
+  if (sortBtn) {
+    sortBtn.addEventListener('click', () => {
+      state.pipeSort = state.pipeSort === 'newest' ? 'oldest' : 'newest';
+      renderPipeline();
+    });
+  }
+
+  const selectVisibleBtn = document.getElementById('pipe-select-visible-btn');
+  if (selectVisibleBtn) {
+    selectVisibleBtn.addEventListener('click', () => {
+      const allVisibleSelected = visibleUrls.length && selectedVisibleCount === visibleUrls.length;
+      if (allVisibleSelected) {
+        visibleUrls.forEach(url => state.selectedPipelineUrls.delete(url));
+      } else {
+        visibleUrls.forEach(url => state.selectedPipelineUrls.add(url));
+      }
+      renderPipeline();
+    });
+  }
+
+  const searchInput = document.getElementById('pipe-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', e => {
+      state.pipeSearch = e.target.value;
+      renderPipeline();
+    });
+    if (state.pipeSearch) {
+      searchInput.focus();
+      const len = searchInput.value.length;
+      searchInput.setSelectionRange(len, len);
+    }
+  }
+
+  const selectedUrls = () => [...state.selectedPipelineUrls];
+  document.getElementById('pipe-bulk-clear')?.addEventListener('click', () => {
+    state.selectedPipelineUrls.clear();
+    renderPipeline();
+  });
+  document.getElementById('pipe-bulk-scan')?.addEventListener('click', () => openScanModal());
+  document.getElementById('pipe-bulk-open')?.addEventListener('click', () => {
+    selectedUrls().slice(0, 8).forEach(url => window.open(url, '_blank', 'noopener,noreferrer'));
+  });
+  document.getElementById('pipe-bulk-process')?.addEventListener('click', () => {
+    const urls = selectedUrls();
+    if (!urls.length) return;
+    if (urls.length === 1) {
+      openCmdModal('pipeline', { url: urls[0] });
+    } else {
+      startPipelineQueue(urls);
+      toast(`Processing ${urls.length} offers one by one…`);
+    }
+  });
+  document.getElementById('pipe-bulk-delete')?.addEventListener('click', async () => {
+    const urls = selectedUrls();
+    if (!urls.length) return;
+    const ok = await confirmAction({
+      title: `Supprimer ${urls.length} offre${urls.length > 1 ? 's' : ''} ?`,
+      message: 'Les offres selectionnees seront retirees du pipeline. Les rapports deja generes ne seront pas supprimes.',
+      confirmLabel: 'Supprimer',
+    });
+    if (!ok) return;
+    await api('/api/pipeline', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls }),
+    });
+    state.selectedPipelineUrls.clear();
+    toast(`${urls.length} offer${urls.length > 1 ? 's' : ''} removed from pipeline`);
+    await loadAll();
+  });
+
+  listEl.innerHTML = filtered.length
+    ? filtered.map((item) => {
         const title = item.title || '';
         const company = item.company || '';
         const note = item.display_note || item.displayNote || item.note || '';
         const dateMeta = getPipelineDateMeta(item);
+        const source = getPipelineSource(item.url);
+        const selected = state.selectedPipelineUrls.has(item.url);
         return `
-        <div class="pipeline-item">
-          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" style="flex-shrink:0;color:var(--text-4)">
-            <path d="M8.5 2.5L12 6l-3.5 3.5M3 6h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+        <div class="pipeline-item ${selected ? 'selected' : ''}" data-pipeline-select-url="${escapeHtml(item.url)}" aria-selected="${selected ? 'true' : 'false'}">
+          <span class="pipeline-select" aria-hidden="true">
+            <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M3 7.5l3 3L12 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
           <div class="pipeline-main">
-            ${(title || company || dateMeta) ? `
+            ${(title || company || dateMeta || source) ? `
               <div class="pipeline-heading">
-                ${title ? `<span class="pipeline-title">${escapeHtml(title)}</span>` : ''}
+                ${title   ? `<span class="pipeline-title">${escapeHtml(title)}</span>` : ''}
                 ${company ? `<span class="pipeline-company">${escapeHtml(company)}</span>` : ''}
+                ${source  ? `<span class="pipeline-date">${escapeHtml(source)}</span>` : ''}
                 ${dateMeta ? `<span class="pipeline-date">${escapeHtml(dateMeta)}</span>` : ''}
               </div>
             ` : ''}
@@ -2483,10 +4549,24 @@ function renderPipeline() {
         </div>
       `}).join('')
     : `<div class="empty">
-        <svg width="36" height="36" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 4v3.5l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        <strong>Pipeline is empty</strong>
-        <span>Add URLs above to queue them for evaluation</span>
+        ${items.length
+          ? `<strong>No results</strong><span>Clear search or change filter</span>`
+          : `<svg width="36" height="36" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 4v3.5l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+             <strong>Pipeline is empty</strong>
+             <span>Add URLs above to queue them for evaluation</span>`
+        }
       </div>`;
+
+  document.querySelectorAll('[data-pipeline-select-url]').forEach(itemEl => {
+    itemEl.addEventListener('click', e => {
+      if (e.target.closest('button, a, input, textarea, select')) return;
+      const url = itemEl.dataset.pipelineSelectUrl;
+      if (!url) return;
+      if (state.selectedPipelineUrls.has(url)) state.selectedPipelineUrls.delete(url);
+      else state.selectedPipelineUrls.add(url);
+      renderPipeline();
+    });
+  });
 
   // Delete handlers
   document.querySelectorAll('[data-delete-url]').forEach(btn => {
@@ -2690,7 +4770,12 @@ function renderPortals() {
   document.querySelectorAll('[data-delete-portal]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const name = decodeURIComponent(btn.dataset.deletePortal);
-      if (!confirm(`Delete "${name}"?`)) return;
+      const ok = await confirmAction({
+        title: `Delete "${name}"?`,
+        message: 'This company will be removed from the scan sources list.',
+        confirmLabel: 'Delete company',
+      });
+      if (!ok) return;
       try {
         await api(`/api/portals/${encodeURIComponent(name)}`, { method: 'DELETE' });
         state.portals = await api('/api/portals');
@@ -2857,7 +4942,12 @@ function renderQueries() {
   document.querySelectorAll('[data-delete-query]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const name = decodeURIComponent(btn.dataset.deleteQuery);
-      if (!confirm(`Delete "${name}"?`)) return;
+      const ok = await confirmAction({
+        title: `Delete "${name}"?`,
+        message: 'This search query will be removed from future scans.',
+        confirmLabel: 'Delete query',
+      });
+      if (!ok) return;
       try {
         await api(`/api/queries/${encodeURIComponent(name)}`, { method: 'DELETE' });
         state.queries = await api('/api/queries');
@@ -2977,7 +5067,35 @@ function addProofRow(p = {}) {
   document.getElementById('proofpoints-list').appendChild(card);
 }
 
-function renderProfile(data) {
+function normalizeProfileData(data) {
+  // Supabase profiles table → format plat avec champs JSONB
+  // YAML profile → format imbriqué (candidate, target_roles, narrative…)
+  // On supporte les deux.
+  if (data && (data.full_name !== undefined || data.is_admin !== undefined)) {
+    // Format Supabase (plat)
+    return {
+      candidate: {
+        full_name:      data.full_name      || '',
+        email:          data.email          || '',
+        location:       data.location       || '',
+        linkedin:       data.linkedin       || '',
+        portfolio_url:  data.portfolio_url  || '',
+        github:         data.github         || '',
+        twitter:        data.twitter        || '',
+        phone:          data.phone          || '',
+      },
+      target_roles: data.target_roles || {},
+      narrative:    data.narrative    || {},
+      compensation: data.compensation || {},
+      location:     data.location_prefs || {},
+      search:       data.search_prefs  || {},
+    };
+  }
+  return data; // format YAML déjà correct
+}
+
+function renderProfile(rawData) {
+  const data = normalizeProfileData(rawData);
   profileData = data;
   const c = data.candidate || {};
   const t = data.target_roles || {};
@@ -3033,15 +5151,47 @@ function renderProfile(data) {
 
 async function loadProfile() {
   try {
-    const [data, context] = await Promise.all([
+    const [data, context, cvData] = await Promise.all([
       api('/api/profile'),
       api('/api/profile/context'),
+      api('/api/profile/cv'),
     ]);
     profileContextMarkdown = context?.markdown || '';
     renderProfile(data);
+    document.getElementById('prof-cv-markdown').value = cvData?.markdown || '';
+    checkOnboarding(data, cvData?.markdown || '');
+    updateProfileHero();
+    setProfileSaveState('idle', 'Tout est à jour');
   } catch(e) {
     toast('Failed to load profile: ' + e.message, true);
   }
+}
+
+function checkOnboarding(rawData, cvMarkdown) {
+  const data = normalizeProfileData(rawData);
+  const c = data.candidate || {};
+  const t = data.target_roles || {};
+  const steps = [];
+
+  if (!c.full_name) steps.push('Add your name and contact details');
+  if (!cvMarkdown || cvMarkdown.trim().length < 100) steps.push('Paste your CV (Markdown) — used in every evaluation');
+  if (!(t.primary?.length)) steps.push('Set your target roles');
+  if (!c.linkedin) steps.push('Add your LinkedIn URL');
+
+  const banner = document.getElementById('onboarding-banner');
+  const stepsEl = document.getElementById('onboarding-steps');
+
+  if (steps.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  stepsEl.innerHTML = steps.map(s =>
+    `<div style="display:flex;align-items:center;gap:8px">
+      <span style="width:5px;height:5px;border-radius:50%;background:var(--brand);flex-shrink:0"></span>${s}
+    </div>`
+  ).join('');
+  banner.style.display = 'block';
 }
 
 function collectProfile() {
@@ -3142,30 +5292,43 @@ function refreshTemplatePreview() {
   if (fullWidthBtn) fullWidthBtn.href = url;
 }
 
+function setProfileSaveState(state, text) {
+  const status = document.getElementById('profile-save-status');
+  const txt = document.getElementById('profile-save-status-text');
+  if (!status || !txt) return;
+  status.dataset.state = state;
+  if (text != null) txt.textContent = text;
+}
+
 document.getElementById('profile-save-btn').addEventListener('click', async () => {
   const btn = document.getElementById('profile-save-btn');
-  const status = document.getElementById('profile-save-status');
   btn.disabled = true;
-  status.textContent = 'Saving…';
+  setProfileSaveState('saving', 'Enregistrement…');
   try {
     const advancedContext = document.getElementById('prof-advanced-context').value;
-    await api('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        profile: collectProfile(),
-        context_markdown: advancedContext,
+    const cvMarkdown = document.getElementById('prof-cv-markdown').value;
+    await Promise.all([
+      api('/api/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          profile: collectProfile(),
+          context_markdown: advancedContext,
+        }),
       }),
-    });
+      api('/api/profile/cv', {
+        method: 'PUT',
+        body: JSON.stringify({ markdown: cvMarkdown }),
+      }),
+    ]);
     profileContextMarkdown = advancedContext;
-    status.textContent = '✓ Saved';
-    status.style.color = 'var(--emerald)';
+    checkOnboarding(collectProfile(), cvMarkdown);
+    setProfileSaveState('saved', 'Enregistré');
     refreshTemplatePreview();
+    updateProfileHero();
     toast('Profile saved');
-    setTimeout(() => { status.textContent = ''; status.style.color = ''; }, 3000);
+    setTimeout(() => { setProfileSaveState('idle', 'Tout est à jour'); }, 3000);
   } catch(e) {
-    status.textContent = '✗ Error';
-    status.style.color = 'var(--red)';
+    setProfileSaveState('error', 'Erreur de sauvegarde');
     toast('Error saving profile: ' + e.message, true);
   } finally {
     btn.disabled = false;
@@ -3175,22 +5338,217 @@ document.getElementById('profile-save-btn').addEventListener('click', async () =
 document.getElementById('add-archetype-btn').addEventListener('click', () => addArchetypeRow());
 document.getElementById('add-proof-btn').addEventListener('click', () => addProofRow());
 
+// ─── Profile hero, completion, scrollspy ──────────────────────────────────────
+function getInitialsFromName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '·';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function computeProfileCompletion() {
+  const ids = [
+    'prof-name','prof-email','prof-phone','prof-location','prof-linkedin',
+    'prof-portfolio','prof-primary-roles','prof-headline','prof-exit-story',
+    'prof-superpowers','prof-target-range','prof-currency','prof-country',
+    'prof-remote-policy','prof-search-must-haves','prof-search-deal-breakers',
+    'prof-cv-markdown',
+  ];
+  let filled = 0;
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && String(el.value || '').trim().length >= 3) filled++;
+  });
+  const archCount = document.querySelectorAll('#archetypes-list .arch-row .arch-name').length
+    ? [...document.querySelectorAll('#archetypes-list .arch-row .arch-name')].some(i => i.value.trim())
+    : false;
+  const proofCount = [...document.querySelectorAll('#proofpoints-list .proof-card .proof-name')]
+    .some(i => i.value.trim());
+  const total = ids.length + 2;
+  const completed = filled + (archCount ? 1 : 0) + (proofCount ? 1 : 0);
+  return Math.round((completed / total) * 100);
+}
+
+function updateProfileHero() {
+  const nameInput = document.getElementById('prof-name');
+  const headlineInput = document.getElementById('prof-headline');
+  const locInput = document.getElementById('prof-location');
+  const avatar = document.getElementById('profile-avatar');
+  const heroName = document.getElementById('profile-hero-name');
+  const heroSub = document.getElementById('profile-hero-sub');
+  const fillEl = document.getElementById('profile-completion-fill');
+  const pctEl = document.getElementById('profile-completion-pct');
+  const hintEl = document.getElementById('profile-completion-hint');
+  if (!avatar || !heroName) return;
+
+  const name = (nameInput?.value || '').trim();
+  avatar.textContent = getInitialsFromName(name);
+  heroName.textContent = name ? `Bonjour, ${name.split(/\s+/)[0]}` : 'Votre profil';
+
+  const headline = (headlineInput?.value || '').trim();
+  const loc = (locInput?.value || '').trim();
+  const subParts = [headline, loc].filter(Boolean);
+  heroSub.textContent = subParts.length
+    ? subParts.join(' · ')
+    : 'Ces informations alimentent toutes les évaluations, lettres de motivation et CV générés.';
+
+  const pct = computeProfileCompletion();
+  if (fillEl) fillEl.style.width = `${pct}%`;
+  if (pctEl) pctEl.textContent = `${pct}%`;
+  if (hintEl) {
+    if (pct >= 90) hintEl.textContent = 'Profil complet — vos évaluations seront finement personnalisées.';
+    else if (pct >= 60) hintEl.textContent = 'Bon profil. Quelques sections à peaufiner pour aller plus loin.';
+    else if (pct >= 30) hintEl.textContent = 'À mi-chemin. Continuez à enrichir pour de meilleures recommandations.';
+    else hintEl.textContent = 'Plus votre profil est riche, plus les recommandations sont précises.';
+  }
+}
+
+// Live updates on hero-impacting fields + dirty state on any change
+(function wireProfileLive() {
+  const heroFields = ['prof-name','prof-headline','prof-location'];
+  heroFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateProfileHero);
+  });
+  const profView = document.getElementById('view-profile');
+  if (profView) {
+    profView.addEventListener('input', () => {
+      const status = document.getElementById('profile-save-status');
+      if (status && status.dataset.state !== 'saving') {
+        setProfileSaveState('dirty', 'Modifications non enregistrées');
+      }
+    }, true);
+  }
+})();
+
+// Scrollspy + smooth scroll for the sticky nav
+(function wireProfileNav() {
+  const nav = document.getElementById('profile-nav');
+  if (!nav) return;
+  const links = [...nav.querySelectorAll('a[data-anchor]')];
+  links.forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.dataset.anchor;
+      const target = document.getElementById(id);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      links.forEach(l => l.classList.toggle('active', l === a));
+    });
+  });
+
+  const sectionEls = links
+    .map(l => document.getElementById(l.dataset.anchor))
+    .filter(Boolean);
+  const linkByAnchor = Object.fromEntries(links.map(l => [l.dataset.anchor, l]));
+  if ('IntersectionObserver' in window && sectionEls.length) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          links.forEach(l => l.classList.remove('active'));
+          linkByAnchor[id]?.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+    sectionEls.forEach(el => io.observe(el));
+  }
+})();
+
 // ─── Navigation ───────────────────────────────────────────────────────────────
 const TITLES = { dashboard: 'Dashboard', applications: 'Applications', pipeline: 'Pipeline', reports: 'Reports', portals: 'Portals', cvs: 'Generated CVs', profile: 'Profile' };
+const VIEW_ROUTES = {
+  dashboard: '/dashboard',
+  applications: '/applications',
+  pipeline: '/pipeline',
+  reports: '/reports',
+  portals: '/portals',
+  cvs: '/cvs',
+  profile: '/profile',
+};
+const ROUTE_VIEWS = Object.fromEntries(Object.entries(VIEW_ROUTES).map(([view, route]) => [route, view]));
 
-function navigate(view) {
+function viewFromPath(pathname = window.location.pathname) {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return ROUTE_VIEWS[normalized] || (normalized === '/' || normalized === '/index.html' ? 'dashboard' : null);
+}
+
+function navigate(view, { push = true, replace = false, runViewHooks = true } = {}) {
+  if (!VIEW_ROUTES[view] || !document.getElementById(`view-${view}`)) view = 'dashboard';
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item[data-view]').forEach(n => n.classList.remove('active'));
   document.getElementById(`view-${view}`).classList.add('active');
   document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
   document.getElementById('topbar-title').textContent = TITLES[view] || view;
-  if (view === 'profile' && !profileData) loadProfile();
-  if (view === 'cvs') refreshTemplatePreview();
+
+  const route = VIEW_ROUTES[view];
+  if ((push || replace) && window.location.pathname !== route) {
+    const method = replace ? 'replaceState' : 'pushState';
+    history[method]({ view }, '', route);
+  }
+
+  if (runViewHooks) {
+    if (view === 'profile' && !profileData) loadProfile();
+    if (view === 'cvs') refreshTemplatePreview();
+  }
+}
+
+function navigateFromCurrentUrl({ replace = false } = {}) {
+  const view = viewFromPath();
+  navigate(view || 'dashboard', { push: false, replace: replace || !view, runViewHooks: false });
 }
 
 document.querySelectorAll('[data-view]').forEach(el => {
-  el.addEventListener('click', () => navigate(el.dataset.view));
+  const view = el.dataset.view;
+  if (VIEW_ROUTES[view]) el.dataset.href = VIEW_ROUTES[view];
+  el.addEventListener('click', () => { navigate(view); closeMobileMenu(); });
 });
+
+/* ─── Mobile sidebar toggle ────────────────────────────────── */
+function openMobileMenu() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  const tg = document.getElementById('menu-toggle');
+  if (!sb || !bd) return;
+  sb.classList.add('open');
+  bd.classList.add('visible');
+  requestAnimationFrame(() => bd.classList.add('open'));
+  tg?.setAttribute('aria-expanded', 'true');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobileMenu() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  const tg = document.getElementById('menu-toggle');
+  if (!sb || !bd) return;
+  sb.classList.remove('open');
+  bd.classList.remove('open');
+  setTimeout(() => bd.classList.remove('visible'), 200);
+  tg?.setAttribute('aria-expanded', 'false');
+  document.body.style.overflow = '';
+}
+document.getElementById('menu-toggle')?.addEventListener('click', () => {
+  const sb = document.getElementById('sidebar');
+  if (sb?.classList.contains('open')) closeMobileMenu(); else openMobileMenu();
+});
+document.getElementById('sidebar-backdrop')?.addEventListener('click', closeMobileMenu);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeMobileMenu();
+});
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 860) closeMobileMenu();
+});
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-dashboard-view]');
+  if (btn) navigate(btn.dataset.dashboardView);
+});
+
+window.addEventListener('popstate', () => {
+  navigate(viewFromPath() || 'dashboard', { push: false });
+});
+
+navigateFromCurrentUrl({ replace: window.location.pathname === '/' || !viewFromPath() });
 
 // ─── Report link delegation ───────────────────────────────────────────────────
 document.addEventListener('click', e => {
@@ -3229,7 +5587,7 @@ document.getElementById('refresh-btn').addEventListener('click', async () => {
 });
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
-function toast(msg, error = false) {
+window.toast = function toast(msg, error = false) {
   const el = document.createElement('div');
   el.className = 'toast';
   el.style.borderColor = error ? 'rgba(239,68,68,0.3)' : 'var(--border)';
@@ -3237,6 +5595,56 @@ function toast(msg, error = false) {
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => el.remove(), 3000);
 }
+
+// ─── Native confirmation ─────────────────────────────────────────────────────
+let confirmResolve = null;
+
+function closeConfirmAction(result = false) {
+  const modal = document.getElementById('confirm-modal');
+  modal.classList.remove('open');
+  if (confirmResolve) {
+    const resolve = confirmResolve;
+    confirmResolve = null;
+    resolve(result);
+  }
+}
+
+function confirmAction({
+  title = 'Confirmer l\'action',
+  message = 'Cette action ne peut pas etre annulee.',
+  confirmLabel = 'Confirmer',
+  cancelLabel = 'Annuler',
+  danger = true,
+} = {}) {
+  if (confirmResolve) closeConfirmAction(false);
+
+  const modal = document.getElementById('confirm-modal');
+  const acceptBtn = document.getElementById('confirm-accept');
+  const cancelBtn = document.getElementById('confirm-cancel');
+
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-message').textContent = message;
+  acceptBtn.textContent = confirmLabel;
+  acceptBtn.className = `btn ${danger ? 'btn-danger' : 'btn-primary'}`;
+  cancelBtn.textContent = cancelLabel;
+  modal.classList.add('open');
+  setTimeout(() => acceptBtn.focus(), 50);
+
+  return new Promise(resolve => {
+    confirmResolve = resolve;
+  });
+}
+
+document.getElementById('confirm-cancel').addEventListener('click', () => closeConfirmAction(false));
+document.getElementById('confirm-accept').addEventListener('click', () => closeConfirmAction(true));
+document.getElementById('confirm-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeConfirmAction(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('confirm-modal').classList.contains('open')) {
+    closeConfirmAction(false);
+  }
+});
 
 // ─── Question Input Modal ─────────────────────────────────────────────────────
 let _questionModalMeta = {};
@@ -3293,6 +5701,92 @@ let activeCmdKey = null;
 let activeCmdMarkdown = '';
 let activeCmdMeta = {};
 
+// Sequential bulk processing of multiple selected pipeline offers.
+let pipelineQueue = [];      // URLs not yet started
+let pipelineQueueTotal = 0;  // total in the current batch (0 = no batch running)
+let pipelineQueueIndex = 0;  // 1-based index of the offer currently processing
+let pipelineQueueFailed = 0; // count of offers that errored during the batch
+
+function startPipelineQueue(urls) {
+  const list = [...new Set((urls || []).filter(Boolean))];
+  if (!list.length) return;
+  pipelineQueue = list;
+  pipelineQueueTotal = list.length;
+  pipelineQueueIndex = 0;
+  pipelineQueueFailed = 0;
+  advancePipelineQueue();
+}
+
+function resetPipelineQueue() {
+  pipelineQueue = [];
+  pipelineQueueTotal = 0;
+  pipelineQueueIndex = 0;
+  pipelineQueueFailed = 0;
+}
+
+// Start the next queued offer, or finalize the batch when the queue is empty.
+function advancePipelineQueue() {
+  if (!pipelineQueue.length) {
+    if (pipelineQueueTotal > 1) {
+      const ok = pipelineQueueTotal - pipelineQueueFailed;
+      toast(pipelineQueueFailed
+        ? `Pipeline batch done — ${ok}/${pipelineQueueTotal} processed, ${pipelineQueueFailed} failed (left selected for retry)`
+        : `Pipeline batch done — ${ok} offer${ok > 1 ? 's' : ''} processed`);
+    }
+    resetPipelineQueue();
+    return;
+  }
+  const url = pipelineQueue.shift();
+  pipelineQueueIndex += 1;
+  openCmdModal('pipeline', { url });
+}
+
+// Called from the stream's done/error handlers to chain to the next offer.
+// `ok` = the just-finished offer succeeded (deselect it) vs failed (keep selected).
+function onPipelineStreamSettled(ok) {
+  if (pipelineQueueTotal <= 1) return;
+  const finishedUrl = activeCmdMeta.url;
+  if (ok) {
+    if (finishedUrl) state.selectedPipelineUrls.delete(finishedUrl);
+  } else {
+    pipelineQueueFailed += 1;
+  }
+  renderPipeline();
+  const modal = document.getElementById('cmd-modal');
+  if (pipelineQueue.length) {
+    const next = pipelineQueueIndex + 1;
+    document.getElementById('cmd-status').innerHTML =
+      `<span style="color:var(--brand)">✓ ${pipelineQueueIndex}/${pipelineQueueTotal} done. Next offer (${next}/${pipelineQueueTotal}) in 2s…</span>`;
+    setTimeout(() => {
+      if (modal.classList.contains('open')) advancePipelineQueue();
+      else resetPipelineQueue();
+    }, 2000);
+  } else {
+    advancePipelineQueue();
+  }
+}
+const BLOCKING_MODAL_IDS = [
+  'modal',
+  'quick-modal',
+  'portal-modal',
+  'query-modal',
+  'scan-modal',
+  'confirm-modal',
+  'run-modal',
+  'question-input-modal',
+];
+
+function closeBlockingModals() {
+  BLOCKING_MODAL_IDS.forEach(id => {
+    document.getElementById(id)?.classList.remove('open');
+  });
+  if (confirmResolve) {
+    const resolve = confirmResolve;
+    confirmResolve = null;
+    resolve(false);
+  }
+}
+
 function extractCoverLetterShortVersion(md = '') {
   const sectionMatch = md.match(/##\s+Version courte\s*([\s\S]*?)(?=\n##\s+|$)/i);
   if (sectionMatch) {
@@ -3309,23 +5803,30 @@ function openCmdModal(cmdKey, params = {}) {
   const out  = document.getElementById('cmd-stream-output');
   const status = document.getElementById('cmd-status');
   const modal = document.getElementById('cmd-modal');
+  const toggleBtn = document.getElementById('cmd-modal-toggle');
   const cvPdfBtn = document.getElementById('cmd-cv-pdf-btn');
   const coverPdfBtn = document.getElementById('cmd-cover-pdf-btn');
   const copyShortBtn = document.getElementById('cmd-copy-short-btn');
   const isAuto = document.getElementById('auto-next-toggle').checked && cmdKey === 'pipeline' && !params.url;
+
+  closeBlockingModals();
   
   document.getElementById('cmd-modal-title').textContent =
     ((cmdKey === 'apply' || cmdKey === 'coverletter' || cmdKey === 'question') && params.company && params.role)
       ? `${def.label} — ${params.company} — ${params.role}`
+      : (cmdKey === 'pipeline' && pipelineQueueTotal > 1)
+      ? `${def.label} — ${pipelineQueueIndex}/${pipelineQueueTotal}`
       : def.label;
   out.innerHTML = '';
   status.innerHTML = '<span class="spin">↻</span> Running…';
   modal.classList.add('open');
+  modal.classList.remove('collapsed');
+  toggleBtn.title = 'Collapse';
   activeCmdKey = cmdKey;
   activeCmdMarkdown = '';
   activeCmdMeta = { ...params };
-  const isEvalMode = ['oferta', 'pipeline', 'tracker'].includes(cmdKey);
-  cvPdfBtn.style.display = isEvalMode ? '' : 'none';
+  const canGenerateCvFromResponse = cmdKey === 'pdf';
+  cvPdfBtn.style.display = canGenerateCvFromResponse ? '' : 'none';
   cvPdfBtn.disabled = true;
   cvPdfBtn.textContent = 'Generate CV';
   coverPdfBtn.style.display = cmdKey === 'coverletter' ? '' : 'none';
@@ -3343,6 +5844,7 @@ function openCmdModal(cmdKey, params = {}) {
   Object.entries(params).forEach(([key, value]) => {
     if (value) streamUrl.searchParams.set(key, value);
   });
+  if (window.__authToken) streamUrl.searchParams.set('_token', window.__authToken);
   const es = new EventSource(streamUrl.toString());
   activeStream = es;
 
@@ -3364,12 +5866,15 @@ function openCmdModal(cmdKey, params = {}) {
     out.scrollTop = out.scrollHeight;
   });
   es.addEventListener('done', async e => {
-    const { saves = [] } = JSON.parse(e.data);
+    const { saves = [], blocked = false } = JSON.parse(e.data);
     if (saves.length) {
-      out.innerHTML += `\n<div style="margin-top:16px;padding:10px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:6px;font-size:12px;color:#34d399">${saves.map(s => `✓ ${s}`).join('<br>')}</div>`;
+      const saveTone = blocked
+        ? 'background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:#f59e0b'
+        : 'background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:#34d399';
+      out.innerHTML += `\n<div style="margin-top:16px;padding:10px 14px;${saveTone};border-radius:6px;font-size:12px">${saves.map(s => `${blocked ? '!' : '✓'} ${s}`).join('<br>')}</div>`;
     }
-    status.textContent = '✓ Done';
-    if (isEvalMode) {
+    status.textContent = blocked ? '! Blocked' : '✓ Done';
+    if (canGenerateCvFromResponse) {
       cvPdfBtn.disabled = false;
     }
     if (cmdKey === 'coverletter' && extractCoverLetterShortVersion(activeCmdMarkdown)) {
@@ -3386,11 +5891,17 @@ function openCmdModal(cmdKey, params = {}) {
         if (modal.classList.contains('open')) openCmdModal('pipeline');
       }, 3000);
     }
+
+    // BULK QUEUE: chain to the next selected offer (no-op outside a batch).
+    onPipelineStreamSettled(!blocked);
   });
   es.addEventListener('error', e => {
     const msg = e.data ? JSON.parse(e.data).message : 'Connection lost';
     status.innerHTML = `<span style="color:var(--red)">✗ ${msg}</span>`;
     es.close(); activeStream = null;
+
+    // BULK QUEUE: a failed offer stays selected; carry on with the rest.
+    onPipelineStreamSettled(false);
   });
 }
 
@@ -3481,21 +5992,28 @@ document.getElementById('cmd-cover-pdf-btn').addEventListener('click', async () 
 	  }
 });
 
-document.getElementById('cmd-modal-close').addEventListener('click', () => {
-  document.getElementById('cmd-modal').classList.remove('open');
-  if (activeStream) { activeStream.close(); activeStream = null; }
+function closeCmdDock({ cancelStream = true } = {}) {
+  const modal = document.getElementById('cmd-modal');
+  modal.classList.remove('open', 'collapsed');
+  document.getElementById('cmd-modal-toggle').title = 'Collapse';
+  if (cancelStream && activeStream) { activeStream.close(); activeStream = null; }
   activeCmdKey = null;
   activeCmdMarkdown = '';
   activeCmdMeta = {};
+  resetPipelineQueue();
+}
+
+document.getElementById('cmd-modal-toggle').addEventListener('click', () => {
+  const modal = document.getElementById('cmd-modal');
+  modal.classList.toggle('collapsed');
+  document.getElementById('cmd-modal-toggle').title = modal.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+});
+
+document.getElementById('cmd-modal-close').addEventListener('click', () => {
+  closeCmdDock();
 });
 document.getElementById('cmd-modal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) {
-    e.currentTarget.classList.remove('open');
-    if (activeStream) { activeStream.close(); activeStream = null; }
-    activeCmdKey = null;
-    activeCmdMarkdown = '';
-    activeCmdMeta = {};
-  }
+  e.stopPropagation();
 });
 
 // ─── Script runner (Node scripts) ────────────────────────────────────────────
@@ -3531,7 +6049,13 @@ document.getElementById('run-modal').addEventListener('click', e => {
 // ─── Scan Selector Modal ──────────────────────────────────────────────────────
 let scanSources = { companies: [], rss: [], queries: [], aggregators: [] };
 let scanSelection = { companies: [], rss: [], queries: [], aggregators: [], all: true };
+let scanKindFilter = 'all'; // 'all' | 'job' | 'freelance'
 const scanGroupItems = {};
+
+function filterByKind(items) {
+  if (scanKindFilter === 'all') return items;
+  return items.filter(it => (it.kind || 'job') === scanKindFilter);
+}
 
 function cooldownEl(lastScanned) {
   if (!lastScanned) return `<span style="font-size:11px;color:var(--text-4)">—</span>`;
@@ -3584,17 +6108,25 @@ function renderScanGroup(title, items, key, groupId) {
 
 function renderScanModal() {
   const body = document.getElementById('scan-modal-body');
-  const apiCos = scanSources.companies.filter(c => c.access === 'api');
-  const webCos = scanSources.companies.filter(c => c.access === 'websearch');
-  const playCos = scanSources.companies.filter(c => c.access === 'playwright');
+  const apiCos    = filterByKind(scanSources.companies.filter(c => c.access === 'api'));
+  const webCos    = filterByKind(scanSources.companies.filter(c => c.access === 'websearch'));
+  const playCos   = filterByKind(scanSources.companies.filter(c => c.access === 'playwright'));
+  const rssItems  = filterByKind(scanSources.rss);
+  const aggItems  = filterByKind(scanSources.aggregators);
+  const jobQ      = scanSources.queries.filter(q => (q.kind || 'job') === 'job');
+  const freeQ     = scanSources.queries.filter(q => q.kind === 'freelance');
+  const jobQueries  = filterByKind(jobQ);
+  const freeQueries = filterByKind(freeQ);
+
   body.innerHTML = [
     renderScanGroup(`Direct API (${apiCos.length})`, apiCos, 'companies', 'companies-api'),
     renderScanGroup(`WebSearch (${webCos.length})`, webCos, 'companies', 'companies-websearch'),
     renderScanGroup(`Playwright (${playCos.length})`, playCos, 'companies', 'companies-playwright'),
-    renderScanGroup(`RSS Feeds (${scanSources.rss.length})`, scanSources.rss, 'rss', 'rss'),
-    renderScanGroup(`API Aggregators (${scanSources.aggregators.length})`, scanSources.aggregators, 'aggregators', 'aggregators'),
-    renderScanGroup(`WebSearch Queries (${scanSources.queries.length})`, scanSources.queries, 'queries', 'queries'),
-  ].filter(Boolean).join('');
+    renderScanGroup(`RSS Feeds (${rssItems.length})`, rssItems, 'rss', 'rss'),
+    renderScanGroup(`API Aggregators (${aggItems.length})`, aggItems, 'aggregators', 'aggregators'),
+    renderScanGroup(`WebSearch Queries — Jobs (${jobQueries.length})`, jobQueries, 'queries', 'queries-jobs'),
+    renderScanGroup(`Freelance / Missions Portals (${freeQueries.length})`, freeQueries, 'queries', 'queries-freelance'),
+  ].filter(Boolean).join('') || '<span style="color:var(--text-4);font-size:13px">No sources match this filter.</span>';
 
   const total = (scanSelection.companies?.length || 0) + (scanSelection.rss?.length || 0)
     + (scanSelection.queries?.length || 0) + (scanSelection.aggregators?.length || 0);
@@ -3673,30 +6205,77 @@ async function openScanModal() {
   renderScanModal();
 }
 
+function unionNames(prev, addNames) {
+  const set = new Set(prev || []);
+  addNames.forEach(n => set.add(n));
+  return Array.from(set);
+}
+function diffNames(prev, removeNames) {
+  const remove = new Set(removeNames);
+  return (prev || []).filter(n => !remove.has(n));
+}
+
 document.getElementById('scan-sel-all').addEventListener('click', () => {
-  scanSelection = {
-    all: true,
-    companies: scanSources.companies.map(c => c.name),
-    rss: scanSources.rss.map(r => r.name),
-    queries: scanSources.queries.map(q => q.name),
-    aggregators: scanSources.aggregators.map(a => a.name),
-  };
+  if (scanKindFilter === 'all') {
+    scanSelection = {
+      all: true,
+      companies: scanSources.companies.map(c => c.name),
+      rss: scanSources.rss.map(r => r.name),
+      queries: scanSources.queries.map(q => q.name),
+      aggregators: scanSources.aggregators.map(a => a.name),
+    };
+  } else {
+    scanSelection = {
+      all: false,
+      companies:   unionNames(scanSelection.companies,   filterByKind(scanSources.companies).map(c => c.name)),
+      rss:         unionNames(scanSelection.rss,         filterByKind(scanSources.rss).map(r => r.name)),
+      queries:     unionNames(scanSelection.queries,     filterByKind(scanSources.queries).map(q => q.name)),
+      aggregators: unionNames(scanSelection.aggregators, filterByKind(scanSources.aggregators).map(a => a.name)),
+    };
+  }
   renderScanModal();
 });
 document.getElementById('scan-sel-none').addEventListener('click', () => {
-  scanSelection = { all: false, companies: [], rss: [], queries: [], aggregators: [] };
+  if (scanKindFilter === 'all') {
+    scanSelection = { all: false, companies: [], rss: [], queries: [], aggregators: [] };
+  } else {
+    scanSelection = {
+      all: false,
+      companies:   diffNames(scanSelection.companies,   filterByKind(scanSources.companies).map(c => c.name)),
+      rss:         diffNames(scanSelection.rss,         filterByKind(scanSources.rss).map(r => r.name)),
+      queries:     diffNames(scanSelection.queries,     filterByKind(scanSources.queries).map(q => q.name)),
+      aggregators: diffNames(scanSelection.aggregators, filterByKind(scanSources.aggregators).map(a => a.name)),
+    };
+  }
   renderScanModal();
 });
 document.getElementById('scan-sel-fresh').addEventListener('click', () => {
   const isFresh = ts => !ts || (Date.now() - new Date(ts).getTime()) >= 86400000;
-  scanSelection = {
-    all: false,
-    companies:    scanSources.companies.filter(c => isFresh(c.lastScanned)).map(c => c.name),
-    rss:          scanSources.rss.filter(r => isFresh(r.lastScanned)).map(r => r.name),
-    queries:      scanSources.queries.filter(q => isFresh(q.lastScanned)).map(q => q.name),
-    aggregators:  scanSources.aggregators.filter(a => isFresh(a.lastScanned)).map(a => a.name),
-  };
+  const cos = filterByKind(scanSources.companies).filter(c => isFresh(c.lastScanned)).map(c => c.name);
+  const rss = filterByKind(scanSources.rss).filter(r => isFresh(r.lastScanned)).map(r => r.name);
+  const qs  = filterByKind(scanSources.queries).filter(q => isFresh(q.lastScanned)).map(q => q.name);
+  const ag  = filterByKind(scanSources.aggregators).filter(a => isFresh(a.lastScanned)).map(a => a.name);
+  if (scanKindFilter === 'all') {
+    scanSelection = { all: false, companies: cos, rss, queries: qs, aggregators: ag };
+  } else {
+    scanSelection = {
+      all: false,
+      companies:   unionNames(scanSelection.companies,   cos),
+      rss:         unionNames(scanSelection.rss,         rss),
+      queries:     unionNames(scanSelection.queries,     qs),
+      aggregators: unionNames(scanSelection.aggregators, ag),
+    };
+  }
   renderScanModal();
+});
+
+document.querySelectorAll('[data-scan-kind]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    scanKindFilter = btn.dataset.scanKind;
+    document.querySelectorAll('[data-scan-kind]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderScanModal();
+  });
 });
 
 document.getElementById('scan-modal-close').addEventListener('click', () => document.getElementById('scan-modal').classList.remove('open'));
@@ -3704,7 +6283,7 @@ document.getElementById('scan-modal-cancel').addEventListener('click', () => doc
 document.getElementById('scan-modal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
 
 document.getElementById('scan-launch-btn').addEventListener('click', async () => {
-  document.getElementById('scan-modal').classList.remove('open');
+  closeBlockingModals();
   await api('/api/scan-selection', { method: 'POST', body: JSON.stringify(scanSelection) });
   openCmdModal('scan');
 });
@@ -3722,11 +6301,140 @@ document.addEventListener('click', e => {
   if (btnRun) { runScript(btnRun.dataset.run, btnRun.dataset.title); return; }
 });
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
-loadAll().catch(err => {
-  console.error(err);
-  toast('Failed to connect to server. Is it running?', true);
-});
+// Init lancé après auth (voir module Supabase ci-dessous)
+</script>
+
+<!-- ─── Auth (Supabase) ─────────────────────────────────────────────────── -->
+<script type="module" defer>
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SUPABASE_URL  = '__SUPABASE_URL__';
+const SUPABASE_ANON = '__SUPABASE_ANON_KEY__';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── Guard : vérifier la session ───────────────────────────────────────────────
+const { data: { session } } = await supabase.auth.getSession();
+const isViewOnly = sessionStorage.getItem('viewOnly') === '1';
+
+if (!session && !isViewOnly) {
+  window.location.href = '/login';
+} else if (isViewOnly && !session) {
+  // ── View-only mode ────────────────────────────────────────────────────────
+  window.__viewOnly = true;
+
+  document.getElementById('user-avatar').textContent = '👁';
+  document.getElementById('user-name').textContent   = 'View only';
+  document.getElementById('user-email').textContent  = 'Read-only access';
+
+  // Replace sign-out button with "Sign in" link
+  const signOutBtn = document.getElementById('btn-signout');
+  signOutBtn.textContent = 'Sign in';
+  signOutBtn.addEventListener('click', () => {
+    sessionStorage.removeItem('viewOnly');
+    window.location.href = '/login';
+  });
+
+  // Banner
+  const banner = document.createElement('div');
+  banner.id = 'view-only-banner';
+  banner.style.cssText = `
+    position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    background:rgba(15,16,17,0.95);border:1px solid rgba(255,255,255,0.1);
+    border-radius:8px;padding:8px 16px;font-size:12px;color:var(--text-3);
+    display:flex;align-items:center;gap:10px;z-index:9999;backdrop-filter:blur(8px);
+    box-shadow:0 4px 16px rgba(0,0,0,0.4);
+  `;
+  banner.innerHTML = `
+    <svg width="13" height="13" viewBox="0 0 15 15" fill="none" style="flex-shrink:0;color:var(--text-4)"><path d="M7.5 3C4.5 3 2 7.5 2 7.5s2.5 4.5 5.5 4.5 5.5-4.5 5.5-4.5S10.5 3 7.5 3z" stroke="currentColor" stroke-width="1.3"/><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+    View only — actions are disabled
+    <a href="/login" onclick="sessionStorage.removeItem('viewOnly')" style="color:var(--accent);text-decoration:none;font-weight:500">Sign in</a>
+  `;
+  document.body.appendChild(banner);
+
+  // Disable all action buttons after render
+  function applyViewOnlyRestrictions() {
+    document.querySelectorAll(
+      '.btn-action, .btn-primary, [data-cmd], [data-run], ' +
+      '#add-pipeline-btn, #quick-add-btn, .pipeline-run-btn, ' +
+      '.apply-row-btn, .cover-letter-row-btn, .question-row-btn, ' +
+      '.mark-applied-btn, .delete-application-btn, #btn-signout'
+    ).forEach(el => {
+      if (el.id === 'btn-signout') return; // keep sign-in button
+      el.disabled = true;
+      el.style.opacity = '0.3';
+      el.style.cursor  = 'not-allowed';
+      el.style.pointerEvents = 'none';
+    });
+    // Hide add forms
+    document.querySelectorAll('.add-form, #pipeline-form').forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+
+  // Apply once + observe DOM mutations (re-renders)
+  const observer = new MutationObserver(applyViewOnlyRestrictions);
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  window.loadAll()
+    .then(() => navigate(viewFromPath() || 'dashboard', { push: false }))
+    .catch(err => {
+      console.error(err);
+      window.toast?.('Failed to connect to server. Is it running?', true);
+    });
+} else {
+  // ── Authenticated mode ────────────────────────────────────────────────────
+  // Exposer le token pour la fonction api()
+  window.__authToken = session.access_token;
+
+  // Rafraîchir le token automatiquement
+  supabase.auth.onAuthStateChange((_event, s) => {
+    window.__authToken = s?.access_token || null;
+    if (!s) window.location.href = '/login';
+  });
+
+  // ── Afficher le user dans la sidebar ─────────────────────────────────────
+  const user = session.user;
+  const meta = user.user_metadata || {};
+  const name  = meta.full_name || user.email?.split('@')[0] || 'User';
+  const email = user.email || '';
+  const initials = name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || '?';
+
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('user-name').textContent   = name;
+  document.getElementById('user-email').textContent  = email;
+
+  document.getElementById('btn-signout').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  });
+
+  // ── Onboarding gate : profil incomplet → /onboarding ──────────────────────
+  try {
+    const statusRes = await fetch('/api/profile/status', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (statusRes.ok) {
+      const status = await statusRes.json();
+      if (!status.complete) {
+        window.location.href = '/onboarding';
+        // stop further app init while redirecting
+        throw new Error('redirecting to onboarding');
+      }
+    }
+  } catch (err) {
+    if (err?.message === 'redirecting to onboarding') throw err;
+    // network error → fall through and let the app load normally
+    console.warn('[onboarding-gate] status check failed:', err);
+  }
+
+  // ── Lancer l'app ─────────────────────────────────────────────────────────
+  window.loadAll()
+    .then(() => navigate(viewFromPath() || 'dashboard', { push: false }))
+    .catch(err => {
+      console.error(err);
+      window.toast?.('Failed to connect to server. Is it running?', true);
+    });
+}
 </script>
 </body>
 </html>

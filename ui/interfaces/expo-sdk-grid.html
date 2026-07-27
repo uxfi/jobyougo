@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>App — Bento Showcase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    min-height: 100vh;
+    font-family: var(--font-inter);
+    color: #fff;
+    background: #d6d6d6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .stage {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 28px;
+    background:
+      radial-gradient(ellipse at center, #dddddd 0%, #c8c8c8 80%);
+  }
+
+  /* Outer bento frame */
+  .frame {
+    width: min(1200px, 100%);
+    aspect-ratio: 16 / 10;
+    padding: 14px;
+    background: linear-gradient(180deg, #1a1a1c 0%, #0f0f11 100%);
+    border-radius: 28px;
+    box-shadow:
+      0 40px 80px -20px rgba(0,0,0,.35),
+      0 8px 24px -8px rgba(0,0,0,.25),
+      inset 0 1px 0 rgba(255,255,255,.06);
+    display: grid;
+    grid-template-columns: 1.1fr 1.3fr 1.1fr;
+    grid-template-rows: 0.85fr 1.1fr 1.05fr 0.9fr;
+    gap: 10px;
+  }
+
+  .card {
+    position: relative;
+    background: #070709;
+    border-radius: 18px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+  }
+
+  /* ─── grid placement ─────────────────────────────────────────── */
+  .c-precompiled  { grid-column: 1; grid-row: 1 / 3; }
+  .c-integrating  { grid-column: 2; grid-row: 1; }
+  .c-launch       { grid-column: 3; grid-row: 1; }
+  .c-sdk          { grid-column: 2; grid-row: 2 / 4; }
+  .c-liquid       { grid-column: 3; grid-row: 2 / 5; }
+  .c-rn           { grid-column: 1; grid-row: 3; }
+  .c-router       { grid-column: 1; grid-row: 4; }
+  .c-awards       { grid-column: 2; grid-row: 4; }
+
+  /* ─── common title styles ────────────────────────────────────── */
+  .card-title {
+    font-family: var(--font-bricolage);
+    font-size: clamp(14px, 1.35vw, 18px);
+    font-weight: 600;
+    letter-spacing: -.01em;
+    line-height: 1.2;
+    color: #fff;
+  }
+  .row-title-center {
+    position: absolute;
+    top: 22px; left: 0; right: 0;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  /* ─── Card interactivity ─────────────────────────────────────── */
+  .card {
+    transition:
+      transform .45s cubic-bezier(.2,.8,.2,1),
+      box-shadow .45s ease,
+      filter .45s ease;
+    will-change: transform;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.06),
+      0 18px 40px -10px rgba(0,0,0,.55);
+    filter: brightness(1.05);
+    z-index: 2;
+  }
+  /* Exclure filter + overflow sur la carte launch pour ne pas casser le ShinyButton */
+  .c-launch {
+    overflow: visible;
+  }
+  .c-launch:hover {
+    filter: none;
+  }
+  /* Déclencher le shimmer dès le hover sur la carte (pas seulement sur le bouton) */
+  .c-launch:hover .shiny-cta {
+    --gradient-percent: 20%;
+    --gradient-angle-offset: 95deg;
+    --gradient-shine: var(--shiny-cta-highlight-subtle);
+  }
+  .c-launch:hover .shiny-cta,
+  .c-launch:hover .shiny-cta::before,
+  .c-launch:hover .shiny-cta::after {
+    animation-play-state: running;
+  }
+  .c-launch:hover .shiny-cta span::before { opacity: 1; }
+
+  /* ─── 1. Precompiled ─────────────────────────────────────────── */
+  .c-precompiled { padding: 26px 22px; }
+  .c-precompiled .card-title { text-align: center; }
+  .iso-stack {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .iso {
+    width: 78%;
+    max-width: 280px;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    transform: rotateX(58deg) rotateZ(-45deg);
+    transform-style: preserve-3d;
+    transition: transform .8s cubic-bezier(.2,.8,.2,1);
+  }
+  .c-precompiled:hover .iso {
+    transform: rotateX(58deg) rotateZ(-45deg) rotateY(24deg);
+  }
+  .c-precompiled:hover .iso-l1 { transform: translateZ(54px); }
+  .c-precompiled:hover .iso-l3 { transform: translateZ(-54px); opacity: .35; }
+  .iso-l1, .iso-l3 { transition: transform .8s cubic-bezier(.2,.8,.2,1), opacity .8s ease; }
+  .iso-layer {
+    position: absolute;
+    inset: 0;
+    border: 1.5px solid #6ecbff;
+    border-radius: 34px;
+    background:
+      linear-gradient(180deg, rgba(110,203,255,.12), rgba(110,203,255,0)),
+      radial-gradient(circle at 50% 50%, rgba(110,203,255,.05), transparent 70%);
+    box-shadow: 0 0 30px rgba(110,203,255,.15);
+  }
+  .iso-layer::before, .iso-layer::after {
+    content: '';
+    position: absolute;
+    inset: 6%;
+    border: 1px solid rgba(110,203,255,.55);
+    border-radius: 28px;
+  }
+  .iso-layer::after { inset: 14%; border-color: rgba(110,203,255,.35); border-radius: 24px; }
+  .iso-layer .cross {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(90deg, transparent calc(50% - .5px), rgba(110,203,255,.55) 50%, transparent calc(50% + .5px)),
+      linear-gradient(0deg,  transparent calc(50% - .5px), rgba(110,203,255,.55) 50%, transparent calc(50% + .5px));
+  }
+  .iso-l1 { transform: translateZ(40px); opacity: 1; }
+  .iso-l2 { transform: translateZ(0);    opacity: .55; }
+  .iso-l3 { transform: translateZ(-40px); opacity: .22; }
+
+  /* ─── 2. Integrating native apps ─────────────────────────────── */
+  .c-integrating { padding: 26px 22px; }
+  .c-integrating .card-title { text-align: center; }
+  .icons-row {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+  .squircle {
+    width: clamp(46px, 4.2vw, 56px);
+    aspect-ratio: 1/1;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #2a2a2d 0%, #161619 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.07),
+      inset 0 -1px 0 rgba(0,0,0,.5),
+      0 6px 12px rgba(0,0,0,.4);
+    color: rgba(255,255,255,.9);
+  }
+  .squircle.primary {
+    background:
+      radial-gradient(circle at 50% 45%, #0b0f14 0%, #050608 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 6px 18px rgba(110,203,255,.25),
+      0 0 0 1px rgba(110,203,255,.25);
+  }
+  .squircle svg { width: 58%; height: 58%; }
+  .squircle {
+    transition: transform .3s cubic-bezier(.3,.9,.3,1.2);
+    cursor: pointer;
+  }
+  .squircle:hover { transform: translateY(-4px) scale(1.08); }
+  .squircle:active { transform: translateY(-1px) scale(.96); }
+  .expo-mark {
+    stroke: #6ecbff; fill: none; stroke-width: 2.2;
+    stroke-linejoin: round; stroke-linecap: round;
+  }
+
+  /* ─── 3. App Launch ──────────────────────────────────────────── */
+  .c-launch {
+    padding: 0;
+    background:
+      radial-gradient(ellipse 70% 110% at 50% 110%, #4a6dff 0%, #2a36a8 35%, #0a0c1e 75%),
+      #050610;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ─── Shiny CTA Button ───────────────────────────────────────── */
+  @property --gradient-angle {
+    syntax: "<angle>"; initial-value: 0deg; inherits: false;
+  }
+  @property --gradient-angle-offset {
+    syntax: "<angle>"; initial-value: 0deg; inherits: false;
+  }
+  @property --gradient-percent {
+    syntax: "<percentage>"; initial-value: 5%; inherits: false;
+  }
+  @property --gradient-shine {
+    syntax: "<color>"; initial-value: white; inherits: false;
+  }
+
+  .shiny-cta {
+    --shiny-cta-bg: #000000;
+    --shiny-cta-bg-subtle: #1a1818;
+    --shiny-cta-fg: #ffffff;
+    --shiny-cta-highlight: #476cff;
+    --shiny-cta-highlight-subtle: #8484ff;
+    --animation: gradient-angle linear infinite;
+    --duration: 3s;
+    --shadow-size: 2px;
+    --transition: 800ms cubic-bezier(0.25, 1, 0.5, 1);
+
+    isolation: isolate;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    outline-offset: 4px;
+    padding: 12px 26px;
+    font-family: var(--font-bricolage);
+    font-size: clamp(13px, 1.2vw, 16px);
+    font-weight: 500;
+    letter-spacing: -.01em;
+    line-height: 1.2;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    color: var(--shiny-cta-fg);
+    background:
+      linear-gradient(var(--shiny-cta-bg), var(--shiny-cta-bg)) padding-box,
+      conic-gradient(
+        from calc(var(--gradient-angle) - var(--gradient-angle-offset)),
+        transparent,
+        var(--shiny-cta-highlight) var(--gradient-percent),
+        var(--gradient-shine) calc(var(--gradient-percent) * 2),
+        var(--shiny-cta-highlight) calc(var(--gradient-percent) * 3),
+        transparent calc(var(--gradient-percent) * 4)
+      ) border-box;
+    box-shadow: inset 0 0 0 1px var(--shiny-cta-bg-subtle);
+    transition: var(--transition);
+    transition-property: --gradient-angle-offset, --gradient-percent, --gradient-shine;
+  }
+
+  .shiny-cta::before,
+  .shiny-cta::after,
+  .shiny-cta span::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-start: 50%;
+    translate: -50% -50%;
+    z-index: -1;
+  }
+
+  .shiny-cta:active { translate: 0 1px; }
+
+  .shiny-cta::before {
+    --size: calc(100% - var(--shadow-size) * 3);
+    --position: 2px;
+    --space: calc(var(--position) * 2);
+    width: var(--size); height: var(--size);
+    background: radial-gradient(circle at var(--position) var(--position), white calc(var(--position) / 4), transparent 0) padding-box;
+    background-size: var(--space) var(--space);
+    background-repeat: space;
+    mask-image: conic-gradient(from calc(var(--gradient-angle) + 45deg), black, transparent 10% 90%, black);
+    border-radius: inherit;
+    opacity: 0.4; z-index: -1;
+  }
+
+  .shiny-cta::after {
+    --animation: shimmer linear infinite;
+    width: 100%; aspect-ratio: 1;
+    background: linear-gradient(-50deg, transparent, var(--shiny-cta-highlight), transparent);
+    mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+    opacity: 0.6;
+  }
+
+  .shiny-cta span { z-index: 1; position: relative; }
+
+  .shiny-cta span::before {
+    --size: calc(100% + 1rem);
+    width: var(--size); height: var(--size);
+    box-shadow: inset 0 -1ex 2rem 4px var(--shiny-cta-highlight);
+    opacity: 0;
+    transition: opacity var(--transition);
+    animation: calc(var(--duration) * 1.5) breathe linear infinite;
+  }
+
+  .shiny-cta,
+  .shiny-cta::before,
+  .shiny-cta::after {
+    animation: var(--animation) var(--duration),
+      var(--animation) calc(var(--duration) / 0.4) reverse paused;
+    animation-composition: add;
+  }
+
+  .shiny-cta:is(:hover, :focus-visible) {
+    --gradient-percent: 20%;
+    --gradient-angle-offset: 95deg;
+    --gradient-shine: var(--shiny-cta-highlight-subtle);
+  }
+  .shiny-cta:is(:hover, :focus-visible),
+  .shiny-cta:is(:hover, :focus-visible)::before,
+  .shiny-cta:is(:hover, :focus-visible)::after {
+    animation-play-state: running;
+  }
+  .shiny-cta:is(:hover, :focus-visible) span::before { opacity: 1; }
+
+  @keyframes gradient-angle { to { --gradient-angle: 360deg; } }
+  @keyframes shimmer { to { rotate: 360deg; } }
+  @keyframes breathe {
+    from, to { scale: 1; }
+    50% { scale: 1.2; }
+  }
+
+  /* ─── 4. SDK 54 ──────────────────────────────────────────────── */
+  .c-sdk {
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center, #121216 0%, #050507 80%);
+  }
+  .sdk-stage {
+    position: relative;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .glass-card {
+    position: absolute;
+    width: 62%;
+    aspect-ratio: 1 / 0.9;
+    border-radius: 28px;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 100%);
+    backdrop-filter: blur(6px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.12),
+      0 20px 60px rgba(0,0,0,.4);
+    border: 1px solid rgba(255,255,255,.06);
+  }
+  .glass-card {
+    transition: transform .9s cubic-bezier(.2,.8,.2,1);
+  }
+  .glass-1 { transform: translate(-14%, -10%) rotate(-6deg); opacity: .35; }
+  .glass-2 { transform: translate(0, 0) rotate(-2deg); opacity: .6; }
+  .glass-3 { transform: translate(14%, 10%) rotate(3deg); opacity: .85; }
+  .c-sdk:hover .glass-1 { transform: translate(-20%, -14%) rotate(-10deg); }
+  .c-sdk:hover .glass-2 { transform: translate(0, -2px) rotate(-1deg); }
+  .c-sdk:hover .glass-3 { transform: translate(20%, 14%) rotate(7deg); }
+  .sdk-title {
+    position: relative;
+    z-index: 2;
+    font-family: var(--font-bricolage);
+    font-size: clamp(42px, 5.6vw, 78px);
+    font-weight: 800;
+    letter-spacing: -.04em;
+    color: #fff;
+    text-shadow:
+      0 2px 0 rgba(0,0,0,.5),
+      0 10px 30px rgba(0,0,0,.6);
+    background: linear-gradient(180deg, #ffffff 0%, #b8b8c0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    transition: transform .9s cubic-bezier(.2,.8,.2,1);
+  }
+  .c-sdk:hover .sdk-title { transform: scale(1.04); }
+
+  /* ─── 5. Liquid Glass (right tall) ───────────────────────────── */
+  .c-liquid {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: radial-gradient(ellipse at 50% 0%, #151518 0%, #050507 70%);
+  }
+  .phone-mock {
+    width: 100%;
+    flex: 1;
+    border-radius: 22px;
+    padding: 14px 12px 0;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)),
+      #0a0a0c;
+    border: 1px solid rgba(255,255,255,.06);
+    display: flex; flex-direction: column; gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .speaker-card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.045);
+    border: 1px solid rgba(255,255,255,.06);
+    backdrop-filter: blur(8px);
+  }
+  .speaker-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c89b7b, #6b4b3a);
+    flex-shrink: 0;
+  }
+  .speaker-meta .name {
+    font-size: 11px; font-weight: 600; color: #fff;
+    line-height: 1.2;
+  }
+  .speaker-meta .role {
+    font-size: 10px; color: rgba(255,255,255,.45);
+    line-height: 1.2;
+  }
+  .time-label {
+    font-size: 10px; color: rgba(255,255,255,.5);
+    padding: 0 4px;
+  }
+  .session {
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.06);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .session-head {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .session-title { font-size: 12px; font-weight: 600; color: #fff; }
+  .bookmark {
+    width: 12px; height: 14px;
+    background: #3ec5b2;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+    cursor: pointer;
+    transition: background .2s ease, transform .25s cubic-bezier(.3,.9,.3,1.3);
+  }
+  .bookmark:hover { transform: translateY(-2px) scale(1.12); }
+  .bookmark.off { background: rgba(255,255,255,.25); }
+  .speaker-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .speaker-row .speaker-avatar { width: 22px; height: 22px; }
+  .speaker-row.lauren .speaker-avatar { background: linear-gradient(135deg, #d88a7a, #8a4a40); }
+  .speaker-row.joe .speaker-avatar    { background: linear-gradient(135deg, #a0a0a0, #505050); }
+  .tab-bar {
+    margin-top: auto;
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px;
+    border-radius: 100px;
+    background: rgba(20,20,22,.85);
+    border: 1px solid rgba(255,255,255,.06);
+    backdrop-filter: blur(14px);
+    align-self: stretch;
+  }
+  .tab {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 6px 4px;
+    border-radius: 100px;
+    color: rgba(255,255,255,.45);
+    gap: 2px;
+    cursor: pointer;
+    transition: color .25s ease, background .25s ease;
+  }
+  .tab:hover { color: rgba(255,255,255,.85); }
+  .tab svg { width: 14px; height: 14px; }
+  .tab .tab-label { font-size: 9px; font-weight: 500; }
+  .tab.active { color: #5ac8e8; background: rgba(255,255,255,.04); }
+  .tab.search {
+    flex: 0 0 auto; width: 34px; height: 34px;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,.06);
+  }
+  .tab.search .tab-label { display: none; }
+
+  .liquid-caption {
+    margin-top: 14px;
+    text-align: center;
+  }
+  .liquid-caption .card-title {
+    font-size: clamp(14px, 1.4vw, 19px);
+  }
+  .liquid-tag {
+    margin-top: 8px;
+    display: inline-block;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 11px;
+    color: rgba(255,255,255,.8);
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.08);
+  }
+
+  /* ─── 6. TypeScript First ───────────────────────────────────── */
+  .c-rn {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px 22px 18px;
+    background:
+      radial-gradient(ellipse 120% 80% at 90% 110%, rgba(49,120,198,.18) 0%, transparent 65%),
+      #070709;
+    overflow: hidden;
+  }
+  .ts-top {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ts-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: #3178c6;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    transition: box-shadow .35s ease, transform .35s cubic-bezier(.3,.9,.3,1.2);
+  }
+  .c-rn:hover .ts-badge {
+    box-shadow: 0 0 18px rgba(49,120,198,.6);
+    transform: scale(1.08);
+  }
+  .ts-dots {
+    display: flex; gap: 5px; align-items: center;
+  }
+  .ts-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255,255,255,.15);
+    transition: background .3s ease;
+  }
+  .ts-dot.active { background: #3178c6; }
+  .c-rn:hover .ts-dot { background: rgba(49,120,198,.5); }
+  .c-rn:hover .ts-dot.active { background: #5a9edf; }
+  .ts-code {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: clamp(9px, .85vw, 11px);
+    color: rgba(255,255,255,.28);
+    line-height: 1.7;
+    margin-top: 2px;
+    transition: color .35s ease;
+  }
+  .ts-code .kw  { color: rgba(86,156,214,.7); }
+  .ts-code .tp  { color: rgba(78,201,176,.7); }
+  .c-rn:hover .ts-code { color: rgba(255,255,255,.45); }
+  .c-rn:hover .ts-code .kw  { color: #569cd6; }
+  .c-rn:hover .ts-code .tp  { color: #4ec9b0; }
+
+  /* ─── 7. Instant Navigation ─────────────────────────────────── */
+  .c-router {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 18px 22px 16px;
+    background:
+      radial-gradient(ellipse 120% 100% at 100% 0%, rgba(16,185,129,.1) 0%, transparent 60%),
+      #070709;
+  }
+  .nav-flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex: 1;
+    position: relative;
+  }
+  .nav-screen {
+    width: clamp(28px, 2.8vw, 36px);
+    aspect-ratio: 9/16;
+    border-radius: 5px;
+    border: 1.5px solid rgba(16,185,129,.35);
+    background: rgba(16,185,129,.06);
+    flex-shrink: 0;
+    position: relative;
+    transition: border-color .3s ease, background .3s ease;
+  }
+  .nav-screen::before {
+    content: '';
+    position: absolute;
+    top: 20%; left: 15%; right: 15%;
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(16,185,129,.4);
+  }
+  .nav-screen::after {
+    content: '';
+    position: absolute;
+    top: 38%; left: 15%; right: 30%;
+    height: 1.5px;
+    border-radius: 2px;
+    background: rgba(16,185,129,.2);
+    box-shadow: 0 5px 0 rgba(16,185,129,.15), 0 10px 0 rgba(16,185,129,.1);
+  }
+  .nav-screen.active {
+    border-color: #10b981;
+    background: rgba(16,185,129,.12);
+    box-shadow: 0 0 12px rgba(16,185,129,.25);
+  }
+  .c-router:hover .nav-screen { border-color: rgba(16,185,129,.55); }
+  .c-router:hover .nav-screen.active { border-color: #34d399; box-shadow: 0 0 18px rgba(52,211,153,.35); }
+  .nav-line {
+    flex: 1;
+    height: 1.5px;
+    background: rgba(16,185,129,.18);
+    position: relative;
+    overflow: visible;
+  }
+  .nav-line::after {
+    content: '';
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16,185,129,.8);
+    animation: nav-travel 2.4s cubic-bezier(.4,0,.6,1) infinite;
+  }
+  .nav-line:nth-child(4)::after { animation-delay: -1.2s; }
+  @keyframes nav-travel {
+    0%   { left: 0%;   opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+  }
+  .c-router:hover .nav-line { background: rgba(16,185,129,.35); }
+  .nav-bottom {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px;
+  }
+  .nav-ms {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 10px;
+    color: #10b981;
+    background: rgba(16,185,129,.1);
+    border: 1px solid rgba(16,185,129,.2);
+    border-radius: 100px;
+    padding: 2px 8px;
+  }
+
+  /* ─── 8. Expo App Awards ────────────────────────────────────── */
+  .c-awards {
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse 80% 140% at 50% 110%, #7a5a2e 0%, #3a2614 45%, #0a0703 80%);
+  }
+  .awards-title {
+    display: inline-flex; align-items: center; gap: 14px;
+    font-family: var(--font-instrument);
+    font-style: italic;
+    font-size: clamp(20px, 2.2vw, 30px);
+    font-weight: 400;
+    letter-spacing: -.01em;
+    background: linear-gradient(110deg, #f7e1b3 0%, #fff4d5 40%, #b88848 65%, #f7e1b3 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: awards-shimmer 5s linear infinite;
+  }
+  @keyframes awards-shimmer {
+    from { background-position: 0% 0%; }
+    to   { background-position: 220% 0%; }
+  }
+  .c-awards:hover .laurel {
+    animation: laurel-sway 1.2s ease-in-out infinite alternate;
+  }
+  @keyframes laurel-sway {
+    from { transform: rotate(-6deg); }
+    to   { transform: rotate(6deg); }
+  }
+  .laurel { font-size: .8em; -webkit-text-fill-color: #b88848; }
+
+  @media (max-width: 820px) {
+    .frame {
+      aspect-ratio: auto;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: repeat(8, minmax(110px, auto));
+    }
+    .c-precompiled  { grid-column: 1 / 3; grid-row: 1 / 3; }
+    .c-integrating  { grid-column: 1; grid-row: 3; }
+    .c-launch       { grid-column: 2; grid-row: 3; }
+    .c-sdk          { grid-column: 1 / 3; grid-row: 4 / 6; }
+    .c-liquid       { grid-column: 1 / 3; grid-row: 6 / 8; }
+    .c-rn           { grid-column: 1; grid-row: 8; }
+    .c-router       { grid-column: 2; grid-row: 8; }
+    .c-awards       { grid-column: 1 / 3; grid-row: 9; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="frame">
+
+    <!-- 1 · Native Performance -->
+    <div class="card c-precompiled">
+      <div class="card-title">Native<br>Performance</div>
+      <div class="iso-stack">
+        <div class="iso">
+          <div class="iso-layer iso-l1"><div class="cross"></div></div>
+          <div class="iso-layer iso-l2"><div class="cross"></div></div>
+          <div class="iso-layer iso-l3"><div class="cross"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 · iOS & Android -->
+    <div class="card c-integrating">
+      <div class="card-title">iOS &amp; Android</div>
+      <div class="icons-row">
+        <div class="squircle" title="Android">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 10.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm13 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7 12h10v6a2 2 0 0 1-2 2h-1v2h-2v-2h-2v2H8v-2H7a2 2 0 0 1-2-2v-6h2Zm-3 1v5a1 1 0 0 0 2 0v-5a1 1 0 0 0-2 0Zm14 0v5a1 1 0 0 0 2 0v-5a1 1 0 0 0-2 0ZM8.3 5.1 7.1 3.4a.4.4 0 0 1 .65-.47l1.27 1.83A7.1 7.1 0 0 1 12 4c1.05 0 2.04.2 2.98.58l1.27-1.83a.4.4 0 0 1 .65.47l-1.2 1.72A5.5 5.5 0 0 1 17.7 10h-11.4a5.5 5.5 0 0 1 2-4.9Zm2.2 2.9a.6.6 0 1 0 0-1.2.6.6 0 0 0 0 1.2Zm3 0a.6.6 0 1 0 0-1.2.6.6 0 0 0 0 1.2Z"/></svg>
+        </div>
+        <div class="squircle primary" title="Expo">
+          <svg viewBox="0 0 48 48">
+            <path class="expo-mark" d="M24 10 L10 36 L14 36 L24 18 L34 36 L38 36 Z"/>
+            <circle cx="24" cy="24" r="17" stroke="#6ecbff" stroke-width="1.6" fill="none" opacity=".7"/>
+          </svg>
+        </div>
+        <div class="squircle" title="Apple">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-2-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.5 1.3-.05 1.8-.8 3.3-.8 1.5 0 2 .8 3.3.8 1.4 0 2.3-1.2 3.1-2.5.7-1.1 1.2-2.2 1.5-3.4-.1 0-2.9-1.1-2.9-4.5Zm-2.4-8.4c.7-.9 1.2-2 1-3.2-1 .05-2.3.7-3 1.5-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3.1-1.4Z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 · App Launch -->
+    <div class="card c-launch">
+      <button class="shiny-cta">
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:7px;margin-top:-2px"><path d="M12 2L12 16M12 16L7 11M12 16L17 11"/><path d="M3 19h18"/></svg>Download Now
+        </span>
+      </button>
+    </div>
+
+    <!-- 4 · SDK 54 -->
+    <div class="card c-sdk">
+      <div class="sdk-stage">
+        <div class="glass-card glass-1"></div>
+        <div class="glass-card glass-2"></div>
+        <div class="glass-card glass-3"></div>
+        <div class="sdk-title">v2.0</div>
+      </div>
+    </div>
+
+    <!-- 5 · Liquid Glass / Swift UI -->
+    <div class="card c-liquid">
+      <div class="phone-mock">
+        <div class="speaker-card">
+          <div class="speaker-avatar"></div>
+          <div class="speaker-meta">
+            <div class="name">Jordan Kim</div>
+            <div class="role">Lead Designer @ Studio</div>
+          </div>
+        </div>
+        <div class="time-label">⭐ 4.9 · 50,000 reviews</div>
+        <div class="session">
+          <div class="session-head">
+            <div class="session-title">Onboarding Flow</div>
+            <div class="bookmark"></div>
+          </div>
+          <div class="speaker-row lauren">
+            <div class="speaker-avatar"></div>
+            <div class="speaker-meta">
+              <div class="name">Maya Chen</div>
+              <div class="role">UX Lead</div>
+            </div>
+          </div>
+          <div class="speaker-row joe">
+            <div class="speaker-avatar"></div>
+            <div class="speaker-meta">
+              <div class="name">Alex Park</div>
+              <div class="role">iOS Engineer</div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <div class="tab-label">Home</div>
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            <div class="tab-label">Saved</div>
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+            <div class="tab-label">Explore</div>
+          </div>
+          <div class="tab search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <div class="tab-label">Search</div>
+          </div>
+        </div>
+      </div>
+      <div class="liquid-caption">
+        <div class="card-title">Fluid UI &amp; Animations</div>
+        <div class="liquid-tag">@myapp/ui</div>
+      </div>
+    </div>
+
+    <!-- 6 · TypeScript First -->
+    <div class="card c-rn">
+      <div class="ts-top">
+        <div class="ts-badge">TS</div>
+        <div class="ts-dots">
+          <div class="ts-dot active"></div>
+          <div class="ts-dot"></div>
+          <div class="ts-dot"></div>
+        </div>
+      </div>
+      <div class="ts-code">
+        <span class="kw">const</span> app: <span class="tp">App</span> = {<br>
+        &nbsp;&nbsp;type: <span class="tp">"safe"</span><br>
+        }
+      </div>
+      <div class="card-title" style="font-size:clamp(14px,1.4vw,18px)">TypeScript First</div>
+    </div>
+
+    <!-- 7 · Instant Navigation -->
+    <div class="card c-router">
+      <div class="nav-flow">
+        <div class="nav-screen active"></div>
+        <div class="nav-line"></div>
+        <div class="nav-screen"></div>
+        <div class="nav-line"></div>
+        <div class="nav-screen"></div>
+      </div>
+      <div class="nav-bottom">
+        <div class="card-title" style="font-size:clamp(14px,1.4vw,18px)">Instant Navigation</div>
+        <div class="nav-ms">&lt; 16ms</div>
+      </div>
+    </div>
+
+    <!-- 8 · Expo App Awards -->
+    <div class="card c-awards">
+      <div class="awards-title">
+        <span class="laurel">❧</span>
+        App of the Year
+        <span class="laurel" style="transform:scaleX(-1)">❧</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* Tab bar: click to switch active */
+  const tabs = document.querySelectorAll('.tab-bar .tab:not(.search)');
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  /* Bookmark: toggle saved state */
+  document.querySelectorAll('.bookmark').forEach((bm) => {
+    bm.addEventListener('click', () => bm.classList.toggle('off'));
+  });
+</script>
+
+</body>
+</html>

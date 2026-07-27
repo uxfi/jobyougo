@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Motion — Photography Portfolio</title>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:  #f3f2ee;
+  --ink: #181816;
+  --t2:  #6b6b67;
+  --t3:  #a8a8a3;
+  --tr:  650ms cubic-bezier(.4,0,.2,1);
+}
+
+html, body { width: 100%; height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  transition: background 650ms ease, color 650ms ease;
+}
+body.dark {
+  --bg:  #080807;
+  --ink: #eeeae3;
+  --t2:  #797973;
+  --t3:  #474742;
+}
+
+/* ── GRIDS ── */
+#gridCanvas {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+}
+
+.grid-globe {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  opacity: 0; transition: opacity var(--tr);
+}
+body.dark .grid-globe { opacity: 1; }
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  padding: 18px 28px;
+}
+.nav-center { display: flex; align-items: center; }
+.nav-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 700; letter-spacing: -.2px;
+  color: var(--ink); margin-right: 14px;
+  display: flex; align-items: center;
+  transition: color var(--tr);
+}
+.nav-link {
+  font-size: 13px; color: var(--t2); text-decoration: none;
+  padding: 5px 10px; border-radius: 6px; transition: color 150ms;
+}
+.nav-link:hover { color: var(--ink); }
+
+.nav-right {
+  position: absolute; right: 28px;
+  display: flex; align-items: center; gap: 12px;
+}
+
+/* ── THEME SWITCH ── */
+.theme-switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 88px;
+  height: 48px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  outline: none;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #edf2f7 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 2px rgba(148, 163, 184, 0.22),
+    0 10px 24px rgba(15, 23, 42, 0.1),
+    0 2px 6px rgba(15, 23, 42, 0.08);
+  transition:
+    background 300ms ease,
+    box-shadow 300ms ease,
+    border-color 300ms ease,
+    transform 160ms ease,
+    filter 300ms ease;
+}
+.theme-switch:hover { transform: translateY(-1px); }
+.theme-switch:active { transform: scale(.98); }
+.theme-switch:focus-visible {
+  box-shadow:
+    inset 5px 5px 12px rgba(148, 163, 184, 0.5),
+    inset -5px -5px 12px rgba(255, 255, 255, 1),
+    inset 8px 8px 16px rgba(100, 116, 139, 0.3),
+    inset -8px -8px 16px rgba(255, 255, 255, 0.9),
+    inset 0 2px 4px rgba(148, 163, 184, 0.4),
+    inset 0 -2px 4px rgba(255, 255, 255, 1),
+    inset 0 0 20px rgba(203, 213, 225, 0.3),
+    0 0 0 3px rgba(148, 163, 184, 0.18),
+    0 8px 18px rgba(0, 0, 0, 0.12);
+}
+body.dark .theme-switch {
+  background:
+    linear-gradient(180deg, #1f2937 0%, #0f172a 100%);
+  border-color: rgba(71, 85, 105, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(148, 163, 184, 0.12),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.45),
+    0 12px 28px rgba(0, 0, 0, 0.28),
+    0 3px 8px rgba(0, 0, 0, 0.22);
+}
+body.dark .theme-switch:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(148, 163, 184, 0.12),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.45),
+    0 0 0 3px rgba(148, 163, 184, 0.12),
+    0 8px 18px rgba(0, 0, 0, 0.32);
+}
+.sw-inner-groove,
+.sw-icons,
+.sw-particles {
+  pointer-events: none;
+}
+.sw-inner-groove {
+  position: absolute;
+  inset: 3px;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 2px rgba(148, 163, 184, 0.18);
+}
+body.dark .sw-inner-groove {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.42);
+}
+.sw-icons {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 13px;
+}
+.sw-icon {
+  width: 16px;
+  height: 16px;
+  transition: color 300ms ease, opacity 250ms ease;
+}
+.sw-icon-sun { color: #d97706; }
+.sw-icon-moon { color: #334155; }
+body.dark .sw-icon-sun,
+body.dark .sw-icon-moon { color: #fef3c7; }
+.sw-thumb {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  overflow: hidden;
+  transform: translateX(0);
+  will-change: transform;
+  background:
+    linear-gradient(145deg, #ffffff 0%, #fefefe 50%, #f8fafc 100%);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 1px 1px 2px rgba(203, 213, 225, 0.3),
+    inset -1px -1px 2px rgba(255, 255, 255, 1),
+    0 6px 18px rgba(15, 23, 42, 0.16),
+    0 2px 4px rgba(15, 23, 42, 0.1);
+  transition:
+    transform 620ms cubic-bezier(.175, .885, .32, 1.275),
+    background 300ms ease,
+    box-shadow 300ms ease,
+    border-color 300ms ease;
+}
+body.dark .sw-thumb {
+  transform: translateX(50px);
+  background:
+    linear-gradient(145deg, #64748b 0%, #475569 50%, #334155 100%);
+  border-color: rgba(148, 163, 184, 0.3);
+  box-shadow:
+    inset 1px 1px 2px rgba(100, 116, 139, 0.3),
+    inset -1px -1px 2px rgba(0, 0, 0, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.4),
+    0 2px 5px rgba(0, 0, 0, 0.24);
+}
+.sw-thumb-gloss {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 0%, transparent 40%, rgba(0, 0, 0, 0.1) 100%);
+}
+.sw-thumb-icon {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  transition: opacity 240ms ease, transform 240ms ease, color 300ms ease;
+}
+.sw-thumb-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.sw-thumb-sun {
+  color: #f59e0b;
+  opacity: 1;
+  transform: scale(1);
+}
+.sw-thumb-moon {
+  color: #fde68a;
+  opacity: 0;
+  transform: scale(.7);
+}
+body.dark .sw-thumb-sun {
+  opacity: 0;
+  transform: scale(.7);
+}
+body.dark .sw-thumb-moon {
+  opacity: 1;
+  transform: scale(1);
+}
+.sw-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.sw-particle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  animation: sw-particle-light var(--duration, .7s) ease-out forwards;
+  animation-delay: var(--delay, 0s);
+}
+.sw-particle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: .4;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+.sw-particle.light {
+  background:
+    radial-gradient(circle, rgba(251, 191, 36, 0.7) 0%, rgba(251, 191, 36, 0) 70%);
+  animation-name: sw-particle-light;
+}
+.sw-particle.dark {
+  background:
+    radial-gradient(circle, rgba(147, 197, 253, 0.5) 0%, rgba(147, 197, 253, 0) 70%);
+  animation-name: sw-particle-dark;
+}
+@keyframes sw-particle-light {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  35%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(8); }
+}
+@keyframes sw-particle-dark {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+  35%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(6); }
+}
+
+/* ── PHOTO STRIP ── */
+.strip { position: fixed; inset: 0; z-index: 1; cursor: crosshair; }
+
+.photo {
+  position: absolute; border-radius: 8px; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12), 0 8px 28px rgba(0,0,0,.10);
+  will-change: transform; cursor: pointer;
+}
+
+.photo-img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+  /* slight brightness reduction for depth */
+  filter: brightness(.96) saturate(1.05);
+  transition: filter .3s;
+}
+.photo:hover .photo-img { filter: brightness(1.04) saturate(1.1); }
+
+/* ── HERO ── */
+.hero {
+  position: fixed; bottom: 72px; left: 52px;
+  z-index: 50; max-width: 360px;
+  pointer-events: none;
+}
+.hero > * { pointer-events: auto; }
+
+.hero-eyebrow {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--t3); margin-bottom: 14px;
+  transition: color var(--tr);
+}
+.hero-eyebrow::before {
+  content: ''; display: block; width: 24px; height: 1px;
+  background: currentColor;
+}
+.hero h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(34px, 4.2vw, 50px); font-weight: 800;
+  line-height: 1.07; letter-spacing: -1.6px;
+  color: var(--ink); margin-bottom: 14px;
+  transition: color var(--tr);
+}
+.hero h1 em { font-style: italic; font-weight: 700; }
+.hero p {
+  font-size: 11.5px; line-height: 1.7; color: var(--t2);
+  margin-bottom: 22px; max-width: 275px;
+  transition: color var(--tr);
+}
+.hero-cta { display: flex; align-items: center; gap: 18px; }
+.btn-book {
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 20px;
+  background: var(--ink);
+  color: var(--bg);
+  border: 1px solid rgba(0,0,0,0.25);
+  border-radius: 100px;
+  font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: border-color 400ms, background 400ms, color 400ms, transform 120ms;
+}
+.btn-book:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0,0,0,0.5);
+}
+.btn-book::before, .btn-book::after {
+  content: '';
+  position: absolute; left: 12.5%; right: 12.5%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+  opacity: 0;
+  transition: opacity 500ms;
+}
+.btn-book::before { top: 0; }
+.btn-book::after  { bottom: 0; }
+.btn-book:hover::before { opacity: 1; }
+.btn-book:hover::after  { opacity: 0.4; }
+/* Dark mode: blue neon */
+body.dark .btn-book {
+  background: #1d4ed8;
+  color: #eff6ff;
+  border-color: rgba(59,130,246,0.4);
+}
+body.dark .btn-book:hover {
+  background: #2563eb;
+  border-color: rgba(59,130,246,0.7);
+}
+body.dark .btn-book::before,
+body.dark .btn-book::after {
+  background: linear-gradient(90deg, transparent, #93c5fd, transparent);
+}
+.btn-archive {
+  font-size: 11.5px; color: var(--t2); text-decoration: none;
+  border-bottom: 1px solid rgba(128,128,128,.3); padding-bottom: 1px;
+  transition: color 150ms;
+}
+.btn-archive:hover { color: var(--ink); }
+
+/* ── BOTTOM BAR ── */
+.bottom-bar {
+  position: fixed; bottom: 22px; left: 52px; right: 52px;
+  z-index: 50; display: flex; align-items: center; gap: 10px;
+}
+.stars { display: flex; gap: 3px; }
+.star {
+  width: 9px; height: 9px; background: var(--ink);
+  clip-path: polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+  transition: background var(--tr);
+}
+.star.dim { background: var(--t3); }
+.bar-score { font-size: 10px; font-weight: 600; color: var(--t2); transition: color var(--tr); }
+.bar-sep   { font-size: 10px; color: var(--t3); }
+.bar-tags  { display: flex; }
+.bar-tag   { font-size: 10px; color: var(--t3); transition: color var(--tr); }
+.bar-tag + .bar-tag::before { content: ' · '; margin: 0 6px; }
+</style>
+</head>
+<body>
+
+<canvas id="gridCanvas"></canvas>
+<svg class="grid-globe" id="globeSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-center">
+    <span class="nav-logo">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right:7px;flex-shrink:0">
+        <polygon points="7,1 13,13 1,13" fill="currentColor"/>
+      </svg>Motion</span>
+    <a class="nav-link" href="#">Gallery</a>
+    <a class="nav-link" href="#">Pricing</a>
+  </div>
+  <div class="nav-right">
+    <button
+      class="theme-switch"
+      id="themeToggle"
+      type="button"
+      title="Toggle dark mode"
+      aria-label="Switch to dark mode"
+      role="switch"
+      aria-checked="false"
+    >
+      <span class="sw-inner-groove"></span>
+      <span class="sw-icons" aria-hidden="true">
+        <svg class="sw-icon sw-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+        </svg>
+        <svg class="sw-icon sw-icon-moon" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </span>
+      <span class="sw-thumb" aria-hidden="true">
+        <span class="sw-thumb-gloss"></span>
+        <span class="sw-particles"></span>
+        <span class="sw-thumb-icon sw-thumb-sun">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+          </svg>
+        </span>
+        <span class="sw-thumb-icon sw-thumb-moon">
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </span>
+    </button>
+  </div>
+</nav>
+
+<div class="strip" id="strip"></div>
+
+<!-- HERO TEXT -->
+<div class="hero">
+  <div class="hero-eyebrow">Selected work &nbsp;·&nbsp; 2014 – 2026</div>
+  <h1>Every frame,<br><em>every story.</em></h1>
+  <p>Twelve years of editorial, fashion, and brand photography — one infinite reel. Hover to feel it; click to see it full.</p>
+  <div class="hero-cta">
+    <button class="btn-book">Book a session &nbsp;→</button>
+    <a class="btn-archive" href="#">View archive</a>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <div class="stars">
+    <div class="star"></div><div class="star"></div>
+    <div class="star"></div><div class="star"></div>
+    <div class="star dim"></div>
+  </div>
+  <span class="bar-score">4.9</span>
+  <span class="bar-sep">·</span>
+  <div class="bar-tags">
+    <span class="bar-tag">240+ commissioned shoots</span>
+    <span class="bar-tag">Featured in Vogue, WIRED, Apple</span>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════
+   THEME SWITCH
+═══════════════════════════════ */
+const themeToggle = document.getElementById('themeToggle');
+const particleLayer = themeToggle.querySelector('.sw-particles');
+
+function syncThemeToggleState() {
+  const isDark = document.body.classList.contains('dark');
+  themeToggle.setAttribute('aria-checked', String(isDark));
+  themeToggle.setAttribute('aria-label', `Switch to ${isDark ? 'light' : 'dark'} mode`);
+}
+
+function generateSwitchParticles(isDark) {
+  particleLayer.innerHTML = '';
+
+  [0, 1, 2].forEach(index => {
+    const particle = document.createElement('span');
+    particle.className = `sw-particle ${isDark ? 'dark' : 'light'}`;
+    particle.style.setProperty('--delay', `${index * 0.1}s`);
+    particle.style.setProperty('--duration', `${0.6 + index * 0.1}s`);
+    particleLayer.appendChild(particle);
+  });
+
+  window.clearTimeout(generateSwitchParticles.cleanupId);
+  generateSwitchParticles.cleanupId = window.setTimeout(() => {
+    particleLayer.innerHTML = '';
+  }, 1000);
+}
+generateSwitchParticles.cleanupId = null;
+
+themeToggle.addEventListener('click', () => {
+  const isDark = document.body.classList.contains('dark');
+  generateSwitchParticles(isDark);
+  document.body.classList.toggle('dark', !isDark);
+  syncThemeToggleState();
+});
+
+syncThemeToggleState();
+
+/* ═══════════════════════════════
+   GRID CANVAS  — distorts near cursor
+   Each grid line is subdivided into small
+   segments; points within RADIUS of the
+   cursor are pushed radially outward.
+═══════════════════════════════ */
+(function initGrid() {
+  const canvas = document.getElementById('gridCanvas');
+  const ctx    = canvas.getContext('2d');
+
+  const STEP   = 36;   /* grid cell size (px)       */
+  const SEG    = 10;   /* sub-segment length (px)   */
+  const RADIUS = 200;  /* influence radius (px)     */
+  const PUSH   = 45;   /* max displacement (px)     */
+  const LERP   = 0.07; /* mouse smoothing factor    */
+
+  let W = 0, H = 0;
+
+  /* mouse state */
+  let tx = -9999, ty = -9999; /* target */
+  let mx = -9999, my = -9999; /* smoothed */
+  let str = 0, tStr = 0;      /* effect strength 0→1 */
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; tStr = 1; });
+  document.addEventListener('mouseleave',  () => { tStr = 0; });
+
+  /* radial push: returns displaced (x, y) */
+  function push(px, py) {
+    if (str < 0.002) return [px, py];
+    const dx   = px - mx;
+    const dy   = py - my;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    if (dist >= RADIUS) return [px, py];
+    const t = 1 - dist / RADIUS;
+    const s = t * t * PUSH * str; /* quadratic falloff */
+    return [px + (dx / dist) * s, py + (dy / dist) * s];
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    const dark = document.body.classList.contains('dark');
+    ctx.strokeStyle = dark ? 'rgba(255,255,255,.055)' : 'rgba(0,0,0,.042)';
+    ctx.lineWidth   = 1;
+
+    /* horizontal lines */
+    for (let y = 0; y <= H + STEP; y += STEP) {
+      ctx.beginPath();
+      for (let x = 0, first = true; x <= W + SEG; x += SEG) {
+        const [px, py] = push(x, y);
+        first ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        first = false;
+      }
+      ctx.stroke();
+    }
+
+    /* vertical lines */
+    for (let x = 0; x <= W + STEP; x += STEP) {
+      ctx.beginPath();
+      for (let y = 0, first = true; y <= H + SEG; y += SEG) {
+        const [px, py] = push(x, y);
+        first ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        first = false;
+      }
+      ctx.stroke();
+    }
+  }
+
+  function loop() {
+    /* smooth mouse */
+    mx  += (tx  - mx)  * LERP;
+    my  += (ty  - my)  * LERP;
+    str += (tStr - str) * (LERP * 0.6);
+
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+/* ═══════════════════════════════
+   PHOTO DATA
+   Positions: centers lie on diagonal
+   center_y% = 12 + left% × 0.355
+   top% = center_y% − (h_px / 900 × 100) / 2
+
+   [left%, top%, w(px), h(px), rot(deg), unsplash_id, zIndex]
+═══════════════════════════════ */
+const PHOTOS = [
+  /* [left%, top%, w(px), h(px), rot(deg), unsplash_id, zIndex]
+     Tops follow a sigmoid S-curve:
+     center_y% = 10 + 42 × sigmoid(8 × (t − 0.5)),  t = (left+3)/110
+     → flat at both ends, steep in the middle            */
+  [-3, 19,  88, 114, -5, '1506905925346-21bda4d32df4', 4],  // mountain lake
+  [ 3, 22, 104,  81,  3, '1505118380757-91f5f5632de0', 3],  // ocean wave
+  [ 9, 20,  81, 120, -7, '1441974231531-c6227db76b6e', 5],  // sunlit forest
+  [16, 23, 120,  91,  5, '1509316785289-025f5b846b35', 4],  // desert dunes
+  [23, 22,  96, 140, -3, '1559827260-dc66d52bef19',   6],  // glacier lake
+  [31, 28, 112,  86,  6, '1470252649378-9c29740c9fa8', 3],  // mountain sunset
+  [38, 29,  88, 127, -6, '1493246507139-91e8fad9978e', 5],  // scenic valley
+  [45, 36, 101,  78,  4, '1519681393784-d120267933ba', 4],  // snowy peak
+  [52, 39, 151, 117, -4, '1475924156734-496f6cac6ec1', 7],  // green hills
+  [61, 45,  96, 143,  7, '1494500764479-0c8f2919a3d8', 5],  // Iceland lava
+  [68, 52, 122,  95, -3, '1507525428034-b723cf961d3e', 4],  // tropical beach
+  [75, 53,  91, 125,  5, '1484950763426-56b5bf172dbb', 6],  // waterfall
+  [82, 57, 140, 109, -2, '1448375240586-882707db888b', 5],  // misty forest
+  [89, 60, 107,  83,  6, '1464822759023-fed622ff2c3b', 4],  // mountain sunrise
+  [95, 58,  88, 125, -6, '1476610182048-b716b8518aae', 5],  // snowy peaks
+  [101,61, 117,  91,  3, '1511497584788-876760111969', 3],  // snowy forest
+  [107,59,  99, 133, -4, '1524492412937-b28074a5d7da', 4],  // tropical water
+];
+
+const CDN = 'https://images.unsplash.com/photo-';
+const Q   = '?auto=format&fit=crop&q=80&w=400';
+
+/* ── BUILD ELEMENTS ── */
+const stripEl = document.getElementById('strip');
+const els = [];
+
+PHOTOS.forEach(([lp, tp, w, h, rot, id, zi]) => {
+  const el = document.createElement('div');
+  el.className = 'photo';
+  el.style.cssText = `left:${lp}%;top:${tp}%;width:${w}px;height:${h}px;z-index:${zi};transform:rotate(${rot}deg);`;
+
+  const img = document.createElement('img');
+  img.className = 'photo-img';
+  img.src = `${CDN}${id}${Q}`;
+  img.loading = 'lazy';
+  img.draggable = false;
+  el.appendChild(img);
+  stripEl.appendChild(el);
+
+  els.push({ el, rot, ox: 0, oy: 0, vx: 0, vy: 0 });
+});
+
+/* ═══════════════════════════════
+   GLOBE SVG  (visible in dark mode)
+═══════════════════════════════ */
+(function buildGlobe() {
+  const svg  = document.getElementById('globeSvg');
+  const vw   = window.innerWidth;
+  const vh   = window.innerHeight;
+  svg.setAttribute('viewBox', `0 0 ${vw} ${vh}`);
+
+  const cx   = vw * .52;
+  const cy   = vh * .46;
+  const R    = Math.min(vw, vh) * .52;
+  const phi0 = 18 * Math.PI / 180;
+  const SC   = 'rgba(255,255,255,.10)';
+  const N    = 120;
+
+  function project(phi, lam) {
+    const x   = R * Math.cos(phi) * Math.sin(lam);
+    const y   = R * (Math.cos(phi0) * Math.sin(phi) - Math.sin(phi0) * Math.cos(phi) * Math.cos(lam));
+    const vis = Math.cos(phi0) * Math.cos(phi) * Math.cos(lam) + Math.sin(phi0) * Math.sin(phi);
+    return { x: cx + x, y: cy - y, vis };
+  }
+
+  function makePath(pts) {
+    let d = '', pen = false;
+    pts.forEach(p => {
+      if (p.vis < -.08) { pen = false; return; }
+      d += pen ? `L${p.x.toFixed(1)},${p.y.toFixed(1)}`
+               : `M${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+      pen = true;
+    });
+    return d;
+  }
+
+  function addPath(d) {
+    if (!d) return;
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', d);
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', SC);
+    p.setAttribute('stroke-width', '.8');
+    svg.appendChild(p);
+  }
+
+  /* meridians */
+  for (let lon = -180; lon < 180; lon += 18) {
+    const lam = lon * Math.PI / 180;
+    const pts = Array.from({ length: N + 1 }, (_, i) =>
+      project((-90 + 180 * i / N) * Math.PI / 180, lam)
+    );
+    addPath(makePath(pts));
+  }
+
+  /* parallels */
+  for (let lat = -75; lat <= 75; lat += 15) {
+    const phi = lat * Math.PI / 180;
+    const pts = Array.from({ length: N + 1 }, (_, i) =>
+      project(phi, (-180 + 360 * i / N) * Math.PI / 180)
+    );
+    addPath(makePath(pts));
+  }
+
+  /* outer circle */
+  const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  c.setAttribute('cx', cx.toFixed(1));
+  c.setAttribute('cy', cy.toFixed(1));
+  c.setAttribute('r',  R.toFixed(1));
+  c.setAttribute('fill', 'none');
+  c.setAttribute('stroke', 'rgba(255,255,255,.14)');
+  c.setAttribute('stroke-width', '1');
+  svg.appendChild(c);
+})();
+
+/* ═══════════════════════════════
+   HOVER PHYSICS
+   Only photos within RADIUS px of cursor are pushed.
+   Others spring back to rest position.
+═══════════════════════════════ */
+const RADIUS  = 160;
+const FORCE   = 3.0;
+const DAMPING = .82;
+
+let mouseX = -9999;
+let mouseY = -9999;
+let raf    = null;
+
+stripEl.addEventListener('mousemove', e => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  if (!raf) raf = requestAnimationFrame(tick);
+});
+
+stripEl.addEventListener('mouseleave', () => {
+  mouseX = -9999;
+  mouseY = -9999;
+  if (!raf) raf = requestAnimationFrame(tick);
+});
+
+function tick() {
+  let anyMoving = false;
+
+  els.forEach(s => {
+    const rect = s.el.getBoundingClientRect();
+    const cx   = rect.left + rect.width  / 2;
+    const cy   = rect.top  + rect.height / 2;
+    const dx   = cx - mouseX;
+    const dy   = cy - mouseY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+    if (dist < RADIUS) {
+      /* repulsion */
+      const strength = (1 - dist / RADIUS) * FORCE;
+      s.vx += (dx / dist) * strength;
+      s.vy += (dy / dist) * strength;
+    } else {
+      /* spring back toward rest */
+      s.vx += -s.ox * .10;
+      s.vy += -s.oy * .10;
+    }
+
+    s.vx *= DAMPING;
+    s.vy *= DAMPING;
+    s.ox += s.vx;
+    s.oy += s.vy;
+
+    s.el.style.transform =
+      `rotate(${s.rot}deg) translate(${s.ox.toFixed(2)}px,${s.oy.toFixed(2)}px)`;
+
+    if (Math.abs(s.vx) > .02 || Math.abs(s.vy) > .02 ||
+        Math.abs(s.ox) > .1  || Math.abs(s.oy) > .1) {
+      anyMoving = true;
+    }
+  });
+
+  raf = anyMoving ? requestAnimationFrame(tick) : null;
+}
+</script>
+</body>
+</html>

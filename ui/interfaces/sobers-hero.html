@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sobers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: auto; }
+  body { font-family: var(--font-inter); background: #07080f; overflow-x: hidden; }
+
+  .scroll-container { height: 700vh; }
+
+  .viewport {
+    position: sticky; top: 0;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .bg-grid {
+    position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background-size: 60px 60px;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,.04) 1px, transparent 1px);
+    mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+  }
+
+  /* Hero text */
+  .hero-text-wrapper {
+    position: absolute; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 20px; pointer-events: none; visibility: hidden;
+  }
+  .tagline-1 { font-size: clamp(2.5rem, 5vw, 5.5rem); font-weight: 700; letter-spacing: -2px; color: #e8e6e1; line-height: 1; margin-bottom: 4px; text-shadow: 0 10px 30px rgba(232,230,225,.15); }
+  .tagline-2 { font-size: clamp(2.5rem, 5vw, 5.5rem); font-weight: 800; letter-spacing: -2.5px; line-height: 1; background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,.35) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 10px 20px rgba(255,255,255,.12)); }
+
+  /* CTA */
+  .cta-wrapper {
+    position: absolute; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 20px; pointer-events: none; visibility: hidden;
+  }
+  .cta-wrapper.active { pointer-events: auto; }
+  .cta-heading { font-size: clamp(2.5rem, 5vw, 5rem); font-weight: 700; letter-spacing: -2px; line-height: 1.1; margin-bottom: 16px; background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,.4) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .cta-sub { font-size: clamp(1rem, 1.4vw, 1.1rem); color: rgba(255,255,255,.4); max-width: 440px; line-height: 1.7; margin-bottom: 40px; font-weight: 300; }
+  .cta-buttons { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .btn-store { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-radius: 20px; text-decoration: none; transition: all .35s cubic-bezier(.25,1,.5,1); }
+  .btn-light { background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%); color: #0f172a; box-shadow: 0 0 0 1px rgba(0,0,0,.05), 0 2px 4px rgba(0,0,0,.1), 0 12px 24px -4px rgba(0,0,0,.3), inset 0 1px 1px #fff, inset 0 -3px 6px rgba(0,0,0,.06); }
+  .btn-light:hover { transform: translateY(-3px); }
+  .btn-dark { background: linear-gradient(180deg, #27272a 0%, #18181b 100%); color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 2px 4px rgba(0,0,0,.6), 0 12px 24px -4px rgba(0,0,0,.9), inset 0 1px 1px rgba(255,255,255,.15); }
+  .btn-dark:hover { transform: translateY(-3px); }
+  .btn-label-sm { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .5; display: block; margin-bottom: -2px; }
+  .btn-label-lg { font-size: 18px; font-weight: 700; letter-spacing: -.3px; line-height: 1; }
+
+  /* Card */
+  .card-wrap { position: absolute; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .main-card {
+    border-radius: 36px;
+    background: linear-gradient(145deg, #162C6D 0%, #0A101D 100%);
+    box-shadow: 0 40px 100px -20px rgba(0,0,0,.9), 0 20px 40px -20px rgba(0,0,0,.8), inset 0 1px 2px rgba(255,255,255,.18), inset 0 -2px 4px rgba(0,0,0,.8);
+    border: 1px solid rgba(255,255,255,.04);
+    overflow: hidden; position: relative;
+    display: grid; grid-template-columns: 1fr 280px 1fr;
+    align-items: center; padding: 40px 52px; gap: 28px;
+    pointer-events: auto; visibility: hidden;
+    will-change: transform, width, height, border-radius, clip-path;
+  }
+  .card-sheen { position: absolute; inset: 0; pointer-events: none; z-index: 1; border-radius: inherit; background: radial-gradient(900px circle at var(--mouse-x, 30%) var(--mouse-y, 40%), rgba(255,255,255,.05) 0%, transparent 50%); }
+
+  /* Card content */
+  .card-left { display: flex; flex-direction: column; justify-content: center; z-index: 2; visibility: hidden; }
+  .card-heading { font-size: clamp(1.4rem, 2.2vw, 2.4rem); font-weight: 700; letter-spacing: -.8px; color: #fff; line-height: 1.15; margin-bottom: 14px; }
+  .card-body { font-size: 13px; color: rgba(180,200,255,.65); line-height: 1.75; max-width: 260px; }
+  .card-body strong { color: #fff; }
+  .card-right { display: flex; justify-content: flex-end; align-items: center; z-index: 2; visibility: hidden; }
+  .brand-name { font-size: clamp(3.5rem, 6vw, 6.5rem); font-weight: 900; letter-spacing: -3px; text-transform: uppercase; text-align: right; line-height: 1; background: linear-gradient(180deg, #fff 0%, rgba(161,161,170,.55) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; transform: translateZ(0); filter: drop-shadow(0 12px 24px rgba(0,0,0,.8)) drop-shadow(0 4px 8px rgba(0,0,0,.6)); }
+
+  /* iPhone */
+  .mockup-wrapper { display: flex; align-items: center; justify-content: center; position: relative; z-index: 2; visibility: hidden; }
+  .iphone { position: relative; width: 224px; height: 470px; border-radius: 40px; background: #111; box-shadow: inset 0 0 0 2px #52525b, inset 0 0 0 7px #000, 0 40px 80px -15px rgba(0,0,0,.95), 0 15px 30px -5px rgba(0,0,0,.7); flex-shrink: 0; }
+  .iphone-screen { position: absolute; inset: 7px; background: #050914; border-radius: 34px; overflow: hidden; color: #fff; }
+  .screen-glare { position: absolute; inset: 0; border-radius: inherit; z-index: 40; pointer-events: none; background: linear-gradient(110deg, rgba(255,255,255,.07) 0%, transparent 45%); }
+  .dynamic-island { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 85px; height: 25px; background: #000; border-radius: 100px; z-index: 50; display: flex; align-items: center; justify-content: flex-end; padding-right: 9px; }
+  .island-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,.8); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
+  .app-content { position: absolute; inset: 0; padding: 38px 14px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .app-header { display: flex; align-items: center; justify-content: space-between; }
+  .app-label { font-size: 8px; color: rgba(255,255,255,.38); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-bottom: 2px; }
+  .app-title { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -.4px; }
+  .app-avatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: rgba(255,255,255,.55); }
+  .ring-container { display: flex; flex-direction: column; align-items: center; position: relative; }
+  .ring-svg { width: 130px; height: 130px; transform: rotate(-90deg); filter: drop-shadow(0 8px 16px rgba(0,0,0,.5)); }
+  .ring-track { fill: none; stroke: rgba(255,255,255,.04); stroke-width: 10; }
+  .ring-fill { fill: none; stroke: #3b82f6; stroke-width: 10; stroke-linecap: round; stroke-dasharray: 326; stroke-dashoffset: 326; }
+  .ring-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; }
+  .ring-value { font-size: 30px; font-weight: 800; letter-spacing: -1.5px; color: #fff; line-height: 1; }
+  .ring-sub { font-size: 7px; color: rgba(147,197,253,.5); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-top: 3px; display: block; }
+  .widget { background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border: 1px solid rgba(255,255,255,.04); border-radius: 13px; padding: 9px 11px; display: flex; align-items: center; gap: 9px; box-shadow: 0 8px 16px rgba(0,0,0,.3), inset 0 1px 1px rgba(255,255,255,.05); visibility: hidden; }
+  .widget-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .widget-icon.blue { background: linear-gradient(135deg, rgba(59,130,246,.2), rgba(59,130,246,.05)); border: 1px solid rgba(59,130,246,.2); }
+  .widget-icon.green { background: linear-gradient(135deg, rgba(16,185,129,.2), rgba(16,185,129,.05)); border: 1px solid rgba(16,185,129,.2); }
+  .widget-lines { flex: 1; }
+  .widget-line-1 { height: 6px; background: #d4d4d8; border-radius: 100px; width: 60%; margin-bottom: 5px; }
+  .widget-line-2 { height: 5px; background: #3f3f46; border-radius: 100px; width: 42%; }
+  .home-bar { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 90px; height: 4px; background: rgba(255,255,255,.18); border-radius: 100px; }
+  .hw-btn { position: absolute; background: linear-gradient(90deg, #404040, #171717); box-shadow: -2px 0 5px rgba(0,0,0,.8), inset -1px 0 1px rgba(255,255,255,.12); border-radius: 2px; }
+
+  /* Decomposition edge — glowing line that moves from bottom to top during exit */
+  .deco-edge {
+    position: absolute; left: -8%; right: -8%; height: 120px;
+    bottom: 0; z-index: 100; pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(to top,
+      rgba(147,197,253,0) 0%,
+      rgba(147,197,253,0.12) 35%,
+      rgba(191,219,254,0.45) 72%,
+      rgba(255,255,255,0.95) 94%,
+      rgba(255,255,255,1) 100%);
+    filter: blur(14px);
+    mix-blend-mode: screen;
+    will-change: bottom, opacity;
+  }
+
+  /* Floating badges */
+  .floating-badge { position: absolute; background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.01)); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,.1); box-shadow: 0 25px 50px -12px rgba(0,0,0,.8), inset 0 1px 1px rgba(255,255,255,.18); border-radius: 14px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; min-width: 170px; z-index: 20; visibility: hidden; }
+  .badge-1 { top: 10%; left: -68px; }
+  .badge-2 { bottom: 12%; right: -68px; }
+  .badge-icon { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .badge-title { font-size: 11px; font-weight: 700; color: #fff; margin-bottom: 1px; }
+  .badge-sub   { font-size: 9px; color: rgba(147,197,253,.5); }
+</style>
+</head>
+<body>
+
+<div class="scroll-container">
+  <div class="viewport">
+    <div class="bg-grid"></div>
+
+    <div class="hero-text-wrapper">
+      <h1 class="tagline-1">Recovery isn't a count.</h1>
+      <h1 class="tagline-2">It's a comeback.</h1>
+    </div>
+
+    <div class="cta-wrapper">
+      <h2 class="cta-heading">Reclaim your days.</h2>
+      <p class="cta-sub">Join thousands rebuilding their lives with real accountability and a community that never quits on them.</p>
+      <div class="cta-buttons">
+        <a href="#" class="btn-store btn-light">
+          <svg width="28" height="28" fill="currentColor" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+          <div><span class="btn-label-sm">Download on the</span><span class="btn-label-lg">App Store</span></div>
+        </a>
+        <a href="#" class="btn-store btn-dark">
+          <svg width="24" height="24" fill="currentColor" viewBox="0 0 512 512"><path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg>
+          <div><span class="btn-label-sm">Get it on</span><span class="btn-label-lg">Google Play</span></div>
+        </a>
+      </div>
+    </div>
+
+    <div class="card-wrap">
+      <div class="main-card" id="main-card">
+        <div class="card-sheen"></div>
+        <div class="deco-edge" id="deco-edge"></div>
+
+        <div class="card-left">
+          <div class="card-heading">Accountability<br>that actually sticks.</div>
+          <div class="card-body"><strong>Sobers</strong> pairs sponsors and sponsees with structured check-ins, streak rituals, and visual timelines — so every sober day compounds into something bigger.</div>
+        </div>
+
+        <div class="mockup-wrapper">
+          <div class="iphone">
+            <div class="hw-btn" style="top:100px;left:-3px;width:3px;height:22px;"></div>
+            <div class="hw-btn" style="top:136px;left:-3px;width:3px;height:40px;"></div>
+            <div class="hw-btn" style="top:190px;left:-3px;width:3px;height:40px;"></div>
+            <div class="hw-btn" style="top:145px;right:-3px;width:3px;height:64px;transform:scaleX(-1);"></div>
+            <div class="iphone-screen">
+              <div class="screen-glare"></div>
+              <div class="dynamic-island"><div class="island-dot"></div></div>
+              <div class="app-content">
+                <div class="app-header">
+                  <div><div class="app-label">Today</div><div class="app-title">Journey</div></div>
+                  <div class="app-avatar">JS</div>
+                </div>
+                <div class="ring-container">
+                  <svg class="ring-svg" viewBox="0 0 130 130">
+                    <circle class="ring-track" cx="65" cy="65" r="52"/>
+                    <circle class="ring-fill"  cx="65" cy="65" r="52"/>
+                  </svg>
+                  <div class="ring-label">
+                    <div class="ring-value" id="sb-counter">0</div>
+                    <span class="ring-sub">Days Sober</span>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px;">
+                  <div class="widget">
+                    <div class="widget-icon blue"><svg width="13" height="13" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+                    <div class="widget-lines"><div class="widget-line-1"></div><div class="widget-line-2"></div></div>
+                  </div>
+                  <div class="widget">
+                    <div class="widget-icon green"><svg width="13" height="13" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+                    <div class="widget-lines"><div class="widget-line-1" style="width:52%"></div><div class="widget-line-2" style="width:68%"></div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="home-bar"></div>
+            </div>
+          </div>
+          <div class="floating-badge badge-1">
+            <div class="badge-icon">🔥</div>
+            <div><div class="badge-title">365 days strong</div><div class="badge-sub">Milestone unlocked</div></div>
+          </div>
+          <div class="floating-badge badge-2">
+            <div class="badge-icon">🤝</div>
+            <div><div class="badge-title">Sponsor check-in</div><div class="badge-sub">You're not alone</div></div>
+          </div>
+        </div>
+
+        <div class="card-right">
+          <div class="brand-name">Sobers</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+gsap.registerPlugin(ScrollTrigger);
+
+const W = window.innerWidth;
+const H = window.innerHeight;
+const isMobile = W < 768;
+const counter  = document.getElementById('sb-counter');
+const counterObj = { val: 0 };
+
+// ── Initial states ────────────────────────────────────────────────────
+gsap.set('.hero-text-wrapper', { autoAlpha: 0, y: 50, filter: 'blur(12px)' });
+gsap.set('.tagline-2',         { clipPath: 'inset(0 100% 0 0)' });
+gsap.set('.main-card',         { autoAlpha: 1, y: H + 120, width: W * 0.9, height: H * 0.86, clipPath: 'inset(0% 0% 0% 0%)' });
+gsap.set(['.card-left', '.card-right', '.mockup-wrapper', '.floating-badge', '.widget'], { autoAlpha: 0 });
+gsap.set('.cta-wrapper',       { autoAlpha: 0, scale: 0.85, filter: 'blur(20px)' });
+
+// ── Intro: hero text appears ──────────────────────────────────────────
+gsap.timeline({ delay: 0.2 })
+  .to('.hero-text-wrapper', { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 1.6, ease: 'expo.out' })
+  .to('.tagline-2',         { clipPath: 'inset(0 0% 0 0)', duration: 1.3, ease: 'power4.inOut' }, '-=0.9');
+
+// ── Scroll timeline ───────────────────────────────────────────────────
+const tl = gsap.timeline({
+  scrollTrigger: {
+    trigger: '.scroll-container',
+    start: 'top top',
+    end: 'bottom bottom',
+    scrub: 1.2,
+    pin: '.viewport',
+    anticipatePin: 1,
+  }
+});
+
+tl
+  // Phase 1 — hero fades, card rises
+  .to('.hero-text-wrapper', { scale: 1.08, filter: 'blur(18px)', autoAlpha: 0.1, duration: 1.5, ease: 'power2.inOut' }, 0)
+  .to('.bg-grid',           { scale: 1.08, filter: 'blur(18px)', autoAlpha: 0.2, duration: 1.5, ease: 'power2.inOut' }, 0)
+  .to('.main-card',         { y: 0, duration: 1.5, ease: 'power3.inOut' }, 0)
+
+  // Phase 2 — card expands fullscreen
+  .to('.main-card', { width: W, height: H, borderRadius: 0, duration: 1.2, ease: 'power3.inOut' })
+
+  // Phase 3 — phone + content animate in
+  .fromTo('.mockup-wrapper',
+    { y: 180, rotationX: 35, rotationY: -15, autoAlpha: 0, scale: 0.75, transformPerspective: 1200 },
+    { y: 0,   rotationX: 0,  rotationY: 0,   autoAlpha: 1, scale: 1,    duration: 2, ease: 'expo.out' }, '-=0.4')
+  .to('.widget',
+    { autoAlpha: 1, stagger: 0.15, duration: 1, ease: 'back.out(1.2)' }, '-=1.4')
+  .to('.ring-fill',
+    { strokeDashoffset: 49, duration: 1.8, ease: 'power3.inOut' }, '-=1.6')
+  .to(counterObj,
+    { val: 365, duration: 1.8, ease: 'expo.out',
+      onUpdate: function() { counter.textContent = Math.round(counterObj.val); }
+    }, '<')
+  .fromTo('.floating-badge',
+    { y: 50,  autoAlpha: 0, scale: 0.82, rotation: -6 },
+    { y: 0,   autoAlpha: 1, scale: 1,    rotation: 0, stagger: 0.2, duration: 1.2, ease: 'back.out(1.5)' }, '-=1.2')
+  .fromTo('.card-left',
+    { x: -40, autoAlpha: 0 },
+    { x: 0,   autoAlpha: 1, duration: 1.2, ease: 'power4.out' }, '-=1.2')
+  .fromTo('.card-right',
+    { x: 40,  autoAlpha: 0, scale: 0.9 },
+    { x: 0,   autoAlpha: 1, scale: 1, duration: 1.2, ease: 'expo.out' }, '<')
+
+  // Phase 4 — hold
+  .to({}, { duration: 2.5 })
+
+  // Phase 5 — Inner content decomposes from bottom to top (transform-only, no blur)
+  .to('.widget',
+    { y: -22, autoAlpha: 0, scale: 0.9,
+      stagger: { each: 0.08, from: 'end' }, duration: 0.7, ease: 'power2.in' })
+  .to('.floating-badge.badge-2',
+    { y: -35, autoAlpha: 0, rotation: 6, duration: 0.7, ease: 'power2.in' }, '-=0.5')
+  .to('.ring-container',
+    { y: -18, autoAlpha: 0, scale: 0.95, duration: 0.7, ease: 'power2.in' }, '-=0.5')
+  .to('.app-header',
+    { y: -12, autoAlpha: 0, duration: 0.6, ease: 'power2.in' }, '-=0.5')
+  .to('.floating-badge.badge-1',
+    { y: -20, autoAlpha: 0, rotation: -6, duration: 0.6, ease: 'power2.in' }, '-=0.4')
+  .to(['.card-left', '.card-right'],
+    { y: -15, autoAlpha: 0, stagger: 0.08, duration: 0.6, ease: 'power2.in' }, '-=0.4')
+  .to('.mockup-wrapper',
+    { autoAlpha: 0, duration: 0.3, ease: 'power1.in' }, '-=0.2')
+
+  // Card shrinks as CTA backdrop (CTA pre-fades in behind opaque card)
+  .to('.main-card',
+    { width: isMobile ? W * 0.92 : W * 0.86, height: isMobile ? H * 0.92 : H * 0.86,
+      borderRadius: isMobile ? 28 : 36, duration: 1.4, ease: 'expo.inOut' }, '-=0.2')
+  .to('.cta-wrapper',
+    { autoAlpha: 1, scale: 1, filter: 'blur(0px)', duration: 1.4, ease: 'expo.inOut' }, '<')
+  .set('.cta-wrapper', { className: '+=active' })
+
+  // Phase 6 — Card decomposes from bottom to top via clip-path, revealing CTA behind
+  .to({}, { duration: 1.4 })
+  .to('.deco-edge',
+    { opacity: 1, duration: 0.25, ease: 'power1.out' })
+  .to('.deco-edge',
+    { bottom: '100%', duration: 1.6, ease: 'power2.inOut' }, '<')
+  .to('.main-card',
+    { clipPath: 'inset(0% 0% 100% 0%)', duration: 1.6, ease: 'power2.inOut' }, '<')
+  .to('.deco-edge',
+    { opacity: 0, duration: 0.3, ease: 'power1.in' }, '-=0.25');
+
+// ── Mouse parallax ────────────────────────────────────────────────────
+let rafId;
+window.addEventListener('mousemove', e => {
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(() => {
+    if (window.scrollY < 100) return;
+    const iphone = document.querySelector('.iphone');
+    if (iphone) {
+      gsap.to(iphone, {
+        rotationY:  (e.clientX / W - 0.5) * 20,
+        rotationX: -(e.clientY / H - 0.5) * 20,
+        duration: 1.2, ease: 'power3.out', transformPerspective: 1500
+      });
+    }
+    const card = document.getElementById('main-card');
+    if (card) {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mouse-x', (e.clientX - r.left) + 'px');
+      card.style.setProperty('--mouse-y', (e.clientY - r.top) + 'px');
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -92,6 +92,9 @@ var statusOptions = []string{"Evaluated", "Applied", "Responded", "Rejected", "D
 // statusGroupOrder defines display order for grouped view.
 var statusGroupOrder = []string{"responded", "applied", "evaluated", "skip", "rejected", "discarded"}
 
+// minScoreCycle defines the min score filter cycle values.
+var minScoreCycle = []float64{0, 3.0, 3.5, 4.0}
+
 // PipelineModel implements the career pipeline dashboard screen.
 type PipelineModel struct {
 	apps          []model.CareerApplication
@@ -109,6 +112,10 @@ type PipelineModel struct {
 	// Status picker sub-state
 	statusPicker bool
 	statusCursor int
+	// Search / filter state
+	searchMode  bool
+	searchQuery string
+	minScore    float64
 }
 
 // NewPipelineModel creates a new pipeline screen.
@@ -178,6 +185,9 @@ func (m PipelineModel) Update(msg tea.Msg) (PipelineModel, tea.Cmd) {
 		if m.statusPicker {
 			return m.handleStatusPicker(msg)
 		}
+		if m.searchMode {
+			return m.handleSearchInput(msg)
+		}
 		return m.handleKey(msg)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -190,7 +200,33 @@ func (m PipelineModel) Update(msg tea.Msg) (PipelineModel, tea.Cmd) {
 func (m PipelineModel) handleKey(msg tea.KeyMsg) (PipelineModel, tea.Cmd) {
 	switch msg.String() {
 	case "q", "esc":
+		// If there is an active search or filter, clear it first instead of closing
+		if m.searchQuery != "" || m.minScore > 0 {
+			m.searchQuery = ""
+			m.minScore = 0
+			m.applyFilterAndSort()
+			m.cursor = 0
+			m.scrollOffset = 0
+			return m, nil
+		}
 		return m, func() tea.Msg { return PipelineClosedMsg{} }
+
+	case "/":
+		m.searchMode = true
+		return m, nil
+
+	case "m":
+		// Cycle min score filter
+		for i, v := range minScoreCycle {
+			if v == m.minScore {
+				m.minScore = minScoreCycle[(i+1)%len(minScoreCycle)]
+				break
+			}
+		}
+		m.applyFilterAndSort()
+		m.cursor = 0
+		m.scrollOffset = 0
+		return m, nil
 
 	case "down":
 		if len(m.filtered) > 0 {
@@ -328,6 +364,33 @@ func (m PipelineModel) handleStatusPicker(msg tea.KeyMsg) (PipelineModel, tea.Cm
 	return m, nil
 }
 
+func (m PipelineModel) handleSearchInput(msg tea.KeyMsg) (PipelineModel, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEsc:
+		m.searchMode = false
+		m.searchQuery = ""
+		m.applyFilterAndSort()
+		m.cursor = 0
+		m.scrollOffset = 0
+	case tea.KeyEnter:
+		m.searchMode = false
+	case tea.KeyBackspace:
+		runes := []rune(m.searchQuery)
+		if len(runes) > 0 {
+			m.searchQuery = string(runes[:len(runes)-1])
+			m.applyFilterAndSort()
+			m.cursor = 0
+			m.scrollOffset = 0
+		}
+	case tea.KeyRunes:
+		m.searchQuery += string(msg.Runes)
+		m.applyFilterAndSort()
+		m.cursor = 0
+		m.scrollOffset = 0
+	}
+	return m, nil
+}
+
 func (m PipelineModel) loadCurrentReport() tea.Cmd {
 	app, ok := m.CurrentApp()
 	if !ok || app.ReportPath == "" {
@@ -362,6 +425,31 @@ func (m *PipelineModel) applyFilterAndSort() {
 				filtered = append(filtered, app)
 			}
 		}
+	}
+
+	// Apply text search filter (company, role, notes)
+	if m.searchQuery != "" {
+		q := strings.ToLower(m.searchQuery)
+		var searched []model.CareerApplication
+		for _, app := range filtered {
+			if strings.Contains(strings.ToLower(app.Company), q) ||
+				strings.Contains(strings.ToLower(app.Role), q) ||
+				strings.Contains(strings.ToLower(app.Notes), q) {
+				searched = append(searched, app)
+			}
+		}
+		filtered = searched
+	}
+
+	// Apply min score filter
+	if m.minScore > 0 {
+		var scored []model.CareerApplication
+		for _, app := range filtered {
+			if app.Score >= m.minScore {
+				scored = append(scored, app)
+			}
+		}
+		filtered = scored
 	}
 
 	// Sort
@@ -596,11 +684,34 @@ func (m PipelineModel) renderSortBar() string {
 		Width(m.width).
 		Padding(0, 2)
 
+	activeStyle := lipgloss.NewStyle().Foreground(m.theme.Blue).Bold(true)
+
 	sortLabel := fmt.Sprintf("[Sort: %s]", m.sortMode)
 	viewLabel := fmt.Sprintf("[View: %s]", m.viewMode)
+
+	var scoreLabel string
+	if m.minScore > 0 {
+		scoreLabel = activeStyle.Render(fmt.Sprintf("[Score: %.1f+]", m.minScore))
+	} else {
+		scoreLabel = "[Score: all]"
+	}
+
+	var searchLabel string
+	if m.searchMode {
+		cursor := "█"
+		searchLabel = activeStyle.Render(fmt.Sprintf("/ %s%s", m.searchQuery, cursor))
+	} else if m.searchQuery != "" {
+		searchLabel = activeStyle.Render(fmt.Sprintf("/ %s", m.searchQuery))
+	}
+
 	count := fmt.Sprintf("%d shown", len(m.filtered))
 
-	return style.Render(fmt.Sprintf("%s  %s  %s", sortLabel, viewLabel, count))
+	parts := fmt.Sprintf("%s  %s  %s  %s", sortLabel, viewLabel, scoreLabel, count)
+	if searchLabel != "" {
+		parts = fmt.Sprintf("%s  %s  %s  %s  %s", sortLabel, viewLabel, scoreLabel, searchLabel, count)
+	}
+
+	return style.Render(parts)
 }
 
 func (m PipelineModel) renderBody() string {
@@ -786,6 +897,8 @@ func (m PipelineModel) renderHelp() string {
 	keys := keyStyle.Render("↑↓") + descStyle.Render(" nav  ") +
 		keyStyle.Render("←→") + descStyle.Render(" tabs  ") +
 		keyStyle.Render("s") + descStyle.Render(" sort  ") +
+		keyStyle.Render("/") + descStyle.Render(" search  ") +
+		keyStyle.Render("m") + descStyle.Render(" score  ") +
 		keyStyle.Render("Enter") + descStyle.Render(" report  ") +
 		keyStyle.Render("o") + descStyle.Render(" open URL  ") +
 		keyStyle.Render("a") + descStyle.Render(" answer Q  ") +

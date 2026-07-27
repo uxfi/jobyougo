@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Drop Glow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cycle: 3.72s;
+    --bg: #07080a;
+    --panel: #101115;
+    --panel-soft: #14151a;
+    --ink: #f7f8fb;
+    --muted: rgba(230, 233, 242, 0.64);
+    --line: rgba(255, 255, 255, 0.28);
+    --line-strong: rgba(255, 255, 255, 0.64);
+    --folder-top: rgba(132, 139, 155, 0.42);
+    --folder-bottom: rgba(40, 44, 55, 0.86);
+    --glow: #dfe8ff;
+    --font: var(--font-inter, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  }
+
+  html, body {
+    width: 100%;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 41%, rgba(106, 121, 154, 0.18), transparent 28rem),
+      radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.03), transparent 26rem),
+      #07080a;
+  }
+
+  .scene {
+    width: min(100vw, 620px);
+    min-height: min(100vh, 680px);
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+
+  .upload-card {
+    position: relative;
+    width: min(100%, 486px);
+    aspect-ratio: 486 / 554;
+    min-height: 520px;
+    padding: clamp(22px, 5vw, 30px) clamp(22px, 5vw, 25px) 36px;
+    border-radius: 28px;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 42%),
+      var(--panel);
+    box-shadow:
+      0 32px 90px rgba(0, 0, 0, 0.72),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .upload-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 44%, transparent);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .folder-stage {
+    position: relative;
+    height: min(58vw, 346px);
+    min-height: 316px;
+    display: grid;
+    place-items: center;
+    isolation: isolate;
+  }
+
+  .folder-halo,
+  .drop-burst,
+  .folder-aura {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 999px;
+  }
+
+  .folder-halo {
+    z-index: 0;
+    width: 72%;
+    height: 58%;
+    top: 6%;
+    left: 14%;
+    background: radial-gradient(ellipse at center, rgba(196, 207, 232, 0.28), rgba(134, 147, 178, 0.11) 34%, transparent 72%);
+    filter: blur(19px);
+    opacity: 0.72;
+    animation: halo-breathe var(--cycle) cubic-bezier(.45, 0, .22, 1) infinite;
+  }
+
+  .drop-burst {
+    z-index: 3;
+    width: 230px;
+    height: 88px;
+    top: 116px;
+    left: 50%;
+    translate: -50% 0;
+    background:
+      radial-gradient(ellipse at center, rgba(255, 255, 255, 0.98), rgba(222, 232, 255, 0.78) 22%, rgba(151, 173, 224, 0.28) 48%, transparent 74%);
+    filter: blur(8px);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transform: scaleX(0.78) scaleY(0.7);
+    animation: burst var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+  }
+
+  .folder-aura {
+    z-index: 1;
+    width: 390px;
+    height: 240px;
+    top: 22px;
+    left: 50%;
+    translate: -50% 0;
+    background: radial-gradient(ellipse at center, rgba(221, 230, 255, 0.36), rgba(120, 137, 177, 0.14) 42%, transparent 72%);
+    filter: blur(30px);
+    opacity: 0;
+    animation: aura-pop var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+  }
+
+  .folder-wrap {
+    position: relative;
+    z-index: 2;
+    width: min(96%, 442px);
+    aspect-ratio: 442 / 288;
+    transform-origin: 50% 58%;
+    animation: folder-react var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+  }
+
+  .folder-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    filter:
+      drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42))
+      drop-shadow(0 0 0 rgba(207, 219, 255, 0));
+    animation: folder-filter var(--cycle) ease infinite;
+  }
+
+  .folder-line {
+    stroke: rgba(255, 255, 255, 0.34);
+    stroke-width: 1.2;
+    vector-effect: non-scaling-stroke;
+    animation: folder-line var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+  }
+
+  .front-line { stroke: rgba(255, 255, 255, 0.42); }
+
+  .folder-fill-back {
+    fill: url(#backGradient);
+  }
+
+  .folder-fill-front {
+    fill: url(#frontGradient);
+  }
+
+  .folder-back-face,
+  .folder-front-face {
+    transform-box: fill-box;
+  }
+
+  .folder-back-face {
+    transform-origin: 50% 78%;
+    animation: folder-back-close var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+  }
+
+  .folder-front-face {
+    transform-origin: 50% 16%;
+    animation: folder-front-close var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+  }
+
+  .inner-glow {
+    opacity: 0;
+    mix-blend-mode: screen;
+    filter: blur(1px);
+    animation: inner-glow var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+  }
+
+  .shimmer-band {
+    position: absolute;
+    z-index: 4;
+    top: 83px;
+    left: 58px;
+    width: 350px;
+    height: 170px;
+    overflow: hidden;
+    clip-path: polygon(0 18%, 30% 18%, 40% 35%, 100% 35%, 93% 100%, 9% 100%);
+    pointer-events: none;
+    opacity: 0;
+    animation: shimmer-visibility var(--cycle) ease infinite;
+  }
+
+  .shimmer-band::before {
+    content: "";
+    position: absolute;
+    inset: -22% auto -18% -42%;
+    width: 42%;
+    background: linear-gradient(95deg, transparent 0%, rgba(255, 255, 255, 0.04) 18%, rgba(255, 255, 255, 0.66) 50%, rgba(164, 190, 255, 0.16) 72%, transparent 100%);
+    filter: blur(6px);
+    transform: skewX(-14deg);
+    animation: shimmer-sweep var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+  }
+
+  .file-card {
+    position: absolute;
+    z-index: 6;
+    top: 82px;
+    left: 205px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 148px;
+    height: 42px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08)),
+      rgba(28, 31, 39, 0.64);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+    backdrop-filter: blur(14px) saturate(1.35);
+    -webkit-backdrop-filter: blur(14px) saturate(1.35);
+    color: rgba(255, 255, 255, 0.9);
+    opacity: 0;
+    transform: translate(124px, -86px) rotate(3deg) scale(0.96);
+    transform-origin: 86% 8%;
+    animation: file-flight var(--cycle) cubic-bezier(.2, .82, .2, 1) infinite;
+  }
+
+  .file-icon {
+    position: relative;
+    width: 19px;
+    height: 23px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: inset 0 -6px 0 rgba(190, 200, 224, 0.35);
+    flex: 0 0 auto;
+  }
+
+  .file-icon::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    background: linear-gradient(135deg, rgba(182, 192, 215, 0.96) 50%, transparent 50%);
+    border-top-right-radius: 4px;
+  }
+
+  .file-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    font-weight: 570;
+    line-height: 1;
+  }
+
+  .cursor {
+    position: absolute;
+    z-index: 7;
+    top: 66px;
+    left: 302px;
+    width: 37px;
+    height: 46px;
+    color: white;
+    opacity: 0;
+    filter:
+      drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8))
+      drop-shadow(0 0 8px rgba(255, 255, 255, 0.14));
+    transform: translate(136px, -12px) rotate(-8deg);
+    animation: cursor-path var(--cycle) cubic-bezier(.2, .82, .2, 1) infinite;
+  }
+
+  .cursor svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .copy {
+    position: absolute;
+    left: 25px;
+    right: 25px;
+    bottom: 35px;
+  }
+
+  .copy h1 {
+    font-size: clamp(25px, 6vw, 27px);
+    font-weight: 650;
+    line-height: 1.12;
+    letter-spacing: 0;
+    color: #ffffff;
+  }
+
+  .copy p {
+    max-width: 420px;
+    margin-top: 19px;
+    color: rgba(235, 237, 245, 0.64);
+    font-size: clamp(20px, 4.8vw, 22px);
+    font-weight: 430;
+    line-height: 1.34;
+    letter-spacing: 0;
+  }
+
+  @keyframes cursor-path {
+    0%, 18% {
+      opacity: 0;
+      transform: translate(136px, -18px) rotate(-8deg) scale(0.98);
+    }
+    24% {
+      opacity: 1;
+      transform: translate(116px, 7px) rotate(-6deg) scale(1);
+    }
+    44% {
+      opacity: 1;
+      transform: translate(63px, 61px) rotate(-2deg) scale(1);
+    }
+    51.5% {
+      opacity: 1;
+      transform: translate(55px, 74px) rotate(0deg) scale(0.99);
+    }
+    58% {
+      opacity: 1;
+      transform: translate(83px, 82px) rotate(3deg) scale(1);
+    }
+    72% {
+      opacity: 1;
+      transform: translate(147px, 82px) rotate(5deg) scale(1);
+    }
+    82%, 100% {
+      opacity: 0;
+      transform: translate(174px, 78px) rotate(6deg) scale(0.98);
+    }
+  }
+
+  @keyframes file-flight {
+    0%, 19% {
+      opacity: 0;
+      transform: translate(136px, -92px) rotate(4deg) scale(0.94);
+      filter: blur(0);
+    }
+    25% {
+      opacity: 0.92;
+      transform: translate(113px, -66px) rotate(3deg) scale(1);
+      filter: blur(0);
+    }
+    44% {
+      opacity: 0.94;
+      transform: translate(56px, -14px) rotate(1deg) scale(1);
+      filter: blur(0);
+    }
+    51.5% {
+      opacity: 0.94;
+      transform: translate(48px, 0) rotate(0deg) scale(1);
+      filter: blur(0);
+    }
+    57% {
+      opacity: 0;
+      transform: translate(36px, 48px) rotate(-1deg) scale(0.58);
+      filter: blur(3px);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(36px, 48px) rotate(-1deg) scale(0.58);
+      filter: blur(3px);
+    }
+  }
+
+  @keyframes folder-react {
+    0%, 30%, 100% { transform: translateY(0) scale(1); }
+    44%, 52% { transform: translateY(-2px) scale(1.008); }
+    59% { transform: translateY(1px) scale(1.012); }
+    68% { transform: translateY(0) scale(1); }
+  }
+
+  @keyframes folder-filter {
+    0%, 40%, 100% {
+      filter:
+        drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42))
+        drop-shadow(0 0 0 rgba(207, 219, 255, 0));
+    }
+    48% {
+      filter:
+        drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42))
+        drop-shadow(0 0 12px rgba(218, 229, 255, 0.18));
+    }
+    59% {
+      filter:
+        drop-shadow(0 22px 40px rgba(0, 0, 0, 0.52))
+        drop-shadow(0 0 38px rgba(209, 224, 255, 0.62));
+    }
+    69% {
+      filter:
+        drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42))
+        drop-shadow(0 0 18px rgba(207, 219, 255, 0.22));
+    }
+  }
+
+  @keyframes folder-line {
+    0%, 34%, 100% { stroke: rgba(255, 255, 255, 0.34); }
+    46%, 53% { stroke: rgba(255, 255, 255, 0.58); }
+    58% { stroke: rgba(255, 255, 255, 0.94); }
+    70% { stroke: rgba(255, 255, 255, 0.48); }
+  }
+
+  @keyframes folder-back-close {
+    0%, 47%, 100% { transform: translateY(0) scaleY(1) skewX(0deg); }
+    54% { transform: translateY(-1px) scaleY(1.004) skewX(-0.25deg); }
+    59% { transform: translateY(-4px) scaleY(1.012) skewX(-0.5deg); }
+    66% { transform: translateY(-1px) scaleY(1.004) skewX(-0.18deg); }
+    73% { transform: translateY(0) scaleY(1) skewX(0deg); }
+  }
+
+  @keyframes folder-front-close {
+    0%, 47%, 100% { transform: translateY(0) scaleY(1) skewX(0deg); }
+    54% { transform: translateY(2px) scaleY(0.992) skewX(0.2deg); }
+    59% { transform: translateY(6px) scaleY(0.972) skewX(0.44deg); }
+    66% { transform: translateY(2px) scaleY(0.99) skewX(0.14deg); }
+    73% { transform: translateY(0) scaleY(1) skewX(0deg); }
+  }
+
+  @keyframes inner-glow {
+    0%, 43%, 100% { opacity: 0; transform: scaleX(0.85); }
+    50% { opacity: 0.48; transform: scaleX(0.96); }
+    57% { opacity: 1; transform: scaleX(1.12); }
+    67% { opacity: 0.38; transform: scaleX(1.02); }
+    76% { opacity: 0; transform: scaleX(0.92); }
+  }
+
+  @keyframes burst {
+    0%, 51%, 100% {
+      opacity: 0;
+      transform: scaleX(0.72) scaleY(0.54);
+    }
+    56% {
+      opacity: 1;
+      transform: scaleX(1.24) scaleY(1.08);
+    }
+    62% {
+      opacity: 0.78;
+      transform: scaleX(1.04) scaleY(0.94);
+    }
+    73% {
+      opacity: 0;
+      transform: scaleX(0.9) scaleY(0.72);
+    }
+  }
+
+  @keyframes aura-pop {
+    0%, 49%, 100% { opacity: 0; transform: scale(0.86); }
+    56% { opacity: 1; transform: scale(1.08); }
+    68% { opacity: 0.45; transform: scale(1.16); }
+    82% { opacity: 0; transform: scale(1.25); }
+  }
+
+  @keyframes shimmer-visibility {
+    0%, 50%, 76%, 100% { opacity: 0; }
+    55%, 67% { opacity: 1; }
+  }
+
+  @keyframes shimmer-sweep {
+    0%, 50% { transform: translateX(0) skewX(-14deg); }
+    68%, 100% { transform: translateX(430px) skewX(-14deg); }
+  }
+
+  @keyframes halo-breathe {
+    0%, 100% { opacity: 0.64; transform: scale(0.96); }
+    46% { opacity: 0.78; transform: scale(1); }
+    58% { opacity: 0.98; transform: scale(1.05); }
+    74% { opacity: 0.52; transform: scale(0.99); }
+  }
+
+  @media (max-width: 520px) {
+    body { overflow: auto; }
+    .scene {
+      min-height: 100vh;
+      padding: 14px;
+    }
+
+    .upload-card {
+      min-height: 500px;
+      border-radius: 24px;
+    }
+
+    .folder-stage {
+      height: 306px;
+      min-height: 306px;
+    }
+
+    .folder-wrap { width: 100%; }
+    .file-card { left: 178px; }
+    .cursor { left: 274px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .folder-halo,
+    .drop-burst,
+    .folder-aura,
+    .folder-wrap,
+    .folder-svg,
+    .folder-line,
+    .folder-back-face,
+    .folder-front-face,
+    .inner-glow,
+    .shimmer-band,
+    .shimmer-band::before,
+    .file-card,
+    .cursor {
+      animation: none !important;
+    }
+
+    .folder-halo { opacity: 0.68; }
+    .inner-glow { opacity: 0.45; }
+    .drop-burst { opacity: 0.36; transform: scaleX(0.88) scaleY(0.76); }
+    .file-card,
+    .cursor { display: none; }
+  }
+</style>
+</head>
+<body>
+  <main class="scene" aria-label="File upload interaction preview">
+    <section class="upload-card" aria-label="Upload a file">
+      <div class="folder-stage" aria-hidden="true">
+        <div class="folder-halo"></div>
+        <div class="folder-aura"></div>
+        <div class="drop-burst"></div>
+
+        <div class="folder-wrap">
+          <svg class="folder-svg" viewBox="0 0 442 288" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="backGradient" x1="210" y1="20" x2="252" y2="208" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#8991A6" stop-opacity="0.52"/>
+                <stop offset="0.54" stop-color="#535A6B" stop-opacity="0.55"/>
+                <stop offset="1" stop-color="#20232B" stop-opacity="0.92"/>
+              </linearGradient>
+              <linearGradient id="frontGradient" x1="194" y1="86" x2="245" y2="283" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#A1A8BA" stop-opacity="0.55"/>
+                <stop offset="0.38" stop-color="#6B7284" stop-opacity="0.62"/>
+                <stop offset="1" stop-color="#171A20" stop-opacity="0.96"/>
+              </linearGradient>
+              <radialGradient id="slotGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(236 128) rotate(90) scale(75 172)">
+                <stop stop-color="white"/>
+                <stop offset="0.2" stop-color="#E4EBFF"/>
+                <stop offset="0.52" stop-color="#8299D7" stop-opacity="0.3"/>
+                <stop offset="1" stop-color="#1E2330" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <g class="folder-back-face">
+              <path class="folder-fill-back folder-line" d="M101.5 36.2C99.9 27.8 106.4 20.2 115 20.2H178.1C187.2 20.2 194.1 24.8 200.4 31.1L228.6 59.2C233.5 64.1 238.8 66.2 245.8 66.2H357.2C366.9 66.2 374.2 75 372.4 84.5L342.8 248.5C341.4 256.4 334.6 262.1 326.6 262.1H90.7C82.5 262.1 75.6 256.2 74.3 248.1L46 77.9C44.4 68.6 51.6 60.1 61.1 60.1H106L101.5 36.2Z"/>
+            </g>
+            <path class="inner-glow" d="M145 119C160 106 178 105 194 119L208 131H357C364 131 369 137 368 144L365 163H72L66 130C65 124 70 119 76 119H145Z" fill="url(#slotGlow)"/>
+            <g class="folder-front-face">
+              <path class="folder-fill-front front-line folder-line" d="M50.6 91.6H151.1C160.3 91.6 167.2 95.3 174.2 102.3L196 124.1C201.4 129.5 207.4 131.9 215.3 131.9H419.9C430 131.9 437.4 141.5 435.1 151.3L412.1 250.1C410.3 257.9 403.4 263.4 395.4 263.4H72.8C64.6 263.4 57.6 257.5 56.2 249.4L29.4 115.7C27.3 103.1 36.9 91.6 50.6 91.6Z"/>
+            </g>
+          </svg>
+          <div class="shimmer-band"></div>
+        </div>
+
+        <div class="file-card">
+          <span class="file-icon"></span>
+          <span class="file-name">FinalDraft.pdf</span>
+        </div>
+
+        <div class="cursor">
+          <svg viewBox="0 0 35 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5.2 3.9C4.1 2.8 2.2 3.6 2.2 5.2V34.3C2.2 36 4.2 36.8 5.3 35.6L12.8 27.7L18.2 40.1C18.7 41.2 20 41.7 21.1 41.2L25 39.5C26.1 39 26.6 37.7 26.1 36.6L20.6 24.2H31.3C32.9 24.2 33.7 22.3 32.6 21.2L5.2 3.9Z" fill="#090A0D" stroke="white" stroke-width="3.8" stroke-linejoin="round"/>
+            <path d="M5.5 6.7V31.7L12.1 24.8C12.7 24.1 13.9 24.3 14.3 25.2L20.3 38.8L23.6 37.4L17.6 23.7C17.2 22.9 17.8 21.9 18.8 21.9H28.9L5.5 6.7Z" fill="#111217"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="copy">
+        <h1>Upload a File</h1>
+        <p>Drop in your document in any format: DOCX, PDF, PPTX, XLSX, TXT, and more.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

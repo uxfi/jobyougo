@@ -1,186 +1,141 @@
-# Mode: oferta — Full A-F Evaluation
+# Mode: oferta - Lean Offer Evaluation
 
-When the candidate pastes an offer (text or URL), ALWAYS deliver the 6 blocks:
+When the candidate pastes an offer, JD text, or URL, the goal is to answer 3 things quickly:
 
-## Step 0 — Archetype Detection
+1. Does this offer match the search criteria?
+2. What are the blockers, strengths, and unknowns?
+3. What score and next action should be recorded?
 
-Classify the offer into one of the 6 archetypes (see `_shared.md`). If it's a hybrid, indicate the 2 closest ones. This determines:
-- Which proof points to prioritize in Block B
-- How to rewrite the summary in Block E
-- Which STAR stories to prepare in Block F
+This mode is report-only. Do not scan application forms, draft application answers, write cover letters, generate tailored CV JSON, or request a tailored PDF. Those belong to the explicit `apply`, `question`, `coverletter`, and `pdf` modes.
 
-## Block A — Role Summary
+## Non-goals
 
-Table with:
-- Detected Archetype
-- Domain (platform/agentic/LLMOps/ML/enterprise)
-- Function (build/consult/manage/deploy)
-- Seniority
-- Remote (full/hybrid/onsite)
-- Team size (if mentioned)
-- TL;DR in 1 sentence
+- No tailored CV section.
+- No `TAILORED_CV_JSON`.
+- No application form scanning.
+- No fallback generic application questions.
+- No cover letter.
+- No interview prep.
+- No compensation web research unless reliable data is already present in the provided context.
 
-## Block B — Match with CV
+If JD content is missing or too thin to evaluate, do not invent. Produce a short blocked result only if the caller explicitly requires a report; otherwise ask for the JD text.
 
-Read `cv.md`. Create a table with each JD requirement mapped to exact lines from the CV.
+## Step 0 - Archetype Detection
 
-**Adapted to archetype:**
-- If FDE → prioritize fast delivery and client-facing proof points
-- If SA → prioritize systems design and integrations
-- If PM → prioritize product discovery and metrics
-- If LLMOps → prioritize evals, observability, pipelines
-- If Agentic → prioritize multi-agent, HITL, orchestration
-- If Transformation → prioritize change management, adoption, scaling
+Classify the offer into one closest archetype from `_shared.md`. If the role is hybrid, name the 2 closest archetypes, but keep the rest of the report concise.
 
-**Gaps** section with mitigation strategy for each. For every gap:
-1. Is it a hard blocker or a nice-to-have?
-2. Can the candidate demonstrate adjacent experience?
-3. Is there a portfolio project covering this gap?
-4. Concrete mitigation plan (sentence for cover letter, quick project, etc.)
+## Block A - Role Snapshot
 
-## Block C — Level and Strategy
+Use a compact table:
 
-1. **Level detected** in the JD vs **candidate's natural level for that archetype**
-2. **"Sell senior without lying" plan**: specific phrases adapted to the archetype, concrete achievements to highlight, how to position founder experience as an advantage
-3. **"If they downlevel me" plan**: accept if comp is fair, negotiate 6-month review, clear promotion criteria
+| Attribute | Details |
+|-----------|---------|
+| Detected archetype | ... |
+| Domain | ... |
+| Function | ... |
+| Seniority | ... |
+| Remote / location | ... |
+| Contract | ... |
+| TL;DR | 1 sentence |
 
-## Block D — Comp and Demand
+Write `Unknown` only when the JD truly does not say. Do not pad the report with speculation.
 
-Use WebSearch for:
-- Current salaries for the role (Glassdoor, Levels.fyi, Blind)
-- Company's compensation reputation
-- Role demand trend
+## Block B - Criteria Gate
 
-Table with data and cited sources. If no data, state it rather than inventing.
+Read the profile and structured criteria. Check only the criteria that matter for the decision:
 
-## Block E — Customization Plan
+| Criterion | Requirement | Evidence in offer | Verdict |
+|-----------|-------------|-------------------|---------|
+| Remote policy | ... | ... | yes / warning / no / unknown |
+| Geography / timezone | ... | ... | yes / warning / no / unknown |
+| Compensation fit | ... | ... | yes / warning / no / unknown |
+| Product ownership | ... | ... | yes / warning / no / unknown |
+| AI / tech dimension | ... | ... | yes / warning / no / unknown |
+| Archetype fit | ... | ... | yes / warning / no / unknown |
 
-| # | Section | Current state | Proposed change | Rationale |
-|---|---------|---------------|-----------------|-----------|
-| 1 | Summary | ... | ... | ... |
-| ... | ... | ... | ... | ... |
+Then add:
 
-Top 5 changes to CV + Top 5 changes to LinkedIn to maximize match.
+**Deal-breakers:** one line with any hard blocker. If none are explicit, write `None explicit`.
 
-## Block F — Interview Plan
+Early exit rule:
+- If a hard deal-breaker fails, cap the score according to the profile, skip Block C if the JD is too thin, and go straight to Block E.
+- If the JD did not load and critical data is unknown, cap the score at 2.0 and mark the report as `Blocked: missing JD content`.
 
-6-10 STAR+R stories mapped to JD requirements (STAR + **Reflection**):
+## Block C - CV Match
 
-| # | JD Requirement | STAR+R Story | S | T | A | R | Reflection |
-|---|-----------------|--------------|---|---|---|---|------------|
+Keep this short. Map the most important JD requirements to real CV evidence:
 
-The **Reflection** column captures what was learned or what would be done differently. This signals seniority — junior candidates describe what happened, senior candidates extract lessons.
+| JD requirement | Candidate evidence | Strength |
+|----------------|--------------------|----------|
+| ... | exact project/company/proof point from CV | strong / partial / gap |
 
-**Story Bank:** If `interview-prep/story-bank.md` exists, check if any of these stories are already there. If not, append new ones. Over time this builds a reusable bank of 5-10 master stories that can be adapted to any interview question.
+Maximum 6 rows. If there is no usable JD content, write one sentence: `Cannot assess CV match without JD content.`
 
-**Selected and framed according to archetype:**
-- FDE → emphasize delivery speed and client-facing
-- SA → emphasize architectural decisions
-- PM → emphasize discovery and trade-offs
-- LLMOps → emphasize metrics, evals, production hardening
-- Agentic → emphasize orchestration, error handling, HITL
-- Transformation → emphasize adoption, organizational change
+## Block D - Practical Signals
 
-Also include:
-- 1 recommended case study (which project to present and how)
-- Red-flag questions and how to answer them (e.g., "why did you sell your company?", "do you have a team of reports?")
+Use only the JD and context already provided. Do not run broad company research in this mode.
 
-## Block G — Tailored CV Data
+Short bullets:
+- **Comp:** stated range, target fit, or `Unknown`.
+- **Remote risk:** explicit policy or `Unknown`.
+- **Role risk:** execution-only, vague ownership, weak AI signal, etc.
+- **Application effort:** low / medium / high, based only on the available context.
 
-To auto-generate a highly tailored PDF CV for this application, output a JSON block overriding key profile data. Re-write the Summary, the Key Achievement Highlights, and adapt the Experience bullets to perfectly match the JD keywords and Archetype priorities.
+## Block E - Score and Decision
 
-**Copywriting rules — apply to ALL generated text:**
-- **Action verbs first:** Start every bullet with a strong verb (Built, Led, Designed, Shipped, Drove, Reduced, Increased, Launched…). Never "Responsible for" or "Was involved in".
-- **Metric-driven:** Include a number, % or outcome wherever possible. "Redesigned onboarding" → "Redesigned onboarding flow, reducing drop-off by 30%".
-- **Mirror JD language:** Use the exact keywords from the job description — ATS and recruiters scan for them.
-- **One idea per bullet:** No conjunctions chaining 3 things. Split into separate bullets.
-- **No filler:** Remove "effectively", "successfully", "various", "multiple", "key". Every word earns its place.
-- **Summary tone:** Confident, first-person, no passive voice. 3 short paragraphs max. Each starts with a different angle (who you are / what you do / why this role).
-- **Highlights:** Each one must be a standalone proof point — role + action + result. Max 1.5 lines. Think "recruiter skims in 5 seconds".
+Use the standard scoring dimensions:
 
-**Important:** Provide ONLY the keys you want to override. Keep the JSON valid.
+| Dimension | Score | Justification |
+|-----------|-------|---------------|
+| CV match | X/5 | 1 line |
+| North Star alignment | X/5 | 1 line |
+| Comp | X/5 | 1 line |
+| Cultural / operating signals | X/5 | 1 line |
+| Red flags | -X | 1 line |
+| Global | X.X/5 | 1 line |
 
-```json
-### TAILORED_CV_JSON
-{
-  "profile": {
-    "summary": "Rewritten 3-4 lines summary highlighting exact JD keywords and tone...",
-    "highlights": [
-      "Top achievement directly relevant to this role — metric-driven, specific to JD.",
-      "Second achievement showing the exact skill/domain they're hiring for.",
-      "Third proof point matching their team/product context."
-    ]
-  },
-  "shared": {
-    "experience": [
-      {
-        "company": "UpViral",
-        "period": "Jul 2024 – Present (Remote)",
-        "role": "Product Designer / Manager",
-        "bullets": [
-           "Tailored bullet point 1 mapping to JD keywords...",
-           "Tailored bullet point 2 mapping to JD..."
-        ]
-      }
-    ]
-  }
-}
-```
+End with:
 
----
+**Verdict:** apply / maybe / skip / blocked.
 
-## Post-evaluation
+Use `blocked` when the system could not load enough JD content to make a real decision. Do not recommend applying from a blocked report.
 
-**ALWAYS** after generating blocks A-F:
-
-### 1. Save report .md
-
-Save the full evaluation in `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`.
-
-After writing the file, sync it to Supabase:
-```bash
-node sync-supabase.mjs report reports/{###}-{company-slug}-{YYYY-MM-DD}.md
-```
-This is a no-op if `USE_SUPABASE` is not set — always safe to run.
-
-- `{###}` = next sequential number (3 digits, zero-padded)
-- `{company-slug}` = company name in lowercase, no spaces (use hyphens)
-- `{YYYY-MM-DD}` = current date
-
-**⚠️ ATOMIC WRITE RULE:** Build the ENTIRE report content in memory first (all blocks A-F, scoring, header with real Score). Then write the file in ONE operation. NEVER create a placeholder file and append to it later. NEVER write raw tool_call/tool_response/JSON into the report.
-
-**Report format (STRICT):**
+## Output Format
 
 ```markdown
-# Evaluation: {Company} — {Role}
+# Evaluation: {Company} - {Role}
 
 **Date:** {YYYY-MM-DD}
 **Archetype:** {detected}
 **Score:** {X.X/5}
-**PDF:** {path or pending}
+**PDF:** Not generated (evaluation only)
+**URL:** {URL if known}
 
 ---
 
-## A) Role Summary
+## A) Role Snapshot
+...
+
+## B) Criteria Gate
+...
+
+## C) CV Match
+...
+
+## D) Practical Signals
+...
+
+## E) Score and Decision
 ...
 ```
 
-**CRITICAL:** The line `**Score:** {X.X/5}` must be exactly like this (e.g. `**Score:** 3.9/5`) to be parsed by the system. Do NOT put the score inside a table or further down; it MUST be in the header metadata.
+Do not add sections after E. Do not add application questions. Do not add tailored CV data.
 
-### 2. Register in tracker
+## Post-evaluation
 
-**ALWAYS** register in `data/applications.md`:
-- Next sequential number
-- Current date
-- Company
-- Role
-- Score: match average (1-5)
-- Status: `Evaluated`
-- PDF: ❌ (or ✅ if auto-pipeline generated PDF)
-- Report: relative link to the report .md (e.g., `[001](reports/001-company-2026-01-01.md)`)
+The server saves the report and tracker entry. The report must be complete before it is written.
 
-**Tracker format:**
-
-```markdown
-| # | Date | Company | Role | Score | Status | PDF | Report |
-```
+Tracker entry:
+- Status: `Evaluated` unless a hard blocker or missing JD makes the verdict `skip` or `blocked`.
+- PDF: `❌`
+- Notes: one short reason, especially for blocked reports.

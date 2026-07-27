@@ -1,0 +1,2089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maritana Minerals — Investor Home Page</title>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sand: #f8f4ef;
+    --paper: #fffdfa;
+    --ink: #141518;
+    --muted: #596273;
+    --line: rgba(242, 112, 36, 0.11);
+    --border: rgba(20, 21, 24, 0.12);
+    --orange: #ff5a16;
+    --orange-deep: #ee4710;
+    --orange-soft: #fff1e8;
+    --ring: rgba(20, 21, 24, 0.08) 0 0 0 1px;
+    --shadow: 0 24px 60px rgba(163, 103, 52, 0.12);
+    --card-shadow:
+      rgba(20, 21, 24, 0.08) 0 0 0 1px,
+      rgba(20, 21, 24, 0.05) 0 10px 24px -14px,
+      rgba(255,255,255,0.68) 0 1px 0 inset;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    min-height: 100vh;
+    font-family: var(--font-inter);
+    color: var(--ink);
+    background: linear-gradient(180deg, #fffdfa 0%, #f8f3ec 100%);
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .12;
+    background-image: url("data:image/svg+xml,%3Csvg width='1200' height='760' viewBox='0 0 1200 760' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23f27224' stroke-opacity='.22' stroke-width='1'%3E%3Cpath d='M-20 164c104-36 189-45 259-26 57 16 118 26 183 14 74-13 132-49 207-57 65-7 145 8 250 50 107 43 207 56 321 14'/%3E%3Cpath d='M-10 212c89-19 163-16 226 7 63 24 133 40 208 30 80-11 141-46 218-55 83-10 167 14 243 47 114 50 214 54 328 3'/%3E%3Cpath d='M-18 259c95-18 183-11 256 18 70 29 138 39 213 30 82-10 151-41 231-47 75-6 146 11 229 42 118 43 213 47 308-8'/%3E%3Cpath d='M-34 306c104-24 185-22 258 8 71 29 145 51 225 43 88-9 158-45 238-52 91-8 178 20 254 47 90 31 177 38 279 11'/%3E%3Cpath d='M-24 354c89-17 171-9 240 24 76 36 151 53 231 46 90-8 163-44 246-55 77-9 157 10 252 50 101 42 194 51 279 28'/%3E%3Cpath d='M-18 406c96-18 171-9 236 24 65 33 141 53 234 46 93-7 165-42 249-52 91-11 169 11 245 44 94 41 182 59 283 46'/%3E%3Cpath d='M-16 458c101-27 190-22 260 15 69 36 144 57 236 50 95-7 161-42 244-53 74-10 151 3 249 42 102 41 196 62 291 50'/%3E%3Cpath d='M-36 511c91-20 178-12 255 24 78 37 153 52 238 41 92-11 173-49 252-57 86-9 165 11 248 47 90 38 181 55 286 40'/%3E%3Cpath d='M-20 564c97-30 184-29 258 3 67 29 139 48 223 39 96-10 179-56 262-63 95-8 173 19 254 53 91 38 178 42 279 14'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: cover;
+    mix-blend-mode: multiply;
+  }
+
+  .shell {
+    position: relative;
+    min-height: 100vh;
+    isolation: isolate;
+  }
+
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("/ui/assets/maritana-bg.png");
+    background-size: cover;
+    background-position: center center;
+    filter: saturate(1.02) contrast(1.01);
+    z-index: -2;
+  }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(255,255,255,.32), transparent 26%),
+      linear-gradient(90deg, rgba(255,253,250,.985) 0%, rgba(255,253,250,.94) 25%, rgba(255,253,250,.72) 44%, rgba(255,253,250,.28) 59%, rgba(255,253,250,.08) 70%, rgba(255,253,250,0) 79%);
+    z-index: -1;
+  }
+
+  .nav {
+    position: relative;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    max-width: 1380px;
+    margin: 0 auto;
+    padding: 10px 12px 10px 10px;
+    border-radius: 12px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .nav-panel {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 18px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .brand img {
+    width: min(232px, 22vw);
+    min-width: 176px;
+    height: auto;
+    display: block;
+  }
+
+  .menu-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255,255,255,.72);
+    color: #17181c;
+    box-shadow: var(--card-shadow);
+    cursor: pointer;
+  }
+
+  .menu-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .menu-toggle .icon-close {
+    display: none;
+  }
+
+  .nav.open .menu-toggle .icon-menu {
+    display: none;
+  }
+
+  .nav.open .menu-toggle .icon-close {
+    display: block;
+  }
+
+  .menu {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+    padding-inline: 8px;
+    list-style: none;
+    min-width: 0;
+  }
+
+  .menu a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: rgba(20, 21, 24, 0.92);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0);
+    transition:
+      color 160ms ease,
+      background 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .menu a:hover {
+    color: var(--orange);
+    background: rgba(255,255,255,.48);
+    box-shadow: inset 0 0 0 1px rgba(20, 21, 24, .05);
+    transform: translateY(-1px);
+  }
+
+  .menu a:active {
+    transform: translateY(0);
+    background: rgba(255,240,231,.9);
+    box-shadow: inset 0 0 0 1px rgba(255, 90, 22, .18);
+  }
+
+  .menu a:focus-visible {
+    outline: 2px solid rgba(255, 90, 22, .28);
+    outline-offset: 2px;
+  }
+
+  .menu a.active {
+    color: var(--orange-deep);
+    background: rgba(255, 241, 232, .82);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 90, 22, .18),
+      inset 0 -2px 0 rgba(255, 90, 22, .82);
+  }
+
+  .stock-quote {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border: .5px solid rgba(255,255,255,.24);
+    border-radius: 6px;
+    background: rgba(255,255,255,.22);
+    color: #fff;
+    backdrop-filter: blur(24px) saturate(1.25);
+    box-shadow:
+      rgba(255,255,255,.22) 0 .5px 0 inset,
+      rgba(20, 21, 24, .06) 0 8px 18px -16px;
+    white-space: nowrap;
+  }
+
+  .stock-symbol {
+    color: rgba(20, 21, 24, .62);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+
+  .stock-price {
+    color: #17181c;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+
+  .stock-change {
+    color: #b94a26;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  .nav-cta {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: .5px solid rgba(255,255,255,.26);
+    background: rgba(255,255,255,.28);
+    color: #1d1d1f;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    backdrop-filter: blur(28px) saturate(1.35);
+    box-shadow:
+      rgba(255,255,255,.28) 0 .5px 0 inset,
+      rgba(20, 21, 24, .08) 0 10px 24px -18px;
+    overflow: hidden;
+    white-space: nowrap;
+    transition:
+      color 160ms ease,
+      border-color 160ms ease,
+      background 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .nav-cta::before {
+    display: none;
+  }
+
+  .nav-cta:hover {
+    color: #fff;
+    border-color: rgba(255,255,255,.34);
+    background: rgba(255,255,255,.42);
+    box-shadow:
+      rgba(255,255,255,.34) 0 .5px 0 inset,
+      rgba(20, 21, 24, .1) 0 12px 26px -18px;
+    transform: translateY(-1px);
+  }
+
+  .nav-cta:hover span {
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+  }
+
+  .nav-cta:active {
+    transform: translateY(0) scale(.98);
+    background: rgba(255,255,255,.34);
+  }
+
+  .nav-cta:focus-visible {
+    outline: 2px solid rgba(255, 90, 22, .28);
+    outline-offset: 2px;
+  }
+
+  .nav-cta svg {
+    position: relative;
+    z-index: 1;
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    color: #fff;
+  }
+
+  .nav-cta span {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    text-shadow: none;
+  }
+
+  .content {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    max-width: 1380px;
+    margin: 0 auto;
+    flex: 1;
+    padding-block: clamp(14px, 2.8vh, 28px);
+    display: flex;
+    align-items: center;
+  }
+
+  .copy {
+    padding-left: 10px;
+    max-width: 760px;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 14px;
+    color: var(--orange);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+  }
+
+  .eyebrow::after {
+    content: "";
+    width: 68px;
+    height: 2px;
+    background: rgba(242, 90, 17, .78);
+  }
+
+  .headline {
+    font-family: var(--font-darker);
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: clamp(4rem, min(6.2vw, 11vh), 6.35rem);
+    line-height: .86;
+    letter-spacing: -.055em;
+    color: #121316;
+    max-width: 720px;
+    text-wrap: balance;
+    text-shadow: 0 6px 18px rgba(255,255,255,.24);
+  }
+
+  .headline .line {
+    display: block;
+  }
+
+  .headline .dot {
+    color: var(--orange);
+    margin-left: 8px;
+  }
+
+  .lede {
+    max-width: 570px;
+    margin-top: 14px;
+    color: #5c6674;
+    font-size: clamp(15px, 1.18vw, 18px);
+    line-height: 1.45;
+    letter-spacing: -.015em;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 208px;
+    padding: 13px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .09em;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .btn:hover { transform: translateY(-2px); }
+
+  .btn-primary {
+    --aurora-angle: 0deg;
+    border: 1.5px solid transparent;
+    background:
+      linear-gradient(135deg, #ff5a16 0%, #f34b10 78%, #ff7c21 100%) padding-box,
+      conic-gradient(from var(--aurora-angle),
+        rgba(255,255,255,.12) 0deg,
+        rgba(255,233,218,.98) 54deg,
+        rgba(255,135,58,.98) 118deg,
+        rgba(255,255,255,.95) 180deg,
+        rgba(255,96,22,.98) 242deg,
+        rgba(255,224,199,.9) 304deg,
+        rgba(255,255,255,.12) 360deg) border-box;
+    color: #fff;
+    box-shadow:
+      rgba(255,255,255,.18) 0 1px 0 inset,
+      rgba(255, 94, 24, 0.22) 0 18px 34px -18px;
+    animation: aurora-border 4.2s linear infinite;
+  }
+
+  .btn-primary > span,
+  .btn-primary > svg {
+    position: relative;
+    z-index: 2;
+  }
+
+  .btn-primary:hover {
+    box-shadow:
+      rgba(255,255,255,.2) 0 1px 0 inset,
+      rgba(255, 94, 24, 0.32) 0 22px 40px -18px,
+      0 0 24px rgba(255, 126, 45, .16);
+  }
+
+  .btn-secondary {
+    border: none;
+    background: rgba(255,255,255,.82);
+    color: var(--orange);
+    box-shadow: var(--card-shadow);
+  }
+
+  .investor-avatars {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 48px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .investor-avatar {
+    position: absolute;
+    top: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,.92);
+    background:
+      radial-gradient(circle at 50% 36%, rgba(255,255,255,.98) 0 16%, transparent 17%),
+      radial-gradient(circle at 50% 82%, rgba(255,255,255,.92) 0 28%, transparent 29%),
+      linear-gradient(135deg, #ff7a27, #d74712);
+    box-shadow:
+      rgba(20, 21, 24, .08) 0 4px 10px -6px,
+      rgba(255,255,255,.5) 0 1px 0 inset;
+  }
+
+  .investor-avatar:nth-child(1) {
+    left: 0;
+  }
+
+  .investor-avatar:nth-child(2) {
+    left: 13px;
+    background:
+      radial-gradient(circle at 50% 36%, rgba(255,255,255,.98) 0 16%, transparent 17%),
+      radial-gradient(circle at 50% 82%, rgba(255,255,255,.92) 0 28%, transparent 29%),
+      linear-gradient(135deg, #202225, #565b62);
+  }
+
+  .investor-avatar:nth-child(3) {
+    left: 26px;
+    background:
+      radial-gradient(circle at 50% 36%, rgba(255,255,255,.98) 0 16%, transparent 17%),
+      radial-gradient(circle at 50% 82%, rgba(255,255,255,.92) 0 28%, transparent 29%),
+      linear-gradient(135deg, #f2b36d, #bf5a24);
+  }
+
+  .btn svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    max-width: 920px;
+    margin-top: 18px;
+  }
+
+  .card {
+    position: relative;
+    min-height: 132px;
+    padding: 14px 14px 16px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.68));
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(14px);
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,.44), transparent 52%);
+    pointer-events: none;
+  }
+
+  .card-label {
+    display: inline-flex;
+    margin-bottom: 8px;
+    color: rgba(92, 102, 116, .72);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+  }
+
+  .card-icon {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--orange);
+    margin-bottom: 10px;
+  }
+
+  .card-title {
+    font-family: var(--font-darker);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: #17181c;
+    line-height: 1;
+  }
+
+  .card-copy {
+    margin-top: 4px;
+    max-width: 210px;
+    font-size: 13px;
+    color: #667080;
+    line-height: 1.42;
+  }
+
+  .card-arrow {
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    color: var(--orange);
+  }
+
+  .home-main {
+    position: relative;
+    z-index: 1;
+    background:
+      linear-gradient(180deg, rgba(255,253,250,.98), rgba(248,244,239,.96)),
+      radial-gradient(circle at 78% 16%, rgba(255, 90, 22, .08), transparent 28%);
+  }
+
+  .page-section {
+    position: relative;
+    padding: clamp(46px, 7vw, 84px) 16px;
+    overflow: hidden;
+  }
+
+  .page-section + .page-section {
+    border-top: 1px solid rgba(20, 21, 24, .06);
+  }
+
+  .section-inner {
+    width: min(1320px, 100%);
+    margin: 0 auto;
+  }
+
+  .section-kicker {
+    display: inline-flex;
+    margin-bottom: 16px;
+    color: var(--orange);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+  }
+
+  .section-title {
+    font-family: var(--font-darker);
+    font-size: clamp(2.3rem, 4.3vw, 4.45rem);
+    font-weight: 900;
+    line-height: .92;
+    letter-spacing: -.055em;
+    color: #101114;
+    text-wrap: balance;
+  }
+
+  .section-title .dot {
+    color: var(--orange);
+  }
+
+  .section-copy {
+    margin-top: 20px;
+    max-width: 560px;
+    color: #4e5867;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .metrics-section {
+    padding-top: clamp(36px, 5vw, 62px);
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .metric-card,
+  .mini-card,
+  .road-card,
+  .portfolio-card,
+  .update-card,
+  .contact-card {
+    border-radius: 8px;
+    background: rgba(255,255,255,.74);
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(16px);
+  }
+
+  .metric-card {
+    min-height: 158px;
+    padding: 28px 26px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .metric-label {
+    margin-bottom: 8px;
+    color: #15161a;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .04em;
+  }
+
+  .metric-value {
+    font-family: var(--font-darker);
+    font-size: clamp(2.2rem, 3.5vw, 3.7rem);
+    font-weight: 900;
+    line-height: .86;
+    letter-spacing: -.055em;
+  }
+
+  .metric-value small {
+    font-family: var(--font-inter);
+    font-size: .42em;
+    font-weight: 800;
+    letter-spacing: -.04em;
+  }
+
+  .metric-card::after,
+  .mini-card::after {
+    content: "";
+    display: block;
+    width: 26px;
+    height: 2px;
+    margin-top: 22px;
+    background: var(--orange);
+  }
+
+  .asset-section {
+    padding-block: 0;
+    background:
+      linear-gradient(90deg, rgba(255,253,250,.98) 0%, rgba(255,253,250,.93) 42%, rgba(255,253,250,.28) 64%, rgba(255,253,250,0) 100%),
+      url("/ui/assets/maritana-black-swan.png") right center / auto 100% no-repeat;
+  }
+
+  .asset-layout {
+    min-height: 650px;
+    display: grid;
+    grid-template-columns: minmax(0, 520px) 1fr;
+    align-items: center;
+    gap: clamp(34px, 8vw, 110px);
+  }
+
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 34px;
+  }
+
+  .mini-card {
+    min-height: 174px;
+    padding: 24px 22px;
+  }
+
+  .mini-card h3,
+  .portfolio-card h3,
+  .update-card h3 {
+    font-size: 17px;
+    font-weight: 850;
+    letter-spacing: -.03em;
+    color: #15161a;
+  }
+
+  .mini-card p,
+  .portfolio-card p,
+  .update-card p {
+    margin-top: 14px;
+    color: #566170;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .asset-map {
+    position: relative;
+    min-height: 530px;
+  }
+
+  .hub-badge {
+    position: absolute;
+    right: 24%;
+    top: 36%;
+    width: 158px;
+    height: 136px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    color: #fff;
+    background: linear-gradient(135deg, #ff5a16, #e94710);
+    clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+    box-shadow: rgba(255, 90, 22, .38) 0 20px 40px -18px;
+  }
+
+  .hub-badge img {
+    width: 76px;
+    margin-bottom: 6px;
+  }
+
+  .hub-badge strong {
+    display: block;
+    font-size: 14px;
+    line-height: .95;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+
+  .hub-badge span {
+    display: block;
+    margin-top: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .map-point {
+    position: absolute;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    text-shadow: rgba(0,0,0,.42) 0 1px 8px;
+  }
+
+  .map-point::before {
+    content: "";
+    display: block;
+    width: 26px;
+    height: 26px;
+    margin: 0 auto 8px;
+    border: 4px solid #f3bd78;
+    border-radius: 50%;
+    background: rgba(255,255,255,.18);
+    box-shadow: rgba(243, 189, 120, .38) 0 0 0 5px;
+  }
+
+  .map-line {
+    position: absolute;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(243,189,120,.86), transparent);
+    transform-origin: left center;
+  }
+
+  .point-boorara { right: 48%; top: 22%; }
+  .point-burbanks { right: 8%; top: 22%; }
+  .point-crake { right: 50%; top: 66%; }
+  .point-kalpini { right: 8%; top: 68%; }
+  .line-one { right: 34%; top: 40%; width: 250px; transform: rotate(-132deg); }
+  .line-two { right: 18%; top: 39%; width: 250px; transform: rotate(-42deg); }
+  .line-three { right: 34%; top: 52%; width: 240px; transform: rotate(136deg); }
+  .line-four { right: 18%; top: 52%; width: 240px; transform: rotate(42deg); }
+
+  .map-location {
+    position: absolute;
+    right: 28%;
+    bottom: 10%;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 850;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    text-shadow: rgba(0,0,0,.44) 0 1px 8px;
+  }
+
+  .roadmap-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 38px;
+    margin-top: 34px;
+  }
+
+  .roadmap-grid::before {
+    content: "";
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 49%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,90,22,.66), transparent);
+  }
+
+  .road-card {
+    position: relative;
+    min-height: 176px;
+    padding: 28px 24px;
+  }
+
+  .road-card::after {
+    content: "";
+    position: absolute;
+    right: -24px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--orange);
+    border-radius: 50%;
+    background: var(--paper);
+    transform: translate(50%, -50%);
+  }
+
+  .road-card:last-child::after {
+    display: none;
+  }
+
+  .road-step {
+    color: var(--orange);
+    font-size: 25px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .road-card h3 {
+    margin-top: 18px;
+    font-size: 16px;
+    font-weight: 850;
+    letter-spacing: -.03em;
+  }
+
+  .road-card p {
+    margin-top: 14px;
+    color: #596473;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .portfolio-grid {
+    display: grid;
+    grid-template-columns: 1.35fr repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 34px;
+  }
+
+  .resource-card {
+    min-height: 250px;
+    padding: 30px;
+    border-radius: 8px;
+    color: #fff;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,.16), rgba(0,0,0,.38)),
+      url("/ui/assets/maritana-rock-pattern.png") center / cover;
+    box-shadow: rgba(20, 21, 24, .2) 0 18px 44px -28px;
+  }
+
+  .resource-number {
+    display: block;
+    color: var(--orange);
+    font-family: var(--font-darker);
+    font-size: clamp(3rem, 4.5vw, 5rem);
+    font-weight: 900;
+    line-height: .82;
+  }
+
+  .resource-number small {
+    font-family: var(--font-inter);
+    font-size: .36em;
+    font-weight: 800;
+  }
+
+  .resource-label {
+    display: block;
+    margin-top: 8px;
+    font-size: 17px;
+    font-weight: 850;
+  }
+
+  .resource-divider {
+    width: 150px;
+    height: 1px;
+    margin: 22px 0;
+    background: rgba(255,255,255,.5);
+  }
+
+  .portfolio-card {
+    min-height: 250px;
+    padding: 34px 28px;
+  }
+
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 28px;
+    color: var(--orange);
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .updates-layout {
+    display: grid;
+    grid-template-columns: 1fr 410px;
+    gap: 52px;
+    align-items: start;
+  }
+
+  .updates-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 30px;
+  }
+
+  .update-card {
+    overflow: hidden;
+  }
+
+  .update-media {
+    height: 112px;
+    background: url("/ui/assets/maritana-rock-pattern.png") center / cover;
+  }
+
+  .update-card:nth-child(2) .update-media {
+    background:
+      radial-gradient(circle at 50% 22%, rgba(255,255,255,.18), transparent 34%),
+      linear-gradient(135deg, #7a3e1c, #d98033 42%, #1d1f22);
+  }
+
+  .update-card:nth-child(3) .update-media {
+    background:
+      linear-gradient(135deg, rgba(255,90,22,.2), rgba(0,0,0,.2)),
+      url("/ui/assets/maritana-bg.png") 72% center / cover;
+  }
+
+  .update-body {
+    padding: 22px 22px 24px;
+  }
+
+  .contact-card {
+    padding: 34px;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.88), rgba(255,241,232,.72)),
+      radial-gradient(circle at 100% 0%, rgba(255,90,22,.12), transparent 40%);
+  }
+
+  .contact-card h3 {
+    margin-top: 4px;
+    font-family: var(--font-darker);
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: -.05em;
+  }
+
+  .contact-card p {
+    margin-top: 12px;
+    color: #4e5867;
+    line-height: 1.5;
+  }
+
+  .contact-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    width: 100%;
+    margin-top: 28px;
+    padding: 15px 18px;
+    border-radius: 6px;
+    background: var(--orange);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 850;
+    text-decoration: none;
+    box-shadow: rgba(255,90,22,.25) 0 18px 34px -20px;
+  }
+
+  .contact-list {
+    display: grid;
+    gap: 14px;
+    margin-top: 28px;
+    color: #475160;
+    font-size: 13px;
+  }
+
+  .final-cta {
+    padding: 0;
+    color: #fff;
+    background:
+      linear-gradient(90deg, rgba(223,58,0,.92), rgba(255,90,22,.82)),
+      url("/ui/assets/maritana-rock-pattern.png") center / cover;
+  }
+
+  .final-cta .section-inner {
+    min-height: 240px;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    align-items: center;
+    gap: 50px;
+    padding: 36px 16px;
+  }
+
+  .final-title {
+    font-family: var(--font-darker);
+    font-size: clamp(2.4rem, 5vw, 4.35rem);
+    font-weight: 900;
+    line-height: .9;
+    letter-spacing: -.055em;
+  }
+
+  .final-cta p {
+    margin-top: 18px;
+    max-width: 560px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+
+  .final-actions {
+    display: grid;
+    gap: 14px;
+  }
+
+  .final-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 850;
+    text-decoration: none;
+  }
+
+  .final-actions a:first-child {
+    background: rgba(255,255,255,.95);
+    color: var(--orange-deep);
+  }
+
+  .final-actions a:last-child {
+    border: 1px solid rgba(255,255,255,.72);
+    background: rgba(255,255,255,.08);
+    backdrop-filter: blur(18px);
+  }
+
+  .site-footer {
+    padding: 34px 16px 28px;
+    background: rgba(255,255,255,.86);
+  }
+
+  .footer-inner {
+    width: min(1320px, 100%);
+    margin: 0 auto;
+  }
+
+  .footer-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 30px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(20,21,24,.08);
+  }
+
+  .footer-logo {
+    width: 205px;
+    height: auto;
+  }
+
+  .footer-links {
+    display: flex;
+    align-items: center;
+    gap: 42px;
+  }
+
+  .footer-links a,
+  .footer-meta a,
+  .footer-meta span {
+    color: #17181c;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .social-links {
+    display: inline-flex;
+    gap: 14px;
+  }
+
+  .social-links a {
+    width: 24px;
+    height: 24px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 4px;
+    background: #111;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    text-decoration: none;
+  }
+
+  .footer-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    padding-top: 24px;
+    color: #6a7380;
+    font-size: 11px;
+  }
+
+  .footer-meta nav {
+    display: inline-flex;
+    gap: 46px;
+  }
+
+  @property --aurora-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+  }
+
+  @keyframes aurora-border {
+    to { --aurora-angle: 360deg; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary {
+      animation: none;
+    }
+  }
+
+  .visual {
+    display: none;
+  }
+
+  .visual::before,
+  .layer,
+  .topo {
+    display: none;
+  }
+
+  @media (max-width: 1320px) {
+    .hero { padding: 10px; }
+    .menu { gap: 14px; }
+    .btn { min-width: 196px; }
+  }
+
+  @media (max-width: 1100px) {
+    .menu {
+      gap: 12px;
+    }
+
+    .content {
+      display: block;
+      padding-block: 18px;
+    }
+
+    .cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .hero::after { background-position: 64% center; }
+
+    .metrics-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .asset-section {
+      background:
+        linear-gradient(90deg, rgba(255,253,250,.98) 0%, rgba(255,253,250,.88) 46%, rgba(255,253,250,.2) 100%),
+        url("/ui/assets/maritana-black-swan.png") right center / cover no-repeat;
+    }
+
+    .asset-layout {
+      grid-template-columns: 1fr;
+      min-height: auto;
+      padding-block: 72px;
+    }
+
+    .asset-map {
+      min-height: 420px;
+    }
+
+    .portfolio-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .resource-card {
+      grid-column: 1 / -1;
+    }
+
+    .roadmap-grid,
+    .updates-layout,
+    .final-cta .section-inner {
+      grid-template-columns: 1fr;
+    }
+
+    .roadmap-grid {
+      gap: 14px;
+    }
+
+    .roadmap-grid::before,
+    .road-card::after {
+      display: none;
+    }
+
+    .footer-main {
+      flex-wrap: wrap;
+    }
+
+    .footer-links {
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .hero {
+      padding: 8px;
+      min-height: auto;
+    }
+
+    .nav {
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+    }
+
+    .brand img {
+      min-width: 160px;
+      width: 186px;
+    }
+
+    .menu-toggle {
+      display: inline-flex;
+      flex-shrink: 0;
+    }
+
+    .nav-panel {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 8px);
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      padding: 0;
+      border-radius: 10px;
+      background: transparent;
+      box-shadow: none;
+      opacity: 0;
+      transform: translateY(-10px);
+      pointer-events: none;
+      visibility: hidden;
+      transition: opacity 180ms ease, transform 180ms ease, visibility 180ms step-end;
+    }
+
+    .nav.open .nav-panel {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+      visibility: visible;
+      transition: opacity 180ms ease, transform 180ms ease, visibility 0ms step-start;
+    }
+
+    .menu {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding-inline: 0;
+    }
+
+    .menu li {
+      list-style: none;
+    }
+
+    .menu a {
+      display: block;
+      padding: 10px 11px;
+      border-radius: 6px;
+      background: transparent;
+      box-shadow: none;
+      min-height: 0;
+    }
+
+    .menu a.active {
+      background: rgba(255, 241, 232, .92);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 90, 22, .16),
+        inset 0 -2px 0 rgba(255, 90, 22, .72);
+    }
+
+    .menu a:hover {
+      transform: none;
+    }
+
+    .stock-quote {
+      width: 100%;
+      justify-content: center;
+      padding: 10px 12px;
+    }
+
+    .nav-cta {
+      width: 100%;
+      justify-content: center;
+      padding: 12px 14px;
+      font-size: 11px;
+    }
+
+    .copy {
+      padding-left: 0;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .headline {
+      font-size: clamp(2.85rem, 14vw, 4.15rem);
+      line-height: .9;
+    }
+
+    .lede {
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    .actions {
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      width: 100%;
+      min-width: 0;
+      font-size: 12px;
+      padding: 12px 14px;
+      gap: 10px;
+    }
+
+    .cards {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .card {
+      min-height: 118px;
+      padding: 14px 14px 18px;
+    }
+
+    .card-icon {
+      width: 34px;
+      height: 34px;
+      margin-bottom: 8px;
+    }
+
+    .card-title { font-size: 17px; }
+    .card-copy { font-size: 13px; }
+
+    .hero::after { background-position: 71% center; }
+
+    .page-section {
+      padding: 42px 8px;
+    }
+
+    .metrics-grid,
+    .mini-grid,
+    .updates-grid,
+    .portfolio-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .metric-card {
+      min-height: 126px;
+      padding: 22px 20px;
+    }
+
+    .metric-value {
+      font-size: 3rem;
+    }
+
+    .asset-section {
+      background:
+        linear-gradient(180deg, rgba(255,253,250,.98) 0%, rgba(255,253,250,.9) 48%, rgba(255,253,250,.34) 100%),
+        url("/ui/assets/maritana-black-swan.png") center bottom / cover no-repeat;
+    }
+
+    .asset-layout {
+      padding-block: 54px 390px;
+    }
+
+    .asset-map {
+      display: none;
+    }
+
+    .road-card,
+    .portfolio-card,
+    .mini-card,
+    .contact-card {
+      min-height: auto;
+      padding: 24px 22px;
+    }
+
+    .updates-layout {
+      gap: 28px;
+    }
+
+    .final-cta .section-inner {
+      gap: 28px;
+      padding: 34px 8px;
+    }
+
+    .footer-main,
+    .footer-meta {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .footer-links,
+    .footer-meta nav {
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-logo {
+      width: 180px;
+    }
+  }
+
+  @media (max-height: 760px) {
+    .hero {
+      padding: 8px;
+    }
+
+    .nav {
+      padding: 8px;
+      border-radius: 10px;
+    }
+
+    .brand img {
+      width: min(228px, 21vw);
+      min-width: 172px;
+    }
+
+    .menu {
+      gap: 10px;
+    }
+
+    .menu a {
+      font-size: 11px;
+      letter-spacing: .12em;
+    }
+
+    .nav-cta {
+      padding: 10px 14px;
+      font-size: 11px;
+    }
+
+    .content {
+      padding-block: 14px;
+    }
+
+    .eyebrow {
+      margin-bottom: 10px;
+      font-size: 11px;
+    }
+
+    .headline {
+      font-size: clamp(3.35rem, min(5vw, 9.8vh), 5rem);
+      line-height: .82;
+      max-width: 660px;
+    }
+
+    .lede {
+      margin-top: 10px;
+      max-width: 560px;
+      font-size: 14px;
+      line-height: 1.32;
+    }
+
+    .actions {
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      min-width: 184px;
+      padding: 11px 14px;
+      font-size: 11px;
+    }
+
+    .cards {
+      display: flex;
+      flex-wrap: nowrap;
+      max-width: 860px;
+      margin-top: 12px;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+
+    .cards::-webkit-scrollbar {
+      display: none;
+    }
+
+    .card {
+      flex: 1 0 0;
+      min-width: 0;
+      min-height: 104px;
+      padding: 12px 12px 14px;
+      border-radius: 8px;
+    }
+
+    .card-label {
+      margin-bottom: 4px;
+      font-size: 9px;
+    }
+
+    .card-icon {
+      width: 30px;
+      height: 30px;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-size: 16px;
+    }
+
+    .card-copy {
+      max-width: none;
+      font-size: 12px;
+    }
+
+    .card-arrow {
+      right: 10px;
+      bottom: 8px;
+    }
+
+    .card-arrow svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  @media (max-height: 760px) and (max-width: 760px) {
+    .nav {
+      gap: 12px;
+    }
+
+    .menu {
+      gap: 8px;
+    }
+
+    .menu a {
+      font-size: 10.5px;
+      letter-spacing: .1em;
+      padding: 10px 12px;
+    }
+
+    .content {
+      padding-block: 12px;
+    }
+
+    .headline {
+      font-size: clamp(2.8rem, min(11vw, 9vh), 4.2rem);
+      max-width: 520px;
+    }
+
+    .lede {
+      font-size: 15px;
+      margin-top: 12px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      width: auto;
+      min-width: 0;
+      padding: 12px 12px;
+      font-size: 11px;
+      gap: 8px;
+    }
+
+    .cards {
+      margin-top: 14px;
+    }
+
+    .card {
+      min-width: 170px;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <nav class="nav" aria-label="Primary" data-mobile-nav>
+        <a class="brand" href="#" aria-label="Maritana Minerals home">
+          <img src="/ui/assets/maritana-logo.webp" alt="Maritana Minerals">
+        </a>
+
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="maritana-menu" aria-label="Open navigation">
+          <svg class="icon-menu" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <svg class="icon-close" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <div class="nav-panel" id="maritana-menu">
+          <ul class="menu">
+            <li><a class="active" href="#">About</a></li>
+            <li><a href="#">Operations</a></li>
+            <li><a href="#">Investors</a></li>
+            <li><a href="#">Sustainability</a></li>
+            <li><a href="#">News</a></li>
+            <li><a href="#">Contact</a></li>
+          </ul>
+
+          <div class="stock-quote" aria-label="Maritana Minerals stock price, delayed quote">
+            <span class="stock-symbol">ASX:MRT</span>
+            <span class="stock-price">A$0.745</span>
+            <span class="stock-change">-1.32%</span>
+          </div>
+
+          <a class="nav-cta" href="#">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <circle cx="10" cy="6.5" r="3.2" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M4.2 16.3c.8-3 2.9-4.5 5.8-4.5s5 1.5 5.8 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <span>Investor Centre</span>
+          </a>
+        </div>
+      </nav>
+
+      <div class="content">
+        <div class="copy">
+          <div class="eyebrow">Maritana Minerals</div>
+
+          <h1 class="headline">
+            <span class="line">Rooted in the Earth<span class="dot">.</span></span>
+            <span class="line">Focused on the Future<span class="dot">.</span></span>
+          </h1>
+
+          <p class="lede">
+            Exploring potential and delivering long-term value through a disciplined minerals portfolio,
+            strong operational foundations, and a modern approach to growth.
+          </p>
+
+          <div class="actions">
+            <a class="btn btn-primary" href="#">
+              <span>Explore Our Projects</span>
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+
+            <a class="btn btn-secondary" href="#">
+              <span>View Investors</span>
+              <span class="investor-avatars" aria-hidden="true">
+                <span class="investor-avatar"></span>
+                <span class="investor-avatar"></span>
+                <span class="investor-avatar"></span>
+              </span>
+            </a>
+          </div>
+
+          <div class="cards">
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">
+                <svg viewBox="0 0 64 64" fill="none">
+                  <path d="M32 7 51 18v28L32 57 13 46V18L32 7Z" stroke="currentColor" stroke-width="2.2"/>
+                  <circle cx="28" cy="29" r="8" stroke="currentColor" stroke-width="2.2"/>
+                  <path d="m35 36 9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <h2 class="card-title">Exploration</h2>
+              <p class="card-copy">Identifying potential.</p>
+              <div class="card-arrow" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                  <path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">
+                <svg viewBox="0 0 64 64" fill="none">
+                  <path d="M32 7 51 18v28L32 57 13 46V18L32 7Z" stroke="currentColor" stroke-width="2.2"/>
+                  <circle cx="32" cy="32" r="8" stroke="currentColor" stroke-width="2.2"/>
+                  <path d="M32 21v4M32 39v4M43 32h-4M25 32h-4M39.78 24.22l-2.84 2.84M27.06 36.94l-2.84 2.84M39.78 39.78l-2.84-2.84M27.06 27.06l-2.84-2.84" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <h2 class="card-title">Operations</h2>
+              <p class="card-copy">Building value.</p>
+              <div class="card-arrow" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                  <path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-icon" aria-hidden="true">
+                <svg viewBox="0 0 64 64" fill="none">
+                  <path d="M32 7 51 18v28L32 57 13 46V18L32 7Z" stroke="currentColor" stroke-width="2.2"/>
+                  <path d="M23 24.5 32 20l9 4.5-9 4.5-9-4.5ZM23 32l9 4.5 9-4.5M23 39.5 32 44l9-4.5" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <h2 class="card-title">Long-Term Value</h2>
+              <p class="card-copy">Sustainable growth.</p>
+              <div class="card-arrow" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                  <path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="visual" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <main class="home-main">
+      <section class="page-section metrics-section" aria-labelledby="metrics-title">
+        <div class="section-inner">
+          <div class="section-kicker" id="metrics-title">Key Metrics</div>
+          <div class="metrics-grid">
+            <article class="metric-card">
+              <div class="metric-label">ASX</div>
+              <div class="metric-value">MRT</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-value">2.2<small>Mtpa</small></div>
+              <div class="metric-label">Processing Hub</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-value">~102<small>koz/year</small></div>
+              <div class="metric-label">Targeted Production</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-value">A$631<small>M</small></div>
+              <div class="metric-label">Pre-tax NPV</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-value">1.88<small>Moz</small></div>
+              <div class="metric-label">Gold Resources</div>
+            </article>
+            <article class="metric-card">
+              <div class="metric-value">A$233.5<small>M</small></div>
+              <div class="metric-label">Cash Position</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-section asset-section" aria-labelledby="asset-title">
+        <div class="section-inner asset-layout">
+          <div>
+            <div class="section-kicker">Our Core Asset</div>
+            <h2 class="section-title" id="asset-title">Black Swan<br>Processing Hub<span class="dot">.</span></h2>
+            <p class="section-copy">
+              Black Swan is Maritana's central processing platform in the heart of the WA Goldfields.
+            </p>
+            <p class="section-copy">
+              Positioned in Kalgoorlie, it supports high-quality satellite deposits through a proven
+              hub and spoke model, unlocking scale, efficiency and long-term value.
+            </p>
+
+            <div class="mini-grid">
+              <article class="mini-card">
+                <h3>Existing Infrastructure</h3>
+                <p>Significant infrastructure in place to accelerate development.</p>
+              </article>
+              <article class="mini-card">
+                <h3>Kalgoorlie Location</h3>
+                <p>Strategically located in a leading mining and services hub.</p>
+              </article>
+              <article class="mini-card">
+                <h3>Hub &amp; Spoke Model</h3>
+                <p>Centralised processing drives lower costs and operational leverage.</p>
+              </article>
+            </div>
+          </div>
+
+          <div class="asset-map" aria-hidden="true">
+            <div class="map-line line-one"></div>
+            <div class="map-line line-two"></div>
+            <div class="map-line line-three"></div>
+            <div class="map-line line-four"></div>
+            <div class="map-point point-boorara">Boorara</div>
+            <div class="map-point point-burbanks">Burbanks</div>
+            <div class="map-point point-crake">Crake</div>
+            <div class="map-point point-kalpini">Kalpini</div>
+            <div class="hub-badge">
+              <div>
+                <img src="/ui/assets/maritana-logo.webp" alt="">
+                <strong>Black Swan</strong>
+                <span>Processing Hub</span>
+              </div>
+            </div>
+            <div class="map-location">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                <path d="M10 18s6-5.2 6-10A6 6 0 0 0 4 8c0 4.8 6 10 6 10Z" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="10" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              Kalgoorlie, WA
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-section" aria-labelledby="road-title">
+        <div class="section-inner">
+          <div class="section-kicker">Our Path Forward</div>
+          <h2 class="section-title" id="road-title">Path to First Gold<span class="dot">.</span></h2>
+          <div class="roadmap-grid">
+            <article class="road-card">
+              <div class="road-step">01</div>
+              <h3>Funding secured</h3>
+              <p>Strong capital position and funding strategy in place.</p>
+            </article>
+            <article class="road-card">
+              <div class="road-step">02</div>
+              <h3>FEED &amp; early works</h3>
+              <p>Front End Engineering Design and early works commenced.</p>
+            </article>
+            <article class="road-card">
+              <div class="road-step">03</div>
+              <h3>Construction</h3>
+              <p>Full construction advancing towards completion.</p>
+            </article>
+            <article class="road-card">
+              <div class="road-step">04</div>
+              <h3>Commissioning</h3>
+              <p>Plant commissioning and ramp up underway.</p>
+            </article>
+            <article class="road-card">
+              <div class="road-step">05</div>
+              <h3>First gold targeted mid-2027</h3>
+              <p>On track to deliver first gold in mid-2027.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-section" aria-labelledby="portfolio-title">
+        <div class="section-inner">
+          <div class="section-kicker">Our Portfolio</div>
+          <h2 class="section-title" id="portfolio-title">Resources, Reserves &amp; Cornerstone Assets<span class="dot">.</span></h2>
+          <div class="portfolio-grid">
+            <article class="resource-card">
+              <span class="resource-number">1.88<small>Moz</small></span>
+              <span class="resource-label">Gold Resources</span>
+              <div class="resource-divider"></div>
+              <span class="resource-number">214<small>koz</small></span>
+              <span class="resource-label">Reserves</span>
+            </article>
+            <article class="portfolio-card">
+              <h3>Boorara</h3>
+              <p>High-grade underground and open-pit width significant scale and upside.</p>
+              <a class="text-link" href="#">Learn more <span>→</span></a>
+            </article>
+            <article class="portfolio-card">
+              <h3>Burbanks</h3>
+              <p>Robust near-term reserve with strong exploration potential.</p>
+              <a class="text-link" href="#">Learn more <span>→</span></a>
+            </article>
+            <article class="portfolio-card">
+              <h3>Crake / Kalpini</h3>
+              <p>Advanced exploration targets with compelling geological upside.</p>
+              <a class="text-link" href="#">Learn more <span>→</span></a>
+            </article>
+            <article class="portfolio-card">
+              <h3>Regional Upside</h3>
+              <p>Extensive landholding in a prolific gold province.</p>
+              <a class="text-link" href="#">Learn more <span>→</span></a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="page-section" aria-labelledby="updates-title">
+        <div class="section-inner updates-layout">
+          <div>
+            <div class="section-kicker">Stay Informed</div>
+            <h2 class="section-title" id="updates-title">Latest Updates &amp; Investor Centre<span class="dot">.</span></h2>
+            <div class="updates-grid">
+              <article class="update-card">
+                <div class="update-media"></div>
+                <div class="update-body">
+                  <h3>Latest Quarterly Report</h3>
+                  <p>Read the most recent quarterly activities and financial results.</p>
+                  <a class="text-link" href="#">View Report <span>→</span></a>
+                </div>
+              </article>
+              <article class="update-card">
+                <div class="update-media"></div>
+                <div class="update-body">
+                  <h3>Investor Presentation</h3>
+                  <p>Explore our strategy, assets and growth outlook.</p>
+                  <a class="text-link" href="#">View Presentation <span>→</span></a>
+                </div>
+              </article>
+              <article class="update-card">
+                <div class="update-media"></div>
+                <div class="update-body">
+                  <h3>ASX Announcements</h3>
+                  <p>All company announcements lodged with ASX.</p>
+                  <a class="text-link" href="#">View Announcements <span>→</span></a>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <aside class="contact-card">
+            <div class="section-kicker">Investor Relations</div>
+            <h3>Have questions?</h3>
+            <p>Our Investor Relations team is here to help.</p>
+            <a class="contact-button" href="#">Ask Investor Relations <span>→</span></a>
+            <div class="contact-list">
+              <span>✉ investors@maritanaminerals.com.au</span>
+              <span>☏ +61 8 9383 3100</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="page-section final-cta" aria-label="Investor centre call to action">
+        <div class="section-inner">
+          <div>
+            <h2 class="final-title">Reduce uncertainty.<br>Explore the full Investor Centre.</h2>
+            <p>Access reports, presentations, all announcements and ask the Maritana team directly.</p>
+          </div>
+          <div class="final-actions">
+            <a href="#">Open Investor Centre <span>→</span></a>
+            <a href="#">Ask Investor Relations <span>→</span></a>
+          </div>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <div class="footer-main">
+            <img class="footer-logo" src="/ui/assets/maritana-logo.webp" alt="Maritana Minerals">
+            <nav class="footer-links" aria-label="Footer">
+              <a href="#">About</a>
+              <a href="#">Operations</a>
+              <a href="#">Investors</a>
+              <a href="#">Sustainability</a>
+              <a href="#">News</a>
+              <a href="#">Contact</a>
+            </nav>
+            <div class="social-links" aria-label="Social links">
+              <a href="#" aria-label="LinkedIn">in</a>
+              <a href="#" aria-label="YouTube">▶</a>
+            </div>
+          </div>
+          <div class="footer-meta">
+            <span>© 2024 Maritana Minerals Ltd. All rights reserved.</span>
+            <nav aria-label="Legal">
+              <a href="#">Privacy Policy</a>
+              <a href="#">Terms of Use</a>
+              <span>ASX: MRT</span>
+            </nav>
+          </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+  <script>
+    const maritanaNav = document.querySelector("[data-mobile-nav]");
+    const maritanaToggle = maritanaNav?.querySelector(".menu-toggle");
+    const maritanaMenuLinks = maritanaNav?.querySelectorAll(".menu a") || [];
+
+    function setMaritanaNavState(isOpen) {
+      if (!maritanaNav || !maritanaToggle) return;
+      maritanaNav.classList.toggle("open", isOpen);
+      maritanaToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      maritanaToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+    }
+
+    function syncMaritanaNav() {
+      if (!maritanaNav || !maritanaToggle) return;
+      const isDesktop = window.innerWidth > 860;
+      if (isDesktop) {
+        setMaritanaNavState(false);
+        return;
+      }
+    }
+
+    maritanaToggle?.addEventListener("click", () => {
+      const isOpen = !maritanaNav.classList.contains("open");
+      setMaritanaNavState(isOpen);
+    });
+
+    maritanaMenuLinks.forEach((link) => {
+      link.addEventListener("click", () => {
+        if (window.innerWidth <= 860) setMaritanaNavState(false);
+      });
+    });
+
+    window.addEventListener("resize", syncMaritanaNav);
+    syncMaritanaNav();
+  </script>
+</body>
+</html>

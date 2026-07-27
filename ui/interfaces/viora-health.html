@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Viora — Health Score Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #dfe7d9;
+  --shell: #f7f7f3;
+  --card: rgba(255,255,255,.52);
+  --card-strong: rgba(255,255,255,.72);
+  --line: rgba(50, 52, 46, .08);
+  --line-soft: rgba(50, 52, 46, .05);
+  --ink: #1f201d;
+  --muted: #6c7067;
+  --muted-soft: #afb4aa;
+  --sage: #92a47f;
+  --sage-dark: #788d65;
+  --pink: #f29aa9;
+  --peach: #f8b57a;
+  --olive: #aab59d;
+  --gray-bar: #d9ddd4;
+}
+html { min-height: 100%; }
+body {
+  min-height: 100%;
+  font-family: 'Inter', sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 22%, rgba(255,255,255,.65), rgba(255,255,255,0) 26%),
+    radial-gradient(circle at 88% 78%, rgba(255,255,255,.45), rgba(255,255,255,0) 24%),
+    linear-gradient(180deg, #e4ecdf 0%, #dde6d8 100%);
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 1820px;
+  margin: 36px auto;
+  padding: 0 26px;
+}
+.shell {
+  background: rgba(247,247,243,.94);
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 30px;
+  box-shadow:
+    0 20px 60px rgba(101,112,90,.10),
+    inset 0 1px 0 rgba(255,255,255,.9);
+  overflow: hidden;
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 18px;
+  padding: 30px 32px 22px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.brand-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #a7b798 0%, #7f936d 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 8px 20px rgba(123,142,103,.22);
+}
+.brand-mark svg { width: 28px; height: 28px; }
+.brand-name {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -.04em;
+}
+
+.nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(238,239,234,.92);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 8px 18px rgba(0,0,0,.04);
+}
+.nav-pill button {
+  border: none;
+  background: transparent;
+  min-height: 50px;
+  padding: 0 22px;
+  border-radius: 999px;
+  color: #3c3f39;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.nav-pill button.active {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+.icon-action {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.48);
+  border: 1px solid var(--line-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1f201d;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+}
+.icon-action svg { width: 23px; height: 23px; }
+.user-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 55% 32%, #fff 0 10%, transparent 11%),
+    linear-gradient(180deg, #f5e1d4 0%, #e7cbb2 45%, #161616 46%, #161616 100%);
+  border: 4px solid rgba(255,255,255,.84);
+  box-shadow: 0 8px 20px rgba(0,0,0,.06);
+}
+
+.content {
+  padding: 0 32px 34px;
+}
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+.page-title {
+  font-size: clamp(34px, 4vw, 52px);
+  font-weight: 500;
+  letter-spacing: -.06em;
+}
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.soft-btn {
+  min-height: 62px;
+  padding: 0 22px;
+  border-radius: 24px;
+  background: rgba(243,244,239,.95);
+  border: 1px solid rgba(255,255,255,.8);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #2c2f2a;
+  font-size: 14px;
+  font-weight: 500;
+}
+.soft-btn svg { width: 20px; height: 20px; }
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.metric-card {
+  min-height: 184px;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,.84);
+  background: var(--card);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.92);
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.metric-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #4a4d47;
+  margin-bottom: 16px;
+}
+.metric-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.metric-value {
+  font-size: clamp(42px, 3.8vw, 66px);
+  font-weight: 500;
+  letter-spacing: -.08em;
+  line-height: .92;
+  margin-bottom: 10px;
+}
+.metric-value small {
+  font-size: .36em;
+  letter-spacing: -.02em;
+  color: #51554f;
+}
+.metric-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #41443e;
+}
+.metric-trend svg { width: 14px; height: 14px; }
+.metric-visual {
+  flex-shrink: 0;
+  opacity: .92;
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.62fr) minmax(360px, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.panel {
+  border-radius: 30px;
+  border: 1px solid rgba(255,255,255,.84);
+  background: var(--card);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.94);
+  padding: 26px 28px 24px;
+}
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.panel-title {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -.03em;
+}
+.panel-period {
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 22px;
+  background: var(--card-strong);
+  border: 1px solid rgba(255,255,255,.78);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.panel-period svg { width: 18px; height: 18px; }
+.panel-score {
+  font-size: clamp(48px, 4vw, 62px);
+  font-weight: 500;
+  letter-spacing: -.08em;
+  line-height: .9;
+  margin-bottom: 8px;
+}
+.panel-score small {
+  font-size: .34em;
+  color: #545952;
+}
+.panel-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #3f443e;
+}
+.panel-delta svg { width: 15px; height: 15px; }
+
+.legend-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  margin: -10px 0 8px;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6a6f67;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.lab-body {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  margin-top: 8px;
+  margin-bottom: 18px;
+}
+.lab-legend {
+  display: grid;
+  gap: 12px;
+}
+.lab-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #60655e;
+}
+.gauge-wrap {
+  display: flex;
+  justify-content: center;
+}
+.divider {
+  height: 1px;
+  background: var(--line);
+  margin: 12px 0 18px;
+}
+.sub-title {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.adherence-labels,
+.adherence-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #757972;
+}
+.adherence-track {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: #d4d8cf;
+  margin: 14px 0 10px;
+}
+.adherence-fill {
+  width: 76%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b8c2ae 0%, #879d72 100%);
+}
+.adherence-dot {
+  position: absolute;
+  left: 76%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #171815;
+  border: 3px solid #f7f7f3;
+}
+
+.bottom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.62fr) minmax(360px, 1fr);
+  gap: 18px;
+}
+.balance-percentages {
+  display: grid;
+  grid-template-columns: 30fr 15fr 55fr 10fr;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #70756d;
+}
+.balance-bars {
+  display: grid;
+  grid-template-columns: 30fr 15fr 55fr 10fr;
+  gap: 10px;
+  margin-bottom: 26px;
+}
+.balance-bar {
+  height: 22px;
+  border-radius: 999px;
+}
+.balance-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+}
+.balance-item {
+  min-height: 66px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.72);
+  border: 1px solid rgba(255,255,255,.8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+}
+.balance-item-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+.balance-item-left .legend-dot {
+  width: 11px;
+  height: 11px;
+}
+.balance-item-value {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -.03em;
+}
+
+.panel-head-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.ghost-btn {
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.74);
+  border: 1px solid rgba(255,255,255,.78);
+  font-size: 14px;
+  font-weight: 500;
+}
+.checkup-list {
+  display: grid;
+  gap: 12px;
+}
+.checkup-item {
+  min-height: 96px;
+  border-radius: 26px;
+  background: rgba(255,255,255,.74);
+  border: 1px solid rgba(255,255,255,.8);
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 0 18px;
+}
+.doctor-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: block;
+  border: 2px solid rgba(255,255,255,.7);
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+.doctor-name {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+.doctor-role {
+  font-size: 14px;
+  color: #7a7f77;
+}
+.time-pill {
+  min-width: 96px;
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: rgba(241,241,236,.95);
+  border: 1px solid rgba(255,255,255,.8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+.arrow-chip {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4f534d;
+}
+.arrow-chip svg { width: 18px; height: 18px; }
+
+@media (max-width: 1450px) {
+  .metrics-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .main-grid,
+  .bottom-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1024px) {
+  .page { padding: 0 14px; margin: 14px auto; }
+  .topbar {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+  .nav-pill {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .top-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .head-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .metrics-row { grid-template-columns: 1fr 1fr; }
+  .lab-body { grid-template-columns: 1fr; }
+  .balance-list { grid-template-columns: 1fr; }
+  .checkup-item {
+    grid-template-columns: auto 1fr;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}
+
+@media (max-width: 720px) {
+  .content { padding: 0 16px 20px; }
+  .topbar { padding: 18px 16px 14px; }
+  .metrics-row { grid-template-columns: 1fr; }
+  .panel,
+  .metric-card { padding-left: 18px; padding-right: 18px; }
+  .soft-btn,
+  .panel-period {
+    width: 100%;
+    justify-content: center;
+  }
+  .head-actions { gap: 10px; }
+  .balance-percentages,
+  .balance-bars {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 6h12l-6 12H6l6-12z" fill="rgba(255,255,255,.92)"/>
+            <path d="M5 6h6l-4.2 12H5l4-12z" fill="rgba(255,255,255,.54)"/>
+          </svg>
+        </div>
+        <div class="brand-name">Viora</div>
+      </div>
+
+      <nav class="nav-pill" aria-label="Primary">
+        <button class="active">Overview</button>
+        <button>Progress</button>
+        <button>Routine</button>
+        <button>Insights</button>
+        <button>Settings</button>
+      </nav>
+
+      <div class="top-actions">
+        <div class="icon-action">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="9" r="5.5"/><line x1="13.5" y1="13.5" x2="17" y2="17"/></svg>
+        </div>
+        <div class="icon-action">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 3a5 5 0 0 1 5 5v2.5l1.5 3h-13L5 10.5V8a5 5 0 0 1 5-5z"/><path d="M8.1 16a1.9 1.9 0 0 0 3.8 0"/></svg>
+        </div>
+        <div class="user-avatar"></div>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <h1 class="page-title">Health score overview</h1>
+        <div class="head-actions">
+          <div class="soft-btn">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2.5"/><path d="M6 2.5v3M14 2.5v3M3 7.5h14"/></svg>
+            Last 30 days
+          </div>
+          <div class="soft-btn">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 5h12M6.5 10h7M8.5 15h3"/></svg>
+            Filter
+          </div>
+        </div>
+      </div>
+
+      <section class="metrics-row" id="metrics-row"></section>
+
+      <section class="main-grid">
+        <article class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Routine consistency score graph</div>
+            <div class="panel-period">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2.5"/><path d="M6 2.5v3M14 2.5v3M3 7.5h14"/></svg>
+              Monthly
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="2.5,4.5 6,8 9.5,4.5"/></svg>
+            </div>
+          </div>
+          <div class="panel-score">90,2<small>%</small></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:10px">
+            <div class="panel-delta">
+              <svg viewBox="0 0 14 14" fill="none"><path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              12% this month
+            </div>
+            <div class="legend-row">
+              <div class="legend-item"><span class="legend-dot" style="background:#f197a7"></span>Prescriptions</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#8ea97a"></span>Supplements</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#f6bd80"></span>Vitamins</div>
+            </div>
+          </div>
+          <svg class="chart-svg" viewBox="0 0 920 340" preserveAspectRatio="none">
+            <g font-family="Inter, sans-serif">
+              <line x1="68" y1="238" x2="896" y2="238" stroke="#e0e4dc" stroke-width="1.2" stroke-dasharray="4 6"/>
+              <line x1="68" y1="188" x2="896" y2="188" stroke="#e0e4dc" stroke-width="1.2" stroke-dasharray="4 6"/>
+              <line x1="68" y1="138" x2="896" y2="138" stroke="#e0e4dc" stroke-width="1.2" stroke-dasharray="4 6"/>
+              <line x1="68" y1="88" x2="896" y2="88" stroke="#e0e4dc" stroke-width="1.2" stroke-dasharray="4 6"/>
+
+              <text x="26" y="290" font-size="18" fill="#8f948b">0</text>
+              <text x="18" y="242" font-size="18" fill="#8f948b">25</text>
+              <text x="18" y="192" font-size="18" fill="#8f948b">50</text>
+              <text x="18" y="142" font-size="18" fill="#8f948b">75</text>
+              <text x="8" y="92" font-size="18" fill="#8f948b">100</text>
+
+              <g stroke="#ecefe8" stroke-width="3">
+                <line x1="80" y1="268" x2="80" y2="130"/><line x1="88" y1="268" x2="88" y2="130"/><line x1="96" y1="268" x2="96" y2="130"/><line x1="104" y1="268" x2="104" y2="130"/><line x1="112" y1="268" x2="112" y2="130"/>
+                <line x1="204" y1="268" x2="204" y2="158"/><line x1="212" y1="268" x2="212" y2="158"/><line x1="220" y1="268" x2="220" y2="158"/><line x1="228" y1="268" x2="228" y2="158"/><line x1="236" y1="268" x2="236" y2="158"/>
+                <line x1="330" y1="268" x2="330" y2="114"/><line x1="338" y1="268" x2="338" y2="114"/><line x1="346" y1="268" x2="346" y2="114"/><line x1="354" y1="268" x2="354" y2="114"/><line x1="362" y1="268" x2="362" y2="114"/>
+                <line x1="456" y1="268" x2="456" y2="144"/><line x1="464" y1="268" x2="464" y2="144"/><line x1="472" y1="268" x2="472" y2="144"/><line x1="480" y1="268" x2="480" y2="144"/><line x1="488" y1="268" x2="488" y2="144"/>
+                <line x1="582" y1="268" x2="582" y2="136"/><line x1="590" y1="268" x2="590" y2="136"/><line x1="598" y1="268" x2="598" y2="136"/><line x1="606" y1="268" x2="606" y2="136"/><line x1="614" y1="268" x2="614" y2="136"/>
+                <line x1="708" y1="268" x2="708" y2="112"/><line x1="716" y1="268" x2="716" y2="112"/><line x1="724" y1="268" x2="724" y2="112"/><line x1="732" y1="268" x2="732" y2="112"/><line x1="740" y1="268" x2="740" y2="112"/>
+                <line x1="834" y1="268" x2="834" y2="110"/><line x1="842" y1="268" x2="842" y2="110"/><line x1="850" y1="268" x2="850" y2="110"/><line x1="858" y1="268" x2="858" y2="110"/><line x1="866" y1="268" x2="866" y2="110"/>
+              </g>
+
+              <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M80 138H108V204H136V166H164V184H192V148H220V122H248V174H276V214H304V122H332V148H360V194H388V160H416V168H444V176H472V148H500V122H528V146H556V182H584V174H612V160H640V182H668V150H696V122H724V148H752V194H780V166H808V122H836V150H866V174" stroke="#f197a7" stroke-width="4"/>
+                <path d="M80 188H108V230H136V206H164V196H192V248H220V230H248V188H276V230H304V134H332V156H360V188H388V170H416V150H444V188H472V176H500V190H528V210H556V176H584V188H612V170H640V206H668V196H696V134H724V156H752V188H780V230H808V188H836V164H866V156" stroke="#8ea97a" stroke-width="4"/>
+                <path d="M80 216H108V216H136V224H164V220H192V220H220V170H248V206H276V252H304V252H332V176H360V218H388V194H416V194H444V216H472V216H500V216H528V186H556V186H584V216H612V216H640V220H668V208H696V206H724V208H752V220H780V220H808V170H836V170H866V208" stroke="#f6bd80" stroke-width="4"/>
+              </g>
+
+              <text x="80" y="320" font-size="18" fill="#8a8f87">Nov</text>
+              <text x="254" y="320" font-size="18" fill="#8a8f87">Dec</text>
+              <text x="428" y="320" font-size="18" fill="#8a8f87">Jan</text>
+              <text x="600" y="320" font-size="18" fill="#8a8f87">Feb</text>
+              <text x="772" y="320" font-size="18" fill="#8a8f87">Mar</text>
+              <text x="860" y="320" font-size="18" fill="#8a8f87">Apr</text>
+            </g>
+          </svg>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div class="panel-title">Lab results summary</div>
+            <div class="panel-period">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2.5"/><path d="M6 2.5v3M14 2.5v3M3 7.5h14"/></svg>
+              Monthly
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="2.5,4.5 6,8 9.5,4.5"/></svg>
+            </div>
+          </div>
+          <div class="panel-score" style="margin-top:6px">82,9<small>%</small></div>
+          <div class="lab-body">
+            <div class="lab-legend">
+              <div class="lab-legend-item"><span class="legend-dot" style="background:#c1c8b9"></span>Borderline</div>
+              <div class="lab-legend-item"><span class="legend-dot" style="background:#f6bd80"></span>Within range</div>
+              <div class="lab-legend-item"><span class="legend-dot" style="background:#f197a7"></span>Outside range</div>
+            </div>
+            <div class="gauge-wrap">
+              <svg width="360" height="220" viewBox="0 0 360 220">
+                <path d="M42 158 A138 138 0 0 1 318 158" fill="none" stroke="#e4e8e1" stroke-width="16" stroke-linecap="round"/>
+                <path d="M66 158 A114 114 0 0 1 294 158" fill="none" stroke="#e8ece5" stroke-width="16" stroke-linecap="round"/>
+                <path d="M90 158 A90 90 0 0 1 270 158" fill="none" stroke="#ecefe8" stroke-width="16" stroke-linecap="round"/>
+                <path d="M42 158 A138 138 0 0 1 292 70" fill="none" stroke="#92a47f" stroke-width="16" stroke-linecap="round"/>
+                <path d="M66 158 A114 114 0 0 1 274 88" fill="none" stroke="#f6bd80" stroke-width="16" stroke-linecap="round"/>
+                <path d="M90 158 A90 90 0 0 1 246 106" fill="none" stroke="#f197a7" stroke-width="16" stroke-linecap="round"/>
+                <line x1="180" y1="158" x2="318" y2="84" stroke="#1e1f1d" stroke-width="2.4" stroke-linecap="round"/>
+                <circle cx="180" cy="158" r="8" fill="#1e1f1d"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="sub-title">Treatment adherence</div>
+          <div class="adherence-labels"><span>Current</span><span>Target</span></div>
+          <div class="adherence-track">
+            <div class="adherence-fill"></div>
+            <div class="adherence-dot"></div>
+          </div>
+          <div class="adherence-ticks"><span>0</span><span>25</span><span>50</span><span>75</span><span>3500</span></div>
+        </article>
+      </section>
+
+      <section class="bottom-grid">
+        <article class="panel">
+          <div class="panel-title" style="margin-bottom:18px">Lifestyle balance</div>
+          <div class="balance-percentages">
+            <div>30%</div>
+            <div style="text-align:center">15%</div>
+            <div style="text-align:center">55%</div>
+            <div style="text-align:right">10%</div>
+          </div>
+          <div class="balance-bars">
+            <div class="balance-bar" style="background:linear-gradient(90deg,#f9c6d0 0%, #f197a7 100%)"></div>
+            <div class="balance-bar" style="background:linear-gradient(90deg,#ffd1a2 0%, #f6bd80 100%)"></div>
+            <div class="balance-bar" style="background:linear-gradient(90deg,#bac7b1 0%, #859b70 100%)"></div>
+            <div class="balance-bar" style="background:#dfe3db"></div>
+          </div>
+          <div class="balance-list">
+            <div class="balance-item">
+              <div class="balance-item-left"><span class="legend-dot" style="background:#f197a7"></span>Daily steps</div>
+              <div class="balance-item-value">8,200</div>
+            </div>
+            <div class="balance-item">
+              <div class="balance-item-left"><span class="legend-dot" style="background:#c1c8b9"></span>Sleep average</div>
+              <div class="balance-item-value">8,200</div>
+            </div>
+            <div class="balance-item">
+              <div class="balance-item-left"><span class="legend-dot" style="background:#f6bd80"></span>Calories</div>
+              <div class="balance-item-value">1,840</div>
+            </div>
+            <div class="balance-item">
+              <div class="balance-item-left"><span class="legend-dot" style="background:#d4d8cf"></span>Water intake</div>
+              <div class="balance-item-value">2.4 L</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head-inline">
+            <div class="panel-title">Check-ups</div>
+            <button class="ghost-btn">View all</button>
+          </div>
+          <div class="checkup-list">
+            <div class="checkup-item">
+              <img class="doctor-avatar" src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=120&h=120&fit=crop&crop=face" alt="Dr. Emilia Hopps">
+              <div>
+                <div class="doctor-name">Dr. Emilia Hopps</div>
+                <div class="doctor-role">Cardiologist</div>
+              </div>
+              <div class="time-pill">Today</div>
+              <div class="arrow-chip">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,4 10,8 6,12"/></svg>
+              </div>
+            </div>
+
+            <div class="checkup-item">
+              <img class="doctor-avatar" src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&h=120&fit=crop&crop=face" alt="Dr. Naomi Fletcher">
+              <div>
+                <div class="doctor-name">Dr. Naomi Fletcher</div>
+                <div class="doctor-role">Nutritionist</div>
+              </div>
+              <div class="time-pill">Apr 26</div>
+              <div class="arrow-chip">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,4 10,8 6,12"/></svg>
+              </div>
+            </div>
+
+            <div class="checkup-item">
+              <img class="doctor-avatar" src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=120&h=120&fit=crop&crop=face" alt="Dr. Lucas Mercer">
+              <div>
+                <div class="doctor-name">Dr. Lucas Mercer</div>
+                <div class="doctor-role">General Practitioner</div>
+              </div>
+              <div class="time-pill">May 3</div>
+              <div class="arrow-chip">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,4 10,8 6,12"/></svg>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+</div>
+
+<style>
+/* ── Period dropdown ── */
+.panel-period { position: relative; cursor: pointer; user-select: none; }
+.period-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
+  background: rgba(247,247,243,.98); border: 1px solid rgba(255,255,255,.8);
+  border-radius: 16px; padding: 6px;
+  box-shadow: 0 12px 32px rgba(60,70,50,.13), inset 0 1px 0 rgba(255,255,255,.9);
+  min-width: 140px; animation: dropdown-in 140ms ease;
+}
+@keyframes dropdown-in {
+  from { opacity:0; transform: translateY(-6px) scale(.97); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+.period-option {
+  padding: 9px 16px; border-radius: 10px; font-size: 14px; font-weight: 500;
+  color: #4a4d47; cursor: pointer; transition: background 120ms;
+}
+.period-option:hover { background: rgba(0,0,0,.05); }
+.period-option.active { font-weight: 700; color: #1f201d; background: rgba(0,0,0,.06); }
+
+/* ── Metric card selected state ── */
+.metric-card { cursor: pointer; transition: box-shadow 200ms, transform 200ms, background 200ms; }
+.metric-card:hover { background: rgba(255,255,255,.68); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(60,70,50,.09), inset 0 1px 0 rgba(255,255,255,.95); }
+.metric-card.selected { background: rgba(255,255,255,.82); box-shadow: 0 0 0 2px #8ea97a, 0 8px 24px rgba(60,70,50,.1), inset 0 1px 0 rgba(255,255,255,.95); }
+
+/* ── Chart tooltip ── */
+#chart-tooltip {
+  pointer-events: none; position: absolute; z-index: 100;
+  background: rgba(247,247,243,.97); border: 1px solid rgba(255,255,255,.8);
+  border-radius: 14px; padding: 12px 16px;
+  box-shadow: 0 8px 24px rgba(60,70,50,.14), inset 0 1px 0 rgba(255,255,255,.95);
+  min-width: 148px; opacity: 0; transition: opacity 120ms;
+  font-size: 13px;
+}
+.ct-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #8a8f87; margin-bottom: 9px; }
+.ct-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.ct-row:last-child { margin-bottom: 0; }
+.ct-key { display: flex; align-items: center; gap: 6px; color: #4a4d47; }
+.ct-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ct-val { font-weight: 700; color: #1f201d; font-variant-numeric: tabular-nums; }
+
+/* ── Chart crosshair ── */
+.chart-crosshair {
+  position: absolute; top: 0; width: 1px; pointer-events: none;
+  background: rgba(50,52,46,.15); opacity: 0; transition: opacity 100ms;
+}
+
+/* ── Checkup hover ── */
+.checkup-item { transition: background 150ms, transform 150ms; }
+.checkup-item:hover { background: rgba(255,255,255,.72); transform: translateX(2px); }
+
+/* ── Balance bar hover ── */
+.balance-bar { transition: filter 150ms, transform 150ms; }
+.balance-bar:hover { filter: brightness(1.07); transform: scaleY(1.3); }
+
+/* ── Soft btn hover ── */
+.soft-btn { cursor: pointer; transition: box-shadow 150ms, transform 150ms; }
+.soft-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(60,70,50,.1), inset 0 1px 0 rgba(255,255,255,.95); }
+
+/* ── Metric mini tooltip ── */
+.metric-mini-tip {
+  position: fixed; z-index: 500; pointer-events: none; opacity: 0;
+  background: rgba(247,247,243,.98); border: 1px solid rgba(255,255,255,.8);
+  border-radius: 12px; padding: 10px 14px; min-width: 110px;
+  box-shadow: 0 8px 24px rgba(60,70,50,.14), inset 0 1px 0 rgba(255,255,255,.95);
+  transition: opacity 100ms; font-family: 'Inter', sans-serif;
+}
+
+/* ── BP bar hover ── */
+.bp-bar { cursor: default; transition: filter 100ms; }
+.bp-bar:hover { filter: brightness(1.12); }
+
+/* ── Sparkline dot hover ── */
+.spark-dot { cursor: default; transition: r 100ms; }
+.spark-dot:hover { r: 5; }
+
+/* ── Compact value for blood pressure card ── */
+[data-metric="bp"] .metric-value { font-size: clamp(28px, 2.4vw, 38px); letter-spacing: -.05em; }
+</style>
+
+<script>
+// ─────────────────────────────────────────
+// 0. RENDER METRIC CARDS
+// ─────────────────────────────────────────
+const CIRC = 213.6; // 2π × 34
+
+function makeDonut(pct, color, track) {
+  const fill = (pct / 100) * CIRC;
+  return `<svg viewBox="0 0 80 80" width="78" height="78">
+    <circle cx="40" cy="40" r="34" fill="none" stroke="${track}" stroke-width="7"/>
+    <circle cx="40" cy="40" r="34" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"
+      stroke-dasharray="${fill.toFixed(1)} ${CIRC}" transform="rotate(-90 40 40)" class="donut-fill"/>
+  </svg>`;
+}
+
+function makeBPBars(sysArr, diaArr) {
+  const w = 92, h = 54, barW = 8, gap = 3.8;
+  const xStart = (w - (7 * barW + 6 * gap)) / 2;
+  const yScale = v => h - 4 - ((v - 60) / (145 - 60)) * (h - 10);
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let bars = '';
+  for (let i = 0; i < 7; i++) {
+    const x = xStart + i * (barW + gap);
+    const sy = yScale(sysArr[i]), dy = yScale(diaArr[i]);
+    bars += `<rect x="${x.toFixed(1)}" y="${sy.toFixed(1)}" width="${barW}" height="${(dy-sy).toFixed(1)}" rx="4"
+      fill="${i === 3 ? '#92a47f' : '#d4d9cf'}"
+      data-sys="${sysArr[i]}" data-dia="${diaArr[i]}" data-day="${days[i]}" class="bp-bar"/>`;
+  }
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="bp-svg" style="overflow:visible">${bars}</svg>`;
+}
+
+function makeSparkline(pts) {
+  const w = 92, h = 52, n = pts.length;
+  const min = Math.min(...pts) - 5, max = Math.max(...pts) + 5;
+  const xStep = (w - 10) / (n - 1);
+  const yScale = v => h - 6 - ((v - min) / (max - min)) * (h - 14);
+  const coords = pts.map((v, i) => [5 + i * xStep, yScale(v)]);
+  let d = `M ${coords[0][0].toFixed(1)} ${coords[0][1].toFixed(1)}`;
+  for (let i = 1; i < n; i++) {
+    const [px, py] = coords[i-1], [cx2, cy2] = coords[i];
+    const cpx = (px + cx2) / 2;
+    d += ` C ${cpx.toFixed(1)} ${py.toFixed(1)} ${cpx.toFixed(1)} ${cy2.toFixed(1)} ${cx2.toFixed(1)} ${cy2.toFixed(1)}`;
+  }
+  const fillD = d + ` L ${coords[n-1][0].toFixed(1)} ${h} L ${coords[0][0].toFixed(1)} ${h} Z`;
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun','Sun'];
+  const dots = coords.map(([x,y],i) =>
+    `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#f29aa9" stroke="#fff" stroke-width="1.5"
+      class="spark-dot" data-bpm="${pts[i]}" data-day="${days[i]}"/>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="spark-svg">
+    <defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f29aa9" stop-opacity=".25"/>
+      <stop offset="100%" stop-color="#f29aa9" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${fillD}" fill="url(#sparkGrad)"/>
+    <path d="${d}" fill="none" stroke="#f29aa9" stroke-width="2.5" stroke-linecap="round"/>
+    ${dots}
+  </svg>`;
+}
+
+const METRICS_DATA = [
+  { id:'activity', label:'Activity Progress',  value:'98',     unit:'%',   trend:'+12% this month', up:true,  vis:'donut', pct:98, color:'#92a47f', track:'#d9e4d1' },
+  { id:'bp',       label:'Blood Pressure',      value:'118/76', unit:'',    trend:'+6% this month',  up:true,  vis:'bp',
+    sys:[116,119,121,118,115,120,118], dia:[74,77,78,76,73,79,76] },
+  { id:'heart',    label:'Resting Heart',        value:'64',     unit:'bpm', trend:'−12 this month',  up:false, vis:'spark',
+    pts:[68,65,70,67,63,66,64,64] },
+  { id:'sleep',    label:'Sleep Quality',        value:'87',     unit:'%',   trend:'+12% this month', up:true,  vis:'donut', pct:87, color:'#f8b57a', track:'#f3e8d8' },
+  { id:'stress',   label:'Stress Level',         value:'87',     unit:'%',   trend:'−7% this month',  up:false, vis:'donut', pct:87, color:'#e8a0b4', track:'#f3dde4' },
+];
+
+const upSvg   = `<svg viewBox="0 0 14 14" fill="none"><path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const downSvg = `<svg viewBox="0 0 14 14" fill="none"><path d="M7 3v8M3.5 7.5L7 11l3.5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+(function renderMetrics() {
+  const section = document.getElementById('metrics-row');
+  if (!section) return;
+  section.innerHTML = METRICS_DATA.map(m => {
+    let vis = '';
+    if (m.vis === 'donut') vis = makeDonut(m.pct, m.color, m.track);
+    if (m.vis === 'bp')    vis = makeBPBars(m.sys, m.dia);
+    if (m.vis === 'spark') vis = makeSparkline(m.pts);
+    return `<article class="metric-card" data-metric="${m.id}">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-body">
+        <div>
+          <div class="metric-value">${m.value}${m.unit ? `<small>${m.unit}</small>` : ''}</div>
+          <div class="metric-trend">${m.up ? upSvg : downSvg} ${m.trend}</div>
+        </div>
+        <div class="metric-visual">${vis}</div>
+      </div>
+    </article>`;
+  }).join('');
+})();
+
+// ── Shared mini tooltip ──
+const mTip = document.createElement('div');
+mTip.className = 'metric-mini-tip';
+document.body.appendChild(mTip);
+
+function showMTip(anchorEl, html) {
+  mTip.innerHTML = html;
+  mTip.style.opacity = '1';
+  const r = anchorEl.getBoundingClientRect();
+  const tw = mTip.offsetWidth || 120, th = mTip.offsetHeight || 56;
+  let left = r.left + r.width / 2 - tw / 2;
+  let top  = r.top - th - 8;
+  if (top < 8) top = r.bottom + 8;
+  if (left < 8) left = 8;
+  if (left + tw > window.innerWidth - 8) left = window.innerWidth - tw - 8;
+  mTip.style.left = left + 'px';
+  mTip.style.top  = top + 'px';
+}
+function hideMTip() { mTip.style.opacity = '0'; }
+
+const metricsRow = document.getElementById('metrics-row');
+
+// Donut hover
+metricsRow.addEventListener('mouseover', e => {
+  const vis = e.target.closest('.metric-visual');
+  if (!vis) return;
+  const card = vis.closest('[data-metric]');
+  if (!card) return;
+  const m = METRICS_DATA.find(x => x.id === card.dataset.metric);
+  if (!m || m.vis !== 'donut') return;
+  showMTip(vis, `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a8f87;margin-bottom:4px">${m.label}</div>
+    <div style="font-size:20px;font-weight:700;color:#1f201d">${m.pct}%</div>`);
+});
+
+// BP bar hover
+metricsRow.addEventListener('mouseover', e => {
+  const bar = e.target.closest('.bp-bar');
+  if (!bar) return;
+  showMTip(bar, `<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a8f87;margin-bottom:5px">${bar.dataset.day}</div>
+    <div style="font-size:13px;color:#4a4d47;margin-bottom:2px">Systolic <strong style="color:#1f201d">${bar.dataset.sys}</strong> mmHg</div>
+    <div style="font-size:13px;color:#4a4d47">Diastolic <strong style="color:#1f201d">${bar.dataset.dia}</strong> mmHg</div>`);
+});
+
+// Sparkline dot hover
+metricsRow.addEventListener('mouseover', e => {
+  const dot = e.target.closest('.spark-dot');
+  if (!dot) return;
+  showMTip(dot, `<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a8f87;margin-bottom:5px">${dot.dataset.day}</div>
+    <div style="font-size:13px;color:#4a4d47">Resting heart <strong style="color:#1f201d">${dot.dataset.bpm} bpm</strong></div>`);
+});
+
+// Hide tip when leaving metric area
+metricsRow.addEventListener('mouseout', e => {
+  if (!e.relatedTarget || !e.relatedTarget.closest('.metric-visual, .bp-bar, .spark-dot')) hideMTip();
+});
+
+// ─────────────────────────────────────────
+// 1. NAV TABS
+// ─────────────────────────────────────────
+document.querySelectorAll('.nav-pill button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-pill button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// ─────────────────────────────────────────
+// 2. METRIC CARD SELECTION (event delegation)
+// ─────────────────────────────────────────
+document.getElementById('metrics-row').addEventListener('click', e => {
+  const card = e.target.closest('.metric-card');
+  if (!card) return;
+  document.querySelectorAll('.metric-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+});
+
+// ─────────────────────────────────────────
+// 3. PERIOD DROPDOWNS
+// ─────────────────────────────────────────
+const PERIODS = ['Weekly', 'Monthly', 'Quarterly', 'Yearly'];
+document.querySelectorAll('.panel-period').forEach(btn => {
+  let dropdown = null;
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (dropdown) { dropdown.remove(); dropdown = null; return; }
+    const current = btn.childNodes[1]?.textContent?.trim() || 'Monthly';
+    dropdown = document.createElement('div');
+    dropdown.className = 'period-dropdown';
+    PERIODS.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'period-option' + (current === p ? ' active' : '');
+      item.textContent = p;
+      item.addEventListener('click', e2 => {
+        e2.stopPropagation();
+        // Rebuild button keeping SVGs
+        const svgs = [...btn.querySelectorAll('svg')];
+        btn.innerHTML = '';
+        if (svgs[0]) btn.appendChild(svgs[0]);
+        btn.appendChild(document.createTextNode(' ' + p + ' '));
+        if (svgs[1]) btn.appendChild(svgs[1]);
+        dropdown.remove(); dropdown = null;
+      });
+      dropdown.appendChild(item);
+    });
+    btn.appendChild(dropdown);
+    const close = () => { if (dropdown) { dropdown.remove(); dropdown = null; } };
+    setTimeout(() => document.addEventListener('click', close, { once: true }), 0);
+  });
+});
+
+// ─────────────────────────────────────────
+// 4. CHART HOVER TOOLTIP
+// ─────────────────────────────────────────
+// Month data (approximate values from SVG paths — Pink=Prescriptions, Green=Supplements, Orange=Vitamins)
+const CHART_DATA = [
+  { month: 'Nov', pct: [68, 40, 26] },
+  { month: 'Dec', pct: [55, 50, 38] },
+  { month: 'Jan', pct: [78, 65, 42] },
+  { month: 'Feb', pct: [63, 48, 30] },
+  { month: 'Mar', pct: [80, 72, 52] },
+  { month: 'Apr', pct: [72, 64, 44] },
+];
+const SERIES = [
+  { label: 'Prescriptions', color: '#f197a7' },
+  { label: 'Supplements',   color: '#8ea97a' },
+  { label: 'Vitamins',      color: '#f6bd80' },
+];
+
+// Find the chart SVG (first one — routine chart)
+const chartSvg = document.querySelector('svg.chart-svg');
+if (chartSvg) {
+  // Wrap in a relative container for overlay positioning
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:relative;';
+  chartSvg.parentNode.insertBefore(wrapper, chartSvg);
+  wrapper.appendChild(chartSvg);
+
+  // Crosshair
+  const crosshair = document.createElement('div');
+  crosshair.className = 'chart-crosshair';
+  wrapper.appendChild(crosshair);
+
+  // Tooltip
+  const tooltip = document.createElement('div');
+  tooltip.id = 'chart-tooltip';
+  wrapper.appendChild(tooltip);
+
+  // SVG viewBox: 0 0 920 340, data x range 68→896
+  const VB_W = 920, DATA_X0 = 68, DATA_X1 = 896;
+  // Month x centers in viewBox coords
+  const monthX = [80, 254, 428, 600, 772, 860];
+
+  chartSvg.addEventListener('mousemove', e => {
+    const rect = chartSvg.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const relX = mouseX / rect.width; // 0–1
+    const svgX = relX * VB_W;
+
+    // Find nearest month
+    let nearest = 0, minDist = Infinity;
+    monthX.forEach((mx, i) => {
+      const d = Math.abs(svgX - mx);
+      if (d < minDist) { minDist = d; nearest = i; }
+    });
+    const data = CHART_DATA[nearest];
+
+    // Position crosshair
+    const crossX = (monthX[nearest] / VB_W) * rect.width;
+    crosshair.style.left = crossX + 'px';
+    crosshair.style.height = rect.height + 'px';
+    crosshair.style.opacity = '1';
+
+    // Build tooltip HTML
+    tooltip.innerHTML = `<div class="ct-label">${data.month}</div>` +
+      SERIES.map((s, i) => `<div class="ct-row">
+        <div class="ct-key"><div class="ct-dot" style="background:${s.color}"></div>${s.label}</div>
+        <div class="ct-val">${data.pct[i]}%</div>
+      </div>`).join('');
+
+    // Position tooltip
+    const tipW = 160;
+    let left = crossX + 12;
+    if (left + tipW > rect.width) left = crossX - tipW - 12;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = '12px';
+    tooltip.style.opacity = '1';
+  });
+
+  chartSvg.addEventListener('mouseleave', () => {
+    tooltip.style.opacity = '0';
+    crosshair.style.opacity = '0';
+  });
+}
+
+// ─────────────────────────────────────────
+// 5. GAUGE NEEDLE ANIMATION ON LOAD
+// ─────────────────────────────────────────
+const gaugeSvg = document.querySelector('.gauge-wrap svg');
+if (gaugeSvg) {
+  const needle = gaugeSvg.querySelector('line');
+  const dot    = gaugeSvg.querySelector('circle:last-of-type');
+  if (needle) {
+    // Start angle: pointing left (0°) → final: pointing upper-right
+    // Center: 180,158. Final tip: 318,84 → angle ≈ 30° from right baseline
+    // Animate from pointing straight right (360,158) sweeping to (318,84)
+    const cx = 180, cy = 158;
+    const startAngle = 0;       // degrees from right (pointing right = 0°)
+    const endAngle   = 150;     // final needle angle in degrees counterclockwise from right
+    const radius = 148;
+    let current = startAngle;
+    const target = endAngle;
+    const duration = 1200;
+    const startTime = performance.now();
+
+    function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+    function animateNeedle(ts) {
+      const t = Math.min((ts - startTime) / duration, 1);
+      current = startAngle + (target - startAngle) * easeOut(t);
+      const rad = (current * Math.PI) / 180;
+      const tipX = cx + radius * Math.cos(Math.PI - rad);
+      const tipY = cy - radius * Math.sin(Math.PI - rad);
+      needle.setAttribute('x1', cx); needle.setAttribute('y1', cy);
+      needle.setAttribute('x2', tipX); needle.setAttribute('y2', tipY);
+      if (t < 1) requestAnimationFrame(animateNeedle);
+    }
+    requestAnimationFrame(animateNeedle);
+  }
+}
+
+// ─────────────────────────────────────────
+// 6. TREATMENT ADHERENCE BAR ANIMATION
+// ─────────────────────────────────────────
+const fill = document.querySelector('.adherence-fill');
+const dotEl = document.querySelector('.adherence-dot');
+if (fill) {
+  fill.style.width = '0%';
+  if (dotEl) dotEl.style.opacity = '0';
+  setTimeout(() => {
+    fill.style.transition = 'width 1s cubic-bezier(.22,1,.36,1)';
+    fill.style.width = '74%';
+    if (dotEl) { dotEl.style.transition = 'opacity 300ms 800ms'; dotEl.style.opacity = '1'; }
+  }, 400);
+}
+
+// ─────────────────────────────────────────
+// 7. METRIC RING ANIMATIONS ON LOAD
+// ─────────────────────────────────────────
+document.querySelectorAll('.metric-card circle[stroke-dasharray]').forEach(circle => {
+  const dasharray = circle.getAttribute('stroke-dasharray');
+  circle.setAttribute('stroke-dasharray', `0 214`);
+  circle.style.transition = 'stroke-dasharray 1s cubic-bezier(.22,1,.36,1) 200ms';
+  requestAnimationFrame(() => {
+    setTimeout(() => circle.setAttribute('stroke-dasharray', dasharray), 50);
+  });
+});
+
+// ─────────────────────────────────────────
+// 8. CHECKUP ITEM CLICK — EXPAND DETAIL
+// ─────────────────────────────────────────
+document.querySelectorAll('.checkup-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const wasActive = item.classList.contains('expanded');
+    document.querySelectorAll('.checkup-item').forEach(i => {
+      i.classList.remove('expanded');
+      const detail = i.querySelector('.checkup-detail');
+      if (detail) detail.remove();
+    });
+    if (!wasActive) {
+      item.classList.add('expanded');
+      const detail = document.createElement('div');
+      detail.className = 'checkup-detail';
+      const name = item.querySelector('.doctor-name')?.textContent || '';
+      const role = item.querySelector('.doctor-role')?.textContent || '';
+      const time = item.querySelector('.time-pill')?.textContent || '';
+      detail.style.cssText = 'grid-column:1/-1;margin-top:10px;padding:12px 14px;background:rgba(255,255,255,.5);border-radius:12px;font-size:13px;color:#5a5d57;line-height:1.6;border:1px solid rgba(255,255,255,.8);animation:dropdown-in 180ms ease';
+      detail.innerHTML = `<strong style="color:#1f201d">${name}</strong> · ${role}<br>📅 Appointment: <strong>${time}</strong><br>📍 Viora Health Clinic, Room 3B`;
+      item.appendChild(detail);
+    }
+  });
+});
+</script>
+</body>
+</html>

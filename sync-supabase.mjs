@@ -24,6 +24,23 @@ if (!isEnabled) {
   process.exit(0);
 }
 
+// ─── Resolve admin user_id (cached) ──────────────────────────────────────────
+
+let _adminUserId = null;
+async function getAdminUserId() {
+  if (_adminUserId) return _adminUserId;
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail) {
+    const { data } = await supabase.auth.admin.listUsers();
+    const found = (data?.users || []).find(u => u.email === adminEmail);
+    if (found) { _adminUserId = found.id; return _adminUserId; }
+  }
+  // Fallback: pick the first user that has rows in applications
+  const { data } = await supabase.from('applications').select('user_id').not('user_id', 'is', null).limit(1).single();
+  if (data?.user_id) { _adminUserId = data.user_id; return _adminUserId; }
+  return null;
+}
+
 // ─── Pipeline sync ────────────────────────────────────────────────────────────
 
 async function syncPipeline() {
@@ -53,9 +70,12 @@ async function syncPipeline() {
     return;
   }
 
+  const userId = await getAdminUserId();
+  if (userId) rows.forEach(r => { r.user_id = userId; });
+
   const { error } = await supabase
     .from('pipeline')
-    .upsert(rows, { onConflict: 'url' });
+    .upsert(rows, { onConflict: 'url,user_id' });
 
   if (error) throw error;
   console.log(`✅  Pipeline: ${rows.length} entry(ies) synced to Supabase.`);
@@ -89,9 +109,13 @@ async function syncReport(filepath) {
     process.exit(1);
   }
 
+  const userId = await getAdminUserId();
+  const row = { filename, content, num, company, date };
+  if (userId) row.user_id = userId;
+
   const { error } = await supabase
     .from('reports')
-    .upsert({ filename, content, num, company, date }, { onConflict: 'filename' });
+    .upsert(row, { onConflict: 'filename' });
 
   if (error) throw error;
   console.log(`✅  Report synced to Supabase: ${filename}`);
@@ -139,6 +163,9 @@ async function syncApplications() {
     console.log('Applications: no rows to sync.');
     return;
   }
+
+  const userId = await getAdminUserId();
+  if (userId) rows.forEach(r => { r.user_id = userId; });
 
   const { error } = await supabase
     .from('applications')

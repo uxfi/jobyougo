@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revenue Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;650;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --command-navy: #08111f;
+    --night-panel: #101b2d;
+    --nav-hover: rgba(255,255,255,0.06);
+    --workspace: #f5f7fb;
+    --surface: #ffffff;
+    --surface-soft: #f9fbff;
+    --line: #e4e9f2;
+    --line-strong: #d7deea;
+    --ink: #162033;
+    --slate: #5f6b7d;
+    --muted: #8a95a6;
+    --inverse: #f7fbff;
+    --inverse-muted: #a7b2c3;
+    --agent-blue: #2f6df6;
+    --agent-blue-dark: #2458d5;
+    --violet: #7557f5;
+    --green: #19a974;
+    --green-soft: #e9f8f1;
+    --amber: #f59f24;
+    --amber-soft: #fff6e8;
+    --red: #d94a4a;
+    --red-soft: #fff0f0;
+    --shadow: 0 18px 50px rgba(20, 34, 62, 0.08);
+    --font: "Inter", "Geist", "SF Pro Display", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { min-width: 320px; background: var(--workspace); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    background:
+      linear-gradient(135deg, rgba(47,109,246,0.07) 0%, transparent 32%),
+      linear-gradient(315deg, rgba(25,169,116,0.06) 0%, transparent 28%),
+      var(--workspace);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(22,32,51,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(22,32,51,0.035) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(180deg, rgba(0,0,0,0.7), transparent 72%);
+  }
+
+  button, input { font: inherit; }
+  button { cursor: pointer; }
+  .icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+  }
+
+  .app-shell {
+    display: grid;
+    grid-template-columns: 252px minmax(0, 1fr);
+    min-height: 100vh;
+    transition: grid-template-columns 260ms cubic-bezier(.16,1,.3,1);
+  }
+
+  .app-shell.sidebar-collapsed { grid-template-columns: 76px minmax(0, 1fr); }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 14px;
+    color: var(--inverse);
+    background:
+      linear-gradient(180deg, rgba(117,87,245,0.14), rgba(47,109,246,0) 32%),
+      var(--command-navy);
+    transition: padding 260ms cubic-bezier(.16,1,.3,1);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px 24px;
+  }
+
+  .brand-copy { min-width: 0; transition: opacity 160ms ease, width 220ms ease; }
+
+  .brand-mark {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--agent-blue), var(--violet));
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0;
+    box-shadow: 0 10px 28px rgba(47,109,246,0.28);
+  }
+
+  .brand-name { font-weight: 650; line-height: 1.1; }
+  .brand-meta { color: var(--inverse-muted); font-size: 12px; margin-top: 2px; }
+
+  .sidebar-toggle {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    margin-left: auto;
+    color: #dbe6f7;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .sidebar-toggle:hover { background: rgba(255,255,255,0.1); }
+
+  .nav-section-label {
+    padding: 8px 10px;
+    color: #6f7e94;
+    font-size: 11px;
+    font-weight: 650;
+    text-transform: uppercase;
+    transition: opacity 160ms ease;
+  }
+
+  .nav-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 38px;
+    padding: 0 10px;
+    color: var(--inverse-muted);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 560;
+    border: 0;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .nav-item.active {
+    color: #fff;
+    background: rgba(47,109,246,0.16);
+    box-shadow: inset 3px 0 0 var(--agent-blue);
+  }
+
+  .nav-item:not(.active):hover { background: var(--nav-hover); color: #fff; }
+  .nav-label { white-space: nowrap; transition: opacity 160ms ease; }
+  .nav-item .icon { color: #758399; }
+  .nav-item.active .icon { color: #78a0ff; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+  }
+
+  .sidebar-footer strong { display: block; color: #fff; font-size: 13px; margin-bottom: 4px; }
+  .sidebar-footer span { display: block; color: var(--inverse-muted); font-size: 12px; line-height: 1.45; }
+
+  .app-shell.sidebar-collapsed .sidebar { padding-left: 12px; padding-right: 12px; }
+  .app-shell.sidebar-collapsed .brand { justify-content: center; padding-left: 0; padding-right: 0; }
+  .app-shell.sidebar-collapsed .brand-copy,
+  .app-shell.sidebar-collapsed .nav-section-label,
+  .app-shell.sidebar-collapsed .nav-label,
+  .app-shell.sidebar-collapsed .sidebar-footer {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .app-shell.sidebar-collapsed .sidebar-toggle { margin: 12px auto 18px; }
+  .app-shell.sidebar-collapsed .nav-item {
+    justify-content: center;
+    padding: 0;
+  }
+  .app-shell.sidebar-collapsed .nav-item.active { box-shadow: inset 0 -3px 0 var(--agent-blue); }
+
+  .workspace {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: minmax(360px, 1fr) auto;
+    align-items: center;
+    gap: 20px;
+    min-height: 72px;
+    padding: 14px 28px;
+    background: rgba(255,255,255,0.92);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(16px);
+  }
+
+  .command-wrap {
+    position: relative;
+    max-width: 680px;
+    min-width: 0;
+  }
+
+  .command-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: 0 1px 0 rgba(20,34,62,0.03);
+  }
+
+  .command-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 40;
+    display: none;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 18px 44px rgba(20, 34, 62, 0.14);
+  }
+
+  .command-wrap.is-open .command-menu { display: grid; gap: 4px; }
+
+  .command-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 36px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 7px;
+    color: var(--slate);
+    background: transparent;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .command-option:hover { color: var(--ink); background: var(--surface-soft); }
+  .command-option .icon { color: var(--agent-blue); }
+
+  .search-dot {
+    color: var(--agent-blue);
+    display: grid;
+    place-items: center;
+  }
+
+  .command-bar input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: var(--ink);
+    background: transparent;
+  }
+
+  .command-bar input::placeholder { color: var(--muted); }
+
+  .kbd {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--slate);
+    background: var(--surface-soft);
+    font-size: 11px;
+    font-weight: 650;
+  }
+
+  .status-cluster {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--slate);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .status-pill .icon { width: 14px; height: 14px; color: var(--agent-blue); }
+
+  .pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(25,169,116,0.32);
+    animation: pulse 2.2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(25,169,116,0.28); }
+    70% { box-shadow: 0 0 0 8px rgba(25,169,116,0); }
+    100% { box-shadow: 0 0 0 0 rgba(25,169,116,0); }
+  }
+
+  .main {
+    width: 100%;
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 26px 28px 36px;
+  }
+
+  .page-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+
+  .eyebrow {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  h1, h2, h3, p { margin: 0; }
+  h1 {
+    margin-top: 4px;
+    max-width: 760px;
+    color: var(--ink);
+    font-size: 34px;
+    line-height: 1.12;
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+
+  .heading-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-size: 13px;
+    font-weight: 650;
+    transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+  }
+
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { color: #fff; background: var(--agent-blue); box-shadow: 0 10px 22px rgba(47,109,246,0.18); }
+  .btn-primary:hover { background: var(--agent-blue-dark); }
+  .btn-secondary { color: var(--ink); background: #fff; border-color: var(--line-strong); }
+  .btn-quiet { color: var(--slate); background: var(--surface-soft); border-color: var(--line); }
+  .btn-danger { color: #883333; background: var(--red-soft); border-color: #f2c7c7; }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 326px;
+    gap: 20px;
+  }
+
+  .left-stack { display: grid; gap: 20px; min-width: 0; }
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: 0 1px 0 rgba(20,34,62,0.03);
+    backdrop-filter: blur(4px);
+  }
+
+  .hero-panel {
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+
+  .hero-panel::after {
+    content: "";
+    position: absolute;
+    inset: auto -80px -120px auto;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(47,109,246,0.12), transparent 68%);
+    pointer-events: none;
+  }
+
+  .briefing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 20px;
+    align-items: start;
+    position: relative;
+    z-index: 1;
+  }
+
+  .briefing-copy h2 {
+    max-width: 620px;
+    font-size: 26px;
+    line-height: 1.18;
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+
+  .briefing-copy p {
+    margin-top: 10px;
+    max-width: 650px;
+    color: var(--slate);
+  }
+
+  .briefing-list {
+    display: grid;
+    gap: 9px;
+    padding: 14px;
+    border-radius: 8px;
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+  }
+
+  .briefing-list strong { font-size: 13px; }
+  .briefing-list span { display: block; color: var(--slate); font-size: 12px; }
+
+  .briefing-chart {
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+
+  .chart-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .bar-chart {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    align-items: end;
+    height: 74px;
+  }
+
+  .bar {
+    position: relative;
+    min-height: 12px;
+    border-radius: 6px 6px 2px 2px;
+    background: linear-gradient(180deg, #77a2ff, var(--agent-blue));
+    transition: transform 160ms ease, filter 160ms ease;
+  }
+
+  .bar:hover { transform: translateY(-3px); filter: brightness(1.05); }
+  .bar::after {
+    content: attr(data-value);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 5px);
+    transform: translateX(-50%);
+    color: var(--ink);
+    font-size: 10px;
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+  .bar:hover::after { opacity: 1; }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 22px;
+  }
+
+  .metric-card {
+    min-height: 148px;
+    padding: 17px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .metric-label {
+    color: var(--slate);
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .metric-value {
+    margin-top: 12px;
+    font-size: 30px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  .metric-copy {
+    margin-top: 8px;
+    color: var(--slate);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .sparkline {
+    width: 100%;
+    height: 36px;
+    margin-top: 12px;
+    color: var(--agent-blue);
+  }
+
+  .sparkline path {
+    stroke: currentColor;
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .sparkline .area { fill: currentColor; opacity: 0.08; stroke: none; }
+
+  .mini-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 23px;
+    margin-top: 12px;
+    padding: 0 8px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .mini-badge.green { color: #127554; background: var(--green-soft); }
+  .mini-badge.amber { color: #935e0f; background: var(--amber-soft); }
+  .mini-badge.blue { color: #2458d5; background: #edf3ff; }
+  .mini-badge.violet { color: #5840cf; background: #f1edff; }
+
+  .section-panel { padding: 20px; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .section-title { font-size: 16px; font-weight: 650; }
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 1px; }
+  .tab {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-soft);
+    color: var(--slate);
+    font-size: 12px;
+    font-weight: 650;
+  }
+  .tab.active { color: var(--agent-blue); background: #edf3ff; border-color: #cddcff; }
+
+  .opportunity-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .opportunity-card {
+    display: grid;
+    gap: 14px;
+    min-height: 210px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  }
+
+  .opportunity-card:hover {
+    border-color: #c7d7ff;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgba(30, 54, 100, 0.09);
+  }
+
+  .opportunity-card.is-selected {
+    border-color: #9bb8ff;
+    box-shadow: 0 0 0 3px rgba(47,109,246,0.08);
+  }
+
+  .opportunity-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .category { color: var(--slate); font-size: 12px; font-weight: 700; }
+  .opportunity-card h3 { margin-top: 3px; font-size: 17px; line-height: 1.25; font-weight: 650; }
+  .impact { font-size: 22px; line-height: 1; font-weight: 700; color: var(--ink); }
+  .impact-label { margin-top: 4px; color: var(--slate); font-size: 12px; }
+
+  .confidence {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 7px;
+    background: var(--green-soft);
+    color: #127554;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .opp-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    color: var(--slate);
+    font-size: 12px;
+  }
+
+  .agent-note {
+    padding: 16px;
+    border: 1px solid #d8d1ff;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #fbfaff, #ffffff);
+  }
+
+  .agent-note strong { display: block; margin-bottom: 6px; font-size: 13px; }
+  .agent-note p { color: var(--slate); }
+
+  .segment-graphics {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .line-graph {
+    min-height: 164px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+
+  .line-graph svg { width: 100%; height: 96px; display: block; margin-top: 12px; }
+  .line-graph .gridline { stroke: #e8edf5; stroke-width: 1; }
+  .line-graph .series-a { stroke: var(--green); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .line-graph .series-b { stroke: var(--violet); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  .donut-card {
+    min-height: 164px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+  }
+
+  .donut {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    background:
+      conic-gradient(var(--agent-blue) 0 57%, var(--green) 57% 82%, var(--amber) 82% 100%);
+    position: relative;
+  }
+
+  .donut::after {
+    content: "143";
+    position: absolute;
+    inset: 15px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--ink);
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .legend { display: grid; gap: 8px; color: var(--slate); font-size: 12px; }
+  .legend span { display: flex; align-items: center; gap: 7px; }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .activity-panel {
+    position: sticky;
+    top: 92px;
+    height: fit-content;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .activity-list { display: grid; gap: 14px; }
+
+  .activity-row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+
+  .activity-icon {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: var(--green-soft);
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .activity-icon .icon { width: 13px; height: 13px; stroke-width: 3; }
+
+  .activity-icon.waiting {
+    background: var(--amber-soft);
+    color: var(--amber);
+  }
+
+  .activity-row strong { display: block; font-size: 13px; line-height: 1.3; }
+  .activity-row span { display: block; margin-top: 2px; color: var(--slate); font-size: 12px; line-height: 1.45; }
+
+  .guardrail-mini {
+    margin-top: 20px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-soft);
+  }
+
+  .guardrail-mini strong { font-size: 13px; }
+  .guardrail-mini ul { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; color: var(--slate); font-size: 12px; }
+
+  .approval-panel {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .approval-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 18px;
+  }
+
+  .proposal {
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-soft);
+  }
+
+  .proposal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 16px;
+  }
+
+  .proposal h2 { font-size: 20px; line-height: 1.25; font-weight: 650; }
+  .proposal-sub { margin-top: 6px; color: var(--slate); }
+
+  .proposal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .info-box {
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+
+  .info-box strong { display: block; margin-bottom: 6px; font-size: 13px; }
+  .info-box p, .info-box li { color: var(--slate); font-size: 12px; line-height: 1.48; }
+  .info-box ul { display: grid; gap: 5px; margin: 0; padding-left: 17px; }
+
+  .email-preview {
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .email-preview .label { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .subject {
+    margin: 8px 0 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+    font-size: 17px;
+    font-weight: 650;
+  }
+  .email-body { color: var(--slate); font-size: 13px; line-height: 1.55; }
+
+  .approval-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .calendar-strip {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .day {
+    min-height: 82px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    transition: border-color 160ms ease, transform 160ms ease;
+  }
+
+  .day:hover { border-color: #bcd0ff; transform: translateY(-2px); }
+
+  .day strong { display: block; font-size: 12px; margin-bottom: 8px; }
+  .day span { display: block; color: var(--slate); font-size: 12px; line-height: 1.35; }
+  .status-text { margin-top: 8px; font-weight: 700; color: var(--agent-blue); }
+
+  .toast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 340px;
+    padding: 12px 14px;
+    border: 1px solid #ccebdd;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    box-shadow: 0 18px 46px rgba(20, 34, 62, 0.18);
+    transform: translateY(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast .icon { color: var(--green); }
+
+  @media (max-width: 1180px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .activity-panel { position: static; }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 900px) {
+    .app-shell { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static;
+      height: auto;
+      padding: 14px;
+    }
+    .nav-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sidebar-footer { display: none; }
+    .topbar { position: static; grid-template-columns: 1fr; }
+    .status-cluster { justify-content: flex-start; }
+    .briefing, .approval-layout { grid-template-columns: 1fr; }
+    .opportunity-grid { grid-template-columns: 1fr; }
+    .calendar-strip { grid-template-columns: 1fr; }
+    .segment-graphics { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 640px) {
+    .topbar, .main { padding-left: 16px; padding-right: 16px; }
+    .page-heading { display: grid; }
+    h1 { font-size: 27px; }
+    .metrics, .proposal-grid { grid-template-columns: 1fr; }
+    .nav-list { grid-template-columns: 1fr; }
+    .command-bar { min-width: 0; }
+    .toast { left: 16px; right: 16px; bottom: 16px; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-command" viewBox="0 0 24 24"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0 0-6Z"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="m5.45 5.11-3.08 6.33A2 2 0 0 0 2.18 12v6a2 2 0 0 0 2 2h15.64a2 2 0 0 0 2-2v-6a2 2 0 0 0-.19-.56l-3.08-6.33A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M9 8V2M15 8V2"/><path d="M18 8v3a6 6 0 0 1-12 0V8Z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.37 1.05V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.05-.37H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .37-1.05V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.35.37.66.6 1 .3.15.67.37 1.05.37H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h8l-1 8 9-12h-8l1-8Z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M20 7V6a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v10H5a3 3 0 0 1-3-3V7"/><path d="M16 14h.01"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m20 6-11 11-5-5"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+  <symbol id="i-dollar" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/></symbol>
+</svg>
+
+<div class="app-shell" id="app-shell">
+  <aside class="sidebar" aria-label="Primary navigation">
+    <div class="brand">
+      <div class="brand-mark">R</div>
+      <div class="brand-copy">
+        <div class="brand-name">RevenueOS</div>
+        <div class="brand-meta">AI revenue operator</div>
+      </div>
+      <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true">
+        <svg class="icon"><use href="#i-menu"/></svg>
+      </button>
+    </div>
+
+    <div class="nav-section-label">Workspace</div>
+    <ul class="nav-list">
+      <li><button class="nav-item active" type="button" data-view="Command Center"><svg class="icon"><use href="#i-command"/></svg><span class="nav-label">Command Center</span></button></li>
+      <li><button class="nav-item" type="button" data-view="Approval Queue"><svg class="icon"><use href="#i-inbox"/></svg><span class="nav-label">Approval Queue</span></button></li>
+      <li><button class="nav-item" type="button" data-view="Opportunities"><svg class="icon"><use href="#i-target"/></svg><span class="nav-label">Opportunities</span></button></li>
+      <li><button class="nav-item" type="button" data-view="Campaign Calendar"><svg class="icon"><use href="#i-calendar"/></svg><span class="nav-label">Campaign Calendar</span></button></li>
+      <li><button class="nav-item" type="button" data-view="Performance"><svg class="icon"><use href="#i-chart"/></svg><span class="nav-label">Performance</span></button></li>
+      <li><button class="nav-item" type="button" data-view="Integrations"><svg class="icon"><use href="#i-plug"/></svg><span class="nav-label">Integrations</span></button></li>
+      <li><button class="nav-item" type="button" data-view="Brand & Guardrails"><svg class="icon"><use href="#i-shield"/></svg><span class="nav-label">Brand &amp; Guardrails</span></button></li>
+      <li><button class="nav-item" type="button" data-view="Agent Settings"><svg class="icon"><use href="#i-settings"/></svg><span class="nav-label">Agent Settings</span></button></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <strong>Guardrails active</strong>
+      <span>Monthly incentive pool, send frequency, and blackout windows are enforced before every send.</span>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <div class="command-wrap" id="command-wrap">
+        <label class="command-bar">
+          <span class="search-dot" aria-hidden="true"><svg class="icon"><use href="#i-search"/></svg></span>
+          <input id="agent-command" type="text" value="" placeholder="Search or ask the agent..." aria-label="Search or ask the agent">
+          <span class="kbd">Cmd K</span>
+        </label>
+        <div class="command-menu" id="command-menu" aria-label="Agent command suggestions">
+          <button class="command-option" type="button" data-command="Show failed payment recoveries only"><svg class="icon"><use href="#i-dollar"/></svg>Show failed payment recoveries only</button>
+          <button class="command-option" type="button" data-command="Create a softer version of this email"><svg class="icon"><use href="#i-mail"/></svg>Create a softer version of this email</button>
+          <button class="command-option" type="button" data-command="Lower incentive budget by 20%"><svg class="icon"><use href="#i-wallet"/></svg>Lower incentive budget by 20%</button>
+          <button class="command-option" type="button" data-command="Show me the best revenue opportunity today"><svg class="icon"><use href="#i-target"/></svg>Show me the best revenue opportunity today</button>
+        </div>
+      </div>
+      <div class="status-cluster">
+        <div class="status-pill"><span class="pulse"></span><svg class="icon"><use href="#i-bolt"/></svg>Agent status: Scanning Shopify + Stripe</div>
+        <div class="status-pill"><svg class="icon"><use href="#i-clock"/></svg>Last scan: 4 min ago</div>
+        <div class="status-pill"><svg class="icon"><use href="#i-wallet"/></svg>Budget used: $320 / $1,000</div>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="page-heading">
+        <div>
+          <div class="eyebrow">Command Center</div>
+          <h1>Your agent found $4,820 in recoverable revenue this week.</h1>
+        </div>
+        <div class="heading-actions">
+          <button class="btn btn-primary" id="review-actions"><svg class="icon"><use href="#i-inbox"/></svg>Review 7 actions</button>
+          <button class="btn btn-secondary" id="view-opportunities"><svg class="icon"><use href="#i-eye"/></svg>View opportunities</button>
+        </div>
+      </div>
+
+      <section class="dashboard-grid" aria-label="Revenue command center overview">
+        <div class="left-stack">
+          <div class="panel hero-panel">
+            <div class="briefing">
+              <div class="briefing-copy">
+                <div class="eyebrow">Agent Briefing</div>
+                <h2>Good morning. I found 4 things worth your attention.</h2>
+                <p>Failed payments can be recovered today, dormant buyers are ready for a win-back campaign, and your softer 10% offer is outperforming direct discount copy.</p>
+              </div>
+              <div class="briefing-list">
+                <strong>Best action today</strong>
+                <span>Approve dormant buyer reactivation. Estimated recovery is $2,900 with low budget risk.</span>
+                <strong>Highest ROI segment</strong>
+                <span>Failed payment recovery, no incentive cost, $860 expected.</span>
+                <div class="briefing-chart">
+                  <div class="chart-caption"><span>Recovered revenue</span><span>This week</span></div>
+                  <div class="bar-chart" aria-label="Recovered revenue by day">
+                    <span class="bar" style="height:34%" data-value="$410"></span>
+                    <span class="bar" style="height:48%" data-value="$620"></span>
+                    <span class="bar" style="height:41%" data-value="$530"></span>
+                    <span class="bar" style="height:68%" data-value="$910"></span>
+                    <span class="bar" style="height:58%" data-value="$760"></span>
+                    <span class="bar" style="height:82%" data-value="$1.2k"></span>
+                    <span class="bar" style="height:74%" data-value="$1.0k"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="metrics">
+              <article class="metric-card">
+                <div class="metric-label">Revenue recovered</div>
+                <div class="metric-value">$12,480</div>
+                <div class="metric-copy">Recovered this month</div>
+                <svg class="sparkline" viewBox="0 0 160 38" aria-hidden="true">
+                  <path class="area" d="M2 30 C22 26 30 28 44 20 S70 16 84 19 111 9 128 11 148 5 158 7 V38 H2Z"/>
+                  <path d="M2 30 C22 26 30 28 44 20 S70 16 84 19 111 9 128 11 148 5 158 7"/>
+                </svg>
+                <div class="mini-badge green">+18% vs last month</div>
+              </article>
+              <article class="metric-card">
+                <div class="metric-label">Pending approvals</div>
+                <div class="metric-value">7</div>
+                <div class="metric-copy">Actions waiting for review</div>
+                <svg class="sparkline" viewBox="0 0 160 38" aria-hidden="true" style="color:var(--amber)">
+                  <path class="area" d="M2 18 C24 15 35 24 52 14 S82 18 99 12 126 16 158 10 V38 H2Z"/>
+                  <path d="M2 18 C24 15 35 24 52 14 S82 18 99 12 126 16 158 10"/>
+                </svg>
+                <div class="mini-badge amber">$4,820 estimated impact</div>
+              </article>
+              <article class="metric-card">
+                <div class="metric-label">Active opportunities</div>
+                <div class="metric-value">143</div>
+                <div class="metric-copy">Dormant: 82 · Upsell-ready: 41 · Failed payment: 20</div>
+                <svg class="sparkline" viewBox="0 0 160 38" aria-hidden="true">
+                  <path class="area" d="M2 26 L18 22 L34 25 L50 19 L66 21 L82 15 L98 18 L114 10 L130 12 L158 8 V38 H2Z"/>
+                  <path d="M2 26 L18 22 L34 25 L50 19 L66 21 L82 15 L98 18 L114 10 L130 12 L158 8"/>
+                </svg>
+                <div class="mini-badge blue">Customers detected</div>
+              </article>
+              <article class="metric-card">
+                <div class="metric-label">Agent confidence</div>
+                <div class="metric-value">High</div>
+                <div class="metric-copy">Based on 2,431 orders + 518 email interactions</div>
+                <svg class="sparkline" viewBox="0 0 160 38" aria-hidden="true" style="color:var(--violet)">
+                  <path class="area" d="M2 24 C18 22 27 17 44 18 S70 11 84 15 112 8 128 10 144 8 158 6 V38 H2Z"/>
+                  <path d="M2 24 C18 22 27 17 44 18 S70 11 84 15 112 8 128 10 144 8 158 6"/>
+                </svg>
+                <div class="mini-badge violet">Purchase + engagement signals</div>
+              </article>
+            </div>
+          </div>
+
+          <section class="panel section-panel" aria-label="Priority opportunities">
+            <div class="section-header">
+              <h2 class="section-title">Priority Opportunities</h2>
+              <div class="tabs" aria-label="Opportunity filters">
+                <span class="tab active">High impact</span>
+                <span class="tab">No incentive</span>
+                <span class="tab">Failed payments</span>
+                <span class="tab">Dormant buyers</span>
+              </div>
+            </div>
+
+            <div class="opportunity-grid" id="opportunity-grid">
+              <article class="opportunity-card is-selected" data-opportunity="dormant">
+                <div class="opportunity-top">
+                  <div>
+                    <div class="category">Dormant buyers</div>
+                    <h3>Win back 82 previous customers</h3>
+                  </div>
+                  <span class="confidence">High confidence</span>
+                </div>
+                <div>
+                  <div class="impact">$2,900</div>
+                  <div class="impact-label">estimated recovery</div>
+                </div>
+                <div class="opp-footer">
+                  <span>Ready to approve</span>
+                  <button class="btn btn-quiet"><svg class="icon"><use href="#i-arrow"/></svg>Review action</button>
+                </div>
+              </article>
+
+              <article class="opportunity-card" data-opportunity="payments">
+                <div class="opportunity-top">
+                  <div>
+                    <div class="category">Failed payments</div>
+                    <h3>Recover 20 failed payment events</h3>
+                  </div>
+                  <span class="confidence">High confidence</span>
+                </div>
+                <div>
+                  <div class="impact">$860</div>
+                  <div class="impact-label">no incentive cost</div>
+                </div>
+                <div class="opp-footer">
+                  <span>Guardrails clear</span>
+                  <button class="btn btn-quiet"><svg class="icon"><use href="#i-arrow"/></svg>Open details</button>
+                </div>
+              </article>
+
+              <article class="opportunity-card" data-opportunity="upsell">
+                <div class="opportunity-top">
+                  <div>
+                    <div class="category">Upsell-ready customers</div>
+                    <h3>Offer bundles to 41 repeat buyers</h3>
+                  </div>
+                  <span class="confidence">Medium confidence</span>
+                </div>
+                <div>
+                  <div class="impact">$1,060</div>
+                  <div class="impact-label">estimated pipeline</div>
+                </div>
+                <div class="opp-footer">
+                  <span>Needs copy review</span>
+                  <button class="btn btn-quiet"><svg class="icon"><use href="#i-mail"/></svg>Review draft</button>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel section-panel" aria-label="Agent observations">
+            <div class="section-header">
+              <h2 class="section-title">Agent Observations</h2>
+              <span class="mini-badge blue">Updated 4 min ago</span>
+            </div>
+            <div class="agent-note">
+              <strong>Why I recommend this:</strong>
+              <p>Customers who bought Product A are responding better to friendly reactivation messages than direct urgency copy. The 10% offer converted 24% better than gift cards while staying inside the monthly incentive pool.</p>
+            </div>
+
+            <div class="segment-graphics">
+              <div class="line-graph">
+                <div class="chart-caption"><span>What worked this week</span><span>Friendly tone vs direct tone</span></div>
+                <svg viewBox="0 0 420 96" aria-label="Tone performance chart">
+                  <path class="gridline" d="M0 80H420M0 50H420M0 20H420"/>
+                  <path class="series-b" d="M4 70 C54 63 75 58 112 55 S178 48 214 46 278 39 321 35 380 30 416 25"/>
+                  <path class="series-a" d="M4 72 C48 62 78 45 112 43 S174 32 214 31 280 24 321 18 382 14 416 10"/>
+                </svg>
+                <div class="legend" style="grid-template-columns:1fr 1fr;display:grid">
+                  <span><i style="background:var(--green)"></i>Friendly tone +24% clicks</span>
+                  <span><i style="background:var(--violet)"></i>Direct tone baseline</span>
+                </div>
+              </div>
+              <div class="donut-card">
+                <div class="donut" aria-label="Opportunity segment split"></div>
+                <div>
+                  <div class="chart-caption" style="margin-bottom:10px"><span>Opportunity mix</span></div>
+                  <div class="legend">
+                    <span><i style="background:var(--agent-blue)"></i>82 dormant buyers</span>
+                    <span><i style="background:var(--green)"></i>41 upsell-ready</span>
+                    <span><i style="background:var(--amber)"></i>20 failed payments</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="calendar-strip" aria-label="Campaign calendar preview">
+              <div class="day"><strong>Mon</strong><span>Failed payment recovery sent</span><span class="status-text">Sent</span></div>
+              <div class="day"><strong>Tue</strong><span>Dormant buyers campaign scheduled</span><span class="status-text">Scheduled</span></div>
+              <div class="day"><strong>Wed</strong><span>No campaigns — blackout window</span><span class="status-text">Blocked by guardrail</span></div>
+              <div class="day"><strong>Thu</strong><span>Upsell-ready customers pending approval</span><span class="status-text">Needs approval</span></div>
+              <div class="day"><strong>Fri</strong><span>Weekly performance digest generated</span><span class="status-text">Generated</span></div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="panel activity-panel" aria-label="Agent activity">
+          <div class="activity-header">
+            <h2 class="section-title">Agent Activity</h2>
+            <span class="mini-badge green">Active</span>
+          </div>
+
+          <div class="activity-list">
+            <div class="activity-row">
+              <div class="activity-icon"><svg class="icon"><use href="#i-check"/></svg></div>
+              <div><strong>Scanned 2,431 Shopify orders</strong><span>Matched order history to recency, value, and repeat behavior.</span></div>
+            </div>
+            <div class="activity-row">
+              <div class="activity-icon"><svg class="icon"><use href="#i-check"/></svg></div>
+              <div><strong>Detected 82 dormant buyers</strong><span>Inactive for 60+ days with prior purchase intent.</span></div>
+            </div>
+            <div class="activity-row">
+              <div class="activity-icon"><svg class="icon"><use href="#i-check"/></svg></div>
+              <div><strong>Found 20 failed payment events</strong><span>Recovery campaign requires no incentive budget.</span></div>
+            </div>
+            <div class="activity-row">
+              <div class="activity-icon"><svg class="icon"><use href="#i-check"/></svg></div>
+              <div><strong>Drafted 7 campaigns</strong><span>Copy generated using your approved brand tone.</span></div>
+            </div>
+            <div class="activity-row">
+              <div class="activity-icon waiting">•</div>
+              <div><strong>Waiting for your approval</strong><span>No commercial action will send until you approve it.</span></div>
+            </div>
+          </div>
+
+          <div class="guardrail-mini">
+            <strong>Guardrails active</strong>
+            <ul>
+              <li>✓ Monthly budget cap respected</li>
+              <li>✓ Send frequency respected</li>
+              <li>✓ No blackout window conflict</li>
+            </ul>
+          </div>
+        </aside>
+      </section>
+
+      <section class="approval-panel" aria-label="Approval queue preview">
+        <div class="section-header">
+          <div>
+            <div class="eyebrow">Approval Queue Preview</div>
+            <h2 class="section-title">Dormant customer reactivation</h2>
+          </div>
+          <div class="tabs">
+            <span class="tab active">High impact</span>
+            <span class="tab">No incentive</span>
+            <span class="tab">Failed payments</span>
+            <span class="tab">Dormant buyers</span>
+          </div>
+        </div>
+
+        <div class="approval-layout">
+          <div class="proposal">
+            <div class="proposal-head">
+              <div>
+                <h2>Dormant customer reactivation</h2>
+                <p class="proposal-sub">82 customers · Email campaign · $2,900 estimated recovery</p>
+              </div>
+              <span class="confidence">High confidence</span>
+            </div>
+
+            <div class="proposal-grid">
+              <div class="info-box">
+                <strong>Why this matters</strong>
+                <p>These customers bought in the past but have been inactive for 60+ days. Similar customers converted with a 10% incentive.</p>
+              </div>
+              <div class="info-box">
+                <strong>What the agent will do</strong>
+                <p>Send a friendly win-back email personalized by previous purchase category and engagement history.</p>
+              </div>
+              <div class="info-box">
+                <strong>Expected impact</strong>
+                <p>$2,900 estimated recovery from 82 customers, based on $72 average order value and prior repeat behavior.</p>
+              </div>
+              <div class="info-box">
+                <strong>Cost and guardrails</strong>
+                <p>10% discount · Low cost risk · Budget impact: $180 / $1,000 monthly pool.</p>
+              </div>
+              <div class="info-box">
+                <strong>Agent reasoning</strong>
+                <ul>
+                  <li>Detected dormant pattern</li>
+                  <li>Checked previous purchase value</li>
+                  <li>Verified budget availability</li>
+                  <li>Generated email copy</li>
+                  <li>Waiting for approval</li>
+                </ul>
+              </div>
+              <div class="info-box">
+                <strong>Guardrail status</strong>
+                <ul>
+                  <li>Monthly incentive pool respected</li>
+                  <li>Send frequency respected</li>
+                  <li>No blackout window conflict</li>
+                  <li>Brand tone matches approved profile</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <aside class="email-preview">
+            <div class="label">Email preview</div>
+            <div class="subject">We saved something for you</div>
+            <p class="email-body">Hi Sarah,<br><br>You previously purchased from our studio, and I wanted to share something that fits the collection you explored last time. Here is 10% off your next order, saved for this week only.<br><br>Warmly,<br>The team</p>
+            <div class="approval-actions">
+              <button class="btn btn-secondary" id="edit-copy"><svg class="icon"><use href="#i-mail"/></svg>Edit</button>
+              <button class="btn btn-danger" id="dismiss-action">Dismiss</button>
+              <button class="btn btn-primary" id="approve-send"><svg class="icon"><use href="#i-check"/></svg>Approve &amp; Send</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <svg class="icon"><use href="#i-check"/></svg>
+  <span id="toast-text">Action approved.</span>
+</div>
+<script>
+  const shell = document.getElementById('app-shell');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  const commandWrap = document.getElementById('command-wrap');
+  const commandInput = document.getElementById('agent-command');
+  const toast = document.getElementById('toast');
+  const toastText = document.getElementById('toast-text');
+  let toastTimer;
+
+  function showToast(message) {
+    toastText.textContent = message;
+    toast.classList.add('show');
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+
+  sidebarToggle.addEventListener('click', () => {
+    const collapsed = shell.classList.toggle('sidebar-collapsed');
+    sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+    sidebarToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+  });
+
+  document.querySelectorAll('.nav-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+      item.classList.add('active');
+      showToast(`${item.dataset.view} selected`);
+    });
+  });
+
+  commandWrap.addEventListener('click', () => commandWrap.classList.add('is-open'));
+  commandInput.addEventListener('focus', () => commandWrap.classList.add('is-open'));
+  commandInput.addEventListener('input', () => commandWrap.classList.add('is-open'));
+  document.addEventListener('click', (event) => {
+    if (!commandWrap.contains(event.target)) commandWrap.classList.remove('is-open');
+  });
+  document.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      commandInput.focus();
+      commandWrap.classList.add('is-open');
+    }
+    if (event.key === 'Escape') commandWrap.classList.remove('is-open');
+  });
+
+  document.querySelectorAll('.command-option').forEach((option) => {
+    option.addEventListener('click', () => {
+      commandInput.value = option.dataset.command;
+      commandWrap.classList.remove('is-open');
+      showToast('Agent command queued for review.');
+    });
+  });
+
+  document.querySelectorAll('.tabs .tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const group = tab.parentElement;
+      group.querySelectorAll('.tab').forEach(item => item.classList.remove('active'));
+      tab.classList.add('active');
+      showToast(`${tab.textContent.trim()} filter applied`);
+    });
+  });
+
+  document.querySelectorAll('.opportunity-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.opportunity-card').forEach(item => item.classList.remove('is-selected'));
+      card.classList.add('is-selected');
+      showToast('Opportunity selected. Approval preview updated.');
+    });
+  });
+
+  document.getElementById('review-actions').addEventListener('click', () => {
+    document.querySelector('.approval-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  document.getElementById('view-opportunities').addEventListener('click', () => {
+    document.querySelector('[aria-label="Priority opportunities"]').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  document.getElementById('approve-send').addEventListener('click', (event) => {
+    event.currentTarget.innerHTML = '<svg class="icon"><use href="#i-check"/></svg>Approved';
+    event.currentTarget.disabled = true;
+    showToast('Campaign approved. The agent will send after final guardrail check.');
+  });
+
+  document.getElementById('edit-copy').addEventListener('click', () => {
+    document.querySelector('.subject').textContent = 'A small thank-you, saved for you';
+    document.querySelector('.email-body').innerHTML = 'Hi Sarah,<br><br>Thanks again for your previous order. I picked a small offer that fits what you liked last time: 10% off your next purchase this week.<br><br>Warmly,<br>The team';
+    showToast('Softer email version generated.');
+  });
+
+  document.getElementById('dismiss-action').addEventListener('click', () => {
+    document.querySelector('.proposal').style.opacity = '0.55';
+    showToast('Action dismissed from this queue.');
+  });
+</script>
+</body>
+</html>

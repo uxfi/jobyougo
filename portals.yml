@@ -1,3 +1,6 @@
+# Max age of jobs to consider in a scan (days). Older jobs are dropped.
+scan_max_age_days: 7
+
 title_filter:
   positive:
     - AI Product
@@ -32,6 +35,11 @@ title_filter:
     - Design Lead
     - Head of Design
     - Head of Product
+    - Freelance
+    - Mission
+    - Contract
+    - Consultant
+    - Fractional
   negative:
     - Junior
     - Intern
@@ -86,6 +94,101 @@ remote_filter:
     - remote-first
     - work from anywhere
     - distributed
+  allowed_geo_any:
+    - worldwide
+    - global
+    - work from anywhere
+    - anywhere in the world
+    - europe
+    - european
+    - european union
+    - eu
+    - eea
+    - emea
+    - asia
+    - apac
+    - asean
+    - singapore
+    - hong kong
+    - japan
+    - thailand
+    - dubai
+    - uae
+    # — Europe (countries + demonyms) —
+    - united kingdom
+    - uk
+    - britain
+    - england
+    - scotland
+    - ireland
+    - germany
+    - france
+    - spain
+    - italy
+    - netherlands
+    - portugal
+    - poland
+    - sweden
+    - denmark
+    - norway
+    - finland
+    - belgium
+    - austria
+    - switzerland
+    - czechia
+    - romania
+    - greece
+    - hungary
+    - estonia
+    - lithuania
+    - latvia
+    - luxembourg
+    - croatia
+    - bulgaria
+    - slovakia
+    - slovenia
+    - serbia
+    - ukraine
+    - cyprus
+    - malta
+    # — Europe (major cities) —
+    - london
+    - berlin
+    - munich
+    - paris
+    - amsterdam
+    - madrid
+    - barcelona
+    - lisbon
+    - dublin
+    - milan
+    - stockholm
+    - copenhagen
+    - warsaw
+    - prague
+    - vienna
+    - zurich
+    - brussels
+    # — Asia / APAC (countries + cities) —
+    - india
+    - indonesia
+    - vietnam
+    - philippines
+    - malaysia
+    - taiwan
+    - south korea
+    - korea
+    - israel
+    - turkey
+    - bangalore
+    - bengaluru
+    - mumbai
+    - manila
+    - jakarta
+    - taipei
+    - seoul
+    - tel aviv
+    - istanbul
   rejected_any:
     - hybrid
     - on-site
@@ -95,99 +198,281 @@ remote_filter:
     - relocation
     - must be located
     - commutable
-  ambiguous_policy: skip
+  rejected_geo_any:
+    - us only
+    - usa only
+    - united states only
+    - remote us
+    - remote usa
+    - remote united states
+    - us remote
+    - usa remote
+    - united states remote
+    - canada only
+    - remote canada
+    - canada
+    - latam
+    - latin america
+    - south america
+    - americas
+    - north america
+  ambiguous_policy: keep
 search_queries:
   - name: Ashby — AI PM EU
-    query: 'site:jobs.ashbyhq.com ("AI Product Manager" OR "Head of AI" OR "Senior Product Manager AI") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    query: >-
+      site:jobs.ashbyhq.com ("AI Product Manager" OR "Head of AI" OR "Senior Product Manager AI") ("full remote" OR
+      "fully remote" OR remote) (Europe OR EMEA OR EU)
     enabled: true
   - name: Ashby — Solutions Architect EU
-    query: 'site:jobs.ashbyhq.com ("Solutions Architect" OR "Forward Deployed") AI ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    query: >-
+      site:jobs.ashbyhq.com ("Solutions Architect" OR "Forward Deployed") AI ("full remote" OR "fully remote" OR remote)
+      (Europe OR EMEA OR EU)
     enabled: true
   - name: Ashby — Agentic EU
-    query: 'site:jobs.ashbyhq.com ("Agentic" OR "AI Agent" OR "Automation") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    query: >-
+      site:jobs.ashbyhq.com ("Agentic" OR "AI Agent" OR "Automation") ("full remote" OR "fully remote" OR remote)
+      (Europe OR EMEA OR EU)
     enabled: true
   - name: Lever — AI PM EU
-    query: 'site:jobs.lever.co ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" AI) ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    query: >-
+      site:jobs.lever.co ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" AI) ("full remote" OR "fully
+      remote" OR remote) (Europe OR EMEA OR EU)
     enabled: true
   - name: Lever — FDE EU
-    query: 'site:jobs.lever.co ("Forward Deployed" OR "Deployed Engineer") AI ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    query: >-
+      site:jobs.lever.co ("Forward Deployed" OR "Deployed Engineer") AI ("full remote" OR "fully remote" OR remote)
+      (Europe OR EMEA OR EU)
     enabled: true
   - name: WTTJ — AI Product
-    query: 'site:welcometothejungle.com ("AI Product Manager" OR "Head of AI" OR "Product Manager AI") ("full remote" OR "fully remote" OR remote)'
-    enabled: true
+    query: >-
+      site:welcometothejungle.com ("AI Product Manager" OR "Head of AI" OR "Product Manager AI") ("full remote" OR
+      "fully remote" OR remote)
+    enabled: false
   - name: WTTJ — Solutions & FDE
-    query: 'site:welcometothejungle.com ("Solutions Architect" OR "Forward Deployed" OR "AI Engineer" OR "Agentic") ("full remote" OR "fully remote" OR remote)'
-    enabled: true
+    query: >-
+      site:welcometothejungle.com ("Solutions Architect" OR "Forward Deployed" OR "AI Engineer" OR "Agentic") ("full
+      remote" OR "fully remote" OR remote)
+    enabled: false
   - name: WTTJ — Automation
-    query: 'site:welcometothejungle.com ("Automation" OR "LLM" OR "GenAI") senior ("full remote" OR "fully remote" OR remote)'
-    enabled: true
+    query: site:welcometothejungle.com ("Automation" OR "LLM" OR "GenAI") senior ("full remote" OR "fully remote" OR remote)
+    enabled: false
   - name: JobsDB — AI Roles SG/TH
-    query: 'site:sg.jobsdb.com OR site:th.jobsdb.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Product Manager AI" OR "AI Engineer" OR "Forward Deployed" OR "Agentic" OR "LLM") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:sg.jobsdb.com OR site:th.jobsdb.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Product
+      Manager AI" OR "AI Engineer" OR "Forward Deployed" OR "Agentic" OR "LLM") ("full remote" OR "fully remote" OR
+      remote)
     enabled: true
   - name: Jora SG — AI Roles
-    query: 'site:sg.jora.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "AI Engineer" OR "Forward Deployed" OR "Agentic" OR "LLM" OR "Product Manager AI") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:sg.jora.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "AI Engineer" OR "Forward Deployed" OR
+      "Agentic" OR "LLM" OR "Product Manager AI") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: Wellfound — AI PM & FDE remote
-    query: 'site:wellfound.com ("AI Product Manager" OR "Head of AI" OR "Forward Deployed") ("full remote" OR "fully remote" OR remote) Europe'
-    enabled: true
-  - name: Remotive — AI Product & Automation
-    query: 'site:remotive.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Automation") ("full remote" OR "fully remote" OR remote)'
-    enabled: true
+    query: >-
+      site:wellfound.com ("AI Product Manager" OR "Head of AI" OR "Forward Deployed") ("full remote" OR "fully remote"
+      OR remote) Europe
+    enabled: false
+  - name: Remotive Search — AI Product & Automation
+    query: >-
+      site:remotive.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Automation") ("full remote" OR "fully
+      remote" OR remote)
+    enabled: false
   - name: Indeed EU — AI PM
-    query: 'site:fr.indeed.com OR site:de.indeed.com ("AI Product Manager" OR "Head of AI" OR "Solutions Architect") ("full remote" OR "fully remote" OR remote) 2026'
-    enabled: true
+    query: >-
+      site:fr.indeed.com OR site:de.indeed.com ("AI Product Manager" OR "Head of AI" OR "Solutions Architect") ("full
+      remote" OR "fully remote" OR remote) 2026
+    enabled: false
   - name: Voice AI EU — FDE & SA
-    query: '("Voice AI" OR "Conversational AI") ("Solutions Architect" OR "Forward Deployed") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU) 2026'
+    query: >-
+      ("Voice AI" OR "Conversational AI") ("Solutions Architect" OR "Forward Deployed") ("full remote" OR "fully remote"
+      OR remote) (Europe OR EMEA OR EU) 2026
     enabled: true
   - name: FDE EU — All portals
-    query: '("Forward Deployed Engineer" OR "Deployed Engineer") AI ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU) (site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:welcometothejungle.com)'
+    query: >-
+      ("Forward Deployed Engineer" OR "Deployed Engineer") AI ("full remote" OR "fully remote" OR remote) (Europe OR
+      EMEA OR EU) (site:jobs.ashbyhq.com OR site:jobs.lever.co OR site:welcometothejungle.com)
     enabled: true
   - name: Indeed Asia — AI Product & PM (SG/TH/HK/JP)
-    query: 'site:sg.indeed.com OR site:th.indeed.com OR site:hk.indeed.com ("AI Product Manager" OR "Head of AI" OR "Product Manager AI" OR "Solutions Architect") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:sg.indeed.com OR site:th.indeed.com OR site:hk.indeed.com ("AI Product Manager" OR "Head of AI" OR "Product
+      Manager AI" OR "Solutions Architect") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: Indeed Asia — FDE & AI Engineer (SG/TH/HK)
-    query: 'site:sg.indeed.com OR site:th.indeed.com OR site:hk.indeed.com ("Forward Deployed" OR "AI Engineer" OR "Agentic" OR "LLM") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:sg.indeed.com OR site:th.indeed.com OR site:hk.indeed.com ("Forward Deployed" OR "AI Engineer" OR "Agentic"
+      OR "LLM") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: Indeed Japan — AI Roles
-    query: 'site:jp.indeed.com ("AI Product" OR "Solutions Architect" OR "Forward Deployed" OR "AI Engineer") English ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:jp.indeed.com ("AI Product" OR "Solutions Architect" OR "Forward Deployed" OR "AI Engineer") English ("full
+      remote" OR "fully remote" OR remote)
     enabled: true
   - name: RemoteFront — AI & Automation
-    query: 'site:remotefront.com ("AI Engineer" OR "Solutions Engineer" OR "Automation" OR "LLM" OR "Agent") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:remotefront.com ("AI Engineer" OR "Solutions Engineer" OR "Automation" OR "LLM" OR "Agent") ("full remote" OR
+      "fully remote" OR remote)
     enabled: true
   - name: Ashby — UX/UI & Product Designer EU
-    query: 'site:jobs.ashbyhq.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    query: >-
+      site:jobs.ashbyhq.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head
+      of Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)
     enabled: true
   - name: Lever — UX/UI & Product Designer EU
-    query: 'site:jobs.lever.co ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    query: >-
+      site:jobs.lever.co ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of
+      Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)
     enabled: true
   - name: Greenhouse — UX/UI & Product Designer EU
-    query: 'site:job-boards.greenhouse.io ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)'
+    query: >-
+      site:job-boards.greenhouse.io ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR
+      "Head of Design") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)
     enabled: true
   - name: WTTJ — UX/UI & Product Designer
-    query: 'site:welcometothejungle.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:welcometothejungle.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR
+      "Head of Design") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: Remotive — UX/UI & Product Designer
-    query: 'site:remotive.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:remotive.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead") ("full
+      remote" OR "fully remote" OR remote)
     enabled: true
   - name: Wellfound — UX/UI & Product Designer remote
-    query: 'site:wellfound.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design") ("full remote" OR "fully remote" OR remote) Europe'
+    query: >-
+      site:wellfound.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX/UI" OR "Design Lead" OR "Head of
+      Design") ("full remote" OR "fully remote" OR remote) Europe
     enabled: true
   - name: UI/UX Jobs Board — Remote Design
-    query: 'site:uiuxjobsboard.com ("Product Designer" OR "UX Designer" OR "UI Designer" OR "UX/UI" OR "Design Lead" OR "Head of Design" OR "AI Designer") remote'
+    query: >-
+      site:uiuxjobsboard.com ("Product Designer" OR "UX Designer" OR "UI Designer" OR "UX/UI" OR "Design Lead" OR "Head
+      of Design" OR "AI Designer") remote
     enabled: true
+  - name: Skima AI — AI Product & Design
+    query: >-
+      site:skima.ai ("AI Product Manager" OR "Product Designer" OR "Head of AI" OR "Solutions Architect" OR "UX
+      Designer" OR "Automation" OR "LLM") ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: Niche AI/ML job board. Curated listings, strong signal-to-noise ratio for AI roles.
+  - name: Built In — AI Product & Design Remote
+    query: >-
+      site:builtin.com ("AI Product Manager" OR "Product Designer" OR "Head of AI" OR "Solutions Architect" OR "UX
+      Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: Tech company profiles with culture & stack details. Good for AI startups and scaleups.
+  - name: GrepJob — AI Product Remote
+    query: >-
+      site:grepjob.com ("AI Product" OR "Product Manager" OR "Product Designer" OR "Solutions Architect" OR "Head of AI"
+      OR "Automation") ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: Emerging curated board. Often surfaces quality roles missed by larger aggregators.
+  - name: HiringCafe — AI Product Remote
+    query: >-
+      site:hiring.cafe ("AI Product" OR "Product Manager" OR "Product Designer" OR "Solutions Architect" OR "Automation"
+      OR "LLM") ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: Emerging board with strong AI/tech curation. Frequently cited on Reddit for quality signal.
+  - name: Uxcel Jobs — UX & Product Design Remote
+    query: >-
+      site:jobs.uxcel.com ("Product Designer" OR "UX Designer" OR "UX Researcher" OR "UX Lead" OR "Head of Design" OR
+      "AI Designer") ("full remote" OR "fully remote" OR remote)
+    enabled: false
+    notes: 0 résultats Google — site trop peu indexé. Désactivé pour économiser les crédits SearchAPI.
+  - name: IxDA Jobs — Interaction Design Remote
+    query: >-
+      site:ixda.org ("Product Designer" OR "UX Designer" OR "Interaction Designer" OR "Design Lead" OR "Head of Design")
+      ("full remote" OR "fully remote" OR remote)
+    enabled: false
+    notes: 0 résultats après filtre — site pas assez indexé par Google. Désactivé.
+  - name: Behance Jobs — Creative & Product Design
+    query: >-
+      site:behance.net/joblist ("Product Designer" OR "UX Designer" OR "UI Designer" OR "Design Lead" OR "Head of
+      Design" OR "AI Designer") ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: Adobe/Behance creative job board. Strong for senior design and UX roles globally.
+  - name: Coroflot — Product & UX Design Remote
+    query: >-
+      site:coroflot.com ("Product Designer" OR "UX Designer" OR "UI Designer" OR "Design Lead" OR "Head of Design")
+      ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: One of the largest design-only boards. Portfolio-integrated, global reach.
+  - name: AIGA Design Jobs — Product & UX Remote
+    query: >-
+      site:designjobs.aiga.org ("Product Designer" OR "UX Designer" OR "UI Designer" OR "Design Lead" OR "Head of
+      Design" OR "UX Researcher") ("full remote" OR "fully remote" OR remote)
+    enabled: false
+    notes: 0 résultats Google — site non indexé utilisablement. Désactivé.
+  - name: The Dots — Creative & Design EU
+    query: >-
+      site:the-dots.com ("Product Designer" OR "UX Designer" OR "UI Designer" OR "Design Lead" OR "AI Designer" OR "Head
+      of Design") ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: UK-origin creative & design platform. Strong for EU remote creative and product design roles.
+  - name: Design Systems Jobs — Remote
+    query: >-
+      site:designsystems.jobs ("Design Systems" OR "Design Engineer" OR "UI Engineer" OR "Frontend Designer" OR
+      "Component Library" OR "Tokens") ("full remote" OR "fully remote" OR remote)
+    enabled: false
+    notes: 1 résultat Google — site trop niche pour être indexé. Désactivé.
+  - name: Smashing Magazine Jobs — Design Engineer
+    query: >-
+      site:smashingmagazine.com/jobs ("Design Engineer" OR "UI Engineer" OR "Frontend Designer" OR "Product Designer" OR
+      "UX Engineer" OR "Design Systems") ("full remote" OR "fully remote" OR remote)
+    enabled: false
+    notes: 2 résultats, 0 après filtre — peu d'offres actives. Désactivé.
+  - name: 4 Day Week — AI Product & Design
+    query: >-
+      site:4dayweek.io ("AI Product" OR "Product Manager" OR "Product Designer" OR "UX Designer" OR "Head of AI" OR
+      "Solutions Architect" OR "Automation") remote
+    enabled: true
+    notes: Curated 4-day workweek jobs. Strong quality signal — only progressive, async-friendly companies.
+  - name: Remote100K — AI Product & Design
+    query: >-
+      site:remote100k.com ("AI Product" OR "Product Manager" OR "Product Designer" OR "UX Designer" OR "Head of AI" OR
+      "Solutions Architect") remote
+    enabled: true
+    notes: Remote jobs >$100k/yr. Salary-quality filter for senior roles. US & global companies.
+  - name: Working Nomads Search — AI Product & Design
+    query: >-
+      site:workingnomads.com ("AI Product" OR "Product Manager" OR "Product Designer" OR "UX Designer" OR "Solutions
+      Architect" OR "Automation") remote
+    enabled: false
+    notes: Remote-first board. Good product & design coverage. Nomad-friendly companies.
+  - name: Just Remote — AI Product & Design
+    query: >-
+      site:justremote.co ("AI Product" OR "Product Manager" OR "Product Designer" OR "UX Designer" OR "Head of AI" OR
+      "Solutions Architect") remote
+    enabled: false
+    notes: Remote-only board. Good signal for fully distributed companies.
+  - name: NoDesk — AI Product & Design Remote
+    query: >-
+      site:nodesk.co ("AI Product" OR "Product Manager" OR "Product Designer" OR "UX Designer" OR "Automation" OR
+      "Solutions Architect") remote
+    enabled: false
+    notes: Curated remote jobs. Quality over volume.
+  - name: 80,000 Hours — AI & Tech Impact
+    query: >-
+      site:80000hours.org/job-board ("AI" OR "Product Manager" OR "Product Designer" OR "Solutions Architect" OR
+      "Research" OR "Automation") remote
+    enabled: true
+    notes: >-
+      Effective altruism career board. Rare but exceptional signal — AI safety, research, and product roles at
+      high-impact orgs.
+  - name: Tech Jobs for Good — AI & Product
+    query: >-
+      site:techjobsforgood.com ("AI Product" OR "Product Manager" OR "Product Designer" OR "UX Designer" OR "Solutions
+      Architect" OR "Automation") ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: Tech + social impact. B-corps, NGOs, mission-driven startups. Values-aligned roles.
 tracked_companies:
-  # ── Aggregator portals (Playwright on search results pages) ──
   - name: JobsDB TH — AI Remote
-    careers_url: https://th.jobsdb.com/jobs?q=AI+Product+Manager&worktype=remote  # ⚠️ verify URL in browser before enabling
+    careers_url: https://th.jobsdb.com/jobs?q=AI+Product+Manager&worktype=remote
     enabled: false
   - name: JobsDB SG — AI Remote
-    careers_url: https://sg.jobsdb.com/jobs?q=AI+Product+Manager&worktype=remote  # ⚠️ verify URL in browser before enabling
+    careers_url: https://sg.jobsdb.com/jobs?q=AI+Product+Manager&worktype=remote
     enabled: false
   - name: Jora SG — AI Remote
-    careers_url: https://sg.jora.com/jobs?q=AI+Product+Manager&remote=true  # ⚠️ verify URL in browser before enabling
+    careers_url: https://sg.jora.com/jobs?q=AI+Product+Manager&remote=true
     enabled: false
-
-  # ── Company career pages ──
   - name: Anthropic
     careers_url: https://job-boards.greenhouse.io/anthropic
     api: https://boards-api.greenhouse.io/v1/boards/anthropic/jobs
@@ -211,32 +496,36 @@ tracked_companies:
     careers_url: https://job-boards.greenhouse.io/intercom
     api: https://boards-api.greenhouse.io/v1/boards/intercom/jobs
     notes: Dublin EMEA. Fin AI agent.
-    enabled: false
+    enabled: true
   - name: Hume AI
     careers_url: https://job-boards.greenhouse.io/humeai
     api: https://boards-api.greenhouse.io/v1/boards/humeai/jobs
     notes: NYC. Empathic voice AI.
-    enabled: false
+    enabled: true
   - name: ElevenLabs
     careers_url: https://jobs.ashbyhq.com/elevenlabs
+    api: https://api.ashbyhq.com/posting-api/job-board/elevenlabs
     scan_method: websearch
     scan_query: site:jobs.ashbyhq.com/elevenlabs
     notes: Voice AI TTS leader.
     enabled: false
   - name: Deepgram
     careers_url: https://jobs.ashbyhq.com/deepgram
+    api: https://api.ashbyhq.com/posting-api/job-board/deepgram
     scan_method: websearch
     scan_query: site:deepgram.com/careers OR "deepgram" "Solutions" OR "AI Engineer" site:jobs.ashbyhq.com
     notes: STT/TTS APIs.
     enabled: false
   - name: Vapi
     careers_url: https://jobs.ashbyhq.com/vapi
+    api: https://api.ashbyhq.com/posting-api/job-board/vapi
     scan_method: websearch
     scan_query: site:jobs.ashbyhq.com/vapi
     notes: Voice AI infrastructure.
     enabled: false
   - name: Bland AI
     careers_url: https://jobs.ashbyhq.com/bland
+    api: https://api.ashbyhq.com/posting-api/job-board/bland
     scan_method: websearch
     scan_query: site:jobs.ashbyhq.com/bland
     notes: Voice phone agents. $65M Series B.
@@ -283,29 +572,26 @@ tracked_companies:
     scan_method: websearch
     scan_query: "\"ada.cx\" OR \"ada\" \"AI\" \"Solutions\" OR \"Engineer\" site:jobs.ashbyhq.com OR site:job-boards.greenhouse.io"
     notes: Toronto + remote. AI customer service.
-    enabled: false  # Greenhouse API returns 404
+    enabled: false
   - name: LivePerson
     careers_url: https://liveperson.com/company/careers
     scan_method: websearch
     scan_query: site:liveperson.com/careers OR "liveperson" "Solutions" OR "AI" site:job-boards.greenhouse.io
     notes: Remote EMEA. Conversational AI enterprise.
-    enabled: false  # timeout — site blocks headless
+    enabled: false
   - name: Sierra
     careers_url: https://jobs.ashbyhq.com/sierra
-    scan_method: websearch
-    scan_query: "\"sierra.ai\" \"AI\" \"Forward Deployed\" OR \"Applied\" OR \"Solutions\" site:jobs.ashbyhq.com"
+    api: https://api.ashbyhq.com/posting-api/job-board/sierra
     notes: Bret Taylor (ex-CEO Salesforce). AI customer agents.
     enabled: true
   - name: Decagon
     careers_url: https://jobs.ashbyhq.com/decagon
-    scan_method: websearch
-    scan_query: "\"decagon\" \"AI\" \"Forward Deployed\" OR \"Solutions\" site:jobs.ashbyhq.com"
+    api: https://api.ashbyhq.com/posting-api/job-board/decagon
     notes: AI customer support agents.
     enabled: true
   - name: Talkdesk
     careers_url: https://www.talkdesk.com/careers
-    scan_method: websearch
-    scan_query: site:talkdesk.com/careers "AI" OR "Solutions Architect" OR "AI Engineer"
+    api: https://api.ashbyhq.com/posting-api/job-board/talkdesk
     notes: Lisbon. Contact center AI. EMEA friendly.
     enabled: true
   - name: Twilio
@@ -313,11 +599,10 @@ tracked_companies:
     scan_method: websearch
     scan_query: site:twilio.com/company/jobs "AI" OR "Voice" "Solutions" OR "Architect"
     notes: Voice/messaging infrastructure.
-    enabled: false  # timeout — site blocks headless
+    enabled: false
   - name: Dialpad
     careers_url: https://www.dialpad.com/careers
-    scan_method: websearch
-    scan_query: "\"dialpad\" \"AI\" \"Solutions\" OR \"Engineer\" site:job-boards.greenhouse.io OR site:jobs.ashbyhq.com"
+    api: https://boards-api.greenhouse.io/v1/boards/dialpad/jobs
     notes: Voice AI for business comms.
     enabled: true
   - name: Gong
@@ -325,7 +610,7 @@ tracked_companies:
     scan_method: websearch
     scan_query: site:gong.io/careers "AI" OR "Solutions" OR "Architect"
     notes: Revenue intelligence with voice AI.
-    enabled: false  # timeout — site blocks headless
+    enabled: false
   - name: Genesys
     careers_url: https://www.genesys.com/careers
     scan_method: websearch
@@ -340,12 +625,12 @@ tracked_companies:
     enabled: false
   - name: Langfuse
     careers_url: https://langfuse.com/careers
-    scan_method: websearch
-    scan_query: "\"langfuse\" careers OR jobs \"engineer\" OR \"solutions\""
+    api: https://api.ashbyhq.com/posting-api/job-board/langfuse
     notes: Berlin. LLMOps / observability.
     enabled: true
   - name: Lindy
     careers_url: https://jobs.ashbyhq.com/lindy
+    api: https://api.ashbyhq.com/posting-api/job-board/lindy
     scan_method: websearch
     scan_query: "\"lindy.ai\" \"AI\" \"Forward Deployed\" OR \"Solutions\" site:jobs.ashbyhq.com"
     notes: AI agent management platform.
@@ -355,7 +640,7 @@ tracked_companies:
     scan_method: websearch
     scan_query: "\"cognigy\" careers \"AI\" OR \"Solutions\" OR \"Engineer\""
     notes: Dusseldorf EMEA. Conversational AI enterprise.
-    enabled: false  # timeout — site blocks headless
+    enabled: false
   - name: Speechmatics
     careers_url: https://job-boards.greenhouse.io/speechmatics
     api: https://boards-api.greenhouse.io/v1/boards/speechmatics/jobs
@@ -363,52 +648,47 @@ tracked_companies:
     enabled: true
   - name: n8n
     careers_url: https://jobs.ashbyhq.com/n8n
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/n8n
+    api: https://api.ashbyhq.com/posting-api/job-board/n8n
     notes: Berlin + remote EU/US. Workflow automation.
     enabled: true
   - name: Zapier
     careers_url: https://jobs.ashbyhq.com/zapier
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/zapier
+    api: https://api.ashbyhq.com/posting-api/job-board/zapier
     notes: Remote-first. Automation platform leader.
     enabled: true
   - name: Make.com (Celonis)
     careers_url: https://www.make.com/en/careers
-    scan_method: websearch
-    scan_query: site:make.com/en/careers OR "make.com" "engineer" OR "solutions" site:jobs.ashbyhq.com
-    notes: Celonis parent company. Automation platform.
-    enabled: true
+    api: https://boards-api.greenhouse.io/v1/boards/celonis/jobs
+    notes: Celonis parent company. Automation platform. Disabled because it duplicates the Celonis Greenhouse board in scan results.
+    enabled: false
   - name: Cohere
     careers_url: https://jobs.ashbyhq.com/cohere
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/cohere
+    api: https://api.ashbyhq.com/posting-api/job-board/cohere
     notes: AI/LLM provider. Toronto + remote.
     enabled: true
   - name: LangChain
     careers_url: https://jobs.ashbyhq.com/langchain
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/langchain
+    api: https://api.ashbyhq.com/posting-api/job-board/langchain
     notes: LangChain/LangSmith framework.
     enabled: true
   - name: Pinecone
     careers_url: https://jobs.ashbyhq.com/pinecone
+    api: https://api.ashbyhq.com/posting-api/job-board/pinecone
     notes: Vector database.
     enabled: false
   - name: Mistral AI
     careers_url: https://jobs.lever.co/mistral
-    scan_method: websearch
-    scan_query: site:jobs.lever.co/mistral
+    api: https://api.lever.co/v0/postings/mistral?mode=json
     notes: Paris. European AI lab.
     enabled: true
   - name: Weights & Biases
     careers_url: https://jobs.lever.co/wandb
+    api: https://api.lever.co/v0/postings/wandb?mode=json
     notes: MLOps platform. ⚠️ Lever URL returns 404 — may have changed ATS.
     enabled: false
   - name: Palantir
     careers_url: https://jobs.lever.co/palantir
-    scan_method: websearch
-    scan_query: site:jobs.lever.co/palantir
+    api: https://api.lever.co/v0/postings/palantir?mode=json
     notes: FDE roles. Mostly US/London.
     enabled: true
   - name: Factorial
@@ -417,41 +697,37 @@ tracked_companies:
     scan_method: websearch
     scan_query: site:jobs.greenhouse.io/factorial
     notes: Barcelona. HR SaaS unicorn.
-    enabled: false  # Greenhouse API returns 404
+    enabled: false
   - name: Attio
     careers_url: https://jobs.ashbyhq.com/attio
-    scan_method: websearch
-    scan_query: site:attio.com/careers OR site:jobs.ashbyhq.com/attio
+    api: https://api.ashbyhq.com/posting-api/job-board/attio
     notes: Remote EU. AI-native CRM. Series B $52M.
     enabled: true
   - name: Tinybird
     careers_url: https://jobs.ashbyhq.com/tinybird
-    scan_method: websearch
-    scan_query: site:tinybird.co/careers OR site:jobs.ashbyhq.com/tinybird
-    notes: Remote. Real-time data platform.
-    enabled: true
+    api: https://api.ashbyhq.com/posting-api/job-board/tinybird
+    notes: Remote. Real-time data platform. Disabled 2026-05-02 because Ashby board returns 404; needs current careers source.
+    enabled: false
   - name: Clarity AI
     careers_url: https://jobs.lever.co/clarity-ai
+    api: https://api.lever.co/v0/postings/clarity-ai?mode=json
     scan_method: websearch
     scan_query: site:clarity.ai/careers OR site:jobs.lever.co/clarity-ai
     notes: Madrid/Remote. Sustainability analytics with AI. ⚠️ Lever URL returns 404.
     enabled: false
   - name: Travelperk
-    careers_url: https://jobs.ashbyhq.com/travelperk
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/travelperk
-    notes: Barcelona. Business travel unicorn.
+    careers_url: https://jobs.ashbyhq.com/Perk
+    api: https://api.ashbyhq.com/posting-api/job-board/Perk
+    notes: Formerly TravelPerk, now Perk. Barcelona/London/Boston business travel and spend platform.
     enabled: true
   - name: Aleph Alpha
     careers_url: https://jobs.ashbyhq.com/AlephAlpha
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/AlephAlpha
+    api: https://api.ashbyhq.com/posting-api/job-board/AlephAlpha
     notes: Heidelberg DE. Sovereign European LLM provider, enterprise & government focus.
     enabled: true
   - name: DeepL
     careers_url: https://jobs.ashbyhq.com/DeepL
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/DeepL
+    api: https://api.ashbyhq.com/posting-api/job-board/DeepL
     notes: Cologne DE. Translation & language AI. 60+ open roles, EU/DACH heavy.
     enabled: true
   - name: Black Forest Labs
@@ -501,18 +777,17 @@ tracked_companies:
     enabled: true
   - name: Qonto
     careers_url: https://jobs.lever.co/qonto
-    scan_method: websearch
-    scan_query: site:jobs.lever.co/qonto
+    api: https://api.lever.co/v0/postings/qonto?mode=json
     notes: Paris / Berlin / Barcelona / Milan. SMB neobank, MLOps for AI Product roles.
     enabled: true
   - name: Forto
     careers_url: https://jobs.lever.co/forto
+    api: https://api.lever.co/v0/postings/forto?mode=json
     notes: Berlin DE. Digital freight forwarder. ⚠️ Lever URL returns 404.
     enabled: false
   - name: Lakera
     careers_url: https://jobs.ashbyhq.com/lakera.ai
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/lakera.ai
+    api: https://api.ashbyhq.com/posting-api/job-board/lakera.ai
     notes: Zurich CH / SF. AI security & guardrails. Has Forward Deployed Engineer roles.
     enabled: true
   - name: Scandit
@@ -522,8 +797,7 @@ tracked_companies:
     enabled: true
   - name: Cradle
     careers_url: https://jobs.ashbyhq.com/cradlebio
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/cradlebio
+    api: https://api.ashbyhq.com/posting-api/job-board/cradlebio
     notes: Zurich CH / Amsterdam. AI-guided protein design, ML researcher roles.
     enabled: true
   - name: Hugging Face
@@ -531,17 +805,15 @@ tracked_companies:
     scan_method: websearch
     scan_query: site:apply.workable.com/huggingface
     notes: Paris / NYC / Remote. ML hub & open-source models.
-    enabled: false  # timeout — Workable blocks headless
+    enabled: false
   - name: Photoroom
     careers_url: https://jobs.ashbyhq.com/photoroom
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/photoroom
+    api: https://api.ashbyhq.com/posting-api/job-board/photoroom
     notes: Paris FR. AI photo editor, Head of CV / Head of ML roles.
     enabled: true
   - name: Pigment
     careers_url: https://jobs.lever.co/pigment
-    scan_method: websearch
-    scan_query: site:jobs.lever.co/pigment
+    api: https://api.lever.co/v0/postings/pigment?mode=json
     notes: Paris FR / NYC / London. AI-powered FP&A planning platform.
     enabled: true
   - name: Wayve
@@ -566,42 +838,39 @@ tracked_companies:
     enabled: true
   - name: Synthesia
     careers_url: https://jobs.ashbyhq.com/synthesia
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/synthesia OR site:job-boards.greenhouse.io/synthesia
+    api: https://api.ashbyhq.com/posting-api/job-board/synthesia
     notes: London UK. AI video generation for enterprise, $4B valuation.
     enabled: true
   - name: Faculty
     careers_url: https://jobs.ashbyhq.com/faculty
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/faculty
+    api: https://api.ashbyhq.com/posting-api/job-board/faculty
     notes: London UK. Applied AI consultancy. 80+ roles, AI Safety / MLE / Delivery.
     enabled: true
   - name: Causaly
     careers_url: https://jobs.ashbyhq.com/causaly
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/causaly
+    api: https://api.ashbyhq.com/posting-api/job-board/causaly
     notes: London / Athens. Biomedical knowledge graph + AI.
     enabled: true
   - name: Lovable
     careers_url: https://jobs.ashbyhq.com/lovable
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/lovable
+    api: https://api.ashbyhq.com/posting-api/job-board/lovable
     notes: Stockholm SE. AI app builder (text-to-app), 80+ open roles.
     enabled: true
   - name: Legora
     careers_url: https://jobs.ashbyhq.com/legora
-    scan_method: websearch
-    scan_query: site:jobs.ashbyhq.com/legora
+    api: https://api.ashbyhq.com/posting-api/job-board/legora
     notes: Stockholm SE / NYC / London. AI-native legal workspace.
     enabled: true
   - name: Spotify
     careers_url: https://jobs.lever.co/spotify
+    api: https://api.lever.co/v0/postings/spotify?mode=json
     scan_method: websearch
     scan_query: site:jobs.lever.co/spotify
     notes: Stockholm SE / NYC / London. Audio platform, large ML/personalization org.
-    enabled: false  # timeout — Lever blocks headless at scale
+    enabled: false
   - name: Vinted
     careers_url: https://jobs.lever.co/vinted
+    api: https://api.lever.co/v0/postings/vinted?mode=json
     notes: Vilnius LT / Berlin. C2C marketplace unicorn. ⚠️ Lever URL returns 404.
     enabled: false
   - name: Amplemarket
@@ -632,11 +901,10 @@ tracked_companies:
     scan_method: websearch
     scan_query: site:careers.smartrecruiters.com/carousellgroup "Product" OR "Design" OR "AI"
     notes: Singapore. Marketplace digital, design & product.
-    enabled: false  # timeout — SmartRecruiters blocks headless
+    enabled: false
   - name: CoinGecko
     careers_url: https://careers.coingecko.com/
-    scan_method: websearch
-    scan_query: site:careers.coingecko.com "Product" OR "Design" OR "Marketing" OR "Web3"
+    api: https://api.lever.co/v0/postings/coingecko?mode=json
     notes: Singapore. Crypto data, design & marketing web3.
     enabled: true
   - name: GoTo Group
@@ -668,13 +936,13 @@ tracked_companies:
     scan_method: websearch
     scan_query: site:career.vng.com.vn "AI" OR "Product" OR "Design" OR "fintech"
     notes: Vietnam. Gaming, digital ecosystem, fintech, AI.
-    enabled: false  # timeout — site blocks headless
+    enabled: false
   - name: Lazada
     careers_url: https://www.lazada.com/en/careers/
     scan_method: websearch
     scan_query: site:lazada.com/en/careers "AI" OR "Product" OR "Design" OR "Marketing"
     notes: SEA multi-pays. E-commerce Alibaba, AI, marketing, design.
-    enabled: false  # timeout — site blocks headless
+    enabled: false
   - name: USER Experience Researchers
     careers_url: https://www.user.com.sg/careers/
     scan_method: websearch
@@ -686,95 +954,757 @@ tracked_companies:
     scan_method: websearch
     scan_query: site:binance.com/en/careers "AI" OR "Product" OR "Design" OR "Solutions" OR "Crypto"
     notes: Crypto — bureaux SEA importants (SG, ID, TH).
-    enabled: false  # timeout — site blocks headless
+    enabled: false
   - name: Stripe
     careers_url: https://stripe.com/jobs
     scan_method: websearch
     scan_query: site:stripe.com/jobs "AI" OR "Product" OR "Solutions" OR "Forward Deployed"
     notes: Fintech/digital payments — fort bureau Singapour.
-    enabled: false  # timeout — site blocks headless
+    enabled: false
+  # ─── Freelance / Missions portals (Playwright/pinchtab direct, bypass search engines) ───
+  - name: Malt — Projects (FR/EU)
+    careers_url: https://www.malt.fr/projects
+    notes: |
+      Plateforme freelance FR/EU. Public projects board scraped directly via Playwright/pinchtab,
+      bypassing DuckDuckGo/Brave anti-bot challenges. Some project details may require login —
+      title + brief snippet are typically visible.
+    kind: freelance
+    enabled: true
+  - name: Comet — Missions (FR)
+    careers_url: https://www.comet.co/jobs
+    notes: |
+      FR freelance platform for senior tech/product. Public job/mission list. If careers_url
+      fails, try https://www.comet.co/missions or https://www.comet.co/find-jobs.
+    kind: freelance
+    enabled: true
+  - name: Free-Work — Freelance Tech & Product (FR/EU)
+    careers_url: https://www.free-work.com/fr/tech-it/jobs?contracts=freelance
+    notes: |
+      FR/EU freelance IT/product/design board. Direct fetch with contract filter pre-applied.
+      Returns title + TJM + location without login.
+    kind: freelance
+    enabled: true
+  - name: Codeur.com — Web & Design Projects (FR)
+    careers_url: https://www.codeur.com/projects
+    notes: |
+      FR freelance project board (~2 500 missions/mois). Fully public — title, description and
+      budget visible without login. Strong signal for web/UX/UI/Webflow missions.
+    kind: freelance
+    enabled: true
 eu_job_boards:
   - name: Welcome to the Jungle — AI Product
-    query: 'site:welcometothejungle.com ("AI Product Manager" OR "Head of AI" OR "Product Manager AI") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:welcometothejungle.com ("AI Product Manager" OR "Head of AI" OR "Product Manager AI") ("full remote" OR
+      "fully remote" OR remote)
     enabled: true
   - name: Welcome to the Jungle — AI Engineer & Solutions
-    query: 'site:welcometothejungle.com ("Solutions Architect" OR "Forward Deployed" OR "AI Engineer" OR "Agentic") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:welcometothejungle.com ("Solutions Architect" OR "Forward Deployed" OR "AI Engineer" OR "Agentic") ("full
+      remote" OR "fully remote" OR remote)
     enabled: true
   - name: Welcome to the Jungle — Automation
-    query: 'site:welcometothejungle.com ("Automation" OR "LLM" OR "GenAI") senior ("full remote" OR "fully remote" OR remote)'
+    query: site:welcometothejungle.com ("Automation" OR "LLM" OR "GenAI") senior ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: JobsDB — AI Roles Global
-    query: 'site:jobsdb.com ("AI Product Manager" OR "Head of AI" OR "Solutions Architect AI" OR "Forward Deployed" OR "AI Engineer" OR "Agentic") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:jobsdb.com ("AI Product Manager" OR "Head of AI" OR "Solutions Architect AI" OR "Forward Deployed" OR "AI
+      Engineer" OR "Agentic") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: Wellfound — AI Product & Agentic
-    query: 'site:wellfound.com ("AI Product Manager" OR "Head of AI" OR "Agentic" OR "Forward Deployed") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:wellfound.com ("AI Product Manager" OR "Head of AI" OR "Agentic" OR "Forward Deployed") ("full remote" OR
+      "fully remote" OR remote)
     enabled: true
   - name: LinkedIn — AI PM Europe
-    query: 'site:linkedin.com/jobs ("AI Product Manager" OR "Head of AI Product") Europe ("full remote" OR "fully remote" OR remote) 2026'
+    query: >-
+      site:linkedin.com/jobs ("AI Product Manager" OR "Head of AI Product") Europe ("full remote" OR "fully remote" OR
+      remote) 2026
     enabled: true
   - name: LinkedIn — Solutions Architect AI Europe
-    query: 'site:linkedin.com/jobs ("Solutions Architect" OR "Forward Deployed Engineer") AI Europe ("full remote" OR "fully remote" OR remote) 2026'
+    query: >-
+      site:linkedin.com/jobs ("Solutions Architect" OR "Forward Deployed Engineer") AI Europe ("full remote" OR "fully
+      remote" OR remote) 2026
     enabled: true
   - name: Remotive — AI Product & Automation
-    query: 'site:remotive.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:remotive.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Automation") ("full remote" OR "fully
+      remote" OR remote)
     enabled: true
   - name: Remote.co — AI Roles
-    query: 'site:remote.co ("AI Product Manager" OR "AI Solutions" OR "Forward Deployed") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:remote.co ("AI Product Manager" OR "AI Solutions" OR "Forward Deployed") ("full remote" OR "fully remote" OR
+      remote)
     enabled: true
   - name: Working Nomads — AI Product & Design
-    query: 'site:workingnomads.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR "Product Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:workingnomads.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR "Product
+      Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: Himalayas — AI Product & Solutions
-    query: 'site:himalayas.app ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR "Automation") ("full remote" OR "fully remote" OR remote)'
-    enabled: true
+    query: >-
+      site:himalayas.app ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR
+      "Automation") ("full remote" OR "fully remote" OR remote)
+    enabled: false
   - name: Arc.dev — AI & Solutions Remote
-    query: 'site:arc.dev ("AI Product" OR "Solutions Architect" OR "Forward Deployed" OR "Product Manager" OR "Product Designer") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:arc.dev ("AI Product" OR "Solutions Architect" OR "Forward Deployed" OR "Product Manager" OR "Product
+      Designer") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: We Work Remotely — AI & Design
-    query: 'site:weworkremotely.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Product Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)'
-    enabled: true
+    query: >-
+      site:weworkremotely.com ("AI Product" OR "Head of AI" OR "Solutions Architect" OR "Product Designer" OR "UX
+      Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)
+    enabled: false
   - name: Dynamite Jobs — AI & Product Remote
-    query: 'site:dynamitejobs.com ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:dynamitejobs.com ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX
+      Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: JustRemote — AI & Design
-    query: 'site:justremote.co ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:justremote.co ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX
+      Designer" OR "Automation") ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: Nodesk — AI & Product Nomad
-    query: 'site:nodesk.co ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX Designer") ("full remote" OR "fully remote" OR remote)'
+    query: >-
+      site:nodesk.co ("AI Product" OR "Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX Designer")
+      ("full remote" OR "fully remote" OR remote)
     enabled: true
   - name: Indeed EU — AI Product Manager
-    query: 'site:fr.indeed.com OR site:de.indeed.com OR site:uk.indeed.com ("AI Product Manager" OR "Head of AI") ("full remote" OR "fully remote" OR remote) 2026'
+    query: >-
+      site:fr.indeed.com OR site:de.indeed.com OR site:uk.indeed.com ("AI Product Manager" OR "Head of AI") ("full
+      remote" OR "fully remote" OR remote) 2026
     enabled: true
   - name: Tech in Asia Jobs — AI & Product SEA
-    query: 'site:techinasia.com/jobs ("AI" OR "Product Manager" OR "UX" OR "Design" OR "Solutions") ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam OR Thailand)'
+    query: >-
+      site:techinasia.com/jobs ("AI" OR "Product Manager" OR "UX" OR "Design" OR "Solutions") ("full remote" OR "fully
+      remote" OR remote) (Singapore OR Indonesia OR Vietnam OR Thailand)
     enabled: true
   - name: e27 Jobs — AI & Product SEA
-    query: 'site:e27.co/jobs ("AI" OR "Product" OR "Design" OR "Solutions Architect") ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam)'
+    query: >-
+      site:e27.co/jobs ("AI" OR "Product" OR "Design" OR "Solutions Architect") ("full remote" OR "fully remote" OR
+      remote) (Singapore OR Indonesia OR Vietnam)
     enabled: true
   - name: CryptoJobsList — SEA Web3
-    query: 'site:cryptojobslist.com ("Product" OR "Design" OR "AI" OR "Solutions") ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam OR Thailand OR "Southeast Asia")'
+    query: >-
+      site:cryptojobslist.com ("Product" OR "Design" OR "AI" OR "Solutions") ("full remote" OR "fully remote" OR remote)
+      (Singapore OR Indonesia OR Vietnam OR Thailand OR "Southeast Asia")
     enabled: true
   - name: Web3.career — SEA
-    query: 'site:web3.career ("Product" OR "Design" OR "AI" OR "Solutions") ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam)'
+    query: >-
+      site:web3.career ("Product" OR "Design" OR "AI" OR "Solutions") ("full remote" OR "fully remote" OR remote)
+      (Singapore OR Indonesia OR Vietnam)
+    enabled: true
+  - name: EURES — AI Product & Solutions EU
+    query: >-
+      site:europa.eu/eures ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR
+      "Product Designer" OR "UX Designer" OR Automation) ("full remote" OR "fully remote" OR remote)
+    enabled: true
+    notes: EU public employment portal. Prefer official API/partner access if volume becomes strategic.
+  - name: France Travail — AI Remote
+    query: >-
+      site:francetravail.fr ("AI Product Manager" OR "Chef de produit IA" OR "Product Designer" OR "UX Designer" OR
+      "Architecte solution" OR LLM OR GenAI OR Automation) (remote OR télétravail)
+    enabled: true
+    notes: Official French public employment service. API integration is possible with France Travail credentials.
+  - name: Arbeitsagentur — AI Remote DACH
+    query: >-
+      site:arbeitsagentur.de/jobsuche ("AI Product Manager" OR "KI" OR "Solutions Architect" OR "Product Designer" OR
+      "UX Designer" OR Automation) (remote OR Homeoffice)
+    enabled: true
+  - name: Platsbanken Sweden — AI Remote
+    query: >-
+      site:arbetsformedlingen.se/platsbanken ("AI" OR "Product Manager" OR "UX Designer" OR "Product Designer" OR
+      "Solutions Architect" OR Automation) (remote OR distans)
+    enabled: true
+  - name: NAV Norway — AI Remote
+    query: >-
+      site:arbeidsplassen.nav.no/stillinger ("AI" OR "Product Manager" OR "UX Designer" OR "Product Designer" OR
+      "Solutions Architect" OR Automation) (remote OR hjemmekontor)
+    enabled: true
+  - name: Tyomarkkinatori Finland — AI Remote
+    query: >-
+      site:tyomarkkinatori.fi ("AI" OR "Product Manager" OR "UX Designer" OR "Product Designer" OR
+      "Solutions Architect" OR Automation) (remote OR etätyö)
+    enabled: true
+  - name: Glassdoor — Europe Remote AI
+    query: >-
+      site:glassdoor.com/Job ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR
+      "Product Designer" OR "UX Designer") ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)
+    enabled: true
+    notes: No broadly open current search API; web-search discovery only.
+  - name: Indeed EU — Expanded Remote AI
+    query: >-
+      site:indeed.com OR site:fr.indeed.com OR site:de.indeed.com OR site:es.indeed.com OR site:it.indeed.com
+      ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR "Product Designer" OR
+      "UX Designer" OR LLM OR GenAI) ("full remote" OR "fully remote" OR remote) (Europe OR EMEA OR EU)
+    enabled: true
+    notes: Indeed search API is partner/restricted; use search discovery or paid/partner feed.
+  - name: Glassdoor — Asia Remote AI
+    query: >-
+      site:glassdoor.com/Job ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" OR "Forward Deployed" OR
+      "Product Designer" OR "UX Designer") ("full remote" OR "fully remote" OR remote) (Asia OR APAC OR Singapore OR
+      Hong Kong OR Japan OR India)
+    enabled: true
+  - name: LinkedIn — Asia Remote AI
+    query: >-
+      site:linkedin.com/jobs ("AI Product Manager" OR "Head of AI Product" OR "Solutions Architect" OR "Forward Deployed"
+      OR "Product Designer" OR "UX Designer") ("full remote" OR "fully remote" OR remote) (Asia OR APAC OR Singapore OR
+      Hong Kong OR Japan OR India) 2026
+    enabled: true
+  - name: MyCareersFuture Singapore — AI Product
+    query: >-
+      site:mycareersfuture.gov.sg ("AI Product Manager" OR "Product Manager AI" OR "Solutions Architect" OR
+      "Product Designer" OR "UX Designer" OR LLM OR GenAI) (remote OR hybrid OR "work from home")
+    enabled: true
+  - name: JobStreet SEA — AI Product & Design
+    query: >-
+      site:jobstreet.com ("AI Product Manager" OR "Head of AI" OR "Solutions Architect" OR "Product Designer" OR
+      "UX Designer" OR LLM OR GenAI) ("full remote" OR "fully remote" OR remote) (Singapore OR Malaysia OR Philippines)
+    enabled: true
+  - name: Naukri India — AI Remote
+    query: >-
+      site:naukri.com ("AI Product Manager" OR "Product Manager AI" OR "Solutions Architect" OR "Product Designer" OR
+      "UX Designer" OR LLM OR GenAI) ("remote" OR "work from home")
+    enabled: true
+  - name: Foundit Asia — AI Remote
+    query: >-
+      site:foundit.in OR site:foundit.sg OR site:foundit.hk ("AI Product Manager" OR "Solutions Architect" OR
+      "Product Designer" OR "UX Designer" OR LLM OR GenAI) ("full remote" OR "fully remote" OR remote)
+    enabled: true
+  - name: Glints SEA — AI Product & Design
+    query: >-
+      site:glints.com ("AI Product Manager" OR "Solutions Architect" OR "Product Designer" OR "UX Designer" OR LLM OR
+      GenAI) ("full remote" OR "fully remote" OR remote) (Singapore OR Indonesia OR Vietnam)
+    enabled: true
+  - name: VietnamWorks & TopCV — AI Remote
+    query: >-
+      site:vietnamworks.com OR site:topcv.vn ("AI Product Manager" OR "Product Manager" OR "UX Designer" OR
+      "Product Designer" OR "Solutions Architect" OR LLM OR GenAI) (remote OR "work from home")
+    enabled: true
+  - name: Japan Boards — AI Remote
+    query: >-
+      site:doda.jp OR site:mynavi.jp OR site:rikunabi.com ("AI" OR "Product Manager" OR "UX Designer" OR
+      "Product Designer" OR "Solutions Architect" OR LLM OR GenAI) (remote OR リモート OR 在宅)
+    enabled: true
+  - name: Korea Boards — AI Remote
+    query: >-
+      site:saramin.co.kr OR site:jobkorea.co.kr OR site:work.go.kr ("AI" OR "Product Manager" OR "UX Designer" OR
+      "Product Designer" OR "Solutions Architect" OR LLM OR GenAI) (remote OR 재택 OR 원격)
     enabled: true
 api_aggregators:
   - name: TheirStack
+    provider: theirstack
     description: Specializes in stack-based search (e.g. LLM, Agentic, GenAI)
     api_url: https://api.theirstack.com/v1/jobs/search
-    enabled: true
-    notes: Requires THEIRSTACK_API_KEY in .env. Key configured.
+    enabled: false
+    notes: Requires THEIRSTACK_API_KEY. Disabled until credits/credentials are available.
   - name: SearchAPI Google Jobs
+    provider: searchapi
     description: Universal scraper for Google for Jobs via searchapi.io
     api_url: https://www.searchapi.io/api/v1/search?engine=google_jobs
+    query: >-
+      ("AI Product Manager" OR "Head of AI" OR "Solutions Architect AI" OR "Forward Deployed" OR "Product Designer AI"
+      OR "UX AI" OR Agentic OR LLM OR Automation) ("full remote" OR "fully remote" OR remote OR "remote-first")
+      (Europe OR EMEA OR EU OR Asia OR APAC OR Singapore OR Hong Kong OR Japan OR India)
     enabled: true
-    notes: Requires SEARCHAPI_KEY in .env. Key configured.
+    notes: Requires SEARCHAPI_KEY or SERPAPI_KEY in .env. Uses Google Jobs when possible.
+  - name: SerpApi Google Jobs
+    provider: serpapi
+    description: Alternative Google Jobs provider if SERPAPI_KEY is configured.
+    api_url: https://serpapi.com/search.json?engine=google_jobs
+    query: >-
+      ("AI Product Manager" OR "Head of AI" OR "Solutions Architect AI" OR "Forward Deployed" OR "Product Designer AI"
+      OR "UX AI" OR Agentic OR LLM OR Automation) ("full remote" OR "fully remote" OR remote OR "remote-first")
+      (Europe OR EMEA OR EU OR Asia OR APAC OR Singapore OR Hong Kong OR Japan OR India)
+    enabled: false
+    notes: Enable if using SERPAPI_KEY instead of SearchAPI.
+  - name: Adzuna — Europe + Asia
+    provider: adzuna
+    description: Official Adzuna job-search API across supported country markets.
+    countries:
+      - gb
+      - fr
+      - de
+      - nl
+      - be
+      - es
+      - it
+      - at
+      - pl
+      - ch
+      - se
+      - dk
+      - no
+      - fi
+      - in
+      - sg
+      - hk
+      - jp
+    keywords:
+      - AI Product Manager
+      - Head of AI
+      - Product Manager AI
+      - Solutions Architect AI
+      - Forward Deployed
+      - AI Engineer
+      - Agentic
+      - LLM
+      - Automation
+      - Product Designer AI
+      - UX AI
+    where: remote
+    results_per_page: 20
+    enabled: false
+    notes: Requires ADZUNA_APP_ID and ADZUNA_APP_KEY.
+  - name: Jooble — Europe + Asia
+    provider: jooble
+    description: Official Jooble REST API; broad international aggregation.
+    keywords:
+      - AI Product Manager
+      - Head of AI
+      - Product Manager AI
+      - Solutions Architect AI
+      - Forward Deployed
+      - AI Engineer
+      - Agentic
+      - LLM
+      - Automation
+      - Product Designer AI
+      - UX AI
+    locations:
+      - Remote
+      - Europe
+      - France
+      - Germany
+      - United Kingdom
+      - Netherlands
+      - Spain
+      - Italy
+      - Singapore
+      - Hong Kong
+      - Japan
+      - India
+    results_per_page: 20
+    enabled: false
+    notes: Requires JOOBLE_API_KEY.
+  - name: Careerjet — Europe + Asia
+    provider: careerjet
+    description: Careerjet partner API across locale markets.
+    locales:
+      - en_GB
+      - fr_FR
+      - de_DE
+      - es_ES
+      - it_IT
+      - nl_NL
+      - en_IN
+      - en_SG
+      - en_HK
+      - ja_JP
+    keywords:
+      - AI Product Manager
+      - Head of AI
+      - Product Manager AI
+      - Solutions Architect AI
+      - Forward Deployed
+      - AI Engineer
+      - Agentic
+      - LLM
+      - Automation
+      - Product Designer AI
+      - UX AI
+    location: remote
+    results_per_page: 20
+    enabled: false
+    notes: Requires CAREERJET_AFFID or CAREERJET_AFFILIATE_ID.
+  - name: Remotive Public API
+    provider: remotive
+    description: Public remote jobs API; delayed feed, attribution required by Remotive terms.
+    queries:
+      - AI Product Manager
+      - Head of AI
+      - Solutions Architect
+      - Forward Deployed
+      - Agentic
+      - LLM
+      - Automation
+      - Product Designer
+      - UX Designer
+    enabled: true
+    notes: Public API. Respect Remotive attribution and rate-limit guidance.
+  - name: Jobicy Public API
+    provider: jobicy
+    description: Public remote jobs API/RSS, useful for global remote roles by region.
+    tag: product
+    geos:
+      - emea
+      - europe
+      - apac
+      - all
+    results_per_page: 50
+    enabled: true
+    notes: |
+      Public API. Attribute Jobicy when surfacing listings.
+      tag must be 3-50 chars. Valid geos: emea, europe, americas, apac, usa, canada, uk, australia.
+      Use 'all' (or 'anywhere') to omit the geo param and fetch all regions.
+  - name: Himalayas Public API
+    provider: himalayas
+    description: Free public JSON API for remote jobs with search and pagination.
+    queries:
+      - AI Product Manager
+      - Head of AI
+      - Solutions Architect
+      - Forward Deployed
+      - Agentic
+      - LLM
+      - Automation
+      - Product Designer
+      - UX Designer
+    results_per_page: 20
+    enabled: true
+    notes: Public API. Himalayas caps page size at 20.
+  - name: Arbeitnow Europe Remote API
+    provider: arbeitnow
+    description: Public Europe/remote job-board API.
+    api_url: https://www.arbeitnow.com/api/job-board-api
+    enabled: true
+    notes: Public API. Stronger Europe signal than generic remote boards.
 rss_feeds:
-  - name: Remotive AI & Data
-    url: https://remotive.com/feed
-    enabled: false  # RSS feed returns 404
+  - name: Remotive — All Remote
+    url: https://remotive.com/remote-jobs/feed
+    enabled: true
+  - name: Remotive — Design
+    url: https://remotive.com/remote-jobs/feed/design
+    enabled: true
+  - name: Jobicy — Remote Jobs
+    url: https://jobicy.com/jobs-rss-feed
+    enabled: false
+    notes: |
+      Disabled — redundant with the Jobicy Public API v2 (api_aggregators), which
+      covers the same content. The RSS path has intermittently returned Cloudflare
+      403 (cf-mitigated=challenge) on plain HTTP fetches.
   - name: Himalayas Tech & AI
     url: https://himalayas.app/jobs/rss
     enabled: true
   - name: Real Work From Anywhere - AI
     url: https://www.realworkfromanywhere.com/rss.xml
     enabled: true
+  - name: Real Work From Anywhere — Design
+    url: https://www.realworkfromanywhere.com/remote-design-jobs/rss.xml
+    enabled: true
+  - name: RemoteOK — All Remote
+    url: https://remoteok.com/remote-jobs.rss
+    enabled: true
+  - name: WeWorkRemotely — All Remote
+    url: https://weworkremotely.com/remote-jobs.rss
+    enabled: true
+  - name: WeWorkRemotely — Design
+    url: https://weworkremotely.com/categories/remote-design-jobs.rss
+    enabled: true
+  - name: WeWorkRemotely — Product
+    url: https://weworkremotely.com/categories/remote-product-jobs.rss
+    enabled: true
+  - name: RemoteOK — AI
+    url: https://remoteok.com/remote-ai-jobs.rss
+    enabled: true
+  - name: RemoteOK — Design
+    url: https://remoteok.com/remote-design-jobs.rss
+    enabled: true
+  - name: RemoteOK — Product
+    url: https://remoteok.com/remote-product-jobs.rss
+    enabled: true
+  - name: Authentic Jobs Search — Design & Product
+    url: https://authenticjobs.com/?feed=job_feed
+    enabled: true
+  - name: WeWorkRemotely — Programming (Design Engineer)
+    url: https://weworkremotely.com/categories/remote-programming-jobs.rss
+    enabled: true
+  - name: JobsCollider — Design
+    url: https://jobscollider.com/remote-design-jobs.rss
+    enabled: true
+freelance_portals:
+  - name: Malt — AI Product & Design
+    query: >-
+      site:malt.fr OR site:malt.com ("AI Product" OR "Product Designer" OR "UX Designer" OR "AI Designer" OR "Product
+      Manager" OR "LLM" OR "Agentic" OR "Automation") freelance
+    enabled: true
+    notes: Biggest freelance marketplace in France/EU. Strong for senior Product & Design.
+  - name: Malt — Solutions & AI Engineer
+    query: >-
+      site:malt.fr OR site:malt.com ("Solutions Architect" OR "AI Engineer" OR "Automation" OR "No-Code" OR "Low-Code"
+      OR "AI Consultant") freelance
+    enabled: true
+  - name: Comet — AI & Product Tech
+    query: >-
+      site:comet.co ("AI" OR "Product Manager" OR "Product Designer" OR "Solutions Architect" OR "Automation" OR "LLM")
+      freelance mission
+    enabled: true
+    notes: French platform specialized in senior tech/product freelancers. Curated quality.
+  - name: Kicklox — AI & Tech Freelance
+    query: site:kicklox.com ("AI" OR "Product" OR "Design" OR "Automation" OR "Solutions") freelance mission remote
+    enabled: true
+    notes: French freelance platform for tech & digital experts.
+  - name: Toptal — AI Product & Design
+    query: >-
+      site:toptal.com ("AI Product Manager" OR "Product Designer" OR "UX Designer" OR "AI Designer" OR "Solutions
+      Architect") remote freelance
+    enabled: true
+    notes: Premium curated network. High rates, top-tier clients. EU/global.
+  - name: Braintrust — AI & Product Freelance
+    query: >-
+      site:usebraintrust.com ("AI" OR "Product Manager" OR "Product Designer" OR "Solutions" OR "Automation" OR "LLM")
+      remote contract
+    enabled: true
+    notes: Decentralized talent network. AI/Product/Design focus. US & EU clients.
+  - name: Upwork — AI Product & Design Remote
+    query: >-
+      site:upwork.com ("AI Product Manager" OR "Product Designer" OR "UX Designer" OR "AI Designer" OR "Solutions
+      Architect" OR "AI Consultant" OR "LLM" OR "Automation") remote contract senior
+    enabled: true
+    notes: Global freelance platform. Filter for senior fixed-price or hourly contracts.
+  - name: Contra — AI & Design Freelance
+    query: >-
+      site:contra.com ("AI" OR "Product Designer" OR "UX Designer" OR "Product Manager" OR "Automation" OR "Solutions")
+      remote freelance
+    enabled: true
+    notes: Modern freelance platform for tech/design independents. Zero-commission model.
+  - name: YunoJuno — AI & Product Contract
+    query: >-
+      site:yunojuno.com ("AI" OR "Product Manager" OR "Product Designer" OR "UX Designer" OR "Solutions Architect" OR
+      "Automation") remote contract
+    enabled: true
+    notes: UK-focused but many remote/EU clients. Curated senior freelancers.
+  - name: Google — Freelance AI Product EU
+    query: >-
+      ("freelance" OR "mission" OR "contract" OR "consultant") ("AI Product Manager" OR "Head of AI" OR "AI Designer" OR
+      "Product Designer" OR "UX Designer" OR "Solutions Architect") remote (Europe OR EMEA OR EU OR France) 2026
+    enabled: true
+  - name: Google — Fractional AI Product
+    query: >-
+      ("fractional" OR "part-time" OR "advisory") ("AI Product" OR "Head of AI" OR "AI Designer" OR "Solutions
+      Architect" OR "Product Manager") remote 2026
+    enabled: true
+    notes: Targets fractional/advisory CxO roles in AI — high-value, low-volume.
+  - name: FreelanceRepublik — AI Product & Design
+    query: >-
+      site:freelancerepublik.com ("AI" OR "Product Manager" OR "Product Designer" OR "UX" OR "Automation" OR "Solutions
+      Architect") mission remote
+    enabled: true
+    notes: Major French freelance platform for senior tech & digital profiles. Strong IT/Product coverage.
+  - name: Crème de la Crème — AI & Product
+    query: >-
+      site:cremedelacreme.io ("AI" OR "Product Designer" OR "Product Manager" OR "UX Designer" OR "Automation" OR "LLM")
+      freelance mission remote
+    enabled: true
+    notes: Premium French freelance platform. Curated senior profiles. Design & Product focus.
+  - name: Club Freelance — AI & Tech
+    query: >-
+      site:clubfreelance.com ("AI" OR "Product Manager" OR "Product Designer" OR "Solutions Architect" OR "Automation"
+      OR "Data") mission remote (Paris OR remote)
+    enabled: true
+    notes: French IT freelance marketplace. Strong in tech, data, and product missions.
+  - name: Freelance.com — AI Product & Design
+    query: >-
+      site:freelance.com ("AI Product" OR "Product Designer" OR "UX Designer" OR "Solutions Architect" OR "AI
+      Consultant" OR "Automation") remote mission senior
+    enabled: true
+    notes: Largest French freelance platform by volume. Mix of short and long missions.
+  - name: Talent.io — Contract & Freelance
+    query: >-
+      site:talent.io ("AI" OR "Product Manager" OR "Product Designer" OR "Solutions Architect" OR "Automation") contract
+      freelance remote Europe
+    enabled: true
+    notes: EU tech talent platform. Covers both permanent and contract/freelance roles. Strong in FR/DE/UK.
+  - name: Worksome — EU Freelance
+    query: >-
+      site:worksome.com ("AI" OR "Product Designer" OR "Product Manager" OR "UX" OR "Solutions Architect" OR
+      "Automation") remote contract senior
+    enabled: true
+    notes: EU freelance workforce platform. Handles compliance/invoicing. Strong in DK, UK, NL.
+  - name: Working Not Working — AI & Product Design
+    query: >-
+      site:workingnotworking.com ("AI Designer" OR "Product Designer" OR "UX Designer" OR "Creative Director" OR "Head
+      of Design" OR "Brand") remote freelance
+    enabled: true
+    notes: Premium freelance platform for creative/design talent. US & EU clients. High-quality briefs.
+  - name: Dribbble Jobs — Product & AI Design
+    query: >-
+      site:dribbble.com/jobs ("Product Designer" OR "UX Designer" OR "AI Designer" OR "Design Lead" OR "Head of Design")
+      remote freelance contract
+    enabled: true
+    notes: Design-focused job board. Strong for senior Product Designers. Global remote roles.
+  - name: Authentic Jobs — Design & Product
+    query: >-
+      site:authenticjobs.com ("Product Designer" OR "UX Designer" OR "AI Product" OR "Product Manager" OR "Design Lead")
+      remote freelance contract
+    enabled: true
+    notes: Curated job board for web/design/tech roles. Quality-over-volume approach.
+  - name: Arc.dev — AI Product & Remote
+    query: >-
+      site:arc.dev ("AI Product Manager" OR "Product Designer" OR "UX Designer" OR "Solutions Architect" OR "AI
+      Consultant" OR "Automation") remote freelance contract senior
+    enabled: true
+    notes: Vetted global remote talent platform. Strong for AI/Product/Dev. US & EU clients.
+  - name: Lemon.io — AI & Product Remote
+    query: >-
+      site:lemon.io ("AI" OR "Product Manager" OR "Product Designer" OR "Solutions Architect" OR "Automation" OR "LLM")
+      remote freelance senior
+    enabled: true
+    notes: Vetted remote freelance marketplace. Tech-forward clients. Strong for senior profiles.
+  - name: Andela — AI & Product Remote
+    query: >-
+      site:andela.com ("AI Product" OR "Product Designer" OR "UX Designer" OR "Solutions Architect" OR "Product Manager"
+      OR "AI Engineer") remote contract senior
+    enabled: false
+    notes: Global remote talent network. Growing AI/Product demand. Enterprise clients.
+  - name: Expert360 — AI Consulting & Product
+    query: >-
+      site:expert360.com ("AI" OR "Product Strategy" OR "Product Manager" OR "Digital Transformation" OR "Solutions
+      Architect" OR "Automation") freelance contract remote
+    enabled: false
+    notes: Global independent consulting platform. Management consulting + product/tech briefs. AU/UK/US.
+  - name: Movemeon — Strategy & Product Freelance
+    query: >-
+      site:movemeon.com ("AI" OR "Product Manager" OR "Strategy" OR "Digital Transformation" OR "Innovation" OR
+      "Solutions") freelance contract remote
+    enabled: false
+    notes: Ex-McKinsey/BCG freelance consulting network. Strategy + product briefs. EU/UK clients.
+  - name: Catalant — AI & Product Consulting
+    query: >-
+      site:gocatalant.com ("AI" OR "Product Manager" OR "Product Strategy" OR "Digital Transformation" OR "Solutions
+      Architect" OR "Automation") freelance contract remote
+    enabled: false
+    notes: US enterprise consulting marketplace. High-value project-based engagements. Fortune 500 clients.
+  - name: PeoplePerHour — AI & Product
+    query: >-
+      site:peopleperhour.com ("AI Product" OR "Product Designer" OR "UX Designer" OR "Solutions Architect" OR "AI
+      Consultant" OR "Automation" OR "LLM") remote senior
+    enabled: false
+    notes: UK-origin global freelance platform. Mix of short tasks and longer contracts. Filter for senior briefs.
+  - name: Fiverr Pro — AI & Product Design
+    query: >-
+      site:fiverr.com/pro ("AI Product" OR "Product Designer" OR "UX Designer" OR "AI Consultant" OR "Solutions
+      Architect" OR "Automation") remote senior
+    enabled: false
+    notes: Fiverr Pro tier for vetted senior freelancers. Increasingly strong for AI/Product/Design consulting.
+  - name: Twine — UX/UI & Product Design
+    query: >-
+      site:twine.net ("UX Designer" OR "UI Designer" OR "Product Designer" OR "Web Designer" OR "AI Designer")
+      freelance remote
+    enabled: true
+    notes: Freelance creative network. Strong on UX/UI, web/mobile, remote projects.
+  - name: Behance Joblist — UI/UX & Product Design
+    query: >-
+      site:behance.net/joblist ("UI Designer" OR "UX Designer" OR "Product Designer" OR "Website Redesign" OR
+      "Creative") freelance remote
+    enabled: true
+    notes: Adobe Behance job board. UI/UX, product design, creative jobs (freelance + perm).
+  - name: UIUXJobsBoard — UX/UI & Product Design
+    query: >-
+      site:uiuxjobsboard.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "UX Researcher")
+      freelance remote contract
+    enabled: true
+    notes: Specialized UX/UI/product design board. Strong remote/freelance signal.
+  - name: Webflow Jobs — Webflow Designer & Developer
+    query: >-
+      (site:webflow.com/experts OR site:webflow.com/jobs) ("Webflow Designer" OR "Webflow Developer" OR "Webflow
+      + Figma" OR "Webflow Expert") freelance contract remote
+    enabled: true
+    notes: Official Webflow marketplace. Webflow design + dev missions, contract/freelance.
+  - name: Remotive — Design Jobs
+    query: >-
+      site:remotive.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "Web Designer" OR "Design")
+      freelance contract remote
+    enabled: true
+    notes: Remotive remote-only board. Design category includes occasional freelance/contract briefs.
+  - name: Wellfound — Startup UI/UX & Product
+    query: >-
+      site:wellfound.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "AI Designer" OR "SaaS")
+      remote contract freelance
+    enabled: true
+    notes: Ex-AngelList Talent. Startups, remote UX/UI/product design, SaaS focus.
+  - name: Aquent — Creative & UX Missions
+    query: >-
+      site:aquent.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "Web Designer" OR "Creative")
+      contract freelance remote
+    enabled: true
+    notes: Marketing/creative/design staffing. Temporary, remote, full-time. Strong UX coverage.
+  - name: Codeur.com — Web & Design Missions
+    query: >-
+      site:codeur.com ("UX" OR "UI" OR "webdesign" OR "web design" OR "site vitrine" OR "refonte" OR "Webflow"
+      OR "Figma") mission freelance
+    enabled: true
+    notes: Major FR freelance marketplace (~2 500 missions/mois). Web, design, dev, WordPress.
+  - name: 404Works — FR Freelance Missions
+    query: >-
+      site:404works.com ("UX" OR "UI" OR "webdesign" OR "Product Designer" OR "Webflow" OR "Figma") mission
+      freelance
+    enabled: true
+    notes: French freelance marketplace, no commission. Direct missions from companies.
+  - name: Graphiste.com — Webdesign & UI/UX Projects
+    query: >-
+      site:graphiste.com ("webdesign" OR "UX" OR "UI" OR "app design" OR "identité" OR "Figma" OR "refonte")
+      mission projet freelance
+    enabled: true
+    notes: FR design marketplace. Webdesign, UX, UI, identity, app design briefs with budgets.
+  - name: Free-Work — IT/Product/Design Missions
+    query: >-
+      site:free-work.com ("UX" OR "UI" OR "Product Designer" OR "Design System" OR "Product Manager" OR "AI")
+      mission freelance TJM
+    enabled: true
+    notes: FR/EU freelance IT/product/design. Missions with duration, TJM, location.
+  - name: LeHibou — IT & Digital Missions
+    query: >-
+      site:lehibou.com ("UX" OR "UI" OR "Product Designer" OR "Product Manager" OR "Design System" OR "AI")
+      mission freelance
+    enabled: true
+    notes: FR IT/digital freelance platform. Apply to missions via their app.
+  - name: EnglishJobs.fr — Freelance UX/UI in France
+    query: >-
+      site:englishjobs.fr ("UX Designer" OR "UI Designer" OR "Product Designer" OR "Web Designer") freelance
+      contract remote
+    enabled: true
+    notes: English-speaking job board in France. Occasional freelance UI/UX briefs.
+  - name: Freelancer.com — UI/UX & Web/App Design
+    query: >-
+      site:freelancer.com ("UI Designer" OR "UX Designer" OR "Product Designer" OR "Web Design" OR "App Design"
+      OR "Webflow") project freelance
+    enabled: true
+    notes: Global freelance projects + contests. UI/UX, web design, app design briefs.
+  - name: Guru — UX/UI Freelance Projects
+    query: >-
+      site:guru.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "Web Designer") freelance project
+      remote
+    enabled: true
+    notes: Global freelance platform. UX/UI projects with apply/quote workflow.
+  - name: DesignCrowd — Web & App Design Jobs
+    query: >-
+      site:designcrowd.com ("Web Design" OR "App Design" OR "UI Design" OR "UX Design" OR "Branding") project
+      freelance
+    enabled: true
+    notes: Design contests + project marketplace. Web & app design, branding. More contest than mission.
+  - name: Designhill — Design Jobs & Projects
+    query: >-
+      site:designhill.com ("Web Design" OR "UI Design" OR "UX Design" OR "App Design" OR "Branding") freelance
+      project
+    enabled: true
+    notes: Design jobs marketplace. Quotes/proposals for design/web projects.
+  - name: JobStreet — APAC Freelance UX/UI
+    query: >-
+      site:jobstreet.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "Web Designer") freelance
+      contract temp remote
+    enabled: true
+    notes: Major APAC job board (Singapore, MY, ID, PH). Freelance/contract/temp UI/UX briefs.
+  - name: Cultjobs — Singapore Creative Freelance
+    query: >-
+      site:cultjobs.com ("UX Designer" OR "UI Designer" OR "Product Designer" OR "Creative" OR "Design")
+      freelance contract remote
+    enabled: true
+    notes: Singapore creative/design/media job board. Has contract/freelance category.
+  - name: MyCareersFuture — Singapore UX/UI Contract
+    query: >-
+      site:mycareersfuture.gov.sg ("UX Designer" OR "UI Designer" OR "Product Designer") contract freelance
+      remote
+    enabled: true
+    notes: Singapore official career portal. UX designer jobs, often contract/CDD.

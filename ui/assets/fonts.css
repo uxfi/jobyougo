@@ -1,0 +1,65 @@
+/* ═══════════════════════════════════════════════════════════════
+   UI PLAYGROUND — SHARED FONT STACK
+   Import this in any component with:
+   <link rel="stylesheet" href="../assets/fonts.css">
+
+   FREE (loaded via Google Fonts, no install required):
+     - Bricolage Grotesque
+     - Inter
+     - Instrument Serif
+     - Darker Grotesque
+
+   PREMIUM / LOCAL (drop .woff2 files in ./fonts/):
+     - Awesome Serif      → fonts/awesome-serif.woff2
+     - Coolvetica         → fonts/coolvetica.woff2
+     - Bunch              → fonts/bunch.woff2
+     - Caros              → fonts/caros.woff2
+
+   SYSTEM FALLBACK:
+     - Helvetica Neue     → native on macOS / iOS
+═══════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Darker+Grotesque:wght@300..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Instrument+Serif:ital@0;1&display=swap');
+
+/* ─── Premium / local @font-face ─────────────────────────────── */
+@font-face {
+  font-family: 'Awesome Serif';
+  src: url('/ui/assets/fonts/awesome-serif.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Coolvetica';
+  src: url('/ui/assets/fonts/coolvetica.woff2') format('woff2');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bunch';
+  src: url('/ui/assets/fonts/bunch.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Caros';
+  src: url('/ui/assets/fonts/caros.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Reusable font stacks (CSS vars) ────────────────────────── */
+:root {
+  --font-awesome-serif:    'Awesome Serif', 'Instrument Serif', Georgia, serif;
+  --font-coolvetica:       'Coolvetica', 'Helvetica Neue', 'Inter', sans-serif;
+  --font-bunch:            'Bunch', 'Bricolage Grotesque', 'Inter', sans-serif;
+  --font-bricolage:        'Bricolage Grotesque', 'Inter', sans-serif;
+  --font-inter:            'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-caros:            'Caros', 'Inter', -apple-system, sans-serif;
+  --font-helvetica:        'Helvetica Neue', 'Helvetica', 'Inter', Arial, sans-serif;
+  --font-instrument:       'Instrument Serif', 'Awesome Serif', Georgia, serif;
+  --font-darker:           'Darker Grotesque', 'Inter', sans-serif;
+}

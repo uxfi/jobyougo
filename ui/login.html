@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Career Ops — Sign in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #08090a;
+    --panel:     #0f1011;
+    --surface:   #191a1b;
+    --surface-2: #28282c;
+    --text-1:    #f7f8f8;
+    --text-2:    #d0d6e0;
+    --text-3:    #8a8f98;
+    --text-4:    #62666d;
+    --brand:     #5e6ad2;
+    --accent:    #7170ff;
+    --accent-h:  #828fff;
+    --border:    rgba(255,255,255,0.08);
+    --border-s:  rgba(255,255,255,0.05);
+    --red:       #ef4444;
+    --green:     #27a644;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-feature-settings: "cv01","ss03";
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 36px 32px 32px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--brand);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+  .logo-name {
+    font-size: 15px;
+    font-weight: 590;
+    color: var(--text-1);
+    letter-spacing: -0.2px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 24px;
+  }
+  .tab {
+    flex: 1;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-3);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tab.active {
+    background: var(--surface-2);
+    color: var(--text-1);
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-3);
+    margin-bottom: 6px;
+    letter-spacing: 0.01em;
+  }
+  input {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-1);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus {
+    border-color: var(--accent);
+  }
+  input::placeholder { color: var(--text-4); }
+
+  .btn {
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--brand);
+    border: none;
+    border-radius: 7px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 590;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background 0.15s, opacity 0.15s;
+    letter-spacing: -0.1px;
+  }
+  .btn:hover { background: var(--accent-h); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .alert {
+    padding: 10px 12px;
+    border-radius: 7px;
+    font-size: 13px;
+    margin-top: 14px;
+    display: none;
+  }
+  .alert.error {
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.25);
+    color: #fca5a5;
+    display: block;
+  }
+  .alert.success {
+    background: rgba(39,166,68,0.12);
+    border: 1px solid rgba(39,166,68,0.25);
+    color: #86efac;
+    display: block;
+  }
+
+  .hint {
+    font-size: 12px;
+    color: var(--text-4);
+    margin-top: 16px;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .hint a { color: var(--accent); text-decoration: none; }
+  .hint a:hover { text-decoration: underline; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 24px;
+    color: var(--text-4);
+    font-size: 12px;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .guest-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .btn-ghost {
+    flex: 1;
+    padding: 9px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    letter-spacing: -0.1px;
+    text-decoration: none;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn-ghost:hover {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.12);
+    color: var(--text-1);
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">C</div>
+    <span class="logo-name">Career Ops</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-login" onclick="switchTab('login')">Sign in</button>
+    <button class="tab" id="tab-signup" onclick="switchTab('signup')">Create account</button>
+  </div>
+
+  <!-- Login form -->
+  <form id="form-login" onsubmit="handleLogin(event)">
+    <div class="form-group">
+      <label for="login-email">Email</label>
+      <input id="login-email" type="email" placeholder="you@example.com" required autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label for="login-password">Password</label>
+      <input id="login-password" type="password" placeholder="••••••••" required autocomplete="current-password">
+    </div>
+    <button class="btn" type="submit" id="btn-login">Sign in</button>
+    <div class="alert" id="alert-login"></div>
+  </form>
+
+  <!-- Signup form -->
+  <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
+    <div class="form-group">
+      <label for="signup-name">Full name</label>
+      <input id="signup-name" type="text" placeholder="Jane Doe" required autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label for="signup-email">Email</label>
+      <input id="signup-email" type="email" placeholder="you@example.com" required autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label for="signup-password">Password</label>
+      <input id="signup-password" type="password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password">
+    </div>
+    <button class="btn" type="submit" id="btn-signup">Create account</button>
+    <div class="alert" id="alert-signup"></div>
+    <p class="hint">By creating an account you agree to keep your data yours.</p>
+  </form>
+
+  <div class="divider">or continue without an account</div>
+  <div class="guest-actions">
+    <a href="/portfolio" class="btn-ghost">
+      <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><rect x="1.5" y="2.5" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 2.5V5M10 2.5V5M1.5 7h12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Portfolio
+    </a>
+    <button class="btn-ghost" id="btn-view-only">
+      <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M7.5 3C4.5 3 2 7.5 2 7.5s2.5 4.5 5.5 4.5 5.5-4.5 5.5-4.5S10.5 3 7.5 3z" stroke="currentColor" stroke-width="1.3"/><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+      View only
+    </button>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  const SUPABASE_URL  = '__SUPABASE_URL__';
+  const SUPABASE_ANON = '__SUPABASE_ANON_KEY__';
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  async function destinationFor(token) {
+    try {
+      const res = await fetch('/api/profile/status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return '/dashboard';
+      const status = await res.json();
+      return status.complete ? '/dashboard' : '/onboarding';
+    } catch {
+      return '/dashboard';
+    }
+  }
+
+  // Redirect if already signed in
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    window.location.href = await destinationFor(session.access_token);
+  }
+
+  document.getElementById('btn-view-only').addEventListener('click', () => {
+    sessionStorage.setItem('viewOnly', '1');
+    window.location.href = '/dashboard';
+  });
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (loading) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Loading…';
+    } else {
+      btn.disabled = false;
+      btn.textContent = btn.id === 'btn-login' ? 'Sign in' : 'Create account';
+    }
+  }
+
+  function showAlert(id, msg, type = 'error') {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = `alert ${type}`;
+  }
+  function clearAlert(id) {
+    const el = document.getElementById(id);
+    el.className = 'alert';
+    el.textContent = '';
+  }
+
+  window.switchTab = (tab) => {
+    const isLogin = tab === 'login';
+    document.getElementById('tab-login').classList.toggle('active', isLogin);
+    document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+    document.getElementById('form-login').style.display = isLogin ? '' : 'none';
+    document.getElementById('form-signup').style.display = isLogin ? 'none' : '';
+    clearAlert('alert-login');
+    clearAlert('alert-signup');
+  };
+
+  window.handleLogin = async (e) => {
+    e.preventDefault();
+    clearAlert('alert-login');
+    setLoading('btn-login', true);
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading('btn-login', false);
+    if (error) {
+      showAlert('alert-login', error.message);
+    } else {
+      const token = data?.session?.access_token;
+      window.location.href = token ? await destinationFor(token) : '/dashboard';
+    }
+  };
+
+  window.handleSignup = async (e) => {
+    e.preventDefault();
+    clearAlert('alert-signup');
+    setLoading('btn-signup', true);
+    const full_name = document.getElementById('signup-name').value.trim();
+    const email     = document.getElementById('signup-email').value.trim();
+    const password  = document.getElementById('signup-password').value;
+    const { error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { full_name } }
+    });
+    setLoading('btn-signup', false);
+    if (error) {
+      showAlert('alert-signup', error.message);
+    } else {
+      showAlert('alert-signup', 'Account created! Check your email to confirm, then sign in.', 'success');
+    }
+  };
+</script>
+</body>
+</html>

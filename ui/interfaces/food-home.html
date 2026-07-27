@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NutriTrack Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../assets/fonts.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f2ebcf;
+  --card: rgba(255,255,255,.95);
+  --ink: #141414;
+  --muted: rgba(20,20,20,.58);
+  --soft: rgba(255,255,255,.72);
+  --orange: #f47a4b;
+  --green: #d6ef73;
+  --green-deep: #b6dc49;
+  --shadow: 0 24px 44px rgba(94,71,26,.12);
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-caros, 'Inter', sans-serif);
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,.44), rgba(255,255,255,0) 34%),
+    linear-gradient(180deg, #efe7c5 0%, var(--bg) 100%);
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.screen {
+  height: 100vh;
+  padding: 16px 18px calc(20px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background:
+    radial-gradient(circle at 62% 8%, rgba(255,197,108,.42), transparent 18%),
+    radial-gradient(circle at 14% 30%, rgba(255,255,255,.25), transparent 18%),
+    linear-gradient(180deg, #f8efda 0%, #f1e8c8 44%, #efe7ca 100%);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #151515;
+}
+
+.status-time {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.status-icons {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
+  flex-shrink: 0;
+  background:
+    radial-gradient(circle at 50% 28%, #3f2916 0 9px, transparent 10px),
+    radial-gradient(circle at 50% 34%, #5f4026 0 15px, transparent 16px),
+    linear-gradient(180deg, #f4e4c5 0%, #ead8b5 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+.hello {
+  font-size: 15px;
+  color: rgba(20,20,20,.76);
+}
+
+.location {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 3px;
+  font-family: var(--font-bricolage, 'Inter', sans-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.icon-card {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  display: grid;
+  place-items: center;
+  color: #1d1d1d;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.icon-card svg,
+.search-ic svg,
+.filter-btn svg,
+.generate-btn svg,
+.wish-btn svg,
+.add-btn svg,
+.nav-item svg {
+  display: block;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.notif-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f05a28;
+  border: 1.5px solid #f2e9d4;
+}
+
+.hero-copy {
+  margin-top: 28px;
+}
+
+.hero-copy h1 {
+  max-width: 290px;
+  font-family: var(--font-bricolage, 'Inter', sans-serif);
+  font-size: clamp(44px, 10.8vw, 56px);
+  line-height: .94;
+  letter-spacing: -.08em;
+  font-weight: 600;
+}
+
+.hero-copy .accent {
+  color: var(--orange);
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.search-box,
+.filter-btn {
+  background: var(--card);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+
+.search-box {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+}
+
+.search-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  background: #f5f5f2;
+  display: grid;
+  place-items: center;
+  color: #1f1f1f;
+}
+
+.search-box span {
+  color: rgba(20,20,20,.54);
+  font-size: 16px;
+}
+
+.filter-btn {
+  border: none;
+  display: grid;
+  place-items: center;
+}
+
+.assistant-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.assistant-copy h2 {
+  font-family: var(--font-bricolage, 'Inter', sans-serif);
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -.05em;
+}
+
+.assistant-copy p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.generate-btn {
+  border: none;
+  min-width: 138px;
+  height: 58px;
+  padding: 0 18px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255,255,255,.12), transparent 24%),
+    linear-gradient(180deg, #3a3a36 0%, #171715 100%);
+  box-shadow: 0 18px 28px rgba(28,28,26,.18);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.chips {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: 0 0 auto;
+  min-width: 108px;
+  height: 50px;
+  border: none;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 14px 24px rgba(94,71,26,.08);
+  font-family: var(--font-bricolage, 'Inter', sans-serif);
+  font-size: 16px;
+  color: #181818;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.section-head h3 {
+  font-family: var(--font-bricolage, 'Inter', sans-serif);
+  font-size: 22px;
+  letter-spacing: -.05em;
+}
+
+.section-head a {
+  color: rgba(20,20,20,.64);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.food-card {
+  position: relative;
+  margin-top: 16px;
+  min-height: 356px;
+  padding: 18px 16px 16px;
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(255,255,255,.26), transparent 22%),
+    linear-gradient(180deg, #d9f275 0%, #cde85b 100%);
+  box-shadow: 0 24px 44px rgba(157,187,52,.24);
+  overflow: hidden;
+}
+
+.food-card::before {
+  content: "";
+  position: absolute;
+  inset: 44px 38px 86px;
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,.34) 0%, rgba(255,255,255,0) 62%);
+  filter: blur(12px);
+}
+
+.food-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2;
+}
+
+.discount-pill,
+.wish-btn,
+.food-bottom {
+  backdrop-filter: blur(10px);
+}
+
+.discount-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 50px;
+  padding: 0 18px;
+  border-radius: 20px;
+  background: rgba(255,255,255,.28);
+  border: 1px solid rgba(255,255,255,.42);
+  font-family: var(--font-bricolage, 'Inter', sans-serif);
+  font-size: 16px;
+}
+
+.wish-btn {
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255,255,255,.24);
+  border: 1px solid rgba(255,255,255,.42);
+  display: grid;
+  place-items: center;
+  color: #f05a6a;
+}
+
+.food-visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 18px;
+  min-height: 178px;
+  z-index: 1;
+}
+
+.food-visual::before {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,.42) 0%, rgba(255,255,255,0) 62%);
+  filter: blur(4px);
+}
+
+.food-visual img {
+  position: relative;
+  width: min(74vw, 284px);
+  transform: rotate(-5deg);
+  filter: drop-shadow(0 20px 24px rgba(131,90,11,.28));
+}
+
+.food-bottom {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 14px 14px 16px;
+  border-radius: 26px;
+  background: rgba(255,255,255,.34);
+  border: 1px solid rgba(255,255,255,.44);
+  z-index: 3;
+}
+
+.food-info h4 {
+  font-family: var(--font-bricolage, 'Inter', sans-serif);
+  font-size: 17px;
+  letter-spacing: -.04em;
+}
+
+.food-info p {
+  margin-top: 4px;
+  color: rgba(20,20,20,.62);
+  font-size: 15px;
+}
+
+.add-btn {
+  flex: 0 0 auto;
+  min-width: 104px;
+  height: 52px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255,255,255,.7);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 17px;
+  color: #272727;
+}
+
+.bottom-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+  padding: 8px;
+  border-radius: 30px;
+  background: rgba(25,25,24,.94);
+  box-shadow: 0 26px 44px rgba(28,28,26,.24);
+}
+
+.nav-item {
+  height: 56px;
+  border: none;
+  border-radius: 20px;
+  background: transparent;
+  color: rgba(255,255,255,.86);
+  display: grid;
+  place-items: center;
+}
+
+.nav-item.active {
+  background: linear-gradient(180deg, #ffbb9d 0%, #ff9469 100%);
+  color: #1b120d;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.54);
+}
+
+@media (max-height: 820px) {
+  .hero-copy h1 { font-size: clamp(40px, 10vw, 50px); }
+  .food-card { min-height: 326px; }
+  .food-visual img { width: min(66vw, 240px); }
+}
+
+@media (max-width: 320px) {
+  .screen {
+    padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .profile {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 15px;
+    flex-shrink: 0;
+  }
+
+  .hello {
+    font-size: 12px;
+  }
+
+  .location {
+    gap: 5px;
+    font-size: 13px;
+    line-height: 1.05;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  .hero-copy {
+    margin-top: 18px;
+  }
+
+  .hero-copy h1 {
+    max-width: 240px;
+    font-size: 34px;
+    line-height: .92;
+    letter-spacing: -.075em;
+  }
+
+  .search-row {
+    grid-template-columns: minmax(0, 1fr) 50px;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .search-box {
+    min-height: 58px;
+    gap: 12px;
+    padding: 0 12px;
+    border-radius: 20px;
+  }
+
+  .search-ic {
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+  }
+
+  .search-box span {
+    font-size: 14px;
+  }
+
+  .filter-btn {
+    border-radius: 20px;
+  }
+
+  .assistant-row {
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .assistant-copy h2 {
+    font-size: 14px;
+  }
+
+  .assistant-copy p {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.28;
+  }
+
+  .generate-btn {
+    min-width: 112px;
+    height: 48px;
+    padding: 0 12px;
+    gap: 8px;
+    border-radius: 18px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .chips {
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .chip {
+    min-width: 78px;
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 14px;
+    font-size: 12px;
+  }
+
+  .section-head {
+    margin-top: 18px;
+  }
+
+  .section-head h3 {
+    font-size: 15px;
+  }
+
+  .section-head a {
+    font-size: 12px;
+  }
+
+  .food-card {
+    min-height: 302px;
+    margin-top: 12px;
+    padding: 12px 12px 12px;
+    border-radius: 26px;
+  }
+
+  .discount-pill,
+  .wish-btn {
+    height: 42px;
+    border-radius: 16px;
+  }
+
+  .discount-pill {
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .wish-btn {
+    width: 42px;
+  }
+
+  .food-visual {
+    min-height: 146px;
+    margin-top: 8px;
+  }
+
+  .food-visual img {
+    width: min(58vw, 176px);
+  }
+
+  .food-bottom {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    gap: 10px;
+    padding: 10px 10px 10px 12px;
+    border-radius: 20px;
+  }
+
+  .food-info h4 {
+    font-size: 13px;
+  }
+
+  .food-info p {
+    margin-top: 3px;
+    font-size: 11px;
+  }
+
+  .add-btn {
+    min-width: 84px;
+    height: 42px;
+    border-radius: 16px;
+    font-size: 12px;
+  }
+
+  .bottom-nav {
+    gap: 6px;
+    margin-top: 10px;
+    padding: 7px;
+    border-radius: 24px;
+    bottom: 0;
+  }
+
+  .nav-item {
+    height: 46px;
+    border-radius: 16px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="status">
+    <span class="status-time">9:30</span>
+    <div class="status-icons" aria-hidden="true">
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+        <rect x="0" y="5" width="3" height="7" rx="1" fill="#141414" opacity=".3"/>
+        <rect x="4.5" y="3" width="3" height="9" rx="1" fill="#141414" opacity=".55"/>
+        <rect x="9" y="1" width="3" height="11" rx="1" fill="#141414" opacity=".8"/>
+        <rect x="13.5" y="0" width="3" height="12" rx="1" fill="#141414"/>
+      </svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+        <path d="M8 9.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" fill="#141414"/>
+        <path d="M3 6c1.3-1.3 3.1-2 5-2s3.7.7 5 2" stroke="#141414" stroke-width="1.5" stroke-linecap="round" opacity=".75"/>
+        <path d="M0.5 3.5C2.5 1.3 5.1 0 8 0s5.5 1.3 7.5 3.5" stroke="#141414" stroke-width="1.5" stroke-linecap="round" opacity=".38"/>
+      </svg>
+      <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+        <rect x=".5" y=".5" width="22" height="12" rx="3.5" stroke="#141414" stroke-opacity=".32"/>
+        <rect x="2" y="2" width="16" height="9" rx="2" fill="#141414"/>
+        <path d="M24 4.5v4c1-.5 1.5-1.1 1.5-2s-.5-1.5-1.5-2z" fill="#141414" opacity=".38"/>
+      </svg>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="profile">
+      <div class="avatar" aria-hidden="true"></div>
+      <div>
+        <div class="hello">Hello Fazlur</div>
+        <div class="location">
+          <svg width="14" height="18" viewBox="0 0 14 18" fill="none" aria-hidden="true">
+            <path d="M7 16.2s5-4.52 5-8.72A5 5 0 002 7.48c0 4.2 5 8.72 5 8.72z" stroke="#1a1a1a" stroke-width="1.6"/>
+            <circle cx="7" cy="7" r="1.8" fill="#1a1a1a"/>
+          </svg>
+          <span>New York, USA</span>
+          <svg width="12" height="7" viewBox="0 0 12 7" fill="none" aria-hidden="true">
+            <path d="M1 1.2L6 6l5-4.8" stroke="#1a1a1a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="icon-card" type="button" aria-label="Bag">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M7 8.75h10.2l-.82 9.3a2 2 0 01-1.99 1.82H9.6a2 2 0 01-1.98-1.79L7 8.75z" stroke="currentColor" stroke-width="1.85"/>
+          <path d="M9.35 9V7.4a2.65 2.65 0 015.3 0V9" stroke="currentColor" stroke-width="1.85"/>
+        </svg>
+      </button>
+      <button class="icon-card" type="button" aria-label="Notifications">
+        <span class="notif-dot"></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M12 4.6a4.55 4.55 0 00-4.55 4.55v2.1c0 .7-.22 1.39-.63 1.96l-1.05 1.47h12.46l-1.05-1.47a3.34 3.34 0 01-.63-1.96v-2.1A4.55 4.55 0 0012 4.6z" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M9.9 17.3a2.1 2.1 0 004.2 0" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <section class="hero-copy">
+    <h1>What are you <span class="accent">eating</span> today?</h1>
+  </section>
+
+  <div class="search-row">
+    <div class="search-box">
+      <div class="search-ic">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="6.7" stroke="currentColor" stroke-width="2"/>
+          <path d="M16.2 16.2L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span>Search Food...</span>
+    </div>
+    <button class="filter-btn" type="button" aria-label="Filters">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M5 7h14M5 12h14M5 17h14" stroke="#181818" stroke-width="1.9"/>
+        <circle cx="9" cy="7" r="2.1" fill="#fff" stroke="#181818" stroke-width="1.7"/>
+        <circle cx="15" cy="12" r="2.1" fill="#fff" stroke="#181818" stroke-width="1.7"/>
+        <circle cx="11" cy="17" r="2.1" fill="#fff" stroke="#181818" stroke-width="1.7"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="assistant-row">
+    <div class="assistant-copy">
+      <h2>AI food assistant</h2>
+      <p>Smart insights for healthier choices</p>
+    </div>
+    <button class="generate-btn" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7.4 15.8l8.95-8.94a1.8 1.8 0 012.55 2.54l-8.95 8.95-3.58.97.97-3.58z" stroke="currentColor" stroke-width="1.75"/>
+        <path d="M14.8 6.95l2.24 2.24" stroke="currentColor" stroke-width="1.75"/>
+        <path d="M5.2 6.2l.66 1.5 1.5.66-1.5.67-.66 1.49-.67-1.49-1.5-.67 1.5-.66.67-1.5z" fill="currentColor"/>
+      </svg>
+      <span>Generate</span>
+    </button>
+  </div>
+
+  <div class="chips">
+    <button class="chip" type="button">Popular</button>
+    <button class="chip" type="button">Quick &amp; Easy</button>
+    <button class="chip" type="button">Diets</button>
+    <button class="chip" type="button">Protein</button>
+  </div>
+
+  <div class="section-head">
+    <h3>Recommended for you</h3>
+    <a href="#">See all</a>
+  </div>
+
+  <article class="food-card">
+    <div class="food-top">
+      <div class="discount-pill">20% Off</div>
+      <button class="wish-btn" type="button" aria-label="Favourite">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 20.5l-1.22-1.1C6.1 15.18 3 12.4 3 8.9A4.9 4.9 0 017.98 4c1.54 0 3.01.72 4.02 1.87A5.24 5.24 0 0116.02 4 4.9 4.9 0 0121 8.9c0 3.5-3.1 6.28-7.78 10.5L12 20.5z" stroke="currentColor" stroke-width="1.85"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="food-visual">
+      <img src="../assets/burger-cutout.png" alt="BlackLabel Burger">
+    </div>
+
+    <div class="food-bottom">
+      <div class="food-info">
+        <h4>Black Label Burger</h4>
+        <p>650 Kcal</p>
+      </div>
+      <button class="add-btn" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+        <span>Add</span>
+      </button>
+    </div>
+  </article>
+
+  <nav class="bottom-nav" aria-label="Primary">
+    <button class="nav-item active" type="button" aria-label="Home">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M4.5 10.4L12 4.5l7.5 5.9v8a1.4 1.4 0 01-1.4 1.4h-3.9v-5.1a1 1 0 00-1-1H10.8a1 1 0 00-1 1v5.1H5.9a1.4 1.4 0 01-1.4-1.4v-8z" stroke="currentColor" stroke-width="1.9"/>
+      </svg>
+    </button>
+    <button class="nav-item" type="button" aria-label="Wishlist">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 20.5l-1.22-1.1C6.1 15.18 3 12.4 3 8.9A4.9 4.9 0 017.98 4c1.54 0 3.01.72 4.02 1.87A5.24 5.24 0 0116.02 4 4.9 4.9 0 0121 8.9c0 3.5-3.1 6.28-7.78 10.5L12 20.5z" stroke="currentColor" stroke-width="1.85"/>
+      </svg>
+    </button>
+    <button class="nav-item" type="button" aria-label="Cart">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M4 6.5h2.3l1.9 8.05a1.2 1.2 0 001.17.95h7.96a1.2 1.2 0 001.16-.88l1.43-5.17H8.2" stroke="currentColor" stroke-width="1.85"/>
+        <circle cx="10.2" cy="18.55" r="1.45" fill="currentColor"/>
+        <circle cx="17.25" cy="18.55" r="1.45" fill="currentColor"/>
+      </svg>
+    </button>
+    <button class="nav-item" type="button" aria-label="Profile">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="8.6" r="3.6" stroke="currentColor" stroke-width="1.85"/>
+        <path d="M5.2 19.2c1.5-2.9 3.88-4.35 6.8-4.35s5.3 1.45 6.8 4.35" stroke="currentColor" stroke-width="1.85"/>
+      </svg>
+    </button>
+  </nav>
+</div>
+</body>
+</html>

@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lyon — AI Social Media</title>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #fcfcfd;
+  --ink: #0f0c1a;
+  --t2: #4b4869;
+  --t3: #9491a8;
+  --purple: #7c3aed;
+  --purple-2: #9061f9;
+  --purple-soft: #f3eeff;
+  --green: #10b981;
+  --blue: #3b82f6;
+  --pink: #ec4899;
+}
+
+html, body { width: 100%; min-height: 100%; font-family: var(--font-inter); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+.ui-display {
+  font-family: var(--font-bricolage);
+  font-weight: 700;
+  letter-spacing: -.04em;
+}
+.serif-inline {
+  font-family: var(--font-instrument);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -.02em;
+}
+.creator-word {
+  font-family: var(--font-bricolage);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: -.03em;
+}
+
+/* ── NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px; height: 62px;
+  background: rgba(252,252,253,.88); backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+.nav-logo { display: flex; align-items: center; flex-shrink: 0; }
+.nav-logo img {
+  display: block;
+  width: 132px;
+  height: auto;
+}
+.nav-links { display: flex; align-items: center; gap: 2px; }
+.nav-link {
+  font-family: var(--font-bricolage);
+  font-size: 13px; font-weight: 500; color: var(--t2);
+  padding: 6px 12px; border-radius: 7px; text-decoration: none;
+  transition: background 120ms, color 120ms;
+}
+.nav-link:hover { background: #f5f3ff; color: var(--purple); }
+.nav-link.has-arrow::after { content: ' ↓'; font-size: 10px; opacity: .6; }
+.nav-right { display: flex; align-items: center; gap: 10px; }
+.btn-ghost { font-family: var(--font-bricolage); font-size: 13px; font-weight: 500; color: var(--t2); padding: 7px 14px; border-radius: 8px; border: none; background: transparent; cursor: pointer; transition: color 120ms; }
+.btn-ghost:hover { color: var(--ink); }
+.btn-primary {
+  font-family: var(--font-bricolage);
+  font-size: 13px; font-weight: 600; color: #fff;
+  padding: 8px 18px; border-radius: 9px; border: none;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 4px 14px rgba(124,58,237,.35);
+  cursor: pointer; transition: box-shadow 150ms, transform 120ms;
+}
+.btn-primary:hover { box-shadow: 0 6px 20px rgba(124,58,237,.45); transform: translateY(-1px); }
+
+/* ── HERO ── */
+.hero {
+  display: grid; grid-template-columns: 1fr 1fr;
+  align-items: stretch; gap: 0;
+  padding: 72px 48px 60px;
+  min-height: calc(100vh - 62px);
+  max-width: 1280px; margin: 0 auto;
+}
+.hero-left { padding-right: 48px; }
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-bricolage);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--purple); background: var(--purple-soft);
+  padding: 5px 11px; border-radius: 100px; margin-bottom: 22px;
+}
+.hero-tag span { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+.hero-h1 {
+  font-family: var(--font-bricolage);
+  font-size: clamp(34px, 3.8vw, 52px); font-weight: 700;
+  letter-spacing: -.05em; line-height: 1.02; color: var(--ink);
+  margin-bottom: 20px;
+}
+.hero-h1 .accent {
+  font-family: var(--font-instrument);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -.02em;
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.creator-proof {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.74);
+  border: 1px solid rgba(139,92,246,.12);
+  box-shadow:
+    0 10px 24px rgba(62, 42, 112, .08),
+    inset 0 1px 0 rgba(255,255,255,.72);
+  vertical-align: middle;
+}
+.creator-avatar {
+  position: relative;
+  display: inline-flex;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, rgba(139,92,246,.38), rgba(59,130,246,.28));
+  box-shadow: 0 10px 24px rgba(124,58,237,.18);
+}
+.creator-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  border: 2px solid rgba(255,255,255,.92);
+}
+.verified-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  border: 2px solid #fcfcfd;
+  box-shadow: 0 8px 16px rgba(37,99,235,.22);
+}
+.verified-badge svg {
+  width: 12px;
+  height: 12px;
+  stroke: #fff;
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hero-sub {
+  font-size: 16px; color: var(--t2); line-height: 1.65;
+  max-width: 420px; margin-bottom: 36px;
+}
+.hero-cta { display: flex; align-items: center; gap: 14px; }
+.btn-hero-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-bricolage);
+  font-size: 15px; font-weight: 600; color: #fff;
+  padding: 13px 26px; border-radius: 12px; border: none;
+  background: linear-gradient(135deg, #9061f9, #7c3aed);
+  box-shadow: 0 8px 24px rgba(124,58,237,.38);
+  cursor: pointer; transition: box-shadow 150ms, transform 120ms;
+}
+.btn-hero-primary:hover { box-shadow: 0 12px 32px rgba(124,58,237,.5); transform: translateY(-2px); }
+.btn-hero-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-bricolage);
+  font-size: 15px; font-weight: 600; color: var(--ink);
+  padding: 12px 24px; border-radius: 12px;
+  border: 1.5px solid rgba(0,0,0,.1); background: transparent;
+  cursor: pointer; transition: border-color 120ms, background 120ms;
+}
+.btn-hero-ghost:hover { border-color: rgba(0,0,0,.2); background: #f9f8ff; }
+.play-circle {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: linear-gradient(135deg, #f3eeff, #e8d9ff);
+  display: grid; place-items: center; flex-shrink: 0;
+}
+
+/* ── HERO MOCKUP ── */
+.hero-right {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  height: 100%;
+}
+.hero-particle {
+  position: absolute;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255,255,255,.96) 0%, rgba(255,255,255,.82) 20%, rgba(255,255,255,0) 38%),
+    radial-gradient(circle at 68% 70%, rgba(24, 44, 120, .34) 0%, rgba(80, 58, 196, .22) 32%, rgba(80,58,196,0) 62%),
+    radial-gradient(circle at 62% 38%, rgba(88, 227, 255, .92) 0%, rgba(88, 227, 255, .2) 30%, rgba(88,227,255,0) 56%),
+    radial-gradient(circle at 34% 34%, rgba(184, 105, 255, .82) 0%, rgba(184, 105, 255, .18) 28%, rgba(184,105,255,0) 54%),
+    linear-gradient(145deg, rgba(255,255,255,.82), rgba(205,192,255,.26) 32%, rgba(119,89,244,.2) 54%, rgba(64,205,255,.18) 72%, rgba(255,255,255,.16));
+  border: 1px solid rgba(192, 170, 255, .42);
+  box-shadow:
+    inset -10px -16px 30px rgba(79, 59, 201, .18),
+    inset 10px 10px 22px rgba(255,255,255,.62),
+    0 18px 40px rgba(129, 99, 255, .18),
+    0 0 42px rgba(106, 212, 255, .18);
+  backdrop-filter: blur(4px);
+  animation: heroFloat 8s ease-in-out infinite;
+  z-index: 2;
+}
+.hero-particle::before {
+  content: '';
+  position: absolute;
+  inset: 7%;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.22);
+  pointer-events: none;
+}
+.hero-particle::after {
+  content: '';
+  position: absolute;
+  width: 24%;
+  height: 24%;
+  top: 18%;
+  right: 16%;
+  border-radius: 50%;
+  background: rgba(255,255,255,.74);
+  filter: blur(1px);
+  opacity: .9;
+  pointer-events: none;
+}
+.hero-particle.p1 { width: 118px; height: 118px; top: 6%; right: calc(3% + 15px); animation-delay: 0s; }
+.hero-particle.p2 { width: 72px; height: 72px; top: 18%; left: 8%; animation-delay: -2s; }
+.hero-particle.p3 { width: 54px; height: 54px; bottom: 14%; right: 18%; animation-delay: -3.8s; }
+.hero-particle.p4 { width: 34px; height: 34px; bottom: 28%; left: 14%; animation-delay: -5.2s; }
+@keyframes heroFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+}
+.hero-blob {
+  position: absolute;
+  width: 520px; height: 520px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: conic-gradient(from 200deg at 50% 50%,
+    rgba(139,92,246,.55) 0deg,
+    rgba(236,72,153,.4) 80deg,
+    rgba(59,130,246,.45) 160deg,
+    rgba(16,185,129,.3) 240deg,
+    rgba(168,85,247,.5) 320deg,
+    rgba(139,92,246,.55) 360deg);
+  filter: blur(56px);
+  z-index: 0;
+}
+.hero-app {
+  position: relative; z-index: 1;
+  border-radius: 18px;
+  box-shadow: 0 32px 80px rgba(0,0,0,.18), 0 0 0 1px rgba(255,255,255,.6);
+  overflow: hidden;
+  background: #fff;
+  display: grid; grid-template-columns: 52px 1fr;
+  height: 380px;
+}
+.app-rail {
+  background: #1a1030;
+  display: flex; flex-direction: column;
+  align-items: center; padding: 16px 0; gap: 14px;
+}
+.rail-logo { font-size: 14px; font-weight: 800; color: #fff; letter-spacing: -.3px; }
+.rail-icon {
+  width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center;
+  color: rgba(255,255,255,.4); cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.rail-icon.active { background: rgba(139,92,246,.3); color: #c4b5fd; }
+.rail-icon:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.7); }
+.app-main { overflow: hidden; background: #f8f6ff; }
+.app-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px 8px;
+  background: #fff; border-bottom: 1px solid #f0edfb;
+}
+.app-greeting { font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; }
+.app-greeting span { color: var(--purple); }
+.app-date { font-size: 11px; color: var(--t3); }
+.app-stats {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 8px; padding: 10px 16px;
+}
+.stat-card {
+  background: #fff; border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid #f0edfb;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.stat-label { font-size: 9.5px; color: var(--t3); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.stat-val { font-size: 18px; font-weight: 800; letter-spacing: -.04em; color: var(--ink); margin-top: 3px; }
+.stat-delta { font-size: 9px; font-weight: 600; color: var(--green); margin-top: 2px; }
+.app-content { padding: 0 16px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.content-card {
+  background: #fff; border-radius: 12px;
+  border: 1px solid #f0edfb;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  overflow: hidden;
+}
+.content-card-img {
+  height: 72px;
+  background: linear-gradient(135deg, #c4b5fd, #a78bfa);
+  display: flex; align-items: center; justify-content: center;
+}
+.content-card-img.green { background: linear-gradient(135deg, #6ee7b7, #34d399); }
+.content-card-body { padding: 8px 10px; }
+.content-card-title { font-size: 10.5px; font-weight: 700; color: var(--ink); }
+.content-card-meta { font-size: 9.5px; color: var(--t3); margin-top: 3px; }
+.content-card-bar { height: 3px; border-radius: 100px; background: #f0edfb; margin-top: 7px; overflow: hidden; }
+.content-card-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8b5cf6, #ec4899); }
+.chart-mini {
+  padding: 10px 16px 0;
+}
+.chart-mini-title { font-size: 10.5px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+
+/* ── TRUST BAR ── */
+.trust-bar {
+  background: rgba(255,255,255,.28);
+  border-top: 1px solid #f0edfb;
+  border-bottom: 1px solid #f0edfb;
+  padding: 18px 48px;
+  display: flex; align-items: center; justify-content: center; gap: 48px;
+}
+.trust-text { font-size: 12px; color: var(--t3); white-space: nowrap; }
+.trust-logos { display: flex; align-items: center; gap: 36px; }
+.trust-logo { display: flex; align-items: center; opacity: .45; filter: grayscale(1); transition: opacity 150ms; }
+.trust-logo:hover { opacity: .7; }
+
+/* ── STATS ── */
+.stats-band {
+  position: relative;
+  max-width: 1280px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 0; padding: 60px 48px;
+  border-bottom: 1px solid #f0edfb;
+  overflow: hidden;
+}
+.stats-band::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(1120px, calc(100% - 72px));
+  height: 170px;
+  transform: translate(-50%, -50%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 240' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='g1' x1='40' y1='120' x2='1160' y2='120' gradientUnits='userSpaceOnUse'%3E%3Cstop stop-color='%23c084fc' stop-opacity='.14'/%3E%3Cstop offset='.3' stop-color='%238b5cf6' stop-opacity='.3'/%3E%3Cstop offset='.68' stop-color='%237dd3fc' stop-opacity='.34'/%3E%3Cstop offset='1' stop-color='%2360a5fa' stop-opacity='.14'/%3E%3C/linearGradient%3E%3ClinearGradient id='g2' x1='40' y1='144' x2='1160' y2='96' gradientUnits='userSpaceOnUse'%3E%3Cstop stop-color='%23f0abfc' stop-opacity='.08'/%3E%3Cstop offset='.4' stop-color='%23a855f7' stop-opacity='.22'/%3E%3Cstop offset='.74' stop-color='%236ee7f9' stop-opacity='.22'/%3E%3Cstop offset='1' stop-color='%2393c5fd' stop-opacity='.08'/%3E%3C/linearGradient%3E%3Cfilter id='blur' x='0' y='0' width='1200' height='240' filterUnits='userSpaceOnUse'%3E%3CfeGaussianBlur stdDeviation='2.4'/%3E%3C/filter%3E%3C/defs%3E%3Cg filter='url(%23blur)'%3E%3Cpath d='M24 120C154 48 300 44 430 94C507 124 567 164 639 164C723 164 782 104 862 82C959 55 1065 77 1176 122' stroke='url(%23g1)' stroke-width='3.2' stroke-linecap='round'/%3E%3Cpath d='M24 121C162 177 308 184 439 146C524 121 582 78 657 78C737 78 807 129 888 151C986 178 1081 164 1176 118' stroke='url(%23g2)' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M8 122C130 117 234 111 346 110C479 108 598 136 738 135C902 134 1037 111 1192 112' stroke='url(%23g1)' stroke-opacity='.55' stroke-width='1.3' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  opacity: .95;
+  pointer-events: none;
+}
+.stats-band::after {
+  content: '';
+  position: absolute;
+  inset: auto 5% 24px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(168,85,247,0), rgba(168,85,247,.16) 18%, rgba(96,165,250,.14) 52%, rgba(168,85,247,.12) 82%, rgba(168,85,247,0));
+  pointer-events: none;
+}
+.stats-item { position: relative; z-index: 1; text-align: center; padding: 0 24px; border-right: 1px solid #f0edfb; }
+.stats-item:last-child { border-right: none; }
+.stats-val {
+  font-family: var(--font-bricolage);
+  font-size: 36px; font-weight: 700; letter-spacing: -.05em; color: var(--ink);
+}
+.stats-val .unit { font-size: 22px; }
+.stats-desc { font-size: 13px; color: var(--t2); margin-top: 6px; }
+
+/* ── FEATURES ── */
+.section { max-width: 1280px; margin: 0 auto; padding: 72px 48px; }
+.section-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-bricolage);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--purple); margin-bottom: 16px;
+}
+.section-h2 {
+  font-family: var(--font-bricolage);
+  font-size: clamp(28px, 3vw, 40px); font-weight: 700;
+  letter-spacing: -.05em; line-height: 1.06; color: var(--ink);
+  margin-bottom: 14px;
+}
+.section-h2 .accent {
+  font-family: var(--font-instrument);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -.02em;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.section-sub { font-size: 16px; color: var(--t2); line-height: 1.6; max-width: 500px; margin-bottom: 52px; }
+
+.features-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+}
+.feature-card {
+  background: #fff; border-radius: 18px;
+  padding: 28px 26px;
+  border: 1px solid #f0edfb;
+  box-shadow: 0 4px 16px rgba(0,0,0,.05);
+  transition: box-shadow 200ms, transform 200ms;
+}
+.feature-card:hover { box-shadow: 0 12px 36px rgba(0,0,0,.1); transform: translateY(-3px); }
+.feature-icon {
+  width: 48px; height: 48px; border-radius: 14px;
+  display: grid; place-items: center; margin-bottom: 18px;
+  font-size: 22px;
+}
+.feat-purple { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+.feat-blue   { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
+.feat-green  { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+.feat-pink   { background: linear-gradient(135deg, #fce7f3, #fbcfe8); }
+.feat-orange { background: linear-gradient(135deg, #ffedd5, #fed7aa); }
+.feat-teal   { background: linear-gradient(135deg, #ccfbf1, #99f6e4); }
+.feature-title { font-family: var(--font-bricolage); font-size: 16px; font-weight: 700; letter-spacing: -.03em; margin-bottom: 8px; }
+.feature-desc { font-size: 13.5px; color: var(--t2); line-height: 1.6; }
+
+/* ── BENTO ── */
+.bento-shell {
+  position: relative;
+  padding: 20px;
+  border-radius: 42px;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.85), transparent 28%),
+    radial-gradient(circle at 80% 22%, rgba(214,226,255,.45), transparent 22%),
+    linear-gradient(180deg, #efebe4 0%, #e8e4de 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+  overflow: hidden;
+}
+.bento-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 16% 75%, rgba(147,197,253,.18), transparent 17%),
+    radial-gradient(circle at 82% 68%, rgba(244,114,182,.16), transparent 18%);
+  pointer-events: none;
+}
+.bento-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.02fr 1.16fr .98fr;
+  grid-template-rows: 206px 378px 178px;
+  gap: 18px;
+}
+.bento-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 30px;
+  border: 1px solid rgba(136, 124, 173, .12);
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 18px 36px rgba(36, 24, 68, .06), inset 0 1px 0 rgba(255,255,255,.75);
+}
+.bento-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.38), rgba(255,255,255,0));
+  pointer-events: none;
+}
+.bento-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-bricolage);
+  min-height: 40px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(196,181,253,.9), rgba(124,58,237,.95));
+  box-shadow: 0 12px 24px rgba(124,58,237,.18), inset 0 1px 0 rgba(255,255,255,.45);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -.01em;
+}
+.bento-script {
+  font-family: var(--font-instrument);
+  font-style: italic;
+  font-weight: 400;
+}
+.bento-intro {
+  grid-column: 1;
+  grid-row: 1;
+  padding: 30px 34px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 18px;
+}
+.bento-intro h3 {
+  max-width: 320px;
+  margin-top: 18px;
+  font-family: var(--font-bricolage);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -.045em;
+  color: #1d1731;
+}
+.bento-orbit {
+  grid-column: 1;
+  grid-row: 2 / 4;
+  padding: 26px 28px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(191,219,254,.7), transparent 30%),
+    linear-gradient(180deg, rgba(255,255,255,.88) 0%, rgba(242,238,255,.96) 100%);
+}
+.orbit-rings {
+  position: absolute;
+  inset: 40px 20px 120px;
+  display: grid;
+  place-items: center;
+}
+.orbit-rings span {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(111, 156, 207, .1);
+  box-shadow: 0 0 24px rgba(147,197,253,.06);
+}
+.orbit-rings span:nth-child(1) { width: 340px; height: 340px; }
+.orbit-rings span:nth-child(2) { width: 270px; height: 270px; }
+.orbit-rings span:nth-child(3) { width: 196px; height: 196px; }
+.orbit-rings span:nth-child(4) { width: 124px; height: 124px; }
+.orbit-icon {
+  position: absolute;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #9f67ff 0%, #7c3aed 100%);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 18px 34px rgba(124,58,237,.26);
+}
+.orbit-meta {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+.orbit-kicker {
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5b4fb0;
+}
+.orbit-title {
+  font-family: var(--font-bricolage);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -.05em;
+  color: #41367f;
+}
+.bento-connect {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 26px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(255,239,244,.7), transparent 28%),
+    radial-gradient(circle at 78% 34%, rgba(191,219,254,.6), transparent 24%),
+    linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,252,255,.9));
+}
+.connect-node {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  box-shadow: 0 12px 26px rgba(124,58,237,.22);
+}
+.connect-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.connect-arrows span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.connect-arrows span:last-child {
+  flex-direction: row-reverse;
+}
+.connect-line {
+  width: 104px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(97,81,180,.18), rgba(97,81,180,.65));
+}
+.connect-arrows span:last-child .connect-line {
+  background: linear-gradient(90deg, rgba(97,81,180,.65), rgba(97,81,180,.18));
+}
+.connect-note {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  width: calc(100% - 56px);
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(75, 72, 105, .7);
+}
+.bento-phone {
+  grid-column: 2;
+  grid-row: 2;
+  padding: 18px 18px 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background: #fff;
+}
+.bento-phone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+  pointer-events: none;
+}
+.bento-phone img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: none;
+}
+.bento-type {
+  grid-column: 2;
+  grid-row: 3;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(circle at 85% 100%, rgba(191,219,254,.3), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.9));
+}
+.type-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6f59d9;
+}
+.type-copy {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(75, 72, 105, .68);
+}
+.type-sample {
+  font-family: var(--font-helvetica);
+  font-size: clamp(34px, 4vw, 62px);
+  line-height: .95;
+  letter-spacing: -.06em;
+  color: rgba(97, 89, 150, .42);
+}
+.bento-stat {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  padding: 34px 34px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(circle at 50% 54%, rgba(255,235,225,.7), transparent 32%),
+    linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,246,243,.95));
+}
+.bento-stat::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle, rgba(255,214,194,.24) 1px, transparent 1px);
+  background-size: 10px 10px;
+  mask-image: radial-gradient(circle at 55% 52%, rgba(0,0,0,.9), transparent 46%);
+  pointer-events: none;
+}
+.stat-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.stat-value {
+  font-family: var(--font-bricolage);
+  font-size: clamp(56px, 7vw, 92px);
+  font-weight: 700;
+  letter-spacing: -.09em;
+  line-height: .88;
+  color: #5c241f;
+}
+.stat-value span {
+  font-size: .78em;
+}
+.stat-arrows {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+.stat-arrows svg {
+  opacity: .9;
+}
+.stat-body {
+  position: relative;
+  z-index: 1;
+  max-width: 240px;
+  font-size: 16px;
+  line-height: 1.42;
+  color: rgba(75, 72, 105, .74);
+}
+.stat-chart {
+  position: relative;
+  z-index: 1;
+  margin-top: 18px;
+  width: calc(100% + 8px);
+  margin-left: -4px;
+  margin-right: -4px;
+  padding: 14px 0 8px;
+}
+.stat-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+.stat-chart-title {
+  font-family: var(--font-bricolage);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  color: #6b3d3a;
+}
+.stat-chart-growth {
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+}
+.stat-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.stat-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(92, 36, 31, .46);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.bento-stack {
+  grid-column: 3;
+  grid-row: 3;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.95), rgba(242,249,255,.92));
+}
+.stack-paper {
+  position: absolute;
+  background: rgba(255,255,255,.98);
+  border: 1px solid rgba(136, 124, 173, .12);
+  border-radius: 18px;
+  box-shadow: 0 16px 28px rgba(40, 27, 78, .08);
+}
+.stack-paper.back {
+  width: 138px;
+  height: 156px;
+  left: 38px;
+  bottom: -14px;
+  transform: rotate(-14deg);
+  opacity: .88;
+}
+.stack-paper.middle {
+  width: 148px;
+  height: 168px;
+  left: 94px;
+  bottom: -8px;
+  transform: rotate(8deg);
+  opacity: .94;
+}
+.stack-paper.front {
+  width: 212px;
+  height: 168px;
+  right: 30px;
+  bottom: 14px;
+  padding: 18px 18px 16px;
+}
+.stack-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f4f0ff;
+  color: #6658b2;
+  font-size: 10px;
+  font-weight: 600;
+}
+.stack-title {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.04em;
+  color: #1d1731;
+}
+.stack-copy {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(75, 72, 105, .68);
+}
+.stack-list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stack-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stack-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+}
+.stack-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.stack-icon.pink { background: #ffe2ef; color: #d9468c; }
+.stack-icon.blue { background: #e1efff; color: #2563eb; }
+.stack-icon.green { background: #dcfce7; color: #16a34a; }
+.stack-item strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #201939;
+}
+.stack-item span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(75, 72, 105, .62);
+}
+
+@media (max-width: 1080px) {
+  .bento-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 206px 360px 320px 178px;
+  }
+  .bento-intro { grid-column: 1; grid-row: 1; }
+  .bento-connect { grid-column: 2; grid-row: 1; }
+  .bento-orbit { grid-column: 1; grid-row: 2 / 4; }
+  .bento-phone { grid-column: 2; grid-row: 2; }
+  .bento-stat { grid-column: 2; grid-row: 3; }
+  .bento-type { grid-column: 1; grid-row: 4; }
+  .bento-stack { grid-column: 2; grid-row: 4; }
+}
+
+@media (max-width: 720px) {
+  .bento-shell {
+    padding: 14px;
+    border-radius: 28px;
+  }
+  .bento-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+  .bento-intro,
+  .bento-orbit,
+  .bento-connect,
+  .bento-phone,
+  .bento-type,
+  .bento-stat,
+  .bento-stack {
+    grid-column: auto;
+    grid-row: auto;
+    min-height: auto;
+  }
+  .bento-intro { padding: 24px; }
+  .bento-intro h3 { font-size: 22px; }
+  .bento-connect { min-height: 160px; }
+  .bento-phone { min-height: 340px; }
+  .bento-orbit { min-height: 420px; }
+  .bento-stat { min-height: 260px; }
+  .bento-type { min-height: 150px; }
+  .bento-stack { min-height: 240px; }
+  .stack-paper.front {
+    right: 16px;
+    width: 196px;
+  }
+}
+
+/* ── STEPS ── */
+.steps-section {
+  background: rgba(255,255,255,.22);
+  border-top: 1px solid #f0edfb; border-bottom: 1px solid #f0edfb;
+  padding: 80px 0;
+}
+.steps-inner { max-width: 1280px; margin: 0 auto; padding: 0 48px; }
+.steps-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 24px;
+  margin-top: 52px; position: relative;
+}
+.steps-grid::before {
+  content: ''; position: absolute;
+  top: 28px; left: calc(12.5% + 24px); right: calc(12.5% + 24px);
+  height: 2px;
+  background: linear-gradient(90deg, #8b5cf6, #ec4899, #3b82f6, #10b981);
+  opacity: .25;
+}
+.step-card { text-align: center; padding: 0 8px; }
+.step-num {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: grid; place-items: center; margin: 0 auto 20px;
+  font-size: 20px; font-weight: 800;
+  background: #fff; border: 2px solid #f0edfb;
+  box-shadow: 0 4px 16px rgba(0,0,0,.08);
+  position: relative; z-index: 1;
+}
+.step-num.s1 { color: #8b5cf6; border-color: #ddd6fe; }
+.step-num.s2 { color: #ec4899; border-color: #fbcfe8; }
+.step-num.s3 { color: #3b82f6; border-color: #bfdbfe; }
+.step-num.s4 { color: #10b981; border-color: #a7f3d0; }
+.step-title { font-family: var(--font-bricolage); font-size: 15px; font-weight: 700; letter-spacing: -.03em; margin-bottom: 8px; }
+.step-desc { font-size: 13px; color: var(--t2); line-height: 1.6; }
+
+/* ── CTA BOTTOM ── */
+.cta-section {
+  max-width: 1280px; margin: 0 auto;
+  padding: 80px 48px;
+  text-align: center;
+}
+.cta-box {
+  background: linear-gradient(135deg, #7c3aed 0%, #9061f9 50%, #c084fc 100%);
+  border-radius: 28px; padding: 72px 48px;
+  box-shadow: 0 24px 60px rgba(124,58,237,.35);
+  position: relative; overflow: hidden;
+}
+.cta-box::before {
+  content: ''; position: absolute;
+  width: 400px; height: 400px; border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  top: -100px; right: -80px;
+}
+.cta-box::after {
+  content: ''; position: absolute;
+  width: 280px; height: 280px; border-radius: 50%;
+  background: rgba(255,255,255,.06);
+  bottom: -80px; left: -60px;
+}
+.cta-h2 { font-family: var(--font-bricolage); font-size: clamp(28px, 3vw, 42px); font-weight: 700; letter-spacing: -.05em; line-height: 1.04; color: #fff; margin-bottom: 16px; position: relative; z-index: 1; }
+.cta-sub { font-size: 16px; color: rgba(255,255,255,.75); margin-bottom: 36px; position: relative; z-index: 1; }
+.cta-btns { display: flex; align-items: center; justify-content: center; gap: 14px; position: relative; z-index: 1; }
+.btn-cta-white {
+  font-family: var(--font-bricolage);
+  font-size: 15px; font-weight: 700; color: var(--purple);
+  padding: 13px 28px; border-radius: 12px; border: none;
+  background: #fff; cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  transition: transform 120ms, box-shadow 120ms;
+}
+.btn-cta-white:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,.2); }
+.btn-cta-outline {
+  font-family: var(--font-bricolage);
+  font-size: 15px; font-weight: 600; color: #fff;
+  padding: 12px 26px; border-radius: 12px;
+  border: 1.5px solid rgba(255,255,255,.4); background: rgba(255,255,255,.1);
+  cursor: pointer; transition: background 120ms;
+}
+.btn-cta-outline:hover { background: rgba(255,255,255,.18); }
+.cta-h2 .serif-inline { color: rgba(255,255,255,.96); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <img src="/ui/assets/logo-lyon-wordmark.png" alt="LYON">
+  </div>
+  <div class="nav-links">
+    <a class="nav-link has-arrow" href="#">Features</a>
+    <a class="nav-link" href="#">Pricing</a>
+    <a class="nav-link has-arrow" href="#">For You</a>
+    <a class="nav-link has-arrow" href="#">Resources</a>
+  </div>
+  <div class="nav-right">
+    <button class="btn-ghost">Sign In</button>
+    <button class="btn-primary">Get Started Free →</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section style="background:var(--bg);">
+  <div class="hero">
+    <div class="hero-left">
+      <div class="hero-tag"><span></span>AI-Powered Social Management</div>
+      <h1 class="hero-h1">Empower Every<br><span class="creator-proof"><span class="creator-word">Creator</span><span class="creator-avatar"><img src="https://images.unsplash.com/photo-1762160767253-c050a10f9066?auto=format&fit=crop&fm=jpg&ixlib=rb-4.1.0&q=80&w=240" alt="Verified creator portrait from Unsplash"><span class="verified-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6.5 12 3.4 3.4L17.5 8"/></svg></span></span></span> with<br><span class="accent">AI-Powered Social Media</span></h1>
+      <p class="hero-sub">Generate optimised content with AI, schedule and publish across platforms, and analyse performance — all in one simple, affordable platform.</p>
+      <div class="hero-cta">
+        <button class="btn-hero-primary">Get Started Free →</button>
+        <button class="btn-hero-ghost">
+          <div class="play-circle">
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M1 1l8 5-8 5V1z" fill="#7c3aed"/></svg>
+          </div>
+          Watch Demo
+        </button>
+      </div>
+      <p style="font-size:11.5px;color:var(--t3);margin-top:18px;">Trusted by <strong style="color:var(--t2)">2,500+</strong> creators and top brands worldwide</p>
+    </div>
+
+    <div class="hero-right">
+      <div class="hero-particle p1" aria-hidden="true"></div>
+      <div class="hero-particle p2" aria-hidden="true"></div>
+      <div class="hero-particle p3" aria-hidden="true"></div>
+      <div class="hero-particle p4" aria-hidden="true"></div>
+      <img src="/ui/assets/visual-dashboard-lyoninc.png" alt="Lyon dashboard" style="width:100%;height:100%;object-fit:contain;display:block;">
+    </div>
+  </div>
+</section>
+
+<!-- TRUST BAR -->
+<div class="trust-bar">
+  <span class="trust-text">Trusted by top creators and brands</span>
+  <div class="trust-logos">
+    <!-- Adobe -->
+    <span class="trust-logo">
+      <svg height="22" viewBox="0 0 240 234" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M141.5 0h98.4v234L141.5 0z" fill="#EB1000"/><path d="M98.5 0H0v234L98.5 0z" fill="#EB1000"/><path d="M120 86.5l48.5 147.5h-32l-14.5-45h-45l48.5-102.5z" fill="#EB1000"/></svg>
+    </span>
+    <!-- Notion -->
+    <span class="trust-logo">
+      <svg height="22" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.8 7.9c3.3 2.7 4.5 2.5 10.7 2.1l58.2-3.5c1.2 0 .1-1.2-.4-1.4L64.1.3C63 .1 60.5-.1 57.5.1L3.6 3.9C1.4 4.1.9 5.2.9 6.2l.1 67c0 2 1 2.6 3 2.5L73.8 72c2-.1 2.4-1.1 2.4-2.6V8.9c0-1.3-.5-2-1.6-1.9l-65 3.9c-1.2.1-1.8-.5-1.8-1.6V7.9zm65.6 9.9v55.9L16 77.1V17.4l56.4-.6v.9zM58.4 23.1c.2 1.1-.1 2.3-1.3 2.4L54 26.1v35c-2.5 1.3-4.8 2-6.8 2-3.1 0-3.9-1-6.2-3.9L25.8 39.9v23.5l6.2 1.4s0 2.4-3.3 2.4l-9.1.5c-.3-.6 0-2.2 1-2.4l2.6-.7V28.3l-3.6-.3c-.3-1.1.1-2.7 1.9-2.8l9.8-.6 16.4 25.1V25.9l-5.2-.6c-.3-1.3.5-2.7 1.9-2.8l13.8-.9 1.1 1.5z" fill="#000"/></svg>
+    </span>
+    <!-- Stripe -->
+    <span class="trust-logo">
+      <svg height="22" viewBox="0 0 60 25" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M59.6 12.9c0-4.3-2.1-7.7-6.1-7.7-4 0-6.5 3.4-6.5 7.7 0 5.1 2.8 7.6 6.9 7.6 2 0 3.5-.4 4.6-1.1v-3.3c-1.1.6-2.4.9-4 .9-1.6 0-3-.6-3.2-2.6h8.2c0-.2.1-.9.1-1.5zm-8.3-1.6c0-1.9 1.2-2.7 2.2-2.7 1 0 2.1.8 2.1 2.7h-4.3zM41.3 5.2c-1.6 0-2.6.7-3.2 1.3l-.2-1h-3.6v19.6l4.1-.9V19c.6.4 1.4 1 2.8 1 2.9 0 5.5-2.3 5.5-7.4.1-4.7-2.5-7.4-5.4-7.4zm-1 11.1c-.9 0-1.5-.3-1.9-.8V9.6c.4-.5 1-.8 1.9-.8 1.5 0 2.5 1.6 2.5 3.7 0 2.2-1 3.8-2.5 3.8zM31.7.7l-4.1.8v3.3l4.1-.8V.7zm-4.1 4.7h4.1V20h-4.1V5.4zM23 6.6l-.3-1.2h-3.6V20h4.1v-9.8c1-1.2 2.6-1 3.1-.8V5.4c-.5-.2-2.4-.4-3.3 1.2zm-8.9-1.4c-1.4 0-2.3.7-2.8 1.1l-.2-.8H7.7V20h4.1v-9.4c.4-.5 1-.9 1.9-.9 1.1 0 1.5.7 1.5 1.8V20h4.1v-9c0-3.3-1.7-5.8-5.2-5.8zM3.2 8.5C3.2 7.2 4.2 6.7 5.9 6.7c2.3 0 4.6.7 6 1.5V4.5c-1.4-.6-3.3-1.1-6-1.1C2.3 3.4 0 5.7 0 8.7c0 5.8 7.9 4.8 7.9 7.3 0 1.5-1.3 2-3.1 2-2.3 0-4.9-.9-6.5-2v3.9c1.6.8 3.7 1.3 6.5 1.3 4.5 0 7.5-2.2 7.5-5.3.1-6.2-8.1-5.1-8.1-7.4z" fill="#635BFF"/></svg>
+    </span>
+    <!-- Figma -->
+    <span class="trust-logo">
+      <svg height="22" viewBox="0 0 38 56" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 28a9.3 9.3 0 1 1 18.7 0A9.3 9.3 0 0 1 19 28z" fill="#1ABCFE"/><path d="M.3 46.7a9.3 9.3 0 0 1 9.4-9.4H19v9.4a9.3 9.3 0 0 1-18.7 0z" fill="#0ACF83"/><path d="M19 .3v18.7h9.4a9.3 9.3 0 0 0 0-18.7H19z" fill="#FF7262"/><path d="M.3 9.7a9.3 9.3 0 0 0 9.4 9.3H19V.3H9.7A9.3 9.3 0 0 0 .3 9.7z" fill="#F24E1E"/><path d="M.3 28a9.3 9.3 0 0 0 9.4 9.3H19V18.7H9.7A9.3 9.3 0 0 0 .3 28z" fill="#A259FF"/></svg>
+    </span>
+    <!-- Shopify -->
+    <span class="trust-logo">
+      <svg height="22" viewBox="0 0 256 292" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M223.5 55.8c-.2-1.6-1.6-2.5-2.7-2.6-1.1-.1-24.9-1.9-24.9-1.9s-16.5-16.5-18.3-18.2c-1.8-1.8-5.3-1.2-6.7-.8-.2.1-3.6 1.1-9.2 2.8-5.5-15.8-15.2-30.3-32.2-30.3-.5 0-.9 0-1.4.1C123 1.9 118.4 0 114.4 0 80.8 0 64.7 43.4 59.5 65.5l-28.1 8.7c-8.7 2.7-9 3-10.1 11.2L0 273.2l169 31.5 91.4-19.8-37-229.1zM150 37.9c-4.5 1.4-9.6 3-15.1 4.7v-3.3c0-10.1-1.4-18.2-3.7-24.6 9.1 1.2 15.2 11.6 18.8 23.2zM124.8 16c2.5 6.2 4.1 15 4.1 26.9v1.7l-31.6 9.8c6.1-23.4 17.5-34.8 27.5-38.4zm-12.3-4.6c1.8 0 3.6.6 5.3 1.8-13.2 6.2-27.3 21.9-33.3 53.3l-25.2 7.8c6.9-24 23.3-62.9 53.2-62.9z" fill="#96BF48"/><path d="M220.8 53.2c-1.1-.1-24.9-1.9-24.9-1.9s-16.5-16.5-18.3-18.2c-.7-.7-1.6-1-2.5-1.1l-13.3 272 91.4-19.8-37-229.1c-.2-1.6-1.6-2.5-2.7-2.6l6.3.7z" fill="#5E8E3E"/><path d="M128.3 99.5l-11.3 33.5s-9.9-5.3-21.9-5.3c-17.5 0-18.4 11-18.4 13.8 0 15.1 39.4 20.9 39.4 56.3 0 27.9-17.6 45.8-41.4 45.8-28.5 0-43-17.8-43-17.8l7.6-25.2s15 12.9 27.6 12.9c8.2 0 11.6-6.5 11.6-11.2 0-19.7-32.3-20.6-32.3-52.9 0-27.2 19.5-53.6 59-53.6 15.2 0 22.5 4.7 22.5 4.7l.6-1z" fill="#fff"/></svg>
+    </span>
+    <!-- Vercel -->
+    <span class="trust-logo">
+      <svg height="18" viewBox="0 0 284 284" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M141.7 0L283.5 284H0L141.7 0z" fill="#000"/></svg>
+    </span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-band">
+  <div class="stats-item">
+    <div class="stats-val" style="background:linear-gradient(135deg,#7c3aed,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">$119<span class="unit">B</span></div>
+    <div class="stats-desc">Creator economy value</div>
+  </div>
+  <div class="stats-item">
+    <div class="stats-val">200<span class="unit">M+</span></div>
+    <div class="stats-desc">Active Creators</div>
+  </div>
+  <div class="stats-item">
+    <div class="stats-val">10<span class="unit">M+</span></div>
+    <div class="stats-desc">Posts Scheduled</div>
+  </div>
+  <div class="stats-item">
+    <div class="stats-val">96<span class="unit">%</span></div>
+    <div class="stats-desc">Customer Satisfaction</div>
+  </div>
+</div>
+
+<!-- VISUAL BREAK -->
+<div style="background:var(--bg);padding:60px 48px;max-width:1280px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:64px;">
+  <div>
+    <div style="display:inline-flex;align-items:center;gap:6px;font-family:var(--font-bricolage);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--purple);margin-bottom:16px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      AI-Powered
+    </div>
+    <h2 style="font-family:var(--font-bricolage);font-size:clamp(28px,3vw,40px);font-weight:700;letter-spacing:-.05em;line-height:1.06;color:var(--ink);margin-bottom:16px;">Content that <span style="font-family:var(--font-instrument);font-style:italic;font-weight:400;background:linear-gradient(135deg,#7c3aed,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">connects</span></h2>
+    <p style="font-size:16px;color:var(--t2);line-height:1.65;max-width:420px;margin-bottom:32px;">Our AI understands your brand voice and generates content that resonates — across every platform, every time.</p>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#ede9fe,#ddd6fe);display:grid;place-items:center;flex-shrink:0;color:#7c3aed;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 16.5 18.9 19 21.5 20l-2.6 1-1 2.5-.9-2.5-2.5-1 2.5-1 .9-2.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div style="font-family:var(--font-bricolage);font-size:14px;font-weight:700;letter-spacing:-.02em;color:var(--ink);">AI Caption Generation</div>
+          <div style="font-size:13px;color:var(--t2);margin-top:2px;">Platform-optimised copy in one click</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);display:grid;place-items:center;flex-shrink:0;color:#2563eb;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m6 15 4-4 3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 8h3v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div style="font-family:var(--font-bricolage);font-size:14px;font-weight:700;letter-spacing:-.02em;color:var(--ink);">Real-time Performance</div>
+          <div style="font-size:13px;color:var(--t2);margin-top:2px;">Track reach, engagement and growth live</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:grid;place-items:center;flex-shrink:0;color:#0f9f6e;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M12 5V3.5M19 12h1.5M12 20.5V19M3.5 12H5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <div>
+          <div style="font-family:var(--font-bricolage);font-size:14px;font-weight:700;letter-spacing:-.02em;color:var(--ink);">Smart Targeting</div>
+          <div style="font-size:13px;color:var(--t2);margin-top:2px;">Reach the right audience at the right moment</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:center;">
+    <img src="/ui/assets/visual-rings-lyoninc.png" alt="AI visual" style="width:100%;max-width:520px;display:block;">
+  </div>
+</div>
+
+<!-- BENTO FEATURES -->
+<section class="section" style="padding-bottom:80px;">
+  <div class="section-tag">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Features
+  </div>
+  <h2 class="section-h2">Everything You Need to<br><span class="accent">Grow Faster</span></h2>
+  <p class="section-sub">From content creation to analytics, LYON gives you the tools to save time, stay consistent, and grow your audience.</p>
+
+  <div class="bento-shell">
+    <div class="bento-grid">
+
+      <div class="bento-card bento-intro">
+        <div>
+          <div class="bento-label">Core Workflow</div>
+          <h3>Create, Schedule &amp;<br>Grow with <span class="bento-script">AI</span></h3>
+        </div>
+      </div>
+
+      <div class="bento-card bento-orbit">
+        <div class="orbit-rings" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <div class="orbit-icon">
+            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 17.6A4.6 4.6 0 0 0 18 9h-1a7 7 0 1 0-13.7 2.1A4.2 4.2 0 0 0 4.2 19H8"/>
+              <rect x="9" y="12" width="6" height="7" rx="1.8"/>
+              <path d="M10.4 12v-1.1a1.6 1.6 0 0 1 3.2 0V12"/>
+            </svg>
+          </div>
+        </div>
+        <div class="orbit-meta">
+          <div class="orbit-kicker">10M+ Posts Scheduled</div>
+          <div class="orbit-title">Assistants <span class="bento-script">for</span><br>Captions, Reports &amp;<br>Analytics</div>
+        </div>
+      </div>
+
+      <div class="bento-card bento-connect">
+        <div class="connect-node" aria-hidden="true">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 8.5c0-2 1.6-3.5 3.7-3.5h4.9c1.9 0 3.4 1.2 3.4 2.9 0 1.6-1.1 2.8-2.8 3.2l-5 1.2c-1.6.4-2.5 1.3-2.5 2.7 0 1.8 1.5 3 3.7 3h5.3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="connect-arrows" aria-hidden="true">
+          <span>
+            <div class="connect-line"></div>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M9.5 2.5 4.5 6l5 3.5" stroke="#6151b4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span>
+            <div class="connect-line"></div>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 2.5 7.5 6l-5 3.5" stroke="#6151b4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+        <div class="connect-node" aria-hidden="true">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 19a4 4 0 0 0-8 0"/>
+            <circle cx="12" cy="9" r="3.5"/>
+          </svg>
+        </div>
+        <p class="connect-note">Create once, review fast and sync every channel without jumping between tools.</p>
+      </div>
+
+      <div class="bento-card bento-phone">
+        <img src="/ui/assets/visual-iphone-lyoninc.png" alt="Lyon mobile app">
+      </div>
+
+      <div class="bento-card bento-type">
+        <div class="type-label">Brand Voice System</div>
+        <div class="type-copy">Keep every caption, hook and CTA aligned with your tone across every platform.</div>
+        <div class="type-sample">AaBbCcDdEeFfGg</div>
+      </div>
+
+      <div class="bento-card bento-stat">
+        <div class="stat-top">
+          <div class="stat-value">10<span>x</span></div>
+          <div class="stat-arrows" aria-hidden="true">
+            <svg width="24" height="28" viewBox="0 0 24 28" fill="none"><path d="M5 4l8 10-8 10" stroke="#6b3d3a" stroke-opacity=".88" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="24" height="28" viewBox="0 0 24 28" fill="none"><path d="M5 4l8 10-8 10" stroke="#7e5754" stroke-opacity=".62" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="24" height="28" viewBox="0 0 24 28" fill="none"><path d="M5 4l8 10-8 10" stroke="#b5a9a8" stroke-opacity=".38" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <p class="stat-body">Move from rough ideas to scheduled content faster with AI drafting, approvals and publishing in one flow.</p>
+        <div class="stat-chart" aria-hidden="true">
+          <div class="stat-chart-head">
+            <div class="stat-chart-title">Views Growth</div>
+            <div class="stat-chart-growth">+184%</div>
+          </div>
+          <svg viewBox="0 0 280 124" fill="none">
+            <path d="M14 98H266" stroke="rgba(92,36,31,.08)" stroke-width="1.2"/>
+            <path d="M14 72H266" stroke="rgba(92,36,31,.06)" stroke-width="1.2" stroke-dasharray="4 6"/>
+            <path d="M14 46H266" stroke="rgba(92,36,31,.06)" stroke-width="1.2" stroke-dasharray="4 6"/>
+            <path d="M14 98C39 96 55 92 76 87C98 81 114 78 136 66C158 54 172 51 193 45C214 39 228 30 246 16" stroke="url(#viewsLine)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 98C39 96 55 92 76 87C98 81 114 78 136 66C158 54 172 51 193 45C214 39 228 30 246 16L246 110L14 110Z" fill="url(#viewsFill)"/>
+            <circle cx="246" cy="16" r="6" fill="#fff" stroke="#8b5cf6" stroke-width="3"/>
+            <defs>
+              <linearGradient id="viewsLine" x1="14" y1="98" x2="246" y2="16" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#7c3aed"/>
+                <stop offset=".55" stop-color="#a855f7"/>
+                <stop offset="1" stop-color="#38bdf8"/>
+              </linearGradient>
+              <linearGradient id="viewsFill" x1="140" y1="14" x2="140" y2="110" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#8b5cf6" stop-opacity=".22"/>
+                <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="stat-chart-labels">
+            <span>Week 1</span>
+            <span>Week 3</span>
+            <span>Week 6</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bento-card bento-stack">
+        <div class="stack-paper back"></div>
+        <div class="stack-paper middle"></div>
+        <div class="stack-paper front">
+          <div class="stack-chip">Content Workflow</div>
+          <div class="stack-title">Weekly Content Pack</div>
+          <div class="stack-copy">A ready-to-launch mix of planning, creation and reporting assets to keep your publishing cadence consistent.</div>
+          <div class="stack-list">
+            <div class="stack-item">
+              <div class="stack-icon pink">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/></svg>
+              </div>
+              <div>
+                <strong>Caption Library</strong>
+                <span>AI-generated post options</span>
+              </div>
+            </div>
+            <div class="stack-item">
+              <div class="stack-icon blue">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 17 10-10"/><path d="M9 7h8v8"/></svg>
+              </div>
+              <div>
+                <strong>Performance Digest</strong>
+                <span>Weekly growth snapshot</span>
+              </div>
+            </div>
+            <div class="stack-item">
+              <div class="stack-icon green">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.2 4.2L19 6.5"/></svg>
+              </div>
+              <div>
+                <strong>Publish Queue</strong>
+                <span>Posts ready across every channel</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- STEPS -->
+<div class="steps-section">
+  <div class="steps-inner">
+    <div class="section-tag">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      How it works
+    </div>
+    <h2 class="section-h2">From Idea to Impact<br>in <span class="accent">4 Simple Steps</span></h2>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num s1">01</div>
+        <div class="step-title">Create</div>
+        <p class="step-desc">Use AI to generate captions, visuals, and content ideas tailored to your brand voice.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num s2">02</div>
+        <div class="step-title">Schedule</div>
+        <p class="step-desc">Plan and schedule posts across all platforms with one click at the optimal time.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num s3">03</div>
+        <div class="step-title">Publish</div>
+        <p class="step-desc">LYON automatically publishes your content at the right time, every time, no manual work.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num s4">04</div>
+        <div class="step-title">Analyse</div>
+        <p class="step-desc">Track performance, understand your audience, and refine your strategy with real data.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta-section">
+  <div class="cta-box">
+    <h2 class="cta-h2">Ready to <span class="serif-inline">Grow</span> Your<br>Social Presence?</h2>
+    <p class="cta-sub">Join 2,500+ creators already using LYON to save time and grow faster.</p>
+    <div class="cta-btns">
+      <button class="btn-cta-white">Start for Free →</button>
+      <button class="btn-cta-outline">See Pricing</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

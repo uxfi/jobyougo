@@ -41,11 +41,11 @@
 3. **Classify**: Detect archetype (1 of 6 types)
 4. **Evaluate**: 6 blocks (A-F):
    - A: Role summary
-   - B: CV match (gaps + mitigation)
-   - C: Level strategy
+   - B: Criteria check (search criteria + deal-breakers, gatekeeper)
+   - C: CV match (gaps)
    - D: Comp research (WebSearch)
-   - E: CV personalization plan
-   - F: Interview prep (STAR stories)
+   - E: Score breakdown
+   - F: Application form questions + draft answers (Playwright form scan)
 5. **Score**: Weighted average across 10 dimensions (1-5)
 6. **Report**: Save as `reports/{num}-{company}-{date}.md`
 7. **PDF**: Generate ATS-optimized CV (`generate-pdf.mjs`)

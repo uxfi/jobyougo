@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Health Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/ui/assets/fonts.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    font-family: var(--font-inter);
+    background: #141a12;
+    color: #fff;
+    overflow: hidden;
+  }
+  .screen {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── STATUS BAR ── */
+  .status {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px 0;
+    flex-shrink: 0;
+  }
+  .status-time { font-size: 14px; font-weight: 600; letter-spacing: -.3px; }
+  .status-icons { display: flex; align-items: center; gap: 5px; }
+
+  /* ── NAV ── */
+  .nav {
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 20px 4px;
+    position: relative; flex-shrink: 0;
+  }
+  .nav-back { position: absolute; left: 20px; font-size: 22px; font-weight: 200; color: rgba(255,255,255,.7); line-height: 1; }
+  .nav-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+
+  /* ── RINGS ── */
+  .rings-wrap {
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px 0 2px;
+    flex-shrink: 0;
+  }
+
+  /* Ring fill animations — from 0 to final dasharray */
+  @keyframes ring-outer {
+    from { stroke-dasharray: 0 490; }
+    to   { stroke-dasharray: 392 490; }
+  }
+  @keyframes ring-mid {
+    from { stroke-dasharray: 0 383; }
+    to   { stroke-dasharray: 276 383; }
+  }
+  @keyframes ring-inner {
+    from { stroke-dasharray: 0 276; }
+    to   { stroke-dasharray: 166 276; }
+  }
+  /* End caps fade in when their ring finishes */
+  @keyframes cap-in {
+    from { opacity: 0; transform-origin: 100px 100px; scale: 0; }
+    to   { opacity: 1; scale: 1; }
+  }
+  .ring-outer { animation: ring-outer 1.4s cubic-bezier(.4,0,.2,1) .3s both; }
+  .ring-mid   { animation: ring-mid   1.4s cubic-bezier(.4,0,.2,1) .5s both; }
+  .ring-inner { animation: ring-inner 1.4s cubic-bezier(.4,0,.2,1) .7s both; }
+
+  .cap-end-outer { animation: cap-in .25s ease .3s both; }
+  .cap-end-mid   { animation: cap-in .25s ease .5s both; }
+  .cap-end-inner { animation: cap-in .25s ease .7s both; }
+
+  /* ── STATS ── */
+  .stats {
+    display: flex; justify-content: center; align-items: flex-start; gap: 16px;
+    padding: 2px 16px 10px;
+    flex-shrink: 0;
+  }
+  .stat { display: flex; flex-direction: column; align-items: flex-start; }
+  .stat-num {
+    font-size: 18px; font-weight: 700; letter-spacing: -.5px; line-height: 1.15; color: #fff;
+  }
+  .stat-num small { font-size: 12px; font-weight: 400; letter-spacing: 0; color: rgba(255,255,255,.5); }
+  .stat-label {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10px; color: rgba(255,255,255,.38); margin-top: 2px; white-space: nowrap;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Stats fade+slide up */
+  @keyframes stat-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .stats .stat:nth-child(1) { animation: stat-in .5s ease 1.4s both; }
+  .stats .stat:nth-child(2) { animation: stat-in .5s ease 1.55s both; }
+  .stats .stat:nth-child(3) { animation: stat-in .5s ease 1.7s both; }
+
+  /* ── CARDS ── */
+  .card {
+    margin: 0 12px 7px;
+    background: rgba(255,255,255,.045);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 16px;
+    padding: 12px 14px;
+    flex-shrink: 0;
+  }
+  .card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; }
+  .pill {
+    display: flex; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 500; color: rgba(255,255,255,.35);
+    background: rgba(255,255,255,.08); border-radius: 20px;
+    padding: 3px 9px;
+  }
+
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .card:nth-of-type(1) { animation: card-in .55s cubic-bezier(.25,1,.5,1) 1.85s both; }
+  .card:nth-of-type(2) { animation: card-in .55s cubic-bezier(.25,1,.5,1) 2.05s both; }
+
+  /* ── MOOD CHART ── */
+  .mood-area { position: relative; height: 76px; }
+  .mood-col {
+    position: absolute; display: flex; flex-direction: column; align-items: center;
+    width: 14.28%;
+  }
+  .mood-emoji { position: absolute; font-size: 18px; line-height: 1; }
+  .mood-tick {
+    position: absolute; bottom: 16px;
+    width: 1px; background: rgba(255,255,255,.09);
+  }
+  .mood-date {
+    position: absolute; bottom: 0;
+    font-size: 9px; color: rgba(255,255,255,.25); white-space: nowrap;
+    transform: translateX(-50%); left: 50%;
+  }
+
+  /* Mood emojis staggered bounce in */
+  @keyframes emoji-in {
+    0%   { opacity: 0; transform: scale(0) translateY(-6px); }
+    60%  { transform: scale(1.25) translateY(2px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .mood-col:nth-child(1) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.1s  both; }
+  .mood-col:nth-child(2) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.22s both; }
+  .mood-col:nth-child(3) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.34s both; }
+  .mood-col:nth-child(4) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.46s both; }
+  .mood-col:nth-child(5) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.58s both; }
+  .mood-col:nth-child(6) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.70s both; }
+  .mood-col:nth-child(7) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.82s both; }
+
+  /* ── PROGRESS ── */
+  .prog { margin-top: 9px; }
+  .prog:first-child { margin-top: 0; }
+  .prog-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 5px;
+  }
+  .prog-label { font-size: 12px; color: rgba(255,255,255,.5); }
+  .prog-value { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.6); }
+  .prog-track { height: 6px; background: rgba(255,255,255,.08); border-radius: 100px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 100px; }
+
+  @keyframes bar-in {
+    from { width: 0; }
+  }
+  .bar-work  { animation: bar-in .9s cubic-bezier(.4,0,.2,1) 2.2s both; }
+  .bar-sleep { animation: bar-in .9s cubic-bezier(.4,0,.2,1) 2.4s both; }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- Status bar -->
+  <div class="status">
+    <div class="status-time">9:41</div>
+    <div class="status-icons">
+      <svg width="16" height="11" viewBox="0 0 16 11" fill="white">
+        <rect x="0" y="7" width="3" height="4" rx=".7" opacity=".3"/>
+        <rect x="4.3" y="4.5" width="3" height="6.5" rx=".7" opacity=".55"/>
+        <rect x="8.6" y="2" width="3" height="9" rx=".7" opacity=".8"/>
+        <rect x="12.9" y="0" width="3" height="11" rx=".7"/>
+      </svg>
+      <svg width="14" height="11" viewBox="0 0 20 14" fill="none">
+        <path d="M1 4.5C4.5 1 15.5 1 19 4.5" stroke="white" stroke-width="2" stroke-linecap="round" opacity=".3"/>
+        <path d="M4 7.5C6.5 5 13.5 5 16 7.5" stroke="white" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+        <path d="M7.5 10.5C8.8 9.2 11.2 9.2 12.5 10.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="10" cy="13.5" r="1.2" fill="white"/>
+      </svg>
+      <svg width="23" height="11" viewBox="0 0 26 12" fill="none">
+        <rect x=".5" y=".5" width="21" height="11" rx="3" stroke="white" stroke-opacity=".3"/>
+        <rect x="2" y="2" width="14" height="8" rx="2" fill="white"/>
+        <path d="M23 4v4a2 2 0 0 0 0-4z" fill="white" opacity=".4"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav">
+    <div class="nav-back">‹</div>
+    <div class="nav-title">Health Overview</div>
+  </div>
+
+  <!-- Activity rings -->
+  <div class="rings-wrap">
+    <svg width="192" height="192" viewBox="0 0 200 200" overflow="visible">
+      <defs>
+        <linearGradient id="g-lime" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#d4e660"/>
+          <stop offset="100%" stop-color="#a8c038"/>
+        </linearGradient>
+        <linearGradient id="g-cream" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#ece0a0"/>
+          <stop offset="100%" stop-color="#c8b450"/>
+        </linearGradient>
+        <linearGradient id="g-lav" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stop-color="#caaade"/>
+          <stop offset="100%" stop-color="#9870c4"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Tracks -->
+      <circle cx="100" cy="100" r="78" fill="none" stroke="rgba(212,230,96,.1)"  stroke-width="13"/>
+      <circle cx="100" cy="100" r="61" fill="none" stroke="rgba(236,224,160,.1)" stroke-width="13"/>
+      <circle cx="100" cy="100" r="44" fill="none" stroke="rgba(202,170,222,.1)" stroke-width="13"/>
+
+      <!-- Outer ring — lime — 80% -->
+      <circle class="ring-outer" cx="100" cy="100" r="78" fill="none" stroke="url(#g-lime)" stroke-width="13"
+        stroke-dasharray="392 490" stroke-linecap="round"
+        transform="rotate(-90 100 100)"/>
+
+      <!-- Middle ring — cream — 72% -->
+      <circle class="ring-mid" cx="100" cy="100" r="61" fill="none" stroke="url(#g-cream)" stroke-width="13"
+        stroke-dasharray="276 383" stroke-linecap="round"
+        transform="rotate(-90 100 100)"/>
+
+      <!-- Inner ring — lavender — 60% -->
+      <circle class="ring-inner" cx="100" cy="100" r="44" fill="none" stroke="url(#g-lav)" stroke-width="13"
+        stroke-dasharray="166 276" stroke-linecap="round"
+        transform="rotate(-90 100 100)"/>
+
+      <!-- Start caps at 12 o'clock -->
+      <circle cx="100" cy="22" r="6.5" fill="#d4e660"/>
+      <circle cx="100" cy="39" r="6.5" fill="#ece0a0"/>
+      <circle cx="100" cy="56" r="6.5" fill="#caaade"/>
+
+      <!-- End caps (fade in after ring fills) -->
+      <circle class="cap-end-outer" cx="100" cy="22" r="6.5" fill="#a0bc30" transform="rotate(288 100 100)"/>
+      <circle class="cap-end-mid"   cx="100" cy="39" r="6.5" fill="#c4a840" transform="rotate(259 100 100)"/>
+      <circle class="cap-end-inner" cx="100" cy="56" r="6.5" fill="#9060bc" transform="rotate(216 100 100)"/>
+    </svg>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num"><span class="count" data-target="56">0</span> <small>days</small></div>
+      <div class="stat-label"><span class="dot" style="background:#d4e660"></span>No Stress</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num"><span class="count" data-target="79">0</span><small>%</small></div>
+      <div class="stat-label"><span class="dot" style="background:#ece0a0"></span>Sleep Quality</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num"><span class="count" data-target="23">0</span> <small>days</small></div>
+      <div class="stat-label"><span class="dot" style="background:#caaade"></span>Meditation</div>
+    </div>
+  </div>
+
+  <!-- Mood tracker -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Mood tracker</div>
+      <div class="pill">Week <svg width="8" height="6" viewBox="0 0 8 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 1.5 4 4.5 7 1.5"/></svg></div>
+    </div>
+    <div class="mood-area">
+      <div class="mood-col" style="left:0%">
+        <div class="mood-emoji" style="top:0px">😊</div>
+        <div class="mood-tick" style="top:22px;height:36px"></div>
+        <div class="mood-date">09/10</div>
+      </div>
+      <div class="mood-col" style="left:14.28%">
+        <div class="mood-emoji" style="top:6px">😊</div>
+        <div class="mood-tick" style="top:28px;height:30px"></div>
+        <div class="mood-date">10/10</div>
+      </div>
+      <div class="mood-col" style="left:28.56%">
+        <div class="mood-emoji" style="top:16px">😟</div>
+        <div class="mood-tick" style="top:38px;height:20px"></div>
+        <div class="mood-date">11/10</div>
+      </div>
+      <div class="mood-col" style="left:42.84%">
+        <div class="mood-emoji" style="top:0px">😊</div>
+        <div class="mood-tick" style="top:22px;height:36px"></div>
+        <div class="mood-date">12/10</div>
+      </div>
+      <div class="mood-col" style="left:57.12%">
+        <div class="mood-emoji" style="top:28px">😤</div>
+        <div class="mood-tick" style="top:50px;height:8px"></div>
+        <div class="mood-date">13/10</div>
+      </div>
+      <div class="mood-col" style="left:71.4%">
+        <div class="mood-emoji" style="top:38px">😠</div>
+        <div class="mood-tick" style="top:58px;height:0px"></div>
+        <div class="mood-date">14/10</div>
+      </div>
+      <div class="mood-col" style="left:85.68%">
+        <div class="mood-emoji" style="top:8px">😌</div>
+        <div class="mood-tick" style="top:30px;height:28px"></div>
+        <div class="mood-date">15/10</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Work / Life Balance -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Work/Life Balance</div>
+      <div class="pill">Today <svg width="8" height="6" viewBox="0 0 8 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 1.5 4 4.5 7 1.5"/></svg></div>
+    </div>
+    <div class="prog">
+      <div class="prog-row">
+        <div class="prog-label">Work</div>
+        <div class="prog-value">10.5h</div>
+      </div>
+      <div class="prog-track">
+        <div class="bar-work prog-fill" style="width:68%;background:linear-gradient(90deg,#c0aa40,#dece68)"></div>
+      </div>
+    </div>
+    <div class="prog">
+      <div class="prog-row">
+        <div class="prog-label">Sleep</div>
+        <div class="prog-value">5.5h</div>
+      </div>
+      <div class="prog-track">
+        <div class="bar-sleep prog-fill" style="width:36%;background:linear-gradient(90deg,#6a9828,#96c840)"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  /* Count-up for stat numbers, triggered at animation delay */
+  function countUp(el, target, duration, delay) {
+    setTimeout(() => {
+      const start = performance.now();
+      const tick = (now) => {
+        const t = Math.min((now - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(ease * target);
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, delay);
+  }
+
+  document.querySelectorAll('.count').forEach((el, i) => {
+    countUp(el, +el.dataset.target, 700, 1400 + i * 150);
+  });
+</script>
+</body>
+</html>
