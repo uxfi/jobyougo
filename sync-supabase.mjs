@@ -129,9 +129,11 @@ function parseApplications(content) {
   const headers = lines[0].split('|').map(h => h.trim()).filter(Boolean);
   return lines.slice(2)
     .map(row => {
-      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+      const cells = row.split('|').map(c => c.trim());
+      // Keep empty cells (Notes) — filter(Boolean) would shift columns.
+      const values = cells.slice(1, -1);
       const obj = {};
-      headers.forEach((h, i) => { obj[h] = cells[i] ?? ''; });
+      headers.forEach((h, i) => { obj[h] = values[i] ?? ''; });
       return obj;
     })
     .filter(row => Object.values(row).some(v => v))

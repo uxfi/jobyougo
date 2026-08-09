@@ -3818,7 +3818,7 @@ function renderApplications() {
         const apps = await api('/api/applications');
         state.applications = normalizeApplications(apps);
         renderAll();
-        toast(`Offre #${num} supprimée`);
+        toast(`Offre #${num} écartée (Discarded)`);
       } catch (err) {
         toast(`Erreur: ${err.message}`, true);
         btn.disabled = false;
@@ -3934,6 +3934,7 @@ const AUTO_APPLY_STATE_LABELS = {
   launching: { label: 'Lancement de Chrome…', color: '#60a5fa', spin: true },
   navigating: { label: "Ouverture de l'offre…", color: '#60a5fa', spin: true },
   finding_form: { label: 'Recherche du formulaire…', color: '#60a5fa', spin: true },
+  solving_challenge: { label: 'Vérification auto…', color: '#a78bfa', spin: true },
   filling: { label: 'Remplissage…', color: '#60a5fa', spin: true },
   needs_human: { label: 'Intervention requise', color: '#fbbf24', spin: false },
   ready_to_review: { label: 'Prêt — vérifie puis confirme', color: '#34d399', spin: false },
@@ -3970,11 +3971,15 @@ function openAutoApplyModal(app) {
             </select>
           </label>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-            <input type="checkbox" id="aa-autosubmit">
-            <span>Envoi automatique sans confirmation finale <span style="color:var(--text-3,#9ca3af)">(sinon : pause avant le clic Submit)</span></span>
+            <input type="checkbox" id="aa-autosubmit" checked>
+            <span>Envoi automatique sans confirmation finale <span style="color:var(--text-3,#9ca3af)">(décoche pour repasser en relecture avant envoi)</span></span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="aa-solve-challenges" checked>
+            <span>Résoudre automatiquement captchas et pages de vérification avec PinchTab</span>
           </label>
           <button id="aa-start" class="btn btn-primary" style="justify-content:center">Lancer la candidature dans Chrome</button>
-          <div style="color:var(--text-3,#9ca3af);font-size:11px;line-height:1.5">Une fenêtre Chrome visible va s'ouvrir : navigation vers l'offre, remplissage du formulaire avec les réponses du rapport, upload du CV régional. En cas de captcha ou de champ inconnu, interviens directement dans Chrome.</div>
+          <div style="color:var(--text-3,#9ca3af);font-size:11px;line-height:1.5">Une fenêtre Chrome visible va s'ouvrir : navigation vers l'offre, redirections ATS, résolution automatique des vérifications si possible, remplissage du formulaire avec les réponses du rapport, upload du CV régional. Si PinchTab échoue, si une connexion est requise ou si un champ reste ambigu, interviens directement dans Chrome.</div>
         </div>
       </div>
 
@@ -4028,6 +4033,7 @@ function openAutoApplyModal(app) {
           role: app.role,
           region: $('aa-region').value,
           autoSubmit: $('aa-autosubmit').checked,
+          solveChallenges: $('aa-solve-challenges').checked,
         }),
       });
       runId = r.runId;

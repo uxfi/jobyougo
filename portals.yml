@@ -1,6 +1,10 @@
 # Max age of jobs to consider in a scan (days). Older jobs are dropped.
 scan_max_age_days: 7
 
+# Retention: applications, reports, scan-history older than this are purged.
+# An offer older than this window is treated as dead.
+retention_days: 20
+
 title_filter:
   positive:
     - AI Product
@@ -61,6 +65,45 @@ title_filter:
     - Web3
     - Crypto
     - Salesforce Admin
+    # Domaines parasites. Les positifs generiques ("Consultant", "Contract",
+    # "Freelance", "Automation", "AI") sont volontaires (missions freelance),
+    # mais ils laissaient passer 12/12 des titres hors-sujet constates dans
+    # pipeline.md: consultants voyage, agents de centre d'appel, annotateurs
+    # de donnees, correcteurs de copies, biostatisticiens...
+    # On ne met JAMAIS "agent" seul en negatif: Agent/Agentic sont des
+    # positifs cles du profil (AI agents). D'ou les formes composees.
+    - travel consultant
+    - contact center
+    - contact centre
+    - call center
+    - call centre
+    - customer support
+    - customer service
+    - customer care
+    - data annotator
+    - data annotation
+    - annotator
+    - ai trainer
+    - language specialist
+    - tutor
+    - teaching
+    - grader
+    - grading
+    - biostatistician
+    - clinical
+    - nurse
+    - medical
+    - sales agent
+    - sales executive
+    - sales representative
+    - account executive
+    - insurance
+    - recruiter
+    - bookkeeper
+    - accountant
+    - finance business partner
+    - area manager
+    - territoriale
     - "SAP "
     - Oracle EBS
     - Mainframe
@@ -99,6 +142,8 @@ remote_filter:
     - global
     - work from anywhere
     - anywhere in the world
+    # Les ATS ecrivent souvent "Anywhere" seul dans le champ Location.
+    - anywhere
     - europe
     - european
     - european union
@@ -114,6 +159,43 @@ remote_filter:
     - thailand
     - dubai
     - uae
+    # — Afrique (absente jusqu'ici: aucun poste africain ne pouvait passer) —
+    - africa
+    - african
+    - south africa
+    - nigeria
+    - kenya
+    - egypt
+    - morocco
+    - maroc
+    - tunisia
+    - ghana
+    - senegal
+    - rwanda
+    - mauritius
+    # — Moyen-Orient —
+    - middle east
+    - mena
+    - israel
+    - saudi
+    - saudi arabia
+    - qatar
+    - kuwait
+    - bahrain
+    - oman
+    - jordan
+    - lebanon
+    - turkey
+    # — Asie (complements) —
+    - china
+    - india
+    - indonesia
+    - vietnam
+    - philippines
+    - malaysia
+    - taiwan
+    - south korea
+    - korea
     # — Europe (countries + demonyms) —
     - united kingdom
     - uk
@@ -202,6 +284,36 @@ remote_filter:
     - us only
     - usa only
     - united states only
+    # "X only" ne couvre pas la formulation la plus courante des annonces US.
+    # Constate en direct: Pinterest ("San Francisco, California US based
+    # applicants only") et Maven Clinic ("open to candidates based in the
+    # United States") passaient tous deux le filtre et remontaient dans le
+    # pipeline, alors que la candidature est geographiquement impossible.
+    # Le matcher applique deja des delimiteurs de mots, donc "us based"
+    # n'attrape pas "campus based" ni "focus based" (verifie par test).
+    # Forme exacte renvoyee par les ATS dans le champ Location ("Remote - US").
+    # "remote us" ne l'attrape pas: le matcher applique des delimiteurs de mots
+    # et le tiret separe les deux tokens. Constate sur l'annonce Ashby de
+    # Kindred, dont le champ Location vaut litteralement "Remote - US".
+    - remote - us
+    - "remote – us"
+    - "remote — us"
+    - remote-us
+    - remote - usa
+    - remote - united states
+    - (us)
+    - us based
+    - us-based
+    - u.s. based
+    - u.s.-based
+    - usa based
+    - usa-based
+    - based in the us
+    - based in the united states
+    - us applicants
+    - us residents
+    - must be based in the us
+    - authorized to work in the united states
     - remote us
     - remote usa
     - remote united states
@@ -557,9 +669,9 @@ tracked_companies:
     notes: LLMOps / AI observability.
     enabled: true
   - name: RunPod
-    careers_url: https://job-boards.greenhouse.io/runpod
-    api: https://boards-api.greenhouse.io/v1/boards/runpod/jobs
-    notes: GPU cloud for AI.
+    careers_url: https://jobs.ashbyhq.com/runpod
+    api: https://api.ashbyhq.com/posting-api/job-board/runpod
+    notes: GPU cloud for AI. Moved from Greenhouse to Ashby (confirmed 2026-07-28 — old Greenhouse board 404s, careers_url redirects here).
     enabled: true
   - name: Glean
     careers_url: https://job-boards.greenhouse.io/gleanwork
@@ -1197,8 +1309,8 @@ api_aggregators:
     provider: theirstack
     description: Specializes in stack-based search (e.g. LLM, Agentic, GenAI)
     api_url: https://api.theirstack.com/v1/jobs/search
-    enabled: false
-    notes: Requires THEIRSTACK_API_KEY. Disabled until credits/credentials are available.
+    enabled: true
+    notes: Requires THEIRSTACK_API_KEY (present in .env). Enabled as SearchAPI fallback — disable again if the account has no credits.
   - name: SearchAPI Google Jobs
     provider: searchapi
     description: Universal scraper for Google for Jobs via searchapi.io
@@ -1370,6 +1482,15 @@ api_aggregators:
     api_url: https://www.arbeitnow.com/api/job-board-api
     enabled: true
     notes: Public API. Stronger Europe signal than generic remote boards.
+  - name: RemoteOK Public API
+    provider: remoteok
+    description: Public global remote jobs API. Attribution required by RemoteOK terms.
+    api_url: https://remoteok.com/api
+    enabled: true
+    notes: >-
+      Replaces the RemoteOK — All Remote/AI/Design/Product RSS feeds above, which
+      all returned HTTP 410 (permanently gone) as of 2026-07-28. This JSON API is
+      the same source job-ingestion-sources-corrigees.md flagged as P0.
 rss_feeds:
   - name: Remotive — All Remote
     url: https://remotive.com/remote-jobs/feed
@@ -1393,9 +1514,12 @@ rss_feeds:
   - name: Real Work From Anywhere — Design
     url: https://www.realworkfromanywhere.com/remote-design-jobs/rss.xml
     enabled: true
+  # RemoteOK retired its RSS feeds (confirmed HTTP 410 on all 4 below, 2026-07-28).
+  # Replaced by the `remoteok` provider under api_aggregators (their JSON API is
+  # still live and is what job-ingestion-sources-corrigees.md recommended anyway).
   - name: RemoteOK — All Remote
     url: https://remoteok.com/remote-jobs.rss
-    enabled: true
+    enabled: false
   - name: WeWorkRemotely — All Remote
     url: https://weworkremotely.com/remote-jobs.rss
     enabled: true
@@ -1407,13 +1531,13 @@ rss_feeds:
     enabled: true
   - name: RemoteOK — AI
     url: https://remoteok.com/remote-ai-jobs.rss
-    enabled: true
+    enabled: false
   - name: RemoteOK — Design
     url: https://remoteok.com/remote-design-jobs.rss
-    enabled: true
+    enabled: false
   - name: RemoteOK — Product
     url: https://remoteok.com/remote-product-jobs.rss
-    enabled: true
+    enabled: false
   - name: Authentic Jobs Search — Design & Product
     url: https://authenticjobs.com/?feed=job_feed
     enabled: true

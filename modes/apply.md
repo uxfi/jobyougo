@@ -2,7 +2,7 @@
 
 Interactive mode to fill out a job application form. You share screenshots of the form, Claude generates copy-paste answers based on the existing report and CV.
 
-> **Automated alternative:** the dashboard's 🚀 button (per offer row) launches `apply-runner.mjs` — a visible Chrome that navigates to the offer, follows redirects to the ATS, fills the form with Section F answers, uploads the regional CV (Paris for EU offers, Bangkok for Asia), and pauses before submitting for human review (and on captchas/login walls). This mode remains the manual fallback for forms the runner can't handle.
+> **Automated alternative:** the dashboard's 🚀 button (per offer row) launches `apply-runner.mjs` — a visible Chrome that navigates to the offer, follows redirects to the ATS, solves supported captcha / verification pages through PinchTab when enabled, fills the form with Section F answers, uploads the regional CV (Paris for EU offers, Bangkok for Asia), and can click Submit when auto-submit is enabled. It still pauses on failed challenges, login walls, ambiguous submit buttons, or unresolved required fields. This mode remains the manual fallback for forms the runner can't handle.
 
 ## How it works
 

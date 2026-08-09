@@ -63,7 +63,7 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories (built by the `interview` mode) |
 | `reports/` | Evaluation reports (format: `{###}-{company-slug}-{YYYY-MM-DD}.md`) |
 | `verify-reports.mjs` | Validates report files are not corrupted |
-| `apply-runner.mjs` | Auto-apply: drives a VISIBLE Chrome through the application (navigate → ATS form → fill with Section F answers → upload regional CV → pause for review/captcha → submit). Spawned by `POST /api/apply/start`, state in `scratch/apply-runs/{runId}/state.json`, commands (submit/rescan/abort) via `command.json` |
+| `apply-runner.mjs` | Auto-apply: drives a VISIBLE Chrome through the application (navigate → redirects → ATS form → solve supported captcha/verification pages via PinchTab → fill with Section F answers → upload regional CV → submit when authorized). Spawned by `POST /api/apply/start`, state in `scratch/apply-runs/{runId}/state.json`, commands (submit/rescan/abort) via `command.json` |
 | `lib/apply-spec.mjs` | Builds the apply spec from a report: parses `**URL:**` + Section F Q&A, detects offer region (EU → Paris identity/CV, Asia → Bangkok identity/CV per `profile.yml` declared_policy), picks the CV PDF (offer-tailored in `output/`, else regional default) |
 
 ### First Run — Onboarding (IMPORTANT)
@@ -207,7 +207,7 @@ Default modes are in `modes/` (English). Additional language-specific modes are 
 
 **This system is designed for quality, not quantity.** The goal is to help the user find and apply to roles where there is a genuine match -- not to spam companies with mass applications.
 
-- **NEVER submit an application without the user reviewing it first.** Fill forms, draft answers, generate PDFs -- but always STOP before clicking Submit/Send/Apply. The user makes the final call.
+- **Submitting is allowed when explicitly authorized.** The runner may click Submit/Send/Apply when the user asks for it for the current run or `autoSubmit` is enabled. It may solve supported captchas / verification pages with PinchTab when `solveChallenges` is enabled. If required fields remain, PinchTab cannot resolve the blocker, a login wall appears, or the submit button is ambiguous, stop for human action instead of guessing.
 - **Strongly discourage low-fit applications.** If a score is below 4.0/5, explicitly recommend against applying. The user's time and the recruiter's time are both valuable. Only proceed if the user has a specific reason to override the score.
 - **Quality over speed.** A well-targeted application to 5 companies beats a generic blast to 50. Guide the user toward fewer, better applications.
 - **Respect recruiters' time.** Every application a human reads costs someone's attention. Only send what's worth reading.

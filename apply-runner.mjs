@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // apply-runner.mjs — drives a VISIBLE Chrome window through a job application:
 // navigate to the offer, follow redirects to the real ATS form, fill fields with
-// Section F answers + regional identity, upload the regional CV, then pause for
-// human review/captcha before submitting.
+// Section F answers + regional identity, upload the regional CV, then submit
+// when autoSubmit is enabled. It uses PinchTab for captcha / verification
+// pages when enabled, and pauses only if the solver fails or manual gaps remain.
 //
 // Usage: node apply-runner.mjs --run-dir scratch/apply-runs/<runId>
 // The run dir must contain spec.json (built by lib/apply-spec.mjs).
@@ -15,7 +16,8 @@ import { readFileSync, writeFileSync, renameSync, existsSync, unlinkSync, mkdirS
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
-import { polishApplicationAnswer, resolveUnknownFields } from './lib/apply-llm.mjs';
+import { polishApplicationAnswer, resolveUnknownFields, hasUnresolvedPlaceholder } from './lib/apply-llm.mjs';
+import { PINCHTAB_URL, pinchtabClose, pinchtabCookies, pinchtabHealth, pinchtabNavigate, pinchtabSolve } from './lib/pinchtab.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,7 +45,15 @@ function profileVoice() {
 
 function isComboboxField(f) {
   return f.role === 'combobox' || f.ariaAutocomplete === 'list'
-    || f.ariaHaspopup === 'listbox' || (f.idAttr || '').includes('react-select');
+    || f.ariaHaspopup === 'listbox' || (f.idAttr || '').includes('react-select')
+    // Structural fallback: react-select-style wrappers (Greenhouse "Remix",
+    // Ashby) sometimes don't expose role/aria-* on the raw input at the exact
+    // moment collectFields() runs (async hydration). If the input still sits
+    // inside a recognizable select wrapper, treat it as a combobox anyway —
+    // this is what stops a plain-text fallback typing an email address into
+    // a Yes/No dropdown that never actually registers the keystrokes as a
+    // real selection (found in live testing on Agoda/Greenhouse).
+    || f.nearSelectWrapper;
 }
 const ROOT = __dirname;
 
@@ -55,6 +65,9 @@ if (runDirArg === -1 || !process.argv[runDirArg + 1]) {
 const RUN_DIR = join(ROOT, process.argv[runDirArg + 1]);
 mkdirSync(RUN_DIR, { recursive: true });
 const spec = JSON.parse(readFileSync(join(RUN_DIR, 'spec.json'), 'utf-8'));
+const AUTO_SOLVE_CHALLENGES = spec.solveChallenges !== false && process.env.APPLY_SOLVE_CHALLENGES !== '0';
+const SOLVE_MAX_RUN_ATTEMPTS = Math.max(1, Number.parseInt(process.env.APPLY_SOLVE_MAX_ATTEMPTS || '2', 10) || 2);
+const SOLVE_TIMEOUT_MS = Math.max(15000, Number.parseInt(process.env.APPLY_SOLVE_TIMEOUT_MS || '40000', 10) || 40000);
 
 // ── State management ──────────────────────────────────────────────────────────
 
@@ -95,6 +108,15 @@ function log(text) {
   writeState();
 }
 
+// Diagnostic trace for the dropdown machinery — stdout only, never written into
+// state.json (the UI timeline should stay readable). Enable with APPLY_DEBUG=1
+// when a specific field won't fill and you need to see what the widget actually
+// exposed at each step.
+const DEBUG = process.env.APPLY_DEBUG === '1';
+function dbg(text) {
+  if (DEBUG) console.log(`  [dbg] ${text}`);
+}
+
 function readCommand() {
   const cmdPath = join(RUN_DIR, 'command.json');
   if (!existsSync(cmdPath)) return null;
@@ -108,6 +130,51 @@ function readCommand() {
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const rand = (min, max) => Math.floor(min + Math.random() * (max - min));
 const jitter = (ms, pct = 0.35) => sleep(Math.round(ms * (1 - pct + Math.random() * pct * 2)));
+
+// Move the mouse toward the target before clicking instead of Playwright's
+// default instant teleport-then-click — cheap, and applied to every primary
+// interaction (apply/submit buttons, field focus, dropdown open).
+async function humanClick(loc, opts = {}) {
+  try {
+    const page = loc.page();
+    const box = await loc.boundingBox();
+    if (box && page?.mouse) {
+      const x = box.x + box.width * (0.3 + Math.random() * 0.4);
+      const y = box.y + box.height * (0.3 + Math.random() * 0.4);
+      await page.mouse.move(x + rand(-50, 50), y + rand(-40, 40), { steps: rand(3, 6) });
+      await sleep(rand(40, 140));
+      await page.mouse.move(x, y, { steps: rand(6, 14) });
+      await sleep(rand(30, 110));
+    }
+  } catch { /* best effort — the click below still fires if the pre-move failed */ }
+  await loc.click(opts);
+}
+
+// Native <input type="date"> pickers need an ISO yyyy-mm-dd value — anything
+// else is silently rejected by the browser (no keystrokes to simulate against).
+// "Immediately available"-style free text collapses to today's date.
+// Local calendar date, not UTC — Date#toISOString() converts to UTC first,
+// which silently shifts the day by one near midnight in any timezone ahead of
+// or behind UTC. A date input must reflect the date as read locally.
+function localIsoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function toIsoDate(value) {
+  const raw = String(value ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  // DD/MM/YYYY or DD-MM-YYYY (French convention) — parsed explicitly. new Date()
+  // assumes US MM/DD/YYYY for slash-separated dates, which would silently swap
+  // day and month for a French profile (e.g. "01/09/2026" → Jan 9, not Sep 1).
+  const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmy) {
+    const [, d, mo, y] = dmy;
+    if (+mo <= 12 && +d <= 31) return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  const d = new Date(raw);
+  if (raw && !Number.isNaN(d.getTime())) return localIsoDate(d);
+  return localIsoDate(new Date());
+}
 
 // True if the field currently holds non-empty content (works for input/textarea
 // and contenteditable). Used to confirm a value actually landed.
@@ -130,7 +197,7 @@ async function humanType(loc, text) {
   try {
     await loc.scrollIntoViewIfNeeded().catch(() => {});
     await sleep(rand(120, 380));            // glance at the field before clicking
-    await loc.click({ timeout: 4000 });
+    await humanClick(loc, { timeout: 4000 });
     await sleep(rand(90, 260));             // settle after focus
     // clear any pre-filled value (cross-platform / any field type) before typing.
     // NOT Control+a — on macOS that's "line start", not select-all.
@@ -200,29 +267,158 @@ async function launchBrowser() {
 
 // ── Blocker detection (captcha / cloudflare / login wall) ─────────────────────
 
+// Detection body shared across every frame (top page + any embedded ATS or
+// challenge iframe). Defined once at module scope so Playwright can hand the
+// exact same function to frame.evaluate() for each frame without re-serializing
+// a closure each time.
+function blockerProbe() {
+  const visible = (el) => {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 10 && r.height > 10;
+  };
+  // Active challenges only — the floating reCAPTCHA badge (bottom-right on
+  // every Greenhouse form) is NOT a blocker. Covers the widget-based challenge
+  // providers seen in practice on ATS/career sites: reCAPTCHA, hCaptcha,
+  // Cloudflare Turnstile, DataDome, PerimeterX/HUMAN, Arkose Labs (FunCaptcha),
+  // AWS WAF captcha, Friendly Captcha, and GeeTest.
+  const captchaSel = [
+    'iframe[src*="recaptcha"]', '.g-recaptcha',
+    'iframe[src*="hcaptcha"]', '[class*="h-captcha"]',
+    'iframe[src*="turnstile"]', '[class*="turnstile"]',
+    'iframe[src*="datadome"]', '[id*="datadome"]', '[class*="datadome"]',
+    'iframe[src*="perimeterx"]', '#px-captcha', '[class*="px-captcha"]',
+    'iframe[src*="arkoselabs"]', '#FunCaptcha', '[class*="funcaptcha"]',
+    'iframe[src*="captcha.awswaf"]', '[id*="awswaf-captcha"]',
+    'iframe[src*="friendlycaptcha"]', '.frc-captcha',
+    '.geetest_holder', 'iframe[src*="geetest"]',
+  ].join(', ');
+  const isChallenge = [...document.querySelectorAll(captchaSel)]
+    .filter(el => !el.closest('.grecaptcha-badge'))
+    .some(visible);
+  if (isChallenge) {
+    // Checkbox-style widgets (reCAPTCHA v2, hCaptcha, Turnstile) stay in the DOM
+    // after the human solves them — only the hidden response token changes.
+    // Without this check the runner would see the same widget forever and
+    // never auto-resume once the challenge is actually cleared.
+    const solved = [...document.querySelectorAll(
+      'textarea[name="g-recaptcha-response"], input[name="h-captcha-response"], textarea[name="h-captcha-response"], input[name="cf-turnstile-response"]'
+    )].some(el => (el.value || '').trim().length > 10);
+    if (!solved) return 'captcha';
+  }
+  const bodyText = (document.body?.innerText || '').slice(0, 3000).toLowerCase();
+  // Full-page anti-bot interstitials that don't render as a discrete iframe
+  // widget (Cloudflare, Akamai, Imperva/Incapsula, generic bot-detection copy).
+  if (/just a moment|verify you are human|checking your browser|attention required|cf-mitigated|enable javascript and cookies|pardon our interruption|unusual traffic|automated (requests|access)|request could not be satisfied|additional verification (is )?required|press (and hold|& hold)|human verification/.test(bodyText)) return 'cloudflare';
+  if (/sign in to continue|log in to apply|connectez-vous pour postuler/.test(bodyText)
+      && [...document.querySelectorAll('input[type="password"]')].some(visible)) return 'login';
+  return null;
+}
+
 async function detectBlocker(page) {
+  // Scan every frame, not just the top page: some ATS embed the whole
+  // application form (and any captcha rendered inside it) in a cross-origin
+  // iframe that top-level page.evaluate() can never see into. Playwright's
+  // frame.evaluate() runs inside each frame's own execution context, so it
+  // works regardless of origin.
+  for (const frame of page.frames()) {
+    if (frame.isDetached()) continue;
+    try {
+      const found = await frame.evaluate(blockerProbe);
+      if (found) return found;
+    } catch { /* frame navigating/detached mid-check — skip, next poll retries */ }
+  }
+  return null;
+}
+
+function blockerLabel(blocker) {
+  if (blocker === 'captcha') return 'captcha';
+  if (blocker === 'cloudflare') return 'page de vérification';
+  if (blocker === 'login') return 'connexion';
+  return 'vérification';
+}
+
+function normalizePinchtabCookieList(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.cookies)) return raw.cookies;
+  if (Array.isArray(raw?.result)) return raw.result;
+  return [];
+}
+
+function cookieMatchesHost(cookie, hostname) {
+  const domain = String(cookie?.domain || '').replace(/^\./, '').toLowerCase();
+  if (!domain) return true;
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
+function toPlaywrightCookie(cookie, url) {
+  if (!cookie?.name || cookie.value == null) return null;
+  const out = {
+    name: String(cookie.name),
+    value: String(cookie.value),
+    path: cookie.path || '/',
+  };
+  if (cookie.domain) out.domain = cookie.domain;
+  else out.url = new URL(url).origin;
+  const expires = Number(cookie.expires ?? cookie.expirationDate ?? cookie.expiresAt);
+  if (Number.isFinite(expires) && expires > 0) out.expires = expires;
+  if (cookie.httpOnly != null) out.httpOnly = !!cookie.httpOnly;
+  if (cookie.secure != null) out.secure = !!cookie.secure;
+  if (['Strict', 'Lax', 'None'].includes(cookie.sameSite)) out.sameSite = cookie.sameSite;
+  return out;
+}
+
+async function importPinchtabCookies(context, tabId, currentUrl) {
   try {
-    const found = await page.evaluate(() => {
-      const visible = (el) => {
-        if (!el) return false;
-        const r = el.getBoundingClientRect();
-        return r.width > 10 && r.height > 10;
-      };
-      // Active challenges only — the floating reCAPTCHA badge (bottom-right on
-      // every Greenhouse form) is NOT a blocker.
-      const captchaSel = 'iframe[src*="recaptcha"], .g-recaptcha, iframe[src*="hcaptcha"], [class*="h-captcha"], [class*="turnstile"], iframe[src*="turnstile"]';
-      const isChallenge = [...document.querySelectorAll(captchaSel)]
-        .filter(el => !el.closest('.grecaptcha-badge'))
-        .some(visible);
-      if (isChallenge) return 'captcha';
-      const bodyText = (document.body?.innerText || '').slice(0, 3000).toLowerCase();
-      if (/just a moment|verify you are human|checking your browser|attention required/.test(bodyText)) return 'cloudflare';
-      if (/sign in to continue|log in to apply|connectez-vous pour postuler/.test(bodyText)
-          && [...document.querySelectorAll('input[type="password"]')].some(visible)) return 'login';
-      return null;
-    });
-    return found;
-  } catch { return null; }
+    const hostname = new URL(currentUrl).hostname.toLowerCase();
+    const cookies = normalizePinchtabCookieList(await pinchtabCookies(tabId))
+      .filter(c => cookieMatchesHost(c, hostname))
+      .map(c => toPlaywrightCookie(c, currentUrl))
+      .filter(Boolean);
+    if (!cookies.length) return 0;
+    await context.addCookies(cookies);
+    return cookies.length;
+  } catch (err) {
+    dbg(`pinchtab cookie import failed: ${String(err.message || err).slice(0, 100)}`);
+    return 0;
+  }
+}
+
+async function tryAutoSolveBlocker(context, page, blocker, phase = 'navigation') {
+  if (!AUTO_SOLVE_CHALLENGES || !['captcha', 'cloudflare'].includes(blocker)) return false;
+  const currentUrl = page.url();
+  if (!(await pinchtabHealth())) {
+    log(`Solveur PinchTab indisponible à ${PINCHTAB_URL} — intervention humaine requise pour ${blockerLabel(blocker)}.`);
+    return false;
+  }
+
+  for (let attempt = 1; attempt <= SOLVE_MAX_RUN_ATTEMPTS; attempt += 1) {
+    let tabId = null;
+    try {
+      setState('solving_challenge', `Résolution automatique ${blockerLabel(blocker)} (${attempt}/${SOLVE_MAX_RUN_ATTEMPTS})…`);
+      log(`Challenge détecté (${blockerLabel(blocker)}, ${phase}) — tentative PinchTab ${attempt}/${SOLVE_MAX_RUN_ATTEMPTS}.`);
+      tabId = await pinchtabNavigate(currentUrl, { timeout: 30000 });
+      await sleep(1500);
+      const result = await pinchtabSolve(tabId, { maxAttempts: 6, timeout: SOLVE_TIMEOUT_MS });
+      if (!result?.solved) {
+        log(`PinchTab n'a pas résolu la vérification (solver=${result?.solver || 'auto'}, attempts=${result?.attempts ?? 0}).`);
+        continue;
+      }
+      const copied = await importPinchtabCookies(context, tabId, currentUrl);
+      log(`Vérification résolue via PinchTab${copied ? ` · ${copied} cookie(s) de challenge transféré(s)` : ''}.`);
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+      await sleep(2500);
+      const stillBlocked = await detectBlocker(page);
+      if (!stillBlocked) return true;
+      blocker = stillBlocked;
+      log(`Vérification encore visible après reprise (${blockerLabel(stillBlocked)}).`);
+    } catch (err) {
+      log(`Tentative PinchTab échouée (${String(err.message || err).slice(0, 120)}).`);
+    } finally {
+      await pinchtabClose(tabId);
+    }
+  }
+  return false;
 }
 
 // ── Apply navigation: follow links/redirects until a real form is reached ─────
@@ -324,7 +520,7 @@ async function clickApplyAndFollow(context, page, textRe = APPLY_TEXT_RE, attemp
   for (const cand of marked) {
     try {
       if (attempted) attempted.add(`${url}::${cand.text}`);
-      await page.locator(`[data-co-click="${cand.n}"]`).click({ timeout: 5000 });
+      await humanClick(page.locator(`[data-co-click="${cand.n}"]`), { timeout: 5000 });
       log(`Clic sur "${cand.text}"${cand.href ? ` → ${cand.href}` : ''}`);
       clicked = true;
       break;
@@ -346,7 +542,7 @@ async function dismissCookieBanner(page) {
       hasText: /^(accept( all)?( cookies)?|i (agree|accept)|tout accepter|accepter( tout)?|allow all|got it|ok|j'accepte)$/i,
     }).first();
     if (await btn.isVisible({ timeout: 800 })) {
-      await btn.click({ timeout: 2000 });
+      await humanClick(btn, { timeout: 2000 });
       await sleep(600);
     }
   } catch { /* no banner */ }
@@ -363,7 +559,10 @@ async function reachApplicationForm(context, page) {
     writeState();
 
     const blocker = await detectBlocker(page);
-    if (blocker) return { page, frame: null, blocker };
+    if (blocker) {
+      if (await tryAutoSolveBlocker(context, page, blocker, `hop ${hop + 1}`)) continue;
+      return { page, frame: null, blocker };
+    }
 
     await dismissCookieBanner(page);
 
@@ -423,6 +622,20 @@ async function rescanForm(context, page) {
 
 async function collectFields(frame) {
   return await frame.evaluate(() => {
+    // Clear markers from any previous pass BEFORE re-numbering. collectFields
+    // runs several times per application (once per file-upload pass, again on
+    // every rescan), and the set of fields changes between passes because ATS
+    // forms show/hide conditional questions ("What is the employee's name?"
+    // only appears after answering the question above it). The index therefore
+    // drifts, and without this reset a stale element keeps an old data-co-i
+    // that a different element is now also using — so `locator('[data-co-i="N"]')`
+    // matches two nodes and Playwright throws a strict-mode violation.
+    // Live tracing showed exactly that killing the last dropdowns on the form
+    // ("TEXT/SMS updates", "How do you identify?") on every single run: the
+    // scrape threw, the field fell through to a blind LLM guess, and the guess
+    // then failed to match too.
+    document.querySelectorAll('[data-co-i]').forEach(e => e.removeAttribute('data-co-i'));
+    document.querySelectorAll('[data-co-opt]').forEach(e => e.removeAttribute('data-co-opt'));
     const visible = (el) => {
       const r = el.getBoundingClientRect();
       const st = getComputedStyle(el);
@@ -430,6 +643,45 @@ async function collectFields(frame) {
       // required <input style="opacity:0"> used for validation — not a field
       return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'
         && st.opacity !== '0' && el.getAttribute('aria-hidden') !== 'true';
+    };
+    // Native radio/checkbox inputs are routinely rendered invisible (opacity:0,
+    // 1px clip, display:none) with a styled span/label proxy painted on top —
+    // Ashby, Workday and most design-system forms do this. Judging them by
+    // their own box drops EVERY choice question on such a form: a live run on
+    // Ashby collected 0 of 19 radios and 0 of 1 checkbox, so the runner
+    // announced "form filled" with every required choice still blank. Fall back
+    // to the visibility of what the user actually sees and clicks.
+    const proxyOf = (el) => {
+      if (el.id) {
+        const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+        if (l) return l;
+      }
+      return el.closest('label') || el.parentElement;
+    };
+    const controlVisible = (el) => {
+      if (visible(el)) return true;
+      const proxy = proxyOf(el);
+      return !!proxy && visible(proxy);
+    };
+    // Text of ONE radio/checkbox option. closest('label') alone is not enough:
+    // in the label[for=id] layout the label is a SIBLING, so it returns null and
+    // the fallback lands on el.value — which is the browser default "on" for
+    // every option in the group, making them indistinguishable.
+    const optionTextFor = (el) => {
+      if (el.id) {
+        const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+        const t = (l?.innerText || '').trim();
+        if (t) return t;
+      }
+      const wrap = el.closest('label');
+      if (wrap && wrap.innerText.trim()) return wrap.innerText.trim();
+      let node = el.parentElement;
+      for (let d = 0; d < 3 && node; d++, node = node.parentElement) {
+        const t = (node.innerText || '').trim();
+        if (t && t.length < 120) return t;
+      }
+      const v = (el.value || '').trim();
+      return v.toLowerCase() === 'on' ? '' : v;
     };
     const labelFor = (el) => {
       const parts = [];
@@ -469,7 +721,128 @@ async function collectFields(frame) {
       // placeholder LAST: it's often just "Select..." / "Type here..." and
       // must not shadow the real label
       if (el.placeholder) parts.push(el.placeholder);
-      return parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+      let out = parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+      // The ancestor-text fallback can swallow the NEXT question when a
+      // container holds several [question][input] pairs. The input always
+      // follows its own question, so when two questions are glued together
+      // keep the first one: n8n's "…3 things n8n should improve? Where are you
+      // located?" was classified on the trailing question and answered "Paris,
+      // France" in a free-text box about the product.
+      const firstQ = out.indexOf('?');
+      if (firstQ > 10 && out.indexOf('?', firstQ + 1) > firstQ) out = out.slice(0, firstQ + 1);
+      return out;
+    };
+    // Radio/checkbox OPTIONS (each rendered as its own <label>Yes</label>) never
+    // carry the actual GROUP QUESTION in their own label — labelFor() stops at
+    // the option's own wrapping <label> before it ever reaches the question
+    // text. Ashby, Greenhouse-new-UI, and similar builders all do this, which
+    // makes every yes/no radio question unclassifiable by regex (the label is
+    // just "Yes"/"No"). This recovers the shared question by finding the
+    // smallest ancestor containing every member of the group, then reading its
+    // legend/heading child, or — if there's none — the text that precedes the
+    // first option's own text inside that container.
+    // Custom-rendered groups almost never carry the native `required` attribute
+    // (Ashby marks the question's heading with a `_required_` class and draws
+    // the asterisk in CSS), so requiredness has to be read off the heading we
+    // recover here — otherwise every choice question looks optional and a blank
+    // one is silently accepted instead of being escalated.
+    const isRequiredNode = (node, text) =>
+      /(^|[^a-z])required/i.test((node?.className || '').toString()) || /[*✱]/.test(text || '');
+    const groupMeta = (members) => {
+      const none = { question: '', required: false };
+      if (!members.length) return none;
+      let container = members[0].parentElement;
+      while (container) {
+        if (members.every(m => container.contains(m))) break;
+        container = container.parentElement;
+      }
+      if (!container) return none;
+      const optionTexts = members.map(optionTextFor).filter(Boolean);
+      const isJustOptions = (t) => optionTexts.includes(t) || optionTexts.join(' ') === t;
+      // A member's OWN label is never the group question — without this guard a
+      // single-option group (a lone consent radio) returns "Yes" as its question.
+      const isOwnLabel = (node) => members.some(m => m.id && node.getAttribute?.('for') === m.id);
+      // Stop climbing as soon as a node also holds OTHER fields: any heading
+      // found there belongs to one of them, not to this group. Without it, a
+      // lone consent checkbox kept walking up to the <form> and adopted the
+      // whole form's text ("First Name* Last Name* Email*…") as its question.
+      const holdsOtherFields = (node) =>
+        [...node.querySelectorAll('input, select, textarea')].some(c => !members.includes(c));
+      // The question is often a SIBLING of the smallest container that wraps
+      // just the options (e.g. [div.question][div.options-row]), not a
+      // descendant of it — walk up a few levels checking each node's own
+      // legend/heading child and its preceding sibling.
+      // Ancestors to inspect: stop climbing at the first one that also holds
+      // OTHER fields (any heading there belongs to them). The group's own
+      // container is always kept — it may legitimately hold an "Other, please
+      // specify" input of its own.
+      const chain = [];
+      for (let d = 0, node = container; d < 4 && node; d++, node = node.parentElement) {
+        if (d > 0 && holdsOtherFields(node)) break;
+        chain.push(node);
+      }
+      const usable = (node, t) => t && t.length < 300 && !isJustOptions(t) && !members.some(m => node.contains(m));
+      // Structural headings FIRST, across every level. Doing this level-by-
+      // level interleaved with the sibling scan below picked the help text
+      // sitting between the question and the options ("You can learn more
+      // about our privacy policy here") over the real question one level up —
+      // which then matched no rule at all and silently skipped a REQUIRED
+      // consent field on a live form.
+      // `:scope > label` matters for the fieldset layout, where the group
+      // question is a plain <label> heading rather than a <legend>.
+      for (const node of chain) {
+        for (const heading of node.querySelectorAll(':scope > legend, :scope > [class*="question" i], :scope > label')) {
+          if (isOwnLabel(heading)) continue;
+          const t = (heading.innerText || '').trim();
+          if (usable(heading, t)) return { question: t, required: isRequiredNode(heading, t) };
+        }
+      }
+      // Then preceding siblings, for layouts that put the question in a plain
+      // block right before the options row ([div.question][div.options-row]).
+      for (const node of chain) {
+        const prev = node.previousElementSibling;
+        const t = (prev?.innerText || '').trim();
+        if (prev && usable(prev, t)) return { question: t, required: isRequiredNode(prev, t) };
+      }
+      if (holdsOtherFields(container)) return none;
+      const full = (container.innerText || '').replace(/\s+/g, ' ').trim();
+      for (const opt of optionTexts) {
+        const idx = full.indexOf(opt);
+        if (idx > 8) {
+          const q = full.slice(0, idx).trim();
+          return { question: q, required: isRequiredNode(container, q) };
+        }
+      }
+      return none;
+    };
+    const radiosByName = new Map();
+    for (const el of document.querySelectorAll('input[type="radio"]')) {
+      if (!el.name) continue;
+      if (!radiosByName.has(el.name)) radiosByName.set(el.name, []);
+      radiosByName.get(el.name).push(el);
+    }
+    const radioGroupMeta = new Map();
+    for (const [name, members] of radiosByName) radioGroupMeta.set(name, groupMeta(members));
+    // Checkboxes stay independent entries (each can be toggled on its own for
+    // "select all that apply" lists), but are still ambiguous in isolation
+    // ("Python" tells you nothing without "which of these do you know?") —
+    // prefix each one's label with its section question when it has group-mates.
+    const allCheckboxes = [...document.querySelectorAll('input[type="checkbox"]')];
+    const checkboxGroupOf = (el) => {
+      let node = el.parentElement;
+      for (let d = 0; d < 4 && node; d++, node = node.parentElement) {
+        // Stop the moment the container also holds a field of another kind:
+        // four levels up from an input is often the whole form, and treating
+        // every checkbox on the page as a group-mate produced a nonsense
+        // question for a standalone yes/no toggle — which then matched a
+        // demographic rule and was skipped, leaving a REQUIRED field blank
+        // (n8n's "…product or feature that involves AI?" bounced the submit).
+        const fields = [...node.querySelectorAll('input, select, textarea')];
+        if (fields.some(f => f !== el && f.type !== 'checkbox')) return null;
+        const mates = fields.filter(c => c !== el && c.type === 'checkbox');
+        if (mates.length) return [el, ...mates];
+      }
+      return null;
     };
     let i = 0;
     const out = [];
@@ -490,11 +863,67 @@ async function collectFields(frame) {
       }
       const type = isCE ? 'textarea' : (el.type || tag).toLowerCase();
       if (['hidden', 'submit', 'button', 'image', 'reset'].includes(type)) continue;
+      // Never surface known anti-bot/captcha response fields as fillable —
+      // they're internal tokens owned by the widget itself (writing into them
+      // can corrupt the token), and they're often technically "visible" per
+      // getBoundingClientRect (positioned off-screen rather than display:none),
+      // so the visibility filter below won't catch them on its own.
+      const nameId = `${el.name || ''} ${el.id || ''}`.toLowerCase();
+      if (/g-recaptcha-response|h-captcha-response|cf-turnstile-response|frc-captcha-response/.test(nameId)) continue;
       const isFile = type === 'file';
-      if (!isFile && !visible(el)) continue;
+      const isChoice = type === 'radio' || type === 'checkbox';
+      if (!isFile && !(isChoice ? controlVisible(el) : visible(el))) continue;
       el.setAttribute('data-co-i', String(i));
-      const label = labelFor(el);
-      const required = el.required || el.getAttribute('aria-required') === 'true' || /[*✱]/.test(label);
+      let label = labelFor(el);
+      let choiceRequired = false;
+      let groupChecked = !!el.checked;
+      if (type === 'radio' && el.name) {
+        const meta = radioGroupMeta.get(el.name) || { question: '', required: false };
+        if (meta.question) label = meta.question;
+        choiceRequired = meta.required;
+      } else if (type === 'checkbox') {
+        // Even a lone checkbox is ambiguous on its own ("I agree" tells you
+        // nothing about what is being agreed to), so pull in its section
+        // question whether or not it has group-mates.
+        const mates = checkboxGroupOf(el) || [el];
+        const meta = groupMeta(mates);
+        if (meta.question && meta.question !== label) label = `${meta.question} — ${label}`.trim();
+        choiceRequired = meta.required;
+        // "Tick all that apply" groups: the requirement is satisfied by ANY
+        // member, so a ticked mate must not leave the other three screaming
+        // "required and empty" (n8n's location group produced 8 phantom
+        // pending entries that way).
+        groupChecked = mates.some(m => m.checked);
+      }
+      const required = el.required || el.getAttribute('aria-required') === 'true' || /[*✱]/.test(label) || choiceRequired;
+      // Classname-only check for "is this structurally a select widget" —
+      // Greenhouse (and similar) render a near-identical aria-hidden required
+      // shadow-input pattern for OTHER field types too, so presence of that
+      // shadow input alone is NOT select-specific and must never be used to
+      // decide "is this a combobox" (a plain text field can have one too).
+      const selectWrapper = el.closest('[class*="select__container"], [class*="select-shell"], [class*="Select-container" i], [class*="react-select" i]');
+      // Only once we KNOW it's a select do we look for its shadow required
+      // input, to correct the reported `value` — react-select's hidden mirror
+      // input only gets a value on a genuine onChange, unlike the visible
+      // filter input's raw DOM value, which can hold leftover typed text that
+      // was never confirmed as a selection (typing an email into a Yes/No
+      // dropdown finds no match, but the characters still sit there).
+      // el.closest() above returns the NEAREST classname match (often an inner
+      // wrapper like .select-shell), but the shadow input can sit one level
+      // further up (a sibling of that inner wrapper, both children of the
+      // outer .select__container) — so once selectWrapper confirms "this IS a
+      // select", keep climbing past that specific node rather than stopping
+      // there, bounded to a few levels.
+      let shadowRequired = null;
+      if (selectWrapper) {
+        let node = el.parentElement;
+        for (let d = 0; d < 6 && node; d++, node = node.parentElement) {
+          shadowRequired = node.querySelector('input[aria-hidden="true"][required], [class*="requiredInput" i]');
+          if (shadowRequired) break;
+        }
+      }
+      let value = type === 'checkbox' || type === 'radio' ? '' : (isCE ? (el.innerText || '').trim() : (el.value || ''));
+      if (shadowRequired) value = shadowRequired.value || '';
       const entry = {
         i, type,
         tag,
@@ -503,8 +932,10 @@ async function collectFields(frame) {
         name: el.name || '',
         idAttr: el.id || '',
         required,
-        value: type === 'checkbox' || type === 'radio' ? '' : (isCE ? (el.innerText || '').trim() : (el.value || '')),
+        value,
+        nearSelectWrapper: !!selectWrapper,
         checked: !!el.checked,
+        groupChecked,
         role: el.getAttribute('role') || '',
         ariaAutocomplete: el.getAttribute('aria-autocomplete') || '',
         ariaHaspopup: el.getAttribute('aria-haspopup') || '',
@@ -517,14 +948,50 @@ async function collectFields(frame) {
       out.push(entry);
       i++;
     }
-    return out;
+    // Radios: dedupe to ONE logical entry per name (all options share a single
+    // question), carrying an `options` list like <select> does. Without this,
+    // each option in a yes/no pair gets classified and processed independently
+    // — same regex match, same click-by-name outcome, but doubled bookkeeping
+    // (and doubled LLM fallback calls for any group the regexes don't catch).
+    const seenRadioNames = new Set();
+    const deduped = [];
+    for (const entry of out) {
+      if (entry.type !== 'radio') { deduped.push(entry); continue; }
+      if (seenRadioNames.has(entry.name)) continue;
+      seenRadioNames.add(entry.name);
+      const members = radiosByName.get(entry.name) || [];
+      // Stamp each option with its own marker: the click step then targets the
+      // exact element whose text was resolved HERE, instead of re-deriving that
+      // text from a DOM where options may carry no wrapping label at all.
+      entry.options = members.map((m, k) => {
+        const key = `${entry.i}:${k}`;
+        m.setAttribute('data-co-opt', key);
+        return { value: m.value, text: optionTextFor(m) || m.value || '', key };
+      });
+      entry.required = entry.required || members.some(m => m.required || m.getAttribute('aria-required') === 'true');
+      // A radio group's "is it answered?" lives on the members, not on the
+      // single entry we expose — without this a required group left blank looks
+      // identical to an answered one in the pre-submit check.
+      entry.groupChecked = members.some(m => m.checked);
+      deduped.push(entry);
+    }
+    return deduped;
   });
 }
 
 const STOPWORDS = new Set(['the', 'a', 'an', 'to', 'of', 'in', 'for', 'and', 'or', 'you', 'your', 'is', 'are', 'do', 'does', 'this', 'that', 'with', 'us', 'we', 'at', 'on', 'what', 'why', 'how', 'about', 'tell', 'please', 'would', 'be', 'it', 'le', 'la', 'les', 'de', 'des', 'un', 'une', 'vous', 'pour', 'et']);
 
+// Job-domain nouns that appear in nearly EVERY question on an application form
+// and therefore carry no power to tell two questions apart. Without this, a
+// single shared "role" was enough to score 0.5 and clear the 0.4 threshold:
+// "What is your current role?" {current, role} matched "How did you hear about
+// this role?" {did, hear, role} and the form was submitted with the
+// how-did-you-hear answer in the current-role box. Dropping these leaves only
+// the words that actually discriminate ("interested", "hear", "experience").
+const GENERIC_TERMS = new Set(['role', 'roles', 'position', 'positions', 'job', 'jobs', 'company', 'companies', 'work', 'working', 'poste', 'entreprise', 'travail']);
+
 function tokens(s) {
-  return new Set(String(s).toLowerCase().replace(/[^a-z0-9àâéèêëîïôùûüç\s]/gi, ' ').split(/\s+/).filter(w => w.length > 2 && !STOPWORDS.has(w)));
+  return new Set(String(s).toLowerCase().replace(/[^a-z0-9àâéèêëîïôùûüç\s]/gi, ' ').split(/\s+/).filter(w => w.length > 2 && !STOPWORDS.has(w) && !GENERIC_TERMS.has(w)));
 }
 
 function similarity(a, b) {
@@ -565,13 +1032,35 @@ function classifyField(f, spec, usedAnswers = new Set()) {
     return { resume: true };
   }
   // Sensitive EEO questions stay blank (usually optional / "prefer not to say").
-  // Pronouns are handled separately: many ATS make them required.
-  if (/gender|race|ethnic|veteran|disab|diversity|origine|sexe/.test(s) && !/pronoun/.test(s)) {
-    return { skip: 'question démographique (laissée vide)' };
+  // Pronouns are handled separately: many ATS make them required. \bage\b is
+  // word-boundary anchored so it doesn't false-positive on "message",
+  // "manage", "package", "language" (seen in the wild: Ashby's optional
+  // "Diversity Survey" section asks "What is your current age?").
+  // A gender declared in profile.yml is an answer the candidate chose to give,
+  // so use it instead of declining. Scoped to the gender question itself: the
+  // LGBTQIA+ question also contains "transgender", and race/veteran/disability
+  // stay blank regardless.
+  const asksGender = /\bgender\b|\bsexe\b|\bgenre\b/.test(s)
+    && !/lgbt|transgender community|identify as part of|race|ethnic/.test(s);
+  if (asksGender && id.gender) return { value: id.gender, selectText: id.gender };
+  if (/gender|race|ethnic|veteran|disab|diversity|origine|sexe|\bage\b|date of birth|birth\s*date/.test(s) && !/pronoun/.test(s)) {
+    // declinePreferred: if this turns out to be required, prefer the
+    // dropdown's own decline/non-disclosure option over skipping outright —
+    // see fillDeclineDropdown / DECLINE_RE.
+    return { skip: 'question démographique (laissée vide)', declinePreferred: true };
   }
 
   if (f.type === 'checkbox') {
-    if (/privacy|consent|gdpr|rgpd|terms|conditions|politique de confidentialité|j'accepte|i (agree|consent|acknowledge)/.test(s) && f.required) return { check: true };
+    // Optional consents are only ticked when the user opted in for this run
+    // (spec.consentOptIn) — agreeing to data retention or future contact on
+    // someone's behalf is never a silent default.
+    const isConsent = /privacy|consent|gdpr|rgpd|terms|conditions|politique de confidentialité|j'accepte|i (agree|consent|acknowledge)/.test(s);
+    if (isConsent && (f.required || spec.consentOptIn)) return { check: true };
+    // A REQUIRED checkbox that isn't a consent is a factual claim to confirm
+    // ("Have you ever designed a product that leverages AI?"). Skipping it left
+    // a mandatory field blank on n8n's form; hand it to the resolver, which
+    // reads the CV and answers yes/no.
+    if (f.required) return null;
     return { skip: 'checkbox non requise' };
   }
 
@@ -607,6 +1096,11 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   if (m(/consent.*(record|using this tool|transcri)|brighthire|record.*(interview|transcri)/)) {
     return { yesNo: 'yes', selectText: 'Yes' };
   }
+  // Same opt-in as the checkbox rule above, for ATS that render their consents
+  // as a yes/no group instead of a tickbox.
+  if (spec.consentOptIn && m(/consent|do you agree|j'accepte|autoris|storing your|store your (information|data)|contact you about/)) {
+    return { yesNo: 'yes', selectText: 'Yes', value: 'Yes' };
+  }
   // Demographic self-ID consent: we leave the EEO fields blank, so decline the
   // consent to process self-identification data (coherent + privacy-preserving).
   if (m(/self-?identification data|consent.*self-?identif/)) {
@@ -618,6 +1112,13 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   if (m(/privacy notice|notice at collection|acknowledge|data (privacy|protection) notice/)) {
     return { value: 'Acknowledge', selectText: 'Acknowledge' };
   }
+  if (m(/preferred\s*name|nickname|nom pr[ée]f[ée]r/)) return { value: id.firstName };
+  // Combined single-input name field ("First and last name"): must be caught
+  // before the first/last rules below, which both match it — the last-name rule
+  // won on n8n's form and the application went out signed "Vermot".
+  if (m(/first\s*(name)?\s*(and|&|\/|\+|et)\s*last\s*name|last\s*(name)?\s*(and|&|\/|\+|et)\s*first\s*name|pr[ée]nom et nom|nom et pr[ée]nom/)) {
+    return { value: id.fullName };
+  }
   if (m(/first\s*name|pr[ée]nom|given name/)) return { value: id.firstName };
   if (m(/last\s*name|family name|surname|nom de famille/)) return { value: id.lastName };
   if (m(/full\s*name|your name|^name\b|legal name|^nom\b/) && !m(/company|file/)) return { value: id.fullName };
@@ -625,14 +1126,45 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   if (m(/phone|t[ée]l[ée]phone|mobile/)) return { value: id.phone, optionalEmpty: !id.phone };
   if (m(/linkedin/)) return { value: id.linkedin };
   if (m(/github/)) return { value: id.github };
+  // Must come BEFORE the generic portfolio/website/URL catch-all below: its
+  // bare \burl\b match would otherwise swallow "Twitter URL" too and hand it
+  // the portfolio link instead (a real bug found in live testing).
+  if (m(/twitter|\bx\.com\b/)) return { value: id.twitter, optionalEmpty: !id.twitter };
+  // Credentials are never ours to type. Ashby's "Password to portfolio link (if
+  // applicable)" sits right next to the portfolio field and matched the URL rule
+  // below, so the live run pasted the portfolio URL into it as a password.
+  if (f.type === 'password' || m(/password|mot de passe|passcode|pass ?phrase/)) {
+    return { skip: 'champ mot de passe (jamais rempli automatiquement)' };
+  }
+  // "Additional portfolio link (if applicable)" is a SECOND slot, not a repeat
+  // of the first — filling both with the same URL is visible sloppiness. Offer
+  // the other public profile if there is one, else leave it blank.
+  if (m(/(additional|autre|second|other)\b/) && m(/portfolio|website|link|lien|\burl\b/)) {
+    return id.github ? { value: id.github } : { skip: 'lien supplémentaire (laissé vide)' };
+  }
   if (m(/portfolio|website|site (web|internet)|personal site|\burl\b/)) return { value: id.portfolio };
-  if (m(/current location|where (are you|do you) (based|live)|city|ville|location|address|adresse/)) return { value: id.location };
+  // Word-boundary anchored: a bare /location/ also matches "reLOCATION", so
+  // "This role requires relocation to Bangkok — are you open to it?" was being
+  // classified as a city field and answered with the candidate's address
+  // instead of Yes/No (caught by live tracing: the runner typed "Bangkok,
+  // Thailand" into a Yes/No dropdown). Same reasoning for \bcity\b, which
+  // otherwise matches "capaCITY".
+  if (m(/current location|where (are you|do you) (based|live)|\bcity\b|\bville\b|\blocation\b|\baddress\b|\badresse\b/)) return { value: id.location };
   if (m(/country|pays/)) return { value: id.country, selectMatch: id.country };
   if (m(/time\s*zone|fuseau/)) return { value: id.timezone };
-  if (m(/salary|compensation|r[ée]mun[ée]ration|expected pay|pay expectation|pretension|daily rate|tjm/)) return { value: id.salary };
+  if (m(/salary|compensation|r[ée]mun[ée]ration|expected pay|pay expectation|pretension|daily rate|tjm/)) {
+    // A Section F draft written for THIS question beats the raw profile string
+    // ("EUR70K-110K salary / EUR600-900/day freelance" reads like a config
+    // value, which is exactly what got typed into Kittl's form).
+    const qa = bestAnswerFor(f.label, spec.answers, usedAnswers);
+    return qa ? { value: polishApplicationAnswer(qa.answer), fromQuestion: qa.question } : { value: id.salary };
+  }
   if (m(/notice period|pr[ée]avis/)) return { value: id.noticePeriod };
-  if (m(/start date|available (to start|from)|disponibilit|when can you start/)) return { value: id.startDate };
-  if (m(/how did you (hear|find)|source|referr|comment avez-vous/)) return { value: id.howDidYouHear, selectText: 'Other', selectPrefer: /other|job board|search|website|autre/i };
+  if (m(/start date|available (to start|from)|disponibilit|when can you start/)) return { value: id.startDate, dateISO: id.startDateISO };
+  // Bare "source"/"referr" substrings used to false-positive on unrelated
+  // fields (any label/name/id containing "resource", "preferred", etc.) —
+  // require the fuller phrase instead.
+  if (m(/how did you (hear|find)|where did you (hear|find)|referral source|how you (heard|found)|comment avez-vous (entendu|trouv[ée])/)) return { value: id.howDidYouHear, selectText: 'Other', selectPrefer: /other|job board|search|website|autre/i };
   if (m(/reference/) && !m(/referr/)) return { value: id.references };
 
   // Factual yes/no questions ("Do you…", "Have you…") must never receive a
@@ -641,6 +1173,15 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   // numbering / asterisk / bullet so "* Do you…" or "1. Have you…" still match.
   const cleanLabel = (f.label || '').replace(/^[\s*••\-–—.)\d:]+/, '').trim();
   if (/^(do|did|does|have|has|are|were|will|would|can|is) (you|your)\b/i.test(cleanLabel)) return null;
+
+  // A Section F answer is a paragraph of prose, so it can never be a valid
+  // value for a closed-option widget — a <select>, radio group, or react-select
+  // combobox only accepts one of its OWN options. Live tracing caught a
+  // three-sentence motivation answer being typed into a Yes/No dropdown
+  // ("This role requires relocation to Bangkok…"), which matched nothing.
+  // Send these to the LLM resolver instead: it gets the real scraped option
+  // list and picks a genuine option.
+  if (f.tag === 'select' || f.type === 'radio' || isComboboxField(f)) return null;
 
   // Free-text questions → Section F answers
   const qa = bestAnswerFor(f.label, spec.answers, usedAnswers);
@@ -653,6 +1194,23 @@ function classifyField(f, spec, usedAnswers = new Set()) {
 }
 
 // ── Fill engine ───────────────────────────────────────────────────────────────
+
+// Every ATS demographic dropdown (gender, race/ethnicity, veteran, disability,
+// LGBTQIA+…) offers some non-disclosure option, but the exact wording is never
+// standardized ("Prefer not to say", "I don't wish to answer", "Decline to
+// self-identify", "Rather not disclose"…). An LLM asked to pick one tends to
+// paraphrase a generic-sounding version of that option instead of copying the
+// real string verbatim, which then fails exact/substring matching against the
+// actual DOM text (found in live testing on Agoda/Greenhouse: LLM said "Prefer
+// not to disclose", the real option read "I don't wish to answer" — zero
+// substring overlap, so the field was reported unfillable). Matching against
+// this pattern directly, deterministically, skips the paraphrase risk entirely.
+const DECLINE_RE = /prefer not|decline|not to disclose|don.?t wish|rather not (to )?(say|answer|disclose)|not to (answer|say|respond|specify)|choose not to|no,? i (do not|don.t)|would rather not|not (to )?(self.?identify|specify)/i;
+
+function pickDeclineOption(options) {
+  const usable = options.filter(o => o.text && !/^(select|choose|--|please|sélection)/i.test(o.text.trim()));
+  return usable.find(o => DECLINE_RE.test(o.text)) || null;
+}
 
 function pickSelectOption(options, plan, fieldLabel) {
   const lower = (t) => t.toLowerCase();
@@ -671,49 +1229,137 @@ function pickSelectOption(options, plan, fieldLabel) {
   if (needle) {
     const exact = usable.find(o => lower(o.text) === needle);
     if (exact) return exact;
+    // Word-boundary pass before the loose one: a bare `includes` picks "Female"
+    // for "Male" (and "Non-binary" for "No"), silently answering the opposite
+    // of what was asked.
+    const bounded = new RegExp(`(^|\\W)${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\W|$)`);
+    const word = usable.find(o => bounded.test(lower(o.text)));
+    if (word) return word;
     const contains = usable.find(o => lower(o.text).includes(needle) || needle.includes(lower(o.text)));
     if (contains) return contains;
   }
+  // A field asking to "decline"/"prefer not to say" that didn't match by text
+  // still deserves the decline option over being left unfilled.
+  if (plan.declinePreferred) {
+    const decline = pickDeclineOption(usable);
+    if (decline) return decline;
+  }
+  // Exactly one real (non-placeholder) choice exists — nothing to disambiguate,
+  // so take it rather than fail a field that structurally can't be answered
+  // any other way (single-option acknowledgement/consent selects).
+  if (usable.length === 1) return usable[0];
   return null;
+}
+
+// Read the currently-rendered dropdown options out of the page. Shared by the
+// scrape and the select path so both agree on what counts as an option.
+function readRenderedOptions() {
+  let nodes = [...document.querySelectorAll('[role="option"], [id*="-option-"], [class*="select__option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *')]
+    .filter(n => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+  nodes = nodes.filter(n => !nodes.some(o => o !== n && n.contains(o))); // leaves only
+  const seen = new Set();
+  const out = [];
+  for (const n of nodes) {
+    const t = (n.innerText || '').replace(/\s+/g, ' ').trim();
+    if (t && t.length < 120 && !seen.has(t)) { seen.add(t); out.push(t); }
+  }
+  return out.slice(0, 40);
 }
 
 // Open a custom dropdown and scrape its rendered options (react-select, Ashby…)
 // so the LLM resolver can pick a valid one. Best-effort; restores closed state.
+//
+// Polls for the menu instead of sleeping a fixed 700ms, and re-opens once if
+// nothing rendered. A single blind sleep made this return [] whenever the
+// widget was a beat slow — and an empty option list silently degrades the
+// field to "LLM guesses blind", which is exactly how a plain Yes/No dropdown
+// ended up unanswerable in live testing despite having an obvious "Yes".
 async function scrapeComboboxOptions(frame, f) {
-  try {
-    const loc = frame.locator(`[data-co-i="${f.i}"]`);
-    await loc.click({ timeout: 3000 });
-    await sleep(700);
-    const opts = await frame.evaluate(() => {
-      let nodes = [...document.querySelectorAll('[role="option"], [id*="-option-"], [class*="select__option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *')]
-        .filter(n => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
-      nodes = nodes.filter(n => !nodes.some(o => o !== n && n.contains(o))); // leaves only
-      const seen = new Set();
-      const out = [];
-      for (const n of nodes) {
-        const t = (n.innerText || '').replace(/\s+/g, ' ').trim();
-        if (t && t.length < 120 && !seen.has(t)) { seen.add(t); out.push(t); }
+  const loc = frame.locator(`[data-co-i="${f.i}"]`);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await loc.click({ timeout: 3000 });
+      // poll up to ~2.4s for the menu to render
+      let opts = [];
+      for (let i = 0; i < 8; i++) {
+        await sleep(300);
+        opts = await frame.evaluate(readRenderedOptions);
+        if (opts.length) break;
       }
-      return out.slice(0, 40);
-    });
-    await loc.press('Escape').catch(() => {});
-    return opts.map(t => ({ value: t, text: t }));
-  } catch { return []; }
+      await loc.press('Escape').catch(() => {});
+      dbg(`scrape "${String(f.label).slice(0, 40)}" attempt=${attempt} → ${opts.length} option(s) ${JSON.stringify(opts.slice(0, 6))}`);
+      if (opts.length) return opts.map(t => ({ value: t, text: t }));
+      await sleep(rand(200, 400)); // let the widget settle before re-opening
+    } catch (err) { dbg(`scrape "${String(f.label).slice(0, 40)}" threw: ${String(err.message || err).slice(0, 60)}`); return []; }
+  }
+  return [];
 }
 
 // Robustly select an option in a searchable/autocomplete dropdown (react-select,
 // Ashby, Greenhouse new UI): open → type the query with REAL keystrokes (so the
 // list filters) → wait for options → CLICK the matching option via Playwright
 // (react-select reacts to mouse events, not a programmatic value set / lone
-// Enter). Returns the selected option text, or null if nothing matched.
+// Enter). Returns { matched, hadOptions }: matched is the selected option
+// text or null; hadOptions tells the caller whether this field is genuinely
+// a list widget at all — checked right after the click, BEFORE typing any
+// query, so a wrong/irrelevant query filtering the visible list down to zero
+// can't be mistaken for "not a list" (this is what let a stray text-typing
+// fallback silently type an email address into a Yes/No dropdown in live
+// testing — the field never got a chance to be recognized as a list).
+// Opening a dropdown is racy: react-select mounts its menu asynchronously, so a
+// first attempt can find nothing rendered yet and give up on a field that has a
+// perfectly good matching option. Retry the whole open→type→click cycle once
+// before reporting failure — but only when the first attempt saw NO options at
+// all. If options rendered and simply none matched, retrying would just repeat
+// the same (correct) refusal to submit a wrong value.
 async function selectComboboxOption(frame, f, query) {
+  const first = await selectComboboxOptionOnce(frame, f, query);
+  if (first.matched || first.hadOptions) return first;
+  // Only a field we already believe is a dropdown earns a second attempt.
+  // The speculative "is this secretly a list?" probe runs against every plain
+  // text field on the form, where finding no options is the expected answer,
+  // not a race — retrying those would double the runtime of the whole fill for
+  // nothing.
+  if (!isComboboxField(f)) return first;
+  await sleep(rand(250, 500)); // let the widget settle before re-opening
+  const second = await selectComboboxOptionOnce(frame, f, query);
+  // hadOptions must stay sticky across attempts: the caller uses it to decide
+  // "is this a list widget?" and a false negative there lets a text fallback
+  // type free text into a real dropdown.
+  return { matched: second.matched, hadOptions: second.hadOptions || first.hadOptions };
+}
+
+async function selectComboboxOptionOnce(frame, f, query) {
   const loc = frame.locator(`[data-co-i="${f.i}"]`);
   const q = String(query).slice(0, 60);
   try {
     await loc.scrollIntoViewIfNeeded().catch(() => {});
     await sleep(rand(120, 320));
-    await loc.click({ timeout: 4000 }).catch(() => {});
-    await sleep(rand(180, 420));
+    await humanClick(loc, { timeout: 4000 }).catch(() => {});
+
+    // Poll for the menu rather than betting on one fixed sleep — same race the
+    // scrape path hits, and the reason a valid Yes/No dropdown could come back
+    // as "not a list" in live testing.
+    const probeOpen = () => frame.evaluate(() => {
+      const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
+      // Transient/empty-state rows are NOT selectable options. An async
+      // dropdown renders "Loading..." while it fetches, and react-select
+      // renders "No options" when a query matches nothing — live tracing caught
+      // BOTH being counted as a real option here, which is actively dangerous:
+      // the single-option branch below would press Enter and "select" the
+      // literal string "Loading...".
+      const isPlaceholder = (t) => /^(select\b|choose\b|--|please\b|s[ée]lectionn|aucun|loading|searching|chargement|recherche|no options|no results|aucun r[ée]sultat|start typing|type to search)/i.test(t);
+      const cands = [...document.querySelectorAll('[role="option"], [id*="-option-"], [class*="select__option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *')]
+        .filter(n => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0 && norm(n.innerText) && !isPlaceholder(norm(n.innerText)); });
+      return cands.length > 0;
+    }).catch(() => false);
+    let hadOptionsOnOpen = false;
+    for (let i = 0; i < 5; i++) {
+      await sleep(rand(200, 320));
+      hadOptionsOnOpen = await probeOpen();
+      if (hadOptionsOnOpen) break;
+    }
+
     // Typing is best-effort: pure listbox comboboxes have no text input, but the
     // click above already opened the menu so the option scan/click still works.
     await loc.fill('').catch(() => {});
@@ -726,7 +1372,13 @@ async function selectComboboxOption(frame, f, query) {
     const result = await frame.evaluate(({ want }) => {
       const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
       const low = (s) => norm(s).toLowerCase();
-      const isPlaceholder = (t) => /^(select\b|choose\b|--|please\b|s[ée]lectionn|aucun)/i.test(t);
+      // Transient/empty-state rows are NOT selectable options. An async
+      // dropdown renders "Loading..." while it fetches, and react-select
+      // renders "No options" when a query matches nothing — live tracing caught
+      // BOTH being counted as a real option here, which is actively dangerous:
+      // the single-option branch below would press Enter and "select" the
+      // literal string "Loading...".
+      const isPlaceholder = (t) => /^(select\b|choose\b|--|please\b|s[ée]lectionn|aucun|loading|searching|chargement|recherche|no options|no results|aucun r[ée]sultat|start typing|type to search)/i.test(t);
       document.querySelectorAll('[data-co-opt]').forEach(e => e.removeAttribute('data-co-opt'));
       let cands = [...document.querySelectorAll('[role="option"], [id*="-option-"], [class*="select__option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *')]
         .filter(n => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0 && norm(n.innerText); });
@@ -738,25 +1390,97 @@ async function selectComboboxOption(frame, f, query) {
       if (idx < 0) idx = cands.findIndex(n => { const t = low(n.innerText); return !isPlaceholder(t) && t.includes(w); });
       if (idx < 0) idx = cands.findIndex(n => { const t = low(n.innerText); return t.length >= 4 && w.includes(t); });
       const real = cands.filter(n => !isPlaceholder(low(n.innerText)));
-      if (idx < 0) return { matched: null, count: real.length };
+      const seen = cands.map(n => norm(n.innerText).slice(0, 30));
+      if (idx < 0) return { matched: null, count: real.length, seen };
       cands[idx].setAttribute('data-co-opt', '1');
-      return { matched: norm(cands[idx].innerText).slice(0, 80), count: real.length };
+      return { matched: norm(cands[idx].innerText).slice(0, 80), count: real.length, seen };
     }, { want: q });
 
+    dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" openHadOpts=${hadOptionsOnOpen} count=${result.count} matched=${result.matched} seen=${JSON.stringify(result.seen)}`);
+
+    const hadOptions = hadOptionsOnOpen || result.count > 0;
     if (result.matched) {
       try {
-        await frame.locator('[data-co-opt="1"]').click({ timeout: 3000 });
-        return result.matched;
-      } catch { await loc.press('Escape').catch(() => {}); return null; }
+        await humanClick(frame.locator('[data-co-opt="1"]'), { timeout: 3000 });
+        const ok = await comboboxSelectionRegistered(frame, f);
+        dbg(`  → clicked "${result.matched}", registered=${ok}`);
+        return { matched: ok ? result.matched : null, hadOptions: true };
+      } catch (err) { dbg(`  → click failed: ${String(err.message || err).slice(0, 60)}`); await loc.press('Escape').catch(() => {}); return { matched: null, hadOptions }; }
     }
     // No text match. Trust Enter only when typing filtered the menu down to a
     // single real option; otherwise give up rather than submit a wrong value.
-    if (result.count === 1) { await loc.press('Enter').catch(() => {}); return q; }
+    if (result.count === 1) {
+      await loc.press('Enter').catch(() => {});
+      const ok = await comboboxSelectionRegistered(frame, f);
+      return { matched: ok ? q : null, hadOptions: true };
+    }
     await loc.press('Escape').catch(() => {});
-    return null;
+    return { matched: null, hadOptions };
   } catch {
-    return null;
+    return { matched: null, hadOptions: false };
   }
+}
+
+// Confirms a combobox click actually registered as a real selection, not just
+// leftover typed text sitting in the filter input. When the widget exposes the
+// react-select-style hidden "required" shadow input, its value is the ground
+// truth (only set on a genuine onChange); otherwise fall back to trusting the
+// click (no shadow input to check against).
+async function comboboxSelectionRegistered(frame, f) {
+  const probe = async () => {
+    try {
+      return await frame.evaluate((i) => {
+        const el = document.querySelector(`[data-co-i="${i}"]`);
+        if (!el) return true;
+        // Walk up looking for the shadow input as a DESCENDANT at each level —
+        // matches collectFields()'s logic; el.closest(selectorList) would stop
+        // at the nearest wrapper class match, which can sit below the shadow
+        // input's real parent and silently miss it.
+        let shadow = null;
+        let node = el.parentElement;
+        for (let d = 0; d < 6 && node; d++, node = node.parentElement) {
+          shadow = node.querySelector('input[aria-hidden="true"][required], [class*="requiredInput" i]');
+          if (shadow) break;
+        }
+        if (!shadow) return true; // no shadow input on this widget → trust the click
+        return !!(shadow.value || '').trim();
+      }, f.i);
+    } catch { return true; }
+  };
+  // React's onChange → shadow-input update isn't always synchronous with the
+  // click resolving — retry briefly before concluding the selection failed,
+  // rather than flagging a genuinely-fine field as broken from a one-shot
+  // check that ran a beat too early.
+  if (await probe()) return true;
+  await sleep(400);
+  return probe();
+}
+
+// Deterministic decline selection for a required demographic dropdown, tried
+// BEFORE handing the field to the LLM. Two wins over the LLM route: (1) no
+// paraphrase-mismatch risk — see DECLINE_RE's comment — because the option
+// text clicked is read directly off the real DOM, never guessed; (2) no API
+// round-trip for what is, across Greenhouse/Ashby/Lever, the single most
+// common category of required-but-sensitive field on any application form.
+async function fillDeclineDropdown(frame, f) {
+  if (f.tag === 'select') {
+    const opt = pickDeclineOption(f.options || []);
+    if (!opt) return null;
+    try {
+      await frame.locator(`[data-co-i="${f.i}"]`).selectOption(opt.value, { timeout: 4000 });
+      return opt.text;
+    } catch { return null; }
+  }
+  if (!isComboboxField(f)) return null;
+  const scraped = (f.options && f.options.length) ? f.options : await scrapeComboboxOptions(frame, f);
+  const opt = pickDeclineOption(scraped);
+  if (!opt) return null;
+  // Query with the option's OWN text (not a guess) so selectComboboxOption's
+  // exact-match branch always succeeds — the field is opened once more here,
+  // but that's the only reliable way to actually click a real DOM option via
+  // react-select's mouse-event-driven selection.
+  const { matched } = await selectComboboxOption(frame, f, opt.text);
+  return matched;
 }
 
 // A field is multi-select when the DOM says so OR the label asks for several
@@ -766,11 +1490,106 @@ function fieldIsMulti(f) {
   return !!f.multiple || /\b(select|choose).{0,20}(all|up to|that apply|multiple|[2-9])\b/i.test(f.label || '');
 }
 
+// Select one option of a radio group. Playwright's own check()/click() can't be
+// used here: the native input is usually invisible (styled proxy on top), and
+// forcing a click at its coordinates would hit whatever is painted over it.
+// An in-page .click() toggles the real input and still fires the events React &
+// co. listen to. Returns true only once the input reports itself checked, so a
+// click a controlled component ignored is reported as a failure, not a success.
+async function clickRadioOption(frame, f, want, isYesNo = false) {
+  return await frame.evaluate(({ name, want, isYesNo, options }) => {
+    const norm = (s) => (s || '').trim().toLowerCase();
+    const wanted = norm(want);
+    // Matching runs in three passes over the WHOLE group, strictest first.
+    // A plain `includes` on the first option wins the race in a way that is
+    // silently wrong: "female".includes("male") is true, so asking for Male
+    // selected Female (caught on Kittl's live form). Pass 2 is word-boundary
+    // anchored, which rejects that pair while still matching "No, I don't
+    // require sponsorship" for "No".
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const passes = [
+      (t) => t === wanted,
+      (t) => new RegExp(`(^|\\W)${esc(wanted)}(\\W|$)`).test(t),
+      (t) => t.includes(wanted) || wanted.includes(t),
+    ];
+    const yesNoMatch = (t) => (wanted === 'yes' && /^(yes|oui|true)/.test(t)) || (wanted === 'no' && /^(no|non|false)/.test(t));
+    const activate = (el) => {
+      if (!el) return false;
+      el.click();
+      // Some designs make the input itself inert (pointer-events:none) and wire
+      // the handler to the label — try that before giving up.
+      if (!el.checked && el.id) document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.click();
+      return !!el.checked;
+    };
+    // Live options, so a form that re-rendered since the last collect (which
+    // drops our markers) is still handled: element first, then its text.
+    const live = [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(name)}"]`)]
+      .map((r, k) => {
+        const marked = (options || []).find(o => o.key && document.querySelector(`[data-co-opt="${o.key}"]`) === r);
+        const lbl = r.id ? document.querySelector(`label[for="${CSS.escape(r.id)}"]`) : null;
+        return { el: r, text: norm(marked?.text || lbl?.innerText || r.closest('label')?.innerText || r.value), k };
+      });
+    if (isYesNo) {
+      const hit = live.find(o => yesNoMatch(o.text));
+      return !!hit && activate(hit.el);
+    }
+    for (const pass of passes) {
+      const hit = live.find(o => o.text && pass(o.text));
+      if (hit && activate(hit.el)) return true;
+    }
+    return false;
+  }, { name: f.name, want, isYesNo, options: f.options || [] });
+}
+
+// Tick a checkbox. Same visibility problem as radios, same escalation ladder:
+// normal check → forced check → in-page click on the input, then its label.
+async function checkBox(frame, f) {
+  const sel = `[data-co-i="${f.i}"]`;
+  const loc = frame.locator(sel);
+  try {
+    await loc.check({ timeout: 3000 });
+  } catch {
+    try { await loc.check({ timeout: 2000, force: true }); } catch { /* handled in page below */ }
+  }
+  return await frame.evaluate((s) => {
+    const el = document.querySelector(s);
+    if (!el) return false;
+    // Yes/No toggle widgets: the checkbox is a display:none value holder and
+    // the real control is a pair of Yes/No buttons beside it. Clicking the
+    // input flips `checked` — which reads as success — but the framework never
+    // sees it, so the form still rejects the field as missing. Found on n8n's
+    // Ashby form, where the submit bounced on "Missing entry for required
+    // field" even though the runner reported the box ticked.
+    const siblings = [...(el.parentElement?.children || [])].filter(c => c !== el);
+    const affirmative = siblings.find(c => /^(yes|oui|true|agree|i agree)$/i.test((c.innerText || '').trim()));
+    const isActive = (n) => !!n && (/(^|[\s_-])(active|selected|checked)/i.test((n.className || '').toString())
+      || n.getAttribute('aria-checked') === 'true' || n.getAttribute('aria-pressed') === 'true');
+    // Success = the hidden input reports checked OR the visible affirmative
+    // option is styled active. Either one alone lies on some widgets.
+    const ok = () => !!el.checked || isActive(affirmative);
+    if (ok()) return true;
+    // The input is the value holder the framework binds to, even when it is
+    // display:none behind a Yes/No button pair — clicking it flips the widget
+    // for real, whereas clicking the visible button does nothing on its own
+    // (verified on n8n's Ashby toggle). Input first, visible option last.
+    el.click();
+    if (ok()) return true;
+    if (el.id) document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.click();
+    if (ok()) return true;
+    affirmative?.click();
+    return ok();
+  }, sel);
+}
+
 // Write a resolved answer into any field type. `answer` may be a string or, for
 // multi-selects, an array of option texts. Returns the displayed value on
 // success, or false if nothing was actually applied.
 async function fillValueIntoField(frame, f, answer) {
   const loc = frame.locator(`[data-co-i="${f.i}"]`);
+  if (f.type === 'date') {
+    const iso = toIsoDate(Array.isArray(answer) ? answer[0] : answer);
+    try { await loc.fill(iso, { timeout: 4000 }); return iso; } catch { return false; }
+  }
   const multi = fieldIsMulti(f);
   let values = (Array.isArray(answer) ? answer.map(String) : [String(answer)]).filter(v => v && v.trim());
   if (!multi) values = values.slice(0, 1); // coerce stray array → single for non-multi fields
@@ -790,35 +1609,59 @@ async function fillValueIntoField(frame, f, answer) {
   }
 
   if (f.type === 'radio') {
-    const want = values[0].trim().toLowerCase();
-    const ok = await frame.evaluate(({ name, want }) => {
-      const radios = [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(name)}"]`)];
-      let best = null;
-      for (const r of radios) {
-        const t = (r.closest('label')?.innerText || r.value || '').trim().toLowerCase();
-        if (t === want || t.includes(want) || want.includes(t)) { best = r; break; }
-      }
-      if (best) { best.click(); return true; }
-      return false;
-    }, { name: f.name, want });
-    return ok ? values[0] : false;
+    // Prefer the group's real option text over the raw answer string: an LLM
+    // answer of "No" must land on the option labelled "No, I don't require
+    // sponsorship", and the reported value should be what the form now shows.
+    const opt = pickSelectOption(f.options || [], { selectText: values[0], value: values[0] }, f.label);
+    const want = opt ? opt.text : values[0].trim();
+    const ok = await clickRadioOption(frame, f, want);
+    return ok ? want : false;
+  }
+  if (f.type === 'checkbox') {
+    const answer = values[0].trim().toLowerCase();
+    const affirmative = /^(yes|oui|true|checked?|coch|agree|accept|✓|☑|1)/.test(answer);
+    // In a "tick all that apply" group each option is its own field, and the
+    // resolver answers every one of them with the option it judges correct.
+    // So this box is ticked only when that answer IS this box's own option —
+    // otherwise all four location options would fight over one answer.
+    const own = String(f.label || '').split('—').pop().trim().toLowerCase();
+    const matchesOwnOption = own.length > 6 && (own.includes(answer) || answer.includes(own));
+    if (!affirmative && !matchesOwnOption) return false;
+    return (await checkBox(frame, f)) ? '☑' : false;
   }
 
-  if (isComboboxField(f)) {
+  const knownCombobox = isComboboxField(f);
+  if (knownCombobox) {
     // type → click the matching option, once per value. Only count picks that
     // actually landed on a real option (selectComboboxOption returns null else).
     const done = [];
     for (const v of values) {
-      const sel = await selectComboboxOption(frame, f, v);
-      if (sel) done.push(sel);
+      const { matched } = await selectComboboxOption(frame, f, v);
+      if (matched) done.push(matched);
     }
     if (!done.length) return false;
     const shown = done.join(', ');
     return shown.length > 60 ? shown.slice(0, 60) + '…' : shown;
   }
 
+  // Last-resort structural check: does this "plain" field actually open an
+  // option list when interacted with? Attribute-based detection (role/aria)
+  // can miss a real list widget, and typing free text into one leaves
+  // characters visibly sitting in the filter box without ever registering as
+  // a real selection (live testing: an email address typed into a Yes/No
+  // dropdown never actually saved, even though it looked filled). Never type
+  // into a field once we've confirmed it's a list — fail cleanly instead.
+  if (f.tag !== 'textarea' && !f.contentEditable) {
+    const probe = await selectComboboxOption(frame, f, multi ? values.join(', ') : values[0]);
+    if (probe.hadOptions) return probe.matched || false;
+  }
+
   // text / textarea / contenteditable
   const text = polishApplicationAnswer(multi ? values.join(', ') : values[0]);
+  // Never type an unsubstituted template ("[Company]", "{{role}}") into a real
+  // form — that's an obvious, embarrassing error, not just an AI-sounding
+  // sentence. Fail the fill so the field is flagged for a human instead.
+  if (hasUnresolvedPlaceholder(text)) return false;
   const typed = await humanType(loc, text);
   if (!typed) return false;
   return text.length > 70 ? text.slice(0, 70) + '…' : text;
@@ -835,6 +1678,13 @@ async function fillFields(frame, spec) {
   const filled = [];
   const pending = [];
   const unresolved = []; // required fields the deterministic pass couldn't fill → LLM
+  // Optional fields we consciously left blank (unmatched, demographic-skip,
+  // non-required checkbox…). Never blocks anything, but a human reviewing the
+  // form before submit should still see these exist — otherwise a genuinely
+  // visible field (e.g. a conditional follow-up question) can silently
+  // disappear from both `filled` and `pending`, invisible in the summary
+  // even though it's sitting blank on the real page (found in live testing).
+  const skipped = [];
 
   // Phase A — file uploads first: ATS like Ashby ("Autofill from resume")
   // re-render the whole form after parsing the CV, which invalidates the
@@ -894,15 +1744,42 @@ async function fillFields(frame, spec) {
     try {
       if (!plan) {
         if (f.required && !f.value) unresolved.push(f);
+        else if (!f.value) skipped.push({ label: labelShort, reason: 'non reconnu, optionnel — laissé vide' });
         continue;
       }
       if (plan.skip) {
+        // Explicit demographic match (label/name/id literally said "gender",
+        // "race", etc.) — the field's own decline option, when it has one, is
+        // known-good here since classifyField already recognized the question
+        // as sensitive. Only ONE extra open/close cycle, and only for fields
+        // we already know are demographic — never for the many unrelated
+        // unclassified dropdowns on a typical form (was tried broadly before,
+        // but that added a disruptive extra click to every one of them, which
+        // is almost certainly what made an unrelated Yes/No field on this
+        // same Agoda form flaky in live testing).
+        if (plan.declinePreferred && f.required && (f.tag === 'select' || isComboboxField(f))) {
+          const declined = await fillDeclineDropdown(frame, f);
+          if (declined) { filled.push({ label: labelShort, value: declined, declined: true }); continue; }
+        }
+        // Same reasoning for a required radio group (Ashby renders gender as
+        // radios, not a dropdown): its options are already scraped, so the
+        // non-disclosure choice can be picked deterministically instead of
+        // burning an LLM call on a question we deliberately don't answer.
+        if (plan.declinePreferred && f.required && f.type === 'radio' && f.options?.length) {
+          const decline = pickDeclineOption(f.options);
+          if (decline && await clickRadioOption(frame, f, decline.text)) {
+            filled.push({ label: labelShort, value: decline.text, declined: true });
+            continue;
+          }
+        }
         if (f.required) unresolved.push(f);
+        else skipped.push({ label: labelShort, reason: plan.skip });
         continue;
       }
       if (plan.check) {
-        await loc.check({ timeout: 4000 }).catch(async () => { await loc.click({ timeout: 3000 }); });
-        filled.push({ label: labelShort, value: '☑' });
+        if (await checkBox(frame, f)) filled.push({ label: labelShort, value: '☑' });
+        else if (f.required) unresolved.push(f);
+        else skipped.push({ label: labelShort, reason: 'case à cocher non cochable' });
         continue;
       }
       if (plan.resume) {
@@ -922,19 +1799,34 @@ async function fillFields(frame, spec) {
         continue;
       }
       if (f.type === 'radio') {
-        if (plan.yesNo) {
-          const ok = await frame.evaluate(({ name, want }) => {
-            const radios = [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(name)}"]`)];
-            for (const r of radios) {
-              const t = (r.closest('label')?.innerText || r.value || '').trim().toLowerCase();
-              if ((want === 'yes' && /^(yes|oui|true)/.test(t)) || (want === 'no' && /^(no|non|false)/.test(t))) { r.click(); return true; }
-            }
-            return false;
-          }, { name: f.name, want: plan.yesNo });
-          if (ok) filled.push({ label: labelShort, value: plan.yesNo });
+        // Radios now carry an `options` list (like <select>) since collectFields
+        // dedupes each yes/no or multi-choice group to one entry — so a 3+
+        // option group (work-authorization status, EEOC categories) can match
+        // via the same pickSelectOption logic as selects/comboboxes, not just
+        // a plain yes/no.
+        const opt = (f.options && f.options.length) ? pickSelectOption(f.options, plan, f.label) : null;
+        const isYesNo = !opt && !!plan.yesNo;
+        const want = opt ? opt.text : (isYesNo ? plan.yesNo : null);
+        if (want) {
+          const ok = await clickRadioOption(frame, f, want, isYesNo);
+          if (ok) filled.push({ label: labelShort, value: want });
           else if (f.required) unresolved.push(f);
         } else if (f.required) {
           unresolved.push(f);
+        }
+        continue;
+      }
+      if (f.type === 'date') {
+        // Native date picker: fill() writes the ISO value straight into the
+        // input's value property, which is how Chromium expects date inputs to
+        // be set regardless of the page's display locale — typing digits via
+        // pressSequentially() is unreliable across locales/formats here.
+        const iso = toIsoDate(plan.dateISO || plan.value || '');
+        try {
+          await loc.fill(iso, { timeout: 4000 });
+          filled.push({ label: labelShort, value: iso });
+        } catch (err) {
+          if (f.required) unresolved.push(f);
         }
         continue;
       }
@@ -953,8 +1845,8 @@ async function fillFields(frame, spec) {
           if (f.required) unresolved.push(f);
           continue;
         }
-        const sel = await selectComboboxOption(frame, f, query);
-        if (sel) filled.push({ label: labelShort, value: sel });
+        const { matched } = await selectComboboxOption(frame, f, query);
+        if (matched) filled.push({ label: labelShort, value: matched });
         else if (f.required) unresolved.push(f); // couldn't confirm a real option → LLM/human
         continue;
       }
@@ -963,7 +1855,32 @@ async function fillFields(frame, spec) {
         continue;
       }
       if (f.value && f.value.trim() && f.value.trim() === value.trim()) continue; // already filled
+
+      // Last-resort structural check: does this "plain" field actually open an
+      // option list when interacted with? Attribute-based detection (role/aria)
+      // can miss a real list widget, and typing free text into one leaves
+      // characters visibly sitting in the filter box without ever registering
+      // as a real selection (live testing: an email address typed into a
+      // Yes/No dropdown never actually saved, though it looked filled). Never
+      // type into a field once we've confirmed it's a list — fail cleanly
+      // instead of silently reporting a fake success.
+      if (f.tag !== 'textarea' && !f.contentEditable) {
+        const probe = await selectComboboxOption(frame, f, value.slice(0, 60));
+        if (probe.hadOptions) {
+          if (probe.matched) filled.push({ label: labelShort, value: probe.matched });
+          else if (f.required) unresolved.push(f);
+          continue;
+        }
+      }
+
       const textValue = polishApplicationAnswer(value);
+      // An unsubstituted template ("[Company]", "{{role}}") in a Section F
+      // draft answer is a real error, not a style nit — never type it, send
+      // the field to the LLM/human fallback instead.
+      if (hasUnresolvedPlaceholder(textValue)) {
+        if (f.required) unresolved.push(f);
+        continue;
+      }
       const typed = await humanType(loc, textValue);
       if (typed) filled.push({ label: labelShort, value: textValue.length > 70 ? textValue.slice(0, 70) + '…' : textValue, fromQuestion: plan.fromQuestion });
       else if (f.required) unresolved.push(f); // typing + fallback both failed → LLM/human
@@ -992,7 +1909,14 @@ async function fillFields(frame, spec) {
     for (const f of unresolved) {
       const bucket = freshByKey.get(`${f.label}|${f.type}|${f.name}`);
       const ff = bucket && bucket.shift(); // consume so duplicate labels map 1:1
-      if (ff) targets.push(ff); // else the field was hidden by a conditional → skip
+      if (ff) { targets.push(ff); continue; }
+      // No fresh match: either a conditional hid the field, or its label
+      // changed on re-render. Harmless for an optional field, but a REQUIRED
+      // one must not vanish from both lists — that is exactly how a blank
+      // mandatory consent reached "0 en attente" on a live run.
+      if (f.required) {
+        pending.push({ label: (f.label || f.name || f.type).slice(0, 80), reason: 'champ introuvable après re-rendu — à vérifier dans Chrome' });
+      }
     }
     // enumerate options for custom dropdowns so the model picks a valid one
     for (const f of targets) {
@@ -1000,10 +1924,42 @@ async function fillFields(frame, spec) {
         f.options = await scrapeComboboxOptions(frame, f);
       }
     }
+    // A required dropdown whose own option list already offers a decline/
+    // opt-out choice ("Prefer not to say", "I don't wish to answer"…) gets
+    // that option directly, without asking the LLM — cheaper, and skips the
+    // paraphrase-mismatch failure mode entirely (see DECLINE_RE's comment).
+    // This is what catches a demographic-style question the label regex
+    // didn't recognize (e.g. "How do you identify?" carries no "gender" /
+    // "race" keyword, yet its options are the same self-ID choices as fields
+    // that DO get caught). Reuses the scrape just above — no extra open/close
+    // cycle added beyond what already happened for every other combobox
+    // target, unlike an earlier version of this fix that probed every
+    // unclassified dropdown up front and made an unrelated Yes/No field on
+    // this same Agoda form flaky in live testing.
+    const declineTargets = [];
+    const llmTargets = [];
+    for (const f of targets) {
+      const opt = pickDeclineOption(f.options || []);
+      if (opt) declineTargets.push({ f, opt }); else llmTargets.push(f);
+    }
+    for (const { f, opt } of declineTargets) {
+      const labelShort = (f.label || f.name || f.type).slice(0, 80);
+      try {
+        let shown;
+        if (f.tag === 'select') {
+          await frame.locator(`[data-co-i="${f.i}"]`).selectOption(opt.value, { timeout: 4000 });
+          shown = opt.text;
+        } else {
+          shown = (await selectComboboxOption(frame, f, opt.text)).matched;
+        }
+        if (shown) { filled.push({ label: labelShort, value: shown, declined: true }); continue; }
+      } catch { /* fall through to LLM below */ }
+      llmTargets.push(f);
+    }
     let answers = {};
     try {
       answers = await resolveUnknownFields({
-        fields: targets.map(f => ({ i: f.i, label: f.label, kind: llmKind(f), required: f.required, multiple: fieldIsMulti(f), options: f.options })),
+        fields: llmTargets.map(f => ({ i: f.i, label: f.label, kind: llmKind(f), required: f.required, multiple: fieldIsMulti(f), options: f.options })),
         spec,
         cvSummary: cvSummary(),
         styleGuide: profileVoice(),
@@ -1011,21 +1967,29 @@ async function fillFields(frame, spec) {
     } catch (err) {
       log(`LLM indisponible (${String(err.message || err).slice(0, 70)}) — champs laissés au humain.`);
     }
-    for (const f of targets) {
+    for (const f of llmTargets) {
       const labelShort = (f.label || f.name || f.type).slice(0, 80);
       const ans = answers[String(f.i)];
       if (!ans) { if (f.required) pending.push({ label: labelShort, reason: 'sans réponse — à remplir manuellement' }); continue; }
       try {
         const shown = await fillValueIntoField(frame, f, ans);
         if (shown) filled.push({ label: labelShort, value: typeof shown === 'string' ? shown : String(ans), llm: true });
-        else if (f.required) pending.push({ label: labelShort, reason: 'option proposée introuvable' });
+        // Surface the attempted answer in the reason: a human re-checking this
+        // field in Chrome sees exactly what the AI guessed and why it didn't
+        // land, instead of a generic "not found" that gives no starting point.
+        else if (f.required) pending.push({ label: labelShort, reason: `réponse suggérée "${String(Array.isArray(ans) ? ans.join(', ') : ans).slice(0, 60)}" — option introuvable dans la liste` });
       } catch (err) {
         if (f.required) pending.push({ label: labelShort, reason: `échec: ${String(err.message || err).slice(0, 60)}` });
       }
     }
   }
 
-  return { filled, pending };
+  // "Tick all that apply" groups expose every option as its own field with the
+  // SAME label, and the resolver answers only the ones that actually apply. The
+  // unanswered siblings of an option we did tick are not gaps to fix by hand —
+  // reporting them made a complete n8n form look like it had 5 missing fields.
+  const filledLabels = new Set(filled.map(f => f.label));
+  return { filled, pending: pending.filter(p => !filledLabels.has(p.label)) };
 }
 
 // Re-check which required fields are still empty (after human edits or our fill).
@@ -1033,9 +1997,21 @@ async function remainingRequired(frame) {
   try {
     const fields = await collectFields(frame);
     return fields
-      .filter(f => f.required && f.type !== 'checkbox' && f.type !== 'radio' && f.type !== 'file' && !f.value)
+      .filter(f => {
+        if (!f.required || f.type === 'file') return false;
+        // Choice fields carry no `value`; an unanswered group is one where no
+        // member is checked. Reporting them was impossible before radios and
+        // checkboxes were collected at all.
+        if (f.type === 'radio' || f.type === 'checkbox') return !f.groupChecked;
+        return !f.value;
+      })
       .map(f => ({ label: (f.label || f.name).slice(0, 80), reason: 'requis et vide' }));
-  } catch { return []; }
+  } catch (err) {
+    // Never fail silently: an exception here used to return "nothing missing",
+    // which reads exactly like a clean form.
+    log(`Vérification des champs requis impossible (${String(err.message || err).slice(0, 60)}) — relis le formulaire dans Chrome.`);
+    return [{ label: 'vérification des champs requis', reason: 'échec du contrôle — relire le formulaire' }];
+  }
 }
 
 // ── Submit ────────────────────────────────────────────────────────────────────
@@ -1066,7 +2042,8 @@ async function clickSubmit(frame, page) {
   try {
     const loc = frame.locator('[data-co-submit="1"]');
     await loc.scrollIntoViewIfNeeded().catch(() => {});
-    await loc.click({ timeout: 6000 });
+    await sleep(rand(200, 600)); // brief pause before the irreversible click, as if re-checking the form
+    await humanClick(loc, { timeout: 6000 });
     log(`Clic sur le bouton d'envoi "${found}"`);
     return true;
   } catch (err) {
@@ -1089,10 +2066,18 @@ async function detectSubmitRejection(page) {
       )].filter(el => visible(el) && errRe.test((el.innerText || '').trim()));
       // …plus fields flagged invalid even when the message is only a red border.
       const invalidFields = [...document.querySelectorAll('[aria-invalid="true"]')].filter(visible);
-      const errorCount = textErrs.length + invalidFields.length;
+      // Class-name matching alone misses ATS that hash their CSS modules: Ashby
+      // renders "Your form needs corrections / Missing entry for required
+      // field: …" in a banner whose class carries no "error" substring, so a
+      // bounced submit was reported as "probably sent" (live on n8n).
+      const bodyText = (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 6000);
+      const bannerRe = /needs? correction|missing entry for required field|please correct|fix the (errors?|following)|corrigez|champs? (obligatoires?|requis) manquants?/i;
+      const banner = bodyText.match(bannerRe);
+      const errorCount = textErrs.length + invalidFields.length + (banner ? 1 : 0);
       const stillForm = !!document.querySelector('input[type="file"], textarea, select, [role="combobox"]')
         && !!document.querySelector('form');
-      const sample = (textErrs[0]?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+      let sample = (textErrs[0]?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+      if (!sample && banner) sample = bodyText.slice(banner.index, banner.index + 120).trim();
       return { errorCount, stillForm, sample };
     });
   } catch { return { errorCount: 0, stillForm: false, sample: '' }; }
@@ -1146,6 +2131,11 @@ async function main() {
 
     for (;;) {
       if (blocker) {
+        if (await tryAutoSolveBlocker(context, activePage, blocker, 'main-loop')) {
+          blocker = null;
+          ({ page: activePage, frame, blocker } = await reachApplicationForm(context, activePage));
+          continue;
+        }
         setState('needs_human', blocker === 'captcha' ? '🤖 Captcha détecté — résous-le dans la fenêtre Chrome.'
           : blocker === 'login' ? '🔐 Connexion requise — connecte-toi dans la fenêtre Chrome.'
           : '🛡️ Protection anti-bot — passe la vérification dans la fenêtre Chrome.');

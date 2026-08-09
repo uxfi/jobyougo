@@ -14,9 +14,10 @@
  */
 
 import { readFileSync, readdirSync, existsSync, unlinkSync, appendFileSync } from 'fs';
-import { join, basename } from 'path';
+import { join, basename, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const CAREER_OPS = new URL('.', import.meta.url).pathname;
+const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
 const REPORTS_DIR = join(CAREER_OPS, 'reports');
 const FIX_MODE = process.argv.includes('--fix');
 

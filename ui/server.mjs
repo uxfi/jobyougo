@@ -12,6 +12,7 @@ import { aggregateUsageEvents, readAiUsageEvents } from '../lib/ai-usage-log.mjs
 import { loadCvTemplateData } from '../lib/cv-template-data.mjs';
 import { buildApplySpec } from '../lib/apply-spec.mjs';
 import { STYLE_RULES, polishApplicationAnswer } from '../lib/apply-llm.mjs';
+import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -951,6 +952,22 @@ function recordWebSearchOutcome(ok) {
   }
 }
 
+// Whether an engine attempt was actually BLOCKED (timeout, HTTP error, unsolved
+// challenge) as opposed to having loaded/parsed the page cleanly but simply
+// found 0 titles matching the filter this round — a normal, frequent outcome
+// for niche site: queries that must NOT count against the circuit breaker.
+// duckduckgo-html / playwright-fallback ("pinchtab" engine) already report
+// ok:true whenever the page loaded, regardless of match count, and set
+// `.error` only on a real failure — so `!ok` is an accurate blocked signal for
+// them. pinchtab-brave / pinchtab-google instead key `ok` off "found jobs", so
+// for those only an explicit `.error` (unsolved challenge / exception) counts.
+function isWebSearchEngineBlocked(result) {
+  if (!result) return true;
+  if (result.error) return true;
+  if (result.engine === 'pinchtab-brave' || result.engine === 'pinchtab-google') return false;
+  return !result.ok;
+}
+
 // Pre-flight probe: test the SearchAPI/SerpApi key BEFORE dispatching all parallel queries.
 // Without this, all ~90 parallel calls go out before the first 401 trips the circuit.
 async function probeSearchApi() {
@@ -1287,14 +1304,16 @@ async function enrichCandidatesWithPublishedDates(candidates = [], { concurrency
 }
 
 function applyAgeFilter(candidates = [], { maxAgeDays = DEFAULT_SCAN_MAX_AGE_DAYS } = {}) {
+  // Match scan-fetch.mjs: jobs with no published date are KEPT (unknown ≠ old).
+  if (!maxAgeDays || maxAgeDays <= 0) return candidates;
   const cutoff = new Date(Date.now() - maxAgeDays * 86400 * 1000).toISOString().slice(0, 10);
-  let droppedOld = 0, droppedUnknown = 0;
+  let droppedOld = 0, keptUnknown = 0;
   const kept = candidates.filter(c => {
-    if (!c.publishedAt) { droppedUnknown += 1; return false; }
+    if (!c.publishedAt) { keptUnknown += 1; return true; }
     if (c.publishedAt < cutoff) { droppedOld += 1; return false; }
     return true;
   });
-  console.log(`[scan] [age-filter] kept ${kept.length}/${candidates.length} (max age ${maxAgeDays}d, cutoff ${cutoff}); dropped ${droppedOld} old + ${droppedUnknown} unknown-date`);
+  console.log(`[scan] [age-filter] kept ${kept.length}/${candidates.length} (max age ${maxAgeDays}d, cutoff ${cutoff}); dropped ${droppedOld} old, kept ${keptUnknown} unknown-date`);
   return kept;
 }
 
@@ -3349,7 +3368,7 @@ async function fetchWebSearchSection(source) {
   if (webSearchCircuitOpen()) {
     return { ok: false, section: null, error: 'web-search circuit open' };
   }
-  if (!serpApiCircuitOpen() && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
+  if (!serpApiCircuitOpen && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
     try {
       const result = await fetchSerpApiSection(source);
       if (result.ok && result.section) { recordWebSearchOutcome(true); return result; }
@@ -3388,10 +3407,11 @@ async function fetchWebSearchSection(source) {
   if (source?.careers_url) {
     console.warn(`[scan] [WebSearch] Falling back to careers_url pinchtab for "${source.name}"`);
     const fallback = await fetchCareersUrlFallback(source);
-    recordWebSearchOutcome(Boolean(fallback?.ok && fallback?.section));
+    recordWebSearchOutcome(!isWebSearchEngineBlocked(fallback));
     return fallback;
   }
-  recordWebSearchOutcome(false);
+  const allBlocked = [duckDuckGoResult, pinchtabBraveResult, pinchtabSearchResult].every(isWebSearchEngineBlocked);
+  recordWebSearchOutcome(!allBlocked);
   return pinchtabSearchResult.ok ? pinchtabSearchResult : (pinchtabBraveResult.ok ? pinchtabBraveResult : duckDuckGoResult);
 }
 
@@ -3886,6 +3906,89 @@ async function appendScanHistoryEntries(entries = []) {
   const existingRows = await getScanHistoryRows();
   const payload = `${existingRows.join('\n').replace(/\n+$/,'')}\n${entries.join('\n')}\n`;
   await writeFile(scanHistoryFile, payload, 'utf-8');
+}
+
+const DELETED_APPLICATIONS_HEADER = 'company\trole\tdate_deleted\treason';
+
+async function appendDeletedApplicationEntries(entries = []) {
+  const rows = (entries || [])
+    .map(e => ({
+      company: tsvSafe(e.company),
+      role: tsvSafe(e.role),
+      date: tsvSafe(e.date || new Date().toISOString().slice(0, 10)),
+      reason: tsvSafe(e.reason || 'user_deleted'),
+    }))
+    .filter(e => e.company && e.role);
+  if (!rows.length) return;
+
+  const deletedFile = join(WRITE_ROOT, 'data/deleted-applications.tsv');
+  let existing = '';
+  try {
+    existing = await readFile(deletedFile, 'utf-8');
+  } catch {
+    existing = `${DELETED_APPLICATIONS_HEADER}\n`;
+  }
+  if (!existing.trim()) existing = `${DELETED_APPLICATIONS_HEADER}\n`;
+  else if (!existing.startsWith('company\t')) {
+    existing = `${DELETED_APPLICATIONS_HEADER}\n${existing.replace(/^\n+/, '')}`;
+  }
+
+  const payload = `${existing.replace(/\n+$/, '')}\n${rows.map(r => `${r.company}\t${r.role}\t${r.date}\t${r.reason}`).join('\n')}\n`;
+  await writeFile(deletedFile, payload, 'utf-8');
+}
+
+async function getCompanyRoleExclusions(userId) {
+  const exclusions = [];
+
+  try {
+    const apps = await getApplications(userId);
+    for (const app of apps || []) {
+      const company = app.Company ?? app.company ?? '';
+      const role = app.Role ?? app.role ?? '';
+      if (company && role) exclusions.push({ company: String(company), role: String(role) });
+    }
+  } catch { /* ignore */ }
+
+  try {
+    const deletedFile = join(WRITE_ROOT, 'data/deleted-applications.tsv');
+    const raw = await readFile(deletedFile, 'utf-8');
+    for (const line of raw.split('\n').slice(1)) {
+      if (!line.trim()) continue;
+      const [company, role] = line.split('\t');
+      if (company && role) exclusions.push({ company, role });
+    }
+  } catch { /* file may not exist yet */ }
+
+  const byCompany = new Map();
+  for (const e of exclusions) {
+    const key = normalizeCompany(e.company);
+    if (!key) continue;
+    if (!byCompany.has(key)) byCompany.set(key, []);
+    byCompany.get(key).push(e.role);
+  }
+  return byCompany;
+}
+
+function isCompanyRoleExcluded(company, role, exclusionsByCompany) {
+  if (!exclusionsByCompany?.size) return false;
+  const roles = exclusionsByCompany.get(normalizeCompany(company));
+  if (!roles?.length) return false;
+  return roles.some(r => roleMatch(r, role));
+}
+
+function setApplicationStatusInMarkdown(raw, num, status) {
+  let updated = false;
+  const newLines = String(raw || '').split('\n').map(line => {
+    if (!line.trim().startsWith('|')) return line;
+    const rowNum = getMarkdownTableRowNumber(line);
+    if (!rowNum || rowNum === '#' || rowNum !== String(num)) return line;
+    const cells = line.split('|');
+    if (cells.length < 7) return line;
+    cells[6] = ` ${status} `;
+    updated = true;
+    return cells.join('|');
+  });
+  return { content: newLines.join('\n'), updated };
 }
 
 function extractScanEntriesFromResponse(fullResponse = '', scanUrlPublishedAt = new Map()) {
@@ -4540,6 +4643,8 @@ const ALLOWED_SCRIPTS = {
   'dedup':     'node dedup-tracker.mjs',
   'verify-reports': 'node verify-reports.mjs',
   'pdf-gen':   'node generate-pdf.mjs',
+  'purge-stale': 'node purge-stale.mjs',
+  'sync-apps': 'node sync-supabase.mjs applications',
 };
 
 function runScript(scriptKey, extraArgs = []) {
@@ -4554,6 +4659,63 @@ function runScript(scriptKey, extraArgs = []) {
     proc.stderr.on('data', d => stderr += d);
     proc.on('close', code => resolve({ ok: code === 0, stdout, stderr, code }));
   });
+}
+
+/** Parse applications.md into Supabase-shaped rows. */
+function parseApplicationsMarkdown(content = '') {
+  const lines = String(content).split('\n').filter(l => l.trim().startsWith('|'));
+  if (lines.length < 3) return [];
+  const headers = lines[0].split('|').map(h => h.trim()).filter(Boolean);
+  return lines.slice(2)
+    .map(row => {
+      const cells = row.split('|').map(c => c.trim());
+      // Keep empty trailing cells — do NOT filter(Boolean) (drops empty Notes).
+      const values = cells.slice(1, -1);
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = values[i] ?? ''; });
+      return obj;
+    })
+    .filter(row => Object.values(row).some(v => v))
+    .map(row => ({
+      num:     parseInt(row['#'] || row['num'], 10),
+      date:    row['Date']    || row['date'] || '',
+      company: row['Company'] || row['company'] || '',
+      role:    row['Role']    || row['role'] || '',
+      score:   row['Score']   || row['score'] || '',
+      status:  row['Status']  || row['status'] || '',
+      pdf:     row['PDF']     || row['pdf'] || '',
+      report:  row['Report']  || row['report'] || '',
+      notes:   row['Notes']   || row['notes'] || '',
+    }))
+    .filter(r => !isNaN(r.num));
+}
+
+/**
+ * Push local applications.md → Supabase using the logged-in user id when available.
+ * This is the missing link that made evaluated offers invisible in the UI.
+ */
+async function syncLocalApplicationsToSupabase(userId) {
+  if (!useSupabase || !supabase) return { ok: true, skipped: true, count: 0 };
+  const appFile = join(WRITE_ROOT, 'data/applications.md');
+  let raw = '';
+  try {
+    raw = await readFile(appFile, 'utf-8');
+  } catch {
+    return { ok: false, error: 'applications.md missing', count: 0 };
+  }
+  const rows = parseApplicationsMarkdown(raw);
+  if (!rows.length) return { ok: true, count: 0 };
+
+  const uid = userId || await getAdminUserId().catch(() => null);
+  if (uid) rows.forEach(r => { r.user_id = uid; });
+
+  const { error } = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
+  if (error) {
+    console.error('[sync-apps] Supabase upsert failed:', error.message);
+    return { ok: false, error: error.message, count: 0 };
+  }
+  console.log(`[sync-apps] ${rows.length} application(s) synced to Supabase (user=${uid || 'none'})`);
+  return { ok: true, count: rows.length };
 }
 
 // ── Report Integrity ─────────────────────────────────────────────────────────
@@ -5538,6 +5700,11 @@ const server = createServer(async (req, res) => {
 
     if (path.startsWith('/api/applications/') && method === 'DELETE') {
       const num = decodeURIComponent(path.slice('/api/applications/'.length));
+      const today = new Date().toISOString().slice(0, 10);
+
+      // Soft-delete per CLAUDE.md: keep the tracker row as Discarded, register
+      // URL in scan-history + company+role in deleted-applications.tsv so scans
+      // never re-discover the offer (even under a new URL).
       if (useSupabase) {
         const { data: existing, error: fetchError } = await supabase
           .from('applications')
@@ -5550,31 +5717,35 @@ const server = createServer(async (req, res) => {
           return json(res, { error: 'Applied applications cannot be deleted' }, 409);
         }
 
+        const company = String(existing.company ?? existing.Company ?? '').trim();
+        const role = String(existing.role ?? existing.Role ?? '').trim();
+        const jobUrl = existing.job_url ?? existing.JobURL ?? existing.report ?? '';
+
         const { error } = await supabase
           .from('applications')
-          .delete()
+          .update({ status: 'Discarded' })
           .eq('num', Number(num));
         if (error) return json(res, { error: error.message }, 500);
 
-        // Also remove from applications.md so merge-tracker doesn't re-add it
         try {
           const appFile = join(WRITE_ROOT, 'data/applications.md');
           const raw = await readFile(appFile, 'utf-8');
-          const newLines = raw.split('\n').filter(line => {
-            if (!line.trim().startsWith('|')) return true;
-            const rowNum = getMarkdownTableRowNumber(line);
-            return !rowNum || rowNum === '#' || rowNum !== String(num);
-          });
-          await writeFile(appFile, newLines.join('\n'), 'utf-8');
-        } catch { /* applications.md may not exist, ignore */ }
+          const { content } = setApplicationStatusInMarkdown(raw, num, 'Discarded');
+          await writeFile(appFile, content, 'utf-8');
+        } catch { /* applications.md may not exist */ }
 
-        // Add to scan-history so future scans skip it
-        const jobUrl = existing.job_url ?? existing.JobURL ?? existing.report;
-        if (jobUrl && jobUrl.startsWith('http')) {
-          const today = new Date().toISOString().slice(0, 10);
-          await appendScanHistoryEntries([`${jobUrl}\t${today}\t—\t(deleted)\t—\tdeleted`]).catch(() => {});
+        const historyUrl = (jobUrl && String(jobUrl).startsWith('http'))
+          ? String(jobUrl).trim()
+          : `unknown:${tsvSafe(company) || 'company'}:${tsvSafe(role) || 'role'}`;
+        await appendScanHistoryEntries([
+          `${historyUrl}\t${today}\tmanual-delete\t${tsvSafe(role)}\t${tsvSafe(company)}\tdeleted`,
+        ]).catch(() => {});
+        if (company && role) {
+          await appendDeletedApplicationEntries([
+            { company, role, date: today, reason: 'user_deleted' },
+          ]).catch(() => {});
         }
-        return json(res, { ok: true });
+        return json(res, { ok: true, status: 'Discarded' });
       }
 
       const appFile = join(ROOT, 'data/applications.md');
@@ -5586,33 +5757,35 @@ const server = createServer(async (req, res) => {
         return json(res, { error: 'Applied applications cannot be deleted' }, 409);
       }
 
-      // Extract report filename from the row (column format: [num](reports/xxx.md))
+      const cells = targetLine.split('|').map(c => c.trim());
+      const company = cells[3] || '';
+      const role = cells[4] || '';
+      let jobUrl = '';
       const reportMatch = targetLine.match(/\[[\d]+\]\(reports\/([^)]+\.md)\)/);
       if (reportMatch) {
         try {
           const reportContent = await readFile(join(ROOT, 'reports', reportMatch[1]), 'utf-8');
           const urlMatch = reportContent.match(/^\*\*URL:\*\*\s*(.+)$/m);
-          if (urlMatch) {
-            const jobUrl = urlMatch[1].trim();
-            const today = new Date().toISOString().slice(0, 10);
-            await appendScanHistoryEntries([`${jobUrl}\t${today}\t—\t(deleted)\t—\tdeleted`]);
-          }
-        } catch { /* report may not exist, skip silently */ }
+          if (urlMatch) jobUrl = urlMatch[1].trim();
+        } catch { /* report may not exist */ }
       }
 
-      let deleted = false;
-      const newLines = lines.filter(line => {
-        if (!line.trim().startsWith('|')) return true;
-        const rowNum = getMarkdownTableRowNumber(line);
-        if (!rowNum || rowNum === '#') return true;
-        if (rowNum !== String(num)) return true;
-        deleted = true;
-        return false;
-      });
+      const { content, updated } = setApplicationStatusInMarkdown(raw, num, 'Discarded');
+      if (!updated) return json(res, { error: 'Application not found' }, 404);
+      await writeFile(appFile, content, 'utf-8');
 
-      if (!deleted) return json(res, { error: 'Application not found' }, 404);
-      await writeFile(appFile, newLines.join('\n'), 'utf-8');
-      return json(res, { ok: true });
+      const historyUrl = (jobUrl && jobUrl.startsWith('http'))
+        ? jobUrl
+        : `unknown:${tsvSafe(company) || 'company'}:${tsvSafe(role) || 'role'}`;
+      await appendScanHistoryEntries([
+        `${historyUrl}\t${today}\tmanual-delete\t${tsvSafe(role)}\t${tsvSafe(company)}\tdeleted`,
+      ]).catch(() => {});
+      if (company && role) {
+        await appendDeletedApplicationEntries([
+          { company, role, date: today, reason: 'user_deleted' },
+        ]).catch(() => {});
+      }
+      return json(res, { ok: true, status: 'Discarded' });
     }
 
     if (path === '/api/pipeline') {
@@ -5854,7 +6027,11 @@ const server = createServer(async (req, res) => {
           company: cleanString(body.company),
           role: cleanString(body.role),
           region: cleanString(body.region) || undefined,
-          autoSubmit: !!body.autoSubmit,
+          // Auto-submit by default (matches the dashboard checkbox's default
+          // state) — only an explicit `false` from the client falls back to
+          // the pause-before-submit review flow.
+          autoSubmit: body.autoSubmit !== false,
+          solveChallenges: body.solveChallenges !== false,
         });
         if (!spec.answers.length) {
           spec.answers = await generateFallbackAnswers(spec);
@@ -6163,12 +6340,14 @@ const server = createServer(async (req, res) => {
               console.warn(`[scan] Failed to append dead links to scan-history: ${err.message}`)
             );
           }
-          // Filter out URLs already in pipeline, scan-history, or reports (before Claude sees them)
+          // Filter out URLs already in pipeline, scan-history, or reports, and
+          // company+role pairs already tracked / permanently deleted.
           {
-            const [existingPipeline, existingHistory, existingReports] = await Promise.all([
+            const [existingPipeline, existingHistory, existingReports, companyRoleExclusions] = await Promise.all([
               getPipeline().catch(() => []),
               getBlockingScanHistoryUrlSet().catch(() => new Set()),
               getReportUrlSet().catch(() => new Set()),
+              getCompanyRoleExclusions(req.userId).catch(() => new Map()),
             ]);
             const knownNormalized = new Set([
               ...existingPipeline.map(e => normalizeUrlKey(String(e?.url || ''))).filter(Boolean),
@@ -6178,11 +6357,13 @@ const server = createServer(async (req, res) => {
             const beforeCount = verifiedCandidates.length;
             const freshCandidates = verifiedCandidates.filter(c => {
               const key = c.normalizedUrl || normalizeUrlKey(c.url);
-              return key && !knownNormalized.has(key);
+              if (!key || knownNormalized.has(key)) return false;
+              if (isCompanyRoleExcluded(c.company || '', c.title || '', companyRoleExclusions)) return false;
+              return true;
             });
             const skippedCount = beforeCount - freshCandidates.length;
             if (skippedCount > 0) {
-              console.log(`[scan] [pre-dedup] ${skippedCount} already-known URL(s) removed before manifest (pipeline/history/reports)`);
+              console.log(`[scan] [pre-dedup] ${skippedCount} already-known URL(s)/company+role removed before manifest (pipeline/history/reports/apps/deleted)`);
             }
             scanCandidates = freshCandidates;
           }
@@ -6753,9 +6934,51 @@ Contraintes :
             await writeFile(join(tsvDir, `${num}-${company}.tsv`),
               `${parseInt(num)}\t${today}\t${companyMatch?.[1]?.trim() || 'Unknown'}\t${role}\t${trackerStatus}\t${scoreRaw}\t❌\t[${parseInt(num)}](reports/${filename})\t${trackerNote}\n`
             );
-            if (!IS_VERCEL) await runScript('merge');
             saves.push(`Report saved: ${filename}`);
-            saves.push(`Tracker updated`);
+            if (!IS_VERCEL) {
+              const mergeResult = await runScript('merge');
+              const summary = mergeResult.stdout.match(/📊 Summary: \+(\d+) added, 🔄(\d+) updated, ⏭️(\d+) skipped/);
+              const [, addedCount = '0', updatedCount = '0', skippedCount = '0'] = summary || [];
+              if (!mergeResult.ok) {
+                console.error(`[${mode}] merge-tracker failed: ${mergeResult.stderr || mergeResult.stdout}`);
+                saves.push(`⚠️ Tracker merge FAILED — check server logs (report was saved, but not added to applications.md)`);
+              } else if (addedCount !== '0' || updatedCount !== '0') {
+                saves.push(`Tracker updated (+${addedCount} added, ${updatedCount} updated)`);
+              } else if (skippedCount !== '0') {
+                saves.push(`⚠️ Tracker NOT updated — merge-tracker detected this as a duplicate of an existing entry and skipped it (existing score was equal or higher)`);
+              } else {
+                saves.push(`Tracker updated`);
+              }
+
+              // Always push applications.md → Supabase with the request user id.
+              // merge-tracker also syncs, but often under the wrong/missing user_id,
+              // which made new evaluations invisible in the dashboard list.
+              const syncResult = await syncLocalApplicationsToSupabase(req.userId);
+              if (!syncResult.ok && !syncResult.skipped) {
+                saves.push(`⚠️ Applications list sync failed: ${syncResult.error}`);
+              } else if (syncResult.count) {
+                saves.push(`Applications list synced (${syncResult.count})`);
+              }
+            } else {
+              // Vercel: write the row directly to Supabase
+              const adminId = await getAdminUserId().catch(() => null);
+              const uid = req.userId || adminId;
+              const row = {
+                num: parseInt(num, 10),
+                date: today,
+                company: companyMatch?.[1]?.trim() || 'Unknown',
+                role,
+                score: scoreRaw,
+                status: trackerStatus,
+                pdf: '❌',
+                report: `[${parseInt(num, 10)}](reports/${filename})`,
+                notes: trackerNote,
+              };
+              if (uid) row.user_id = uid;
+              const { error: appErr } = await supabase.from('applications').upsert(row, { onConflict: 'num' });
+              if (appErr) saves.push(`⚠️ Tracker sync failed: ${appErr.message}`);
+              else saves.push(`Tracker updated`);
+            }
 
             if (mode === 'pipeline' && pipelineTarget) {
               await removeFromPipeline(pipelineTarget.url, req.userId);
@@ -7001,6 +7224,25 @@ Contraintes :
 server.listen(PORT, () => {
   const mode = useSupabase ? 'Supabase' : 'markdown files';
   console.log(`\n  Career Ops UI  →  http://localhost:${PORT}  [${mode}]\n`);
+
+  // Startup maintenance (local only): drop dead offers >20d, then heal apps sync.
+  if (!IS_VERCEL) {
+    setTimeout(async () => {
+      try {
+        const purge = await runScript('purge-stale', ['--days=20']);
+        if (purge.stdout) console.log(purge.stdout.trim());
+        if (!purge.ok) console.warn('[purge] failed:', purge.stderr || purge.error);
+      } catch (err) {
+        console.warn('[purge] error:', err.message);
+      }
+      try {
+        const sync = await syncLocalApplicationsToSupabase(null);
+        if (!sync.ok && !sync.skipped) console.warn('[startup-sync] apps sync failed:', sync.error);
+      } catch (err) {
+        console.warn('[startup-sync] error:', err.message);
+      }
+    }, 1500);
+  }
 });
 
 setupGracefulShutdown(server);

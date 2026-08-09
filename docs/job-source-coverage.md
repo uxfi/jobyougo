@@ -1,6 +1,29 @@
 # Job Source Coverage
 
-Last checked: 2026-06-14.
+Last checked: 2026-07-28 (previous check: 2026-06-14).
+
+## 2026-07-28 Health Check
+
+Ran `node scan-fetch.mjs jobs --dry-run --debug --max-age=0` (Windows checkout, after fixing a
+cross-platform path bug in 7 scripts that used `new URL('.', import.meta.url).pathname`, which
+resolves to a broken doubled path like `C:\C:\...` on Windows — replaced with
+`dirname(fileURLToPath(import.meta.url))`).
+
+Found and fixed 2 dead sources (of 62 previously configured):
+
+- **RunPod** (`tracked_companies`): Greenhouse board (`boards-api.greenhouse.io/v1/boards/runpod/jobs`)
+  returns HTTP 404 — RunPod moved ATS. Confirmed their careers page now 301-redirects to
+  `jobs.ashbyhq.com/runpod`. Updated the entry to the Ashby API
+  (`api.ashbyhq.com/posting-api/job-board/runpod`).
+- **RemoteOK — All Remote / AI / Design / Product** (`rss_feeds`): all 4 category RSS feeds
+  (`remoteok.com/remote-*-jobs.rss`) return HTTP 410 (Gone) — permanently retired, not transient.
+  Disabled all 4. RemoteOK's JSON API (`remoteok.com/api`) is still live and was already the P0
+  recommendation in `job-ingestion-sources-corrigees.md`; added a `remoteok` provider under
+  `api_aggregators` (wired into `scan-fetch.mjs`'s `parseRemoteOk`/`aggregatorFetcher`) to replace
+  the dead feeds with the source the earlier audit actually pointed at.
+
+Post-fix: 59/59 eligible sources fetched successfully (0 errors), 4,837 listings seen, 193 new
+offers matched (`--max-age=0` to bypass the 7-day freshness cutoff for this audit run).
 
 This scanner is designed to maximize Europe and Asia coverage without depending on restricted job-board scraping. The strongest strategy is additive:
 

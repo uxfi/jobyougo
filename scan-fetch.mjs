@@ -30,14 +30,17 @@
 
 import 'dotenv/config';
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
+import { scrapeCareersPage } from './lib/scan-careers-page.mjs';
+import { resolveOfferGeo, classifyGeo, needsWorkPermit } from './lib/verify-offer-geo.mjs';
 import {
   loadPortals, passesTitle, passesRemote,
   tsvSafe, normalizeCompany, roleMatch,
 } from './lib/scan-filters.mjs';
 
-const ROOT = new URL('.', import.meta.url).pathname;
+const ROOT = dirname(fileURLToPath(import.meta.url));
 const P = {
   portals: join(ROOT, 'portals.yml'),
   pipeline: join(ROOT, 'data/pipeline.md'),
@@ -56,6 +59,11 @@ const CONCURRENCY = 5;
 const argv = process.argv.slice(2);
 const DRY = argv.includes('--dry-run');
 const DEBUG = argv.includes('--debug');
+// Level 1 (Playwright careers-page scrape). Opt-in: it drives a real browser,
+// so it is far slower than the JSON levels and shouldn't burden a routine scan.
+// Without it, tracked_companies that have no ATS `api` are simply reported as
+// skipped instead of vanishing silently (see the source-build loop below).
+const DEEP = argv.includes('--deep');
 const mode = argv.find(a => a === 'jobs' || a === 'missions') || 'jobs';
 const sourceArg = (argv.find(a => a.startsWith('--source=')) || '').split('=').slice(1).join('=').replace(/^["']|["']$/g, '').toLowerCase() || null;
 const maxArg = parseInt((argv.find(a => a.startsWith('--max=')) || '').split('=')[1], 10);
@@ -205,11 +213,31 @@ function parseHimalayas(j) {
     return { title: x.title || '', url: x.applicationLink || x.guid || x.url || '', company: x.companyName || x.company || '', location: geo, postedAt: toMs(x.pubDate) };
   });
 }
+// Aggregator APIs are inconsistent about `tags`: some send an array, some a
+// comma-separated string, some an object or null. `(x.tags || []).join(' ')`
+// throws a TypeError on anything truthy that isn't an array, and a single throw
+// aborts the ENTIRE source — live scan log: "Arbeitnow Europe Remote API [L5
+// aggregator]: (x.tags || []).join is not a function", i.e. every European
+// remote listing silently missing from the run. Normalize instead of assuming.
+function joinTags(tags) {
+  if (Array.isArray(tags)) return tags.filter(t => typeof t === 'string' || typeof t === 'number').join(' ');
+  if (typeof tags === 'string') return tags;
+  if (tags && typeof tags === 'object') return Object.values(tags).filter(v => typeof v === 'string').join(' ');
+  return '';
+}
 function parseArbeitnow(j) {
   return (j.data || []).map(x => ({
     title: x.title || '', url: x.url || '', company: x.company_name || '',
-    location: `${x.remote ? 'remote ' : ''}${x.location || ''} ${(x.tags || []).join(' ')}`,
+    location: `${x.remote ? 'remote ' : ''}${x.location || ''} ${joinTags(x.tags)}`,
     postedAt: toMs(x.created_at),
+  }));
+}
+// First array element is a legend/meta object ({last_updated, legal}), not a job.
+function parseRemoteOk(arr) {
+  return (Array.isArray(arr) ? arr : []).filter(x => x && x.position).map(x => ({
+    title: x.position || '', url: x.apply_url || x.url || '', company: x.company || '',
+    location: `remote ${x.location || ''} ${joinTags(x.tags)}`,
+    postedAt: toMs(x.epoch || x.date),
   }));
 }
 function parseGoogleJobs(j) {
@@ -236,6 +264,7 @@ function aggregatorFetcher(a) {
   const url = a.api_url;
   switch (a.provider) {
     case 'remotive':  return async () => parseRemotive(await httpFetch('https://remotive.com/api/remote-jobs'));
+    case 'remoteok':  return async () => parseRemoteOk(await httpFetch(url || 'https://remoteok.com/api'));
     case 'jobicy':    return async () => parseJobicy(await httpFetch('https://jobicy.com/api/v2/remote-jobs?count=100'));
     case 'himalayas': return async () => {
       // API caps each page at 20 (limit param ignored) but supports offset — paginate recent-first.
@@ -285,12 +314,31 @@ function aggregatorFetcher(a) {
 // Boards that are remote-only by construction: their location field carries the
 // geo (e.g. "Worldwide", "Europe") but not the literal word "remote", so we treat
 // the remote-wording requirement as satisfied and let the geo check discriminate.
-const REMOTE_ONLY_PROVIDERS = new Set(['remotive', 'jobicy', 'himalayas']);
+const REMOTE_ONLY_PROVIDERS = new Set(['remotive', 'jobicy', 'himalayas', 'remoteok']);
 
 // ─── Build source list (jobs mode) ───────────────────────────────────────────
 const allSources = [];
 for (const c of (portals.tracked_companies || [])) {
-  if (!c.enabled || !c.api) continue;
+  if (!c.enabled) continue;
+  // No ATS API → the only way to see this company's roles is Level 1.
+  // This used to be `if (!c.enabled || !c.api) continue`, which dropped 29 of
+  // 97 tracked companies — OpenAI, Hugging Face, Salesforce, Twilio, Gong,
+  // Genesys, Retool, plus the JobsDB/Jora Asia boards — with no skip message,
+  // so the scan summary looked complete while a third of the watchlist was
+  // never queried at all.
+  if (!c.api) {
+    if (!c.careers_url) { skips.push(`${c.name}: ni api ni careers_url`); continue; }
+    if (!DEEP) { skips.push(`${c.name}: sans api — nécessite --deep (L1 Playwright)`); continue; }
+    allSources.push({
+      name: c.name,
+      level: 'L1 playwright',
+      // A careers page lists on-site roles too, so keep the strict remote
+      // requirement, exactly like the L2 company boards below.
+      remoteOnly: false,
+      run: async () => scrapeCareersPage(c.careers_url, c.name, { timeoutMs: FETCH_TIMEOUT + 10000 }),
+    });
+    continue;
+  }
   // Company boards span 3 ATS platforms with different JSON shapes → dispatch by host.
   // Kept strict (remoteOnly: false): a company board lists on-site roles too, so we
   // require explicit remote wording (their APIs expose isRemote/workplaceType).
@@ -397,7 +445,7 @@ const cutoffMs = maxAgeDays > 0 ? (nowMs - maxAgeDays * 864e5) : null;
 if (cutoffMs) console.log(`Freshness: keep jobs ≤ ${maxAgeDays}d old (jobs with no date are kept).`);
 
 const stats = { fetched: 0, candidates: 0, skipped_age: 0, skipped_remote: 0, skipped_title: 0, dup: 0, invalid: 0 };
-const newOffers = [];
+let newOffers = [];
 const fetchedNames = [];
 
 await mapPool(eligible, CONCURRENCY, async (s) => {
@@ -432,6 +480,44 @@ await mapPool(eligible, CONCURRENCY, async (s) => {
   if (DEBUG) console.log(`   · ${s.level.padEnd(14)} ${s.name.slice(0, 38).padEnd(38)} listings=${per.listings} invalid=${per.invalid} age=${per.age} rem=${per.remote} title=${per.title} dup=${per.dup} new=${per.new}`);
 });
 
+// ─── Geo verification at the source ───────────────────────────────────────────
+// Aggregator location metadata lies. Verified: realworkfromanywhere.com listed
+// Kindred's "Head of Product Design" as "Anywhere in the World" while the
+// source Ashby posting said "Remote - US". Four of five offers hand-checked in
+// one session were US-only despite being advertised as worldwide remote — a
+// class of false positive the location-string filter cannot catch, because its
+// input is already wrong.
+// Runs only on offers that survived the cheap filters (tens, not thousands), so
+// the extra HTTP cost stays bounded. An offer whose geo cannot be resolved is
+// KEPT, not dropped: unverifiable is not the same as ineligible.
+let geoRejected = 0;
+const geoNotes = [];
+if (newOffers.length) {
+  const verified = [];
+  const batch = 6;
+  for (let i = 0; i < newOffers.length; i += batch) {
+    const slice = newOffers.slice(i, i + batch);
+    const results = await Promise.all(slice.map(async (o) => {
+      try { return { o, r: await resolveOfferGeo(o.url) }; }
+      catch { return { o, r: null }; }
+    }));
+    for (const { o, r } of results) {
+      if (!r?.geo) { verified.push(o); continue; }
+      // classifyGeo, not passesRemote: an authoritative Location field needs
+      // inclusion to win over exclusion so a multi-region posting survives
+      // ("Europe, UK, USA" is open to Europe). See the note on classifyGeo.
+      if (classifyGeo(r.geo, portals.remote_filter) !== 'excluded') {
+        o.permit = needsWorkPermit(r.geo); // UK / Suisse: gardé mais signalé
+        verified.push(o);
+        continue;
+      }
+      geoRejected++;
+      geoNotes.push(`${o.company || '?'} | ${o.title.slice(0, 46)} → "${r.geo.slice(0, 44)}" [${r.via}]`);
+    }
+  }
+  newOffers = verified;
+}
+
 // ─── Cap ───────────────────────────────────────────────────────────────────────
 let capped = 0;
 let toAdd = newOffers;
@@ -447,8 +533,11 @@ if (!DRY && toAdd.length) {
   if (!existsSync(P.pipeline) || readFileSync(P.pipeline, 'utf-8').trim() === '') {
     header = '# Pipeline — Pending\n\n';
   }
+  // The permit marker rides inside the title field on purpose: pipeline.md is
+  // parsed elsewhere as exactly three pipe-separated fields, so adding a fourth
+  // would break those readers.
   const pipeLines = toAdd.map(o =>
-    `- [ ] ${o.url} | ${tsvSafe(o.company).replace(/\|/g, '/')} | ${tsvSafe(o.title).replace(/\|/g, '/')}`
+    `- [ ] ${o.url} | ${tsvSafe(o.company).replace(/\|/g, '/')} | ${tsvSafe(o.title).replace(/\|/g, '/')}${o.permit ? ' [permis de travail requis]' : ''}`
   ).join('\n') + '\n';
   appendFileSync(P.pipeline, header + pipeLines, 'utf-8');
 
@@ -476,6 +565,14 @@ if (!DRY && toAdd.length) {
 // ─── Summary ───────────────────────────────────────────────────────────────────
 console.log(`\nSources fetched: ${stats.fetched}/${eligible.length}   Listings seen: ${stats.candidates}`);
 console.log(`Filtered — stale: ${stats.skipped_age}  remote: ${stats.skipped_remote}  title: ${stats.skipped_title}  duplicate: ${stats.dup}  invalid: ${stats.invalid}`);
+// Surfaced explicitly, and always listed: these offers looked eligible from the
+// aggregator's own metadata and were only caught by reading the employer's
+// posting. Seeing WHAT was rejected and WHY is how you notice the geo rules
+// drifting wrong in either direction.
+if (geoRejected) {
+  console.log(`Écartés après vérification à la source (géo réelle ≠ annoncée): ${geoRejected}`);
+  for (const n of geoNotes) console.log(`   ✗ ${n}`);
+}
 console.log(`New offers${DRY ? ' (would add)' : ' added'}: ${toAdd.length}${capped ? `  (capped: +${capped} more qualified, raise --max)` : ''}`);
 for (const o of toAdd) console.log(`  + ${o.company || '?'} | ${o.title}  [${o.source}]`);
 if (skips.length) console.log(`\n⏭  Skipped: ${skips.join('; ')}`);

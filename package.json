@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "AI-powered job search pipeline built on Claude Code",
   "scripts": {
-    "dev": "lsof -ti:3210 | xargs kill -9 2>/dev/null; node --watch ui/server.mjs",
+    "dev": "node --watch ui/server.mjs",
     "scan": "node scan-fetch.mjs jobs",
     "scan:dry": "node scan-fetch.mjs jobs --dry-run --debug",
     "scan:verify": "node verify-scan-history.mjs",
@@ -12,6 +12,8 @@
     "normalize": "node normalize-statuses.mjs",
     "dedup": "node dedup-tracker.mjs",
     "merge": "node merge-tracker.mjs",
+    "purge": "node purge-stale.mjs",
+    "purge:dry": "node purge-stale.mjs --dry-run",
     "pdf": "node generate-pdf.mjs",
     "sync-check": "node cv-sync-check.mjs",
     "update:check": "node update-system.mjs check",

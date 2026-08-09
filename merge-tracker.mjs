@@ -15,9 +15,10 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, existsSync } from 'fs';
-import { join, basename } from 'path';
+import { join, basename, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const CAREER_OPS = new URL('.', import.meta.url).pathname;
+const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
 // Support both layouts: data/applications.md (boilerplate) and applications.md (original)
 const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
   ? join(CAREER_OPS, 'data/applications.md')
@@ -80,9 +81,39 @@ function normalizeCompany(name) {
     .trim();
 }
 
+// applications.md is a pipe-delimited markdown table, so a literal '|' inside a
+// cell value silently shifts every following column (parseAppLine splits on raw
+// '|'). Real job titles do contain pipes — e.g. "Product Manager | South Cone"
+// produced a 10-column row whose score landed in the status field. TSV input is
+// tab-separated so the pipe arrives here intact; sanitize at the boundary where
+// '|' becomes a delimiter. Also strip newlines/tabs, which would break the row.
+function sanitizeCell(value) {
+  return String(value ?? '')
+    .replace(/\|/g, '/')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Generic seniority/function words that appear across most job titles in this
+// system's archetypes (PM/Designer/SA/FDE) and carry no distinguishing signal
+// on their own — e.g. "Senior Product Manager" vs "Senior Product Designer"
+// share 2 of these words but are different roles. Without filtering them out,
+// roleFuzzyMatch treats unrelated roles at the same company as duplicates and
+// merge-tracker silently drops the second (legitimate) evaluation.
+const GENERIC_ROLE_WORDS = new Set([
+  'senior', 'staff', 'junior', 'lead', 'head', 'chief', 'principal', 'associate',
+  'product', 'manager', 'designer', 'engineer', 'architect', 'director',
+  'solutions', 'forward', 'deployed', 'agentic', 'automation', 'remote',
+]);
+
 function roleFuzzyMatch(a, b) {
-  const wordsA = a.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-  const wordsB = b.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const normA = a.toLowerCase().trim();
+  const normB = b.toLowerCase().trim();
+  if (normA === normB) return true; // exact title match — always the same role re-evaluated
+
+  const wordsA = normA.split(/\s+/).filter(w => w.length > 3 && !GENERIC_ROLE_WORDS.has(w));
+  const wordsB = normB.split(/\s+/).filter(w => w.length > 3 && !GENERIC_ROLE_WORDS.has(w));
   const overlap = wordsA.filter(w => wordsB.some(wb => wb.includes(w) || w.includes(wb)));
   return overlap.length >= 2;
 }
@@ -283,7 +314,7 @@ for (const file of tsvFiles) {
       console.log(`🔄 Update: #${duplicate.num} ${addition.company} — ${addition.role} (${oldScore}→${newScore})`);
       const lineIdx = appLines.indexOf(duplicate.raw);
       if (lineIdx >= 0) {
-        const updatedLine = `| ${duplicate.num} | ${addition.date} | ${addition.company} | ${addition.role} | ${addition.score} | ${duplicate.status} | ${duplicate.pdf} | ${addition.report} | Re-eval ${addition.date} (${oldScore}→${newScore}). ${addition.notes} |`;
+        const updatedLine = `| ${duplicate.num} | ${sanitizeCell(addition.date)} | ${sanitizeCell(addition.company)} | ${sanitizeCell(addition.role)} | ${sanitizeCell(addition.score)} | ${sanitizeCell(duplicate.status)} | ${sanitizeCell(duplicate.pdf)} | ${sanitizeCell(addition.report)} | ${sanitizeCell(`Re-eval ${addition.date} (${oldScore}→${newScore}). ${addition.notes}`)} |`;
         appLines[lineIdx] = updatedLine;
         updated++;
       }
@@ -296,7 +327,7 @@ for (const file of tsvFiles) {
     const entryNum = addition.num > maxNum ? addition.num : ++maxNum;
     if (addition.num > maxNum) maxNum = addition.num;
 
-    const newLine = `| ${entryNum} | ${addition.date} | ${addition.company} | ${addition.role} | ${addition.score} | ${addition.status} | ${addition.pdf} | ${addition.report} | ${addition.notes} |`;
+    const newLine = `| ${entryNum} | ${sanitizeCell(addition.date)} | ${sanitizeCell(addition.company)} | ${sanitizeCell(addition.role)} | ${sanitizeCell(addition.score)} | ${sanitizeCell(addition.status)} | ${sanitizeCell(addition.pdf)} | ${sanitizeCell(addition.report)} | ${sanitizeCell(addition.notes)} |`;
     newLines.push(newLine);
     added++;
     console.log(`➕ Add #${entryNum}: ${addition.company} — ${addition.role} (${addition.score})`);
@@ -334,12 +365,15 @@ console.log(`\n📊 Summary: +${added} added, 🔄${updated} updated, ⏭️${sk
 if (DRY_RUN) console.log('(dry-run — no changes written)');
 
 // ─── Sync vers Supabase ───────────────────────────────────────────────────────
-if (!DRY_RUN && (added > 0 || updated > 0)) {
+// Always sync after a merge pass (even if all TSVs were skipped as duplicates)
+// so the dashboard never drifts from applications.md.
+if (!DRY_RUN && tsvFiles.length > 0) {
   const { execSync } = await import('child_process');
   try {
-    execSync(`node ${join(CAREER_OPS, 'sync-supabase.mjs')} applications`, { stdio: 'inherit' });
-  } catch {
-    // sync-supabase.mjs exits 0 when disabled — non-zero means a real error, already logged
+    console.log('\n☁️  Syncing applications.md → Supabase…');
+    execSync(`node "${join(CAREER_OPS, 'sync-supabase.mjs')}" applications`, { stdio: 'inherit' });
+  } catch (err) {
+    console.warn(`⚠️  Supabase applications sync failed: ${err.message}`);
   }
 }
 

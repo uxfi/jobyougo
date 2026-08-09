@@ -28,10 +28,11 @@
  */
 
 import { readFileSync, writeFileSync, copyFileSync, existsSync, appendFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { tsvSafe, slugify } from './lib/scan-filters.mjs';
 
-const ROOT = new URL('.', import.meta.url).pathname;
+const ROOT = dirname(fileURLToPath(import.meta.url));
 const HISTORY = join(ROOT, 'data/scan-history.tsv');
 const DELETED = join(ROOT, 'data/deleted-applications.tsv');
 const FIX = process.argv.includes('--fix');
