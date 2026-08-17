@@ -18,6 +18,7 @@ import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { polishApplicationAnswer, resolveUnknownFields, hasUnresolvedPlaceholder } from './lib/apply-llm.mjs';
 import { PINCHTAB_URL, pinchtabClose, pinchtabCookies, pinchtabHealth, pinchtabNavigate, pinchtabSolve } from './lib/pinchtab.mjs';
+import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE } from './lib/form-detect.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -335,6 +336,7 @@ function blockerLabel(blocker) {
   if (blocker === 'captcha') return 'captcha';
   if (blocker === 'cloudflare') return 'page de vérification';
   if (blocker === 'login') return 'connexion';
+  if (blocker === 'auth_wall') return 'création de compte requise';
   return 'vérification';
 }
 
@@ -427,7 +429,9 @@ const APPLY_TEXT_RE = /^(apply(\s+(now|here|for|to)\b.*)?|postuler.*|candidater.
 
 // Interstitial modals between the job page and the real form (e.g. Jobicy's
 // "Sign Up and Apply / Continue as Guest") — always pick the no-account path.
-const CONTINUE_TEXT_RE = /^(continue as guest|continue without (an )?account|apply without (an )?account|apply (on|via) (the )?(company|employer)('s)? (web)?site|continuer sans compte|no,? thanks.*|maybe later|skip( for now)?)$/i;
+// GUEST_TEXT_RE lives in lib/form-detect.mjs alongside AUTH_AVOID_TEXT_RE, so
+// the "take this path" and "never take that path" vocabularies stay in sync.
+const CONTINUE_TEXT_RE = GUEST_TEXT_RE;
 
 // Multi-step wizard progression (when there is NO form on the page yet): landing
 // pages, "start application" splash screens, intro steps before the real form.
@@ -459,31 +463,40 @@ function normalizeAtsUrl(url) {
 }
 
 // A frame "has a form" when it shows fillable application fields.
-async function frameHasApplicationForm(frame) {
+// Scored verdict from lib/form-detect.mjs. The old inline predicate
+// ((hasIdentity && inputs>=2) || (files>0 && inputs>=1)) returned TRUE for a
+// signup wall and for a newsletter footer — verified in a real Chromium — so
+// the runner believed it had arrived and began filling a signup form with the
+// candidate's CV data. See tests/form-detect.test.mjs.
+async function probeFrameForm(frame) {
   try {
-    return await frame.evaluate(() => {
-      const visible = (el) => {
-        const r = el.getBoundingClientRect();
-        const st = getComputedStyle(el);
-        return r.width > 0 && r.height > 0 && st.visibility !== 'hidden';
-      };
-      const inputs = [...document.querySelectorAll('input[type="text"], input[type="email"], input:not([type]), textarea, [contenteditable="true"], [role="textbox"]')].filter(visible);
-      const files = [...document.querySelectorAll('input[type="file"]')];
-      const hasIdentity = inputs.some(i => {
-        const s = ((i.name || '') + (i.id || '') + (i.getAttribute('aria-label') || '') + (i.placeholder || '')).toLowerCase();
-        return /name|email|mail|phone/.test(s);
-      });
-      return (hasIdentity && inputs.length >= 2) || (files.length > 0 && inputs.length >= 1);
-    });
-  } catch { return false; }
+    return await frame.evaluate(APPLICATION_FORM_PROBE);
+  } catch {
+    return { verdict: 'none', score: 0, signals: [], blockers: [] };
+  }
 }
 
+async function frameHasApplicationForm(frame) {
+  return (await probeFrameForm(frame)).verdict === 'application_form';
+}
+
+/**
+ * Scan every frame once. Returns the form frame when one exists, otherwise
+ * reports whether what we DID find is an auth wall — so the caller can offer
+ * the guest path or hand over to the human instead of typing into a signup box.
+ */
 async function findFormFrame(page) {
+  let authWall = null;
   for (const frame of page.frames()) {
     if (frame.isDetached()) continue;
-    if (await frameHasApplicationForm(frame)) return frame;
+    const r = await probeFrameForm(frame);
+    if (r.verdict === 'application_form') {
+      dbg(`formulaire détecté (score ${r.score}: ${r.signals.join(', ')})`);
+      return { frame, authWall: null };
+    }
+    if (r.verdict === 'auth_wall' && !authWall) authWall = r;
   }
-  return null;
+  return { frame: null, authWall };
 }
 
 async function clickApplyAndFollow(context, page, textRe = APPLY_TEXT_RE, attempted = null) {
@@ -501,18 +514,24 @@ async function clickApplyAndFollow(context, page, textRe = APPLY_TEXT_RE, attemp
     const skipSet = new Set(skip);
     const out = [];
     let n = 0;
+    const avoid = new RegExp(avoidSrc, 'i');
     for (const el of document.querySelectorAll('a, button, [role="button"]')) {
       const r = el.getBoundingClientRect();
       if (r.width < 5 || r.height < 5) continue;
       const t = (el.innerText || '').replace(/\s+/g, ' ').trim();
       if (!t || t.length > 80 || !re.test(t) || skipSet.has(t)) continue;
+      // Account-creation and social-login controls are never a step towards the
+      // form, and they frequently share wording with real progression ("Sign up
+      // and apply", "Continue with Google"). Checked after the progression
+      // regex so it can veto a match, never before.
+      if (avoid.test(t)) continue;
       el.setAttribute('data-co-click', String(n));
       out.push({ n, text: t, href: (el.href || '').slice(0, 100) });
       n++;
       if (n >= 8) break;
     }
     return out;
-  }, { reSrc: textRe.source, skip });
+  }, { reSrc: textRe.source, skip, avoidSrc: AUTH_AVOID_TEXT_RE.source });
   if (!marked.length) return null;
 
   const popupPromise = context.waitForEvent('page', { timeout: 8000 }).catch(() => null);
@@ -569,11 +588,23 @@ async function reachApplicationForm(context, page) {
     // SPAs (Ashby, Greenhouse new UI…) render the form well after
     // domcontentloaded — poll instead of checking once.
     let frame = null;
+    let authWall = null;
     for (let w = 0; w < 6 && !frame; w++) {
-      frame = await findFormFrame(page);
+      ({ frame, authWall } = await findFormFrame(page));
       if (!frame) await sleep(1500);
     }
     if (frame) return { page, frame, blocker: null };
+
+    // An auth wall is NOT the form. Try the no-account path on this very page
+    // first; only if there is none do we hand over, rather than filling a
+    // signup box with the candidate's details.
+    if (authWall) {
+      log(`Mur d'inscription/connexion détecté (${authWall.blockers.join(', ')}) — recherche d'un accès invité.`);
+      const guest = await clickApplyAndFollow(context, page, GUEST_TEXT_RE, attempted);
+      if (guest) { page = guest; continue; }
+      log('Aucun accès invité proposé — connexion manuelle requise.');
+      return { page, frame: null, blocker: 'auth_wall' };
+    }
 
     // Known ATS URL that just needs normalization (lever → /apply, ashby → /application)
     const normalized = normalizeAtsUrl(page.url());
@@ -609,7 +640,7 @@ async function rescanForm(context, page) {
   for (let w = 0; w < 4; w++) {
     for (const p of context.pages()) {
       if (p.isClosed?.()) continue;
-      const fr = await findFormFrame(p);
+      const { frame: fr } = await findFormFrame(p);
       if (fr) return { page: p, frame: fr, blocker: null };
     }
     await sleep(1000);
@@ -2138,6 +2169,7 @@ async function main() {
         }
         setState('needs_human', blocker === 'captcha' ? '🤖 Captcha détecté — résous-le dans la fenêtre Chrome.'
           : blocker === 'login' ? '🔐 Connexion requise — connecte-toi dans la fenêtre Chrome.'
+          : blocker === 'auth_wall' ? '👤 Ce site exige un compte et ne propose pas d\'accès invité — crée le compte ou connecte-toi dans Chrome, puis clique "Re-scanner".'
           : '🛡️ Protection anti-bot — passe la vérification dans la fenêtre Chrome.');
         const cmd = await waitForCommand(activePage, frame, { allowAutoResume: true });
         if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
@@ -2153,7 +2185,7 @@ async function main() {
         if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
         // after manual navigation, the form may be in any open tab
         for (const p of context.pages()) {
-          const fr = await findFormFrame(p);
+          const { frame: fr } = await findFormFrame(p);
           if (fr) { activePage = p; frame = fr; break; }
         }
         if (!frame) continue;
