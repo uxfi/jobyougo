@@ -1,54 +1,67 @@
-# Mode: interview — Interview Preparation
+# Mode: interview — Interactive Profile & CV Onboarding
 
-Prepare for a REAL scheduled interview. This used to run during offer evaluation — it was moved here because interview prep is useless at evaluation time. Run it when the tracker status moves to `Interview` (or the user announces an interview).
+When the user runs `/career-ops interview`, execute this interactive profile/CV interview flow.
 
-## When to trigger
+The purpose of this mode is to conduct a conversational interview to extract rich context, specific project tasks, technologies used, and measurable business impact to build or enhance `cv.md`, `config/profile.yml`, and `modes/_profile.md`.
 
-- "j'ai un entretien chez [Company]" / "I have an interview at [Company]"
-- "prépare-moi pour l'entretien [Company]"
-- `/career-ops interview [Company]`
+---
 
-## Step 0 — Load context
+## Guidelines for the AI Agent
 
-1. Find the report in `reports/` (grep company name). Load Block A (archetype), Block C (CV match + gaps), Block E (score).
-2. Read `cv.md`, `modes/_profile.md` (SKILL PROFILE, narrative, framing adaptatif), `article-digest.md` (if exists), `interview-prep/story-bank.md` (if exists).
-3. If no report exists, ask for the JD or run auto-pipeline first.
+### 1. Load Baseline Context
 
-## Part 1 — Level and Strategy
+- Read `cv.md` (if it exists) to understand the candidate's current professional profile.
+- Read `config/profile.yml` (if it exists) to check current target roles, location settings, and compensation bounds.
+- Read `modes/_profile.md` (if it exists) to examine existing target archetypes and narrative alignments.
 
-1. **Level detected** in the JD vs **candidate's natural level for that archetype**
-2. **"Sell senior without lying" plan**: specific phrases adapted to the archetype, concrete achievements to highlight, how to position founder experience as an advantage
-3. **"If they downlevel me" plan**: accept if comp is fair, negotiate 6-month review, clear promotion criteria
+### 2. Interview Structure & Tone
 
-## Part 2 — STAR+R Stories
+- Keep it professional, conversational, and direct. Avoid generic corporate fluff.
+- **Rule: Ask exactly ONE question at a time.** Never present a wall of questions; wait for the user's response before asking the next question.
+- Always prompt for **specifics**: tools/frameworks used, architecture decisions, and most importantly, **measurable outcomes** (percentages, revenue, performance gains, team size, cost savings).
 
-6-10 STAR+R stories mapped to JD requirements (STAR + **Reflection**):
+---
 
-| # | JD Requirement | STAR+R Story | S | T | A | R | Reflection |
-|---|-----------------|--------------|---|---|---|---|------------|
+## Step-by-Step Interview Flow
 
-The **Reflection** column captures what was learned or what would be done differently. This signals seniority — junior candidates describe what happened, senior candidates extract lessons.
+### Step 1: Target Roles & Ambitions
 
-**Story Bank:** If `interview-prep/story-bank.md` exists, check if any of these stories are already there. If not, append new ones. Over time this builds a reusable bank of 5-10 master stories that can be adapted to any interview question.
+Ask the user about their immediate goals:
+- What specific roles are they targeting?
+- What are their target salary and total compensation expectations?
+- What are their location preferences (remote, hybrid, on-site, geographic limits)?
+- Update `config/profile.yml` with the target role titles, locations, and salary bounds.
 
-**Selected and framed according to archetype:**
-- FDE → emphasize delivery speed and client-facing
-- SA → emphasize architectural decisions
-- PM → emphasize discovery and trade-offs
-- LLMOps → emphasize metrics, evals, production hardening
-- Agentic → emphasize orchestration, error handling, HITL
-- Transformation → emphasize adoption, organizational change
+### Step 2: Experience & Core Achievements
 
-## Part 3 — Case study & red flags
+Ask about their most significant professional achievements:
+- Focus on the last 2-3 roles.
+- For each role, ask: "What was your single most impactful achievement in this position, and what specific projects did you build to make it happen?"
+- Extract: What tools/architecture were used?
 
-- 1 recommended case study (which project to present and how)
-- Red-flag questions and how to answer them (e.g., "why did you sell your company?", "do you have a team of reports?")
-- Gap questions: for each gap from Block C of the report, the one-line honest answer + pivot to adjacent experience
+### Step 3: Digging for Metrics (Business Impact)
 
-## Part 4 — Questions to ask THEM
+Recruiters and ATS scanners look for quantifiable metrics. For the achievements and projects mentioned in Step 2:
+- Ask: "What was the measurable outcome of this project? (e.g., % improvement, $ saved, latency reduction, user adoption numbers)"
+- If the user doesn't know, help them estimate or frame it qualitatively (e.g., "enabled 12 developers to ship 3x faster").
 
-5-7 sharp questions adapted to the archetype and what the report flagged (culture signals, red flags, comp ambiguity). Asking nothing = junior signal.
+### Step 4: Uncovering Hidden Skills
 
-## Output
+Ask about adjacent experience or forgotten skills:
+- "What tools, languages, or methodologies do you have experience with that aren't on your main resume?"
+- "Any courses, certifications, side projects, or articles you have written recently?"
 
-Save to `interview-prep/{company-slug}-interview-prep.md`. Update tracker status to `Interview` if not already.
+---
+
+## Step 5 — Apply Updates
+
+Once the interview is complete, or once enough new details have been collected:
+1. **Update `cv.md`**: Update the professional summary, rewrite project bullet points to incorporate the new keywords and metrics, and append new skills.
+2. **Update `config/profile.yml`**: Update the targets, compensation, and narrative sections.
+3. **Update `modes/_profile.md`**: Map the new projects/proof points to the target archetypes and update the adaptive framing rules.
+4. Run `node doctor.mjs` silently to verify project integrity.
+5. Provide a summary of the files updated:
+   > "✅ Interactive interview completed! Updated your profile:
+   > - **CV**: Refined summaries and project bullets with new metrics.
+   > - **Profile config**: Updated target roles and comp expectations.
+   > - **Custom framing**: Integrated project mappings into _profile.md."
