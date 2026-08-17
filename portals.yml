@@ -94,6 +94,22 @@ title_filter:
     - nurse
     - medical
     - sales agent
+    # Meme logique que ci-dessus: "Agent" seul reste un positif (AI agents),
+    # mais il laissait passer les metiers d'agent au sens classique — aviation,
+    # BTP, immobilier, voyage. Constate dans pipeline.md: "Cabin Cleaning Agent"
+    # (Menzies Aviation), "Sub Agent" et "Tunnel Agent" (Skanska / Costain /
+    # STRABAG). D'ou les formes composees, qui n'affectent aucun titre IA
+    # ("Agent Experience Lead", "Conversational Agent Designer" passent toujours).
+    - cleaning agent
+    - sub agent
+    - tunnel agent
+    - estate agent
+    - travel agent
+    - booking agent
+    - leasing agent
+    - ticketing agent
+    - ground agent
+    - reservations agent
     - sales executive
     - sales representative
     - account executive
