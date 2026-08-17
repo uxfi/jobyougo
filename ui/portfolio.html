@@ -18,8 +18,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=Indie+Flower&display=swap" rel="stylesheet">
-  <!-- Case-study brand fonts (separate request: failure must not break core fonts) -->
-  <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Case-study brand fonts (separate request: failure must not break core fonts).
+       Only used inside project case-study modules, never above the fold → loaded
+       non-blocking so they don't delay first render. -->
+  <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
   <!-- Preload LCP image (hero avatar, above the fold) -->
   <link rel="preload" as="image" href="../images/bg-header-new.optimized.jpg" fetchpriority="high">
   <link rel="preload" as="image" href="../images/hugo_vermot.optimized.jpg" fetchpriority="high">
@@ -715,7 +718,7 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      transform: translate(-50%, calc(-10vh + clamp(125px, 15vw, 215px)));
+      transform: translate(-50%, calc(-10vh + clamp(125px, 15vw, 215px) + 80px));
       display: flex;
       align-items: center;
       gap: 22px;
@@ -1529,6 +1532,8 @@
       display: flex; align-items: baseline; justify-content: space-between;
       padding: 64px 48px 48px;
     }
+    /* Extra breathing room above the Recent work section */
+    #work { padding-top: 56px; }
     .s-label {
       display: none;
     }
@@ -6065,7 +6070,7 @@
 <!-- FLOATING PROJECT PREVIEW -->
 <div id="proj-preview">
   <div id="proj-preview-inner">
-    <img id="proj-preview-img" src="" alt="" />
+    <img id="proj-preview-img" alt="" decoding="async" />
     <video id="proj-preview-video" muted loop playsinline preload="none" style="width:100%;height:auto;display:none;"></video>
     <div id="proj-preview-overlay"></div>
     <div class="preview-label" id="preview-tag"></div>
@@ -6366,6 +6371,34 @@
     })();
   </script>
 
+  <!-- WORK -->
+  <div id="work">
+    <div class="s-header">
+      <h2 class="s-headline" data-i18n="work_label">Recent work</h2>
+      <a class="btn-download-cv" href="/Hugo_Vermot_CV_Paris.pdf" download="Hugo_Vermot_CV_Paris.pdf" id="ripple-btn-cv">
+        <span class="btn-text">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
+          Download CV
+        </span>
+        <span class="ripple" id="ripple-span-cv"></span>
+      </a>
+    </div>
+    <div class="proj-list" id="proj-list-el"></div>
+  </div>
+
+  <!-- AI PRODUCTS BENTO -->
+  <div class="ai-products-section">
+    <canvas class="ai-products-matrix" id="ai-products-matrix" aria-hidden="true"></canvas>
+    <div class="ai-products-header">
+      <div>
+        <h2 class="ai-products-title" data-i18n-html="ai_products_title">Bootstrapped Websites</h2>
+      </div>
+      <p class="ai-products-kicker" data-i18n="ai_products_kicker">I built these websites mostly for experimentation, to explore complex AI structures and capabilities, leveraging Agentic flows, memory systems, prompt engineering, and RAG architectures.</p>
+    </div>
+    <div class="ai-bento" id="ai-bento-el"></div>
+    <div class="ai-bento ai-bento--wide" id="ai-bento-wide-el"></div>
+  </div>
+
   <!-- INTERFACE SHOWCASE -->
   <div id="ifaces-section" class="ifaces-section">
     <div class="s-header">
@@ -6393,34 +6426,6 @@
         </button>
       </div>
     </div>
-  </div>
-
-  <!-- AI PRODUCTS BENTO -->
-  <div class="ai-products-section">
-    <canvas class="ai-products-matrix" id="ai-products-matrix" aria-hidden="true"></canvas>
-    <div class="ai-products-header">
-      <div>
-        <h2 class="ai-products-title" data-i18n-html="ai_products_title">Bootstrapped Websites</h2>
-      </div>
-      <p class="ai-products-kicker" data-i18n="ai_products_kicker">I built these websites mostly for experimentation, to explore complex AI structures and capabilities, leveraging Agentic flows, memory systems, prompt engineering, and RAG architectures.</p>
-    </div>
-    <div class="ai-bento" id="ai-bento-el"></div>
-    <div class="ai-bento ai-bento--wide" id="ai-bento-wide-el"></div>
-  </div>
-
-  <!-- WORK -->
-  <div id="work">
-    <div class="s-header">
-      <h2 class="s-headline" data-i18n="work_label">Recent Job</h2>
-      <a class="btn-download-cv" href="/Hugo_Vermot_CV_Paris.pdf" download="Hugo_Vermot_CV_Paris.pdf" id="ripple-btn-cv">
-        <span class="btn-text">
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
-          Download CV
-        </span>
-        <span class="ripple" id="ripple-span-cv"></span>
-      </a>
-    </div>
-    <div class="proj-list" id="proj-list-el"></div>
   </div>
 
   <!-- AI TRANSFORMATION -->
@@ -6463,41 +6468,41 @@
     <div class="ait-stack-label" data-i18n="ait_products_label">AI stack I use daily.</div>
     <div class="ait-stack" aria-label="AI tools used">
       <a class="ait-logo-card" href="https://claude.ai/" target="_blank" rel="noopener" aria-label="Claude">
-        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=claude.ai&sz=128" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=claude.ai&sz=128" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">Claude</span>
       </a>
 
       <a class="ait-logo-card" href="https://chatgpt.com/" target="_blank" rel="noopener" aria-label="ChatGPT">
-        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=chatgpt.com&sz=128" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=chatgpt.com&sz=128" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">ChatGPT</span>
       </a>
 
       <a class="ait-logo-card" href="https://mem0.ai/" target="_blank" rel="noopener" aria-label="mem0">
-        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=mem0.ai&sz=128" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=mem0.ai&sz=128" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">mem0</span>
       </a>
       <a class="ait-logo-card" data-logo="openrouter" href="https://openrouter.ai/" target="_blank" rel="noopener" aria-label="OpenRouter">
-        <img class="ait-logo-mark" src="../images/openrouter.png" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="../images/openrouter.png" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">OpenRouter</span>
       </a>
       <a class="ait-logo-card" href="https://antigravity.google/" target="_blank" rel="noopener" aria-label="Antigravity">
-        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=antigravity.google&sz=128" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=antigravity.google&sz=128" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">Antigravity</span>
       </a>
       <a class="ait-logo-card" href="https://docs.anthropic.com/en/docs/claude-code/overview" target="_blank" rel="noopener" aria-label="Claude Code">
-        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=docs.anthropic.com&sz=128" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=docs.anthropic.com&sz=128" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">Claude Code</span>
       </a>
       <a class="ait-logo-card" href="https://v0.dev/" target="_blank" rel="noopener" aria-label="v0">
-        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=v0.dev&sz=128" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=v0.dev&sz=128" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">v0</span>
       </a>
       <a class="ait-logo-card" href="https://lovable.dev/" target="_blank" rel="noopener" aria-label="Lovable">
-        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=lovable.dev&sz=128" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="https://www.google.com/s2/favicons?domain=lovable.dev&sz=128" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">Lovable</span>
       </a>
       <a class="ait-logo-card" data-logo="cursor" href="https://cursor.com/" target="_blank" rel="noopener" aria-label="Cursor">
-        <img class="ait-logo-mark" src="../images/cursor-logo.jpg" alt="" loading="lazy">
+        <img class="ait-logo-mark" src="../images/cursor-logo.jpg" alt="" loading="lazy" decoding="async">
         <span class="ait-logo-name">Cursor</span>
       </a>
     </div>
@@ -6570,27 +6575,27 @@
   <div class="tools-marquee-wrap" aria-hidden="true">
     <div class="tools-marquee-track" id="marquee-track">
       <!-- original set -->
-      <div class="tool-chip"><img src="../images/figma.png" alt="Figma" loading="lazy"><span class="tool-chip-name">Figma</span></div>
-      <div class="tool-chip"><img src="../images/javascript.png" alt="JavaScript" loading="lazy"><span class="tool-chip-name">JavaScript</span></div>
-      <div class="tool-chip"><img src="../images/supabase.png" alt="Supabase" loading="lazy"><span class="tool-chip-name">Supabase</span></div>
-      <div class="tool-chip"><img src="../images/gcloud.png" alt="Google Cloud" loading="lazy"><span class="tool-chip-name">Google Cloud</span></div>
-      <div class="tool-chip"><img src="../images/openrouter.png" alt="OpenRouter" loading="lazy"><span class="tool-chip-name">OpenRouter</span></div>
-      <div class="tool-chip"><img src="../images/gemini.jpg" alt="Gemini" loading="lazy"><span class="tool-chip-name">Gemini</span></div>
-      <div class="tool-chip"><img src="../images/firecrawl.png" alt="Firecrawl" loading="lazy"><span class="tool-chip-name">Firecrawl</span></div>
-      <div class="tool-chip"><img src="../images/slack.png" alt="Slack" loading="lazy"><span class="tool-chip-name">Slack</span></div>
-      <div class="tool-chip"><img src="../images/jira.png" alt="Jira" loading="lazy"><span class="tool-chip-name">Jira</span></div>
-      <div class="tool-chip"><img src="../images/clickup.png" alt="ClickUp" loading="lazy"><span class="tool-chip-name">ClickUp</span></div>
+      <div class="tool-chip"><img src="../images/figma.png" alt="Figma" loading="lazy" decoding="async"><span class="tool-chip-name">Figma</span></div>
+      <div class="tool-chip"><img src="../images/javascript.png" alt="JavaScript" loading="lazy" decoding="async"><span class="tool-chip-name">JavaScript</span></div>
+      <div class="tool-chip"><img src="../images/supabase.png" alt="Supabase" loading="lazy" decoding="async"><span class="tool-chip-name">Supabase</span></div>
+      <div class="tool-chip"><img src="../images/gcloud.png" alt="Google Cloud" loading="lazy" decoding="async"><span class="tool-chip-name">Google Cloud</span></div>
+      <div class="tool-chip"><img src="../images/openrouter.png" alt="OpenRouter" loading="lazy" decoding="async"><span class="tool-chip-name">OpenRouter</span></div>
+      <div class="tool-chip"><img src="../images/gemini.jpg" alt="Gemini" loading="lazy" decoding="async"><span class="tool-chip-name">Gemini</span></div>
+      <div class="tool-chip"><img src="../images/firecrawl.png" alt="Firecrawl" loading="lazy" decoding="async"><span class="tool-chip-name">Firecrawl</span></div>
+      <div class="tool-chip"><img src="../images/slack.png" alt="Slack" loading="lazy" decoding="async"><span class="tool-chip-name">Slack</span></div>
+      <div class="tool-chip"><img src="../images/jira.png" alt="Jira" loading="lazy" decoding="async"><span class="tool-chip-name">Jira</span></div>
+      <div class="tool-chip"><img src="../images/clickup.png" alt="ClickUp" loading="lazy" decoding="async"><span class="tool-chip-name">ClickUp</span></div>
       <!-- duplicate for seamless loop -->
-      <div class="tool-chip"><img src="../images/figma.png" alt="Figma" loading="lazy"><span class="tool-chip-name">Figma</span></div>
-      <div class="tool-chip"><img src="../images/javascript.png" alt="JavaScript" loading="lazy"><span class="tool-chip-name">JavaScript</span></div>
-      <div class="tool-chip"><img src="../images/supabase.png" alt="Supabase" loading="lazy"><span class="tool-chip-name">Supabase</span></div>
-      <div class="tool-chip"><img src="../images/gcloud.png" alt="Google Cloud" loading="lazy"><span class="tool-chip-name">Google Cloud</span></div>
-      <div class="tool-chip"><img src="../images/openrouter.png" alt="OpenRouter" loading="lazy"><span class="tool-chip-name">OpenRouter</span></div>
-      <div class="tool-chip"><img src="../images/gemini.jpg" alt="Gemini" loading="lazy"><span class="tool-chip-name">Gemini</span></div>
-      <div class="tool-chip"><img src="../images/firecrawl.png" alt="Firecrawl" loading="lazy"><span class="tool-chip-name">Firecrawl</span></div>
-      <div class="tool-chip"><img src="../images/slack.png" alt="Slack" loading="lazy"><span class="tool-chip-name">Slack</span></div>
-      <div class="tool-chip"><img src="../images/jira.png" alt="Jira" loading="lazy"><span class="tool-chip-name">Jira</span></div>
-      <div class="tool-chip"><img src="../images/clickup.png" alt="ClickUp" loading="lazy"><span class="tool-chip-name">ClickUp</span></div>
+      <div class="tool-chip"><img src="../images/figma.png" alt="Figma" loading="lazy" decoding="async"><span class="tool-chip-name">Figma</span></div>
+      <div class="tool-chip"><img src="../images/javascript.png" alt="JavaScript" loading="lazy" decoding="async"><span class="tool-chip-name">JavaScript</span></div>
+      <div class="tool-chip"><img src="../images/supabase.png" alt="Supabase" loading="lazy" decoding="async"><span class="tool-chip-name">Supabase</span></div>
+      <div class="tool-chip"><img src="../images/gcloud.png" alt="Google Cloud" loading="lazy" decoding="async"><span class="tool-chip-name">Google Cloud</span></div>
+      <div class="tool-chip"><img src="../images/openrouter.png" alt="OpenRouter" loading="lazy" decoding="async"><span class="tool-chip-name">OpenRouter</span></div>
+      <div class="tool-chip"><img src="../images/gemini.jpg" alt="Gemini" loading="lazy" decoding="async"><span class="tool-chip-name">Gemini</span></div>
+      <div class="tool-chip"><img src="../images/firecrawl.png" alt="Firecrawl" loading="lazy" decoding="async"><span class="tool-chip-name">Firecrawl</span></div>
+      <div class="tool-chip"><img src="../images/slack.png" alt="Slack" loading="lazy" decoding="async"><span class="tool-chip-name">Slack</span></div>
+      <div class="tool-chip"><img src="../images/jira.png" alt="Jira" loading="lazy" decoding="async"><span class="tool-chip-name">Jira</span></div>
+      <div class="tool-chip"><img src="../images/clickup.png" alt="ClickUp" loading="lazy" decoding="async"><span class="tool-chip-name">ClickUp</span></div>
     </div>
   </div>
 
@@ -6644,9 +6649,9 @@
     <h2 class="contact-headline" data-i18n-html="contact_headline">Let's build<br><em>something</em><br>together.</h2>
     <div class="contact-links">
       <a class="contact-link primary" href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>
-      <a class="contact-link" href="https://linkedin.com/in/hugovermot" target="_blank">LinkedIn</a>
-      <a class="contact-link" href="https://twitter.com/Chilka_" target="_blank">X</a>
-      <a class="contact-link" href="https://github.com/uxfi" target="_blank">GitHub</a>
+      <a class="contact-link" href="https://linkedin.com/in/hugovermot" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      <a class="contact-link" href="https://twitter.com/Chilka_" target="_blank" rel="noopener noreferrer">X</a>
+      <a class="contact-link" href="https://github.com/uxfi" target="_blank" rel="noopener noreferrer">GitHub</a>
     </div>
 
     <footer>
@@ -7154,7 +7159,7 @@ const PROJECTS = [
       {num:'03', title:'Property Manager Workspace', desc:'Architected the operator side: Overview (compliance status, reporting due, active locks, pending UOA requests, upcoming payouts), Admission, Properties, Reports with Published / Needs Info / Corrections review loops, Payouts, and Payment Locks. Reporting requirements adapt per asset class: rent roll and occupancy for commercial, ADR and RevPAR for hospitality.'},
     ],
     outcome:'A full product foundation for a regulated RWA platform: positioning, homepage structure, UI kit, KYB flows, PM workspace architecture, and compliance-first reporting logic — closer to a premium fintech than a crypto dashboard.',
-    outcomeStat:null, screenshot:'../images/oneasset-investor-portfolio.webp', heroCover:'../images/oneasset-cover.png',
+    outcomeStat:null, url:'https://oneasset.io', screenshot:'../images/oneasset-investor-portfolio.webp', heroCover:'../images/oneasset-cover.png',
     narrative: [
       { type:'text', label:'The context', title:'Real-world assets need real-world trust',
         body:'OneAsset gives investors access to verified commercial real estate with fractional ownership from $10,000 and daily USDC yield, on Base with ERC-3643. The product had to earn institutional trust: VARA licensing, non-custodial positioning, live AUM, and institutional-grade reporting — real income from real assets, not casino-like performance promises.' },
@@ -7648,7 +7653,7 @@ const PROJECTS = [
       {num:'03', title:'Fundraising Support', desc:'Built the investor presentation and product demo that secured the $100K seed round from Columbus BlueSky Holding.'},
     ],
     outcome:'$100K seed raised. Video social network shipped on iOS and Android with creator monetization.',
-    outcomeStat:'$100K', url:'https://vloggy.app/',
+    outcomeStat:'$100K',
     narrative: [
       { type:'text', label:'The project', title:'Co-founding a video social network, before TikTok took over',
         body:'Vloggy was built around a simple insight: YouTube creators were constrained by the format, and short-form wasn\'t enough for storytelling. We designed a network that put creators first: 24-minute 1080p in-app editing, 10-second video comments as a new expressive format, and monetization built in from day one.' },
@@ -8117,7 +8122,8 @@ function showPreview(p) {
     previewInner.style.background = '#111';
   } else {
     previewVideo.pause();
-    previewVideo.src = '';
+    // removeAttribute, not src='' — an empty src makes the browser re-request the page URL
+    previewVideo.removeAttribute('src');
     previewVideo.style.display = 'none';
     const img = p.screenshot || p.cover;
     if (img) {
@@ -8125,7 +8131,7 @@ function showPreview(p) {
       previewImg.style.display = 'block';
       previewInner.style.background = '#111';
     } else {
-      previewImg.src = '';
+      previewImg.removeAttribute('src');
       previewImg.style.display = 'none';
       previewInner.style.background = `linear-gradient(135deg, ${p.accent}22 0%, ${p.accent}55 100%), #111`;
     }
@@ -8286,7 +8292,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
     case 'image-full': {
       const imgCls = b.borderless ? ' proj-n-img--borderless' : '';
       const bleedCls = b.bleed ? ' proj-n-block--bleed' : '';
-      const imgEl = `<img class="proj-n-img${imgCls}" src="${b.src}" alt="${b.caption||''}" loading="lazy">`;
+      const imgEl = `<img class="proj-n-img${imgCls}" src="${b.src}" alt="${b.caption||''}" loading="lazy" decoding="async">`;
       const inner = b.link
         ? `<a href="${b.link}" target="_blank" rel="noopener" class="proj-n-img-link" style="position:relative;display:block">${imgEl}</a>`
         : imgEl;
@@ -8343,8 +8349,8 @@ function renderNarrativeBlock(b, stepsHTML, p) {
               </label>
             </div>
             <div class="browser-viewport">
-              <img class="bw-img bw-img--dark" src="${b.src}" alt="${b.caption || ''}" loading="lazy">
-              <img class="bw-img bw-img--light" src="${b.srcAlt}" alt="${b.caption ? b.caption + ' (white theme)' : 'White theme'}" loading="lazy">
+              <img class="bw-img bw-img--dark" src="${b.src}" alt="${b.caption || ''}" loading="lazy" decoding="async">
+              <img class="bw-img bw-img--light" src="${b.srcAlt}" alt="${b.caption ? b.caption + ' (white theme)' : 'White theme'}" loading="lazy" decoding="async">
             </div>
           </div>
           ${b.caption ? `<div class="proj-n-caption">${b.caption}</div>` : ''}
@@ -8358,7 +8364,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             <span class="browser-bar-spacer"></span>
           </div>
           <div class="browser-viewport">
-            <img src="${b.src}" alt="${b.caption || ''}" loading="lazy">
+            <img src="${b.src}" alt="${b.caption || ''}" loading="lazy" decoding="async">
           </div>
         </div>
         ${b.caption ? `<div class="proj-n-caption">${b.caption}</div>` : ''}
@@ -8379,7 +8385,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         <div class="proj-n-grid-2${mod}">
           ${b.images.map(img => `
             <div class="proj-n-grid-item">
-              <img class="proj-n-img${imgCls}" src="${img.src}" alt="${img.caption||''}" loading="lazy">
+              <img class="proj-n-img${imgCls}" src="${img.src}" alt="${img.caption||''}" loading="lazy" decoding="async">
               ${img.caption ? `<div class="proj-n-caption">${img.caption}</div>` : ''}
             </div>`).join('')}
         </div>
@@ -8391,7 +8397,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         <div class="proj-n-tiles">
           ${b.images.map(img => `
             <div class="proj-n-tile">
-              <img src="${img.src}" alt="${img.caption||''}" loading="lazy">
+              <img src="${img.src}" alt="${img.caption||''}" loading="lazy" decoding="async">
             </div>`).join('')}
         </div>
         ${b.caption ? `<div class="proj-n-caption" style="margin-top:12px">${b.caption}</div>` : ''}
@@ -8416,7 +8422,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             ${b.body  ? `<div class="proj-n-body">${b.body}</div>` : ''}
           </div>
           <div>
-            <img class="proj-n-img${tiImgCls}" src="${b.src}" alt="${b.caption||''}" loading="lazy">
+            <img class="proj-n-img${tiImgCls}" src="${b.src}" alt="${b.caption||''}" loading="lazy" decoding="async">
             ${b.caption ? `<div class="proj-n-caption">${b.caption}</div>` : ''}
           </div>
         </div>
@@ -8429,7 +8435,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
           ${b.images.map(img => `
             <div class="proj-ba-item">
               <span class="proj-ba-tag ${img.label.toLowerCase()}">${img.label}</span>
-              <img class="proj-ba-img" src="${img.src}" alt="${img.label}" loading="lazy">
+              <img class="proj-ba-img" src="${img.src}" alt="${img.label}" loading="lazy" decoding="async">
               ${img.caption ? `<div class="proj-n-caption">${img.caption}</div>` : ''}
             </div>`).join('')}
         </div>
@@ -8464,7 +8470,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         <div class="panfy-screens panfy-screens--full">
           ${(b.images || []).map(img => `
             <a class="panfy-screen-card" href="${img.src}" target="_blank" rel="noopener">
-              <img src="${img.src}" alt="${img.caption || img.title || 'Panfy screenshot'}" loading="lazy">
+              <img src="${img.src}" alt="${img.caption || img.title || 'Panfy screenshot'}" loading="lazy" decoding="async">
               <div class="panfy-screen-caption"><strong>${img.title || 'Panfy screen'}</strong>${img.caption || ''}</div>
             </a>`).join('')}
         </div>
@@ -8653,7 +8659,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
               </div>
               <div class="creads-brand-card">
                 <div class="creads-brand-card-label">Logo · White on void</div>
-                <div class="creads-logo-tile"><img src="../images/creads-logo.webp" alt="Creads logo" loading="lazy"></div>
+                <div class="creads-logo-tile"><img src="../images/creads-logo.webp" alt="Creads logo" loading="lazy" decoding="async"></div>
               </div>
             </div>
             <div class="creads-brand-col">
@@ -8848,7 +8854,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
               </div>
               <div class="upviral-brand-card">
                 <div class="upviral-brand-card-label">Logo · On light canvas</div>
-                <div class="upviral-logo-tile"><img src="../images/upviral.png" alt="UpViral logo" loading="lazy"></div>
+                <div class="upviral-logo-tile"><img src="../images/upviral.png" alt="UpViral logo" loading="lazy" decoding="async"></div>
               </div>
             </div>
             <div class="upviral-brand-col">
@@ -9244,15 +9250,15 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             <div class="x-tab-content">
               <div class="x-tab-panel">
                 <div class="aw-inv">
-                  <div class="aw-slot common" title="sun_drachma · currency"><img src="../images/aw-item-coins.png" alt="Sun drachma" loading="lazy"><b>320</b></div>
-                  <div class="aw-slot common" title="desert_sage · crafting material"><img src="../images/aw-item-herbs.png" alt="Desert sage" loading="lazy"><b>x12</b></div>
-                  <div class="aw-slot common" title="desert_hide · crafting material"><img src="../images/aw-item-hide.png" alt="Desert hide" loading="lazy"><b>x8</b></div>
-                  <div class="aw-slot uncommon" title="bound_quest_scroll · quest item"><img src="../images/aw-item-scroll.png" alt="Quest scroll" loading="lazy"></div>
-                  <div class="aw-slot uncommon" title="medium_health_potion · consumable"><img src="../images/aw-item-potion-green.png" alt="Health potion" loading="lazy"><b>x5</b></div>
-                  <div class="aw-slot rare" title="solar_vigor_elixir · consumable"><img src="../images/aw-item-potion-red.png" alt="Solar vigor elixir" loading="lazy"><b>x3</b></div>
-                  <div class="aw-slot rare" title="jaguar_fang_charm · relic"><img src="../images/aw-item-fang-necklace.png" alt="Jaguar fang charm" loading="lazy"></div>
-                  <div class="aw-slot epic" title="sealed_solar_relic · relic · very rare"><img src="../images/aw-item-solar-relic.png" alt="Sealed solar relic" loading="lazy"></div>
-                  <div class="aw-slot legendary" title="amulet_of_the_jaguar · card · super rare"><img src="../images/aw-item-jaguar-amulet.png" alt="Amulet of the Jaguar" loading="lazy"></div>
+                  <div class="aw-slot common" title="sun_drachma · currency"><img src="../images/aw-item-coins.png" alt="Sun drachma" loading="lazy" decoding="async"><b>320</b></div>
+                  <div class="aw-slot common" title="desert_sage · crafting material"><img src="../images/aw-item-herbs.png" alt="Desert sage" loading="lazy" decoding="async"><b>x12</b></div>
+                  <div class="aw-slot common" title="desert_hide · crafting material"><img src="../images/aw-item-hide.png" alt="Desert hide" loading="lazy" decoding="async"><b>x8</b></div>
+                  <div class="aw-slot uncommon" title="bound_quest_scroll · quest item"><img src="../images/aw-item-scroll.png" alt="Quest scroll" loading="lazy" decoding="async"></div>
+                  <div class="aw-slot uncommon" title="medium_health_potion · consumable"><img src="../images/aw-item-potion-green.png" alt="Health potion" loading="lazy" decoding="async"><b>x5</b></div>
+                  <div class="aw-slot rare" title="solar_vigor_elixir · consumable"><img src="../images/aw-item-potion-red.png" alt="Solar vigor elixir" loading="lazy" decoding="async"><b>x3</b></div>
+                  <div class="aw-slot rare" title="jaguar_fang_charm · relic"><img src="../images/aw-item-fang-necklace.png" alt="Jaguar fang charm" loading="lazy" decoding="async"></div>
+                  <div class="aw-slot epic" title="sealed_solar_relic · relic · very rare"><img src="../images/aw-item-solar-relic.png" alt="Sealed solar relic" loading="lazy" decoding="async"></div>
+                  <div class="aw-slot legendary" title="amulet_of_the_jaguar · card · super rare"><img src="../images/aw-item-jaguar-amulet.png" alt="Amulet of the Jaguar" loading="lazy" decoding="async"></div>
                   <div class="aw-slot common"></div>
                   <div class="aw-slot common"></div>
                   <div class="aw-slot common"></div>
@@ -9421,7 +9427,7 @@ function renderProject(p) {
         ${p.gallery.beforeAfter.map(img => `
           <div class="proj-ba-item">
             <span class="proj-ba-tag ${img.label.toLowerCase()}">${img.label}</span>
-            <img class="proj-ba-img" src="${img.src}" alt="${img.label}" loading="lazy">
+            <img class="proj-ba-img" src="${img.src}" alt="${img.label}" loading="lazy" decoding="async">
             <div class="proj-screen-caption">${img.caption}</div>
           </div>`).join('')}
       </div>
@@ -9435,7 +9441,7 @@ function renderProject(p) {
         <div class="proj-screens-grid">
           ${p.gallery.screens.map(img => `
             <div class="proj-screen-item">
-              <img class="proj-screen-img" src="${img.src}" alt="${img.caption}" loading="lazy">
+              <img class="proj-screen-img" src="${img.src}" alt="${img.caption}" loading="lazy" decoding="async">
               <div class="proj-screen-caption">${img.caption}</div>
             </div>`).join('')}
         </div>` : ''}
@@ -9445,7 +9451,7 @@ function renderProject(p) {
           <div class="proj-gallery-section-grid">
             ${sec.images.map(img => `
               <div class="proj-screen-item">
-                <img class="proj-screen-img" src="${img.src}" alt="${img.caption}" loading="lazy">
+                <img class="proj-screen-img" src="${img.src}" alt="${img.caption}" loading="lazy" decoding="async">
                 ${img.caption ? `<div class="proj-screen-caption">${img.caption}</div>` : ''}
               </div>`).join('')}
           </div>
@@ -9453,7 +9459,7 @@ function renderProject(p) {
     </div>` : '';
 
   const urlBtn = p.url
-    ? `<a class="proj-url-btn" href="${p.url}" target="_blank" style="display:inline-flex; align-items:center; gap:8px;">
+    ? `<a class="proj-url-btn" href="${p.url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:8px;">
         View result 
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       </a>`
@@ -9705,7 +9711,7 @@ function renderAiBento() {
     const badges = (p.badges || []).slice(0, 2);
     return `
     <div class="ai-bento-tile" onclick="openProject('${p.id}')">
-      <img class="ai-bento-bg" src="${bgSrc}" alt="${p.company}" loading="lazy">
+      <img class="ai-bento-bg" src="${bgSrc}" alt="${p.company}" loading="lazy" decoding="async">
       <div class="ai-bento-overlay"></div>
       <div class="ai-bento-content">
         <div class="ai-bento-badges">${badges.map(b => `<span class="ai-bento-badge">${b}</span>`).join('')}</div>
@@ -10025,7 +10031,7 @@ const TRANSLATIONS = {
     res_loyalty: 'Loyalty enrollment Q1',
     res_invest: 'Investment activity',
     res_dev: 'Dev time via design system',
-    work_label: 'Recent Job',
+    work_label: 'Recent work',
     work_count: '16 projects',
     ai_products_label: 'AI Products — Solo Built',
     ai_products_title: 'Bootstrapped Websites',
@@ -10205,7 +10211,7 @@ initRippleButton();
 </div>
 
 <!-- ── JARVOS CHATBOT ───────────────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js" integrity="sha384-odPBjvtXVM/5hOYIr3A1dB+flh0c3wAT3bSesIOqEGmyUA4JoKf/YTWy0XKOYAY7" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   /* ── Markdown inside assistant bubbles ── */
   .hrhv-bubble.assistant p { margin: 0 0 8px; }
@@ -11092,7 +11098,7 @@ function renderIfaceGrid() {
   el.innerHTML = INTERFACES.filter(iface => !iface.hidden).map(iface => `
     <div class="iface-card" onclick="openIfaceModal('${iface.id}')" title="${escapeHTML(iface.name)}">
       ${iface.thumb
-        ? `<img class="iface-card-thumb" src="${iface.thumb}" alt="${escapeHTML(iface.name)}" loading="lazy">`
+        ? `<img class="iface-card-thumb" src="${iface.thumb}" alt="${escapeHTML(iface.name)}" loading="lazy" decoding="async">`
         : `<div class="iface-card-thumb--empty"><span class="iface-card-initials">${escapeHTML(getIfaceInitials(iface.name))}</span></div>`
       }
       <div class="iface-card-open">
@@ -11327,7 +11333,9 @@ function openIfaceModal(id) {
 
   if (isMobile) {
     const frame = document.getElementById('iface-modal-frame');
-    frame.src = '';
+    // about:blank, not '' — an empty src resolves to the page URL and reloads the
+    // whole portfolio inside the frame
+    frame.src = 'about:blank';
     const row = document.getElementById('iface-phones-row');
     const screens = Array.isArray(iface.screens) ? iface.screens : [{ label: iface.name, src: iface.src }];
     modal.classList.toggle('two-screens', screens.length === 2);
@@ -11362,7 +11370,7 @@ function openIfaceModal(id) {
 function closeIfaceModal() {
   const options = arguments[0] || {};
   document.getElementById('iface-modal').classList.remove('open', 'mobile', 'two-screens');
-  document.getElementById('iface-modal-frame').src = '';
+  document.getElementById('iface-modal-frame').src = 'about:blank';
   document.getElementById('iface-phones-row').innerHTML = '';
   updateCustomCursorHover(null);
   setModalUrl('');
