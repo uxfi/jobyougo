@@ -2,8 +2,9 @@ import 'dotenv/config';
 import { createServer } from 'http';
 import { readFile, writeFile, readdir, stat, mkdir } from 'fs/promises';
 import { watch, readFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
+import { gzipSync, brotliCompressSync, constants as zlibConstants } from 'zlib';
 import { spawn } from 'child_process';
 import { load as yamlLoad, dump as yamlDump } from 'js-yaml';
 import { supabase, isEnabled as useSupabase } from '../lib/supabase.mjs';
@@ -30,6 +31,64 @@ if (IS_VERCEL) {
     }
   });
 }
+// ─── Static path containment ──────────────────────────────────────────────────
+// URL parsing collapses a literal "../", but a percent-encoded one ("%2e%2e")
+// survives it and only becomes ".." at decodeURIComponent time — after the
+// prefix check. Every path built from a decoded URL segment goes through this.
+function safeJoin(base, ...segments) {
+  const root = resolve(base);
+  const target = resolve(root, ...segments.map(s => String(s).replace(/^[/\\]+/, '')));
+  return target === root || target.startsWith(root + sep) ? target : null;
+}
+
+// ─── Text responses: ETag revalidation + gzip/brotli ──────────────────────────
+// portfolio.html alone is ~600 KB of HTML; uncompressed it dominates first load.
+const COMPRESS_MIN_BYTES = 1024;
+const compressedCache = new Map(); // `${encoding}:${etag}` -> Buffer
+
+function weakHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36);
+}
+
+function sendText(req, res, body, status = 200) {
+  const etag = `W/"${weakHash(body)}-${body.length.toString(36)}"`;
+  res.setHeader('ETag', etag);
+  res.setHeader('Vary', 'Accept-Encoding');
+  if (req.headers['if-none-match'] === etag) { res.writeHead(304); res.end(); return; }
+
+  const accept = req.headers['accept-encoding'] || '';
+  const rawBytes = Buffer.byteLength(body);
+  let encoding = null;
+  if (rawBytes >= COMPRESS_MIN_BYTES) {
+    if (/\bbr\b/.test(accept)) encoding = 'br';
+    else if (/\bgzip\b/.test(accept)) encoding = 'gzip';
+  }
+
+  let payload;
+  if (encoding) {
+    const key = `${encoding}:${etag}`;
+    payload = compressedCache.get(key);
+    if (!payload) {
+      payload = encoding === 'br'
+        ? brotliCompressSync(body, { params: {
+            [zlibConstants.BROTLI_PARAM_QUALITY]: 5,
+            [zlibConstants.BROTLI_PARAM_SIZE_HINT]: rawBytes,
+          } })
+        : gzipSync(body, { level: 6 });
+      if (compressedCache.size > 32) compressedCache.clear();
+      compressedCache.set(key, payload);
+    }
+    res.setHeader('Content-Encoding', encoding);
+  } else {
+    payload = Buffer.from(body);
+  }
+  res.setHeader('Content-Length', payload.length);
+  res.writeHead(status);
+  res.end(payload);
+}
+
 const SUPABASE_URL_VALUE  = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_VALUE = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const activePinchtabTabs = new Set();
@@ -2194,23 +2253,52 @@ async function fetchKnownSourceJobDescription(jobUrl, { maxChars = 15000, logLab
   return null;
 }
 
+// Challenge INFRASTRUCTURE. These strings ship only with a real interstitial,
+// so they are the only ones safe to match against raw HTML.
+//
+// A bare 'cloudflare' substring is NOT one of them: Cloudflare injects
+// /cdn-cgi/scripts/<hash>/cloudflare-static/email-decode.min.js into any
+// ordinary page that merely contains an email address. Matching it against raw
+// HTML parked live 200-OK job pages as "blocked" and sent the headed-Chrome
+// fallback waiting 75s for a wall that was never on screen.
+const CHALLENGE_HTML_MARKERS = [
+  'cf-mitigated',
+  '/cdn-cgi/challenge-platform/',
+  'cf_chl_opt',
+  'cf-browser-verification',
+  '__cf_chl',
+];
+
+// Unambiguous challenge copy — matched against EXTRACTED TEXT only, never raw HTML.
+const CHALLENGE_TEXT_MARKERS = [
+  'just a moment',
+  'enable javascript and cookies',
+  'verify you are human',
+  'checking your browser',
+];
+
+// Phrases a genuine JD can legitimately contain (security roles, access-policy
+// blurbs). Only trusted on a short page, since real interstitials carry almost
+// no copy while a real posting carries plenty.
+const CHALLENGE_AMBIGUOUS_TEXT_MARKERS = ['security check', 'access denied'];
+const INTERSTITIAL_MAX_TEXT_LENGTH = 1500;
+
 function isBlockedJobDescriptionResponse({ url = '', status = 200, html = '', text = '' } = {}) {
   const rawHtml = String(html || '');
+  const lowHtml = rawHtml.toLowerCase();
   const bodyText = String(text || extractTextFromHtml(rawHtml)).toLowerCase();
   if (status === 401 || status === 403 || status === 429) return true;
   if (!bodyText) return true;
 
-  return [
-    'cf-mitigated',
-    'just a moment',
-    'enable javascript and cookies',
-    'verify you are human',
-    'checking your browser',
-    'security check',
-    'access denied',
-    'cloudflare',
-  ].some(fragment => rawHtml.toLowerCase().includes(fragment) || bodyText.includes(fragment)) ||
-    (/jobsdb\.com/i.test(url) && bodyText.length < 800);
+  if (CHALLENGE_HTML_MARKERS.some(marker => lowHtml.includes(marker))) return true;
+  if (CHALLENGE_TEXT_MARKERS.some(marker => bodyText.includes(marker))) return true;
+  if (bodyText.length < INTERSTITIAL_MAX_TEXT_LENGTH
+    && CHALLENGE_AMBIGUOUS_TEXT_MARKERS.some(marker => bodyText.includes(marker))) return true;
+
+  // Cloudflare's own error/block pages announce themselves in the title.
+  if (/attention required.{0,3}\|.{0,3}cloudflare/i.test(rawHtml)) return true;
+
+  return /jobsdb\.com/i.test(url) && bodyText.length < 800;
 }
 
 // Headed-Chrome fallback for anti-bot / Cloudflare-protected job pages (LOCAL ONLY —
@@ -5503,6 +5591,9 @@ const server = createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
   if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
@@ -5513,8 +5604,7 @@ const server = createServer(async (req, res) => {
       html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
                  .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.writeHead(200);
-      res.end(html);
+      sendText(req, res, html);
       return;
     }
 
@@ -5524,8 +5614,7 @@ const server = createServer(async (req, res) => {
       html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
                  .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.writeHead(200);
-      res.end(html);
+      sendText(req, res, html);
       return;
     }
 
@@ -5534,8 +5623,7 @@ const server = createServer(async (req, res) => {
       html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
                  .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.writeHead(200);
-      res.end(html);
+      sendText(req, res, html);
       return;
     }
 
@@ -5544,16 +5632,14 @@ const server = createServer(async (req, res) => {
       html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
                  .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.writeHead(200);
-      res.end(html);
+      sendText(req, res, html);
       return;
     }
 
     if (path === '/portfolio' || path === '/portfolio.html' || path.startsWith('/portfolio/layout-')) {
       const html = await readFile(join(__dirname, 'portfolio.html'), 'utf-8');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.writeHead(200);
-      res.end(html);
+      sendText(req, res, html);
       return;
     }
 
@@ -5563,8 +5649,7 @@ const server = createServer(async (req, res) => {
         const html = await readFile(join(__dirname, 'interfaces', safeName), 'utf-8');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-        res.writeHead(200);
-        res.end(html);
+        sendText(req, res, html);
       } catch {
         res.writeHead(404); res.end('Not found');
       }
@@ -5607,7 +5692,9 @@ const server = createServer(async (req, res) => {
 
     if (path.startsWith('/covers/') && path.match(/\.(jpe?g|png|svg|webp)$/i)) {
       try {
-        const file = await readFile(join(__dirname, decodeURIComponent(path)));
+        const coverPath = safeJoin(join(__dirname, 'covers'), decodeURIComponent(path).slice('/covers/'.length));
+        if (!coverPath) { res.writeHead(403); res.end('Forbidden'); return; }
+        const file = await readFile(coverPath);
         const ext = path.split('.').pop().toLowerCase();
         const types = {
           png: 'image/png',
@@ -5627,7 +5714,9 @@ const server = createServer(async (req, res) => {
     if (path.startsWith('/assets/')) {
       try {
         const assetPath = decodeURIComponent(path.slice('/assets/'.length));
-        const file = await readFile(join(__dirname, 'assets', assetPath));
+        const assetFile = safeJoin(join(__dirname, 'assets'), assetPath);
+        if (!assetFile) { res.writeHead(403); res.end('Forbidden'); return; }
+        const file = await readFile(assetFile);
         const ext = assetPath.split('.').pop().toLowerCase();
         const types = {
           png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
