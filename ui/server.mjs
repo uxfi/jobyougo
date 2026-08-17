@@ -12,6 +12,8 @@ import { chat, chatStream, MODELS } from '../lib/openrouter.mjs';
 import { aggregateUsageEvents, readAiUsageEvents } from '../lib/ai-usage-log.mjs';
 import { loadCvTemplateData } from '../lib/cv-template-data.mjs';
 import { buildApplySpec } from '../lib/apply-spec.mjs';
+import { loadCanonicalStates, resolveCanonicalState } from '../tracker-utils.mjs';
+import { detectChallenge, matchChallengeText } from '../lib/challenge-detect.mjs';
 import { STYLE_RULES, polishApplicationAnswer } from '../lib/apply-llm.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
 
@@ -73,7 +75,7 @@ function sendText(req, res, body, status = 200) {
     if (!payload) {
       payload = encoding === 'br'
         ? brotliCompressSync(body, { params: {
-            [zlibConstants.BROTLI_PARAM_QUALITY]: 5,
+            [zlibConstants.BROTLI_PARAM_QUALITY]: 9, // ~113 KB in 27ms for portfolio.html, then cached
             [zlibConstants.BROTLI_PARAM_SIZE_HINT]: rawBytes,
           } })
         : gzipSync(body, { level: 6 });
@@ -87,6 +89,33 @@ function sendText(req, res, body, status = 200) {
   res.setHeader('Content-Length', payload.length);
   res.writeHead(status);
   res.end(payload);
+}
+
+// ─── Per-IP rate limit (public LLM route) ─────────────────────────────────────
+const HRHV_WINDOW_MS = 10 * 60 * 1000;
+const HRHV_MAX_REQUESTS = Number(process.env.HRHV_RATE_LIMIT || 30);
+const hrhvHits = new Map(); // ip -> timestamps[]
+
+function clientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd) return fwd.split(',')[0].trim();
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function hrhvRateLimited(req) {
+  if (!Number.isFinite(HRHV_MAX_REQUESTS) || HRHV_MAX_REQUESTS <= 0) return false;
+  const now = Date.now();
+  const ip = clientIp(req);
+  const hits = (hrhvHits.get(ip) || []).filter(t => now - t < HRHV_WINDOW_MS);
+  if (hits.length >= HRHV_MAX_REQUESTS) { hrhvHits.set(ip, hits); return true; }
+  hits.push(now);
+  hrhvHits.set(ip, hits);
+  if (hrhvHits.size > 5000) {
+    for (const [key, stamps] of hrhvHits) {
+      if (!stamps.some(t => now - t < HRHV_WINDOW_MS)) hrhvHits.delete(key);
+    }
+  }
+  return false;
 }
 
 const SUPABASE_URL_VALUE  = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -461,13 +490,58 @@ function getMarkdownTableRowNumber(line = '') {
   return match ? match[1].trim() : '';
 }
 
+// States that represent a real engagement with the company and must never be
+// deleted from the tracker. `Hired` belongs here: it is the terminal success
+// state added to templates/states.yml in v1.26.0, and this guard was written
+// against the pre-1.26 list of 8 states — so the single most valuable row in
+// the tracker was the one row DELETE would happily discard.
+const PROTECTED_APPLICATION_STATES = ['Applied', 'Aplicado', 'Interview', 'Offer', 'Responded', 'Hired'];
+
 function isAppliedStatus(status = '') {
   const s = String(status || '').trim();
-  return ['Applied', 'Aplicado', 'Interview', 'Offer', 'Responded'].includes(s);
+  return PROTECTED_APPLICATION_STATES.includes(s);
+}
+
+// templates/states.yml, read once per process. A broken/missing file yields an
+// empty list, which makes resolveCanonicalState reject everything — failing
+// closed is right here: better to refuse a status change than to write an
+// unvalidated one into the tracker.
+let _canonicalStatesCache = null;
+function canonicalApplicationStates() {
+  if (_canonicalStatesCache) return _canonicalStatesCache;
+  try {
+    _canonicalStatesCache = loadCanonicalStates(join(ROOT, 'templates', 'states.yml'));
+  } catch {
+    _canonicalStatesCache = [];
+  }
+  return _canonicalStatesCache;
+}
+
+// Recover a deleted offer's posting URL from its evaluation report, so the
+// scan-history row carries the real URL (URL-exact dedup) instead of the
+// `unknown:{company}:{role}` placeholder (company+role dedup only).
+//
+// Accepts BOTH link shapes that occur in data/applications.md: the legacy
+// root-relative `[8](reports/…)` and the normalized `[14](../reports/…)` that
+// merge-tracker.mjs writes relative to the tracker's own directory. The old
+// regex only matched the legacy form, so URL capture failed on every correctly
+// normalized row.
+async function findPostingUrlFromReportLink(reportLink = '') {
+  const match = String(reportLink || '').match(/\[\d+\]\((?:\.\.\/)?reports\/([^)]+\.md)\)/);
+  if (!match) return '';
+  try {
+    const reportContent = await readFile(join(ROOT, 'reports', match[1]), 'utf-8');
+    const urlMatch = reportContent.match(/^\*\*URL:\*\*\s*(.+)$/m);
+    const url = urlMatch ? urlMatch[1].trim() : '';
+    return url.startsWith('http') ? url : '';
+  } catch {
+    return ''; // report may have been deleted or never written
+  }
 }
 
 function lineLooksAppliedApplication(line = '') {
-  return /\|\s*(Applied|Aplicado|Interview|Offer|Responded)\s*\|\s*(?:✓|✅|❌|—|-)?\s*\|/i.test(String(line || ''));
+  const states = PROTECTED_APPLICATION_STATES.join('|');
+  return new RegExp(`\\|\\s*(${states})\\s*\\|\\s*(?:✓|✅|❌|—|-)?\\s*\\|`, 'i').test(String(line || ''));
 }
 
 function parsePipeline(content) {
@@ -2253,51 +2327,13 @@ async function fetchKnownSourceJobDescription(jobUrl, { maxChars = 15000, logLab
   return null;
 }
 
-// Challenge INFRASTRUCTURE. These strings ship only with a real interstitial,
-// so they are the only ones safe to match against raw HTML.
-//
-// A bare 'cloudflare' substring is NOT one of them: Cloudflare injects
-// /cdn-cgi/scripts/<hash>/cloudflare-static/email-decode.min.js into any
-// ordinary page that merely contains an email address. Matching it against raw
-// HTML parked live 200-OK job pages as "blocked" and sent the headed-Chrome
-// fallback waiting 75s for a wall that was never on screen.
-const CHALLENGE_HTML_MARKERS = [
-  'cf-mitigated',
-  '/cdn-cgi/challenge-platform/',
-  'cf_chl_opt',
-  'cf-browser-verification',
-  '__cf_chl',
-];
-
-// Unambiguous challenge copy — matched against EXTRACTED TEXT only, never raw HTML.
-const CHALLENGE_TEXT_MARKERS = [
-  'just a moment',
-  'enable javascript and cookies',
-  'verify you are human',
-  'checking your browser',
-];
-
-// Phrases a genuine JD can legitimately contain (security roles, access-policy
-// blurbs). Only trusted on a short page, since real interstitials carry almost
-// no copy while a real posting carries plenty.
-const CHALLENGE_AMBIGUOUS_TEXT_MARKERS = ['security check', 'access denied'];
-const INTERSTITIAL_MAX_TEXT_LENGTH = 1500;
-
+// Marker lists and the tiering rule live in lib/challenge-detect.mjs — one
+// source of truth for every detector here (see tests/challenge-detect.test.mjs).
 function isBlockedJobDescriptionResponse({ url = '', status = 200, html = '', text = '' } = {}) {
   const rawHtml = String(html || '');
-  const lowHtml = rawHtml.toLowerCase();
-  const bodyText = String(text || extractTextFromHtml(rawHtml)).toLowerCase();
-  if (status === 401 || status === 403 || status === 429) return true;
+  const bodyText = String(text || extractTextFromHtml(rawHtml));
   if (!bodyText) return true;
-
-  if (CHALLENGE_HTML_MARKERS.some(marker => lowHtml.includes(marker))) return true;
-  if (CHALLENGE_TEXT_MARKERS.some(marker => bodyText.includes(marker))) return true;
-  if (bodyText.length < INTERSTITIAL_MAX_TEXT_LENGTH
-    && CHALLENGE_AMBIGUOUS_TEXT_MARKERS.some(marker => bodyText.includes(marker))) return true;
-
-  // Cloudflare's own error/block pages announce themselves in the title.
-  if (/attention required.{0,3}\|.{0,3}cloudflare/i.test(rawHtml)) return true;
-
+  if (detectChallenge({ status, html: rawHtml, text: bodyText }).blocked) return true;
   return /jobsdb\.com/i.test(url) && bodyText.length < 800;
 }
 
@@ -2950,9 +2986,16 @@ const PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT = `(() => {
 // Smart-solve: only invokes the autosolver when challenge text is detected on
 // the page. Re-runs the extract script once if solve succeeds. Returns the new
 // jobs array (or original if no solve attempted / solve failed).
-const CHALLENGE_TEXT_REGEX = /(captcha|verify you are human|unusual traffic|robot|just a moment|cloudflare|checking your browser)/i;
+// Was: /(captcha|…|robot|…|cloudflare|…)/i — `robot` has no word boundary, so
+// it fired on "Robotics"/"Robotic", and `cloudflare` fired on Cloudflare's own
+// careers page. Both are pages this scanner is meant to read. Every caller
+// below is guarded by "0 jobs extracted", so a false positive cost a wasted
+// PinchTab solve attempt and a misleading log line rather than lost data.
+function looksLikeChallengePage(bodyText = '') {
+  return matchChallengeText(bodyText) !== null;
+}
 async function smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript, label }) {
-  if (jobs.length || !CHALLENGE_TEXT_REGEX.test(bodyText)) return jobs;
+  if (jobs.length || !looksLikeChallengePage(bodyText)) return jobs;
   if (pinchtabSolveCircuitOpen()) {
     return jobs;
   }
@@ -2995,7 +3038,7 @@ async function fetchPinchtabBraveSection({ name, query }) {
     const bodyText = cleanString(result.bodyText || '');
     jobs = await smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript: PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT, label: 'PinchTab/Brave' });
 
-    if (!jobs.length && CHALLENGE_TEXT_REGEX.test(bodyText)) {
+    if (!jobs.length && looksLikeChallengePage(bodyText)) {
       console.warn(`[scan] [PinchTab/Brave] Challenge page detected for "${name}" (solve unsuccessful)`);
       return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave', error: 'challenge page' };
     }
@@ -3030,7 +3073,7 @@ async function fetchPinchtabSearchSection({ name, query }) {
     const bodyText = cleanString(result.bodyText || '');
     jobs = await smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript: PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, label: 'PinchTab/Google' });
 
-    if (!jobs.length && CHALLENGE_TEXT_REGEX.test(bodyText)) {
+    if (!jobs.length && looksLikeChallengePage(bodyText)) {
       console.warn(`[scan] [PinchTab/Google] Challenge page detected for "${name}" (solve unsuccessful)`);
       return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: 'challenge page' };
     }
@@ -3709,7 +3752,7 @@ async function fetchPlaywrightSections(companies = []) {
       // If empty, check for a challenge wall and try solving once before giving up.
       if (!jobs.length) {
         const bodyText = String(await pinchtabEvaluate(tabId, '(document.body && document.body.innerText || "").slice(0, 2000)', { awaitPromise: false, timeout: 5000 }) || '');
-        if (CHALLENGE_TEXT_REGEX.test(bodyText)) {
+        if (looksLikeChallengePage(bodyText)) {
           console.log(`[scan] [pinchtab] "${company.name}" challenge detected, attempting solve...`);
           const solved = await pinchtabSolve(tabId);
           if (solved) {
@@ -5740,8 +5783,21 @@ const server = createServer(async (req, res) => {
 
     if (path.startsWith('/api/applications/') && method === 'PATCH') {
       const num = decodeURIComponent(path.slice('/api/applications/'.length));
-      const { status } = await readBody(req);
-      if (!status) return json(res, { error: 'status is required' }, 400);
+      const { status: rawStatus } = await readBody(req);
+      if (!rawStatus) return json(res, { error: 'status is required' }, 400);
+      // AGENTS.md: "All statuses MUST be canonical (see templates/states.yml)".
+      // This route used to write whatever string it was handed, so a typo or a
+      // stale client could put a non-canonical value straight into the tracker
+      // (and into Supabase) with nothing to catch it. resolveCanonicalState is
+      // the strict resolver — it maps aliases/case to the canonical label and
+      // returns null on anything it doesn't recognize.
+      const status = resolveCanonicalState(rawStatus, canonicalApplicationStates());
+      if (!status) {
+        return json(res, {
+          error: `"${rawStatus}" is not a canonical state`,
+          valid: canonicalApplicationStates().map(s => s.label),
+        }, 400);
+      }
       if (useSupabase) {
         const { error } = await supabase
           .from('applications')
@@ -5808,7 +5864,12 @@ const server = createServer(async (req, res) => {
 
         const company = String(existing.company ?? existing.Company ?? '').trim();
         const role = String(existing.role ?? existing.Role ?? '').trim();
-        const jobUrl = existing.job_url ?? existing.JobURL ?? existing.report ?? '';
+        // The Supabase `applications` table has no URL column (sync-supabase.mjs
+        // writes num/date/company/role/score/status/pdf/report/notes only), so
+        // `report` — a markdown link — was the only candidate and never passed
+        // the startsWith('http') test below. Every Supabase-mode deletion
+        // therefore recorded `unknown:…` and lost URL-exact dedup.
+        const jobUrl = await findPostingUrlFromReportLink(existing.report ?? '');
 
         const { error } = await supabase
           .from('applications')
@@ -5849,15 +5910,7 @@ const server = createServer(async (req, res) => {
       const cells = targetLine.split('|').map(c => c.trim());
       const company = cells[3] || '';
       const role = cells[4] || '';
-      let jobUrl = '';
-      const reportMatch = targetLine.match(/\[[\d]+\]\(reports\/([^)]+\.md)\)/);
-      if (reportMatch) {
-        try {
-          const reportContent = await readFile(join(ROOT, 'reports', reportMatch[1]), 'utf-8');
-          const urlMatch = reportContent.match(/^\*\*URL:\*\*\s*(.+)$/m);
-          if (urlMatch) jobUrl = urlMatch[1].trim();
-        } catch { /* report may not exist */ }
-      }
+      const jobUrl = await findPostingUrlFromReportLink(targetLine);
 
       const { content, updated } = setApplicationStatusInMarkdown(raw, num, 'Discarded');
       if (!updated) return json(res, { error: 'Application not found' }, 404);
@@ -7214,7 +7267,9 @@ Contraintes :
     if (path.startsWith('/images/')) {
       const filename = decodeURIComponent(path.slice('/images/'.length));
       try {
-        const content = await readFile(join(ROOT, 'images', filename));
+        const imageFile = safeJoin(join(ROOT, 'images'), filename);
+        if (!imageFile) { res.writeHead(403); res.end('Forbidden'); return; }
+        const content = await readFile(imageFile);
         const ext = filename.split('.').pop().toLowerCase();
         const types = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', svg: 'image/svg+xml', mp4: 'video/mp4', webm: 'video/webm', glb: 'model/gltf-binary', gltf: 'model/gltf+json' };
         res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
@@ -7231,7 +7286,8 @@ Contraintes :
         // Strip leading slash to join correctly within ROOT
         const decodedPath = decodeURIComponent(path);
         const relPath = decodedPath.startsWith('/') ? decodedPath.slice(1) : decodedPath;
-        const fullPath = join(ROOT, relPath);
+        const fullPath = safeJoin(ROOT, relPath);
+        if (!fullPath) { res.writeHead(403); res.end('Forbidden'); return; }
         const content = await readFile(fullPath);
         const ext = decodedPath.split('.').pop().toLowerCase();
         const types = {
@@ -7254,6 +7310,12 @@ Contraintes :
 
     // ── HRHV: Personal HR Agent ────────────────────────────────────────────────
     if (path === '/api/hrhv' && method === 'POST') {
+      // Public route (portfolio chatbot) → the only unauthenticated endpoint that
+      // spends LLM credits. Per-IP sliding window on top of the per-request caps.
+      if (hrhvRateLimited(req)) {
+        res.setHeader('Retry-After', String(Math.ceil(HRHV_WINDOW_MS / 1000)));
+        res.writeHead(429); res.end('Too many requests'); return;
+      }
       const body = await readBody(req);
 
       // Validate & sanitize messages
