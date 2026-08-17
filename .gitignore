@@ -12,7 +12,14 @@ data/*.json
 
 # Personal CV & interview prep
 cv.md
-interview-prep/
+# Ignore the content, ship the system-owned scaffold (README + .gitkeep).
+interview-prep/*
+!interview-prep/
+!interview-prep/.gitkeep
+!interview-prep/sessions/
+interview-prep/sessions/*
+!interview-prep/sessions/.gitkeep
+!interview-prep/sessions/README.md
 
 # Reports (generated per-application)
 reports/*.md
@@ -47,11 +54,12 @@ modes/_profile.md
 # images/
 # ui/covers/
 ui/*.pdf
-fonts/
 
 # ── Generated ──
 .resolved-prompt-*
 node_modules/
+# Backup files: `{file}.bak` and `{file}.bak-{ISO timestamp}` shapes.
+*.bak*
 
 # ── OS ──
 .DS_Store
