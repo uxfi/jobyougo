@@ -2,99 +2,157 @@
 /**
  * normalize-statuses.mjs — Clean non-canonical states in applications.md
  *
- * Maps legacy/Spanish statuses to English canonical ones per states.yml:
- *   Evaluated, Applied, Responded, Interview, Offer, Rejected, Discarded, SKIP
+ * Maps all non-canonical statuses to canonical ones per states.yml:
+ *   Evaluada, Aplicado, Respondido, Entrevista, Oferta, Rechazado, Descartado, NO APLICAR
  *
  * Also strips markdown bold (**) and dates from the status field,
  * moving DUPLICADO info to the notes column.
  *
- * Run: node normalize-statuses.mjs [--dry-run]
+ * Run: node career-ops/normalize-statuses.mjs [--dry-run]
  */
 
-import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'fs';
+import { readFileSync, copyFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
+import {
+  openTrackerTransaction, rebuildRow, resolveTrackerPath,
+  loadCanonicalStates, resolveCanonicalState,} from './tracker-utils.mjs';
+import { resolveColumns, parseTrackerRow } from './tracker-parse.mjs';
 
 const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
-  ? join(CAREER_OPS, 'data/applications.md')
-  : join(CAREER_OPS, 'applications.md');
+const APPS_FILE = resolveTrackerPath(CAREER_OPS);
 const DRY_RUN = process.argv.includes('--dry-run');
 
-const CANONICAL = ['Evaluated', 'Applied', 'Responded', 'Interview', 'Offer', 'Rejected', 'Discarded', 'SKIP'];
+// Ensure required directories exist (fresh setup)
+mkdirSync(join(CAREER_OPS, 'data'), { recursive: true });
+
+// Canonical status mapping
+let statesCache = null;
+/** Canonical states from templates/states.yml, read once per CLI run. */
+function canonicalStates() {
+  if (statesCache) return statesCache;
+  try {
+    statesCache = loadCanonicalStates(join(CAREER_OPS, 'templates', 'states.yml'));
+  } catch {
+    statesCache = []; // broken install: fall through to "unknown", never a stale copy
+  }
+  return statesCache;
+}
 
 function normalizeStatus(raw) {
-  const s = raw.replace(/\*\*/g, '').trim();
+  // Strip markdown bold
+  let s = raw.replace(/\*\*/g, '').trim();
   const lower = s.toLowerCase();
 
-  // Already canonical — just fix casing
-  for (const c of CANONICAL) {
+  // DUPLICADO variants → Discarded
+  if (/^duplicado/i.test(s) || /^dup\b/i.test(s)) {
+    return { status: 'Discarded', moveToNotes: raw.trim() };
+  }
+
+  // CERRADA / Cancelada / Descartada → Discarded
+  if (/^cerrada$/i.test(s)) return { status: 'Discarded' };
+  if (/^cancelada/i.test(s)) return { status: 'Discarded' };
+  if (/^descartada$/i.test(s)) return { status: 'Discarded' };
+  if (/^descartado$/i.test(s)) return { status: 'Discarded' };
+
+  // Rechazada / Rechazado → Rejected
+  // `rechazada?` reads as "rechazad" + an OPTIONAL trailing "a", so it accepted
+  // "rechazada" and the bare stem "rechazad" but never "rechazado" — the masculine
+  // form this comment claims to handle, that states.yml lists as an alias, and that
+  // the header of this file names. A bare "Rechazado" fell through to unknown.
+  if (/^rechazad[oa]$/i.test(s)) return { status: 'Rejected' };
+  if (/^rechazado\s+\d{4}/i.test(s)) return { status: 'Rejected' };
+
+  // Aplicado with date → Applied (strip date)
+  if (/^aplicado\s+\d{4}/i.test(s)) return { status: 'Applied' };
+
+  // CONDICIONAL / HOLD / EVALUAR / Verificar → Evaluated
+  if (/^(condicional|hold|evaluar|verificar)$/i.test(s)) return { status: 'Evaluated' };
+
+  // MONITOR → SKIP
+  if (/^monitor$/i.test(s)) return { status: 'SKIP' };
+
+  // GEO BLOCKER → SKIP
+  if (/geo.?blocker/i.test(s)) return { status: 'SKIP' };
+
+  // Repost #NNN → Discarded
+  if (/^repost/i.test(s)) return { status: 'Discarded', moveToNotes: raw.trim() };
+
+  // "—" (em dash, no status) → Discarded
+  if (s === '—' || s === '-' || s === '') return { status: 'Discarded' };
+
+  // Already canonical (English, per states.yml) — just fix casing/bold
+  const canonical = [
+    'Evaluated', 'Applied', 'Responded', 'Interview',
+    'Offer', 'Hired', 'Rejected', 'Discarded', 'SKIP',
+  ];
+  for (const c of canonical) {
     if (lower === c.toLowerCase()) return { status: c };
   }
 
-  // DUPLICADO / Repost → Discarded (move original to notes)
-  if (/^(duplicado|dup\b|repost)/i.test(s)) return { status: 'Discarded', moveToNotes: s };
+  // Every remaining alias comes from templates/states.yml, not a list here.
+  // The hand-written list this replaces had drifted: it carried the Spanish
+  // aliases and none of the Turkish ones, so a `Mülakat` row was reported as
+  // an unknown status by the very tool whose job is normalizing statuses
+  // (#2704). test-all already asserted states.yml ⊆ this function; deriving
+  // makes that hold by construction instead of by remembering.
+  const fromStates = resolveCanonicalState(lower, canonicalStates());
+  if (fromStates) return { status: fromStates };
 
-  // Empty / dash → Discarded
-  if (!s || s === '—' || s === '-') return { status: 'Discarded' };
-
-  // Patterns with trailing dates
-  if (/^rechazado\s+\d{4}/i.test(s)) return { status: 'Rejected' };
-  if (/^aplicado\s+\d{4}/i.test(s)) return { status: 'Applied' };
-
-  // Geo blocker
-  if (/geo.?blocker/i.test(s)) return { status: 'SKIP' };
-
-  const map = {
-    // Evaluated
-    'evaluada': 'Evaluated', 'evaluar': 'Evaluated', 'condicional': 'Evaluated',
-    'hold': 'Evaluated', 'monitor': 'Evaluated', 'verificar': 'Evaluated',
-    // Applied
-    'aplicado': 'Applied', 'aplicada': 'Applied', 'enviada': 'Applied', 'sent': 'Applied',
-    // Responded
-    'respondido': 'Responded',
-    // Interview
-    'entrevista': 'Interview',
-    // Offer
-    'oferta': 'Offer',
-    // Rejected
-    'rechazado': 'Rejected', 'rechazada': 'Rejected',
-    // Discarded
-    'descartado': 'Discarded', 'descartada': 'Discarded',
-    'cerrada': 'Discarded', 'cancelada': 'Discarded',
-    // SKIP
-    'no aplicar': 'SKIP', 'no_aplicar': 'SKIP',
-    'no apply': 'SKIP', 'no_apply': 'SKIP',
-    'skip': 'SKIP',
-  };
-
-  if (map[lower]) return { status: map[lower] };
-
+  // Unknown — flag it
   return { status: null, unknown: true };
 }
 
+export { normalizeStatus };
+
+// Everything below is the CLI. It is guarded because importing this module used to
+// run it: the import alone opened a tracker transaction and rewrote applications.md.
+// That is why tests could only scrape this file's source with regexes instead of
+// calling the function, and why the rechazado gap went unnoticed.
+const IS_CLI = process.argv[1]
+  && pathToFileURL(process.argv[1]).href === import.meta.url;
+
+if (IS_CLI) {
+// Read applications.md
 if (!existsSync(APPS_FILE)) {
   console.log('No applications.md found. Nothing to normalize.');
   process.exit(0);
 }
 
-const content = readFileSync(APPS_FILE, 'utf-8');
+let trackerTransaction = null;
+if (!DRY_RUN) {
+  try {
+    trackerTransaction = await openTrackerTransaction(APPS_FILE);
+  } catch (err) {
+    console.error(`Cannot acquire tracker lock: ${err.message}`);
+    process.exit(1);
+  }
+  process.once('exit', () => {
+    try { trackerTransaction.close(); } catch {}
+  });
+}
+try {
+const content = trackerTransaction ? trackerTransaction.read() : readFileSync(APPS_FILE, 'utf-8');
 const lines = content.split('\n');
 
 let changes = 0;
-const unknowns = [];
+let unknowns = [];
+
+// Map columns by header name (tracker-parse.mjs, #954/#1596). Fixed indices
+// assumed the original 9-column layout, so a customized tracker — an inserted
+// Location or Via column — shifted every field one to the left: the Score cell
+// was normalized as if it were the status and overwritten, while the real
+// status was left alone and reported as unknown (#1955).
+const COLS = resolveColumns(lines);
 
 for (let i = 0; i < lines.length; i++) {
-  if (!lines[i].startsWith('|')) continue;
+  const line = lines[i];
+  const row = parseTrackerRow(line, COLS);
+  if (!row) continue; // header, separator, non-row, or a row missing cells
 
-  const parts = lines[i].split('|').map(s => s.trim());
-  if (parts.length < 9) continue;
-  if (parts[1] === '#' || parts[1] === '---' || parts[1] === '') continue;
-
-  const num = parseInt(parts[1]);
-  if (isNaN(num)) continue;
-
-  const rawStatus = parts[6];
+  const parts = line.split('|').map(s => s.trim());
+  const num = row.num;
+  const rawStatus = row.status;
   const result = normalizeStatus(rawStatus);
 
   if (result.unknown) {
@@ -102,41 +160,56 @@ for (let i = 0; i < lines.length; i++) {
     continue;
   }
 
-  if (result.status === rawStatus) continue;
+  if (result.status === rawStatus) continue; // Already canonical
 
+  // Apply change
   const oldStatus = rawStatus;
-  parts[6] = result.status;
+  parts[COLS.status] = result.status;
 
-  if (result.moveToNotes) {
-    const existing = parts[9] || '';
+  // Move DUPLICADO info to notes if needed. A layout without a Notes column
+  // has nowhere to put it — dropping the provenance beats appending a cell the
+  // table has no header for.
+  if (result.moveToNotes && COLS.notes != null) {
+    const existing = parts[COLS.notes] || '';
     if (!existing.includes(result.moveToNotes)) {
-      parts[9] = result.moveToNotes + (existing ? '. ' + existing : '');
+      parts[COLS.notes] = result.moveToNotes + (existing ? '. ' + existing : '');
     }
   }
 
-  // Strip bold from score field while we're here
-  if (parts[5]) parts[5] = parts[5].replace(/\*\*/g, '');
+  // Also strip bold from score field
+  if (parts[COLS.score]) {
+    parts[COLS.score] = parts[COLS.score].replace(/\*\*/g, '');
+  }
 
-  lines[i] = '| ' + parts.slice(1, -1).join(' | ') + ' |';
+  // Reconstruct line
+  const newLine = rebuildRow(parts);
+  lines[i] = newLine;
   changes++;
+
   console.log(`#${num}: "${oldStatus}" → "${result.status}"`);
 }
 
 if (unknowns.length > 0) {
-  console.log(`\n⚠️  ${unknowns.length} unknown status(es):`);
+  console.log(`\n⚠️  ${unknowns.length} unknown statuses:`);
   for (const u of unknowns) {
     console.log(`  #${u.num} (line ${u.line}): "${u.rawStatus}"`);
   }
 }
 
-console.log(`\n📊 ${changes} status(es) normalized`);
+console.log(`\n📊 ${changes} statuses normalized`);
 
 if (!DRY_RUN && changes > 0) {
-  copyFileSync(APPS_FILE, APPS_FILE + '.bak');
-  writeFileSync(APPS_FILE, lines.join('\n'));
-  console.log('✅ Written (backup: applications.md.bak)');
+  // Backup first
+  const backupPath = `${APPS_FILE}.bak`;
+  copyFileSync(APPS_FILE, backupPath);
+  trackerTransaction.replace(lines.join('\n'));
+  console.log(`✅ Written to ${APPS_FILE} (backup: ${backupPath})`);
 } else if (DRY_RUN) {
   console.log('(dry-run — no changes written)');
 } else {
   console.log('✅ No changes needed');
 }
+} finally {
+  trackerTransaction?.close();
+}
+} // end IS_CLI
