@@ -18,7 +18,7 @@ import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { polishApplicationAnswer, resolveUnknownFields, hasUnresolvedPlaceholder } from './lib/apply-llm.mjs';
 import { PINCHTAB_URL, pinchtabClose, pinchtabCookies, pinchtabHealth, pinchtabNavigate, pinchtabSolve } from './lib/pinchtab.mjs';
-import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE } from './lib/form-detect.mjs';
+import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS } from './lib/form-detect.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -508,30 +508,11 @@ async function clickApplyAndFollow(context, page, textRe = APPLY_TEXT_RE, attemp
   // page that should contain the form.
   const url = page.url();
   const skip = attempted ? [...attempted].filter(k => k.startsWith(url + '::')).map(k => k.slice((url + '::').length)) : [];
-  const marked = await page.evaluate(({ reSrc, skip }) => {
-    document.querySelectorAll('[data-co-click]').forEach(el => el.removeAttribute('data-co-click'));
-    const re = new RegExp(reSrc, 'i');
-    const skipSet = new Set(skip);
-    const out = [];
-    let n = 0;
-    const avoid = new RegExp(avoidSrc, 'i');
-    for (const el of document.querySelectorAll('a, button, [role="button"]')) {
-      const r = el.getBoundingClientRect();
-      if (r.width < 5 || r.height < 5) continue;
-      const t = (el.innerText || '').replace(/\s+/g, ' ').trim();
-      if (!t || t.length > 80 || !re.test(t) || skipSet.has(t)) continue;
-      // Account-creation and social-login controls are never a step towards the
-      // form, and they frequently share wording with real progression ("Sign up
-      // and apply", "Continue with Google"). Checked after the progression
-      // regex so it can veto a match, never before.
-      if (avoid.test(t)) continue;
-      el.setAttribute('data-co-click', String(n));
-      out.push({ n, text: t, href: (el.href || '').slice(0, 100) });
-      n++;
-      if (n >= 8) break;
-    }
-    return out;
-  }, { reSrc: textRe.source, skip, avoidSrc: AUTH_AVOID_TEXT_RE.source });
+  const marked = await page.evaluate(MARK_PROGRESSION_CONTROLS, {
+    reSrc: textRe.source,
+    skip,
+    avoidSrc: AUTH_AVOID_TEXT_RE.source,
+  });
   if (!marked.length) return null;
 
   const popupPromise = context.waitForEvent('page', { timeout: 8000 }).catch(() => null);

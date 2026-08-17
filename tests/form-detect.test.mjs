@@ -3,7 +3,7 @@
  * Run: node tests/form-detect.test.mjs
  */
 import { chromium } from 'playwright';
-import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE } from '../lib/form-detect.mjs';
+import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS } from '../lib/form-detect.mjs';
 
 const cases = [
   ['Greenhouse — vrai formulaire', `
@@ -107,21 +107,11 @@ for (const [text, re, expected, label] of navCases) {
 }
 
 // ── Integration: choix du bouton sur une modale interstitielle ────────────
-// Reproduit la logique de marquage de clickApplyAndFollow (apply-runner.mjs)
-// pour verifier que le veto AUTH_AVOID s'applique bien APRES le match.
+// Exerce MARK_PROGRESSION_CONTROLS — la fonction EXACTE que apply-runner.mjs
+// injecte, avec la meme charge utile. Une version re-implementee ici avait
+// laisse passer un `ReferenceError: avoidSrc is not defined` en production.
 console.log('');
-const MARK = ({ reSrc, avoidSrc }) => {
-  const re = new RegExp(reSrc, 'i');
-  const avoid = new RegExp(avoidSrc, 'i');
-  const out = [];
-  for (const el of document.querySelectorAll('a, button, [role="button"]')) {
-    const t = (el.innerText || '').replace(/\s+/g, ' ').trim();
-    if (!t || t.length > 80 || !re.test(t)) continue;
-    if (avoid.test(t)) continue;
-    out.push(t);
-  }
-  return out;
-};
+const MARK = MARK_PROGRESSION_CONTROLS;
 
 const b2 = await chromium.launch({ headless: true });
 const p2 = await b2.newPage();
@@ -137,7 +127,8 @@ const flows = [
 ];
 for (const [name, body, re, expected] of flows) {
   await p2.setContent(`<html><body>${body}</body></html>`);
-  const got = await p2.evaluate(MARK, { reSrc: re.source, avoidSrc: AUTH_AVOID_TEXT_RE.source });
+  const marked = await p2.evaluate(MARK, { reSrc: re.source, skip: [], avoidSrc: AUTH_AVOID_TEXT_RE.source });
+  const got = marked.map(m => m.text);
   const ok = JSON.stringify(got) === JSON.stringify(expected);
   ok ? pass++ : fail++;
   console.log(`  ${ok ? 'OK   ' : 'ECHEC'}  cliquerait ${JSON.stringify(got).padEnd(32)}${name}${ok ? '' : `  (attendu ${JSON.stringify(expected)})`}`);
