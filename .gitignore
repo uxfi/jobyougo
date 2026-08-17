@@ -8,6 +8,8 @@ data/scan-state.json
 data/deleted-applications.tsv
 data/*.tsv
 data/*.json
+# Telemetrie generee (tokens, couts, generation ids) — jamais commitee.
+data/*.jsonl
 !data/.gitkeep
 
 # Personal CV & interview prep

@@ -48,6 +48,28 @@ const cases = [
     { html: '<html>', text: 'anomaly-modal' }, true],
   ['HTTP 403', { status: 403, html: 'x', text: 'x' }, true],
   ['HTTP 429', { status: 429, html: 'x', text: 'x' }, true],
+
+  // ── Parite avec apply-runner.mjs (vendeurs + formulations) ───────────────
+  ['Arkose Labs / FunCaptcha',
+    { html: '<iframe src="https://client-api.arkoselabs.com/v2/x"></iframe>', text: 'x' }, true],
+  ['AWS WAF',
+    { html: '<iframe src="https://captcha.awswaf.com/x"></iframe>', text: 'x' }, true],
+  ['Friendly Captcha',
+    { html: '<div class="frc-captcha"></div>', text: 'x' }, true],
+  ['GeeTest',
+    { html: '<div class="geetest_holder"></div>', text: 'x' }, true],
+  ['"Pardon our interruption" (Imperva)',
+    { html: '<html>', text: 'Pardon our interruption as we verify you are a real person.' }, true],
+  ['"Press and hold" (PerimeterX)',
+    { html: '<html>', text: 'Press and hold to confirm you are human.' }, true],
+  ['"Human verification"',
+    { html: '<html>', text: 'Human verification required to continue.' }, true],
+  ['"Request could not be satisfied" (CloudFront)',
+    { html: '<html>', text: 'The request could not be satisfied.' }, true],
+
+  // Le meme vocabulaire dans une VRAIE annonce longue ne doit pas bloquer.
+  ['JD longue parlant de verification automatisee',
+    { html: '<html>', text: 'You will design human verification flows and automated access controls. ' + LONG }, false],
 ];
 
 let pass = 0, fail = 0;
