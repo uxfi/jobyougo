@@ -18,8 +18,9 @@ untouched, and their documentation lives here so it survives the next update.
 npm run dev
 ```
 
-It watches `reports/` for new files and, when Supabase is configured, boots in
-`[Supabase]` mode. The `ui/`, `images/`, and `outputs/` trees belong to this server.
+It watches `reports/` and `data/applications.md` for changes and, when Supabase
+is configured, boots in `[Supabase]` mode (auto-sync both → Supabase). The
+`ui/`, `images/`, and `outputs/` trees belong to this server.
 
 ## Fork-only scripts
 
@@ -48,7 +49,8 @@ It watches `reports/` for new files and, when Supabase is configured, boots in
   `scan` mode then only covers Level 1 (deep SPA scrape) and Level 3.
 - **After each scan batch:** `node sync-supabase.mjs pipeline` (scan-fetch does this
   automatically).
-- **After any status change in `applications.md`:** `node sync-supabase.mjs applications`.
+- **After any status change in `applications.md`:** `node sync-supabase.mjs applications`
+  (no-op needed while `npm run dev` is up — the UI watcher syncs automatically).
 - **`data/scan-history.tsv` is machine-managed** — never hand-append titles with raw
   newlines/tabs. Validate/repair with `node verify-scan-history.mjs --fix` (writes a
   `.bak` first).

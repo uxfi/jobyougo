@@ -7398,14 +7398,19 @@ server.listen(PORT, () => {
 
 setupGracefulShutdown(server);
 
-// ─── Reports watcher (auto-sync nouveaux rapports → Supabase) ─────────────────
+// ─── Local watchers (auto-sync → Supabase) ────────────────────────────────────
 // Local-dev only: on Vercel the deployment dir is read-only and `reports/` is
 // excluded from the bundle, so fs.watch('/var/task/reports') throws ENOENT and
 // crashes the function at module load (FUNCTION_INVOCATION_FAILED). Serverless
 // functions are ephemeral anyway, so a filesystem watcher would never fire.
+//
+// Both watchers are required: reports alone made evaluations look "done" in the
+// UI while tracker rows stayed invisible until a manual sync or the UI
+// oferta/pipeline path called syncLocalApplicationsToSupabase.
 
 if (useSupabase && !IS_VERCEL) {
   const reportsDir = join(ROOT, 'reports');
+  const dataDir = join(WRITE_ROOT, 'data');
   const pending = new Set();
 
   const adminUserIdCache = { value: null };
@@ -7444,5 +7449,27 @@ if (useSupabase && !IS_VERCEL) {
     setTimeout(() => { pending.delete(filename); syncReport(filename); }, 800);
   });
 
-  console.log(`  👁️  Watching reports/ for new files...\n`);
+  // Watch the data/ dir (not the file): writeFileAtomic renames a temp file into
+  // place, and file-level watches miss that on Windows.
+  let appsPending = false;
+  watch(dataDir, (event, filename) => {
+    if (!filename || filename !== 'applications.md') return;
+    if (appsPending) return;
+    appsPending = true;
+    setTimeout(async () => {
+      appsPending = false;
+      try {
+        const sync = await syncLocalApplicationsToSupabase(null);
+        if (!sync.ok && !sync.skipped) {
+          console.error(`  ❌  Apps sync failed: ${sync.error}`);
+        } else if (sync.count) {
+          console.log(`  ☁️  Applications synced → Supabase (${sync.count})`);
+        }
+      } catch (err) {
+        console.error(`  ❌  Apps sync failed: ${err.message}`);
+      }
+    }, 800);
+  });
+
+  console.log(`  👁️  Watching reports/ + data/applications.md for Supabase sync...\n`);
 }
