@@ -3049,6 +3049,7 @@ const state = {
   pipeSource: 'all',
   pipeSort: 'newest',
   selectedPipelineUrls: new Set(),
+  processingPipelineUrls: new Set(),
   portalsFilter: 'all',
   portalsSearch: '',
   queriesFilter: 'all',
@@ -3101,8 +3102,23 @@ function badge(status) {
   return `<span class="badge ${cls}">${status || '—'}</span>`;
 }
 
+const APPLIED_STATUSES = new Set(['Applied', 'Aplicado']);
+const UNDELETABLE_STATUSES = new Set([
+  ...APPLIED_STATUSES,
+  'Responded', 'Respondido',
+  'Interview', 'Entrevista',
+  'Offer', 'Oferta',
+  'Hired', 'Contratado', 'Contratada',
+  'Discarded', 'Descartado', 'Descartada',
+  'SKIP', 'NO APLICAR',
+]);
+
 function isAppliedStatus(status) {
-  return ['Applied', 'Aplicado'].includes(String(status || '').trim());
+  return APPLIED_STATUSES.has(String(status || '').trim());
+}
+
+function canDeleteApplication(status) {
+  return !UNDELETABLE_STATUSES.has(String(status || '').trim());
 }
 
 function relativeTime(isoStr) {
@@ -3165,9 +3181,17 @@ async function api(path, opts = {}) {
   if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
   const res = await fetch(path, { ...opts, headers });
   if (res.status === 401) { if (!window.__viewOnly) window.location.href = '/login'; return; }
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   const ct = res.headers.get('content-type') || '';
-  return ct.includes('json') ? res.json() : res.text();
+  const payload = ct.includes('json')
+    ? await res.json().catch(() => null)
+    : await res.text();
+  if (!res.ok) {
+    const message = payload && typeof payload === 'object' && payload.error
+      ? payload.error
+      : (typeof payload === 'string' && payload.trim()) || `${res.status} ${res.statusText}`.trim();
+    throw new Error(message);
+  }
+  return payload;
 }
 
 // ─── Load data ────────────────────────────────────────────────────────────────
@@ -3192,7 +3216,7 @@ window.loadAll = async function loadAll() {
 }
 
 function normalizeApplications(apps = []) {
-  return apps.map(a => ({
+  return (Array.isArray(apps) ? apps : []).map(a => ({
     '#':      a['#']     ?? a.num     ?? '',
     Date:     a.Date     ?? a.date    ?? '',
     Company:  a.Company  ?? a.company ?? '',
@@ -3204,6 +3228,11 @@ function normalizeApplications(apps = []) {
     Notes:    a.Notes    ?? a.notes   ?? '',
     JobURL:   a.JobURL   ?? a.job_url ?? a.jobUrl ?? '',
   }));
+}
+
+async function reloadApplications() {
+  state.applications = normalizeApplications(await api('/api/applications'));
+  renderAll();
 }
 
 // ─── Render helpers ───────────────────────────────────────────────────────────
@@ -3218,9 +3247,45 @@ function renderAll() {
   renderQueries();
 }
 
+function getVisiblePipeline() {
+  return (state.pipeline || []).filter(item => item && !state.processingPipelineUrls.has(item.url));
+}
+
+function hidePipelineUrls(urls) {
+  const list = [...new Set((urls || []).filter(Boolean))];
+  if (!list.length) return;
+  let changed = false;
+  for (const url of list) {
+    if (!state.processingPipelineUrls.has(url)) {
+      state.processingPipelineUrls.add(url);
+      state.selectedPipelineUrls.delete(url);
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  updateBadges();
+  renderPipeline();
+  renderDashboard();
+  renderApplicationScanQueue();
+}
+
+function revealPipelineUrls(urls) {
+  const list = [...new Set((urls || []).filter(Boolean))];
+  if (!list.length) return;
+  let changed = false;
+  for (const url of list) {
+    if (state.processingPipelineUrls.delete(url)) changed = true;
+  }
+  if (!changed) return;
+  updateBadges();
+  renderPipeline();
+  renderDashboard();
+  renderApplicationScanQueue();
+}
+
 function updateBadges() {
   document.getElementById('badge-apps').textContent    = state.applications.length;
-  document.getElementById('badge-pipe').textContent    = state.pipeline.length;
+  document.getElementById('badge-pipe').textContent    = getVisiblePipeline().length;
   document.getElementById('badge-reports').textContent = state.reports.length;
   document.getElementById('badge-cvs').textContent     = state.cvs.length;
   document.getElementById('badge-portals').textContent = state.portals.length + state.queries.length;
@@ -3235,7 +3300,7 @@ function renderDashboardNavButton(view, label, className = 'btn btn-ghost btn-sm
 
 function renderDashboard() {
   const apps = state.applications;
-  const pipeline = state.pipeline;
+  const pipeline = getVisiblePipeline();
   const statuses = {};
   apps.forEach(a => {
     const s = a.Status || 'Unknown';
@@ -3469,11 +3534,77 @@ function renderDashboard() {
 }
 
 // ─── Applications ─────────────────────────────────────────────────────────────
+function isOlderThan14Days(value, now = new Date()) {
+  const day = String(value || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const date = new Date(`${day}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== day) return false;
+  const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  cutoff.setUTCDate(cutoff.getUTCDate() - 14);
+  return date < cutoff;
+}
+
+function staleCleanupTargets(scope) {
+  if (scope === 'applications') return state.applications.filter(item =>
+    isOlderThan14Days(item.Date));
+  return state.pipeline.filter(item => isOlderThan14Days(
+    item.published_at || item.publishedAt || item.publication_date || item.created_at || item.createdAt));
+}
+
+let staleCleanupRunning = false;
+function staleCleanupButton(scope) {
+  const count = staleCleanupTargets(scope).length;
+  return `<button class="btn btn-ghost btn-sm" data-stale-cleanup="${scope}" title="Supprimer les offres de plus de 14 jours" ${!count || staleCleanupRunning ? 'disabled' : ''}>
+    <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M2.5 4h10M5.5 4V2.5h4V4M3.5 4l.5 8a1 1 0 001 1h5a1 1 0 001-1l.5-8M6 6.5v4M9 6.5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Supprimer &gt; 14 jours (${count})</button>`;
+}
+
+document.addEventListener('click', async event => {
+  const button = event.target.closest('[data-stale-cleanup]');
+  if (!button || staleCleanupRunning) return;
+  const scope = button.dataset.staleCleanup;
+  const targets = staleCleanupTargets(scope);
+  if (!targets.length) return;
+  staleCleanupRunning = true;
+  document.querySelectorAll('[data-stale-cleanup]').forEach(el => { el.disabled = true; });
+  let removed = 0;
+  let failed = 0;
+  try {
+    const confirmed = await confirmAction({
+      title: `Supprimer ${targets.length} offres de plus de 14 jours ?`,
+      message: scope === 'applications'
+        ? 'Ces offres seront écartées (Discarded). Les candidatures en cours, les dates inconnues et les rapports seront conservés.'
+        : 'Ces offres seront retirées du pipeline et des offres scannées à traiter. Les dates inconnues et les rapports seront conservés.',
+      confirmLabel: 'Supprimer',
+    });
+    if (!confirmed) return;
+    if (scope === 'applications') {
+      const result = await api('/api/applications/bulk-discard-stale', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nums: targets.map(item => item['#']) }),
+      });
+      removed = Number(result.updated || 0);
+    } else {
+      await api('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: targets.map(item => item.url) }) });
+      removed = targets.length;
+      targets.forEach(item => state.selectedPipelineUrls.delete(item.url));
+    }
+    toast(`${removed} offres ${scope === 'applications' ? 'écartées' : 'supprimées'}${failed ? ` ; ${failed} échecs, conservées` : ''}`, failed > 0);
+    await loadAll();
+  } catch (error) { toast(`Erreur : ${error.message}`, true); }
+  finally {
+    staleCleanupRunning = false;
+    renderApplications();
+    renderPipeline();
+    renderApplicationScanQueue();
+  }
+});
+
 function renderApplicationScanQueue() {
   const el = document.getElementById('app-scan-queue');
   if (!el) return;
 
-  const pending = Array.isArray(state.pipeline) ? state.pipeline : [];
+  const pending = getVisiblePipeline();
   if (!pending.length) {
     el.innerHTML = '';
     return;
@@ -3496,7 +3627,7 @@ function renderApplicationScanQueue() {
           <span class="section-title">Offres scannées à traiter</span>
           <span style="margin-left:8px;font-size:12px;color:var(--text-4)">${pending.length} en attente</span>
         </div>
-        <button class="btn btn-ghost btn-sm" data-app-open-pipeline>Voir pipeline</button>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">${staleCleanupButton('scans')}<button class="btn btn-ghost btn-sm" data-app-open-pipeline>Voir pipeline</button></div>
       </div>
       <div class="app-scan-list">
         ${preview.map(item => {
@@ -3592,6 +3723,7 @@ function renderApplications() {
           style="width:100%;box-sizing:border-box;padding:4px 10px;border-radius:6px;border:1px solid var(--border-s);background:rgba(255,255,255,0.04);color:var(--text-1);font-size:13px;outline:none">
       </div>
       <span style="font-size:12px;color:var(--text-4);white-space:nowrap">${filtered.length} result${filtered.length !== 1 ? 's' : ''}</span>
+      ${staleCleanupButton('applications')}
     </div>
   `;
 
@@ -3685,12 +3817,12 @@ function renderApplications() {
                <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M3 7.5l3 3 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
              </button>`
           : '';
-        const deleteBtn = !isAppliedStatus(a.Status)
+        const deleteBtn = canDeleteApplication(a.Status)
           ? `<button class="icon-action is-danger delete-application-btn"
                data-num="${num}"
                data-company="${escapeHtml(a.Company || '')}"
                data-role="${escapeHtml(a.Role || '')}"
-               title="Supprimer cette offre">
+               title="Écarter cette offre">
                <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2.5 4h10M5.5 4V2.5h4V4M3.5 4l.5 8a1 1 0 001 1h5a1 1 0 001-1l.5-8M6 6.5v4M9 6.5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
              </button>`
           : '';
@@ -3796,9 +3928,7 @@ function renderApplications() {
           method: 'PATCH',
           body: JSON.stringify({ status: 'Applied' }),
         });
-        const apps = await api('/api/applications');
-        state.applications = normalizeApplications(apps);
-        renderAll();
+        await reloadApplications();
         toast(`Offre #${num} marquée comme Applied`);
       } catch (err) {
         toast(`Erreur: ${err.message}`, true);
@@ -3811,13 +3941,18 @@ function renderApplications() {
   document.querySelectorAll('.delete-application-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const num = btn.dataset.num;
+      const label = [btn.dataset.company, btn.dataset.role].filter(Boolean).join(' — ') || `#${num}`;
+      const ok = await confirmAction({
+        title: 'Écarter cette offre ?',
+        message: `${label} restera dans le tracker en Discarded. Les scans ne la redécouvriront plus.`,
+        confirmLabel: 'Écarter',
+      });
+      if (!ok) return;
       btn.disabled = true;
       btn.style.opacity = '0.5';
       try {
         await api(`/api/applications/${encodeURIComponent(num)}`, { method: 'DELETE' });
-        const apps = await api('/api/applications');
-        state.applications = normalizeApplications(apps);
-        renderAll();
+        await reloadApplications();
         toast(`Offre #${num} écartée (Discarded)`);
       } catch (err) {
         toast(`Erreur: ${err.message}`, true);
@@ -3976,10 +4111,10 @@ function openAutoApplyModal(app) {
           </label>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="aa-solve-challenges" checked>
-            <span>Résoudre automatiquement captchas et pages de vérification avec PinchTab</span>
+            <span>Tenter automatiquement les vérifications compatibles avec PinchTab (Cloudflare/Turnstile)</span>
           </label>
           <button id="aa-start" class="btn btn-primary" style="justify-content:center">Lancer la candidature dans Chrome</button>
-          <div style="color:var(--text-3,#9ca3af);font-size:11px;line-height:1.5">Une fenêtre Chrome visible va s'ouvrir : navigation vers l'offre, redirections ATS, résolution automatique des vérifications si possible, remplissage du formulaire avec les réponses du rapport, upload du CV régional. Si PinchTab échoue, si une connexion est requise ou si un champ reste ambigu, interviens directement dans Chrome.</div>
+          <div style="color:var(--text-3,#9ca3af);font-size:11px;line-height:1.5">Une fenêtre Chrome visible va s'ouvrir : navigation vers l'offre, redirections ATS, tentative de résolution des vérifications Cloudflare/Turnstile, remplissage du formulaire avec les réponses du rapport, upload du CV régional. Les autres captchas restent manuels. Si PinchTab échoue, si une connexion est requise ou si un champ reste ambigu, interviens directement dans Chrome.</div>
         </div>
       </div>
 
@@ -4108,9 +4243,7 @@ function openAutoApplyModal(app) {
             method: 'PATCH',
             body: JSON.stringify({ status: 'Applied' }),
           });
-          const apps = await api('/api/applications');
-          state.applications = normalizeApplications(apps);
-          renderAll();
+          await reloadApplications();
           toast(`🎉 ${app.company} — candidature envoyée, statut → Applied`);
         } catch (err) {
           toast(`Candidature envoyée mais échec du passage en Applied: ${err.message}`, true);
@@ -4348,7 +4481,7 @@ function getPipelineSource(url = '') {
 }
 
 function renderPipeline() {
-  const items = state.pipeline;
+  const items = getVisiblePipeline();
 
   // Collect unique sources for filter buttons
   const sources = ['all', ...new Set(items.map(it => getPipelineSource(it.url)).filter(Boolean))].sort((a, b) => a === 'all' ? -1 : b === 'all' ? 1 : a.localeCompare(b));
@@ -4418,6 +4551,7 @@ function renderPipeline() {
         <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M4 4.5h7M4 7.5h5M4 10.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         ${state.pipeSort === 'newest' ? 'Newest first' : 'Oldest first'}
       </button>
+      ${staleCleanupButton('pipeline')}
       ${filtered.length ? `
         <button id="pipe-select-visible-btn" class="filter-btn" style="white-space:nowrap">
           ${selectedVisibleCount === visibleUrls.length ? 'Unselect visible' : 'Select visible'}
@@ -5716,6 +5850,7 @@ let pipelineQueueFailed = 0; // count of offers that errored during the batch
 function startPipelineQueue(urls) {
   const list = [...new Set((urls || []).filter(Boolean))];
   if (!list.length) return;
+  hidePipelineUrls(list);
   pipelineQueue = list;
   pipelineQueueTotal = list.length;
   pipelineQueueIndex = 0;
@@ -5756,6 +5891,7 @@ function onPipelineStreamSettled(ok) {
     if (finishedUrl) state.selectedPipelineUrls.delete(finishedUrl);
   } else {
     pipelineQueueFailed += 1;
+    if (finishedUrl) state.selectedPipelineUrls.add(finishedUrl);
   }
   renderPipeline();
   const modal = document.getElementById('cmd-modal');
@@ -5814,6 +5950,10 @@ function openCmdModal(cmdKey, params = {}) {
   const coverPdfBtn = document.getElementById('cmd-cover-pdf-btn');
   const copyShortBtn = document.getElementById('cmd-copy-short-btn');
   const isAuto = document.getElementById('auto-next-toggle').checked && cmdKey === 'pipeline' && !params.url;
+  const pipelineUrl = cmdKey === 'pipeline'
+    ? (params.url || getVisiblePipeline()[0]?.url || '')
+    : '';
+  if (pipelineUrl) hidePipelineUrls([pipelineUrl]);
 
   closeBlockingModals();
   
@@ -5831,6 +5971,7 @@ function openCmdModal(cmdKey, params = {}) {
   activeCmdKey = cmdKey;
   activeCmdMarkdown = '';
   activeCmdMeta = { ...params };
+  if (pipelineUrl) activeCmdMeta.url = pipelineUrl;
   const canGenerateCvFromResponse = cmdKey === 'pdf';
   cvPdfBtn.style.display = canGenerateCvFromResponse ? '' : 'none';
   cvPdfBtn.disabled = true;
@@ -5889,9 +6030,10 @@ function openCmdModal(cmdKey, params = {}) {
     }
     es.close(); activeStream = null;
     await loadAll();
+    if (pipelineUrl) revealPipelineUrls([pipelineUrl]);
 
     // AUTO-CONTINUE LOGIC
-    if (isAuto && state.pipeline.length > 0) {
+    if (isAuto && getVisiblePipeline().length > 0) {
       status.innerHTML = '<span style="color:var(--brand)">✓ Done. Waiting for next offer (3s)...</span>';
       setTimeout(() => {
         if (modal.classList.contains('open')) openCmdModal('pipeline');
@@ -5901,10 +6043,16 @@ function openCmdModal(cmdKey, params = {}) {
     // BULK QUEUE: chain to the next selected offer (no-op outside a batch).
     onPipelineStreamSettled(!blocked);
   });
-  es.addEventListener('error', e => {
+  es.addEventListener('error', async e => {
+    if (activeStream !== es) return;
     const msg = e.data ? JSON.parse(e.data).message : 'Connection lost';
     status.innerHTML = `<span style="color:var(--red)">✗ ${msg}</span>`;
     es.close(); activeStream = null;
+    // The report/tracker write can succeed before a later step throws (e.g.
+    // pipeline removal), so refresh state here too — otherwise a partially
+    // successful run leaves stale data/pipeline lists until a manual reload.
+    await loadAll();
+    if (pipelineUrl) revealPipelineUrls([pipelineUrl]);
 
     // BULK QUEUE: a failed offer stays selected; carry on with the rest.
     onPipelineStreamSettled(false);
@@ -6002,11 +6150,17 @@ function closeCmdDock({ cancelStream = true } = {}) {
   const modal = document.getElementById('cmd-modal');
   modal.classList.remove('open', 'collapsed');
   document.getElementById('cmd-modal-toggle').title = 'Collapse';
-  if (cancelStream && activeStream) { activeStream.close(); activeStream = null; }
+  const pendingPipelineUrls = [...state.processingPipelineUrls];
+  if (cancelStream && activeStream) {
+    const es = activeStream;
+    activeStream = null;
+    es.close();
+  }
   activeCmdKey = null;
   activeCmdMarkdown = '';
   activeCmdMeta = {};
   resetPipelineQueue();
+  if (pendingPipelineUrls.length) revealPipelineUrls(pendingPipelineUrls);
 }
 
 document.getElementById('cmd-modal-toggle').addEventListener('click', () => {

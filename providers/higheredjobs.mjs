@@ -43,6 +43,9 @@ export default {
     // redirect:'error' prevents SSRF via server-side redirects; combined with
     // cleanUrl below it keeps the request pinned to www.higheredjobs.com.
     const text = await ctx.fetchText(feedUrl, { redirect: 'error' });
+    if (!/<rss\b/i.test(text) || !/<channel\b/i.test(text) || /<html\b/i.test(text)) {
+      throw new Error('HigherEdJobs returned non-RSS content (possible anti-bot challenge)');
+    }
     return parseHigherEdJobsFeed(text, fallbackCompany(entry));
   },
 };

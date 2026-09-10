@@ -10,6 +10,19 @@ try {
   const higheredjobs = hejModule.default;
   const { parseHigherEdJobsFeed } = hejModule;
 
+  for (const response of ['<html><body>Request unsuccessful. Incapsula incident ID</body></html>', '']) {
+    try {
+      await higheredjobs.fetch({}, { fetchText: async () => response });
+      fail('higheredjobs.fetch() accepted a non-RSS response');
+    } catch (error) {
+      if (/non-RSS/.test(error.message)) pass('higheredjobs.fetch() rejects non-RSS responses');
+      else fail(`Unexpected error: ${error.message}`);
+    }
+  }
+  const empty = await higheredjobs.fetch({}, { fetchText: async () => '<rss version="2.0"><channel></channel></rss>' });
+  if (empty.length === 0) pass('higheredjobs.fetch() accepts a valid empty RSS feed');
+  else fail('higheredjobs.fetch() should accept a valid empty RSS feed');
+
   if (higheredjobs.id === 'higheredjobs') pass('higheredjobs.id is "higheredjobs"');
   else fail(`higheredjobs.id is ${JSON.stringify(higheredjobs.id)}`);
 
@@ -141,4 +154,3 @@ try {
 } catch (e) {
   fail(`higheredjobs provider tests crashed: ${e.message}`);
 }
-

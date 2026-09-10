@@ -473,6 +473,7 @@ try {
   const tmp = mkdtempSync(join(tmpdir(), 'career-ops-cv-facts-'));
   const hiddenScriptMetric = join(tmp, 'hidden-script-metric.html');
   const visibleMetric = join(tmp, 'visible-metric.html');
+  const emptySource = join(tmp, 'empty-source.md');
   writeFileSync(
     hiddenScriptMetric,
     '<html><body><script>const claim = "500 users";</script\t\n bar><p>Generated CV</p></body></html>'
@@ -481,8 +482,9 @@ try {
     visibleMetric,
     '<html><body><p>Improved onboarding for 500 users.</p></body></html>'
   );
+  writeFileSync(emptySource, '');
 
-  const hiddenResult = run(NODE, ['verify-cv-facts.mjs', hiddenScriptMetric], {
+  const hiddenResult = run(NODE, ['verify-cv-facts.mjs', hiddenScriptMetric, '--source', emptySource], {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   if (hiddenResult !== null) {
@@ -491,7 +493,7 @@ try {
     fail('verify-cv-facts treated script contents as visible CV facts');
   }
 
-  const visibleResult = run(NODE, ['verify-cv-facts.mjs', visibleMetric], {
+  const visibleResult = run(NODE, ['verify-cv-facts.mjs', visibleMetric, '--source', emptySource], {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   if (visibleResult === null) {

@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "node ui/server.mjs",
+    "test:writing": "node --test tests/application-writing.test.mjs",
+    "test:apply": "node --test tests/apply-completion.test.mjs tests/apply-blocker-probe.test.mjs tests/apply-collect-fields.test.mjs tests/apply-fill-guards.test.mjs tests/apply-navigation.test.mjs tests/form-detect.test.mjs tests/himalayas-apply.test.mjs tests/pinchtab-config.test.mjs",
     "doctor": "node doctor.mjs",
     "or": "node openrouter-runner.mjs",
     "or:scan": "node openrouter-runner.mjs scan",

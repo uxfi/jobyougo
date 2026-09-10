@@ -4,16 +4,22 @@ data/pipeline.md
 data/scan-history.tsv
 data/scan-selection.json
 data/scan-state.json
+data/intake-state.json
 # data/cv-profiles.yml
 data/deleted-applications.tsv
+data/*
 data/*.tsv
 data/*.json
 # Telemetrie generee (tokens, couts, generation ids) — jamais commitee.
 data/*.jsonl
+data/offers/*
+!data/offers/
+!data/offers/.gitkeep
 !data/.gitkeep
 
 # Personal CV & interview prep
 cv.md
+article-digest.md
 # Ignore the content, ship the system-owned scaffold (README + .gitkeep).
 interview-prep/*
 !interview-prep/
@@ -31,6 +37,12 @@ reports/*.md
 output/*
 !output/.gitkeep
 
+# Intake source documents (user-provided)
+documents/*
+!documents/
+!documents/.gitkeep
+!documents/README.md
+
 # Batch temp & state
 batch/temp/*
 batch/logs/*
@@ -47,8 +59,10 @@ jds/*
 
 # ── User config (never auto-updated) ──
 config/profile.yml
-# portals.yml
+portals.yml
 modes/_profile.md
+modes/_custom.md
+modes/_brief.md
 .update-dismissed
 .update-lock
 
@@ -59,6 +73,7 @@ ui/*.pdf
 
 # ── Generated ──
 .resolved-prompt-*
+.tmp-script-test-*/
 node_modules/
 # Backup files: `{file}.bak` and `{file}.bak-{ISO timestamp}` shapes.
 *.bak*

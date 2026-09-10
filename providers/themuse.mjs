@@ -94,6 +94,13 @@ function assertMuseUrl(url) {
   return url;
 }
 
+/** Resolve optional per-entry page cap while keeping the historical hard bound. */
+function resolveMaxPages(entry) {
+  const value = entry?.max_pages;
+  if (Number.isInteger(value) && value > 0) return Math.min(value, MAX_PAGES);
+  return MAX_PAGES;
+}
+
 /**
  * Normalize a single result from the Muse API response. Exported for unit tests.
  *
@@ -129,7 +136,7 @@ export function normalizeMuseJob(j) {
 export default {
   id: 'themuse',
 
-  async fetch(_entry, ctx) {
+  async fetch(entry, ctx) {
     assertMuseUrl(FEED_BASE);
 
     // Page 0 is fetched outside the tolerant loop below and its failure is
@@ -149,8 +156,9 @@ export default {
       );
     }
     const allResults = [...first.results];
+    const maxPages = resolveMaxPages(entry);
     const pageCount = Number.isInteger(first.page_count) && first.page_count > 1
-      ? Math.min(first.page_count, MAX_PAGES)
+      ? Math.min(first.page_count, maxPages)
       : 1;
 
     // Pages 1+ stay tolerant: a page that exhausts retries, OR comes back

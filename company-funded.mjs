@@ -14,6 +14,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import { decodeEntities } from './providers/_html-entities.mjs';
+import { detectChallenge } from './lib/challenge-detect.mjs';
 import { BROWSER_LIKE_USER_AGENT } from './user-agent.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -412,7 +413,7 @@ function detectBlockedContent(text, { status = 200, contentType = '' } = {}) {
   const raw = String(text || '').slice(0, 20_000);
   if ([401, 403, 429, 503].includes(Number(status))) return true;
   if (/text\/html/i.test(contentType) || /<html/i.test(raw)) {
-    return /\b(access denied|captcha|cloudflare|attention required|verify you are human|enable javascript|unusual traffic|temporarily blocked|bot detection|ddos-guard|akamai|perimeterx)\b/i.test(raw);
+    return detectChallenge({ status: 200, html: raw, text: raw }).blocked;
   }
   return false;
 }

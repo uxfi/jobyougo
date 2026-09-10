@@ -23,13 +23,20 @@
 // "the same keywords", not "the same post-processing".
 
 import { pass, fail, ROOT } from './helpers.mjs';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 import * as yaml from 'js-yaml';
 import { profileTargetKeywords as core } from '../providers/_profile-keywords.mjs';
-import { profileTargetKeywords as web } from '../web/src/lib/profile-keywords.mjs';
 
 console.log('\nprofile-keywords — web mirror vs core helper');
+
+const webHelperPath = join(ROOT, 'web', 'src', 'lib', 'profile-keywords.mjs');
+
+if (!existsSync(webHelperPath)) {
+  pass('web/src/lib/profile-keywords.mjs is not present in this checkout — parity not applicable');
+} else {
+const { profileTargetKeywords: web } = await import(pathToFileURL(webHelperPath).href);
 
 // A true set comparison, not a length check: the core de-dupes and the mirror
 // does not, so a keyword appearing in both `primary` and an archetype name
@@ -85,4 +92,5 @@ for (const junk of [null, undefined, 'a string', 42, []]) {
   } catch (e) {
     fail(`threw on ${JSON.stringify(junk) ?? 'undefined'}: ${e.message}`);
   }
+}
 }

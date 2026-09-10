@@ -4,8 +4,20 @@
  */
 import { chromium } from 'playwright';
 import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS } from '../lib/form-detect.mjs';
+import { pass, fail } from './helpers.mjs';
 
 const cases = [
+  ['Ashby — overview sans champ malgré les classes ATS', `
+    <div class="ashby-job-posting"><h1>Staff Engineer</h1>
+    <h2>Why You Should Apply</h2><button role="tab">Application</button>
+    <button>Apply for this Job</button></div>`, 'none'],
+
+  ['Ashby — formulaire masqué sur la fiche offre', `
+    <div class="ashby-job-posting"><h1>Staff Engineer</h1>
+    <div style="display:none"><input name="name"><input type="email" name="email">
+    <input type="file" name="resume"></div>
+    <button role="tab">Application</button></div>`, 'none'],
+
   ['Greenhouse — vrai formulaire', `
     <div id="application_form">
       <h1>Apply for this job</h1>
@@ -68,7 +80,7 @@ const cases = [
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
-let pass = 0, fail = 0;
+let passed = 0, failed = 0;
 
 for (const [name, body, expected] of cases) {
   // /apply dans l'URL pour les cas qui le mentionnent, sinon une URL neutre.
@@ -77,7 +89,9 @@ for (const [name, body, expected] of cases) {
   await page.goto(url);
   const r = await page.evaluate(APPLICATION_FORM_PROBE);
   const ok = r.verdict === expected;
-  ok ? pass++ : fail++;
+  ok ? passed++ : failed++;
+  if (ok) pass(`form-detect probe: ${name}`);
+  else fail(`form-detect probe: ${name} expected ${expected}, got ${r.verdict}`);
   console.log(
     `  ${ok ? 'OK   ' : 'ECHEC'}  ${r.verdict.padEnd(17)}${name}` +
     `${ok ? '' : `  (attendu ${expected})`}  [score ${r.score}${r.signals.length ? ' · ' + r.signals.join(',') : ''}${r.blockers.length ? ' · !' + r.blockers.join(',') : ''}]`,
@@ -102,7 +116,9 @@ const navCases = [
 for (const [text, re, expected, label] of navCases) {
   const got = re.test(text);
   const ok = got === expected;
-  ok ? pass++ : fail++;
+  ok ? passed++ : failed++;
+  if (ok) pass(`form-detect nav regex: ${label} "${text}"`);
+  else fail(`form-detect nav regex: ${label} "${text}" expected ${expected}, got ${got}`);
   console.log(`  ${ok ? 'OK   ' : 'ECHEC'}  ${label.padEnd(17)}"${text}" → ${got}`);
 }
 
@@ -130,10 +146,11 @@ for (const [name, body, re, expected] of flows) {
   const marked = await p2.evaluate(MARK, { reSrc: re.source, skip: [], avoidSrc: AUTH_AVOID_TEXT_RE.source });
   const got = marked.map(m => m.text);
   const ok = JSON.stringify(got) === JSON.stringify(expected);
-  ok ? pass++ : fail++;
+  ok ? passed++ : failed++;
+  if (ok) pass(`form-detect progression controls: ${name}`);
+  else fail(`form-detect progression controls: ${name} expected ${JSON.stringify(expected)}, got ${JSON.stringify(got)}`);
   console.log(`  ${ok ? 'OK   ' : 'ECHEC'}  cliquerait ${JSON.stringify(got).padEnd(32)}${name}${ok ? '' : `  (attendu ${JSON.stringify(expected)})`}`);
 }
 await b2.close();
 
-console.log(`\n${pass}/${pass + fail} tests conformes`);
-process.exit(fail ? 1 : 0);
+console.log(`\n${passed}/${passed + failed} tests conformes`);

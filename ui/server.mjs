@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import { createServer } from 'http';
-import { readFile, writeFile, readdir, stat, mkdir } from 'fs/promises';
-import { watch, readFileSync } from 'fs';
+import { readFile, writeFile, readdir, stat, mkdir, mkdtemp, rm } from 'fs/promises';
+import { watch } from 'fs';
 import { join, dirname, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
+import { tmpdir } from 'os';
 import { gzipSync, brotliCompressSync, constants as zlibConstants } from 'zlib';
 import { spawn } from 'child_process';
 import { load as yamlLoad, dump as yamlDump } from 'js-yaml';
@@ -11,11 +12,21 @@ import { supabase, isEnabled as useSupabase } from '../lib/supabase.mjs';
 import { chat, chatStream, MODELS } from '../lib/openrouter.mjs';
 import { aggregateUsageEvents, readAiUsageEvents } from '../lib/ai-usage-log.mjs';
 import { loadCvTemplateData } from '../lib/cv-template-data.mjs';
-import { buildApplySpec } from '../lib/apply-spec.mjs';
+import { buildApplySpec, detectRegion } from '../lib/apply-spec.mjs';
 import { loadCanonicalStates, resolveCanonicalState } from '../tracker-utils.mjs';
 import { detectChallenge, matchChallengeText } from '../lib/challenge-detect.mjs';
-import { STYLE_RULES, polishApplicationAnswer } from '../lib/apply-llm.mjs';
+import {
+  PINCHTAB_URL,
+  pinchtabClose as pinchtabCloseRaw,
+  pinchtabEvaluate,
+  pinchtabHealth,
+  pinchtabNavigate as pinchtabNavigateRaw,
+  pinchtabSolve as pinchtabSolveRaw,
+  pinchtabSolveSucceeded,
+} from '../lib/pinchtab.mjs';
+import { STYLE_RULES, polishApplicationAnswer, loadApplicationVoice } from '../lib/application-writing.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
+import { getScanAggregators, fetchJobBoard, jobBoardProviders } from '../lib/scan-job-boards.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -123,71 +134,19 @@ const SUPABASE_ANON_VALUE = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PU
 const activePinchtabTabs = new Set();
 let isShuttingDown = false;
 
-// ─── PinchTab HTTP client ─────────────────────────────────────────────────────
-const PINCHTAB_URL = (process.env.PINCHTAB_URL || 'http://localhost:9867').replace(/\/$/, '');
-let _pinchtabToken = null;
-function getPinchtabToken() {
-  if (_pinchtabToken !== null) return _pinchtabToken;
-  if (process.env.PINCHTAB_TOKEN) { _pinchtabToken = process.env.PINCHTAB_TOKEN; return _pinchtabToken; }
-  try {
-    const cfgPath = `${process.env.HOME}/.pinchtab/config.json`;
-    const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
-    _pinchtabToken = cfg?.server?.token || '';
-  } catch { _pinchtabToken = ''; }
-  return _pinchtabToken;
-}
-
-async function pinchtabFetch(method, path, body, { timeout = 30000 } = {}) {
-  const token = getPinchtabToken();
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const init = { method, headers, signal: AbortSignal.timeout(timeout) };
-  if (body !== undefined) init.body = JSON.stringify(body);
-  const r = await fetch(`${PINCHTAB_URL}${path}`, init);
-  const text = await r.text();
-  let data;
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-  if (!r.ok) {
-    const err = new Error(data?.error || `pinchtab ${method} ${path} → HTTP ${r.status}`);
-    err.status = r.status; err.body = data;
-    throw err;
-  }
-  return data;
-}
-
-async function pinchtabNavigate(url, { timeout = 20000 } = {}) {
-  const data = await pinchtabFetch('POST', '/navigate', { url, newTab: true, timeout }, { timeout: timeout + 5000 });
-  if (!data?.tabId) throw new Error(`pinchtab navigate returned no tabId for ${url}`);
-  activePinchtabTabs.add(data.tabId);
-  return data.tabId;
-}
-
-async function pinchtabEvaluate(tabId, expression, { awaitPromise = true, timeout = 15000 } = {}) {
-  const data = await pinchtabFetch('POST', `/tabs/${tabId}/evaluate`, { expression, awaitPromise }, { timeout });
-  return data?.result;
-}
-
-async function pinchtabText(tabId, { maxChars = 15000, mode = 'raw' } = {}) {
-  const params = new URLSearchParams({ maxChars: String(maxChars), mode });
-  const data = await pinchtabFetch('GET', `/tabs/${tabId}/text?${params.toString()}`);
-  return data;
+// ─── PinchTab wrappers (shared client in lib/pinchtab.mjs) ─────────────────────
+async function pinchtabNavigate(url, opts = {}) {
+  const tabId = await pinchtabNavigateRaw(url, opts);
+  activePinchtabTabs.add(tabId);
+  return tabId;
 }
 
 async function pinchtabClose(tabId) {
   if (!tabId) return;
   activePinchtabTabs.delete(tabId);
-  try { await pinchtabFetch('POST', '/close', { tabId }, { timeout: 5000 }); } catch {}
+  await pinchtabCloseRaw(tabId);
 }
 
-// On-demand challenge solver: opt-in per-call instead of running on every nav.
-// Returns true if a challenge was detected AND solved.
-// Defaults raised: modern CAPTCHAs (DDG/Brave/Google) frequently need >3 attempts
-// and >20s wall-clock to clear, especially when the page renders multiple frames.
-//
-// Per-run circuit breaker: if the solver fails N times in a row, we stop trying
-// for the rest of the scan run. Most modern challenges (Cloudflare Turnstile,
-// reCAPTCHA enterprise) are essentially unsolvable by a stock headless browser,
-// so retrying 100 queries × 6 attempts × 40s wastes ~10 minutes for nothing.
 let _pinchtabSolveConsecFail = 0;
 const PINCHTAB_SOLVE_FAIL_BUDGET = 5;
 function pinchtabSolveCircuitOpen() {
@@ -199,30 +158,39 @@ function resetPinchtabSolveCircuit() {
   }
   _pinchtabSolveConsecFail = 0;
 }
+function notePinchtabSolveResult(ok) {
+  if (ok) {
+    _pinchtabSolveConsecFail = 0;
+    return true;
+  }
+  _pinchtabSolveConsecFail += 1;
+  if (_pinchtabSolveConsecFail === PINCHTAB_SOLVE_FAIL_BUDGET) {
+    console.warn(`[scan] [pinchtab-solve] circuit-breaker tripped after ${PINCHTAB_SOLVE_FAIL_BUDGET} consecutive failures — skipping further solve attempts this run`);
+  }
+  return false;
+}
 async function pinchtabSolve(tabId, { maxAttempts = 6, timeout = 40000 } = {}) {
-  if (!tabId) return false;
-  if (pinchtabSolveCircuitOpen()) return false;
+  if (!tabId || pinchtabSolveCircuitOpen()) return false;
   try {
-    const data = await pinchtabFetch('POST', `/tabs/${tabId}/solve`, { maxAttempts, timeout }, { timeout: timeout + 5000 });
-    const ok = Boolean(data?.solved && data?.attempts > 0);
-    if (ok) _pinchtabSolveConsecFail = 0;
-    else _pinchtabSolveConsecFail += 1;
-    if (_pinchtabSolveConsecFail === PINCHTAB_SOLVE_FAIL_BUDGET) {
-      console.warn(`[scan] [pinchtab-solve] circuit-breaker tripped after ${PINCHTAB_SOLVE_FAIL_BUDGET} consecutive failures — skipping further solve attempts this run`);
-    }
-    return ok;
+    return notePinchtabSolveResult(pinchtabSolveSucceeded(await pinchtabSolveRaw(tabId, { maxAttempts, timeout })));
   } catch {
-    _pinchtabSolveConsecFail += 1;
-    return false;
+    return notePinchtabSolveResult(false);
   }
 }
 
-async function pinchtabHealth() {
-  try {
-    const data = await pinchtabFetch('GET', '/health', undefined, { timeout: 3000 });
-    return data?.status === 'ok' && data?.defaultInstance?.status === 'running';
-  } catch { return false; }
+// One health probe per scan run. Without this, every failed web-search query
+// hits localhost:9867 twice (Brave then Google) and logs the same miss.
+let _pinchtabHealthCache = null;
+function resetPinchtabHealthCache() { _pinchtabHealthCache = null; }
+async function pinchtabIsUp() {
+  if (_pinchtabHealthCache !== null) return _pinchtabHealthCache;
+  _pinchtabHealthCache = await pinchtabHealth().catch(() => false);
+  if (!_pinchtabHealthCache) {
+    console.log(`[scan] [pinchtab] daemon not reachable at ${PINCHTAB_URL}`);
+  }
+  return _pinchtabHealthCache;
 }
+
 let _interfaceShowcaseCache = null;
 
 // ─── Admin user lookup (Supabase) ─────────────────────────────────────────────
@@ -490,18 +458,6 @@ function getMarkdownTableRowNumber(line = '') {
   return match ? match[1].trim() : '';
 }
 
-// States that represent a real engagement with the company and must never be
-// deleted from the tracker. `Hired` belongs here: it is the terminal success
-// state added to templates/states.yml in v1.26.0, and this guard was written
-// against the pre-1.26 list of 8 states — so the single most valuable row in
-// the tracker was the one row DELETE would happily discard.
-const PROTECTED_APPLICATION_STATES = ['Applied', 'Aplicado', 'Interview', 'Offer', 'Responded', 'Hired'];
-
-function isAppliedStatus(status = '') {
-  const s = String(status || '').trim();
-  return PROTECTED_APPLICATION_STATES.includes(s);
-}
-
 // templates/states.yml, read once per process. A broken/missing file yields an
 // empty list, which makes resolveCanonicalState reject everything — failing
 // closed is right here: better to refuse a status change than to write an
@@ -515,6 +471,20 @@ function canonicalApplicationStates() {
     _canonicalStatesCache = [];
   }
   return _canonicalStatesCache;
+}
+
+const IN_PROGRESS_APPLICATION_STATES = new Set(['Applied', 'Responded', 'Interview', 'Offer', 'Hired']);
+const CLOSED_APPLICATION_STATES = new Set(['Discarded', 'SKIP']);
+
+function deleteApplicationBlockReason(status = '') {
+  const canonical = resolveCanonicalState(status, canonicalApplicationStates());
+  if (IN_PROGRESS_APPLICATION_STATES.has(canonical)) {
+    return 'Applications already in progress cannot be deleted';
+  }
+  if (CLOSED_APPLICATION_STATES.has(canonical)) {
+    return 'Application is already discarded';
+  }
+  return null;
 }
 
 // Recover a deleted offer's posting URL from its evaluation report, so the
@@ -537,11 +507,6 @@ async function findPostingUrlFromReportLink(reportLink = '') {
   } catch {
     return ''; // report may have been deleted or never written
   }
-}
-
-function lineLooksAppliedApplication(line = '') {
-  const states = PROTECTED_APPLICATION_STATES.join('|');
-  return new RegExp(`\\|\\s*(${states})\\s*\\|\\s*(?:✓|✅|❌|—|-)?\\s*\\|`, 'i').test(String(line || ''));
 }
 
 function parsePipeline(content) {
@@ -1053,12 +1018,13 @@ function pinchtabSearchThrottle() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Circuit breaker: once SearchAPI/SerpApi is unavailable in a scan run, skip it for all remaining queries.
-let serpApiCircuitOpen = false;
-function resetSerpApiCircuit() { serpApiCircuitOpen = false; }
+let _serpApiCircuitOpen = false;
+function serpApiCircuitOpen() { return _serpApiCircuitOpen; }
+function resetSerpApiCircuit() { _serpApiCircuitOpen = false; }
 function tripSerpApiCircuit(reason = 'unavailable') {
-  if (!serpApiCircuitOpen) {
+  if (!_serpApiCircuitOpen) {
     console.warn(`[scan] [circuit-breaker] SearchAPI/SerpApi ${reason} — skipping it for all remaining queries this run`);
-    serpApiCircuitOpen = true;
+    _serpApiCircuitOpen = true;
   }
 }
 
@@ -1097,6 +1063,9 @@ function recordWebSearchOutcome(ok) {
 function isWebSearchEngineBlocked(result) {
   if (!result) return true;
   if (result.error) return true;
+  // pinchtab-brave / pinchtab-google key `ok` off "found jobs", so a clean
+  // parse with 0 matches must NOT count as blocked. Daemon-down / challenge
+  // paths MUST set `.error` so they still trip the circuit.
   if (result.engine === 'pinchtab-brave' || result.engine === 'pinchtab-google') return false;
   return !result.ok;
 }
@@ -1205,6 +1174,7 @@ function getCompanyScanAccess(company = {}) {
 }
 
 function isAggregatorConfigured(aggregator = {}) {
+  if (aggregator.sourceKind === 'job_board') return jobBoardProviders.has(aggregator.provider);
   const provider = getAggregatorProvider(aggregator);
   if (provider === 'serpapi') return Boolean(SERPAPI_KEY || process.env.SEARCHAPI_KEY);
   if (provider === 'searchapi') return Boolean(process.env.SEARCHAPI_KEY || SERPAPI_KEY);
@@ -1214,18 +1184,20 @@ function isAggregatorConfigured(aggregator = {}) {
   if (provider === 'adzuna') return Boolean(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);
   if (provider === 'jooble') return Boolean(process.env.JOOBLE_API_KEY);
   if (provider === 'careerjet') return Boolean(process.env.CAREERJET_AFFID || process.env.CAREERJET_AFFILIATE_ID);
-  if (['remotive', 'jobicy', 'himalayas', 'arbeitnow'].includes(provider)) return true;
+  if (['remotive', 'jobicy', 'himalayas', 'arbeitnow', 'remoteok'].includes(provider)) return true;
   return false;
 }
 
 function aggregatorRequiresKey(aggregator = {}) {
+  if (aggregator.sourceKind === 'job_board') return false;
   const provider = getAggregatorProvider(aggregator);
-  return !['remotive', 'jobicy', 'himalayas', 'arbeitnow'].includes(provider);
+  return !['remotive', 'jobicy', 'himalayas', 'arbeitnow', 'remoteok'].includes(provider);
 }
 
 function getAggregatorProvider(aggregator = {}) {
   const value = `${aggregator.provider || ''} ${aggregator.name || ''} ${aggregator.api_url || ''} ${aggregator.notes || ''}`.toLowerCase();
   if (value.includes('theirstack') || value.includes('their stack')) return 'theirstack';
+  if (value.includes('remoteok') || value.includes('remote ok')) return 'remoteok';
   if (value.includes('searchapi')) return 'searchapi';
   if (value.includes('serpapi')) return 'serpapi';
   if (value.includes('adzuna')) return 'adzuna';
@@ -1377,7 +1349,7 @@ const PINCHTAB_DATE_EXTRACT_SCRIPT = `(() => {
 })()`;
 
 async function tryPinchtabPublishedDate(url) {
-  if (!(await pinchtabHealth())) return null;
+  if (!(await pinchtabIsUp())) return null;
   let tabId;
   try {
     tabId = await pinchtabNavigate(url, { timeout: 20000 });
@@ -1409,7 +1381,7 @@ async function lookupPublishedDate(url) {
 async function enrichCandidatesWithPublishedDates(candidates = [], { concurrency = 5 } = {}) {
   const undated = candidates.filter(c => !c.publishedAt && c.url);
   if (!undated.length) return candidates;
-  const pinchOk = await pinchtabHealth().catch(() => false);
+  const pinchOk = await pinchtabIsUp();
   const ATS_RE = /^https:\/\/(job-boards(?:\.eu)?\.greenhouse\.io|jobs(?:\.eu)?\.lever\.co|jobs\.ashbyhq\.com)\//i;
   const atsCount = undated.filter(c => ATS_RE.test(c.url)).length;
   console.log(`[scan] [date-enrich] looking up dates for ${undated.length} candidate(s) (ats-api=${atsCount}, pinchtab=${pinchOk ? 'up' : 'down'})`);
@@ -2357,7 +2329,7 @@ async function fetchJobDescriptionViaBrowser(url, { maxChars = 15000, logLabel =
   catch (err) { return { ok: false, status: 0, html: '', text: '', blocked: true, error: `playwright unavailable: ${err.message}` }; }
 
   const profiles = [join(ROOT, 'data', 'chrome-profile'), join(WRITE_ROOT, 'data', 'chrome-jd-profile')];
-  const launchOpts = { headless: false, viewport: null, args: ['--disable-blink-features=AutomationControlled', '--window-size=1280,920'] };
+  const launchOpts = { headless: process.env.SCAN_BROWSER_HEADLESS !== '0', viewport: null, args: ['--disable-blink-features=AutomationControlled', '--window-size=1280,920'] };
   let ctx = null, usedIsolated = false, lastErr;
   for (let i = 0; i < profiles.length && !ctx; i++) {
     for (const channel of ['chrome', undefined]) {
@@ -2453,14 +2425,25 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
     try {
       tabId = await pinchtabNavigate(url, { timeout: 25000 });
       await new Promise(resolve => setTimeout(resolve, 1500));
-      const html = await pinchtabEvaluate(tabId, 'document.documentElement.outerHTML', { timeout: 10000 });
-      const text = extractTextFromHtml(String(html || ''));
+      let html = await pinchtabEvaluate(tabId, 'document.documentElement.outerHTML', { timeout: 10000 });
+      let text = extractTextFromHtml(String(html || ''));
+      let blocked = isBlockedJobDescriptionResponse({ url, status: 200, html, text });
+      if (blocked && !pinchtabSolveCircuitOpen()) {
+        console.log(`[${logLabel}] [pinchtab] challenge detected, attempting solve for ${url}`);
+        const solved = await pinchtabSolve(tabId);
+        if (solved) {
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          html = await pinchtabEvaluate(tabId, 'document.documentElement.outerHTML', { timeout: 10000 });
+          text = extractTextFromHtml(String(html || ''));
+          blocked = isBlockedJobDescriptionResponse({ url, status: 200, html, text });
+        }
+      }
       return {
         ok: true,
         status: 200,
         html: String(html || ''),
         text,
-        blocked: isBlockedJobDescriptionResponse({ url, status: 200, html, text }),
+        blocked,
       };
     } finally {
       await pinchtabClose(tabId);
@@ -2829,17 +2812,17 @@ async function fetchDuckDuckGoSection({ name, query }) {
     });
   } catch (err) {
     console.error(`[scan] [DuckDuckGo] TIMEOUT/ERROR "${name}": ${err.message}`);
-    return { ok: false, section: null };
+    return { ok: false, section: null, jobs: [], engine: 'duckduckgo-html', error: err.message };
   }
   if (!r.ok) {
     console.error(`[scan] [DuckDuckGo] HTTP ${r.status} "${name}"`);
-    return { ok: false, section: null };
+    return { ok: false, section: null, jobs: [], engine: 'duckduckgo-html', error: `HTTP ${r.status}` };
   }
 
   const html = await r.text();
-  if (/anomaly-modal|Select all squares containing a duck/i.test(html)) {
+  if (detectChallenge({ html, text: html }).blocked) {
     console.warn(`[scan] [DuckDuckGo] Challenge page detected for "${name}"`);
-    return { ok: false, section: null, jobs: [], engine: 'duckduckgo-html' };
+    return { ok: false, section: null, jobs: [], engine: 'duckduckgo-html', error: 'challenge page' };
   }
   const resultAnchors = [
     ...html.matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi),
@@ -2895,6 +2878,98 @@ async function fetchCareersUrlFallback(source) {
   if (!source?.careers_url) return { ok: false, section: null, jobs: [], engine: 'playwright-fallback' };
   const [result] = await fetchPlaywrightSections([{ name: source.name, careers_url: source.careers_url }]);
   return result || { ok: false, section: null, jobs: [], engine: 'playwright-fallback' };
+}
+
+async function launchLocalBrowserContext({ profilePrefix = 'career-ops-browser-profile-' } = {}) {
+  if (IS_VERCEL) throw new Error('local browser unavailable on Vercel');
+  const chromium = await getChromium();
+  const persistentProfiles = [
+    join(WRITE_ROOT, 'data', 'chrome-search-profile'),
+    join(WRITE_ROOT, 'data', 'chrome-scan-profile'),
+    join(ROOT, 'data', 'chrome-profile'),
+  ];
+  const launchOpts = {
+    headless: process.env.SCAN_BROWSER_HEADLESS !== '0',
+    viewport: null,
+    args: ['--disable-blink-features=AutomationControlled', '--window-size=1280,920'],
+  };
+
+  let tempProfile = null;
+  try {
+    tempProfile = await mkdtemp(join(tmpdir(), profilePrefix));
+  } catch {
+    tempProfile = null;
+  }
+
+  let ctx = null;
+  let lastErr = null;
+  for (const profile of [...persistentProfiles, tempProfile].filter(Boolean)) {
+    for (const channel of ['chrome', undefined]) {
+      try {
+        ctx = await chromium.launchPersistentContext(profile, channel ? { ...launchOpts, channel } : launchOpts);
+        return { ctx, tempProfile, headless: launchOpts.headless };
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+  }
+
+  if (tempProfile) await rm(tempProfile, { recursive: true, force: true }).catch(() => {});
+  throw new Error(lastErr?.message || 'browser launch failed');
+}
+
+async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = null) {
+  if (!query) return { ok: false, section: null, jobs: [], engine: 'local-browser-google' };
+  if (IS_VERCEL) return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'local browser unavailable on Vercel' };
+
+  await pinchtabSearchThrottle();
+
+  let local = null;
+  let ownBrowser = false;
+  try {
+    local = sharedBrowser || await launchLocalBrowserContext({ profilePrefix: 'career-ops-search-profile-' });
+    ownBrowser = !sharedBrowser;
+    const page = local.ctx.pages()[0] || await local.ctx.newPage();
+    const searchUrl = `https://www.google.com/search?hl=en&num=10&q=${encodeURIComponent(query)}`;
+    console.log(`[scan] [Chrome/Google] "${name}" → q: ${query.slice(0, 80)}...`);
+    const response = await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (response && response.status() >= 400) throw new Error(`Google HTTP ${response.status()}`);
+    await page.waitForTimeout(2200);
+
+    let result = await page.evaluate(PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT).catch(() => ({}));
+    let jobs = Array.isArray(result?.jobs) ? result.jobs : [];
+    let bodyText = cleanString(result?.bodyText || await page.evaluate(PAGE_BODY_TEXT_EXPR).catch(() => '') || '');
+
+    if (!jobs.length && looksLikeChallengePage(bodyText) && !local.headless) {
+      console.log(`[scan] [Chrome/Google] "${name}" challenge wall — solve it in the Chrome window (waiting up to 45s)…`);
+      const deadline = Date.now() + 45000;
+      while (Date.now() < deadline && !jobs.length && !isShuttingDown) {
+        await page.waitForTimeout(3000);
+        result = await page.evaluate(PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT).catch(() => ({}));
+        jobs = Array.isArray(result?.jobs) ? result.jobs : [];
+        bodyText = cleanString(result?.bodyText || await page.evaluate(PAGE_BODY_TEXT_EXPR).catch(() => '') || '');
+        if (!looksLikeChallengePage(bodyText)) break;
+      }
+    }
+
+    if (!jobs.length && looksLikeChallengePage(bodyText)) {
+      console.warn(`[scan] [Chrome/Google] Challenge page detected for "${name}"`);
+      return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'challenge page' };
+    }
+
+    jobs = await enrichLocalJobsWithDetails(local.ctx, jobs, name);
+
+    console.log(`[scan] [Chrome/Google] "${name}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+    return { ok: true, section: buildJobSection(name, jobs), jobs, engine: 'local-browser-google' };
+  } catch (err) {
+    console.error(`[scan] [Chrome/Google] Failed "${name}": ${err.message}`);
+    return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: err.message };
+  } finally {
+    if (ownBrowser) {
+      await local?.ctx?.close().catch(() => {});
+      if (local?.tempProfile) await rm(local.tempProfile, { recursive: true, force: true }).catch(() => {});
+    }
+  }
 }
 
 const PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT = `(() => {
@@ -2983,17 +3058,12 @@ const PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT = `(() => {
   };
 })()`;
 
-// Smart-solve: only invokes the autosolver when challenge text is detected on
-// the page. Re-runs the extract script once if solve succeeds. Returns the new
-// jobs array (or original if no solve attempted / solve failed).
-// Was: /(captcha|…|robot|…|cloudflare|…)/i — `robot` has no word boundary, so
-// it fired on "Robotics"/"Robotic", and `cloudflare` fired on Cloudflare's own
-// careers page. Both are pages this scanner is meant to read. Every caller
-// below is guarded by "0 jobs extracted", so a false positive cost a wasted
-// PinchTab solve attempt and a misleading log line rather than lost data.
+const PAGE_BODY_TEXT_EXPR = '(document.body && document.body.innerText || "").slice(0, 2000)';
+
 function looksLikeChallengePage(bodyText = '') {
   return matchChallengeText(bodyText) !== null;
 }
+
 async function smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript, label }) {
   if (jobs.length || !looksLikeChallengePage(bodyText)) return jobs;
   if (pinchtabSolveCircuitOpen()) {
@@ -3020,9 +3090,8 @@ async function smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript, la
 
 async function fetchPinchtabBraveSection({ name, query }) {
   if (!query) return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave' };
-  if (!(await pinchtabHealth())) {
-    console.warn(`[scan] [PinchTab/Brave] daemon not reachable for "${name}"`);
-    return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave' };
+  if (!(await pinchtabIsUp())) {
+    return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave', error: 'pinchtab daemon not reachable' };
   }
 
   await pinchtabSearchThrottle();
@@ -3055,9 +3124,8 @@ async function fetchPinchtabBraveSection({ name, query }) {
 
 async function fetchPinchtabSearchSection({ name, query }) {
   if (!query) return { ok: false, section: null, jobs: [], engine: 'pinchtab-google' };
-  if (!(await pinchtabHealth())) {
-    console.warn(`[scan] [PinchTab/Google] daemon not reachable for "${name}"`);
-    return { ok: false, section: null, jobs: [], engine: 'pinchtab-google' };
+  if (!(await pinchtabIsUp())) {
+    return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: 'pinchtab daemon not reachable' };
   }
 
   await pinchtabSearchThrottle();
@@ -3071,6 +3139,9 @@ async function fetchPinchtabSearchSection({ name, query }) {
     const result = await pinchtabEvaluate(tabId, PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 12000 }) || {};
     let jobs = Array.isArray(result.jobs) ? result.jobs : [];
     const bodyText = cleanString(result.bodyText || '');
+    if (/server encountered a temporary error|502\.?\s+that.s an error|503 service unavailable/i.test(bodyText)) {
+      throw new Error('Google returned a temporary server error');
+    }
     jobs = await smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript: PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, label: 'PinchTab/Google' });
 
     if (!jobs.length && looksLikeChallengePage(bodyText)) {
@@ -3478,7 +3549,49 @@ async function fetchArbeitnowSection(aggregator = {}) {
   }
 }
 
+async function fetchRemoteOkSection(aggregator = {}) {
+  const apiUrl = aggregator.api_url || 'https://remoteok.com/api';
+  try {
+    const data = await fetchJsonWithTimeout(apiUrl);
+    const rows = Array.isArray(data) ? data : [];
+    const jobs = rows
+      .filter(row => row && typeof row === 'object' && row.position)
+      .map(row => {
+        const tags = Array.isArray(row.tags)
+          ? row.tags.filter(t => typeof t === 'string' || typeof t === 'number').join(' ')
+          : (typeof row.tags === 'string' ? row.tags : '');
+        return {
+          title: cleanString(row.position || ''),
+          company: cleanString(row.company || aggregator.name || 'RemoteOK'),
+          url: cleanString(row.apply_url || row.url || ''),
+          location: cleanString(`remote ${row.location || ''} ${tags}`),
+          remoteEvidence: 'Remote',
+          publishedAt: normalizeDateValue(row.epoch || row.date || ''),
+        };
+      })
+      .filter(job => job.title && job.url);
+    console.log(`[scan] [RemoteOK] "${aggregator.name || 'RemoteOK'}" → ${jobs.length} results, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+    return { ok: jobs.length > 0, section: buildJobSection(aggregator.name || 'RemoteOK', jobs, { includeCompany: true }), jobs, engine: 'remoteok' };
+  } catch (err) {
+    console.warn(`[scan] [RemoteOK] failed: ${err.message}`);
+    return { ok: false, section: null, jobs: [], engine: 'remoteok', error: err.message };
+  }
+}
+
 async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
+  if (aggregator.sourceKind === 'job_board') {
+    try {
+      const jobs = (await fetchJobBoard(aggregator)).map(job => ({
+        ...job, publishedAt: normalizeDateValue(job.publishedAt),
+      }));
+      console.log(`[scan] [${aggregator.provider}] ${aggregator.name}: ${jobs.length} jobs`);
+      return { ok: true, jobs, engine: aggregator.provider,
+        section: buildJobSection(aggregator.name, jobs, { includeCompany: true }) };
+    } catch (error) {
+      console.warn(`[scan] [${aggregator.provider}] ${aggregator.name}: ${error.message}`);
+      return { ok: false, jobs: [], section: null, engine: aggregator.provider, error: error.message };
+    }
+  }
   const provider = getAggregatorProvider(aggregator);
   if (!isAggregatorConfigured(aggregator)) {
     return { ok: false, section: null, jobs: [], engine: provider || 'aggregator', error: 'missing credentials or unsupported provider' };
@@ -3492,18 +3605,25 @@ async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
   if (provider === 'jobicy') return fetchJobicySection(aggregator, portalsConfig);
   if (provider === 'himalayas') return fetchHimalayasSection(aggregator, portalsConfig);
   if (provider === 'arbeitnow') return fetchArbeitnowSection(aggregator, portalsConfig);
+  if (provider === 'remoteok') return fetchRemoteOkSection(aggregator);
   return { ok: false, section: null, jobs: [], engine: 'aggregator', error: 'unsupported provider' };
 }
 
-async function fetchWebSearchSection(source) {
+async function fetchWebSearchSection(source, sharedBrowser = null) {
   if (webSearchCircuitOpen()) {
     return { ok: false, section: null, error: 'web-search circuit open' };
   }
-  if (!serpApiCircuitOpen && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
+
+  const takeIfLoaded = (result) => {
+    if (isWebSearchEngineBlocked(result)) return null;
+    recordWebSearchOutcome(true);
+    return result;
+  };
+
+  if (!serpApiCircuitOpen() && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
     try {
-      const result = await fetchSerpApiSection(source);
-      if (result.ok && result.section) { recordWebSearchOutcome(true); return result; }
-      console.warn(`[scan] [WebSearch] SearchAPI/SerpApi failed for "${source.name}", falling back...`);
+      const taken = takeIfLoaded(await fetchSerpApiSection(source));
+      if (taken) return taken;
     } catch (err) {
       console.warn(`[scan] [WebSearch] SearchAPI/SerpApi threw for "${source.name}": ${err.message}, falling back...`);
     }
@@ -3511,39 +3631,90 @@ async function fetchWebSearchSection(source) {
 
   if (process.env.BRAVE_API_KEY) {
     try {
-      const result = await fetchBraveSection(source);
-      if (result.ok && result.section) { recordWebSearchOutcome(true); return result; }
-      console.warn(`[scan] [WebSearch] Brave failed for "${source.name}", falling back to DuckDuckGo`);
+      const taken = takeIfLoaded(await fetchBraveSection(source));
+      if (taken) return taken;
     } catch (err) {
-      console.warn(`[scan] [WebSearch] Brave threw for "${source.name}": ${err.message}, falling back to DuckDuckGo`);
+      console.warn(`[scan] [WebSearch] Brave threw for "${source.name}": ${err.message}, falling back...`);
     }
-  } else if (!SERPAPI_KEY && !process.env.SEARCHAPI_KEY) {
-    console.log(`[scan] [WebSearch] No API key — using DuckDuckGo fallback for "${source.name}"`);
   }
 
-  // Re-check before each remaining engine: a parallel sibling query may have
-  // tripped the circuit while we were waiting on a throttle slot.
-  if (webSearchCircuitOpen()) return { ok: false, section: null, error: 'web-search circuit open' };
-  const duckDuckGoResult = await fetchDuckDuckGoSection(source);
-  if (duckDuckGoResult.ok && duckDuckGoResult.section) { recordWebSearchOutcome(true); return duckDuckGoResult; }
+  if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
+  if (await pinchtabIsUp()) {
+    if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
+    const pinchtabBraveResult = await fetchPinchtabBraveSection(source);
+    const braveTaken = takeIfLoaded(pinchtabBraveResult);
+    if (braveTaken) return braveTaken;
 
-  if (webSearchCircuitOpen()) return { ok: false, section: null, error: 'web-search circuit open' };
-  const pinchtabBraveResult = await fetchPinchtabBraveSection(source);
-  if (pinchtabBraveResult.ok && pinchtabBraveResult.section) { recordWebSearchOutcome(true); return pinchtabBraveResult; }
+    if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
+    const pinchtabSearchResult = await fetchPinchtabSearchSection(source);
+    const googleTaken = takeIfLoaded(pinchtabSearchResult);
+    if (googleTaken) return googleTaken;
 
-  if (webSearchCircuitOpen()) return { ok: false, section: null, error: 'web-search circuit open' };
-  const pinchtabSearchResult = await fetchPinchtabSearchSection(source);
-  if (pinchtabSearchResult.ok && pinchtabSearchResult.section) { recordWebSearchOutcome(true); return pinchtabSearchResult; }
+    if (source?.careers_url) {
+      console.warn(`[scan] [WebSearch] Falling back to careers_url for "${source.name}"`);
+      const fallback = await fetchCareersUrlFallback(source);
+      recordWebSearchOutcome(!isWebSearchEngineBlocked(fallback));
+      return fallback;
+    }
+    recordWebSearchOutcome(false);
+    return pinchtabSearchResult;
+  }
+
+  const chromeGoogleResult = await fetchLocalBrowserGoogleSection(source, sharedBrowser);
+  if (!isWebSearchEngineBlocked(chromeGoogleResult)) {
+    recordWebSearchOutcome(true);
+    if (!chromeGoogleResult.jobs?.length && source?.careers_url) return fetchCareersUrlFallback(source);
+    return chromeGoogleResult;
+  }
 
   if (source?.careers_url) {
-    console.warn(`[scan] [WebSearch] Falling back to careers_url pinchtab for "${source.name}"`);
+    console.warn(`[scan] [WebSearch] Falling back to careers_url for "${source.name}"`);
     const fallback = await fetchCareersUrlFallback(source);
     recordWebSearchOutcome(!isWebSearchEngineBlocked(fallback));
     return fallback;
   }
-  const allBlocked = [duckDuckGoResult, pinchtabBraveResult, pinchtabSearchResult].every(isWebSearchEngineBlocked);
-  recordWebSearchOutcome(!allBlocked);
-  return pinchtabSearchResult.ok ? pinchtabSearchResult : (pinchtabBraveResult.ok ? pinchtabBraveResult : duckDuckGoResult);
+
+  if (process.env.SCAN_WEBSEARCH_DDG === '1') {
+    if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
+    const duckDuckGoResult = await fetchDuckDuckGoSection(source);
+    const ddgTaken = takeIfLoaded(duckDuckGoResult);
+    if (ddgTaken) return ddgTaken;
+    recordWebSearchOutcome(false);
+    return duckDuckGoResult;
+  }
+
+  recordWebSearchOutcome(false);
+  return chromeGoogleResult;
+}
+
+async function fetchWebSearchSectionsSequential(sources = []) {
+  const results = [];
+  let sharedBrowser = null;
+  try {
+    if (!IS_VERCEL && sources.length && !(await pinchtabIsUp())) {
+      try {
+        sharedBrowser = await launchLocalBrowserContext({ profilePrefix: 'career-ops-search-profile-' });
+      } catch (err) {
+        console.warn(`[scan] [Chrome/Google] shared browser unavailable: ${err.message}`);
+      }
+    }
+
+    for (const source of sources) {
+      if (webSearchCircuitOpen()) {
+        results.push({ status: 'fulfilled', value: { ok: false, section: null, jobs: [], engine: 'web-search', error: 'web-search circuit open' } });
+        continue;
+      }
+      try {
+        results.push({ status: 'fulfilled', value: await fetchWebSearchSection(source, sharedBrowser) });
+      } catch (err) {
+        results.push({ status: 'rejected', reason: err });
+      }
+    }
+  } finally {
+    await sharedBrowser?.ctx?.close().catch(() => {});
+    if (sharedBrowser?.tempProfile) await rm(sharedBrowser.tempProfile, { recursive: true, force: true }).catch(() => {});
+  }
+  return results;
 }
 
 const PINCHTAB_SCROLL_SCRIPT = `(async () => {
@@ -3565,7 +3736,7 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
   };
   const host = window.location.hostname;
   const navLike = /^(home|jobs|careers|open roles|open positions|learn more|view all|see all|apply now)$/i;
-  const isLikelyJobHref = href => /\\/jobs?\\/|\\/positions?\\/|\\/open-roles?\\/|\\/projects?\\/|\\/missions?\\/|\\/job-mission\\/|jobs\\.ashbyhq\\.com|jobs\\.lever\\.co|apply\\.workable\\.com/i.test(href);
+  const isLikelyJobHref = href => !/\\/blog\\//i.test(href) && /\\/jobs?\\/|\\/positions?\\/|\\/open-roles?\\/|\\/projects?\\/|\\/missions?\\/|\\/job-mission\\/|jobs\\.ashbyhq\\.com|jobs\\.lever\\.co|apply\\.workable\\.com/i.test(href);
   const results = [];
   const seen = new Set();
   const pushJob = entry => {
@@ -3718,6 +3889,298 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
   }));
 })()`;
 
+const SCAN_CAREERS_WAIT_MS = Math.max(6000, Number.parseInt(process.env.SCAN_CAREERS_WAIT_MS || '14000', 10) || 14000);
+const SCAN_CAREERS_DETAIL_LIMIT = Math.max(0, Number.parseInt(process.env.SCAN_CAREERS_DETAIL_LIMIT || '8', 10) || 8);
+const SCAN_CAREERS_DETAIL_WAIT_MS = Math.max(2500, Number.parseInt(process.env.SCAN_CAREERS_DETAIL_WAIT_MS || '9000', 10) || 9000);
+
+async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS } = {}) {
+  const started = Date.now();
+  let jobs = [];
+  let bodyText = '';
+  let attempts = 0;
+
+  while (Date.now() - started < maxWaitMs && !isShuttingDown) {
+    attempts += 1;
+    await page.evaluate(PINCHTAB_SCROLL_SCRIPT).catch(() => {});
+    jobs = (await page.evaluate(PINCHTAB_EXTRACT_SCRIPT).catch(() => [])) || [];
+    if (jobs.length) {
+      if (attempts > 1) {
+        console.log(`[scan] [local-browser] "${companyName}" jobs appeared after ${Math.round((Date.now() - started) / 1000)}s`);
+      }
+      return { jobs, bodyText, challenge: false };
+    }
+
+    bodyText = String(await page.evaluate(PAGE_BODY_TEXT_EXPR).catch(() => '') || '');
+    if (looksLikeChallengePage(bodyText)) return { jobs, bodyText, challenge: true };
+    await page.waitForTimeout(attempts <= 2 ? 1200 : 1800);
+  }
+
+  return { jobs, bodyText, challenge: false };
+}
+
+async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS } = {}) {
+  const started = Date.now();
+  let jobs = [];
+  let bodyText = '';
+  let attempts = 0;
+
+  while (Date.now() - started < maxWaitMs && !isShuttingDown) {
+    attempts += 1;
+    await pinchtabEvaluate(tabId, PINCHTAB_SCROLL_SCRIPT, { awaitPromise: true, timeout: 10000 }).catch(() => {});
+    jobs = (await pinchtabEvaluate(tabId, PINCHTAB_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 10000 }).catch(() => [])) || [];
+    if (jobs.length) {
+      if (attempts > 1) {
+        console.log(`[scan] [pinchtab] "${companyName}" jobs appeared after ${Math.round((Date.now() - started) / 1000)}s`);
+      }
+      return { jobs, bodyText, challenge: false };
+    }
+
+    bodyText = String(await pinchtabEvaluate(tabId, PAGE_BODY_TEXT_EXPR, { awaitPromise: false, timeout: 5000 }).catch(() => '') || '');
+    if (looksLikeChallengePage(bodyText)) return { jobs, bodyText, challenge: true };
+    await new Promise(resolve => setTimeout(resolve, attempts <= 2 ? 1200 : 1800));
+  }
+
+  return { jobs, bodyText, challenge: false };
+}
+
+function scanDetailEvidenceSnippet(text = '') {
+  const body = cleanString(text);
+  if (!body) return '';
+  const match = body.match(/.{0,90}\b(remote|remotely|work from anywhere|distributed|worldwide|global|emea|europe|european|eu|apac|asia|timezone|utc)\b.{0,140}/i);
+  return cleanString(match?.[0] || body.slice(0, 260));
+}
+
+function usableDetailTitle(title = '') {
+  const value = cleanString(title);
+  if (value.length < 4 || value.length > 180) return false;
+  if (/^(apply|apply now|view role|learn more|jobs?|careers?|open roles?|open positions?|job details?)$/i.test(value)) return false;
+  return true;
+}
+
+async function enrichLocalJobsWithDetails(ctx, jobs = [], companyName = '') {
+  if (!SCAN_CAREERS_DETAIL_LIMIT || !jobs.length) return jobs;
+  const candidates = jobs
+    .filter(job => job?.url && (DIRECT_JOB_FILTER_REGEX.test(job.title) || !cleanString(job.remoteEvidence || job.location)))
+    .slice(0, SCAN_CAREERS_DETAIL_LIMIT);
+  if (!candidates.length) return jobs;
+
+  const byKey = new Map(jobs.map(job => [normalizeUrlKey(job.url) || job.url, job]));
+  const detailPage = await ctx.newPage();
+  try {
+    for (const job of candidates) {
+      if (isShuttingDown) break;
+      const key = normalizeUrlKey(job.url) || job.url;
+      try {
+        console.log(`[scan] [local-browser] "${companyName}" opening detail → ${cleanString(job.title).slice(0, 70)}`);
+        await detailPage.goto(job.url, { waitUntil: 'domcontentloaded', timeout: SCAN_CAREERS_DETAIL_WAIT_MS }).catch(() => {});
+        await detailPage.waitForTimeout(1200);
+        await detailPage.waitForLoadState('networkidle', { timeout: 2500 }).catch(() => {});
+        const detail = await detailPage.evaluate(() => {
+          const normalizeText = value => String(value || '').replace(/\s+/g, ' ').trim();
+          const textOf = selector => normalizeText((document.querySelector(selector) || {}).textContent || '');
+          const title = textOf('h1') || textOf('[data-testid*="title" i], [class*="job-title" i], [class*="posting-title" i]');
+          const location = textOf('[data-testid*="location" i], [class*="location" i], [class*="Location" i]');
+          const bodyText = normalizeText((document.body && document.body.innerText) || '').slice(0, 1800);
+          const time = document.querySelector('time[datetime]');
+          const publishedAt = (time && time.getAttribute('datetime')) || '';
+          return { title, location, bodyText, publishedAt };
+        }).catch(() => ({}));
+        const current = byKey.get(key);
+        if (!current) continue;
+        if (usableDetailTitle(detail.title)) {
+          current.title = cleanString(detail.title);
+        }
+        current.url = detailPage.url() || current.url;
+        current.location = cleanString(detail.location || current.location);
+        current.remoteEvidence = cleanString([
+          current.location,
+          scanDetailEvidenceSnippet(detail.bodyText),
+          current.remoteEvidence,
+        ].filter(Boolean).join(' | ')).slice(0, 240);
+        if (!current.publishedAt && detail.publishedAt) current.publishedAt = normalizeDateValue(detail.publishedAt);
+      } catch (err) {
+        console.warn(`[scan] [local-browser] "${companyName}" detail skipped: ${err.message}`);
+      }
+    }
+  } finally {
+    await detailPage.close().catch(() => {});
+  }
+  return jobs;
+}
+
+async function enrichPinchtabJobsWithDetails(jobs = [], companyName = '') {
+  if (!SCAN_CAREERS_DETAIL_LIMIT || !jobs.length) return jobs;
+  const candidates = jobs
+    .filter(job => job?.url && (DIRECT_JOB_FILTER_REGEX.test(job.title) || !cleanString(job.remoteEvidence || job.location)))
+    .slice(0, SCAN_CAREERS_DETAIL_LIMIT);
+  if (!candidates.length) return jobs;
+
+  for (const job of candidates) {
+    if (isShuttingDown) break;
+    let detailTabId = null;
+    try {
+      console.log(`[scan] [pinchtab] "${companyName}" opening detail → ${cleanString(job.title).slice(0, 70)}`);
+      detailTabId = await pinchtabNavigate(job.url, { timeout: SCAN_CAREERS_DETAIL_WAIT_MS });
+      await new Promise(resolve => setTimeout(resolve, 1600));
+      const detail = await pinchtabEvaluate(detailTabId, `(() => {
+        const normalizeText = value => String(value || '').replace(/\\s+/g, ' ').trim();
+        const textOf = selector => normalizeText((document.querySelector(selector) || {}).textContent || '');
+        const title = textOf('h1') || textOf('[data-testid*="title" i], [class*="job-title" i], [class*="posting-title" i]');
+        const location = textOf('[data-testid*="location" i], [class*="location" i], [class*="Location" i]');
+        const bodyText = normalizeText((document.body && document.body.innerText) || '').slice(0, 1800);
+        const time = document.querySelector('time[datetime]');
+        const publishedAt = (time && time.getAttribute('datetime')) || '';
+        return { title, location, bodyText, publishedAt, url: location.href };
+      })()`, { awaitPromise: false, timeout: 10000 }).catch(() => ({}));
+      if (usableDetailTitle(detail.title)) {
+        job.title = cleanString(detail.title);
+      }
+      job.url = cleanString(detail.url || job.url);
+      job.location = cleanString(detail.location || job.location);
+      job.remoteEvidence = cleanString([
+        job.location,
+        scanDetailEvidenceSnippet(detail.bodyText),
+        job.remoteEvidence,
+      ].filter(Boolean).join(' | ')).slice(0, 240);
+      if (!job.publishedAt && detail.publishedAt) job.publishedAt = normalizeDateValue(detail.publishedAt);
+    } catch (err) {
+      console.warn(`[scan] [pinchtab] "${companyName}" detail skipped: ${err.message}`);
+    } finally {
+      await pinchtabClose(detailTabId);
+    }
+  }
+  return jobs;
+}
+
+// Local-Chromium careers-page fallback when PinchTab is unavailable.
+// Drives the Playwright chromium that is already a dependency
+// (postinstall pulls it) instead of an external HTTP service, so scanning works
+// with zero paid API and zero extra binary to install. Runs the exact same
+// scroll + extract scripts as the daemon path, so results are identical.
+//
+// One window is opened for the whole batch and reused across companies. It runs
+// Headless by default to keep background scans from opening desktop windows; set
+// SCAN_BROWSER_HEADLESS=0 only when a visible browser is needed.
+async function fetchPlaywrightSectionsLocal(companies = []) {
+  if (IS_VERCEL) {
+    const reason = 'local browser crawler unavailable on Vercel';
+    return companies.map(company => buildPlaywrightResult(company, { error: reason }));
+  }
+
+  let chromium;
+  try { chromium = await getChromium(); }
+  catch (err) {
+    const reason = `playwright unavailable: ${err.message}`;
+    console.error(`[scan] [local-browser] ${reason}`);
+    return companies.map(company => buildPlaywrightResult(company, { error: reason }));
+  }
+
+  // Prefer a scan-dedicated profile so a concurrent auto-apply run holding the
+  // shared profile lock does not block the scan (and vice versa).
+  const persistentProfiles = [join(WRITE_ROOT, 'data', 'chrome-scan-profile'), join(ROOT, 'data', 'chrome-profile')];
+  const launchOpts = {
+    headless: process.env.SCAN_BROWSER_HEADLESS !== '0',
+    viewport: null,
+    args: ['--disable-blink-features=AutomationControlled', '--window-size=1280,920'],
+  };
+  let ctx = null, lastErr, tempProfile = null;
+  const profiles = [...persistentProfiles];
+  try {
+    tempProfile = await mkdtemp(join(tmpdir(), 'career-ops-scan-profile-'));
+    profiles.push(tempProfile);
+  } catch {
+    tempProfile = null;
+  }
+  let usedProfile = null;
+  for (const profile of profiles) {
+    for (const channel of ['chrome', undefined]) {
+      try {
+        ctx = await chromium.launchPersistentContext(profile, channel ? { ...launchOpts, channel } : launchOpts);
+        usedProfile = profile;
+        break;
+      } catch (err) { lastErr = err; }
+    }
+    if (ctx) break;
+  }
+  if (!ctx) {
+    const reason = `browser launch failed: ${lastErr?.message || 'unknown'}`;
+    console.error(`[scan] [local-browser] ${reason}`);
+    if (tempProfile) await rm(tempProfile, { recursive: true, force: true }).catch(() => {});
+    return companies.map(company => buildPlaywrightResult(company, { error: reason }));
+  }
+
+  const results = [];
+  try {
+    await ctx.addInitScript(() => {
+      try {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        window.chrome = window.chrome || { runtime: {} };
+      } catch { /* best effort */ }
+    }).catch(() => {});
+    const page = ctx.pages()[0] || await ctx.newPage();
+
+    for (let index = 0; index < companies.length; index += 1) {
+      const company = companies[index];
+      if (isShuttingDown) {
+        cancelRemainingPlaywrightResults(results, companies, index, 'Cancelled because the UI server is restarting');
+        break;
+      }
+      try {
+        console.log(`[scan] [local-browser] Fetching "${company.name}" → ${company.careers_url}`);
+        await page.goto(company.careers_url, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+        let extracted = await extractJobsFromLocalPage(page, company.name);
+        let jobs = extracted.jobs;
+
+        // Nothing extracted may just mean the page is still behind a wall. Give
+        // a headed run a short window for the operator to clear it by hand; in
+        // headless mode there is nobody to ask, so move on immediately.
+        if (!jobs.length && !launchOpts.headless && extracted.challenge) {
+          console.log(`[scan] [local-browser] "${company.name}" challenge wall — solve it in the Chrome window (waiting up to 45s)…`);
+          const deadline = Date.now() + 45000;
+          while (Date.now() < deadline && !jobs.length && !isShuttingDown) {
+            await page.waitForTimeout(3000);
+            const text = String(await page.evaluate(PAGE_BODY_TEXT_EXPR).catch(() => '') || '');
+            if (looksLikeChallengePage(text)) continue;
+            extracted = await extractJobsFromLocalPage(page, company.name, { maxWaitMs: 8000 });
+            jobs = extracted.jobs;
+            break;
+          }
+        }
+        if (!jobs.length && !extracted.challenge) {
+          console.warn(`[scan] [local-browser] "${company.name}" no jobs after waiting for client-rendered listings`);
+        }
+        jobs = await enrichLocalJobsWithDetails(ctx, jobs, company.name);
+
+        console.log(`[scan] [local-browser] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
+        results.push({
+          ok: true,
+          section: buildJobSection(company.name, jobs),
+          jobs,
+          engine: 'local-browser',
+          company: company.name,
+        });
+      } catch (err) {
+        if (isShuttingDown) {
+          const reason = 'Cancelled because the UI server is restarting or shutting down';
+          console.warn(`[scan] [local-browser] Stopping "${company.name}": ${reason}`);
+          results.push(buildPlaywrightResult(company, { error: reason, cancelled: true, engine: 'local-browser' }));
+          cancelRemainingPlaywrightResults(results, companies, index + 1, reason);
+          break;
+        }
+        console.error(`[scan] [local-browser] Failed "${company.name}": ${err.message}`);
+        results.push(buildPlaywrightResult(company, { error: err.message, engine: 'local-browser' }));
+      }
+    }
+  } finally {
+    await ctx.close().catch(() => {});
+    if (tempProfile) {
+      await rm(tempProfile, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
+  return results;
+}
+
 async function fetchPlaywrightSections(companies = []) {
   if (!companies.length) return [];
   if (isShuttingDown) {
@@ -3727,10 +4190,11 @@ async function fetchPlaywrightSections(companies = []) {
     }));
   }
 
-  if (!(await pinchtabHealth())) {
-    const reason = `pinchtab daemon not reachable at ${PINCHTAB_URL} — start it with: pinchtab server`;
-    console.error(`[scan] [pinchtab] ${reason}`);
-    return companies.map(company => buildPlaywrightResult(company, { error: reason }));
+  // pinchtab is optional: when its daemon is not running, drive the local
+  // Playwright chromium instead of failing the whole batch.
+  if (!(await pinchtabIsUp())) {
+    console.log(`[scan] [pinchtab] using the local browser crawler instead`);
+    return fetchPlaywrightSectionsLocal(companies);
   }
 
   const results = [];
@@ -3745,25 +4209,25 @@ async function fetchPlaywrightSections(companies = []) {
     try {
       console.log(`[scan] [pinchtab] Fetching "${company.name}" → ${company.careers_url}`);
       tabId = await pinchtabNavigate(company.careers_url, { timeout: 20000 });
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      await pinchtabEvaluate(tabId, PINCHTAB_SCROLL_SCRIPT, { awaitPromise: true, timeout: 10000 });
-      let jobs = (await pinchtabEvaluate(tabId, PINCHTAB_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 10000 })) || [];
+      let extracted = await extractJobsFromPinchtab(tabId, company.name);
+      let jobs = extracted.jobs;
 
       // If empty, check for a challenge wall and try solving once before giving up.
-      if (!jobs.length) {
-        const bodyText = String(await pinchtabEvaluate(tabId, '(document.body && document.body.innerText || "").slice(0, 2000)', { awaitPromise: false, timeout: 5000 }) || '');
-        if (looksLikeChallengePage(bodyText)) {
-          console.log(`[scan] [pinchtab] "${company.name}" challenge detected, attempting solve...`);
-          const solved = await pinchtabSolve(tabId);
-          if (solved) {
-            console.log(`[scan] [pinchtab] "${company.name}" solved, re-scrolling + extracting...`);
-            await pinchtabEvaluate(tabId, PINCHTAB_SCROLL_SCRIPT, { awaitPromise: true, timeout: 10000 });
-            jobs = (await pinchtabEvaluate(tabId, PINCHTAB_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 10000 })) || [];
-          } else {
-            console.warn(`[scan] [pinchtab] "${company.name}" solve failed`);
-          }
+      if (!jobs.length && extracted.challenge) {
+        console.log(`[scan] [pinchtab] "${company.name}" challenge detected, attempting solve...`);
+        const solved = await pinchtabSolve(tabId);
+        if (solved) {
+          console.log(`[scan] [pinchtab] "${company.name}" solved, re-scrolling + extracting...`);
+          extracted = await extractJobsFromPinchtab(tabId, company.name, { maxWaitMs: 8000 });
+          jobs = extracted.jobs;
+        } else {
+          console.warn(`[scan] [pinchtab] "${company.name}" solve failed`);
         }
       }
+      if (!jobs.length && !extracted.challenge) {
+        console.warn(`[scan] [pinchtab] "${company.name}" no jobs after waiting for client-rendered listings`);
+      }
+      jobs = await enrichPinchtabJobsWithDetails(jobs, company.name);
 
       console.log(`[scan] [pinchtab] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => DIRECT_JOB_FILTER_REGEX.test(j.title)).length} after filter`);
       results.push({
@@ -3898,7 +4362,7 @@ async function getScanSources() {
   ]
     .filter(q => q.enabled !== false)
     .map(q => ({ name: q.name, kind: q.kind, lastScanned: scanState[q.name] || null }));
-  const aggregators = (parsed.api_aggregators || [])
+  const aggregators = getScanAggregators(parsed)
     .filter(a => a.enabled !== false)
     .map(a => ({
       name: a.name,
@@ -4120,6 +4584,44 @@ function setApplicationStatusInMarkdown(raw, num, status) {
     return cells.join('|');
   });
   return { content: newLines.join('\n'), updated };
+}
+
+function setApplicationStatusesInMarkdown(raw, nums, status) {
+  let updated = false;
+  const newLines = String(raw || '').split('\n').map(line => {
+    if (!line.trim().startsWith('|')) return line;
+    const rowNum = getMarkdownTableRowNumber(line);
+    if (!rowNum || rowNum === '#' || !nums.has(String(rowNum))) return line;
+    const cells = line.split('|');
+    if (cells.length < 7) return line;
+    cells[6] = ` ${status} `;
+    updated = true;
+    return cells.join('|');
+  });
+  return { content: newLines.join('\n'), updated };
+}
+
+async function writeMarkdownApplicationStatus(num, status) {
+  const appFile = join(WRITE_ROOT, 'data/applications.md');
+  const raw = await readFile(appFile, 'utf-8');
+  const { content, updated } = setApplicationStatusInMarkdown(raw, num, status);
+  if (!updated) return false;
+  await writeFile(appFile, content, 'utf-8');
+  return true;
+}
+
+async function recordManualApplicationDelete({ company, role, jobUrl, date }) {
+  const historyUrl = (jobUrl && String(jobUrl).startsWith('http'))
+    ? String(jobUrl).trim()
+    : `unknown:${tsvSafe(company) || 'company'}:${tsvSafe(role) || 'role'}`;
+  await appendScanHistoryEntries([
+    `${historyUrl}\t${date}\tmanual-delete\t${tsvSafe(role)}\t${tsvSafe(company)}\tdeleted`,
+  ]).catch(() => {});
+  if (company && role) {
+    await appendDeletedApplicationEntries([
+      { company, role, date, reason: 'user_deleted' },
+    ]).catch(() => {});
+  }
 }
 
 function extractScanEntriesFromResponse(fullResponse = '', scanUrlPublishedAt = new Map()) {
@@ -4728,12 +5230,19 @@ async function removeManyFromPipeline(urls = [], userId, { historyStatus = 'dele
     all.forEach(it => { if (removeSet.has(it.url)) itemsByUrl.set(it.url, it); });
   }
 
-  // Mark processed in Supabase (single statement)
+  // Mark processed in Supabase. Use one equality update per URL: PostgREST's
+  // `in` filter treats commas inside some real posting URLs as separators and
+  // returns a bare Bad Request, which previously left the UI unchanged.
   if (useSupabase) {
-    let q = supabase.from('pipeline').update({ processed: true }).in('url', cleanUrls);
-    if (userId) q = q.eq('user_id', userId);
-    const { error } = await q;
-    if (error) console.error('Supabase update error:', error);
+    for (const url of cleanUrls) {
+      let q = supabase.from('pipeline').update({ processed: true }).eq('url', url);
+      if (userId) q = q.eq('user_id', userId);
+      const { error } = await q;
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw new Error(`Supabase pipeline sync failed: ${error.message}`);
+      }
+    }
   }
 
   // Single read+write of pipeline.md
@@ -5245,7 +5754,7 @@ function tplRender(template, context, globalData) {
  * @param {object} tailoredData - Overrides passed from LLM (e.g. customized summary/experience)
  * @returns {Promise<string>} rendered HTML
  */
-async function renderPremiumCV(profileKey = 'ai_builder', tailoredData = {}) {
+async function renderPremiumCV(profileKey = 'complete_paris', tailoredData = {}) {
   const templateContent = await readFile(join(ROOT, 'templates/premium-cv.html'), 'utf-8');
   const data = await loadCvTemplateData(ROOT, profileKey, tailoredData);
 
@@ -5284,7 +5793,7 @@ async function renderPremiumCV(profileKey = 'ai_builder', tailoredData = {}) {
   return html;
 }
 
-async function renderBaseCV(profileKey = 'ai_builder', userId) {
+async function renderBaseCV(profileKey = 'complete_paris', userId) {
   const [template, cvSource, data] = await Promise.all([
     readFile(join(ROOT, 'templates/cv-template.html'), 'utf-8'),
     getCvMarkdown(userId),
@@ -5805,41 +6314,11 @@ const server = createServer(async (req, res) => {
           .eq('num', Number(num));
         if (error) return json(res, { error: error.message }, 500);
 
-        // Also update applications.md to keep it in sync with Supabase
-        try {
-          const appFile = join(WRITE_ROOT, 'data/applications.md');
-          const raw = await readFile(appFile, 'utf-8');
-          const newLines = raw.split('\n').map(line => {
-            if (!line.trim().startsWith('|')) return line;
-            const rowNum = getMarkdownTableRowNumber(line);
-            if (!rowNum || rowNum === '#' || rowNum !== String(num)) return line;
-            const cells = line.split('|');
-            if (cells.length < 7) return line;
-            cells[6] = ` ${status} `;
-            return cells.join('|');
-          });
-          await writeFile(appFile, newLines.join('\n'), 'utf-8');
-        } catch { /* applications.md may not exist, ignore */ }
-
+        await writeMarkdownApplicationStatus(num, status).catch(() => {});
         return json(res, { ok: true });
       }
-      const appFile = join(ROOT, 'data/applications.md');
-      const raw = await readFile(appFile, 'utf-8');
-      const lines = raw.split('\n');
-      let updated = false;
-      const newLines = lines.map(line => {
-        if (!line.trim().startsWith('|')) return line;
-        const rowNum = getMarkdownTableRowNumber(line);
-        if (!rowNum || rowNum === '#') return line;
-        const cells = line.split('|');
-        if (cells.length < 7) return line;
-        if (rowNum !== String(num)) return line;
-        cells[6] = ` ${status} `;
-        updated = true;
-        return cells.join('|');
-      });
+      const updated = await writeMarkdownApplicationStatus(num, status).catch(() => false);
       if (!updated) return json(res, { error: 'Application not found' }, 404);
-      await writeFile(appFile, newLines.join('\n'), 'utf-8');
       return json(res, { ok: true });
     }
 
@@ -5847,9 +6326,7 @@ const server = createServer(async (req, res) => {
       const num = decodeURIComponent(path.slice('/api/applications/'.length));
       const today = new Date().toISOString().slice(0, 10);
 
-      // Soft-delete per CLAUDE.md: keep the tracker row as Discarded, register
-      // URL in scan-history + company+role in deleted-applications.tsv so scans
-      // never re-discover the offer (even under a new URL).
+      // Soft-delete: keep the tracker row as Discarded and exclude it from future scans.
       if (useSupabase) {
         const { data: existing, error: fetchError } = await supabase
           .from('applications')
@@ -5858,17 +6335,11 @@ const server = createServer(async (req, res) => {
           .maybeSingle();
         if (fetchError) return json(res, { error: fetchError.message }, 500);
         if (!existing) return json(res, { error: 'Application not found' }, 404);
-        if (isAppliedStatus(existing.status)) {
-          return json(res, { error: 'Applied applications cannot be deleted' }, 409);
-        }
+        const blockReason = deleteApplicationBlockReason(existing.status);
+        if (blockReason) return json(res, { error: blockReason }, 409);
 
         const company = String(existing.company ?? existing.Company ?? '').trim();
         const role = String(existing.role ?? existing.Role ?? '').trim();
-        // The Supabase `applications` table has no URL column (sync-supabase.mjs
-        // writes num/date/company/role/score/status/pdf/report/notes only), so
-        // `report` — a markdown link — was the only candidate and never passed
-        // the startsWith('http') test below. Every Supabase-mode deletion
-        // therefore recorded `unknown:…` and lost URL-exact dedup.
         const jobUrl = await findPostingUrlFromReportLink(existing.report ?? '');
 
         const { error } = await supabase
@@ -5877,57 +6348,66 @@ const server = createServer(async (req, res) => {
           .eq('num', Number(num));
         if (error) return json(res, { error: error.message }, 500);
 
-        try {
-          const appFile = join(WRITE_ROOT, 'data/applications.md');
-          const raw = await readFile(appFile, 'utf-8');
-          const { content } = setApplicationStatusInMarkdown(raw, num, 'Discarded');
-          await writeFile(appFile, content, 'utf-8');
-        } catch { /* applications.md may not exist */ }
-
-        const historyUrl = (jobUrl && String(jobUrl).startsWith('http'))
-          ? String(jobUrl).trim()
-          : `unknown:${tsvSafe(company) || 'company'}:${tsvSafe(role) || 'role'}`;
-        await appendScanHistoryEntries([
-          `${historyUrl}\t${today}\tmanual-delete\t${tsvSafe(role)}\t${tsvSafe(company)}\tdeleted`,
-        ]).catch(() => {});
-        if (company && role) {
-          await appendDeletedApplicationEntries([
-            { company, role, date: today, reason: 'user_deleted' },
-          ]).catch(() => {});
-        }
+        await writeMarkdownApplicationStatus(num, 'Discarded').catch(() => {});
+        await recordManualApplicationDelete({ company, role, jobUrl, date: today });
         return json(res, { ok: true, status: 'Discarded' });
       }
 
       const appFile = join(ROOT, 'data/applications.md');
       const raw = await readFile(appFile, 'utf-8');
-      const lines = raw.split('\n');
-      const targetLine = lines.find(line => getMarkdownTableRowNumber(line) === String(num));
+      const targetLine = raw.split('\n').find(line => getMarkdownTableRowNumber(line) === String(num));
       if (!targetLine) return json(res, { error: 'Application not found' }, 404);
-      if (lineLooksAppliedApplication(targetLine)) {
-        return json(res, { error: 'Applied applications cannot be deleted' }, 409);
-      }
-
       const cells = targetLine.split('|').map(c => c.trim());
       const company = cells[3] || '';
       const role = cells[4] || '';
-      const jobUrl = await findPostingUrlFromReportLink(targetLine);
+      const blockReason = deleteApplicationBlockReason(cells[6] || '');
+      if (blockReason) return json(res, { error: blockReason }, 409);
 
-      const { content, updated } = setApplicationStatusInMarkdown(raw, num, 'Discarded');
+      const updated = await writeMarkdownApplicationStatus(num, 'Discarded');
       if (!updated) return json(res, { error: 'Application not found' }, 404);
-      await writeFile(appFile, content, 'utf-8');
 
-      const historyUrl = (jobUrl && jobUrl.startsWith('http'))
-        ? jobUrl
-        : `unknown:${tsvSafe(company) || 'company'}:${tsvSafe(role) || 'role'}`;
-      await appendScanHistoryEntries([
-        `${historyUrl}\t${today}\tmanual-delete\t${tsvSafe(role)}\t${tsvSafe(company)}\tdeleted`,
-      ]).catch(() => {});
-      if (company && role) {
-        await appendDeletedApplicationEntries([
-          { company, role, date: today, reason: 'user_deleted' },
-        ]).catch(() => {});
-      }
+      const jobUrl = await findPostingUrlFromReportLink(targetLine);
+      await recordManualApplicationDelete({ company, role, jobUrl, date: today });
       return json(res, { ok: true, status: 'Discarded' });
+    }
+
+    if (path === '/api/applications/bulk-discard-stale' && method === 'POST') {
+      const body = await readBody(req);
+      const nums = [...new Set((Array.isArray(body?.nums) ? body.nums : [])
+        .map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0))];
+      if (!nums.length) return json(res, { error: 'No application numbers provided' }, 400);
+      const today = new Date().toISOString().slice(0, 10);
+      let rows = [];
+
+      if (useSupabase) {
+        let q = supabase.from('applications').select('*').in('num', nums);
+        if (req.userId) q = q.eq('user_id', req.userId);
+        const { data, error: fetchError } = await q;
+        if (fetchError) return json(res, { error: fetchError.message }, 500);
+        rows = data || [];
+        if (rows.length) {
+          let update = supabase.from('applications').update({ status: 'Discarded' }).in('num', rows.map(row => row.num));
+          if (req.userId) update = update.eq('user_id', req.userId);
+          const { error } = await update;
+          if (error) return json(res, { error: `Supabase application sync failed: ${error.message}` }, 500);
+        }
+      } else {
+        const raw = await readFile(join(WRITE_ROOT, 'data/applications.md'), 'utf-8');
+        const wanted = new Set(nums.map(String));
+        const changed = setApplicationStatusesInMarkdown(raw, wanted, 'Discarded');
+        if (changed.updated) await writeFile(join(WRITE_ROOT, 'data/applications.md'), changed.content, 'utf-8');
+        rows = nums.map(num => ({ num }));
+      }
+
+      for (const row of rows) {
+        const company = String(row.company ?? row.Company ?? '').trim();
+        const role = String(row.role ?? row.Role ?? '').trim();
+        const jobUrl = await findPostingUrlFromReportLink(row.report ?? row.Report ?? '');
+        await recordManualApplicationDelete({ company, role, jobUrl, date: today });
+        if (!useSupabase) continue;
+        await writeMarkdownApplicationStatus(row.num, 'Discarded').catch(() => {});
+      }
+      return json(res, { ok: true, updated: rows.length, status: 'Discarded' });
     }
 
     if (path === '/api/pipeline') {
@@ -5974,7 +6454,7 @@ const server = createServer(async (req, res) => {
     if (path === '/api/template-preview' && method === 'GET') {
       try {
         const urlParams = new URL('http://localhost' + req.url).searchParams;
-        const profileKey = urlParams.get('profile') || 'ai_builder';
+        const profileKey = urlParams.get('profile') || 'complete_paris';
         const location = cleanString(urlParams.get('location') || '');
         const tailoredData = location
           ? { shared: { contact: { location } } }
@@ -6132,10 +6612,13 @@ const server = createServer(async (req, res) => {
     async function generateFallbackAnswers(spec) {
       let reportText = '';
       try { reportText = await readFile(join(ROOT, 'reports', spec.report), 'utf-8'); } catch { return []; }
+      const candidateCv = await readFile(join(ROOT, 'cv.md'), 'utf-8').catch(() => '');
+      if (!candidateCv.trim()) return [];
+      const voice = loadApplicationVoice(ROOT);
       const regionLine = spec.region === 'asia'
         ? 'The candidate is based in Bangkok, Thailand (ICT, UTC+7).'
         : 'The candidate is based in Paris, France (CET/CEST).';
-      const prompt = `Here is an evaluation report for a job offer (company: ${spec.company}, role: ${spec.role}):\n\n${reportText.slice(0, 9000).replace(/\s*[—–]\s*/g, ', ')}\n\n${regionLine}\nSalary target: ${spec.identity.salary}. Availability: ${spec.identity.startDate}.\n\nWrite application-form answers for these standard questions, as the candidate (first person), drawing proof points from the report.\n\n${STYLE_RULES}\n\nEach of the 7 answers must be DISTINCT. Questions 1, 2 and 4 are different angles: role scope, the company and its product, overall fit. Never reuse the same sentences across them.\n\nReply with ONLY a JSON array: [{"question": "...", "answer": "..."}] for these questions:\n1. Why are you interested in this role?\n2. Why do you want to work at ${spec.company}?\n3. Tell us about a relevant project or achievement\n4. What makes you a good fit for this position?\n5. Salary expectations\n6. Notice period / availability\n7. Cover letter (4-6 sentences combining the above)`;
+      const prompt = `Here is an evaluation report for a job offer (company: ${spec.company}, role: ${spec.role}):\n\n${reportText.slice(0, 9000).replace(/\s*[—–]\s*/g, ', ')}\n\n${regionLine}\nSalary target: ${spec.identity.salary}. Availability: ${spec.identity.startDate}.\n\nWrite application-form answers for these standard questions, as the candidate (first person), using only the candidate CV and explicit identity facts for personal claims. The report describes the role, not verified candidate history. Omit an answer if the facts are insufficient.\n\n${STYLE_RULES}\n\nCANDIDATE CV (source of personal facts):\n${candidateCv.slice(0, 14000)}\n\nUSER WRITING PREFERENCES:\n${voice}\n\nEach of the 7 answers must be DISTINCT. Questions 1, 2 and 4 are different angles: role scope, the company and its product, overall fit. Never reuse the same sentences across them.\n\nReply with ONLY a JSON array: [{"question": "...", "answer": "..."}] for these questions:\n1. Why are you interested in this role?\n2. Why do you want to work at ${spec.company}?\n3. Tell us about a relevant project or achievement\n4. What makes you a good fit for this position?\n5. Salary expectations\n6. Notice period / availability\n7. Cover letter (a short standalone letter; do not concatenate the other answers)`;
       try {
         const raw = await chat({
           model: MODELS.CLAUDE_HAIKU,
@@ -6256,7 +6739,9 @@ const server = createServer(async (req, res) => {
         try { tailoredData = JSON.parse(tailoredJsonMatch[1]); } catch {}
       }
 
-      const html = await renderPremiumCV('ai_builder', tailoredData);
+      const region = detectRegion(`${company} ${role} ${response}`);
+      const basedProfileKey = region === 'asia' ? 'complete_bangkok' : 'complete_paris';
+      const html = await renderPremiumCV(basedProfileKey, tailoredData);
       const htmlPath = join(WRITE_ROOT, 'batch/temp', `cv-${companySlug}.html`);
       const pdfFilename = `cv-hugo-vermot-${companySlug}-${today}.pdf`;
       const pdfPath = join(ROOT, 'output', pdfFilename);
@@ -6352,6 +6837,7 @@ const server = createServer(async (req, res) => {
           resetSerpApiCircuit();
           resetPinchtabSolveCircuit();
           resetWebSearchCircuit();
+          resetPinchtabHealthCache();
           send('status', { text: 'Fetching direct scan sources...' });
           const { parsed: portalsConfig } = await readPortalsYaml();
           const selection = await getScanSelection();
@@ -6400,7 +6886,7 @@ const server = createServer(async (req, res) => {
             .filter(q => q.enabled !== false && inSel('queries', q.name))
             .forEach(q => webSearchSources.push({ name: q.name, query: q.query }));
 
-          const selectedAggregators = (portalsConfig.api_aggregators || [])
+          const selectedAggregators = getScanAggregators(portalsConfig)
             .filter(a => a.enabled !== false && inSel('aggregators', a.name));
           const runnableAggregators = selectedAggregators.filter(isAggregatorConfigured);
           const scannedSourceNames = [
@@ -6414,7 +6900,7 @@ const server = createServer(async (req, res) => {
           const serpApiConfigured = Boolean(SERPAPI_KEY || process.env.SEARCHAPI_KEY);
           // Pre-flight: validate API key once before dispatching all parallel web searches
           if (serpApiConfigured) await probeSearchApi();
-          const webSearchResults = await Promise.allSettled(webSearchSources.map(source => fetchWebSearchSection(source)));
+          const webSearchResults = await fetchWebSearchSectionsSequential(webSearchSources);
           const playwrightResults = await fetchPlaywrightSections(playwrightCos);
           const aggregatorResults = await Promise.allSettled(runnableAggregators.map(aggregator =>
             fetchAggregatorSection(aggregator, portalsConfig)
@@ -6805,10 +7291,10 @@ Règles:
 - indique clairement que l'offre est rejetée parce qu'elle viole les critères du profil
 - la politique remote du profil est une contrainte dure ici
 - ne cherche pas à sauver l'offre ni à proposer d'exception
-- garde le format A-E suffisamment structuré pour que le report reste exploitable
+- garde le format A-D suffisamment structuré pour que le report reste exploitable
 - conclusion explicite: HARD PASS / DO NOT APPLY`);
           } else {
-            parts.push(`---\nExécute l'évaluation complète (mode oferta) sur l'offre récupérée ci-dessus. L'URL est ${pipelineTarget.url}. Vérifie l'offre contre TOUS les critères dérivés du profil avant de scorer. Si une contrainte dure du profil est violée, rejette l'offre immédiatement. Génère directement le rapport final de A à E avec le bon format. Ne scanne pas le formulaire de candidature, ne génère pas de questions/réponses de candidature, ne génère pas de JSON de CV tailoré et ne demande pas de PDF. Ne mentionne pas tes actions au préalable, sois direct et commence avec "# Evaluation: {Company} — {Role}".`);
+            parts.push(`---\nExécute l'évaluation complète (mode oferta) sur l'offre récupérée ci-dessus. L'URL est ${pipelineTarget.url}. Vérifie l'offre contre TOUS les critères dérivés du profil avant de scorer. Si une contrainte dure du profil est violée, rejette l'offre immédiatement. Génère directement le rapport final de A à D avec le bon format (Résumé du rôle, Match CV, Niveau et stratégie, Comp et demande) — n'inclus PAS de plan de personnalisation CV/LinkedIn, ce n'est pas le rôle de cette évaluation. Ne scanne pas le formulaire de candidature, ne génère pas de questions/réponses de candidature, ne génère pas de JSON de CV tailoré et ne demande pas de PDF. Ne mentionne pas tes actions au préalable, sois direct et commence avec "# Evaluation: {Company} — {Role}".`);
           }
         } else if (mode === 'apply') {
           parts.push(`---\nTu démarres le mode apply pour une offre déjà sélectionnée. Utilise le report complet fourni ci-dessus pour préparer un starter pack d'application: résumé ciblé de l'offre, 3-5 angles forts à réutiliser, pièces à joindre, valeurs probables pour les champs standards (salaire, préavis, visa/remote) basées sur profile.yml si disponibles, puis une liste concise de ce qu'il faut partager ensuite (screenshot ou copier-coller des questions). N'invente aucun champ de formulaire non visible et ne prétends pas voir le formulaire tant qu'il n'a pas été fourni.`);
@@ -7123,7 +7609,7 @@ Contraintes :
             }
 
             if (mode === 'pipeline' && pipelineTarget) {
-              await removeFromPipeline(pipelineTarget.url, req.userId);
+              await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'evaluated', historyPortal: 'pipeline' });
               saves.push(`Removed URL from pipeline queue`);
             }
 
@@ -7372,7 +7858,109 @@ Contraintes :
   }
 });
 
-server.listen(PORT, () => {
+function runCommand(command, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', chunk => { stdout += chunk; });
+    child.stderr?.on('data', chunk => { stderr += chunk; });
+    child.once('error', reject);
+    child.once('close', code => resolve({ code, stdout, stderr }));
+  });
+}
+
+async function findListeningPids(port) {
+  if (process.platform === 'win32') {
+    const result = await runCommand('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      `(Get-NetTCPConnection -LocalPort ${Number(port)} -State Listen -ErrorAction SilentlyContinue).OwningProcess`,
+    ]);
+    return [...new Set(result.stdout.split(/\s+/).map(Number).filter(Number.isInteger))];
+  }
+
+  const result = await runCommand('lsof', ['-tiTCP:' + Number(port), '-sTCP:LISTEN']);
+  return [...new Set(result.stdout.split(/\s+/).map(Number).filter(Number.isInteger))];
+}
+
+async function isCareerOpsServer(pid) {
+  if (pid === process.pid) return false;
+
+  if (process.platform === 'win32') {
+    const result = await runCommand('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      `(Get-CimInstance Win32_Process -Filter \"ProcessId = ${pid}\").CommandLine`,
+    ]);
+    return /(?:^|[\\/ ])ui[\\/]server\.mjs(?:\s|$)/i.test(result.stdout);
+  }
+
+  const result = await runCommand('ps', ['-p', String(pid), '-o', 'command=']);
+  return /(?:^|[\\/ ])ui[\\/]server\.mjs(?:\s|$)/i.test(result.stdout);
+}
+
+function waitForPortRelease(port, timeoutMs = 8000) {
+  const startedAt = Date.now();
+  return new Promise((resolve, reject) => {
+    const probe = () => {
+      const probeServer = createServer();
+      probeServer.once('error', err => {
+        probeServer.close();
+        if (Date.now() - startedAt >= timeoutMs) {
+          reject(new Error(`Le port ${port} est toujours occupé après l'arrêt de l'ancienne instance.`));
+          return;
+        }
+        setTimeout(probe, 150);
+      });
+      probeServer.listen(port, '::', () => {
+        probeServer.close(() => resolve());
+      });
+    };
+    probe();
+  });
+}
+
+function listenOnce(port) {
+  return new Promise((resolve, reject) => {
+    const onError = err => {
+      server.removeListener('listening', onListening);
+      reject(err);
+    };
+    const onListening = () => {
+      server.removeListener('error', onError);
+      resolve();
+    };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port);
+  });
+}
+
+async function startServer() {
+  try {
+    await listenOnce(PORT);
+  } catch (err) {
+    if (err.code !== 'EADDRINUSE') throw err;
+
+    const pids = await findListeningPids(PORT).catch(() => []);
+    const oldServers = [];
+    for (const pid of pids) {
+      if (await isCareerOpsServer(pid).catch(() => false)) oldServers.push(pid);
+    }
+
+    if (!oldServers.length) {
+      throw new Error(`Le port ${PORT} est déjà utilisé par une autre application.`);
+    }
+
+    console.log(`[server] Ancienne instance détectée (${oldServers.join(', ')}), arrêt en cours...`);
+    for (const pid of oldServers) {
+      try { process.kill(pid, 'SIGTERM'); } catch (killError) {
+        if (killError.code !== 'ESRCH') throw killError;
+      }
+    }
+    await waitForPortRelease(PORT);
+    await listenOnce(PORT);
+  }
+
   const mode = useSupabase ? 'Supabase' : 'markdown files';
   console.log(`\n  Career Ops UI  →  http://localhost:${PORT}  [${mode}]\n`);
 
@@ -7394,6 +7982,11 @@ server.listen(PORT, () => {
       }
     }, 1500);
   }
+}
+
+startServer().catch(err => {
+  console.error(`[server] Impossible de démarrer : ${err.message}`);
+  process.exitCode = 1;
 });
 
 setupGracefulShutdown(server);

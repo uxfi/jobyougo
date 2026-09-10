@@ -148,6 +148,17 @@ try {
   if (cappedCalls === 100) pass('themuse.fetch() clamps page_count to 100 (prevents unbounded requests)');
   else fail(`themuse.fetch() made ${cappedCalls} requests for page_count=99999 (expected 100)`);
 
+  let configuredCalls = 0;
+  await themuse.fetch(
+    { name: 'X', provider: 'themuse', max_pages: 3 },
+    {
+      fetchJson: async () => { configuredCalls++; return { results: [], page: 0, page_count: 99999 }; },
+      sleep: async () => {},
+    },
+  );
+  if (configuredCalls === 3) pass('themuse.fetch() honors entry max_pages under the hard cap');
+  else fail(`themuse.fetch() made ${configuredCalls} requests for max_pages=3 (expected 3)`);
+
   // Non-integer page_count must be ignored (NaN passes typeof==='number' but not Number.isInteger).
   let nonIntCalls = 0;
   await themuse.fetch(
@@ -336,4 +347,3 @@ try {
 } catch (e) {
   fail(`themuse provider tests crashed: ${e.message}`);
 }
-

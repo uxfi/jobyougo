@@ -1,3 +1,5 @@
+import { matchChallengeText } from './lib/challenge-detect.mjs';
+
 // Portals write closure banners with typographic punctuation and accents:
 // WTTJ renders "Cette offre n’est plus disponible." with U+2019, not ASCII "'".
 // A pattern spelled with a plain apostrophe silently never matches, so a clearly
@@ -53,24 +55,6 @@ const LISTING_PAGE_PATTERNS = [
   /search for jobs page is loaded/i,
 ];
 
-// Anti-bot interstitials (Cloudflare "Just a moment...", hCaptcha walls, etc.)
-// render a tiny challenge page instead of the posting. Headless Playwright trips
-// these on portals like pracuj.pl. They must NOT be read as expired: the body is
-// short and lacks an apply control, so without this guard they fall through to
-// `insufficient_content` → expired, and scan --verify would write live jobs to
-// scan-history and permanently filter them out. Treat as uncertain instead.
-const BOT_CHALLENGE_PATTERNS = [
-  /just a moment/i,
-  /performing security verification/i,
-  /checking your browser before/i,
-  /verify you are (a |not a )?human/i,
-  /enable javascript and cookies to continue/i,
-  /attention required.*cloudflare/i,
-  /\bray id\b/i,
-  /\bcf-ray\b/i,
-  /please complete the security check/i,
-];
-
 const EXPIRED_URL_PATTERNS = [
   /[?&]error=true/i,
 ];
@@ -121,22 +105,21 @@ export function classifyLiveness({ status = 0, requestedUrl = '', finalUrl = '',
     return { result: 'expired', code: 'http_gone', reason: `HTTP ${status}` };
   }
 
-  // Bot/anti-scraping walls — never expired. Check before the content-length and
-  // listing-page heuristics, which would otherwise misread the short challenge
-  // body as a dead posting. 403/503 are access-blocked signals, not "gone"
-  // (a genuinely removed posting returns 404/410 or a hard-expired banner).
-  const botChallenge = firstMatch(BOT_CHALLENGE_PATTERNS, bodyText);
-  if (botChallenge) {
-    return { result: 'uncertain', code: 'bot_challenge', reason: `anti-bot challenge: ${botChallenge.source}` };
+  // 429/503 are the origin throttling us — never a captcha wall, never "gone".
+  // Check them before challenge copy: a 503 body can say "checking your browser"
+  // without being a Cloudflare interstitial (see tests/liveness-core.test.mjs).
+  if (status === 429 || status === 503) {
+    return { result: 'uncertain', code: 'access_blocked', reason: `HTTP ${status} (access blocked, likely anti-bot)` };
   }
-  // 429 belongs with 403/503: rate limiting is the board throttling US, never
-  // evidence the posting is gone. Its body is a short "Too Many Requests", well
-  // under MIN_CONTENT_CHARS, so without this it fell through to
-  // insufficient_content and read as `expired` — and an expired result is
-  // written to scan-history as skipped_expired, whose URL every later scan
-  // dedup-skips (indefinitely, unless scan_history.recheck_after_days is set).
-  // Scanning harder is exactly what earns a 429, so this compounds.
-  if (status === 403 || status === 429 || status === 503) {
+
+  // Bot/anti-scraping walls — never expired. Check before the content-length
+  // heuristics. Weak markers ("access denied") are skipped so a 403 with that
+  // copy stays access_blocked rather than bot_challenge.
+  const botMarker = matchChallengeText(bodyText, { allowWeak: false });
+  if (botMarker) {
+    return { result: 'uncertain', code: 'bot_challenge', reason: `anti-bot challenge: ${botMarker}` };
+  }
+  if (status === 403) {
     return { result: 'uncertain', code: 'access_blocked', reason: `HTTP ${status} (access blocked, likely anti-bot)` };
   }
   // Any other 5xx is a transient origin error (502/504 gateway hiccups, 500s

@@ -13,11 +13,15 @@ We have field-tested the auto-fill flow across several major ATS platforms (Ashb
 
 ### Ashby
 
+- Yes/No controls backed by a hidden checkbox are read as two explicit options.
+  Selecting No counts as an answered question even though the underlying checkbox
+  remains unchecked.
+
 - **Duplicate Prevention:** Ashby merges candidates based on their email. Before filling out the form, the agent checks if you've already applied to this company. If so, it warns you and suggests a modified email alias (like `you+teamname@domain.com`) to prevent silent failures or unintended profile merges.
 
 ### Lever
 
-- **Checkboxes and the Captcha Stay Yours:** Lever often pops an hCaptcha challenge when checkboxes or radio buttons are clicked programmatically. The agent therefore auto-fills text, textareas, and standard select dropdowns only, and never touches the checkboxes, the radio buttons, or the captcha widget. It lists every field it skipped along with recommended values, and you tick them, solve the captcha, and submit.
+- **Checkboxes and most captchas stay yours:** Lever often pops an hCaptcha challenge when checkboxes or radio buttons are clicked programmatically. The agent therefore never writes into captcha response fields. When explicitly enabled and PinchTab is available, it may attempt compatible Cloudflare/Turnstile verification; reCAPTCHA, hCaptcha, DataDome, Arkose and other unsupported challenges remain manual. It lists skipped fields with recommended values so you can complete them safely.
 
 ### Workable
 
@@ -50,6 +54,47 @@ This saves you from spending time tailoring responses for a job that the ATS wil
 ---
 
 ## 3. Troubleshooting
+
+### Application writing
+
+Both answer generation paths use `lib/application-writing.mjs`. User preferences
+are read from the marked application-writing section of `modes/_custom.md`,
+with optional `voice-dna.md` and the profile's copywriting section. The current
+user preferences take precedence over older style rules.
+
+The editing guidance was reviewed against
+[Humanizer](https://github.com/blader/humanizer/blob/main/SKILL.md) and
+[Writing Clearly and Concisely](https://github.com/obra/the-elements-of-style/blob/main/skills/writing-clearly-and-concisely/SKILL.md).
+These are references, not installed runtime plugins. Personal claims must come
+from candidate sources. Automatic cleanup changes formatting, not vocabulary or
+the strength of a claim. It is not an AI-authorship detector.
+
+Run `npm run test:writing` for regression checks on meaning preservation and
+loading user preferences. These tests do not assess model-generated prose quality.
+
+The final field check includes missing required attachments and browser/ARIA
+validation errors, even for fields the runner just filled. Text entry verifies
+the complete answer rather than accepting any non-empty value. Disabled,
+read-only and inert controls are excluded from fill targets. Captcha detection
+ignores hidden widgets and passive reCAPTCHA badges; visible challenges still
+pause the flow when they cannot be resolved through the configured path.
+
+### PinchTab navigation fallback
+
+When direct navigation cannot reach the application form, the runner explores
+the interface in an isolated PinchTab tab. It checks the page again after each
+action, including the last allowed action. An authentication wall can only be
+crossed through an explicit guest control; otherwise navigation stops for manual
+login. Repeated Apply labels are allowed on different URLs, while a control
+already attempted on the same URL is skipped to avoid click loops. The isolated
+tab is closed after exploration, and the discovered URL is checked again in the
+runner's browser before filling any fields.
+
+Navigation regression tests: `node --test tests/apply-navigation.test.mjs`.
+
+Run the focused application suite with `npm run test:apply`. Field collection,
+completion checks, blocker detection and navigation live in separate
+`lib/apply-*.mjs` modules shared by the runner and its tests.
 
 - **Agent hangs or crashes mid-form:** This usually happens when an ATS updates its React DOM unexpectedly or pops a hidden captcha. When this happens, look at the agent's output—it always prints a complete list of generated answers. You can easily copy and paste the remaining answers manually.
 - **Form changes:** If you notice the form on screen is for a different role than the one evaluated in your report, the agent will detect it and ask if you want to adapt the responses to the new title or stop and re-evaluate.

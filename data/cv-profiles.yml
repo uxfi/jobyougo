@@ -158,6 +158,7 @@ ai_builder:
       bullets:
         - "Product strategy, investor UX, KYB compliance onboarding, and PM workspace architecture for a regulated RWA investment platform (commercial real estate, daily USDC yield, Base / ERC-3643)."
         - "Trust-first institutional design system: homepage with regulatory trust bar, asset marketplace, fractional purchase selector, and asset-class-dependent reporting flows."
+        - "Replaced Figma with a self-built tool (Figmol) mirroring the live app, and moved design into a Git-based workflow (design repo + PRD repo, GitHub PR review, Cursor hand-off)."
     - company: "Independent AI Product Builder"
       url: "https://creads.io"
       logo: "creads_logo_final.png"
@@ -313,6 +314,7 @@ product_designer:
       bullets:
         - "Design lead on a regulated RWA investment platform: investor homepage, asset marketplace, fractional purchase flows, five-step KYB onboarding, and the Property Manager workspace."
         - "Defined a trust-first institutional design language (white theme, calm hierarchy, large property visuals) and asset-class-dependent reporting UX with review loops."
+        - "Replaced Figma with a self-built live-app whiteboard (Figmol) and a Git-based design workflow (design repo + PRD repo, PR review, Cursor hand-off)."
     - company: "Freelance"
       role: "Senior Product Designer / UX Consultant"
       period: "Aug 2016 – Present"
@@ -363,9 +365,9 @@ complete_paris:
   portrait: "hugo_vermot.png"
   maxim: "Turn ambiguity into systems, systems into products, products into proof."
   summary: |
-    Senior Product Designer and AI Product Builder with 12+ years of experience across UX, product strategy, SaaS, fintech, and applied AI. I design scalable digital products by combining product thinking, systems architecture, and UX craft with hands-on AI engineering: AI agents and multi-agent orchestration (planner/executor/verifier loops, semantic tool routing), prompt engineering, and LLM-powered workflows.
+    Product Designer turned AI Product Builder, with 12+ years of UX and product strategy across SaaS and fintech, now channeled into hands-on AI engineering: agent orchestration, prompt systems, and LLM-powered workflows.
 
-    Beyond interfaces, I build agents and automation pipelines that improve how teams work: manual, error-prone processes become orchestrated, measurable workflows. Founder-minded: I lead projects, ship products solo end-to-end, and connect user experience, business logic, and intelligent systems into one cohesive product ecosystem.
+    I don't just design interfaces. I architect the systems behind them, then ship solo: user flow, backend, AI pipeline, production. Founder-minded, systems-first, built to ship.
   stats:
     - value: "12"
       label: "Year in"
@@ -376,17 +378,22 @@ complete_paris:
     - value: "6"
       label: "Solo"
       sub: "Founder"
+  availability_tags:
+    - label: "Full remote"
+      bg: "#eff6ff"
+      color: "#2563eb"
+      border: "#bfdbfe"
   target_roles:
     - "Senior Product Designer"
     - "AI Product Builder"
     - "Product Lead"
   skill_sections:
     - title: "Product Design"
-      items: ["UX Research", "User Interviews", "User Flows", "Wireframing", "Hi-fi Prototypes", "Design Systems", "IA", "Figma"]
+      items: ["UX Research", "User Interviews", "User Flows", "Wireframing", "Hi-fi Prototypes", "Design Systems", "IA"]
     - title: "AI & Tech"
-      items: ["AI Agents", "Multi-Agent Orchestration", "Prompt Engineering", "LLM Workflows", "Process Automation", "Supabase", "Vercel", "JavaScript", "Python"]
+      items: ["AI Agents", "Multi-Agent Orchestration", "Prompt Engineering", "LLM Workflows", "Process Automation", "JavaScript", "Python"]
     - title: "Soft Skills"
-      items: ["Product Leadership", "Stakeholder Management", "Cross-functional Alignment", "Workshop Facilitation", "Team Management", "Navigating Ambiguity"]
+      items: ["Product Leadership", "Stakeholder Management", "Cross-functional Alignment", "Workshop Facilitation", "Team Management"]
   projects_title: "Featured Work"
   projects:
     - name: "Société Générale"
@@ -398,19 +405,19 @@ complete_paris:
       logo: "shisideo.png"
       screenshot: "shiseido-screenshot.png"
       desc: "Loyalty, onboarding, and account redesign"
-      tag: "+20% enrollment"
+      tag: "Loyalty Program"
     - name: "LVMH Group"
       logo: "lvmh.png"
       screenshot: "lvmh-screenshot.png"
       desc: "Enterprise data marketing platform"
       url: "https://www.lvmh.com"
       tag: "Data UX"
-    - name: "Creads.io"
-      logo: "creads_logo_final.png"
-      screenshot: "screenshot_creads.png"
-      url: "https://creads.io"
-      desc: "AI creative SaaS: product UX, Brand Agents, and generation workflow"
-      tag: "+1000 users"
+    - name: "OneAsset"
+      logo: "oneasset-logo.png"
+      screenshot: "oneasset-cover.png"
+      url: "https://oneasset.io"
+      desc: "Regulated RWA investment platform"
+      tag: "RWA FinTech"
   founder_projects:
     - name: "Creads.io"
       logo: "creads_logo_final.png"
@@ -466,9 +473,9 @@ complete_bangkok:
   portrait: "hugo_vermot.png"
   maxim: "Turn ambiguity into systems, systems into products, products into proof."
   summary: |
-    Senior Product Designer and AI Product Builder with 12+ years of experience across UX, product strategy, SaaS, fintech, and applied AI. I design scalable digital products by combining product thinking, systems architecture, and UX craft with hands-on AI engineering: AI agents and multi-agent orchestration (planner/executor/verifier loops, semantic tool routing), prompt engineering, and LLM-powered workflows.
+    Product Designer turned AI Product Builder, with 12+ years of UX and product strategy across SaaS and fintech, now channeled into hands-on AI engineering: agent orchestration, prompt systems, and LLM-powered workflows.
 
-    Beyond interfaces, I build agents and automation pipelines that improve how teams work: manual, error-prone processes become orchestrated, measurable workflows. Founder-minded: I lead projects, ship products solo end-to-end, and connect user experience, business logic, and intelligent systems into one cohesive product ecosystem.
+    I don't just design interfaces. I architect the systems behind them, then ship solo: user flow, backend, AI pipeline, production. Founder-minded, systems-first, built to ship.
   stats:
     - value: "12"
       label: "Year in"
@@ -479,17 +486,22 @@ complete_bangkok:
     - value: "6"
       label: "Solo"
       sub: "Founder"
+  availability_tags:
+    - label: "Full remote"
+      bg: "#eff6ff"
+      color: "#2563eb"
+      border: "#bfdbfe"
   target_roles:
     - "Senior Product Designer"
     - "AI Product Builder"
     - "Product Lead"
   skill_sections:
     - title: "Product Design"
-      items: ["UX Research", "User Interviews", "User Flows", "Wireframing", "Hi-fi Prototypes", "Design Systems", "IA", "Figma"]
+      items: ["UX Research", "User Interviews", "User Flows", "Wireframing", "Hi-fi Prototypes", "Design Systems", "IA"]
     - title: "AI & Tech"
-      items: ["AI Agents", "Multi-Agent Orchestration", "Prompt Engineering", "LLM Workflows", "Process Automation", "Supabase", "Vercel", "JavaScript", "Python"]
+      items: ["AI Agents", "Multi-Agent Orchestration", "Prompt Engineering", "LLM Workflows", "Process Automation", "JavaScript", "Python"]
     - title: "Soft Skills"
-      items: ["Product Leadership", "Stakeholder Management", "Cross-functional Alignment", "Workshop Facilitation", "Team Management", "Navigating Ambiguity"]
+      items: ["Product Leadership", "Stakeholder Management", "Cross-functional Alignment", "Workshop Facilitation", "Team Management"]
   projects_title: "Featured Work"
   projects:
     - name: "Société Générale"
@@ -501,19 +513,19 @@ complete_bangkok:
       logo: "shisideo.png"
       screenshot: "shiseido-screenshot.png"
       desc: "Loyalty, onboarding, and account redesign"
-      tag: "+20% enrollment"
+      tag: "Loyalty Program"
     - name: "LVMH Group"
       logo: "lvmh.png"
       screenshot: "lvmh-screenshot.png"
       desc: "Enterprise data marketing platform"
       url: "https://www.lvmh.com"
       tag: "Data UX"
-    - name: "Creads.io"
-      logo: "creads_logo_final.png"
-      screenshot: "screenshot_creads.png"
-      url: "https://creads.io"
-      desc: "AI creative SaaS: product UX, Brand Agents, and generation workflow"
-      tag: "+1000 users"
+    - name: "OneAsset"
+      logo: "oneasset-logo.png"
+      screenshot: "oneasset-cover.png"
+      url: "https://oneasset.io"
+      desc: "Regulated RWA investment platform"
+      tag: "RWA FinTech"
   founder_projects:
     - name: "Creads.io"
       logo: "creads_logo_final.png"
@@ -693,6 +705,7 @@ product_manager:
       bullets:
         - "Own product strategy and UX architecture for a regulated RWA investment platform: investor flows, KYB compliance onboarding, reporting logic, and the Property Manager workspace."
         - "Translated regulatory constraints (VARA-style licensing, custody clarity, institutional reporting) into a trust-first product structure and roadmap."
+        - "Replaced Figma with a self-built tool (Figmol) and moved design into a Git-based workflow: design repo + PRD repo, GitHub PR review, one-click Cursor hand-off."
     - company: "Independent AI Product Builder"
       url: "https://creads.io"
       logo: "creads_logo_final.png"
@@ -744,97 +757,95 @@ shared:
       role: "Senior Product Designer / Product Lead"
       period: "Feb 2026 – Present"
       bullets:
-        - "Regulated real-world asset (RWA) investment platform: institutional commercial real estate, fractional ownership from $10,000, daily USDC yield (Base / ERC-3643)."
-        - "Own product strategy, investor UX, five-step KYB compliance onboarding, asset-class-dependent reporting logic, and the Property Manager workspace (Admission, Reports, Payouts, Payment Locks)."
-        - "Built a trust-first institutional design language and UI kit: white theme, clean cards, calm hierarchy. Regulated finance, not a crypto dashboard."
+        - "Regulated real-world asset investment platform: fractional real estate ownership from $10,000, daily USDC yield (Base / ERC-3643)."
+        - "Own product strategy and full UX architecture solo across the platform: investor journey, marketplace, onboarding, and internal PM tooling."
+        - "Replaced Figma with a self-built tool (Figmol) mirroring the live app, and moved design into a Git-based workflow (design repo + PRD repo, GitHub PR review, one-click Cursor hand-off)."
     - company: "UpViral"
       url: "https://upviral.com"
       logo: "upviral.png"
       role: "Product Designer / Product Manager"
       period: "Jul 2024 – Dec 2025"
       bullets:
-        - "Complete SaaS overhaul from near-zero foundations: UI redesign, information architecture rebuild, and user-flow redesign."
-        - "Held position against CPO pressure to add features before rebuilding foundations. Direct collaboration on roadmap and implementation."
-        - "Ran multiple rounds of user interviews with real customers to feed structural product decisions."
+        - "SaaS marketing platform."
+        - "Led a complete SaaS overhaul solo: UI redesign, information architecture rebuild, and user-flow redesign from weak initial foundations."
+        - "Ran multiple rounds of user interviews with real customers, translating findings directly into structural product decisions."
     - company: "Shiseido Group"
       logo: "shisideo.png"
       role: "Senior Product Designer"
       period: "Feb – Jun 2024"
       bullets:
-        - "Redesigned loyalty flows, onboarding, and account space."
-        - "+20% loyalty enrollment in Q1 post-launch."
+        - "Beauty retail loyalty program."
+        - "Redesigned the loyalty flows, onboarding, and account space end-to-end, driving +20% loyalty enrollment in the quarter following launch."
     - company: "Société Générale"
       logo: "societegenerale.png"
       role: "Senior Product Designer"
       period: "Feb 2023 – Oct 2024"
       bullets:
-        - "Savings, allocation, and investment flows on desktop and mobile. MIF2 regulatory validation and investor-profile journeys."
-        - "+12% investment activity."
+        - "Retail banking: savings, allocation, and investment products."
+        - "Designed savings, allocation, and investment flows across desktop and mobile, navigating MIF2 regulatory constraints, driving +12% investment activity."
     - company: "Edenred"
       logo: "edenred.png"
       role: "UI Designer"
       period: "2023 – 2024"
       bullets:
-        - "Mobile apps for gas station and EV charging point location, serving corporate clients in mobility."
-        - "Employee benefits and meal-voucher management experiences."
+        - "Corporate mobility benefits: gas station and EV-charging locator apps."
+        - "Designed mobile apps for gas station and EV-charging-point location, plus employee-benefits and meal-voucher management experiences."
     - company: "LVMH Group"
       logo: "lvmh.png"
       role: "UX / Product Designer"
       period: "2022 – 2023"
       bullets:
-        - "Data marketing platform unifying customer data and campaign performance across 15+ maisons."
-        - "Cross-maison interviews (Dior, Louis Vuitton, Fendi, Kenzo), journey maps, internal tooling for distributed teams."
+        - "Group-wide data marketing platform spanning 15+ maisons (Dior, Louis Vuitton, Fendi, Kenzo, and others)."
+        - "Unified customer data and campaign performance across maisons, running stakeholder interviews to reconcile conflicting brand-level needs."
     - company: "BMW Group"
       logo: "bmw.png"
       role: "Senior Product Designer"
       period: "2021 – 2022"
       bullets:
-        - "Redesigned key pages of the BMW website. Full UX/UI audit and data analysis."
-        - "+12% user engagement."
+        - "BMW public website."
+        - "Ran a full UX/UI audit and redesigned key pages, driving +12% user engagement."
     - company: "Renault Group"
       logo: "renault.png"
       role: "Senior Product Designer"
       period: "2020 – 2021"
       bullets:
-        - "End-to-end redesign of Renew (Renault Occasion) front and back office across 23,900+ vehicle listings in Europe. Multi-country design system."
-        - "-20% development time through design system adoption."
+        - "Renew, Renault's European used-car marketplace: 23,900+ vehicle listings."
+        - "Led the end-to-end redesign as sole design lead and built a multi-country design system, cutting development time by 20%."
     - company: "Agence V0"
       url: "https://v0.agency"
       logo: "logo-HV.jpg"
       role: "Founder & Head of Product Design"
       period: "Oct 2020 – Jan 2024"
       bullets:
-        - "Founded and directed a product design agency. Managed up to 7 junior freelance designers across 20+ client projects."
-        - "Clients: Renault, BMW, Volkswagen, Casino/Spar/Vival, Skiset, Shiseido, Société Générale, Edenred, GALIAN-SMABTP."
-        - "Delivered measurable impact across accounts, including +40% SaaS efficiency on GALIAN."
+        - "Product design agency: Renault Group, BMW Group, Volkswagen, Casino/Spar/Vival, Skiset, Shiseido, Société Générale, Edenred, and GALIAN-SMABTP."
+        - "Founded and ran the agency solo, scaled it to 7 junior freelance designers, and delivered 20+ client projects generating ~€400K in revenue over three years."
+    - company: "France Télévisions"
+      logo: "francetv.png"
+      role: "Product Designer"
+      period: "2017 – 2019"
+      bullets:
+        - "France Télévisions' main website, a cross-platform children's app (including IPTV), and a children's documentation and support site."
+        - "Designed across three product surfaces: the flagship site, a multi-platform children's app, and a dedicated documentation and support site for young audiences."
     - company: "Groupe SNCF"
       logo: "sncf.png"
       role: "UX Designer"
       period: "2017 – 2020"
       bullets:
-        - "Internal professional apps covering security, information, and HR workflows."
-        - "Contribution to SNCF Réseau digital redesign."
+        - "Internal professional apps: security, information, and HR workflows."
+        - "Designed internal professional apps for SNCF staff and contributed to the redesign of SNCF Réseau's digital tools."
     - company: "Marcel Worldwide / Publicis"
       role: "UX Designer"
       period: "Oct 2015 – Feb 2017"
       bullets:
-        - "Sprint Design and Lean UX for Banque Populaire, Groupama, Orange, Renault, Ruinart, Renzo Piano, Axe, Sanofy, Hépar."
-        - "Workshops and rapid prototyping."
+        - "Agency clients: Banque Populaire, Groupama, Orange, Renault, Ruinart, Sanofy, Hépar, Renzo Piano, Axe."
+        - "Ran Sprint Design and Lean UX engagements, facilitating workshops and rapid prototyping under agency deadlines."
     - company: "Vloggy"
       logo: "vloggy_logo.png"
       role: "Co-founder"
       period: "2017 – 2020"
       bullets:
-        - "Co-founded a 100% video social network (iOS and Android) with integrated mobile editing studio."
-        - "Features: 24-minute 1080p editing, 10-second video comments, creator monetization, Gen-Z focus."
-        - "Raised €100K seed (Columbus BlueSky Holding)."
-    - company: "France Télévisions"
-      logo: "francetv.png"
-      role: "Web Graphic Designer"
-      period: "Nov 2013 – Sep 2015"
-      bullets:
-        - "Alternance at Digital Campus (2013–2016)."
-        - "Designed the first women's digital network for France Télévisions."
+        - "100% video social network for iOS and Android with an integrated mobile editing studio, Gen-Z focus."
+        - "Co-founded and helped build the product from zero, raising €100K seed funding (Columbus BlueSky Holding)."
   education:
     - degree: "Bachelor Product Design"
       school: "Digital Campus"

@@ -55,6 +55,10 @@ function check(label, actual, expected) {
   else fail(`${label} — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
 }
 
+function normalizeNewlines(text) {
+  return String(text).replace(/\r\n/g, '\n');
+}
+
 // --- Real templates: the sections must actually disappear ------------------
 // Assert against the shipped templates so a template edit that renames or
 // reorders a marker fails here instead of silently reviving the bare header.
@@ -91,7 +95,7 @@ for (const { file, format, after, hasCertifications, hasCompetencies } of TEMPLA
   check(`${name}: empty payload removes the awards block`, stripped.includes(awardsMarker), false);
   check(`${name}: empty payload removes the skills block`, stripped.includes(skillsMarker), false);
   check(`${name}: the trailing sentinel survives`, stripped.includes(after), true);
-  check(`${name}: the closing document skeleton survives`, stripped.trimEnd().endsWith(closingSkeleton), true);
+  check(`${name}: the closing document skeleton survives`, normalizeNewlines(stripped).trimEnd().endsWith(closingSkeleton), true);
   check(`${name}: {{EXPERIENCE}} is untouched`, stripped.includes('{{EXPERIENCE}}'), true);
 
   // Populated payload must be a no-op — the strip only ever removes.
@@ -153,7 +157,7 @@ for (const { file, format, after, hasCertifications, hasCompetencies } of TEMPLA
   check(`${name}: empty skills alone keeps awards`, onlySkills.includes(awardsMarker), true);
   check(`${name}: empty skills alone drops skills`, onlySkills.includes(skillsMarker), false);
   check(`${name}: empty skills alone keeps the closing document skeleton`,
-    onlySkills.trimEnd().endsWith(closingSkeleton), true);
+    normalizeNewlines(onlySkills).trimEnd().endsWith(closingSkeleton), true);
   if (hasCompetencies) {
     check(`${name}: empty skills alone keeps competencies`, onlySkills.includes(competenciesMarker), true);
   }
@@ -170,7 +174,7 @@ for (const { file, format, after, hasCertifications, hasCompetencies } of TEMPLA
   const omittedSkills = stripEmptySections(template, withoutSkills, format);
   check(`${name}: omitted skills key removes the skills block`, omittedSkills.includes(skillsMarker), false);
   check(`${name}: omitted skills key keeps the closing document skeleton`,
-    omittedSkills.trimEnd().endsWith(closingSkeleton), true);
+    normalizeNewlines(omittedSkills).trimEnd().endsWith(closingSkeleton), true);
 
   // FAIL-SAFE: a template pack whose Skills section carries no sentinel is
   // valid (cv-templates.mjs requires only NAME/EXPERIENCE/EDUCATION). Strip
@@ -184,7 +188,7 @@ for (const { file, format, after, hasCertifications, hasCompetencies } of TEMPLA
   check(`${name}: no sentinel + empty skills leaves the template untouched (fail-safe)`,
     strippedNoSentinel === noSentinel, true);
   check(`${name}: no sentinel + empty skills keeps the closing document skeleton`,
-    strippedNoSentinel.trimEnd().endsWith(closingSkeleton), true);
+    normalizeNewlines(strippedNoSentinel).trimEnd().endsWith(closingSkeleton), true);
   check(`${name}: no sentinel + empty skills keeps {{EXPERIENCE}}`,
     strippedNoSentinel.includes('{{EXPERIENCE}}'), true);
 }
