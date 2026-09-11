@@ -3070,9 +3070,14 @@
       padding: 320px 48px 0;
       display: flex; flex-direction: column;
       min-height: 100vh;
-      background: #000 url('../images/bg-footer-new.webp') no-repeat center bottom;
+      background: #000;
+      background-repeat: no-repeat;
+      background-position: center bottom;
       background-size: cover;
       position: relative;
+    }
+    .contact-section.bg-loaded {
+      background-image: url('../images/bg-footer-new.webp');
     }
     .contact-section::before {
       content: '';
@@ -3128,7 +3133,7 @@
       right: -15px;
       bottom: -15px;
       width: 72px; height: 72px;
-      background: url('../images/dino.png') no-repeat bottom right;
+      background: url('../images/dino.webp') no-repeat bottom right;
       background-size: contain;
       filter: grayscale(0.4) opacity(0.15);
       transition: filter 400ms, transform 400ms, opacity 400ms;
@@ -7098,6 +7103,9 @@ function initAiProductsMatrix() {
 }
 
 initWhenNearViewport('.ai-products-section', initAiProductsMatrix);
+initWhenNearViewport('.contact-section', () => {
+  document.querySelector('.contact-section').classList.add('bg-loaded');
+});
 
 /* ═══════════════════════════════════════════
    DATA
@@ -7852,7 +7860,7 @@ const PROJECTS = [
       {num:'03', title:'Itemization, Quests & Pyramidion', desc:'Structured itemization V1 — weapons, cards, relics, currencies, vendors, loot tables and drop rates — with a clean final audit (no orphans, no invalid loot). Quest/narrative V1: 15 quests, 31 objectives, 8 NPCs, 14 areas. Designed the seasonal Pyramidion endgame: factions recover fragments, reconstruct the sacred capstone, and fight for control of the Great Mother Pyramid.'},
     ],
     outcome:'A working MMO foundation: validated Unreal + OWS multiplayer loop, Supabase-backed gameplay systems (inventory, combat loadout, itemization, quests), and a faction-war endgame built for seasonal cycles.',
-    outcomeStat:null, screenshot:'../images/ancient-world-gameplay.png', heroCover:'../images/ancient-world-cover.png',
+    outcomeStat:null, screenshot:'../images/ancient-world-gameplay.png', heroCover:'../images/ancient-world-cover.webp',
     models3d: {
       rimColor: 0xffc266,
       fillColor: 0xffe4b5,
