@@ -7533,42 +7533,103 @@ const PROJECTS = [
     },
   },
   {
-    id:'lvmh', num:'06', group:'enterprise', cover:'covers/lvmh.webp', logo:'../images/lvmh.png',
-    company:'LVMH Group', tagline:'Data Marketing Platform',
-    role:'UX Designer',
-    year:'2021 – 2022', duration:'12 months', team:'Data team, Design lead, Marketing teams',
-    platforms:['Desktop'], tag:'Luxury · Data SaaS', accent:'#d4af37',
-    desc:'Led the UX research and journey design for a multi-layer data and customer service solution unifying customer intelligence across 15+ Maisons.',
-    subtitle:'Unifying customer intelligence across 15+ Maisons',
-    challenge:'Aggregating and consolidating data from various luxury brands (Dior, Louis Vuitton, Fendi, Kenzo). A highly complex multi-layer integration challenge between backend data and frontline service.',
-    goals:'Design complex user journeys bridging customer data and customer service experiences without breaking the unique processes of each luxury brand.',
-    solution:'Conducted in-depth stakeholder interviews and drafted the core UX solutions and journey maps needed to centralize customer intelligence across the entire group.',
-    steps:[
-      {num:'01', title:'UX Research & Discovery', desc:'Conducted in-depth interviews with end-users and key stakeholders across different Maisons to align fragmented business needs into a cohesive product vision.'},
-      {num:'02', title:'Multi-Layer Journey Mapping', desc:'Mapped complex user journeys bridging backend customer data (Data Marketing) and frontline customer service experiences across physical and digital touchpoints.'},
-      {num:'03', title:'Solution Architecture', desc:'Drafted early-stage solutions, wireframes, and comprehensive journey maps to build an internal platform that centralized data while respecting unique brand processes.'},
+    "id": "lvmh",
+    "num": "06",
+    "group": "enterprise",
+    "cover": "covers/lvmh.webp",
+    "logo": "../images/lvmh.png",
+    "company": "LVMH Group",
+    "tagline": "Data Marketing Platform Across 15+ Maisons",
+    "role": "UX / Product Designer",
+    "year": "2022 – 2023",
+    "duration": "2022 – 2023",
+    "team": "Product Owner, CRM teams across Maisons, Dev teams",
+    "platforms": [
+      "Desktop"
     ],
-    outcome:'Unified data SaaS platform spanning 15+ LVMH maisons, enabling cross-brand marketing intelligence from both physical retail and e-commerce touchpoints.',
-    outcomeStat:'15+ maisons', url:'https://www.lvmh.fr/', video:'../images/lvmh-video.mp4', screenshot:'../images/lvmh-screenshot.webp',
-    narrative: [
-      { type:'image-bg', src:'../images/lvmh-cover.webp', label:'LVMH Group', title:'Unifying data across 15 luxury maisons' },
-      { type:'text', label:'Challenge', title:'Each maison has its own world. The platform had to hold all of them.',
-        body:'LVMH isn\'t one brand. It\'s Dior, Louis Vuitton, Fendi, Kenzo, and more, each with distinct retail contexts, customer journeys, and data structures. The challenge was to design a platform that could aggregate and make sense of all of it, while staying useful to marketing teams at each individual maison.' },
-      { type:'text', label:'Research', title:'Understanding the journeys before designing the tool',
-        body:'Before any screen design, I ran interviews across multiple maisons to understand their specific workflows, data needs, and integration constraints. I then built experience maps covering the full customer lifecycle: from social prospecting to in-store visit, purchase, and post-purchase loyalty, with data collection touchpoints at each stage.' },
-      { type:'image-grid', borderless:true, images:[
-        { src:'../images/lvmh-personaa.png', caption:'User interviews: profile mix across 15+ maisons, key questions and qualitative insights' },
-        { src:'../images/LVMH-persona.png', caption:'Persona, "Fashion lover": goals, needs, pain points, and habits across luxury touchpoints' },
-      ]},
-      { type:'image-full', src:'../images/lvmh-exp-map.png', borderless:true,
-        caption:'User journey map across LVMH maisons: from social discovery to post-purchase, with data collection touchpoints mapped at each stage' },
-      { type:'image-grid', images:[
-        { src:'../images/lvmh-userflow.png', caption:'User flow: customer journey from data touchpoints to service actions across LVMH maisons' },
-        { src:'../images/lvmh-screenshot.webp', caption:'Platform interface: unified customer intelligence dashboard for LVMH marketing teams' },
-      ]},
-      { type:'process', title:'How I approached it' },
-      { type:'outcome', stat:'15+ maisons', text:'Unified data SaaS platform spanning 15+ LVMH maisons. Cross-brand marketing intelligence from both physical retail and e-commerce touchpoints.' },
+    "tag": "Enterprise · Data · Luxury",
+    "accent": "#8a7150",
+    "desc": "Designed a group-wide data marketing platform unifying customer data and campaign performance across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo.",
+    "subtitle": "One shared data platform, 15+ maisons with different needs",
+    "challenge": "Each maison runs its own CRM and customer data practice. Build one shared data marketing platform without flattening what makes Dior's, Louis Vuitton's or Kenzo's customer relationship different.",
+    "goals": "Reconcile conflicting brand-level needs into a single data model and onboarding flow, then translate real customer journeys into monitoring tools the maisons' own teams could use day to day.",
+    "solution": "Ran structured interviews across maisons to surface where needs converged and where they didn't, built a customer journey map to ground the data model in real behaviour, then designed the platform's onboarding, field-mapping, import and cleaning flow as the shared backbone underneath maison-specific views.",
+    "steps": [
+      {
+        "num": "01",
+        "title": "Stakeholder interviews across Maisons",
+        "desc": "Recruited 1-3 CRM team participants per session from 3+ different maisons at a time, mixing business sectors and seniority, with a UX designer facilitating and a Product Owner observing. Every session tested the same question: what does this maison actually need from a shared platform."
+      },
+      {
+        "num": "02",
+        "title": "Customer journey mapping",
+        "desc": "Mapped a full customer journey, from social discovery through in-store trial to purchase and post-purchase sharing, with touchpoints, data collected and pain points at each stage. Used to ground the platform's data model in real customer behaviour rather than an internal org chart."
+      },
+      {
+        "num": "03",
+        "title": "Shared data platform",
+        "desc": "Designed the platform's onboarding: define a data kind, create fields manually or from a template, import via CSV, SQL query or API, then clean and export. Built as one shared backbone that individual maisons could operate without needing every field to mean the same thing everywhere."
+      }
     ],
+    "outcome": "A shared data marketing platform live across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo, built from interviews that reconciled conflicting maison-level needs into one data model and onboarding flow.",
+    "outcomeStat": "15+ maisons",
+    "video": "../images/lvmh-video.mp4",
+    "narrative": [
+      {
+        "type": "text",
+        "label": "Challenge",
+        "title": "One platform, 15+ maisons that don't work the same way",
+        "body": "LVMH wanted a shared data marketing platform spanning Dior, Louis Vuitton, Fendi, Kenzo and other maisons. Each maison runs its own CRM and customer relationship practice, so the platform had to work for all of them without flattening what makes each one different."
+      },
+      {
+        "type": "text",
+        "label": "Research",
+        "title": "Interviews built to surface where maisons actually disagree",
+        "body": "Each session mixed 1-3 CRM team participants from 3+ different maisons, covering different business sectors and seniority levels, with a UX designer facilitating and a Product Owner observing. The goal was never a generic wishlist: it was finding exactly where one maison's need conflicted with another's."
+      },
+      {
+        "type": "image-grid",
+        "label": "Research artifacts",
+        "borderless": true,
+        "images": [
+          {
+            "src": "../images/lvmh-exp-map.png",
+            "caption": "Customer journey map: 7 stages from social discovery to post-purchase sharing, with touchpoints, data collected and pain points per stage"
+          },
+          {
+            "src": "../images/LVMH-persona.png",
+            "caption": "Customer persona grounding the journey map in a real buying pattern and set of needs"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "label": "Platform",
+        "title": "One onboarding flow underneath maison-specific views",
+        "body": "The platform's backbone is how it takes in data: define a data kind, create fields manually or from a template, import via CSV, SQL query or API, then clean and export. That flow had to work identically for every maison, so that what differs between Dior and Kenzo lives in the data, not in a different tool."
+      },
+      {
+        "type": "image-full",
+        "src": "../images/lvmh-userflow.png",
+        "bleed": true,
+        "caption": "Platform flow: onboarding, kind creation, field definition, data import and cleaning, from raw source to exported entities"
+      },
+      {
+        "type": "image-bg",
+        "src": "../images/lvmh-cover.webp",
+        "label": "LVMH Group",
+        "title": "15+ maisons. One shared data platform."
+      },
+      {
+        "type": "process",
+        "title": "How I approached it"
+      },
+      {
+        "type": "outcome",
+        "stat": "15+ maisons",
+        "text": "A shared data marketing platform live across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo, built from interviews that reconciled conflicting maison-level needs into one data model and onboarding flow."
+      }
+    ]
   },
   {
     id:'arlequin', num:'07', group:'enterprise', logo:null,
