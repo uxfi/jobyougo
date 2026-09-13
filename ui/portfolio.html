@@ -7169,6 +7169,18 @@ const PROJECTS = [
         "body": "I founded and built Creads.io, an AI advertising SaaS with 1,200 registered users and 20 paying clients. I own the user experience, AI workflow, infrastructure and launch."
       },
       {
+        "type": "tools-row",
+        "label": "Stack",
+        "tools": [
+          { "name": "Firecrawl", "icon": "../images/firecrawl.png" },
+          { "name": "Mem0" },
+          { "name": "Supabase", "icon": "../images/supabase.png" },
+          { "name": "Google Cloud Run", "icon": "../images/gcloud.png" },
+          { "name": "Vercel", "icon": "../images/vercel-logo.svg" },
+          { "name": "Cloudflare", "icon": "../images/cloudflare-logo.svg" }
+        ]
+      },
+      {
         "type": "text",
         "label": "The product problem",
         "title": "Keep brand context through creative production",
@@ -7297,6 +7309,10 @@ const PROJECTS = [
     narrative: [
       { type:'text', label:'The idea', title:'AI that evaluates UX quality, without needing a designer',
         body:'UX audits are expensive and slow. I wanted to build a tool that gives any e-commerce team instant, actionable clarity on what\'s broken in their product. Score it across multiple dimensions and generate specific redesign recommendations in seconds, not days.' },
+      { type:'tools-row', label:'Stack', tools:[
+        { name:'Vercel v0', icon:'../images/vercel-logo.svg' },
+        { name:'OpenAI', icon:'../images/openai-logo.svg' },
+      ]},
       { type:'image-full', src:'../images/screenshot_uxfi.webp', bleed:true, link:'https://v0-uxfi.vercel.app/',
         caption:'uxfi.ai live — hero: paste any URL to audit, a live total-score preview, and category cards (media & design and others) scored out of 100' },
       { type:'image-grid', label:'Key interfaces', borderless:true, images:[
@@ -7330,6 +7346,11 @@ const PROJECTS = [
     narrative: [
       { type:'text', label:'The product', title:'A trading analysis surface, not just a market dashboard',
         body:'Panfy is built around one question: what does a trader need to understand before acting? Instead of scattering market cap, token rankings, technical indicators, top trader data and AI commentary across separate tools, the interface consolidates them into a single Hyperliquid-native decision workflow.' },
+      { type:'tools-row', label:'Stack', tools:[
+        { name:'Vercel v0', icon:'../images/vercel-logo.svg' },
+        { name:'Hyperliquid' },
+        { name:'X API', icon:'../images/x-logo.svg' },
+      ]},
       { type:'panfy-screenshots', label:'Screenshots', title:'The product language is dense, dark and scan-first',
         body:'The dashboard borrows from professional trading software: compact navigation, high-contrast market states, neon green opportunity markers, red risk states, tabbed analysis, and side panels that keep actionable data close to the chart.',
         images:[
@@ -7399,6 +7420,16 @@ const PROJECTS = [
         "label": "The context",
         "title": "Sole designer across the product and marketing site",
         "body": "I own the design across OneAsset, from the admin platform and investor application to the marketing website. My work includes product strategy, compliance journeys, the design system and interactive prototypes built with AI."
+      },
+      {
+        "type": "tools-row",
+        "label": "Stack",
+        "tools": [
+          { "name": "Figma", "icon": "../images/figma.png" },
+          { "name": "Cursor", "icon": "../images/cursor-logo.jpg" },
+          { "name": "Claude Code", "icon": "../images/claude-logo.svg" },
+          { "name": "GitHub", "icon": "../images/github-logo.svg" }
+        ]
       },
       {
         "type": "image-full",
@@ -8067,6 +8098,15 @@ const PROJECTS = [
     narrative: [
       { type:'text', label:'The principle', title:'The model proposes. The backend decides.',
         body:'Jarvos avoids keyword routing entirely. "Post something on X", "publish this as a tweet", and "share this on my profile" resolve to the same underlying capability through semantic dispatch — and the backend checks that every proposed tool actually exists and is allowed before anything runs.' },
+      { type:'tools-row', label:'Stack', tools:[
+        { name:'Next.js', icon:'../images/nextdotjs-logo.svg' },
+        { name:'TypeScript', icon:'../images/typescript-logo.svg' },
+        { name:'Python', icon:'../images/python-logo.svg' },
+        { name:'Supabase', icon:'../images/supabase.png' },
+        { name:'Cloudflare', icon:'../images/cloudflare-logo.svg' },
+        { name:'Telegram', icon:'../images/telegram-logo.svg' },
+        { name:'Playwright', icon:'../images/playwright-logo.svg' },
+      ]},
       { type:'jarvos-pipeline', label:'System design', title:'From a sentence to a verified result.',
         body:'Every request runs the same loop: infer the goal, retrieve required capabilities, resolve them against the real tool catalog, plan, execute behind approval gates, verify. The orchestration is deterministic; only the understanding is model-driven.' },
       { type:'jarvos-console', label:'Interactive module', title:'Inside the cockpit: stream, resolver, gates.',
@@ -8115,6 +8155,12 @@ const PROJECTS = [
         body:'Ancient World is a PC MMORPG set in a universe inspired by Ancient Egypt, Mayan civilizations, old dynasties, temples and sacred ruins. The player starts with a small number of readable choices: three classes (Solar Warrior, Jaguar Hunter, Mystic Oracle), two warring factions (Empire of the Sun vs Children of the Jaguar), plus a neutral Dynastyless path. Depth does not come from class complexity — it comes from items, cards, relics, artifacts, equipment slots, loot rarity, hidden pyramid rooms, faction progression and the Pyramidion system.' },
       { type:'text', label:'Gameplay', title:'WoW/Ragnarok spirit, loot-driven build depth',
         body:'The target feel is close to World of Warcraft or Ragnarok Online, with a stronger emphasis on builds through loot. The main loop: login → character selection → open world → quests → mobs → combat → loot → inventory → equipment → XP → skills → dungeon → Pyramidion progression → faction war. All classes share one resource — Solar Energy — with server-authoritative combat, individual ability cooldowns, stat and skill points, and weapon specialization unlocked at level 5 (two-handed sword, bow, or staff). Rare cards, relic passives, boss drops and pyramid secrets carry the long-term depth.' },
+      { type:'tools-row', label:'Stack', tools:[
+        { name:'Unreal Engine 5', icon:'../images/unrealengine-logo.svg' },
+        { name:'OWS' },
+        { name:'Supabase', icon:'../images/supabase.png' },
+        { name:'Docker', icon:'../images/docker-logo.svg' },
+      ]},
       { type:'image-full', src:'../images/ancient-world-gameplay.png', borderless:true,
         caption:'Sunspire Valley — hub world, quest tracker, combat UI and the early-game loop in action: quests, mobs, loot and faction identity.' },
       { type:'text-image', label:'The world', title:'Deserts, jungles, temples and the Great Mother Pyramid',
