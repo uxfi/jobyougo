@@ -476,6 +476,9 @@ body {
   height: 100%;
   background: #111;
 }
+.leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.94) contrast(0.9) saturate(0.7);
+}
 .map-panel::before {
   content: '';
   position: absolute;
@@ -1271,8 +1274,8 @@ const map = L.map('map', {
   scrollWheelZoom: false,
 });
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  subdomains: 'abcd',
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  subdomains: 'abc',
   maxZoom: 19,
 }).addTo(map);
 
