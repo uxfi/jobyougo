@@ -7856,15 +7856,15 @@ const PROJECTS = [
       {num:'02', title:'Publishing Pipeline', desc:'Built automated content creation and scheduling pipelines for Twitter, Instagram, and Threads, with AI-generated posts, replies, and engagement sequences tied to lead monitoring triggers.'},
       {num:'03', title:'DM Prospection & Lead System', desc:'Built scraping + DM automation generating 200+ leads per click. Includes Cortex intelligence layer, Leads CRM, and ScreenArc for visual content archiving. Live with real users.'},
     ],
-    outcome:'Live AI social agent OS: multi-platform publishing automation, DM prospection, and outreach sequences across Twitter, Instagram, and Threads.',
-    outcomeStat:'Live', url:'https://flemme-three.vercel.app/',
+    outcome:'Live AI social agent OS: 1,284 active leads and 5,692 total outreach actions tracked on the dashboard, with multi-platform publishing automation, DM prospection, and outreach sequences across Twitter, Instagram, and Threads.',
+    outcomeStat:'1,284 leads', url:'https://flemme-three.vercel.app/',
     narrative: [
       { type:'text', label:'The system', title:'An autonomous OS for social media. No manual publishing.',
         body:'Flemme OS was built around one goal: eliminating manual social media work entirely. The system handles the full publishing workflow: content generation, scheduling, DM outreach sequences, lead monitoring, and creative ad library, across Twitter, Instagram, and Threads, without human intervention between runs.' },
-      { type:'text', label:'Architecture', title:'Four coordinated agents, one central dashboard',
-        body:'The system runs on four specialized agents: Social Monitor tracks engagement signals and identifies lead triggers, DeepFlow handles content creation and multi-platform publishing, DM Prospection runs scraping and outreach campaigns generating 200+ leads per click, and the Ad Library feeds the Creads.io creative pipeline. All coordinated from a single dashboard with the Cortex intelligence layer and Leads CRM.' },
+      { type:'flemme-pipeline', label:'System design', title:'Four coordinated agents, one central dashboard',
+        body:"Social Monitor, DeepFlow, DM Prospection and the Ad Library share a central dashboard, each one feeding signal into the next instead of running as separate tools." },
       { type:'process', title:'How I built it' },
-      { type:'outcome', stat:'Live', text:'Live AI social agent OS: multi-platform publishing automation, DM prospection, and outreach sequences across Twitter, Instagram, and Threads.' },
+      { type:'outcome', stat:'1,284 leads', text:'Live AI social agent OS: 1,284 active leads and 5,692 total outreach actions tracked on the dashboard, with multi-platform publishing automation, DM prospection, and outreach sequences across Twitter, Instagram, and Threads.' },
     ],
   },
   {
@@ -9328,6 +9328,53 @@ function renderNarrativeBlock(b, stepsHTML, p) {
               <div class="x-flow-title">Prove it happened</div>
               <div class="x-flow-desc">A verifier checks quality, security and completeness with execution logs and evidence, scores confidence, then the orchestrator responds.</div>
               <div class="x-bars"><span class="x-bar"><i style="--w:92%;--d:.45s"></i></span><span class="x-bar"><i style="--w:61%;--d:.55s"></i></span></div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    case 'flemme-pipeline':
+      return `<div class="proj-n-block xsec xsec--jv">
+        <div class="xsec-head">
+          <div>
+            ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+            ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+            ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+          </div>
+          <div class="xsec-kpis">
+            <div class="x-kpi"><span>Leads</span><strong>200</strong><em>Per click, qualified</em></div>
+            <div class="x-kpi"><span>Platforms</span><strong>3</strong><em>X, Threads, Instagram</em></div>
+            <div class="x-kpi"><span>Detection</span><strong>2-tier</strong><em>Local CDP + cloud Playwright</em></div>
+          </div>
+        </div>
+        <div class="x-panel">
+          <div class="x-panel-top">
+            <div class="x-panel-title"><span class="x-led"></span> Four agents, one dashboard</div>
+            <div class="x-chip-row"><span class="x-chip acc">Live product</span><span class="x-chip">flemme-three.vercel.app</span></div>
+          </div>
+          <div class="x-flow">
+            <div class="x-flow-card">
+              <div class="x-flow-num">01 · social monitor</div>
+              <div class="x-flow-title">Scan before you post</div>
+              <div class="x-flow-desc">Grok-assisted discovery scans roughly 40 posts per feed pass across X, Threads and Instagram, auto-selecting only the ones under 30 likes with no video or GIF — signal over noise, not a full-feed dump.</div>
+              <div class="x-bars"><span class="x-bar"><i style="--w:80%"></i></span><span class="x-bar"><i style="--w:55%;--d:.1s"></i></span></div>
+            </div>
+            <div class="x-flow-card">
+              <div class="x-flow-num">02 · deepflow</div>
+              <div class="x-flow-title">Content pipeline</div>
+              <div class="x-flow-desc">Automated content creation and scheduling across Twitter, Instagram and Threads: AI-generated posts, replies and follow-up content triggered directly off Social Monitor's signals.</div>
+              <div class="x-bars"><span class="x-bar"><i style="--w:70%;--d:.15s"></i></span><span class="x-bar"><i style="--w:85%;--d:.25s"></i></span></div>
+            </div>
+            <div class="x-flow-card">
+              <div class="x-flow-num">03 · dm prospection</div>
+              <div class="x-flow-title">Outreach that reads the profile first</div>
+              <div class="x-flow-desc">Playwright and Firecrawl pull contact data from target sites; Claude and OpenRouter draft contextual DMs and lead-warming sequences per prospect, through the Cortex intelligence layer and Leads CRM. Up to 200 qualified leads per click.</div>
+              <div class="x-bars"><span class="x-bar"><i style="--w:90%;--d:.3s"></i></span><span class="x-bar"><i style="--w:60%;--d:.4s"></i></span></div>
+            </div>
+            <div class="x-flow-card">
+              <div class="x-flow-num">04 · ad library</div>
+              <div class="x-flow-title">Feed the creative back in</div>
+              <div class="x-flow-desc">Discovered content and outreach results feed the Creads.io creative pipeline, closing the loop between what's working on the timeline and what gets published or sent next.</div>
+              <div class="x-bars"><span class="x-bar"><i style="--w:65%;--d:.45s"></i></span><span class="x-bar"><i style="--w:75%;--d:.55s"></i></span></div>
             </div>
           </div>
         </div>
