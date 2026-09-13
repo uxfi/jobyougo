@@ -7115,43 +7115,127 @@ initWhenNearViewport('.contact-section', () => {
 ═══════════════════════════════════════════ */
 const PROJECTS = [
   {
-    id:'creads', num:'01', group:'ai', cover:'covers/creads.webp', logo:'../images/creads-logo.webp',
-    company:'Creads.io', tagline:'Your Personalized AI Creative Director for Meta Ads',
-    role:'Founder & AI Product Builder',
-    year:'2024 – Present', duration:'Ongoing', team:'Solo',
-    platforms:['Desktop'], tag:'AI SaaS · Founder', badges:['Ads eCom'], accent:'#a855f7',
-    desc:'A living AI system that ingests your brand DNA, analyzes creative performance, and evolves its brain every 5 analyses. It generates scored, production-ready Meta ad creatives automatically.',
-    subtitle:'An AI creative director that learns from every ad',
-    challenge:'Performance marketing lives and dies on creative. Yet most tools are template engines with AI sprinkled on top. No brand understanding, no learning loop, no connection between strategy and actual results. Building a real creative director from scratch, solo.',
-    goals:'Build a 5-phase agentic pipeline that generates winning Meta ad creatives on its own. Combining Static Intelligence (marketing first principles) with Dynamic Memory (brand-learned patterns), without a human in the loop.',
-    solution:'Built a proprietary Creative Intelligence framework: 500+ taxonomy elements across 6 dimensions. A living brand agent memory that auto-learns every 5 analyses. Smart Match scoring across 6 measurable axes. Visual Engineer with 5 render styles. Quality gates at every stage. No garbage at scale.',
-    steps:[
-      {num:'01', title:'Analyze: Deep Ad Analysis', desc:'Upload ads. The Visual Analyst Agent decodes each creative: strategic concept, structural classification, hook types, emotional triggers, awareness stage. Mapped against 119 creative concepts and 95 visual compositions. Pattern extraction feeds the learning engine.'},
-      {num:'02', title:'Brief: Strategic Creative Briefs', desc:'The Strategy Engine combines Static Rules (brand compliance, visual codes) with Dynamic Insights (winning patterns) to produce Zero-to-One briefs or Smart Remixes (visual lookalike, angle pivot, fix weaknesses). Every brief is scored by Smart Match across 6 axes: hook, concept, emotion, bias, wording, composition. Quality gate before production.'},
-      {num:'03', title:'Generate: AI Production', desc:'The Visual Engineer transforms validated briefs into 180 to 280 word scene narratives. 5 render styles: photographic, 3D, illustration, hybrid, infographic. fal.ai Flux generation with overlay compositor. Feed 1:1 and 4:5, Stories 9:16, Reels.'},
+    "id": "creads",
+    "num": "01",
+    "group": "ai",
+    "cover": "covers/creads.webp",
+    "logo": "../images/creads-logo.webp",
+    "company": "Creads.io",
+    "tagline": "AI advertising, from brand context to creative output",
+    "role": "Founder & AI Product Builder",
+    "year": "2024 – Present",
+    "duration": "Ongoing",
+    "team": "Solo",
+    "platforms": [
+      "Desktop"
     ],
-    outcome:'500+ users · 20 paying clients · 5,000 monthly visits. Zero paid acquisition. Five-phase pipeline: brand crawling to creative scoring to AI production. Built solo, no funding.',
-    outcomeStat:'500+ users', url:'https://www.creads.io/', screenshot:'../images/screenshot_creads.webp', video:'../images/creads-video-cover.mp4',
-    narrative: [
-      { type:'text', label:'The problem', title:'Ad tools generate. They don\'t think.',
-        body:'Performance marketing lives and dies on creative. Yet most teams have a gap between brand strategy and creative output. Briefs are vague, production is slow, and there is no feedback loop from results to ideation. Most AI tools automate one step. Creads automates the full creative intelligence pipeline and gets smarter with every use.' },
-      { type:'creads-vitrine', label:'The product', title:'A marketing site engineered like a product.',
-        body:'creads.io is 95 pages: landing, pricing, academy, competitive comparisons, 9 industry use-cases. Below, a live recreation of the hero — rotating value proposition, launch offer, and the generated-ads wall. Built with Next.js 15, React 19 and 260+ components.' },
-      { type:'image-grid', label:'Key interfaces', borderless:true, images:[
-          { src:'../images/creads-live-hero.webp', caption:'creads.io live — landing hero: rotating value proposition and the generated-ads wall' },
-          { src:'../images/creads-live-feature.webp', caption:'creads.io live — product stats (4,800+ ads generated, 18,000+ concept possibilities) and the Creative Director' },
-        ]},
-      { type:'image-grid', images:[
-          { src:'../images/creads-admin.png', caption:'Admin dashboard: campaign management and creative scoring' },
-          { src:'../images/creads-bot.png', caption:'AI bot interface: brief generation and creative intelligence' },
-        ]},
-      { type:'creads-brand', label:'The charte', title:'Dark-first. 2px sharp. Two accents.',
-        body:'The Creads identity is built for an AI-console feel: near-black surfaces, high-contrast type, emerald reserved for agent status and purple for AI logic. Border radius is locked at 2px across the entire product — sharp by design. Sansation carries the dashboard titles, Readex Pro the display copy, TikTok Sans the UI.' },
-      { type:'creads-console', label:'Interactive module', title:'Inside the product: DNA, scoring, generation.',
-        body:'The three core surfaces of the app, recreated as a working console: the brand crawler terminal, the Smart Match scoring axes, and the generation output with its quality gate. Click the tabs.' },
-      { type:'process', title:'How I built it' },
-      { type:'outcome', stat:'500+ users', text:'20 paying clients · 5,000 monthly visits · zero paid acquisition. Full agentic pipeline from brand crawling to scored, production-ready Meta ad creatives. Bootstrapped, solo.' },
+    "tag": "AI SaaS · Founder",
+    "badges": [
+      "Ads eCom"
     ],
+    "accent": "#a855f7",
+    "desc": "I founded and built Creads.io, an AI advertising SaaS with 1,200 registered users and 20 paying clients. I own the user experience, AI workflow, infrastructure and launch.",
+    "subtitle": "Brand analysis, creative briefs and ad generation",
+    "challenge": "Carry a brand’s identity, audience and positioning through the brief and generated creative, while keeping the workflow manageable as a solo founder.",
+    "goals": "Connect brand onboarding, creative decisions and generation, with a check against the brief before accepting an output.",
+    "solution": "Structured brand context as JSON, kept it available through persistent memory, and built a brief around explicit creative criteria. Matching retrieves taxonomy data and brand history; a second prompt checks the generated output against the brief.",
+    "steps": [
+      {
+        "num": "01",
+        "title": "Keep the brand context",
+        "desc": "The Brand Agent reads the website with Firecrawl and structures identity, tone, audience and positioning as JSON. Mem0 stores brand context between sessions; retrieval supplies taxonomy data and brand history."
+      },
+      {
+        "num": "02",
+        "title": "Make creative choices explicit",
+        "desc": "The brief records the hook, emotion, bias, composition, format, awareness stage, campaign goal, wording rules, platform and audience. SaaS and e-commerce use separate briefing logic. Matching uses 500+ taxonomy elements and 4,000+ structured templates."
+      },
+      {
+        "num": "03",
+        "title": "Check the output against the brief",
+        "desc": "One prompt generates the output. A second checks coherence and brief compliance before acceptance. Python workers run on Cloud Run, with Supabase, Vercel and Cloudflare supporting the application."
+      }
+    ],
+    "outcome": "1,200 registered users, 20 paying clients and 5,000 monthly visits, confirmed in September 2026. Zero paid acquisition. Founded and built independently.",
+    "outcomeStat": "1,200 users",
+    "url": "https://www.creads.io/",
+    "screenshot": "../images/screenshot_creads.webp",
+    "video": "../images/creads-video-cover.mp4",
+    "narrative": [
+      {
+        "type": "text",
+        "label": "My scope",
+        "title": "From product design to a launched SaaS",
+        "body": "I founded and built Creads.io, an AI advertising SaaS with 1,200 registered users and 20 paying clients. I own the user experience, AI workflow, infrastructure and launch."
+      },
+      {
+        "type": "text",
+        "label": "The product problem",
+        "title": "Keep brand context through creative production",
+        "body": "Carry a brand’s identity, audience and positioning through the brief and generated creative, while keeping the workflow manageable as a solo founder."
+      },
+      {
+        "type": "creads-vitrine",
+        "label": "The product",
+        "title": "The Creads website",
+        "body": "The website introduces the product and its brand-to-creative workflow. The module below recreates the landing page."
+      },
+      {
+        "type": "image-grid",
+        "label": "Key interfaces",
+        "borderless": true,
+        "images": [
+          {
+            "src": "../images/creads-live-hero.webp",
+            "caption": "creads.io live — landing hero: rotating value proposition and the generated-ads wall"
+          },
+          {
+            "src": "../images/creads-live-feature.webp",
+            "caption": "Creative Director and product interface"
+          }
+        ]
+      },
+      {
+        "type": "image-grid",
+        "images": [
+          {
+            "src": "../images/creads-admin.png",
+            "caption": "Admin dashboard: campaign management and creative scoring"
+          },
+          {
+            "src": "../images/creads-bot.png",
+            "caption": "AI bot interface: brief generation and creative intelligence"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "label": "Product decisions",
+        "title": "Structured inputs and a separate output check",
+        "body": "Structured brand context as JSON, kept it available through persistent memory, and built a brief around explicit creative criteria. Matching retrieves taxonomy data and brand history; a second prompt checks the generated output against the brief."
+      },
+      {
+        "type": "creads-brand",
+        "label": "The charte",
+        "title": "Colours, typography and components",
+        "body": "I used near-black surfaces and high-contrast text for Creads. Emerald marks agent status; purple identifies AI functions. The interface uses 2px corners, with Sansation for dashboard titles, Readex Pro for display text and TikTok Sans for controls."
+      },
+      {
+        "type": "creads-console",
+        "label": "Interactive module",
+        "title": "Inside the product: DNA, scoring, generation.",
+        "body": "Use the tabs to try the brand crawler, review the Smart Match scores and inspect a generation output. These are interactive recreations of the product screens."
+      },
+      {
+        "type": "process",
+        "title": "How the workflow works"
+      },
+      {
+        "type": "outcome",
+        "stat": "1,200 users",
+        "text": "1,200 registered users, 20 paying clients and 5,000 monthly visits, confirmed in September 2026. Zero paid acquisition. Founded and built independently."
+      }
+    ]
   },
   {
     id:'challenge-live-ops', num:'02', group:'automation', logo:null, hidden:true,
@@ -7263,50 +7347,134 @@ const PROJECTS = [
     ],
   },
   {
-    id:'oneasset', num:'03c', group:'enterprise', logo:'../images/oneasset-logo.png',
-    company:'OneAsset', tagline:'Regulated Real-World Asset Investment Platform',
-    role:'Senior Product Designer / Product Lead',
-    year:'2026 – Present', duration:'Ongoing', team:'Product & engineering team',
-    platforms:['Desktop'], tag:'RWA FinTech · Product Lead', badges:['FinTech','Web3'], accent:'#107eff',
-    desc:'Product strategy, investor UX, and a trust-first institutional design system for a regulated real-world asset platform: institutional commercial real estate, fractional ownership from $10,000, daily USDC yield on Base / ERC-3643.',
-    subtitle:'Institutional commercial real estate. Daily yield. From $10,000.',
-    challenge:'Tokenized real estate products usually look like crypto dashboards: dark, speculative, and untrustworthy for the investors they need to convince. OneAsset had to feel like serious investment infrastructure — compliance, custody clarity, transparent distributions — while still shipping fractional on-chain ownership.',
-    goals:'Define the product positioning and full platform UX: investor homepage, asset marketplace, fractional purchase flows, KYB onboarding, Property Manager workspace, and asset-class-dependent reporting — all under a premium, regulated-finance design language.',
-    solution:'Built the platform around trust-first principles: a regulatory trust bar (VARA licensed, non-custodial, live AUM, daily USDC yield), a white-theme institutional UI kit, a building-divided-into-shares purchase concept, a five-step KYB flow, and a complete PM workspace covering admission, reporting, payouts, and payment locks.',
-    steps:[
-      {num:'01', title:'Positioning & Investor Homepage', desc:'Defined the trust-first narrative and homepage architecture: hero, regulatory trust bar, self-custody explanation, featured live asset, daily yield module, property carousel, how-it-works, compliance proof, and research teaser. Explored multiple hero concepts, from a cinematic real estate banner to a building sliced into ownership parts.'},
-      {num:'02', title:'KYB & Compliance Flows', desc:'Designed the five-step KYB onboarding (business profile, contact authority, compliance licensing, financial banking, documents) with a guided stepper and document upload zones, built for UAE-style institutional compliance.'},
-      {num:'03', title:'Property Manager Workspace', desc:'Architected the operator side: Overview (compliance status, reporting due, active locks, pending UOA requests, upcoming payouts), Admission, Properties, Reports with Published / Needs Info / Corrections review loops, Payouts, and Payment Locks. Reporting requirements adapt per asset class: rent roll and occupancy for commercial, ADR and RevPAR for hospitality.'},
+    "id": "oneasset",
+    "num": "03c",
+    "group": "enterprise",
+    "logo": "../images/oneasset-logo.png",
+    "company": "OneAsset",
+    "tagline": "Regulated Real-World Asset Investment Platform",
+    "role": "Senior Product Designer / Product Lead",
+    "year": "Feb 2026 – Present",
+    "duration": "Ongoing",
+    "team": "Sole designer · Product and engineering team",
+    "platforms": [
+      "Desktop"
     ],
-    outcome:'A full product foundation for a regulated RWA platform: positioning, homepage structure, UI kit, KYB flows, PM workspace architecture, and compliance-first reporting logic — closer to a premium fintech than a crypto dashboard.',
-    outcomeStat:null, url:'https://oneasset.io', screenshot:'../images/oneasset-investor-portfolio.webp', heroCover:'../images/oneasset-cover.png',
-    narrative: [
-      { type:'text', label:'The context', title:'Real-world assets need real-world trust',
-        body:'OneAsset gives investors access to verified commercial real estate with fractional ownership from $10,000 and daily USDC yield, on Base with ERC-3643. The product had to earn institutional trust: VARA licensing, non-custodial positioning, live AUM, and institutional-grade reporting — real income from real assets, not casino-like performance promises.' },
-      { type:'image-full', src:'../images/oneasset-investor-portfolio.webp', borderless:true,
-        caption:'The real product — Investor Portfolio: total portfolio value, monthly yield, value trend, and the property marketplace with asset-class filters.' },
-      { type:'image-grid', label:'Key interfaces', borderless:true, images:[
-        { src:'../images/oneasset-pm-dashboard.webp', caption:'PM workspace — Dashboard: properties under management, sub-accounts, reports due, and the Investor Q&A activity stream.' },
-        { src:'../images/oneasset-pm-property-detail.webp', caption:'PM workspace — Property detail (Marina Tower A): asset profile, versioned operational reports, and investor count.' },
-      ]},
-      { type:'browser-window', src:'../images/oneasset-marketing-home.webp', srcAlt:'../images/oneasset-marketing-home-white.webp', url:'oneasset.io',
-        caption:'The live marketing home page — scroll inside the window to walk the full landing, and use the Dark / White switch to flip between the two shipped themes: institutional positioning, the regulatory trust bar (VARA licensed, non-custodial, daily USDC yield, built on Base), the featured live asset, the self-custody explainer, how-it-works, the building-divided-into-shares purchase concept, and the $10,000 entry CTA.' },
-      { type:'oneasset-vitrine', label:'The method', title:'A homepage built like an investment memorandum.',
-        body:'The marketing home page above leads with proof, not promises: a regulatory trust bar over the fold, a featured live asset with real distribution terms, and a calm, confident hierarchy. Every module is sequenced like an investment memorandum — credibility and compliance first, mechanics second, performance never overstated.' },
-      { type:'oneasset-shares', label:'How it works', title:'A building, divided into ownership.',
-        body:'The core product concept: each property is divided into shares investors can buy fraction by fraction. The purchase selector keeps the mental model simple — pick shares, see the allocation, understand the distribution — while ERC-3643 handles compliant transfer restrictions underneath.' },
-      { type:'oneasset-workspace', label:'Operator side', title:'Inside the Property Manager workspace.',
-        body:'Operators live in a six-module workspace: Overview, Admission, Properties, Reports, Payouts, and Payment Locks. Reporting is asset-class dependent — rent roll and occupancy for commercial, ADR and RevPAR for hospitality — with Published / Needs Info / Corrections review loops. Recreated here as a working console: click the tabs.' },
-      { type:'text', label:'Internal tooling', title:'Figmol — an internal whiteboard I built to run design review at product scale.',
-        body:'To keep a fast-moving, multi-persona product coherent, I built Figmol: a Figma-style infinite whiteboard that mirrors the live app. Every frame is the real product rendered in a capture mode — not a static mockup — organised into boards per persona (PM, sub-account, investor, distribution partner, admin) and per surface (business app, marketing, retail). It has desktop / mobile and design-system v1 / v2 toggles, per-frame review status, comment pins anchored to DOM elements, and one-click hand-off prompts into Cursor — so design review, QA, and implementation all run off a single source of truth.' },
-      { type:'image-full', src:'../images/oneasset-figmol.webp', borderless:true,
-        caption:'Figmol — the internal design-ops whiteboard: each persona board mirrors the live app at full page height, with review status, comment pins, and device / theme / shell-version toggles.' },
-      { type:'text', label:'Design direction', title:'Less crypto, more regulated finance',
-        body:'A premium white-theme language: clean cards, calm hierarchy, subtle gradients, large property visuals, and strong data modules. Every screen is designed to make people feel they are entering a serious investment platform, not a trading game.' },
-      { type:'process', title:'How I approached it' },
-      { type:'outcome', text:'A full product foundation for a regulated RWA platform: positioning, homepage structure, UI kit, KYB flows, PM workspace architecture, and compliance-first reporting logic.' },
+    "tag": "RWA FinTech · Product Lead",
+    "badges": [
+      "FinTech",
+      "Web3"
     ],
+    "accent": "#107eff",
+    "desc": "I own the design across OneAsset, from the admin platform and investor application to the marketing website. My work includes product strategy, compliance journeys, the design system and interactive prototypes built with AI.",
+    "subtitle": "Sole design ownership across product, admin and marketing",
+    "challenge": "Keep investor, operator and admin workflows coherent across the platform and marketing website while collaborating with engineering on a changing product.",
+    "goals": "Design the investor journey, marketplace, KYB onboarding and Property Manager workspace, with reporting suited to each asset class.",
+    "solution": "Designed the product and marketing surfaces, built interactive prototypes with AI coding tools, and organized design work through AI agents on GitHub. Figmol is the internal tool I built to review the live prototype and hand design changes to engineering.",
+    "steps": [
+      {
+        "num": "01",
+        "title": "Design across the product",
+        "desc": "Mapped investor, Property Manager and admin workflows, including onboarding and compliance. Designed the interface and shared design system across these surfaces and the marketing website."
+      },
+      {
+        "num": "02",
+        "title": "Interactive prototypes",
+        "desc": "Built interactive prototypes with AI coding tools to review the product as a working experience."
+      },
+      {
+        "num": "03",
+        "title": "GitHub agents and Figmol",
+        "desc": "Set up the design process around AI agents on GitHub, with a design repository, product requirements and PR reviews. Built Figmol to review the live prototype and prepare Cursor handoffs."
+      }
+    ],
+    "outcome": "Design ownership across the admin platform, user-facing application and marketing website, with a shared design system, interactive prototypes, a GitHub agent workflow and Figmol.",
+    "outcomeStat": null,
+    "url": "https://oneasset.io",
+    "screenshot": "../images/oneasset-investor-portfolio.webp",
+    "heroCover": "../images/oneasset-cover.png",
+    "narrative": [
+      {
+        "type": "text",
+        "label": "The context",
+        "title": "Sole designer across the product and marketing site",
+        "body": "I own the design across OneAsset, from the admin platform and investor application to the marketing website. My work includes product strategy, compliance journeys, the design system and interactive prototypes built with AI."
+      },
+      {
+        "type": "image-full",
+        "src": "../images/oneasset-investor-portfolio.webp",
+        "borderless": true,
+        "caption": "The real product — Investor Portfolio: total portfolio value, monthly yield, value trend, and the property marketplace with asset-class filters."
+      },
+      {
+        "type": "image-grid",
+        "label": "Key interfaces",
+        "borderless": true,
+        "images": [
+          {
+            "src": "../images/oneasset-pm-dashboard.webp",
+            "caption": "PM workspace — Dashboard: properties under management, sub-accounts, reports due, and the Investor Q&A activity stream."
+          },
+          {
+            "src": "../images/oneasset-pm-property-detail.webp",
+            "caption": "PM workspace — Property detail (Marina Tower A): asset profile, versioned operational reports, and investor count."
+          }
+        ]
+      },
+      {
+        "type": "browser-window",
+        "src": "../images/oneasset-marketing-home.webp",
+        "srcAlt": "../images/oneasset-marketing-home-white.webp",
+        "url": "oneasset.io",
+        "caption": "The live marketing home page — scroll inside the window to walk the full landing, and use the Dark / White switch to flip between the two shipped themes: institutional positioning, the regulatory trust bar (VARA licensed, non-custodial, daily USDC yield, built on Base), the featured live asset, the self-custody explainer, how-it-works, the building-divided-into-shares purchase concept, and the $10,000 entry CTA."
+      },
+      {
+        "type": "oneasset-vitrine",
+        "label": "The method",
+        "title": "A homepage built like an investment memorandum.",
+        "body": "The homepage explains the regulatory context, presents a property and its distribution terms, then describes how ownership works. I used a clear information hierarchy to make those details easy to find."
+      },
+      {
+        "type": "oneasset-shares",
+        "label": "How it works",
+        "title": "A building, divided into ownership.",
+        "body": "Investors select shares in a property and review their allocation and distribution terms. ERC-3643 handles the transfer restrictions behind that purchase flow."
+      },
+      {
+        "type": "oneasset-workspace",
+        "label": "Operator side",
+        "title": "Inside the Property Manager workspace.",
+        "body": "Operators live in a six-module workspace: Overview, Admission, Properties, Reports, Payouts, and Payment Locks. Reporting is asset-class dependent — rent roll and occupancy for commercial, ADR and RevPAR for hospitality — with Published / Needs Info / Corrections review loops. Recreated here as a working console: click the tabs."
+      },
+      {
+        "type": "text",
+        "label": "Internal tooling",
+        "title": "Figmol and an AI-agent workflow on GitHub",
+        "body": "Designed the product and marketing surfaces, built interactive prototypes with AI coding tools, and organized design work through AI agents on GitHub. Figmol is the internal tool I built to review the live prototype and hand design changes to engineering."
+      },
+      {
+        "type": "image-full",
+        "src": "../images/oneasset-figmol.webp",
+        "borderless": true,
+        "caption": "Figmol — the internal design-ops whiteboard: each persona board mirrors the live app at full page height, with review status, comment pins, and device / theme / shell-version toggles."
+      },
+      {
+        "type": "text",
+        "label": "Design direction",
+        "title": "Making investment information readable",
+        "body": "The white interface uses property images, cards and data tables to explain each investment. The hierarchy keeps ownership terms and reporting easy to find."
+      },
+      {
+        "type": "process",
+        "title": "How I approached it"
+      },
+      {
+        "type": "outcome",
+        "text": "Design ownership across the admin platform, user-facing application and marketing website, with a shared design system, interactive prototypes, a GitHub agent workflow and Figmol."
+      }
+    ]
   },
+
   {
     id:'upviral', num:'04', group:'enterprise', cover:'covers/upviral.jpg', logo:'../images/upviral.png',
     company:'UpViral', tagline:'SaaS Marketing Platform',
