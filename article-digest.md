@@ -81,6 +81,10 @@ Hugo confirmed on 2026-09-10 that he is a salaried employee at OneAsset and want
 
 **Design-to-engineering workflow (confirmed 2026-09-11).** The Git-based design workflow runs PRD written → feature branch opened → Figmol prototype built against it → GitHub PR opened for engineering review → one-click hand-off into Cursor and Claude Code for implementation. Design changes are checked for PRD coherence against an internal specification agent that serves as the product's database of record. The agent was built by OneAsset's CTO — Hugo relies on it and designs his workflow around it, but did not build it himself. Never attribute its authorship to Hugo.
 
+## SNCF: confirmed broader scope
+
+Hugo confirmed on 2026-09-13 that his SNCF work (2017–2020) went beyond internal staff applications: it also included an institutional investor persona supporting SNCF's green bond financing (an asset manager's objectives, concerns and information needs), and a full TGV passenger journey map (Lyon–Marseille, search through arrival). Both are design/research deliverables, not measured outcomes — no metric (conversion, satisfaction, funds raised) is recorded for either. Alongside the existing internal-apps and SNCF Réseau public-consultation-platform work.
+
 ## Project status and attribution
 
 - Creads.io: launched SaaS with reported users and paying clients.
