@@ -7823,21 +7823,21 @@ const PROJECTS = [
     subtitle:'A creator-first video network before the wave',
     challenge:'Building a video social network from zero: product vision, UX design, and shipping on iOS and Android, while raising seed funding.',
     goals:'Design a social video product that puts creators first: intuitive 24-min editing, expressive video-comment format, and creator monetization from day one.',
-    solution:'Co-defined the product vision, designed the complete creator and viewer experience, and supported the $100K seed raise from Columbus BlueSky (CM-CIC, BNP Paribas Développement, Harwanne/Covéa).',
+    solution:'Co-defined the product vision, designed the complete creator and viewer experience, and supported the €100K seed raise from Columbus BlueSky (CM-CIC, BNP Paribas Développement, Harwanne/Covéa).',
     steps:[
       {num:'01', title:'Product Vision', desc:'Defined core differentiators: 24-min 1080p in-app editing, 10-second video comments, creator monetization, targeting the gap between YouTube depth and TikTok accessibility.'},
       {num:'02', title:'Mobile App Design', desc:'Designed complete iOS and Android experience: video feed, in-app editor with 1080p, 10-second video comment recorder, creator profile, and monetization dashboard.'},
-      {num:'03', title:'Fundraising Support', desc:'Built the investor presentation and product demo that secured the $100K seed round from Columbus BlueSky Holding.'},
+      {num:'03', title:'Fundraising Support', desc:'Built the investor presentation and product demo that secured the €100K seed round from Columbus BlueSky Holding.'},
     ],
-    outcome:'$100K seed raised. Video social network shipped on iOS and Android with creator monetization.',
-    outcomeStat:'$100K',
+    outcome:'€100K seed raised. Video social network shipped on iOS and Android with creator monetization.',
+    outcomeStat:'€100K',
     narrative: [
       { type:'text', label:'The project', title:'Co-founding a video social network, before TikTok took over',
         body:'Vloggy was built around a simple insight: YouTube creators were constrained by the format, and short-form wasn\'t enough for storytelling. We designed a network that put creators first: 24-minute 1080p in-app editing, 10-second video comments as a new expressive format, and monetization built in from day one.' },
-      { type:'text', label:'My role', title:'Product vision, full UX design, and fundraising support',
-        body:'As co-founder and product designer, I co-defined the core differentiators, designed the complete iOS and Android experience from feed to editor to creator profile, and built the investor presentation and product demo that secured our $100K seed round from Columbus BlueSky Holding (CM-CIC, BNP Paribas Développement, Harwanne/Covéa).' },
+      { type:'vloggy-timeline', label:'My role', title:'Product vision, full UX design, and fundraising support',
+        body:'As co-founder and product designer, I co-defined the core differentiators, designed the complete iOS and Android experience, and built the investor presentation and product demo that secured our seed round.' },
       { type:'process', title:'How we built it' },
-      { type:'outcome', stat:'$100K', text:'$100K seed raised from Columbus BlueSky Holding. Video social network shipped on iOS and Android with creator monetization.' },
+      { type:'outcome', stat:'€100K', text:'€100K seed raised from Columbus BlueSky Holding. Video social network shipped on iOS and Android with creator monetization.' },
     ],
   },
   {
@@ -9375,6 +9375,53 @@ function renderNarrativeBlock(b, stepsHTML, p) {
               <div class="x-flow-title">Feed the creative back in</div>
               <div class="x-flow-desc">Discovered content and outreach results feed the Creads.io creative pipeline, closing the loop between what's working on the timeline and what gets published or sent next.</div>
               <div class="x-bars"><span class="x-bar"><i style="--w:65%;--d:.45s"></i></span><span class="x-bar"><i style="--w:75%;--d:.55s"></i></span></div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    case 'vloggy-timeline':
+      return `<div class="proj-n-block xsec xsec--jv">
+        <div class="xsec-head">
+          <div>
+            ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+            ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+            ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+          </div>
+          <div class="xsec-kpis">
+            <div class="x-kpi"><span>Raised</span><strong>€100K</strong><em>Seed round</em></div>
+            <div class="x-kpi"><span>Editing</span><strong>1080p</strong><em>24-min in-app</em></div>
+            <div class="x-kpi"><span>Comments</span><strong>10s</strong><em>Video replies</em></div>
+          </div>
+        </div>
+        <div class="x-panel">
+          <div class="x-panel-top">
+            <div class="x-panel-title"><span class="x-led"></span> Founded, funded, shipped, shut down</div>
+            <div class="x-chip-row"><span class="x-chip acc">2017 – 2020</span><span class="x-chip">iOS · Android</span></div>
+          </div>
+          <div class="x-flow">
+            <div class="x-flow-card">
+              <div class="x-flow-num">01 · sep 2017</div>
+              <div class="x-flow-title">Founded</div>
+              <div class="x-flow-desc">Co-founded with Moussa Koita and Nader Loussaief, targeting the gap between YouTube's editing depth and TikTok's accessibility.</div>
+              <div class="x-bars"><span class="x-bar"><i style="--w:75%"></i></span><span class="x-bar"><i style="--w:50%;--d:.1s"></i></span></div>
+            </div>
+            <div class="x-flow-card">
+              <div class="x-flow-num">02 · product</div>
+              <div class="x-flow-title">Built</div>
+              <div class="x-flow-desc">Full iOS and Android experience: video feed, a 24-minute 1080p in-app editor, 10-second video comments and a creator monetization dashboard.</div>
+              <div class="x-bars"><span class="x-bar"><i style="--w:85%;--d:.15s"></i></span><span class="x-bar"><i style="--w:65%;--d:.25s"></i></span></div>
+            </div>
+            <div class="x-flow-card">
+              <div class="x-flow-num">03 · seed round</div>
+              <div class="x-flow-title">€100K raised</div>
+              <div class="x-flow-desc">Raised from Columbus BlueSky Holding, backed by CM-CIC, BNP Paribas Développement and Harwanne/Covéa, on an investor deck and product demo I built.</div>
+              <div class="x-bars"><span class="x-bar"><i style="--w:90%;--d:.3s"></i></span><span class="x-bar"><i style="--w:55%;--d:.4s"></i></span></div>
+            </div>
+            <div class="x-flow-card">
+              <div class="x-flow-num">04 · 2020</div>
+              <div class="x-flow-title">Delivery, then shutdown</div>
+              <div class="x-flow-desc">Reached delivery stage, then ceased operations when funding ran out against TikTok-scale competition. The clearest lesson in when to stop, not just how to build.</div>
+              <div class="x-bars"><span class="x-bar"><i style="--w:60%;--d:.45s"></i></span><span class="x-bar"><i style="--w:40%;--d:.55s"></i></span></div>
             </div>
           </div>
         </div>
