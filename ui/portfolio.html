@@ -3916,12 +3916,15 @@
     .x-led { width: 9px; height: 9px; border-radius: 50%; background: var(--xa); box-shadow: 0 0 16px var(--xa); animation: xPulse 1.7s ease-in-out infinite; }
     .x-chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
     .x-chip {
+      display: inline-flex; align-items: center; gap: 5px;
       border-radius: 999px; padding: 5px 9px;
       background: var(--xchip-bg); border: 1px solid var(--xchip-line);
       font-size: 10px; font-weight: 800; color: var(--xchip-ink); letter-spacing: .04em;
     }
     .x-chip.acc { color: var(--xa); border-color: var(--xa-soft); }
     .x-chip.red { color: #f87171; border-color: rgba(248,113,113,.25); }
+    .x-chip-icon { width: 13px; height: 13px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
+    .x-tools-row .x-chip { padding: 6px 11px 6px 8px; font-size: 11px; }
     .x-chip.green { color: #34d399; border-color: rgba(52,211,153,.25); }
     /* flow cards (jarvos pipeline etc.) */
     .x-flow { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 18px; }
@@ -7862,6 +7865,13 @@ const PROJECTS = [
     narrative: [
       { type:'text', label:'The system', title:'An autonomous OS for social media. No manual publishing.',
         body:'Flemme OS was built around one goal: eliminating manual social media work entirely. The system handles the full publishing workflow: content generation, scheduling, DM outreach sequences, lead monitoring, and creative ad library, across Twitter, Instagram, and Threads, without human intervention between runs.' },
+      { type:'tools-row', label:'Stack', tools:[
+        { name:'Claude', icon:'../images/claude-logo.svg' },
+        { name:'OpenRouter', icon:'../images/openrouter.png' },
+        { name:'Grok' },
+        { name:'Firecrawl', icon:'../images/firecrawl.png' },
+        { name:'Playwright', icon:'../images/playwright-logo.svg' },
+      ]},
       { type:'flemme-pipeline', label:'System design', title:'Four coordinated agents, one central dashboard',
         body:"Social Monitor, DeepFlow, DM Prospection and the Ad Library share a central dashboard, each one feeding signal into the next instead of running as separate tools." },
       { type:'process', title:'How I built it' },
@@ -9647,6 +9657,14 @@ function renderNarrativeBlock(b, stepsHTML, p) {
               <div class="obx-note">Dense market data, small financial numbers, order books, KYC and legal text stay on crisp, opaque surfaces. Glass is reserved for stateful controls — where delight does not cost legibility.</div>
             </div>
           </div>
+        </div>
+      </div>`;
+    case 'tools-row':
+      return `<div class="proj-n-block">
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        <div class="x-chip-row x-tools-row">
+          ${(b.tools || []).map(t => `<span class="x-chip">${t.icon ? `<img class="x-chip-icon" src="${t.icon}" alt="${t.name}" loading="lazy">` : ''}${t.name}</span>`).join('')}
         </div>
       </div>`;
     case 'process':
