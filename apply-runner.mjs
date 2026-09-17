@@ -18,12 +18,13 @@ import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { resolveUnknownFields } from './lib/apply-llm.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice } from './lib/application-writing.mjs';
-import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe } from './lib/apply-fill-guards.mjs';
+import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, trivialFieldPlan, skipComboboxProbe, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldFillField, isSecretCredentialField, travelOrRelocatePlan, shouldReplaceFilledValue } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
-import { fieldCompletionIssue, fieldMatchesAnswer } from './lib/apply-completion.mjs';
+import { fieldCompletionIssue, fieldMatchesAnswer, looksReadyToSubmit } from './lib/apply-completion.mjs';
 import { COLLECT_FIELDS } from './lib/apply-collect-fields.mjs';
 import { watchApplicationTransition, exploreApplicationInterface } from './lib/apply-navigation.mjs';
 import { COMBOBOX_OPTION_QUERY } from './lib/apply-combobox-dom.mjs';
+import { pickMatchingOption, choiceKind } from './lib/apply-option-match.mjs';
 import {
   PINCHTAB_URL,
   pinchtabClose,
@@ -33,7 +34,7 @@ import {
   pinchtabSolve,
   pinchtabSolveSucceeded,
 } from './lib/pinchtab.mjs';
-import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS } from './lib/form-detect.mjs';
+import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY } from './lib/form-detect.mjs';
 import {
   isHimalayasHost,
   isHimalayasLoginPath,
@@ -43,6 +44,16 @@ import {
   canAttemptHimalayasLogin,
   looksLikeHimalayasLoginError,
 } from './lib/himalayas-apply.mjs';
+import { computeStartDateISO as toIsoDate } from './lib/apply-spec.mjs';
+import { formSalaryValue } from './lib/apply-salary.mjs';
+import {
+  basenamePath,
+  chromeClosedMessage,
+  isTargetClosedError,
+  looksLikePostApplyPath,
+  POST_APPLY_PATH_RE_SOURCE,
+  postApplyMessage,
+} from './lib/apply-runtime.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -77,13 +88,13 @@ const STATE_WRITE_RETRY_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
 // ── State management ──────────────────────────────────────────────────────────
 
 const state = {
-  runId: RUN_DIR.split('/').pop(),
+  runId: basenamePath(RUN_DIR),
   state: 'launching',
   message: '',
   company: spec.company,
   role: spec.role,
   region: spec.region,
-  cv: spec.cvPath.split('/').pop(),
+  cv: basenamePath(spec.cvPath),
   jobUrl: spec.jobUrl,
   currentUrl: '',
   steps: [],
@@ -94,11 +105,7 @@ const state = {
   updatedAt: null,
 };
 
-function sleepSync(ms) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
-
-function writeState() {
+async function writeStateNow() {
   state.updatedAt = new Date().toISOString();
   const finalPath = join(RUN_DIR, 'state.json');
   const payload = JSON.stringify(state, null, 2);
@@ -114,7 +121,7 @@ function writeState() {
       lastErr = err;
       try { if (existsSync(tmp)) unlinkSync(tmp); } catch {}
       if (!STATE_WRITE_RETRY_CODES.has(err?.code)) throw err;
-      sleepSync(40 + attempt * 45);
+      await sleep(40 + attempt * 45);
     }
   }
 
@@ -127,11 +134,29 @@ function writeState() {
     } catch (err) {
       lastErr = err;
       if (!STATE_WRITE_RETRY_CODES.has(err?.code)) throw err;
-      sleepSync(80 + attempt * 80);
+      await sleep(80 + attempt * 80);
     }
   }
 
   throw lastErr;
+}
+
+// Serializes writes behind a queue: writeStateNow's retry backoff uses
+// `await sleep` (not a blocking Atomics.wait), which means two overlapping
+// calls (one retrying on a Windows file lock, a fresher one from a later
+// log()/setState() landing in the meantime) could otherwise interleave —
+// the retrying call's payload was captured before the fresher one wrote, so
+// it would finish LAST and silently overwrite state.json with stale data.
+// Queuing means writeStateNow only ever starts (and captures `state`) after
+// every earlier call has fully settled, restoring the write-ordering
+// guarantee the old blocking implementation gave for free. The queue link
+// itself must never reject (a .catch swallows it) or every later call would
+// permanently inherit that rejection instead of running its own write.
+let writeQueue = Promise.resolve();
+function writeState() {
+  const task = writeQueue.then(writeStateNow);
+  writeQueue = task.catch(() => {});
+  return task;
 }
 
 function setState(s, message = '') {
@@ -140,10 +165,20 @@ function setState(s, message = '') {
   log(`[${s}] ${message}`);
 }
 
+const MAX_LOG_STEPS = 500;
 function log(text) {
   state.steps.push({ ts: new Date().toISOString(), text });
+  // Defense in depth against any future runaway loop (the circuit breaker
+  // above targets one specific known cause, not every possible one): a run
+  // stuck live for 3 days once pushed state.json to 103MB / 2.86M lines from
+  // this array alone. Keep only the most recent steps so a stuck run stays
+  // cheap to write and readable, instead of growing without bound.
+  if (state.steps.length > MAX_LOG_STEPS) state.steps = state.steps.slice(-MAX_LOG_STEPS);
   console.log(text);
-  writeState();
+  // log() is called from many non-async call sites, so this write is
+  // fire-and-forget; total failure (retries exhausted) is still surfaced
+  // loudly instead of vanishing into an unhandled rejection.
+  writeState().catch(err => console.error('[apply] échec définitif de l’écriture d’état:', err?.message || err));
 }
 
 // Diagnostic trace for the dropdown machinery — stdout only, never written into
@@ -188,31 +223,10 @@ async function humanClick(loc, opts = {}) {
   await loc.click(opts);
 }
 
-// Native <input type="date"> pickers need an ISO yyyy-mm-dd value — anything
-// else is silently rejected by the browser (no keystrokes to simulate against).
-// "Immediately available"-style free text collapses to today's date.
-// Local calendar date, not UTC — Date#toISOString() converts to UTC first,
-// which silently shifts the day by one near midnight in any timezone ahead of
-// or behind UTC. A date input must reflect the date as read locally.
-function localIsoDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function toIsoDate(value) {
-  const raw = String(value ?? '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  // DD/MM/YYYY or DD-MM-YYYY (French convention) — parsed explicitly. new Date()
-  // assumes US MM/DD/YYYY for slash-separated dates, which would silently swap
-  // day and month for a French profile (e.g. "01/09/2026" → Jan 9, not Sep 1).
-  const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (dmy) {
-    const [, d, mo, y] = dmy;
-    if (+mo <= 12 && +d <= 31) return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  }
-  const d = new Date(raw);
-  if (raw && !Number.isNaN(d.getTime())) return localIsoDate(d);
-  return localIsoDate(new Date());
-}
+// toIsoDate = lib/apply-spec.mjs's computeStartDateISO (imported above,
+// aliased): same DD/MM/YYYY-vs-ISO parsing this file used to duplicate, now
+// used here for LLM/plan date answers instead of only the spec's own
+// availability.start_date.
 
 // Answers "is there DEFINITELY still a value here"
 // — an unreadable field reports false so callers keep the human-typing path
@@ -244,21 +258,22 @@ async function clearField(loc) {
 async function humanType(loc, text) {
   const str = String(text);
   try {
-    await loc.scrollIntoViewIfNeeded().catch(() => {});
+    await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
     await sleep(rand(120, 380));            // glance at the field before clicking
     await humanClick(loc, { timeout: 4000 });
     await sleep(rand(90, 260));             // settle after focus
-    // Clear any pre-filled value before typing — and VERIFY it went. This is
-    // load-bearing: pressSequentially() appends, so typing into a field that
-    // still holds a value (Ashby/Greenhouse "autofill from resume" populates
-    // the form in Phase A, browser autofill, or an earlier fillFields pass
-    // after a "Re-scanner") writes the answer twice. fill('') is a silent
-    // no-op on several controlled/rich-text editors, so when it does not take
-    // effect, replace the content wholesale instead of appending to it.
-    if (!(await clearField(loc))) {
-      try { await loc.fill(str, { timeout: 5000 }); } catch { return false; }
-      return await fieldMatchesAnswer(loc, str);
-    }
+    // Clear any pre-filled value before typing. This is load-bearing:
+    // pressSequentially() appends, so typing into a field that still holds a
+    // value (Ashby/Greenhouse "autofill from resume" populates the form in
+    // Phase A, browser autofill, or an earlier fillFields pass after a
+    // "Re-scanner") writes the answer twice. clearField is best-effort: on
+    // the controlled React inputs / rich-text editors (Quill/Slate) it exists
+    // to catch, it can fail to confirm empty even after both its techniques —
+    // type anyway, since pressSequentially below is the one technique
+    // documented to work on exactly those widgets, and the cleanup pass at
+    // the end of this function wipes any resulting old+new concatenation if
+    // it doesn't end up matching.
+    await clearField(loc);
     // longer answers get a faster cadence so a full form still finishes in a
     // reasonable time, but every keystroke is still a real event. Split on
     // whitespace/word runs (lossless — keeps leading/internal whitespace).
@@ -272,7 +287,75 @@ async function humanType(loc, text) {
   // confirm it stuck; rich-text editors (Quill/Slate) sometimes swallow keys
   if (await fieldMatchesAnswer(loc, str)) return true;
   try { await loc.fill(str, { timeout: 5000 }); } catch { return false; }
-  return await fieldMatchesAnswer(loc, str);
+  if (await fieldMatchesAnswer(loc, str)) return true;
+  // Both techniques failed to land the answer. If clearField couldn't
+  // confirm empty earlier, pressSequentially may have appended onto
+  // whatever was already there — leave the field genuinely empty (an
+  // unambiguous "needs attention" a human can spot at a glance) rather than
+  // a garbled old+new concatenation they'd have to untangle by hand.
+  await clearField(loc).catch(() => {});
+  return false;
+}
+
+const UPLOAD_SETTLE_MS = 2000;
+
+// Identity / short answers: Playwright fill() (one input event). Long prose
+// still goes through humanType so rich-text widgets and anti-bot checks see
+// real keystrokes.
+async function putText(loc, text, f) {
+  const str = String(text);
+  if (shouldHumanType(f, str)) return humanType(loc, str);
+  try {
+    await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
+    await loc.fill(str, { timeout: 4000 });
+    if (await fieldMatchesAnswer(loc, str)) return true;
+  } catch { /* controlled / custom widgets often ignore fill() */ }
+  return humanType(loc, str);
+}
+
+async function waitForFormResettle(frame, timeoutMs = UPLOAD_SETTLE_MS) {
+  const deadline = Date.now() + timeoutMs;
+  let last = '';
+  let hits = 0;
+  while (Date.now() < deadline) {
+    const snap = await frame.evaluate(() => ({
+      n: document.querySelectorAll('input, select, textarea, [role="combobox"]').length,
+      files: [...document.querySelectorAll('input[type="file"]')]
+        .map(el => [...(el.files || [])].map(f => f.name).join(',')).join('|'),
+      busy: !!(document.querySelector('[aria-busy="true"]') || document.querySelector('[class*="uploading" i]')),
+      len: document.body?.innerText?.length || 0,
+    })).catch(() => null);
+    if (!snap) return;
+    const sig = `${snap.n}:${snap.files}:${snap.len}`;
+    if (!snap.busy && sig === last) {
+      hits += 1;
+      if (hits >= 2) return;
+    } else {
+      hits = 0;
+      last = sig;
+    }
+    await sleep(200);
+  }
+}
+
+async function waitForResumeAutofill(frame, timeoutMs = 4000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const ready = await frame.evaluate(() => {
+      const inputs = [...document.querySelectorAll('input, textarea')];
+      return inputs.some((el) => {
+        const v = String(el.value || '').trim();
+        if (v.includes('@')) return true;
+        const key = `${el.name || ''} ${el.id || ''} ${el.getAttribute('aria-label') || ''}`;
+        return /first\s*name|pr[ée]nom/i.test(key) && v.length >= 2;
+      });
+    }).catch(() => false);
+    if (ready) {
+      await sleep(400);
+      return;
+    }
+    await sleep(200);
+  }
 }
 
 let shotCount = 0;
@@ -282,7 +365,7 @@ async function screenshot(page, label) {
     const name = `shot-${String(shotCount).padStart(2, '0')}-${label}.png`;
     await page.screenshot({ path: join(RUN_DIR, name), fullPage: false });
     state.screenshots.push(name);
-    writeState();
+    await writeState();
   } catch { /* page may be navigating */ }
 }
 
@@ -324,19 +407,40 @@ async function launchBrowser() {
 
 // ── Blocker detection (captcha / cloudflare / login wall) ─────────────────────
 
+function pageIsGone(page) {
+  try { return !page || page.isClosed() === true; } catch { return true; }
+}
+
+function frameAlive(frame) {
+  try { return !!frame && frame.isDetached() !== true; } catch { return false; }
+}
+
+function currentPageUrl(page) {
+  try {
+    if (!pageIsGone(page)) return page.url();
+  } catch { /* closed */ }
+  return state.currentUrl || '';
+}
+
 async function detectBlocker(page) {
   // Scan every frame, not just the top page: some ATS embed the whole
   // application form (and any captcha rendered inside it) in a cross-origin
   // iframe that top-level page.evaluate() can never see into. Playwright's
   // frame.evaluate() runs inside each frame's own execution context, so it
   // works regardless of origin.
-  const mainFrame = page.mainFrame();
-  for (const frame of page.frames()) {
-    if (frame.isDetached()) continue;
-    try {
-      const found = await frame.evaluate(blockerProbe, { ...BLOCKER_PROBE_ARGS, isMainFrame: frame === mainFrame });
-      if (found) return found;
-    } catch { /* frame navigating/detached mid-check — skip, next poll retries */ }
+  if (pageIsGone(page)) return null;
+  try {
+    const mainFrame = page.mainFrame();
+    for (const frame of page.frames()) {
+      if (frame.isDetached()) continue;
+      try {
+        const found = await frame.evaluate(blockerProbe, { ...BLOCKER_PROBE_ARGS, isMainFrame: frame === mainFrame });
+        if (found) return found;
+      } catch { /* frame navigating/detached mid-check — skip, next poll retries */ }
+    }
+  } catch (err) {
+    if (isTargetClosedError(err)) return null;
+    throw err;
   }
   return null;
 }
@@ -393,10 +497,6 @@ async function importPinchtabCookies(context, tabId, currentUrl) {
     dbg(`pinchtab cookie import failed: ${String(err.message || err).slice(0, 100)}`);
     return 0;
   }
-}
-
-function isHimalayasApply() {
-  return isHimalayasHost(spec.jobUrl);
 }
 
 /** Per-run cap so a bad password cannot loop /login across reachApplicationForm hops. */
@@ -467,7 +567,12 @@ async function solvePinchtabChallenge(context, page, blocker, phase = 'navigatio
       await page.reload({ waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
       await sleep(2500);
       const stillBlocked = await detectBlocker(page);
-      if (!stillBlocked || (stillBlocked !== 'captcha' && stillBlocked !== 'cloudflare')) return true;
+      // Only a truly clear page counts as solved. clearChallengeWalls already
+      // re-detects the blocker before every call into this function and
+      // treats "not captcha/cloudflare anymore" as its own job being done
+      // (login/auth_wall are left alone by design) — reporting success here
+      // too meant a captcha giving way to a login wall was logged as solved.
+      if (!stillBlocked) return true;
       blocker = stillBlocked;
       log(`Vérification encore visible après reprise (${blockerLabel(stillBlocked)}).`);
     } catch (err) {
@@ -652,10 +757,27 @@ async function ensureHimalayasSession(context, page) {
   return true;
 }
 
+// Site-specific login/session preambles: some boards require establishing a
+// session (or clearing a login wall) before Apply can proceed at all, in ways
+// the generic navigation/blocker flow below can't do on its own. Each entry
+// is self-contained (own credentials, retry cap, login-form handling) — a
+// second such board is a new row here, not a new branch in
+// tryAutoSolveBlocker / reachApplicationForm / main.
+const SITE_SESSION_HANDLERS = [
+  {
+    appliesTo: (currentUrl) => shouldEnsureHimalayasSession({ jobUrl: spec.jobUrl, currentUrl }),
+    ensureSession: ensureHimalayasSession,
+  },
+];
+
+function findSiteSessionHandler(currentUrl) {
+  return SITE_SESSION_HANDLERS.find(h => h.appliesTo(currentUrl)) || null;
+}
+
 async function tryAutoSolveBlocker(context, page, blocker, phase = 'navigation') {
-  if ((blocker === 'login' || blocker === 'auth_wall')
-      && shouldEnsureHimalayasSession({ jobUrl: spec.jobUrl, currentUrl: page.url() })) {
-    return ensureHimalayasSession(context, page);
+  if (blocker === 'login' || blocker === 'auth_wall') {
+    const handler = findSiteSessionHandler(page.url());
+    if (handler) return handler.ensureSession(context, page);
   }
   return solvePinchtabChallenge(context, page, blocker, phase);
 }
@@ -672,7 +794,7 @@ const CONTINUE_TEXT_RE = GUEST_TEXT_RE;
 
 // Multi-step wizard progression (when there is NO form on the page yet): landing
 // pages, "start application" splash screens, intro steps before the real form.
-const PROGRESS_TEXT_RE = /^(continue|next|next step|start( your)?( application)?|get started|begin( application)?|proceed|go to application|apply for this (job|position|role)|view application|start now|commencer|continuer|suivant|[ée]tape suivante|d[ée]marrer|acc[ée]der au formulaire)$/i;
+const PROGRESS_TEXT_RE = /^(continue|next|next step|start( your)?( application)?|get started|begin( application)?|proceed|go to application|apply for this (job|position|role)|view application|start now|application|candidature|commencer|continuer|suivant|[ée]tape suivante|d[ée]marrer|acc[ée]der au formulaire)$/i;
 
 function normalizeAtsUrl(url) {
   // Insert the apply segment into the PATHNAME (not the raw string): appending
@@ -723,15 +845,21 @@ async function frameHasApplicationForm(frame) {
  * the guest path or hand over to the human instead of typing into a signup box.
  */
 async function findFormFrame(page) {
+  if (pageIsGone(page)) return { frame: null, authWall: null };
   let authWall = null;
-  for (const frame of page.frames()) {
-    if (frame.isDetached()) continue;
-    const r = await probeFrameForm(frame);
-    if (r.verdict === 'application_form') {
-      dbg(`formulaire détecté (score ${r.score}: ${r.signals.join(', ')})`);
-      return { frame, authWall: null };
+  try {
+    for (const frame of page.frames()) {
+      if (frame.isDetached()) continue;
+      const r = await probeFrameForm(frame);
+      if (r.verdict === 'application_form') {
+        dbg(`formulaire détecté (score ${r.score}: ${r.signals.join(', ')})`);
+        return { frame, authWall: null };
+      }
+      if (r.verdict === 'auth_wall' && !authWall) authWall = r;
     }
-    if (r.verdict === 'auth_wall' && !authWall) authWall = r;
+  } catch (err) {
+    if (isTargetClosedError(err)) return { frame: null, authWall: null };
+    throw err;
   }
   return { frame: null, authWall };
 }
@@ -743,26 +871,43 @@ async function clickApplyAndFollow(context, page, textRe = APPLY_TEXT_RE, attemp
   // events + popup handling. `attempted` (Set of "url::text") prevents
   // re-clicking the same button across hops (avoids no-op loops). Returns the
   // page that should contain the form.
-  const url = page.url();
+  if (pageIsGone(page)) return null;
+  let url;
+  try { url = page.url(); } catch (err) {
+    if (isTargetClosedError(err)) return null;
+    throw err;
+  }
   const skip = attempted ? [...attempted].filter(k => k.startsWith(url + '::')).map(k => k.slice((url + '::').length)) : [];
   // Let sticky headers, lazy CTAs and client-side route data settle before
   // concluding that the page has no progression control. Many ATS pages only
   // reveal the real Apply button after a human-like scroll.
   await page.mouse.wheel(0, 650).catch(() => {});
   await sleep(900);
-  const marked = await page.evaluate(MARK_PROGRESSION_CONTROLS, {
-    reSrc: textRe.source,
-    skip,
-    avoidSrc: AUTH_AVOID_TEXT_RE.source,
-  });
-  if (!marked.length) {
-    await page.mouse.wheel(0, -500).catch(() => {});
-    await sleep(700);
-    const retry = await page.evaluate(MARK_PROGRESSION_CONTROLS, {
+  let marked;
+  try {
+    marked = await page.evaluate(MARK_PROGRESSION_CONTROLS, {
       reSrc: textRe.source,
       skip,
       avoidSrc: AUTH_AVOID_TEXT_RE.source,
     });
+  } catch (err) {
+    if (isTargetClosedError(err)) return null;
+    throw err;
+  }
+  if (!marked.length) {
+    await page.mouse.wheel(0, -500).catch(() => {});
+    await sleep(700);
+    let retry;
+    try {
+      retry = await page.evaluate(MARK_PROGRESSION_CONTROLS, {
+        reSrc: textRe.source,
+        skip,
+        avoidSrc: AUTH_AVOID_TEXT_RE.source,
+      });
+    } catch (err) {
+      if (isTargetClosedError(err)) return null;
+      throw err;
+    }
     if (!retry.length) return null;
     marked.push(...retry);
   }
@@ -780,8 +925,13 @@ async function clickApplyAndFollow(context, page, textRe = APPLY_TEXT_RE, attemp
       log(`Clic raté sur "${cand.text}" (${String(err.message || err).slice(0, 60)}) — élément suivant`);
     }
   }
-  const observed = await transition;
+  // Check clicked BEFORE awaiting the transition watch: nothing navigated, so
+  // there is nothing to wait for — awaiting first blocked this function for
+  // the full watch timeout on every failed hop. `transition` is left
+  // unawaited here; it always resolves (never throws) and just finishes its
+  // poll loop in the background.
   if (!clicked) return null;
+  const observed = await transition;
   if (!observed.frame) log('Formulaire encore absent après le clic — poursuite de l’exploration.');
   return observed.page;
 }
@@ -806,17 +956,26 @@ async function reachApplicationForm(context, page) {
   const attempted = new Set();
   const inspectedUrls = new Set();
 
-  // Himalayas: establish session BEFORE trying Apply (login → captcha → job).
-  // Only while still on himalayas.app — never after redirect to the employer ATS.
-  if (shouldEnsureHimalayasSession({ jobUrl: spec.jobUrl, currentUrl: page.url() })) {
-    if (!(await ensureHimalayasSession(context, page))) {
+  // A board with a session handler: establish it BEFORE trying Apply (login →
+  // captcha → job). Only while still on that board's own domain — never after
+  // redirect to the employer's ATS (see SITE_SESSION_HANDLERS' appliesTo).
+  if (pageIsGone(page)) return { page, frame: null, blocker: null };
+  const preambleHandler = findSiteSessionHandler(currentPageUrl(page));
+  if (preambleHandler) {
+    if (!(await preambleHandler.ensureSession(context, page))) {
       return { page, frame: null, blocker: 'login' };
     }
   }
 
   for (let hop = 0; hop < 15; hop++) {
-    state.currentUrl = page.url();
-    writeState();
+    if (pageIsGone(page)) return { page, frame: null, blocker: null };
+    try {
+      state.currentUrl = page.url();
+    } catch (err) {
+      if (isTargetClosedError(err)) return { page, frame: null, blocker: null };
+      throw err;
+    }
+    await writeState();
 
     const blocker = await detectBlocker(page);
     if (blocker) {
@@ -836,12 +995,14 @@ async function reachApplicationForm(context, page) {
     }
     if (frame) return { page, frame, blocker: null };
 
-    // An auth wall is NOT the form. On Himalayas there is no guest apply —
-    // force the login preamble. Elsewhere try the no-account path first.
+    // An auth wall is NOT the form. A board with a session handler (no guest
+    // apply there) forces the login preamble; elsewhere try the no-account
+    // path first.
     if (authWall) {
-      if (shouldEnsureHimalayasSession({ jobUrl: spec.jobUrl, currentUrl: page.url() })) {
-        log(`Mur Himalayas (${authWall.blockers.join(', ')}) — connexion obligatoire.`);
-        if (await ensureHimalayasSession(context, page)) continue;
+      const wallHandler = findSiteSessionHandler(page.url());
+      if (wallHandler) {
+        log(`Mur d'authentification (${authWall.blockers.join(', ')}) — connexion obligatoire.`);
+        if (await wallHandler.ensureSession(context, page)) continue;
         return { page, frame: null, blocker: 'login' };
       }
       log(`Mur d'inscription/connexion détecté (${authWall.blockers.join(', ')}) — recherche d'un accès invité.`);
@@ -961,10 +1122,7 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   const s = `${f.label} ${f.name} ${f.idAttr}`.toLowerCase();
   const id = spec.identity;
 
-  if (f.type === 'file') {
-    if (/cover|lettre/.test(s)) return { skip: 'cover letter file (non géré)' };
-    return { upload: spec.cvPath };
-  }
+  if (f.type === 'file') return fileUploadPlan(f, spec);
   // "Resume/CV" textarea (alternative to the file upload) → paste the CV text.
   if (f.tag === 'textarea' && /resume|curriculum|\bcv\b/.test(s) && !/cover|lettre|why|describe|experience/.test(s)) {
     return { resume: true };
@@ -987,6 +1145,12 @@ function classifyField(f, spec, usedAnswers = new Set()) {
     // see fillDeclineDropdown / DECLINE_RE.
     return { skip: 'question démographique (laissée vide)', declinePreferred: true };
   }
+
+  const travel = travelOrRelocatePlan(f);
+  if (travel) return travel;
+
+  const trivial = trivialFieldPlan(f, id);
+  if (trivial) return trivial;
 
   if (f.type === 'checkbox') {
     // Optional consents are only ticked when the user opted in for this run
@@ -1061,6 +1225,12 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   if (m(/last\s*name|family name|surname|nom de famille/)) return { value: id.lastName };
   if (m(/full\s*name|your name|^name\b|legal name|^nom\b/) && !m(/company|file/)) return { value: id.fullName };
   if (m(/e-?mail|courriel/)) return { value: id.email };
+  if (looksLikeDialCodeField(f)) {
+    const code = id.dialCode || formDialCode(id.phone, id.country);
+    return code
+      ? { value: code, selectText: code, selectMatch: code }
+      : { skip: 'indicatif téléphonique inconnu' };
+  }
   if (m(/phone|t[ée]l[ée]phone|mobile/)) return { value: id.phone, optionalEmpty: !id.phone };
   if (m(/linkedin/)) return { value: id.linkedin };
   if (m(/github/)) return { value: id.github };
@@ -1071,7 +1241,7 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   // Credentials are never ours to type. Ashby's "Password to portfolio link (if
   // applicable)" sits right next to the portfolio field and matched the URL rule
   // below, so the live run pasted the portfolio URL into it as a password.
-  if (f.type === 'password' || m(/password|mot de passe|passcode|pass ?phrase/)) {
+  if (isSecretCredentialField(f)) {
     return { skip: 'champ mot de passe (jamais rempli automatiquement)' };
   }
   // "Additional portfolio link (if applicable)" is a SECOND slot, not a repeat
@@ -1090,12 +1260,14 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   if (m(/current location|where (are you|do you) (based|live)|\bcity\b|\bville\b|\blocation\b|\baddress\b|\badresse\b/)) return { value: id.location };
   if (m(/country|pays/)) return { value: id.country, selectMatch: id.country };
   if (m(/time\s*zone|fuseau/)) return { value: id.timezone };
-  if (m(/salary|compensation|r[ée]mun[ée]ration|expected pay|pay expectation|pretension|daily rate|tjm/)) {
-    // A Section F draft written for THIS question beats the raw profile string
-    // ("EUR70K-110K salary / EUR600-900/day freelance" reads like a config
-    // value, which is exactly what got typed into Kittl's form).
-    const qa = bestAnswerFor(f.label, spec.answers, usedAnswers);
-    return qa ? { value: polishApplicationAnswer(qa.answer), fromQuestion: qa.question } : { value: id.salary };
+  if (m(/salary|compensation|r[ée]mun[ée]ration|expected pay|pay expectation|pretension|daily rate|tjm|expected (comp|ctc)|ctc\b|pay range|salary range/)) {
+    // Never type the profile prose ("EUR70K-110K …") or a Section F range:
+    // numeric inputs concatenate min+max into garbage like "v76000119000".
+    const value = formSalaryValue(
+      { minimum: id.salaryMinimum, target_range: id.salary },
+      f.label,
+    );
+    return value ? { value } : { skip: 'salaire non numérique dans le profil' };
   }
   if (m(/notice period|pr[ée]avis/)) return { value: id.noticePeriod };
   if (m(/start date|available (to start|from)|disponibilit|when can you start/)) return { value: id.startDate, dateISO: id.startDateISO };
@@ -1151,30 +1323,19 @@ function pickDeclineOption(options) {
 }
 
 function pickSelectOption(options, plan, fieldLabel) {
-  const lower = (t) => t.toLowerCase();
   const usable = options.filter(o => o.text && !/^(select|choose|--|please|sélection)/i.test(o.text.trim()));
   if (plan.yesNo) {
-    // word-boundary anchored so "None of the above" is NOT matched as "No"
-    const target = plan.yesNo === 'yes' ? /^(yes|oui|y)\b/i : /^(no|non|n)\b/i;
-    const opt = usable.find(o => target.test(o.text.trim()));
+    const opt = pickMatchingOption(usable, plan.yesNo === 'yes' ? 'Yes' : 'No');
     if (opt) return opt;
   }
   if (plan.selectPrefer) {
     const opt = usable.find(o => plan.selectPrefer.test(o.text));
     if (opt) return opt;
   }
-  const needle = lower(plan.selectMatch || plan.selectText || plan.value || '');
+  const needle = plan.selectMatch || plan.selectText || plan.value || '';
   if (needle) {
-    const exact = usable.find(o => lower(o.text) === needle);
-    if (exact) return exact;
-    // Word-boundary pass before the loose one: a bare `includes` picks "Female"
-    // for "Male" (and "Non-binary" for "No"), silently answering the opposite
-    // of what was asked.
-    const bounded = new RegExp(`(^|\\W)${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\W|$)`);
-    const word = usable.find(o => bounded.test(lower(o.text)));
-    if (word) return word;
-    const contains = usable.find(o => lower(o.text).includes(needle) || needle.includes(lower(o.text)));
-    if (contains) return contains;
+    const opt = pickMatchingOption(usable, needle);
+    if (opt) return opt;
   }
   // A field asking to "decline"/"prefer not to say" that didn't match by text
   // still deserves the decline option over being left unfilled.
@@ -1189,21 +1350,6 @@ function pickSelectOption(options, plan, fieldLabel) {
   return null;
 }
 
-// Read the currently-rendered dropdown options out of the page. Shared by the
-// scrape and the select path so both agree on what counts as an option.
-function readRenderedOptions() {
-  let nodes = [...document.querySelectorAll('[role="option"], [id*="-option-"], [class*="select__option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *')]
-    .filter(n => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
-  nodes = nodes.filter(n => !nodes.some(o => o !== n && n.contains(o))); // leaves only
-  const seen = new Set();
-  const out = [];
-  for (const n of nodes) {
-    const t = (n.innerText || '').replace(/\s+/g, ' ').trim();
-    if (t && t.length < 120 && !seen.has(t)) { seen.add(t); out.push(t); }
-  }
-  return out.slice(0, 40);
-}
-
 // Open a custom dropdown and scrape its rendered options (react-select, Ashby…)
 // so the LLM resolver can pick a valid one. Best-effort; restores closed state.
 //
@@ -1212,6 +1358,12 @@ function readRenderedOptions() {
 // widget was a beat slow — and an empty option list silently degrades the
 // field to "LLM guesses blind", which is exactly how a plain Yes/No dropdown
 // ended up unanswerable in live testing despite having an obvious "Yes".
+async function listNearbyOptions(frame, i, allowGlobal) {
+  const listed = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'list', i, allowGlobal: !!allowGlobal })
+    .catch(() => ({ count: 0, texts: [] }));
+  return (listed.texts || []).map(t => ({ value: t, text: t }));
+}
+
 async function scrapeComboboxOptions(frame, f) {
   const loc = frame.locator(`[data-co-i="${f.i}"]`);
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -1221,12 +1373,12 @@ async function scrapeComboboxOptions(frame, f) {
       let opts = [];
       for (let i = 0; i < 8; i++) {
         await sleep(300);
-        opts = await frame.evaluate(readRenderedOptions);
+        opts = await listNearbyOptions(frame, f.i, isComboboxField(f));
         if (opts.length) break;
       }
       await loc.press('Escape').catch(() => {});
-      dbg(`scrape "${String(f.label).slice(0, 40)}" attempt=${attempt} → ${opts.length} option(s) ${JSON.stringify(opts.slice(0, 6))}`);
-      if (opts.length) return opts.map(t => ({ value: t, text: t }));
+      dbg(`scrape "${String(f.label).slice(0, 40)}" attempt=${attempt} → ${opts.length} option(s) ${JSON.stringify(opts.slice(0, 6).map(o => o.text))}`);
+      if (opts.length) return opts;
       await sleep(rand(200, 400)); // let the widget settle before re-opening
     } catch (err) { dbg(`scrape "${String(f.label).slice(0, 40)}" threw: ${String(err.message || err).slice(0, 60)}`); return []; }
   }
@@ -1259,12 +1411,30 @@ async function pollUntil(fn, times, lo, hi) {
   return false;
 }
 
+async function clickStampedComboboxOption(frame, f, loc, want, allowGlobal) {
+  const result = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'match', want, i: f.i, allowGlobal });
+  if (!result.matched) return { ...result, clicked: false };
+  try {
+    await humanClick(frame.locator('[data-co-match="1"]'), { timeout: 3000 });
+    const ok = await comboboxSelectionRegistered(frame, f);
+    dbg(`  → clicked "${result.matched}", registered=${ok}`);
+    if (ok) {
+      await loc.press('Escape').catch(() => {});
+      return { ...result, clicked: true };
+    }
+  } catch (err) {
+    dbg(`  → click failed: ${String(err.message || err).slice(0, 60)}`);
+  }
+  return { ...result, clicked: false };
+}
+
 async function selectComboboxOptionOnce(frame, f, query) {
   const loc = frame.locator(`[data-co-i="${f.i}"]`);
   const q = String(query).slice(0, 60);
   const known = isComboboxField(f);
+  const binary = !!choiceKind(q);
   try {
-    await loc.scrollIntoViewIfNeeded().catch(() => {});
+    await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
     await sleep(rand(120, 320));
     const before = await nearbyOptionSnapshot(frame, f.i);
     await humanClick(loc, { timeout: 4000 }).catch(() => {});
@@ -1277,7 +1447,7 @@ async function selectComboboxOptionOnce(frame, f, query) {
 
     let typedPrefix = '';
     if (!hadOptionsOnOpen && !known) {
-      if (looksLikeTypeahead(f) && q.length >= 2) {
+      if (looksLikeTypeahead(f) && q.length >= 2 && !binary) {
         await loc.fill('').catch(() => {});
         typedPrefix = q.slice(0, 2);
         await loc.pressSequentially(typedPrefix, { delay: rand(55, 130) }).catch(() => {});
@@ -1295,35 +1465,52 @@ async function selectComboboxOptionOnce(frame, f, query) {
       }
     }
 
-    const rest = q.slice(typedPrefix.length);
-    if (!typedPrefix) await loc.fill('').catch(() => {});
-    if (rest) {
-      await loc.pressSequentially(rest, { delay: rand(55, 130) }).catch(() => loc.fill(q).catch(() => {}));
-    }
-    await sleep(rand(700, 1100));
-
-    const result = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'match', want: q, i: f.i, allowGlobal: known });
-    dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" openHadOpts=${hadOptionsOnOpen} count=${result.count} matched=${result.matched} seen=${JSON.stringify(result.seen)}`);
-
-    const hadOptions = hadOptionsOnOpen || result.count > 0;
     const abandon = async (had) => {
       await loc.press('Escape').catch(() => {});
       await clearField(loc);
       return { matched: null, hadOptions: had };
     };
-    if (result.matched) {
-      try {
-        await humanClick(frame.locator('[data-co-opt="1"]'), { timeout: 3000 });
-        const ok = await comboboxSelectionRegistered(frame, f);
-        dbg(`  → clicked "${result.matched}", registered=${ok}`);
-        if (ok) return { matched: result.matched, hadOptions: true };
-        return abandon(true);
-      } catch (err) {
-        dbg(`  → click failed: ${String(err.message || err).slice(0, 60)}`);
-        return abandon(hadOptions);
+
+    const tryPickVisible = async () => {
+      const listed = await listNearbyOptions(frame, f.i, known);
+      const picked = pickMatchingOption(listed, q);
+      if (!picked) return { listed, picked: null, clicked: false };
+      const stamped = await clickStampedComboboxOption(frame, f, loc, picked.text, known);
+      return { listed, picked, clicked: stamped.clicked, matched: stamped.matched };
+    };
+
+    // Open → scrape → click. Only when the menu actually appeared — a known
+    // combobox with no open list must not click leftover options from a
+    // previous field. Yes/No skips typing so "No" cannot filter to "None".
+    if (hadOptionsOnOpen) {
+      const first = await tryPickVisible();
+      if (first.clicked) {
+        dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" open-match="${first.matched}"`);
+        return { matched: first.matched, hadOptions: true };
       }
     }
-    if (result.count === 1) {
+
+    const rest = q.slice(typedPrefix.length);
+    if (!binary && rest) {
+      if (!typedPrefix) await loc.fill('').catch(() => {});
+      await loc.pressSequentially(rest, { delay: rand(55, 130) }).catch(() => loc.fill(q).catch(() => {}));
+      await pollUntil(menuOpened, 4, 180, 280);
+      const filtered = await tryPickVisible();
+      if (filtered.clicked) {
+        dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" typed-match="${filtered.matched}"`);
+        return { matched: filtered.matched, hadOptions: true };
+      }
+    }
+
+    const fallback = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'match', want: q, i: f.i, allowGlobal: known });
+    dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" openHadOpts=${hadOptionsOnOpen} count=${fallback.count} matched=${fallback.matched} seen=${JSON.stringify(fallback.seen)}`);
+    const hadOptions = hadOptionsOnOpen || fallback.count > 0;
+    if (fallback.matched) {
+      const stamped = await clickStampedComboboxOption(frame, f, loc, fallback.matched, known);
+      if (stamped.clicked) return { matched: stamped.matched, hadOptions: true };
+      return abandon(true);
+    }
+    if (fallback.count === 1) {
       await loc.press('Enter').catch(() => {});
       const ok = await comboboxSelectionRegistered(frame, f);
       if (ok) return { matched: q, hadOptions: true };
@@ -1397,13 +1584,6 @@ async function fillDeclineDropdown(frame, f) {
   return matched;
 }
 
-// A field is multi-select when the DOM says so OR the label asks for several
-// ("select up to 3", "select all that apply"). Kept in sync with the same
-// heuristic in lib/apply-llm.mjs so the model's array answers map correctly.
-function fieldIsMulti(f) {
-  return !!f.multiple || /\b(select|choose).{0,20}(all|up to|that apply|multiple|[2-9])\b/i.test(f.label || '');
-}
-
 // Select one option of a radio group. Playwright's own check()/click() can't be
 // used here: the native input is usually invisible (styled proxy on top), and
 // forcing a click at its coordinates would hit whatever is painted over it.
@@ -1411,7 +1591,7 @@ function fieldIsMulti(f) {
 // co. listen to. Returns true only once the input reports itself checked, so a
 // click a controlled component ignored is reported as a failure, not a success.
 async function clickRadioOption(frame, f, want, isYesNo = false) {
-  return await frame.evaluate(({ name, want, isYesNo, options }) => {
+  return await frame.evaluate(async ({ name, want, isYesNo, options }) => {
     const norm = (s) => (s || '').trim().toLowerCase();
     const wanted = norm(want);
     // Matching runs in three passes over the WHOLE group, strictest first.
@@ -1426,15 +1606,44 @@ async function clickRadioOption(frame, f, want, isYesNo = false) {
       (t) => new RegExp(`(^|\\W)${esc(wanted)}(\\W|$)`).test(t),
       (t) => t.includes(wanted) || wanted.includes(t),
     ];
-    const yesNoMatch = (t) => (wanted === 'yes' && /^(yes|oui|true)/.test(t)) || (wanted === 'no' && /^(no|non|false)/.test(t));
-    const activate = (el) => {
-      if (!el) return false;
-      el.click();
-      if (el.hasAttribute('aria-pressed')) return el.getAttribute('aria-pressed') === 'true';
-      if (!(el.checked || el.getAttribute('aria-checked') === 'true') && el.id) {
-        document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.click();
+    const yesNoMatch = (t) => (wanted === 'yes' && /^(yes|oui|true)\b/.test(t))
+      || (wanted === 'no' && /^(no|non|false)\b/.test(t) && !/^non-?binary\b/.test(t) && !/^none\b/.test(t));
+    const isPressed = (el) => el.getAttribute('aria-pressed') === 'true';
+    const isChecked = (el) => !!(el.checked || el.getAttribute('aria-checked') === 'true');
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    // React (and similar VDOM libs) can commit a state update asynchronously
+    // even though el.click() dispatches synchronously, so a single read right
+    // after the click can observe the stale pre-click value (root cause of
+    // "option introuvable" on forms that actually did register the click).
+    // Poll briefly instead of trusting the first read.
+    const waitFor = async (check) => {
+      for (let i = 0; i < 10; i++) {
+        if (check()) return true;
+        await sleep(30);
       }
-      return !!(el.checked || el.getAttribute('aria-checked') === 'true');
+      return check();
+    };
+    const activate = async (el) => {
+      if (!el) return false;
+      // Idempotent: if this option is already the active one, don't click it
+      // again. A second click on an aria-pressed toggle button un-presses it
+      // (it's not a true radio), which is how a field can end up recorded as
+      // "filled" from an earlier successful click yet show unchecked later —
+      // some later pass (a retry, a duplicate field resolution) re-clicked
+      // the same already-correct option and flipped it back off.
+      if (el.hasAttribute('aria-pressed')) {
+        if (isPressed(el)) return true;
+        el.click();
+        return await waitFor(() => isPressed(el));
+      }
+      if (isChecked(el)) return true;
+      el.click();
+      if (await waitFor(() => isChecked(el))) return true;
+      if (el.id) {
+        document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.click();
+        return await waitFor(() => isChecked(el));
+      }
+      return false;
     };
     // Prefer the markers stamped during collectFields — they survive nameless
     // radios and [role=radio] widgets that a name= selector would miss.
@@ -1450,11 +1659,11 @@ async function clickRadioOption(frame, f, want, isYesNo = false) {
     }) : []);
     if (isYesNo) {
       const hit = live.find(o => yesNoMatch(o.text));
-      return !!hit && activate(hit.el);
+      return !!hit && (await activate(hit.el));
     }
     for (const pass of passes) {
       const hit = live.find(o => o.text && pass(o.text));
-      if (hit && activate(hit.el)) return true;
+      if (hit && (await activate(hit.el))) return true;
     }
     return false;
   }, { name: f.name, want, isYesNo, options: f.options || [] });
@@ -1542,12 +1751,17 @@ async function fillValueIntoField(frame, f, answer) {
     // So this box is ticked only when that answer IS this box's own option —
     // otherwise all four location options would fight over one answer.
     const own = String(f.label || '').split('—').pop().trim().toLowerCase();
-    const matchesOwnOption = own.length > 6 && (own.includes(answer) || answer.includes(own));
+    // Word-order-independent fallback: an LLM paraphrase of the option text
+    // ("Prefer to Not Disclose" for an option literally labelled "Prefer Not
+    // to Disclose") fails both substring directions despite being the same
+    // answer, leaving every sibling checkbox in the group unresolved.
+    const normWords = (s) => s.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
+    const matchesOwnOption = own.length > 6 && (own.includes(answer) || answer.includes(own) || normWords(own) === normWords(answer));
     if (!affirmative && !matchesOwnOption) return false;
     return (await checkBox(frame, f)) ? '☑' : false;
   }
 
-  const knownCombobox = isComboboxField(f);
+  const knownCombobox = isComboboxField(f) && !skipComboboxProbe(f);
   if (knownCombobox) {
     // type → click the matching option, once per value. Only count picks that
     // actually landed on a real option (selectComboboxOption returns null else).
@@ -1574,7 +1788,7 @@ async function fillValueIntoField(frame, f, answer) {
   // form — that's an obvious, embarrassing error, not just an AI-sounding
   // sentence. Fail the fill so the field is flagged for a human instead.
   if (hasUnresolvedPlaceholder(text)) return false;
-  const typed = await humanType(loc, text);
+  const typed = await putText(loc, text, f);
   if (!typed) return false;
   return text.length > 70 ? text.slice(0, 70) + '…' : text;
 }
@@ -1604,7 +1818,11 @@ async function fillFields(frame, spec) {
     const labelShort = (todo.label || todo.name || 'file').slice(0, 80);
     doneFiles.add(labelShort);
     const plan = classifyField(todo, spec);
-    if (!plan || plan.skip) {
+    if (!shouldFillField(todo)) {
+      if (todo.required) pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
+      continue;
+    }
+    if (!plan || plan.skip || !plan.upload) {
       if (todo.required) pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
       continue;
     }
@@ -1620,14 +1838,17 @@ async function fillFields(frame, spec) {
         }, sel);
         await loc.setInputFiles(plan.upload, { timeout: 8000 });
       }
-      filled.push({ label: labelShort, value: `📎 ${plan.upload.split('/').pop()}` });
+      filled.push({ label: labelShort, value: `📎 ${basenamePath(plan.upload)}` });
       uploaded = true;
-      await sleep(5000); // let the ATS process this upload before touching the next field
+      await waitForFormResettle(frame, UPLOAD_SETTLE_MS);
     } catch (err) {
       if (todo.required) pending.push({ label: labelShort, reason: `upload échoué: ${String(err.message || err).slice(0, 60)}` });
     }
   }
-  if (uploaded) await sleep(5000); // extra settle: resume parsing may still be re-rendering
+  if (uploaded) {
+    await waitForFormResettle(frame, UPLOAD_SETTLE_MS);
+    await waitForResumeAutofill(frame);
+  }
 
   // Phase B — re-collect (fresh markers after any re-render) and fill the rest
   const fields = await collectFields(frame);
@@ -1636,6 +1857,7 @@ async function fillFields(frame, spec) {
   let actedCount = 0;
   for (const f of fields) {
     if (f.type === 'file') continue;
+    if (!shouldFillField(f)) continue;
     const sel = `[data-co-i="${f.i}"]`;
     const loc = frame.locator(sel);
     const plan = classifyField(f, spec, usedAnswers);
@@ -1649,7 +1871,6 @@ async function fillFields(frame, spec) {
     try {
       if (!plan) {
         if (f.required && !f.value) unresolved.push(f);
-
         continue;
       }
       if (plan.skip) {
@@ -1740,7 +1961,7 @@ async function fillFields(frame, spec) {
       // selectText-only plan (e.g. non-compete → No) has no free-text `value`
       // but must still drive the dropdown.
       const value = plan.value || '';
-      if (isComboboxField(f)) {
+      if (isComboboxField(f) && !skipComboboxProbe(f)) {
         // searchable dropdown (Ashby, Greenhouse new UI): type the query, then
         // CLICK the matching option. selectText = the short query that filters
         // to the right option; fall back to the yes/no literal, then free text.
@@ -1764,7 +1985,7 @@ async function fillFields(frame, spec) {
       // pass (re-scan, blocker resolved) re-type a field it had just filled.
       const textValue = polishApplicationAnswer(value);
       const current = (f.value || '').trim();
-      if (current && (current === value.trim() || current === textValue.trim())) continue;
+      if (current && !shouldReplaceFilledValue(f, current, textValue)) continue;
 
       // Last-resort: click and see if a list opens. Must not type unless it did.
       if (shouldSpeculativeProbe(f)) {
@@ -1783,7 +2004,7 @@ async function fillFields(frame, spec) {
         if (f.required) unresolved.push(f);
         continue;
       }
-      const typed = await humanType(loc, textValue);
+      const typed = await putText(loc, textValue, f);
       if (typed) filled.push({ label: labelShort, value: textValue.length > 70 ? textValue.slice(0, 70) + '…' : textValue, fromQuestion: plan.fromQuestion });
       else if (f.required) unresolved.push(f); // typing + fallback both failed → LLM/human
     } catch (err) {
@@ -1886,6 +2107,8 @@ async function fillFields(frame, spec) {
     }
   }
 
+  await reconcileProfileFields(frame, spec, filled);
+
   // "Tick all that apply" groups expose every option as its own field with the
   // SAME label, and the resolver answers only the ones that actually apply. The
   // unanswered siblings of an option we did tick are not gaps to fix by hand —
@@ -1894,15 +2117,40 @@ async function fillFields(frame, spec) {
   return { filled, pending: pending.filter(p => !filledLabels.has(p.label)) };
 }
 
+async function reconcileProfileFields(frame, spec, filled) {
+  if (!frameAlive(frame)) return;
+  let fields;
+  try { fields = await collectFields(frame); } catch { return; }
+  for (const f of fields) {
+    if (f.type === 'file' || f.type === 'checkbox' || f.type === 'radio') continue;
+    if (!shouldFillField(f)) continue;
+    const plan = classifyField(f, spec);
+    if (!plan || plan.skip || plan.check || plan.resume) continue;
+    const want = polishApplicationAnswer(plan.value || plan.selectText || (plan.yesNo === 'yes' ? 'Yes' : plan.yesNo === 'no' ? 'No' : ''));
+    if (!want || !shouldReplaceFilledValue(f, f.value, want)) continue;
+    try {
+      const shown = await fillValueIntoField(frame, f, want);
+      if (!shown) continue;
+      const labelShort = (f.label || f.name || f.type).slice(0, 80);
+      const rec = { label: labelShort, value: String(shown), reconciled: true };
+      const idx = filled.findIndex(x => x.label === labelShort);
+      if (idx >= 0) filled[idx] = rec;
+      else filled.push(rec);
+    } catch { /* remainingCompletionIssues will surface it */ }
+  }
+}
+
 // Re-read missing fields and validation errors after filling or manual edits.
-async function remainingCompletionIssues(frame) {
+async function remainingCompletionIssues(frame, uploadedLabels = []) {
+  if (!frameAlive(frame)) return null;
   try {
     const fields = await collectFields(frame);
     return fields.flatMap(f => {
-      const reason = fieldCompletionIssue(f);
+      const reason = fieldCompletionIssue(f, { uploadedLabels });
       return reason ? [{ label: (f.label || f.name || f.type).slice(0, 80), reason }] : [];
     });
   } catch (err) {
+    if (isTargetClosedError(err)) return null;
     // Never fail silently: an exception here used to return "nothing missing",
     // which reads exactly like a clean form.
     log(`Vérification des champs requis impossible (${String(err.message || err).slice(0, 60)}) — relis le formulaire dans Chrome.`);
@@ -1915,14 +2163,19 @@ async function remainingCompletionIssues(frame) {
 const SUBMIT_TEXT_RE = /^(submit( application)?|send( application)?|envoyer( ma candidature)?|postuler|apply|soumettre|finish|valider)$/i;
 
 async function clickSubmit(frame, page) {
+  if (!frameAlive(frame)) return false;
   // Same normalized-innerText matching as clickApplyAndFollow (hasText regex
   // breaks on un-trimmed textContent). Text match first, then any [type=submit].
-  const found = await frame.evaluate((reSrc) => {
+  let found;
+  try {
+    found = await frame.evaluate((reSrc) => {
     document.querySelectorAll('[data-co-submit]').forEach(el => el.removeAttribute('data-co-submit'));
     const re = new RegExp(reSrc, 'i');
     const txt = (el) => ((el.innerText || el.value || '')).replace(/\s+/g, ' ').trim();
     const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 5 && r.height > 5 && !el.disabled; };
-    const all = [...document.querySelectorAll('button, input[type="submit"], input[type="button"]')].filter(visible);
+    const all = [...document.querySelectorAll('button, input[type="submit"], input[type="button"]')]
+      .filter(visible)
+      .filter(el => !/apply for this (job|position|role)/i.test(txt(el)));
     // Priority: explicit submit/send wording → a type=submit control (last one,
     // usually the form's primary action) → any apply/postuler wording. This
     // avoids clicking a leftover sticky "Apply" header button.
@@ -1933,16 +2186,22 @@ async function clickSubmit(frame, page) {
     if (!target) return null;
     target.setAttribute('data-co-submit', '1');
     return txt(target).slice(0, 60) || 'submit';
-  }, SUBMIT_TEXT_RE.source);
+    }, SUBMIT_TEXT_RE.source);
+  } catch (err) {
+    if (isTargetClosedError(err)) return false;
+    log(`Clic d'envoi raté (${String(err.message || err).slice(0, 60)})`);
+    return false;
+  }
   if (!found) return false;
   try {
     const loc = frame.locator('[data-co-submit="1"]');
-    await loc.scrollIntoViewIfNeeded().catch(() => {});
+    await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
     await sleep(rand(200, 600)); // brief pause before the irreversible click, as if re-checking the form
     await humanClick(loc, { timeout: 6000 });
     log(`Clic sur le bouton d'envoi "${found}"`);
     return true;
   } catch (err) {
+    if (isTargetClosedError(err)) return false;
     log(`Clic d'envoi raté (${String(err.message || err).slice(0, 60)})`);
     return false;
   }
@@ -1951,64 +2210,155 @@ async function clickSubmit(frame, page) {
 // After clicking submit, tell whether the form REJECTED us (validation errors,
 // form still on screen) versus actually went through. Returns the count of
 // visible error markers + whether an application form is still present.
+//
+// Rejection-banner phrasing per supported market (AGENTS.md's market table:
+// EN default, FR/DE/AR/JA/TR/HI) — kept as separate named sources, joined
+// below, so one market's wording can be audited or fixed without touching an
+// unrelated language buried in the same alternation. Best-effort common
+// phrasing, not exhaustive per ATS vendor.
+const REJECTION_BANNER_EN = "needs? correction|missing entry for required field|please correct|fix the (errors?|following)";
+const REJECTION_BANNER_FR = "corrigez|champs? (obligatoires?|requis) manquants?";
+const REJECTION_BANNER_DE = "bitte (korrigieren|überprüfen) sie|pflichtfeld(er)? fehlen|füllen sie alle pflichtfelder aus";
+const REJECTION_BANNER_AR = "يرجى تصحيح|حقل مطلوب|يرجى إكمال جميع الحقول المطلوبة";
+const REJECTION_BANNER_JA = "必須項目|入力してください|正しく入力されていません";
+const REJECTION_BANNER_TR = "lütfen (düzeltin|kontrol edin)|zorunlu alan|lütfen (tüm )?zorunlu alanları doldurun";
+const REJECTION_BANNER_HI = "कृपया सही करें|आवश्यक फ़ील्ड|कृपया सभी आवश्यक फ़ील्ड भरें";
+const REJECTION_BANNER_RE_SOURCE = [
+  REJECTION_BANNER_EN, REJECTION_BANNER_FR, REJECTION_BANNER_DE,
+  REJECTION_BANNER_AR, REJECTION_BANNER_JA, REJECTION_BANNER_TR, REJECTION_BANNER_HI,
+].join('|');
+
 async function detectSubmitRejection(page) {
   try {
-    return await page.evaluate(() => {
-      const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-      const errRe = /required|invalid|please|select|complete|must |enter |provide |champ|obligatoire|manquant|requis|veuillez|compl[ée]t|remplir|saisir|s[ée]lectionn|invalide/i;
+    return await page.evaluate((bannerReSrc) => {
+      const visible = (el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) return false;
+        const st = getComputedStyle(el);
+        return st.visibility !== 'hidden' && st.display !== 'none';
+      };
+      const errRe = /required|invalid|please|select|complete|must |enter |provide |champ|obligatoire|manquant|requis|veuillez|compl[ée]t|remplir|saisir|s[ée]lectionn|invalide|pflichtfeld|erforderlich|ungültig|ausfüllen/i;
       // Text-bearing error markers…
       const textErrs = [...document.querySelectorAll(
         '.error, .field-error, [class*="error" i], [class*="invalid" i], [role="alert"], [aria-live="assertive"]'
       )].filter(el => visible(el) && errRe.test((el.innerText || '').trim()));
-      // …plus fields flagged invalid even when the message is only a red border.
+      // …plus fields flagged invalid even when the message is only a red border
+      // (an attribute, not scraped copy — works regardless of page language).
       const invalidFields = [...document.querySelectorAll('[aria-invalid="true"]')].filter(visible);
       // Class-name matching alone misses ATS that hash their CSS modules: Ashby
       // renders "Your form needs corrections / Missing entry for required
       // field: …" in a banner whose class carries no "error" substring, so a
       // bounced submit was reported as "probably sent" (live on n8n).
       const bodyText = (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 6000);
-      const bannerRe = /needs? correction|missing entry for required field|please correct|fix the (errors?|following)|corrigez|champs? (obligatoires?|requis) manquants?/i;
+      const bannerRe = new RegExp(bannerReSrc, 'i');
       const banner = bodyText.match(bannerRe);
       const errorCount = textErrs.length + invalidFields.length + (banner ? 1 : 0);
-      const stillForm = !!document.querySelector('input[type="file"], textarea, select, [role="combobox"]')
-        && !!document.querySelector('form');
+      // Not gated on a literal <form> element: many SPA-built ATS (React, no
+      // native form wrapper) render fillable controls without one, and a
+      // rejected submit there used to fall through to "probably sent" instead
+      // of being reported as rejected. File inputs are checked unfiltered
+      // (not `.some(visible)`): a native <input type=file> is routinely
+      // display:none, triggered by a styled "Upload" button — same reason
+      // form-detect.mjs's hasVisibleField skips visibility for file inputs.
+      const files = [...document.querySelectorAll('input[type="file"]')];
+      const otherFillable = [...document.querySelectorAll('textarea, select, [role="combobox"]')];
+      const stillForm = files.length > 0 || otherFillable.some(visible);
       let sample = (textErrs[0]?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80);
       if (!sample && banner) sample = bodyText.slice(banner.index, banner.index + 120).trim();
       return { errorCount, stillForm, sample };
-    });
+    }, REJECTION_BANNER_RE_SOURCE);
   } catch { return { errorCount: 0, stillForm: false, sample: '' }; }
 }
 
-async function detectConfirmation(page) {
+// Confirmation-page phrasing per supported market, same rationale/structure
+// as the rejection banner above.
+const CONFIRM_TEXT_EN = "thank you|application (received|submitted|sent)|we('|’)ve received|successfully (submitted|applied)|your application has been";
+const CONFIRM_TEXT_FR = "merci pour votre candidature|candidature (envoyée|reçue|bien reçue)";
+const CONFIRM_TEXT_DE = "vielen dank für (ihre|deine) bewerbung|bewerbung (wurde |ist )?(erfolgreich )?(eingegangen|übermittelt|versendet|eingereicht)|wir haben (ihre|deine) bewerbung erhalten";
+const CONFIRM_TEXT_AR = "شكرا لتقديم طلبك|تم استلام طلبك|تم تقديم طلبك بنجاح";
+const CONFIRM_TEXT_JA = "応募(いただき)?ありがとうございます|応募を受け付けました|応募が完了しました";
+const CONFIRM_TEXT_TR = "başvurunuz (için )?teşekkür ederiz|başvurunuz alındı|başvurunuz başarıyla (gönderildi|iletildi)";
+const CONFIRM_TEXT_HI = "आपके आवेदन के लिए धन्यवाद|आपका आवेदन प्राप्त हो गया है|आवेदन सफलतापूर्वक (जमा|सबमिट) हो गया";
+const CONFIRM_TEXT_RE_SOURCE = [
+  CONFIRM_TEXT_EN, CONFIRM_TEXT_FR, CONFIRM_TEXT_DE,
+  CONFIRM_TEXT_AR, CONFIRM_TEXT_JA, CONFIRM_TEXT_TR, CONFIRM_TEXT_HI,
+].join('|');
+
+async function detectConfirmation(page, preSubmitUrl = '') {
   try {
-    return await page.evaluate(() => {
+    return await page.evaluate(({ textReSrc, pathReSrc, preUrl }) => {
       const t = (document.body?.innerText || '').toLowerCase().slice(0, 6000);
-      return /thank you|application (received|submitted|sent)|we('|’)ve received|successfully (submitted|applied)|merci pour votre candidature|candidature (envoyée|reçue|bien reçue)|your application has been/.test(t);
-    });
+      const textMatch = new RegExp(textReSrc, 'i').test(t);
+      if (textMatch) return true;
+      // Language-agnostic fallback: many ATS redirect to a dedicated
+      // confirmation URL regardless of the page's own language. Only trusted
+      // when (a) the page actually navigated away from the pre-submit URL —
+      // a path merely containing one of these words with no navigation is
+      // not evidence anything happened — and (b) the word list is specific
+      // to an application outcome: bare "confirmation"/"confirmed"/"thanks"
+      // used to match unrelated interstitials (an "email-confirmation" step,
+      // a "review & confirm" page BEFORE the real submit), false-reporting
+      // an unfinished application as sent.
+      if (!preUrl || location.href === preUrl) return false;
+      const path = location.pathname.toLowerCase();
+      return new RegExp('(?:^|/)(?:' + pathReSrc + ')(?:/|$|\\b)', 'i').test(path);
+    }, { textReSrc: CONFIRM_TEXT_RE_SOURCE, pathReSrc: POST_APPLY_PATH_RE_SOURCE, preUrl: preSubmitUrl });
   } catch { return false; }
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+
+async function recoverPostApply(page, preUrl = spec.jobUrl) {
+  const url = currentPageUrl(page);
+  if (state.filled.length && looksLikePostApplyPath(url)) return url;
+  if (pageIsGone(page)) return '';
+  try {
+    if (await detectConfirmation(page, preUrl)) return currentPageUrl(page) || url;
+  } catch (err) {
+    if (!isTargetClosedError(err)) throw err;
+  }
+  return '';
+}
 
 async function waitForCommand(page, frame, { allowAutoResume = false } = {}) {
   // Poll command.json; if a blocker disappears, signal auto-resume.
   for (;;) {
     const cmd = readCommand();
     if (cmd) return cmd;
-    if (allowAutoResume) {
-      const blocker = await detectBlocker(page);
-      if (!blocker) return 'rescan';
+    if (pageIsGone(page)) return 'browser_closed';
+    try {
+      if (allowAutoResume) {
+        const blocker = await detectBlocker(page);
+        if (!blocker) return 'rescan';
+      }
+      state.currentUrl = page.url();
+    } catch (err) {
+      if (isTargetClosedError(err)) return 'browser_closed';
+      throw err;
     }
-    state.currentUrl = page.url();
-    writeState();
+    await writeState();
     await sleep(1500);
   }
 }
 
 async function main() {
-  writeState();
+  function finish(s, msg) {
+    setState(s, msg);
+  }
+  function stopFromCommand(cmd) {
+    if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
+    if (cmd === 'browser_closed') {
+      const url = state.currentUrl || '';
+      if (state.filled.length && looksLikePostApplyPath(url)) {
+        return finish('submitted', postApplyMessage(url));
+      }
+      return finish('aborted', chromeClosedMessage());
+    }
+  }
+
+  await writeState();
   log(`Candidature: ${spec.company} — ${spec.role} [région: ${spec.region === 'asia' ? 'Asie → Bangkok' : 'Europe → Paris'}]`);
-  log(`CV: ${spec.cvPath.split('/').pop()} · ${spec.answers.length} réponse(s) pré-écrites`);
+  log(`CV: ${basenamePath(spec.cvPath)} · ${spec.answers.length} réponse(s) pré-écrites`);
 
   const context = await launchBrowser();
   context.setDefaultTimeout(15000);
@@ -2019,14 +2369,15 @@ async function main() {
     await page.goto(spec.jobUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await sleep(3000);
 
-    if (isHimalayasApply()) {
-      log('Source Himalayas détectée — séquence login → captcha → Apply.');
-      if (!(await ensureHimalayasSession(context, page))) {
-        setState('needs_human', '🔐 Connexion Himalayas requise — connecte-toi dans Chrome, puis Re-scanner.');
+    const sessionHandler = findSiteSessionHandler(currentPageUrl(page));
+    if (sessionHandler) {
+      log('Préambule de connexion requis avant Apply.');
+      if (!(await sessionHandler.ensureSession(context, page))) {
+        setState('needs_human', '🔐 Connexion requise — connecte-toi dans Chrome, puis Re-scanner.');
         const cmd = await waitForCommand(page, null, { allowAutoResume: true });
-        if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
-        if (!(await ensureHimalayasSession(context, page))) {
-          return finish('needs_human', 'Connexion Himalayas non établie.');
+        if (cmd === 'abort' || cmd === 'browser_closed') return stopFromCommand(cmd);
+        if (!(await sessionHandler.ensureSession(context, page))) {
+          return finish('needs_human', 'Connexion non établie.');
         }
       }
     }
@@ -2036,11 +2387,38 @@ async function main() {
     await screenshot(formPage, 'landing');
 
     let activePage = formPage;
+    // Circuit breaker for a specific runaway pattern seen live (#tether-ops,
+    // 3 days / 476k log lines / 103MB state.json): a permanently-stuck
+    // preamble (e.g. Himalayas' login-attempt cap reached) makes
+    // reachApplicationForm set a synthetic blocker every time, but
+    // waitForCommand's allowAutoResume checks detectBlocker() — a DOM probe
+    // that never produced this synthetic blocker in the first place, so it
+    // can't see it clear either, and kept returning 'rescan' instantly (no
+    // sleep on that path) forever. After a few consecutive repeats of the
+    // SAME blocker, stop auto-resuming and genuinely wait on a human command
+    // (waitForCommand's normal 1.5s poll) instead of re-looping blind.
+    let lastBlockerType = null;
+    let sameBlockerStreak = 0;
+    // Consecutive-streak alone isn't enough: a blocker that momentarily
+    // clears (reachApplicationForm sees none, fillFields resumes) and then
+    // re-triggers the SAME wall a cycle later resets the streak every time
+    // without ever tripping the >=3 check — observed live as a captcha that
+    // kept "clearing" into a fill pass and reappearing right after, cycling
+    // for 24+ minutes and re-spending an LLM call each lap. This total is a
+    // per-type count that never resets, as a hard ceiling under the streak.
+    const blockerTotals = new Map();
+    const MAX_BLOCKER_TOTAL = 5;
 
     for (;;) {
       if (blocker) {
+        if (blocker === lastBlockerType) sameBlockerStreak++;
+        else { lastBlockerType = blocker; sameBlockerStreak = 1; }
+        blockerTotals.set(blocker, (blockerTotals.get(blocker) || 0) + 1);
+
         if (await tryAutoSolveBlocker(context, activePage, blocker, 'main-loop')) {
           blocker = null;
+          lastBlockerType = null;
+          sameBlockerStreak = 0;
           ({ page: activePage, frame, blocker } = await reachApplicationForm(context, activePage));
           continue;
         }
@@ -2048,30 +2426,63 @@ async function main() {
           : blocker === 'login' ? '🔐 Connexion requise — connecte-toi dans la fenêtre Chrome.'
           : blocker === 'auth_wall' ? '👤 Ce site exige un compte et ne propose pas d\'accès invité — crée le compte ou connecte-toi dans Chrome, puis clique "Re-scanner".'
           : '🛡️ Protection anti-bot — passe la vérification dans la fenêtre Chrome.');
-        const cmd = await waitForCommand(activePage, frame, { allowAutoResume: true });
-        if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
+        const totalForType = blockerTotals.get(blocker) || 0;
+        const autoResume = sameBlockerStreak < 3 && totalForType < MAX_BLOCKER_TOTAL;
+        if (!autoResume) {
+          log(`⚠️ Blocker "${blocker}" toujours présent (${sameBlockerStreak} d'affilée, ${totalForType} au total) — reprise automatique désactivée, clique "Re-scanner" une fois résolu.`);
+        }
+        const cmd = await waitForCommand(activePage, frame, { allowAutoResume: autoResume });
+        if (cmd === 'abort' || cmd === 'browser_closed') return stopFromCommand(cmd);
         blocker = null;
         ({ page: activePage, frame, blocker } = await reachApplicationForm(context, activePage));
+        // Genuine resolution (auto-detected by waitForCommand or fixed by hand)
+        // resets the streak too, not just a tryAutoSolveBlocker success above —
+        // otherwise the SAME blocker type recurring 3 separate times across a
+        // run, each one legitimately solved in seconds, permanently disables
+        // auto-resume for that type even though nothing was ever actually stuck.
+        // blockerTotals deliberately does NOT reset here — see comment above.
+        if (!blocker) { lastBlockerType = null; sameBlockerStreak = 0; }
         continue;
       }
 
-      if (!frame) {
+      if (!frameAlive(frame)) {
+        const outcomeUrl = await recoverPostApply(activePage);
+        if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
         await screenshot(activePage, 'no-form');
         setState('needs_human', '❓ Formulaire introuvable automatiquement — navigue manuellement jusqu\'au formulaire dans Chrome, puis clique "Re-scanner".');
         const cmd = await waitForCommand(activePage, frame);
-        if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
+        if (cmd === 'abort' || cmd === 'browser_closed') return stopFromCommand(cmd);
         // after manual navigation, the form may be in any open tab
         for (const p of context.pages()) {
           const { frame: fr } = await findFormFrame(p);
           if (fr) { activePage = p; frame = fr; break; }
         }
-        if (!frame) continue;
+        if (!frameAlive(frame)) continue;
       }
 
       setState('filling', 'Remplissage du formulaire…');
-      const { filled, pending } = await fillFields(frame, spec);
+      let filled;
+      let pending;
+      try {
+        ({ filled, pending } = await fillFields(frame, spec));
+      } catch (err) {
+        if (!isTargetClosedError(err)) throw err;
+        const outcomeUrl = await recoverPostApply(activePage);
+        if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
+        log('Formulaire fermé pendant le remplissage — nouvelle détection.');
+        ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
+        continue;
+      }
       state.filled = filled;
-      const completionIssues = await remainingCompletionIssues(frame);
+      const uploadedLabels = filled.filter(x => String(x.value || '').includes('📎')).map(x => x.label);
+      const completionIssues = await remainingCompletionIssues(frame, uploadedLabels);
+      if (completionIssues === null) {
+        const outcomeUrl = await recoverPostApply(activePage);
+        if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
+        log('Formulaire disparu après remplissage — nouvelle détection.');
+        ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
+        continue;
+      }
       // Browser validation is authoritative, including fields we just filled.
       const seen = new Set(pending.map(p => p.label));
       for (const r of completionIssues) if (!seen.has(r.label)) pending.push(r);
@@ -2082,8 +2493,24 @@ async function main() {
       const newBlocker = await detectBlocker(activePage);
       if (newBlocker) { blocker = newBlocker; continue; }
 
+      const applyEntryVisible = await activePage.evaluate(PAGE_SHOWS_APPLY_ENTRY).catch(() => false);
+      const ready = looksReadyToSubmit({ filled, pending, applyEntryVisible });
+
       if (pending.length) {
         setState('needs_human', `✋ ${pending.length} champ(s) à compléter manuellement dans Chrome, puis "Re-scanner" ou "Envoyer".`);
+      } else if (applyEntryVisible) {
+        log('Bouton « Apply for this job » encore visible — le formulaire n’est pas ouvert, pas d’envoi.');
+        const next = await clickApplyAndFollow(context, activePage, APPLY_TEXT_RE)
+          || await clickApplyAndFollow(context, activePage, PROGRESS_TEXT_RE);
+        if (next) {
+          activePage = next;
+          ({ page: activePage, frame, blocker } = await reachApplicationForm(context, activePage));
+          continue;
+        }
+        setState('needs_human', '✋ Le formulaire n’est pas ouvert (Apply encore visible). Clique Apply dans Chrome puis « Re-scanner ».');
+      } else if (!ready) {
+        log('Identité absente — envoi automatique bloqué (pending=0 n’est pas une candidature complète).');
+        setState('needs_human', '✋ Formulaire incomplet (email/identité manquants). Vérifie dans Chrome puis Re-scanner ou Envoyer.');
       } else if (spec.autoSubmit) {
         log('Aucun champ en attente — envoi automatique activé.');
       } else {
@@ -2091,12 +2518,12 @@ async function main() {
       }
 
       let cmd;
-      if (spec.autoSubmit && !pending.length) {
+      if (spec.autoSubmit && ready) {
         cmd = 'submit';
       } else {
         cmd = await waitForCommand(activePage, frame);
       }
-      if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
+      if (cmd === 'abort' || cmd === 'browser_closed') return stopFromCommand(cmd);
       if (cmd === 'rescan') {
         ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
         continue;
@@ -2109,12 +2536,37 @@ async function main() {
       // never falls through to a re-fill.
       let outerAction = null;
       for (;;) {
+        // Re-verify right before the click, not just once after filling: a
+        // required radio/checkbox group can read as checked immediately after
+        // fillFields yet be unchecked again by the time clickSubmit finishes
+        // scrolling the page to find the button — observed live on an Ashby
+        // form where a native-only `checked` flag didn't survive the section
+        // scrolling out of and back into view. Catching that here costs one
+        // cheap DOM scan and skips a real (and then-rejected) submit attempt.
+        const staleIssues = await remainingCompletionIssues(frame, (state.filled || []).filter(x => String(x.value || '').includes('📎')).map(x => x.label));
+        if (staleIssues === null) {
+          const outcomeUrl = await recoverPostApply(activePage);
+          if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
+          outerAction = 'rescan';
+          break;
+        }
+        if (staleIssues.length) {
+          state.pending = staleIssues;
+          setState('needs_human', `✋ ${staleIssues.length} champ(s) à compléter manuellement dans Chrome, puis "Re-scanner" ou "Envoyer".`);
+          const c1 = await waitForCommand(activePage, frame);
+          if (c1 === 'abort' || c1 === 'browser_closed') return stopFromCommand(c1);
+          if (c1 === 'rescan') { outerAction = 'rescan'; break; }
+          continue; // 'submit' = user fixed it manually → re-verify from the top
+        }
         setState('submitting', 'Envoi de la candidature…');
+        const preSubmitUrl = currentPageUrl(activePage);
         const clicked = await clickSubmit(frame, activePage);
         if (!clicked) {
+          const outcomeUrl = await recoverPostApply(activePage, preSubmitUrl);
+          if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
           setState('needs_human', '❓ Bouton d\'envoi introuvable — clique sur Submit dans Chrome puis "Envoyer" pour confirmer.');
           const c2 = await waitForCommand(activePage, frame);
-          if (c2 === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
+          if (c2 === 'abort' || c2 === 'browser_closed') return stopFromCommand(c2);
           if (c2 === 'rescan') { outerAction = 'rescan'; break; }
           // 'submit' = user clicked Submit manually → verify below
         }
@@ -2123,16 +2575,24 @@ async function main() {
         const postBlocker = await detectBlocker(activePage);
         if (postBlocker) { blocker = postBlocker; outerAction = 'blocker'; break; }
 
-        state.confirmed = await detectConfirmation(activePage);
+        state.confirmed = await detectConfirmation(activePage, preSubmitUrl);
+        if (!state.confirmed) {
+          const outcomeUrl = await recoverPostApply(activePage, preSubmitUrl);
+          if (outcomeUrl) {
+            state.confirmed = true;
+            await screenshot(activePage, 'after-submit');
+            return finish('submitted', postApplyMessage(outcomeUrl));
+          }
+        }
         await screenshot(activePage, 'after-submit');
-        if (state.confirmed) return finish('submitted', '🎉 Candidature envoyée — confirmation détectée sur la page.');
+        if (state.confirmed) return finish('submitted', postApplyMessage(currentPageUrl(activePage)));
 
         // No confirmation → did the form reject us (validation errors shown)?
         const rejection = await detectSubmitRejection(activePage);
         if (rejection.stillForm && rejection.errorCount > 0) {
           setState('needs_human', `⚠️ Envoi refusé — ${rejection.errorCount} champ(s) invalide(s)${rejection.sample ? ` (« ${rejection.sample} »)` : ''}. Corrige dans Chrome puis clique "Envoyer" (ou "Re-scanner" pour me laisser recompléter).`);
           const c3 = await waitForCommand(activePage, frame);
-          if (c3 === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
+          if (c3 === 'abort' || c3 === 'browser_closed') return stopFromCommand(c3);
           if (c3 === 'rescan') { outerAction = 'rescan'; break; }
           if (c3 === 'submit') continue; // user fixed it → re-click submit only
         }
@@ -2144,20 +2604,38 @@ async function main() {
       continue;
     }
   } catch (err) {
-    setState('error', `Erreur: ${String(err?.message || err).slice(0, 300)}`);
+    if (isTargetClosedError(err)) {
+      const url = state.currentUrl || '';
+      if (state.filled.length && looksLikePostApplyPath(url)) {
+        finish('submitted', postApplyMessage(url));
+      } else {
+        finish('aborted', chromeClosedMessage());
+      }
+    } else {
+      setState('error', `Erreur: ${String(err?.message || err).slice(0, 300)}`);
+    }
   } finally {
-    writeState();
+    await writeState();
     // leave the window open briefly so the user can see the final page
     await sleep(state.state === 'submitted' ? 30000 : 5000);
     await context.close().catch(() => {});
   }
-
-  function finish(s, msg) {
-    setState(s, msg);
-  }
 }
 
-main().catch(err => {
-  setState('error', `Erreur fatale: ${String(err?.message || err).slice(0, 300)}`);
-  process.exit(1);
+main().catch(async (err) => {
+  if (isTargetClosedError(err)) {
+    const url = state.currentUrl || '';
+    if (state.filled.length && looksLikePostApplyPath(url)) {
+      setState('submitted', postApplyMessage(url));
+    } else {
+      setState('aborted', chromeClosedMessage());
+    }
+  } else {
+    setState('error', `Erreur fatale: ${String(err?.message || err).slice(0, 300)}`);
+  }
+  // setState()'s own log() call writes state fire-and-forget; wait for the
+  // queue to drain before the hard exit below, or process.exit() can kill
+  // the process mid-retry and the final error state never reaches disk.
+  await writeState().catch(() => {});
+  process.exit(isTargetClosedError(err) ? 0 : 1);
 });

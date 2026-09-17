@@ -81,6 +81,8 @@ const cases = [
     { html: '<html>', text: 'Human verification required to continue.' }, true],
   ['"Request could not be satisfied" (CloudFront)',
     { html: '<html>', text: 'The request could not be satisfied.' }, true],
+  ['SPA shell Create React App',
+    { html: '<noscript>You need to enable JavaScript to run this app.</noscript>', text: 'You need to enable JavaScript to run this app.' }, true],
 
   // Le meme vocabulaire dans une VRAIE annonce longue ne doit pas bloquer.
   ['JD longue parlant de verification automatisee',

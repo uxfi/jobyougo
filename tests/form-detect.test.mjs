@@ -3,8 +3,16 @@
  * Run: node tests/form-detect.test.mjs
  */
 import { chromium } from 'playwright';
-import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS } from '../lib/form-detect.mjs';
+import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY } from '../lib/form-detect.mjs';
 import { pass, fail } from './helpers.mjs';
+
+async function launchBrowser() {
+  try {
+    return await chromium.launch({ headless: true, channel: 'chrome' });
+  } catch {
+    return await chromium.launch({ headless: true });
+  }
+}
 
 const cases = [
   ['Ashby — overview sans champ malgré les classes ATS', `
@@ -73,12 +81,51 @@ const cases = [
     <p>We are looking for a designer.</p>
     <a href="/apply">Apply now</a>`, 'none'],
 
+  ['Deel Overview — Apply encore visible, CV caché dans l onglet Application', `
+    <h1>Senior Staff Product Designer - AI</h1>
+    <button role="tab">Overview</button>
+    <button role="tab">Application</button>
+    <p>Deel is the all-in-one payroll platform.</p>
+    <button>Apply for this job</button>
+    <div style="display:none">
+      <input type="file" name="resume">
+      <input name="first_name"><input type="email" name="email">
+    </div>`, 'none'],
+
+  ['Classes ATS + recherche + Apply — aperçu, pas le formulaire', `
+    <div class="ashby-job-posting">
+      <h1>Staff Engineer</h1>
+      <input name="q" placeholder="Search jobs">
+      <button>Apply for this job</button>
+    </div>`, 'none'],
+
+  ['Tabpanel Application fermé avec dropzone', `
+    <div class="ashby-job-posting">
+      <button role="tab" aria-selected="true">Overview</button>
+      <button role="tab" id="app-tab" aria-selected="false">Application</button>
+      <p>We are looking for a designer.</p>
+      <div role="tabpanel" aria-labelledby="app-tab" aria-hidden="true">
+        <p>Click or drag file to upload</p>
+        <input type="file" name="resume">
+        <input name="first_name"><input type="email" name="email">
+      </div>
+      <button>Apply for this job</button>
+    </div>`, 'none'],
+
+  ['Dropzone visible, input file en display none', `
+    <h1>Apply</h1>
+    <div>
+      <p>Click or drag file to upload</p>
+      <input type="file" name="resume" style="display:none">
+      <input name="first_name"><input type="email" name="email">
+    </div>`, 'application_form'],
+
   ['Barre de recherche seule', `
     <input type="text" name="search" placeholder="Search jobs">
     <input type="text" name="location" placeholder="Location">`, 'none'],
 ];
 
-const browser = await chromium.launch({ headless: true });
+const browser = await launchBrowser();
 const page = await browser.newPage();
 let passed = 0, failed = 0;
 
@@ -129,7 +176,7 @@ for (const [text, re, expected, label] of navCases) {
 console.log('');
 const MARK = MARK_PROGRESSION_CONTROLS;
 
-const b2 = await chromium.launch({ headless: true });
+const b2 = await launchBrowser();
 const p2 = await b2.newPage();
 const flows = [
   ['Modale Jobicy (Sign Up and Apply / Continue as Guest)', `
@@ -140,6 +187,10 @@ const flows = [
   ['Page offre avec redirection externe', `
      <button>Sign up for job alerts</button>
      <a href="https://ats.example/apply">Apply on company website</a>`, GUEST_TEXT_RE, ['Apply on company website']],
+  ['Onglet Application', `
+     <button role="tab">Overview</button>
+     <button role="tab">Application</button>
+     <button>Apply for this job</button>`, /^(application|apply for this (job|position|role))$/i, ['Application', 'Apply for this job']],
 ];
 for (const [name, body, re, expected] of flows) {
   await p2.setContent(`<html><body>${body}</body></html>`);
@@ -152,5 +203,27 @@ for (const [name, body, re, expected] of flows) {
   console.log(`  ${ok ? 'OK   ' : 'ECHEC'}  cliquerait ${JSON.stringify(got).padEnd(32)}${name}${ok ? '' : `  (attendu ${JSON.stringify(expected)})`}`);
 }
 await b2.close();
+
+{
+  const b3 = await launchBrowser();
+  const p3 = await b3.newPage();
+  await p3.setContent(`<html><body>
+    <h1>Job</h1><button>Apply for this job</button>
+  </body></html>`);
+  const shown = await p3.evaluate(PAGE_SHOWS_APPLY_ENTRY);
+  const ok = shown === true;
+  ok ? passed++ : failed++;
+  if (ok) pass('form-detect PAGE_SHOWS_APPLY_ENTRY: overview');
+  else fail('form-detect PAGE_SHOWS_APPLY_ENTRY: overview expected true');
+  await p3.setContent(`<html><body>
+    <h1>Apply</h1><input type="email" name="email"><button>Submit application</button>
+  </body></html>`);
+  const hidden = await p3.evaluate(PAGE_SHOWS_APPLY_ENTRY);
+  const ok2 = hidden === false;
+  ok2 ? passed++ : failed++;
+  if (ok2) pass('form-detect PAGE_SHOWS_APPLY_ENTRY: vrai formulaire');
+  else fail('form-detect PAGE_SHOWS_APPLY_ENTRY: vrai formulaire expected false');
+  await b3.close();
+}
 
 console.log(`\n${passed}/${passed + failed} tests conformes`);

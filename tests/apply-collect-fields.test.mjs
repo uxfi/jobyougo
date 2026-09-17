@@ -177,6 +177,94 @@ test.after(async () => {
   await browser.close();
 });
 
+test('hidden file in a display:none panel is not collected', async () => {
+  const fields = await collect(`
+    <h1>Job</h1>
+    <button>Apply for this job</button>
+    <div style="display:none">
+      <p>Click or drag file to upload</p>
+      <input type="file" name="resume">
+    </div>
+    <label>Email <input type="email" name="email"></label>
+  `);
+  assert.equal(fields.filter(f => f.type === 'file').length, 0, JSON.stringify(fields.map(f => f.type + ':' + f.label)));
+});
+
+test('visible dropzone with hidden file input is collected', async () => {
+  const fields = await collect(`
+    <div>
+      <p>Click or drag file to upload</p>
+      <input type="file" name="resume" style="display:none">
+    </div>
+  `);
+  assert.equal(fields.filter(f => f.type === 'file').length, 1, JSON.stringify(fields));
+});
+
+test('file in an aria-hidden Application tabpanel is not collected', async () => {
+  const fields = await collect(`
+    <button role="tab" aria-selected="true">Overview</button>
+    <button role="tab" id="app-tab" aria-selected="false">Application</button>
+    <p>Company overview copy.</p>
+    <div role="tabpanel" aria-labelledby="app-tab" aria-hidden="true">
+      <p>Click or drag file to upload</p>
+      <input type="file" name="resume">
+      <input name="first_name">
+    </div>
+  `);
+  assert.equal(fields.filter(f => f.type === 'file').length, 0, JSON.stringify(fields));
+  assert.ok(!fields.some(f => f.name === 'first_name'));
+});
+
+test('button role=combobox is collected (custom ATS select)', async () => {
+  const fields = await collect(`
+    <label>Years of experience *</label>
+    <button type="button" role="combobox" aria-haspopup="listbox">Select...</button>
+  `);
+  const combo = fields.find(f => f.role === 'combobox');
+  assert.ok(combo, JSON.stringify(fields));
+  assert.match(combo.label, /experience/i);
+});
+
+test('Your answer textarea keeps the question as its label', async () => {
+  const fields = await collect(`
+    <div>
+      <div>Why are you interested in this role?</div>
+      <textarea placeholder="Your answer"></textarea>
+    </div>
+  `);
+  const area = fields.find(f => f.tag === 'textarea');
+  assert.ok(area, JSON.stringify(fields));
+  assert.match(area.label, /interested/i);
+});
+
+test('combobox wrapper is not duplicated when the inner input is visible', async () => {
+  const fields = await collect(`
+    <div role="combobox">
+      <input name="country" aria-label="Country">
+    </div>
+  `);
+  assert.equal(fields.length, 1, JSON.stringify(fields));
+  assert.equal(fields[0].tag, 'input');
+});
+
+test('required is detected from asterisk, aria, data-required and wrapper class', async () => {
+  const fields = await collect(`
+    <label>LinkedIn Profile <input name="linkedin"></label>
+    <label>First Name * <input name="first_name"></label>
+    <label>Email <input type="email" name="email" aria-required="true"></label>
+    <div class="field required"><label>City</label><input name="city"></div>
+    <div class="question _required_"><label>Arabic</label><input name="arabic"></div>
+    <label>Portfolio <input name="portfolio" data-required="true"></label>
+  `);
+  const byName = Object.fromEntries(fields.map(f => [f.name, f]));
+  assert.equal(byName.linkedin.required, false, JSON.stringify(byName.linkedin));
+  assert.equal(byName.first_name.required, true);
+  assert.equal(byName.email.required, true);
+  assert.equal(byName.city.required, true);
+  assert.equal(byName.arabic.required, true);
+  assert.equal(byName.portfolio.required, true);
+});
+
 test('disabled, readonly and inert controls are not fill targets', async () => {
   const fields = await collect(`<fieldset disabled><input name="disabled"></fieldset>
     <input name="locked" readonly value="Account name">

@@ -18,6 +18,25 @@ It watches `reports/` and `data/applications.md` for changes and, when Supabase
 is configured, boots in `[Supabase]` mode (auto-sync both → Supabase). The
 `ui/`, `images/`, and `outputs/` trees belong to this server.
 
+## PinchTab (optional)
+
+PinchTab is a local browser daemon (`http://localhost:9867`). The pipeline
+**does not need it** to evaluate Greenhouse or Ashby (or Lever) postings — those
+JDs are fetched from the public ATS JSON APIs. If the daemon is down, Ashby URLs
+still get the real job text; other JS-only career pages (Deel, Zoho Recruit, …)
+without a public ATS API may park as `skipped_blocked` instead of inventing a JD.
+
+To start it when you do want SPA scrape / captcha solve / apply-runner:
+
+```bash
+npm install -g pinchtab
+pinchtab server
+```
+
+Or `pinchtab daemon start`. Check with `pinchtab health`. Token comes from
+`PINCHTAB_TOKEN`, `%APPDATA%\pinchtab\config.json` (Windows), or
+`~/.pinchtab/config.json`. Override the base URL with `PINCHTAB_URL`.
+
 ## Fork-only scripts
 
 | File | Function |

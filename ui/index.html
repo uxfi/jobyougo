@@ -3050,6 +3050,7 @@ const state = {
   pipeSort: 'newest',
   selectedPipelineUrls: new Set(),
   processingPipelineUrls: new Set(),
+  hiddenApplicationNums: new Set(),
   portalsFilter: 'all',
   portalsSearch: '',
   queriesFilter: 'all',
@@ -3103,22 +3104,58 @@ function badge(status) {
 }
 
 const APPLIED_STATUSES = new Set(['Applied', 'Aplicado']);
+const CLOSED_APPLICATION_STATUSES = new Set([
+  'Discarded', 'Descartado', 'Descartada',
+  'SKIP', 'NO APLICAR',
+]);
 const UNDELETABLE_STATUSES = new Set([
   ...APPLIED_STATUSES,
   'Responded', 'Respondido',
   'Interview', 'Entrevista',
   'Offer', 'Oferta',
   'Hired', 'Contratado', 'Contratada',
-  'Discarded', 'Descartado', 'Descartada',
-  'SKIP', 'NO APLICAR',
+  ...CLOSED_APPLICATION_STATUSES,
 ]);
 
 function isAppliedStatus(status) {
   return APPLIED_STATUSES.has(String(status || '').trim());
 }
 
+function isClosedApplicationStatus(status) {
+  return CLOSED_APPLICATION_STATUSES.has(String(status || '').trim());
+}
+
 function canDeleteApplication(status) {
   return !UNDELETABLE_STATUSES.has(String(status || '').trim());
+}
+
+function applicationNum(app) {
+  return String(app?.['#'] ?? app?.num ?? '');
+}
+
+function getListedApplications() {
+  return (state.applications || []).filter(a => {
+    const num = applicationNum(a);
+    if (num && state.hiddenApplicationNums.has(num)) return false;
+    return !isClosedApplicationStatus(a.Status);
+  });
+}
+
+function hideApplications(nums) {
+  const list = [...new Set((nums || []).map(value => String(value || '')).filter(Boolean))];
+  if (!list.length) return;
+  let changed = false;
+  for (const num of list) {
+    if (!state.hiddenApplicationNums.has(num)) {
+      state.hiddenApplicationNums.add(num);
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  if (state.filter !== 'All' && !getListedApplications().some(a => a.Status === state.filter)) {
+    state.filter = 'All';
+  }
+  renderAll();
 }
 
 function relativeTime(isoStr) {
@@ -3180,7 +3217,10 @@ async function api(path, opts = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
   const res = await fetch(path, { ...opts, headers });
-  if (res.status === 401) { if (!window.__viewOnly) window.location.href = '/login'; return; }
+  if (res.status === 401) {
+    if (!window.__viewOnly) window.location.href = '/login';
+    throw new Error(window.__viewOnly ? 'Connexion requise' : 'Session expirée — reconnecte-toi');
+  }
   const ct = res.headers.get('content-type') || '';
   const payload = ct.includes('json')
     ? await res.json().catch(() => null)
@@ -3284,7 +3324,7 @@ function revealPipelineUrls(urls) {
 }
 
 function updateBadges() {
-  document.getElementById('badge-apps').textContent    = state.applications.length;
+  document.getElementById('badge-apps').textContent    = getListedApplications().length;
   document.getElementById('badge-pipe').textContent    = getVisiblePipeline().length;
   document.getElementById('badge-reports').textContent = state.reports.length;
   document.getElementById('badge-cvs').textContent     = state.cvs.length;
@@ -3299,10 +3339,11 @@ function renderDashboardNavButton(view, label, className = 'btn btn-ghost btn-sm
 }
 
 function renderDashboard() {
-  const apps = state.applications;
+  const allApps = state.applications;
+  const apps = getListedApplications();
   const pipeline = getVisiblePipeline();
   const statuses = {};
-  apps.forEach(a => {
+  allApps.forEach(a => {
     const s = a.Status || 'Unknown';
     statuses[s] = (statuses[s] || 0) + 1;
   });
@@ -3545,8 +3586,8 @@ function isOlderThan14Days(value, now = new Date()) {
 }
 
 function staleCleanupTargets(scope) {
-  if (scope === 'applications') return state.applications.filter(item =>
-    isOlderThan14Days(item.Date));
+  if (scope === 'applications') return getListedApplications().filter(item =>
+    isOlderThan14Days(item.Date) && canDeleteApplication(item.Status));
   return state.pipeline.filter(item => isOlderThan14Days(
     item.published_at || item.publishedAt || item.publication_date || item.created_at || item.createdAt));
 }
@@ -3584,6 +3625,7 @@ document.addEventListener('click', async event => {
         body: JSON.stringify({ nums: targets.map(item => item['#']) }),
       });
       removed = Number(result.updated || 0);
+      hideApplications(targets.map(item => item['#']));
     } else {
       await api('/api/pipeline', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: targets.map(item => item.url) }) });
       removed = targets.length;
@@ -3674,11 +3716,14 @@ function renderApplicationScanQueue() {
 function renderApplications() {
   renderApplicationScanQueue();
 
-  const apps = state.applications;
-  const all_statuses = ['All', ...new Set(apps.map(a => a.Status).filter(Boolean))];
+  const listed = getListedApplications();
+  const all_statuses = ['All', ...new Set(listed.map(a => a.Status).filter(Boolean))];
+  if (state.filter !== 'All' && !all_statuses.includes(state.filter)) {
+    state.filter = 'All';
+  }
 
-  // Apply all filters
-  let filtered = state.filter === 'All' ? apps : apps.filter(a => a.Status === state.filter);
+  // Apply all filters — discarded/SKIP stay out of the default list after delete
+  let filtered = state.filter === 'All' ? listed : listed.filter(a => a.Status === state.filter);
   if (state.appSearch) {
     const q = state.appSearch.toLowerCase();
     filtered = filtered.filter(a =>
@@ -3708,7 +3753,7 @@ function renderApplications() {
       <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
         ${all_statuses.map(s => `
           <button class="filter-btn ${s === state.filter ? 'active' : ''}" data-filter="${s}">${s}
-            <span style="margin-left:4px;opacity:0.5;font-size:11px">${s === 'All' ? apps.length : apps.filter(a => a.Status === s).length}</span>
+            <span style="margin-left:4px;opacity:0.5;font-size:11px">${s === 'All' ? listed.length : listed.filter(a => a.Status === s).length}</span>
           </button>
         `).join('')}
       </div>
@@ -3944,7 +3989,7 @@ function renderApplications() {
       const label = [btn.dataset.company, btn.dataset.role].filter(Boolean).join(' — ') || `#${num}`;
       const ok = await confirmAction({
         title: 'Écarter cette offre ?',
-        message: `${label} restera dans le tracker en Discarded. Les scans ne la redécouvriront plus.`,
+        message: `${label} disparaîtra de la liste. Les scans ne la redécouvriront plus.`,
         confirmLabel: 'Écarter',
       });
       if (!ok) return;
@@ -3952,8 +3997,9 @@ function renderApplications() {
       btn.style.opacity = '0.5';
       try {
         await api(`/api/applications/${encodeURIComponent(num)}`, { method: 'DELETE' });
-        await reloadApplications();
-        toast(`Offre #${num} écartée (Discarded)`);
+        hideApplications([num]);
+        toast(`Offre #${num} retirée de la liste`);
+        try { await reloadApplications(); } catch { /* already hidden locally */ }
       } catch (err) {
         toast(`Erreur: ${err.message}`, true);
         btn.disabled = false;
@@ -4171,6 +4217,7 @@ function openAutoApplyModal(app) {
           solveChallenges: $('aa-solve-challenges').checked,
         }),
       });
+      if (!r?.runId) throw new Error(r?.error || 'Lancement incomplet');
       runId = r.runId;
       $('aa-setup').style.display = 'none';
       $('aa-run').style.display = 'block';

@@ -108,7 +108,7 @@ Apply the same language to all three versions.
 
 **Core principle:** The candidate is evaluating the company as much as the company is evaluating the candidate.
 
-- **Confident, not arrogant:** "I've spent the past year building production AI systems — this role is where I want to apply that next."
+- **Confident, not arrogant:** "I've built production AI systems into my design process. This role is where I want to apply that next."
 - **Selective, not pretentious:** "I've been deliberate about where I apply. Your scope maps exactly to what I'm building toward."
 - **Specific and concrete:** Every claim must be backed by a real proof point from cv.md or the report.
 - **Direct:** No filler. No "I'm passionate about…", "I would love the opportunity to…", or "I am writing to express my interest in…"

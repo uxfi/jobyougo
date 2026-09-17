@@ -562,7 +562,7 @@ Save full evaluation in `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`.
 **URL:**
 **Via:** {agency/recruiter firm, or — for direct applications}
 **Archetype:** {detected}
-**Score:** {X/5}
+**Score:** {X.X/5}  (always a number like 4.3/5 or 1.0/5 — never "Rejected", "hard fail", or a dash. A hard reject / hard fail / hard mismatch is **Score:** 1.0/5; reason may follow in parentheses)
 **Legitimacy:** {High Confidence | Proceed with Caution | Suspicious}
 **Work Auth:** {✅ Sponsors | ➖ Not needed | ⚠️ Unstated | ⛔ No sponsorship}
 **PDF:** {path or pending}

@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { createServer } from 'http';
 import { readFile, writeFile, readdir, stat, mkdir, mkdtemp, rm } from 'fs/promises';
 import { watch } from 'fs';
-import { join, dirname, resolve, sep } from 'path';
+import { join, dirname, resolve, sep, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
 import { gzipSync, brotliCompressSync, constants as zlibConstants } from 'zlib';
@@ -25,8 +25,21 @@ import {
   pinchtabSolveSucceeded,
 } from '../lib/pinchtab.mjs';
 import { STYLE_RULES, polishApplicationAnswer, loadApplicationVoice } from '../lib/application-writing.mjs';
+import { resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
+import { withPipelineLock } from '../pipeline-lock.mjs';
+import { formatReportNumber, releaseReportNumbers, reserveReportNumbers } from '../reserve-report-num.mjs';
 import { getScanAggregators, fetchJobBoard, jobBoardProviders } from '../lib/scan-job-boards.mjs';
+import {
+  parseAshbyPostingUrl,
+  findAshbyJobOnBoard,
+  parseLeverPostingUrl,
+  parseDeelJobUrl,
+  extractJsonLdJobPosting,
+  flattenJsonLdJobLocation,
+  extractZohoRecruitJob,
+  isUnusableJobDescriptionText,
+} from '../lib/ats-jd.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -265,12 +278,33 @@ function parseMarkdownTable(content) {
   const headers = lines[0].split('|').map(h => h.trim()).filter(Boolean);
   return lines.slice(2)
     .map(row => {
-      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+      const cells = row.split('|').map(c => c.trim());
+      // Keep empty cells — filter(Boolean) used to shift Score/Status/Notes
+      // when Notes or PDF was blank, so GET /api/applications dropped or
+      // misread freshly merged Evaluated rows.
+      const values = cells.slice(1, -1);
       const obj = {};
-      headers.forEach((h, i) => { obj[h] = cells[i] ?? ''; });
+      headers.forEach((h, i) => { obj[h] = values[i] ?? ''; });
       return obj;
     })
     .filter(row => Object.values(row).some(v => v));
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function runWithRetry(fn, { attempts = 3, delayMs = 1200, label = 'retry' } = {}) {
+  let last;
+  for (let i = 1; i <= attempts; i++) {
+    last = await fn(i);
+    if (last?.ok) return last;
+    if (i < attempts) {
+      console.warn(`[${label}] attempt ${i} failed${last?.error || last?.stderr ? `: ${String(last.error || last.stderr).slice(0, 180)}` : ''} — retrying...`);
+      await sleep(delayMs * i);
+    }
+  }
+  return last;
 }
 
 async function loadInterfaceShowcaseData() {
@@ -821,6 +855,19 @@ async function getApplications(userId) {
   } catch { return []; }
 }
 
+async function trackerHasEvaluation({ num, filename, url, userId } = {}) {
+  const apps = await getApplications(userId).catch(() => []);
+  const n = String(parseInt(num, 10));
+  const urlKey = normalizeUrlKey(url || '');
+  return (apps || []).some(app => {
+    if (n && String(app.num ?? app['#'] ?? '') === n) return true;
+    const report = String(app.Report ?? app.report ?? '');
+    if (filename && report.includes(filename)) return true;
+    const jobUrl = String(app.JobURL ?? app.job_url ?? app.URL ?? app.url ?? '');
+    return Boolean(urlKey && normalizeUrlKey(jobUrl) === urlKey);
+  });
+}
+
 async function getPipeline(userId) {
   if (useSupabase) {
     let q = supabase.from('pipeline').select('*').eq('processed', false).order('created_at', { ascending: true });
@@ -916,11 +963,29 @@ async function addManyToPipeline(entries = [], userId) {
       .from('pipeline')
       .upsert(rows, { onConflict: 'url,user_id' });
     if (error) throw error;
-    return;
   }
-  const raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8');
-  const lines = clean.map(({ url, note }) => note ? `${url} — ${note}` : url);
-  await writeFile(join(WRITE_ROOT, 'data/pipeline.md'), raw.trimEnd() + '\n' + lines.join('\n') + '\n', 'utf-8');
+  const pipelineFile = join(WRITE_ROOT, 'data/pipeline.md');
+  await withPipelineLock(pipelineFile, async () => {
+    let raw = '';
+    try {
+      raw = await readFile(pipelineFile, 'utf-8');
+    } catch {
+      try { raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8'); } catch { raw = ''; }
+    }
+    const existing = new Set(
+      parsePipeline(raw).map(item => normalizeUrlKey(item.url)).filter(Boolean)
+    );
+    const lines = clean
+      .filter(({ url }) => {
+        const key = normalizeUrlKey(url);
+        if (!key || existing.has(key)) return false;
+        existing.add(key);
+        return true;
+      })
+      .map(({ url, note }) => note ? `${url} — ${note}` : url);
+    if (!lines.length) return;
+    await writeFile(pipelineFile, `${raw.trimEnd()}\n${lines.join('\n')}\n`, 'utf-8');
+  });
 }
 
 async function addToPipeline(url, note, userId) {
@@ -1246,6 +1311,9 @@ function buildScanCandidateRecords(sourceName, jobs = [], { includeCompany = fal
       title: cleanString(job.title),
       location: cleanString(job.location),
       remoteEvidence: cleanString(job.remoteEvidence).slice(0, 160),
+      // JD snippet so remote_filter can catch "must live in the US" / I-9 in
+      // the body when the ATS location field is only "Remote".
+      description: cleanString(job.description || job.snippet || '').slice(0, 4000),
       publishedAt: normalizeDateValue(job.publishedAt || ''),
       url: cleanString(job.url),
       normalizedUrl: normalizeUrlKey(job.url),
@@ -1288,13 +1356,28 @@ async function savePublishedDateCache() {
 
 const _ashbyBoardCache = new Map();
 async function getAshbyBoardCached(slug) {
-  if (_ashbyBoardCache.has(slug)) return _ashbyBoardCache.get(slug);
-  let data = {};
-  try {
-    const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}`, { signal: AbortSignal.timeout(8000) });
-    if (r.ok) data = await r.json().catch(() => ({}));
-  } catch {}
-  _ashbyBoardCache.set(slug, data);
+  const key = String(slug || '');
+  if (!key) return {};
+  if (_ashbyBoardCache.has(key)) return _ashbyBoardCache.get(key);
+  const pending = (async () => {
+    try {
+      const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(key)}?includeCompensation=true`, {
+        signal: AbortSignal.timeout(30000),
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+        },
+      });
+      if (!r.ok) return {};
+      const data = await r.json().catch(() => ({}));
+      return Array.isArray(data?.jobs) ? data : {};
+    } catch {
+      return {};
+    }
+  })();
+  _ashbyBoardCache.set(key, pending);
+  const data = await pending;
+  if (!Array.isArray(data?.jobs)) _ashbyBoardCache.delete(key);
   return data;
 }
 
@@ -1322,7 +1405,7 @@ async function tryApiPublishedDate(url) {
   m = url.match(/^https:\/\/jobs\.ashbyhq\.com\/([^/]+)\/([a-f0-9-]+)/i);
   if (m) {
     const board = await getAshbyBoardCached(m[1]);
-    const job = (board.jobs || []).find(j => (j.jobUrl || j.applyUrl || '').includes(m[2]));
+    const job = findAshbyJobOnBoard(board, m[2]);
     return job?.publishedAt ? String(job.publishedAt).slice(0, 10) : null;
   }
   return null;
@@ -1497,6 +1580,7 @@ function candidateRemoteAssessment(candidate = {}, remoteFilterRaw = {}) {
   const locationText = cleanString(candidate.location);
   const evidenceText = cleanString(candidate.remoteEvidence);
   const urlText = cleanString(candidate.url);
+  const descriptionText = cleanString(candidate.description).slice(0, 4000);
   const remoteSignalText = [
     titleText,
     locationText,
@@ -1660,7 +1744,72 @@ function candidateRemoteAssessment(candidate = {}, remoteFilterRaw = {}) {
     'south america',
     'americas',
     'north america',
+    'must live in the us',
+    'must live in the usa',
+    'must live in the united states',
+    'must reside in the us',
+    'must reside in the united states',
+    'live in the united states',
+    'reside in the united states',
+    'candidates must live in the us',
+    'candidates must be located in the us',
+    'i-9',
+    'e-verify',
+    'authorized to work in the united states',
+    'legally authorized to work in the united states',
+    'authorized to work in the us',
+    'us citizens only',
+    'u.s. citizens only',
   ];
+  const usJdBodyPhrases = [
+    'must live in the us',
+    'must live in the usa',
+    'must live in the united states',
+    'must reside in the us',
+    'must reside in the united states',
+    'live in the united states',
+    'reside in the united states',
+    'candidates must live in the us',
+    'candidates must be located in the us',
+    'candidates must be based in the us',
+    'must be based in the us',
+    'must be located in the us',
+    'i-9',
+    'e-verify',
+    'authorized to work in the united states',
+    'legally authorized to work in the united states',
+    'authorized to work in the us',
+    'us citizens only',
+    'u.s. citizens only',
+    'us-based candidates only',
+    'us applicants only',
+  ];
+  const descLower = normalizeMatchText(descriptionText);
+  const usJdHit = firstPhraseMatch(descLower, usJdBodyPhrases);
+  if (usJdHit) {
+    const hardAuth = /\bi-9\b|\be-verify\b|us citizens only|u\.s\. citizens only|authorized to work in the (us|usa|united states)/i.test(usJdHit);
+    const inclusiveHit = firstPhraseMatch(descLower, [
+      'united states or europe',
+      'us or europe',
+      'us or eu',
+      'united states or the eu',
+      'us or emea',
+      'europe or the united states',
+      'europe, uk, usa',
+      'worldwide',
+      'work from anywhere',
+      'anywhere in the world',
+      'global remote',
+    ]);
+    if (hardAuth || !inclusiveHit) {
+      return {
+        keep: false,
+        reason: `JD body requires US residency or work auth "${usJdHit}"`,
+        evidence: usJdHit,
+      };
+    }
+  }
+
   const allowedGeoMatch =
     firstPhraseMatch(geoLower, [...remoteFilter.allowedGeoAny, ...defaultAllowedGeoTerms]) ||
     firstPhraseMatch(titleGeoTerms.join(' '), [...remoteFilter.allowedGeoAny, ...defaultAllowedGeoTerms]);
@@ -1705,6 +1854,40 @@ function filterScanCandidatesByRemotePolicy(candidates = [], remoteFilterRaw = {
     }
   }
 
+  return { kept, dropped };
+}
+
+function buildCountryEligibilityMatcher(countryEligibilityFilter, candidateCountry) {
+  if (!countryEligibilityFilter) return () => true;
+  const candidateCountryLower = typeof candidateCountry === 'string'
+    ? candidateCountry.toLowerCase().trim()
+    : '';
+  if (candidateCountryLower === 'united states') return () => true;
+  const exclusionary = (countryEligibilityFilter.exclusionary || [])
+    .map(item => String(item || '').toLowerCase().trim())
+    .filter(Boolean);
+  const inclusive = (countryEligibilityFilter.inclusive || [])
+    .map(item => String(item || '').toLowerCase().trim())
+    .filter(Boolean);
+  return (description) => {
+    if (typeof description !== 'string' || !description.trim()) return true;
+    const lower = description.toLowerCase();
+    if (!exclusionary.length) return true;
+    if (!exclusionary.some(phrase => lower.includes(phrase))) return true;
+    if (inclusive.length && inclusive.some(phrase => lower.includes(phrase))) return true;
+    if (candidateCountryLower && lower.includes(candidateCountryLower)) return true;
+    return false;
+  };
+}
+
+function filterScanCandidatesByCountryEligibility(candidates = [], countryEligibilityFilter, candidateCountry) {
+  const pass = buildCountryEligibilityMatcher(countryEligibilityFilter, candidateCountry);
+  const kept = [];
+  const dropped = [];
+  for (const candidate of candidates) {
+    if (pass(candidate.description || '')) kept.push(candidate);
+    else dropped.push({ ...candidate, countryRejectReason: 'country_eligibility_filter' });
+  }
   return { kept, dropped };
 }
 
@@ -2042,6 +2225,8 @@ function formatSourceJobDescription(source, job = {}, targetUrl = '', { maxChars
   const jobType = cleanString(
     Array.isArray(job.jobType) ? job.jobType.join(', ') : (job.jobType || job.employmentType || job.type || '')
   );
+  const department = cleanString(job.departmentName || job.department || job.teamName || job.team || '');
+  const workplace = cleanString(job.workplaceType || (job.isRemote === true ? 'Remote' : ''));
   const salaryParts = [
     job.salaryMin || job.minSalary,
     job.salaryMax || job.maxSalary,
@@ -2060,9 +2245,10 @@ function formatSourceJobDescription(source, job = {}, targetUrl = '', { maxChars
   );
   const rawDescription =
     job.jobDescription ||
+    job.descriptionPlain ||
     job.description ||
     job.content ||
-    job.descriptionPlain ||
+    job.descriptionHtml ||
     job.jobExcerpt ||
     job.excerpt ||
     job.snippet ||
@@ -2076,7 +2262,9 @@ function formatSourceJobDescription(source, job = {}, targetUrl = '', { maxChars
     applyUrl ? `Source/apply URL: ${applyUrl}` : '',
     company ? `Company: ${company}` : '',
     title ? `Role: ${title}` : '',
+    department ? `Department: ${department}` : '',
     location ? `Location / remote: ${location}` : '',
+    workplace ? `Workplace: ${workplace}` : '',
     jobType ? `Job type: ${jobType}` : '',
     salaryParts.length ? `Compensation: ${salaryParts.join(' ')}` : '',
     publishedAt ? `Published: ${publishedAt}` : '',
@@ -2244,6 +2432,187 @@ async function fetchGreenhouseJobDescriptionFromGuessedApi(jobUrl, { maxChars = 
   return null;
 }
 
+async function fetchAshbyJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  const parsed = parseAshbyPostingUrl(jobUrl);
+  if (!parsed) return null;
+  const board = await getAshbyBoardCached(parsed.org);
+  if (!Array.isArray(board?.jobs)) return null;
+  const job = findAshbyJobOnBoard(board, parsed.jobId);
+  if (!job) {
+    return {
+      ok: false,
+      definitive: true,
+      text: '',
+      mode: 'ashby-api',
+      status: 404,
+      error: 'Ashby posting not listed on the public job board',
+    };
+  }
+  const secondaryLocations = Array.isArray(job.secondaryLocations)
+    ? job.secondaryLocations.map(location => cleanString(location?.location || '')).filter(Boolean)
+    : [];
+  const location = [...new Set([
+    job.location,
+    ...secondaryLocations,
+    job.workplaceType || '',
+    job.isRemote === true ? 'Remote' : '',
+  ].map(value => cleanString(value)).filter(Boolean))].join(' · ');
+  const text = formatSourceJobDescription('Ashby API', {
+    ...job,
+    title: job.title,
+    companyName: hints.company || parsed.org,
+    location,
+    description: job.descriptionPlain || job.descriptionHtml || job.description || '',
+    url: job.jobUrl || job.applyUrl || jobUrl,
+    publishedAt: job.publishedAt || '',
+    employmentType: job.employmentType || '',
+    department: job.department || job.team,
+    workplaceType: job.workplaceType,
+    isRemote: job.isRemote,
+    salaryMin: job.compensation?.minValue,
+    salaryMax: job.compensation?.maxValue,
+    salaryCurrency: job.compensation?.currency,
+    salaryPeriod: job.compensation?.interval,
+  }, jobUrl, { maxChars });
+  if (text) return { ok: true, text, mode: 'ashby-api', status: 200 };
+  return {
+    ok: false,
+    definitive: true,
+    text: '',
+    mode: 'ashby-api',
+    status: 200,
+    error: 'Ashby posting found but description was empty or too short',
+  };
+}
+
+async function fetchLeverJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  const parsed = parseLeverPostingUrl(jobUrl);
+  if (!parsed) return null;
+  const data = await fetchJsonWithSourceCache(
+    `https://${parsed.apiHost}/v0/postings/${encodeURIComponent(parsed.slug)}/${encodeURIComponent(parsed.id)}?mode=json`,
+    { timeoutMs: 15000 },
+  ).catch(() => null);
+  if (!data) return null;
+  const text = formatSourceJobDescription('Lever API', {
+    title: data.text,
+    companyName: hints.company || parsed.slug,
+    location: data.categories?.location || '',
+    description: data.descriptionPlain || data.description || '',
+    url: data.hostedUrl || data.applyUrl || jobUrl,
+    publishedAt: data.createdAt ? new Date(data.createdAt).toISOString() : '',
+    employmentType: data.categories?.commitment || '',
+  }, jobUrl, { maxChars });
+  if (text) return { ok: true, text, mode: 'lever-api', status: 200 };
+  return {
+    ok: false,
+    definitive: true,
+    text: '',
+    mode: 'lever-api',
+    status: 200,
+    error: 'Lever posting returned no usable description',
+  };
+}
+
+function formatJsonLdJobPostingText(posting, jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  if (!posting?.description) return null;
+  const employmentType = Array.isArray(posting.employmentType)
+    ? posting.employmentType.join(', ')
+    : posting.employmentType;
+  return formatSourceJobDescription('JSON-LD JobPosting', {
+    title: posting.title,
+    companyName: hints.company || posting.hiringOrganization?.name || '',
+    location: flattenJsonLdJobLocation(posting),
+    description: posting.description,
+    url: posting.url || jobUrl,
+    publishedAt: posting.datePosted || '',
+    employmentType,
+    workplaceType: posting.jobLocationType === 'TELECOMMUTE' ? 'Remote' : '',
+  }, jobUrl, { maxChars });
+}
+
+function textFromFetchedHtml(html, jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  const jsonLdText = formatJsonLdJobPostingText(extractJsonLdJobPosting(html), jobUrl, { maxChars, hints });
+  if (jsonLdText) return jsonLdText;
+  const zoho = extractZohoRecruitJob(html);
+  if (zoho?.description) {
+    const formatted = formatSourceJobDescription('Zoho Recruit', {
+      title: zoho.title,
+      companyName: hints.company || '',
+      location: [zoho.city, zoho.country].filter(Boolean).join(', '),
+      description: zoho.description,
+      employmentType: zoho.jobType,
+      url: jobUrl,
+    }, jobUrl, { maxChars });
+    if (formatted) return formatted;
+  }
+  return extractTextFromHtml(html);
+}
+
+async function fetchDeelJobDescriptionFromJsonLd(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  const parsed = parseDeelJobUrl(jobUrl);
+  if (!parsed) return null;
+  const candidates = [...new Set([parsed.overviewUrl, String(jobUrl || '').split('#')[0]])];
+  for (const url of candidates) {
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(20000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+      const html = await response.text();
+      const text = formatJsonLdJobPostingText(extractJsonLdJobPosting(html), jobUrl, { maxChars, hints });
+      if (text) return { ok: true, text, mode: 'deel-jsonld', status: response.status };
+      if (response.status === 404) {
+        return {
+          ok: false,
+          definitive: true,
+          text: '',
+          mode: 'deel-jsonld',
+          status: 404,
+          error: 'Deel posting returned 404',
+        };
+      }
+    } catch (err) {
+      console.warn(`[pipeline] [deel-jsonld] failed for ${url}: ${err.message}`);
+    }
+  }
+  return null;
+}
+
+async function fetchZohoRecruitJobDescription(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  let parsed;
+  try {
+    parsed = new URL(String(jobUrl || ''));
+  } catch {
+    return null;
+  }
+  if (!/\.zohorecruit\.com$/i.test(parsed.hostname)) return null;
+  const response = await fetch(String(jobUrl), {
+    signal: AbortSignal.timeout(20000),
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  });
+  const html = await response.text();
+  const zoho = extractZohoRecruitJob(html);
+  if (!zoho?.description) return null;
+  const text = formatSourceJobDescription('Zoho Recruit', {
+    title: zoho.title,
+    companyName: hints.company || parsed.hostname.split('.')[0],
+    location: [zoho.city, zoho.country].filter(Boolean).join(', '),
+    description: zoho.description,
+    employmentType: zoho.jobType,
+    url: jobUrl,
+  }, jobUrl, { maxChars });
+  if (text) return { ok: true, text, mode: 'zoho-recruit', status: response.status };
+  return null;
+}
+
 async function fetchGoogleJobsDescriptionFromHints(jobUrl, { maxChars = 15000, hints = {} } = {}) {
   const title = cleanString(hints.title || '');
   const company = cleanString(hints.company || '');
@@ -2282,6 +2651,10 @@ async function fetchKnownSourceJobDescription(jobUrl, { maxChars = 15000, logLab
     ['himalayas-api', () => fetchHimalayasJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['remotive-api', () => fetchRemotiveJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['greenhouse-api', () => fetchGreenhouseJobDescriptionFromGuessedApi(jobUrl, { maxChars, hints })],
+    ['ashby-api', () => fetchAshbyJobDescriptionFromApi(jobUrl, { maxChars, hints })],
+    ['lever-api', () => fetchLeverJobDescriptionFromApi(jobUrl, { maxChars, hints })],
+    ['deel-jsonld', () => fetchDeelJobDescriptionFromJsonLd(jobUrl, { maxChars, hints })],
+    ['zoho-recruit', () => fetchZohoRecruitJobDescription(jobUrl, { maxChars, hints })],
     ['google-jobs', () => fetchGoogleJobsDescriptionFromHints(jobUrl, { maxChars, hints })],
   ];
 
@@ -2290,6 +2663,10 @@ async function fetchKnownSourceJobDescription(jobUrl, { maxChars = 15000, logLab
       const result = await run();
       if (result?.ok && result.text) {
         console.log(`[${logLabel}] [${mode}] fetched ${result.text.length} chars for ${jobUrl}`);
+        return result;
+      }
+      if (result?.definitive) {
+        console.warn(`[${logLabel}] [${mode}] ${result.error || 'definitive miss'} for ${jobUrl}`);
         return result;
       }
     } catch (err) {
@@ -2306,6 +2683,7 @@ function isBlockedJobDescriptionResponse({ url = '', status = 200, html = '', te
   const bodyText = String(text || extractTextFromHtml(rawHtml));
   if (!bodyText) return true;
   if (detectChallenge({ status, html: rawHtml, text: bodyText }).blocked) return true;
+  if (isUnusableJobDescriptionText(bodyText)) return true;
   return /jobsdb\.com/i.test(url) && bodyText.length < 800;
 }
 
@@ -2358,7 +2736,7 @@ async function fetchJobDescriptionViaBrowser(url, { maxChars = 15000, logLabel =
     do {
       await page.waitForTimeout(2500);
       html = await page.content().catch(() => '');
-      text = extractTextFromHtml(html);
+      text = textFromFetchedHtml(html, url, { maxChars: 15000 });
       blocked = isBlockedJobDescriptionResponse({ url, status: 200, html, text });
       if (!blocked && text && text.length > 400) {
         console.log(`[${logLabel}] [browser] challenge cleared — ${text.length} chars for ${url}`);
@@ -2397,24 +2775,49 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
   if (knownSourceResult?.ok && knownSourceResult.text) {
     return knownSourceResult;
   }
+  if (knownSourceResult?.definitive) {
+    return {
+      ok: false,
+      text: '',
+      mode: knownSourceResult.mode || 'failed',
+      error: knownSourceResult.error || 'ATS posting not available',
+    };
+  }
 
   const fetchViaHttp = async () => {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(10000),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-    });
-    const html = await response.text();
-    const text = extractTextFromHtml(html);
-    return {
-      ok: response.ok,
-      status: response.status,
-      html,
-      text,
-      blocked: isBlockedJobDescriptionResponse({ url, status: response.status, html, text }),
-    };
+    let lastError;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await fetch(url, {
+          signal: AbortSignal.timeout(10000),
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+        });
+        const html = await response.text();
+        const text = textFromFetchedHtml(html, url, { maxChars, hints });
+        const result = {
+          ok: response.ok,
+          status: response.status,
+          html,
+          text,
+          blocked: isBlockedJobDescriptionResponse({ url, status: response.status, html, text }),
+        };
+        if (result.ok || attempt === 2 || (response.status !== 429 && response.status < 500)) return result;
+        console.warn(`[${logLabel}] [fetch] HTTP ${response.status} for ${url} — retrying once...`);
+        await sleep(1500);
+      } catch (err) {
+        lastError = err;
+        if (attempt === 1) {
+          console.warn(`[${logLabel}] [fetch] ${err.message} for ${url} — retrying once...`);
+          await sleep(1500);
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError || new Error('HTTP fetch failed');
   };
 
   const fetchViaPinchtab = async () => {
@@ -2426,7 +2829,7 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
       tabId = await pinchtabNavigate(url, { timeout: 25000 });
       await new Promise(resolve => setTimeout(resolve, 1500));
       let html = await pinchtabEvaluate(tabId, 'document.documentElement.outerHTML', { timeout: 10000 });
-      let text = extractTextFromHtml(String(html || ''));
+      let text = textFromFetchedHtml(String(html || ''), url, { maxChars, hints });
       let blocked = isBlockedJobDescriptionResponse({ url, status: 200, html, text });
       if (blocked && !pinchtabSolveCircuitOpen()) {
         console.log(`[${logLabel}] [pinchtab] challenge detected, attempting solve for ${url}`);
@@ -2434,7 +2837,7 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
         if (solved) {
           await new Promise(resolve => setTimeout(resolve, 1200));
           html = await pinchtabEvaluate(tabId, 'document.documentElement.outerHTML', { timeout: 10000 });
-          text = extractTextFromHtml(String(html || ''));
+          text = textFromFetchedHtml(String(html || ''), url, { maxChars, hints });
           blocked = isBlockedJobDescriptionResponse({ url, status: 200, html, text });
         }
       }
@@ -2465,7 +2868,7 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
   for (const attempt of attempts) {
     try {
       const result = await attempt.run();
-      if (result.ok && !result.blocked && result.text) {
+      if (result.ok && !result.blocked && result.text && !isUnusableJobDescriptionText(result.text)) {
         console.log(`[${logLabel}] [${attempt.mode}] fetched ${result.text.length} chars for ${url}`);
         return {
           ok: true,
@@ -2475,7 +2878,9 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
         };
       }
 
-      lastError = result.blocked
+      lastError = isUnusableJobDescriptionText(result.text)
+        ? `Insufficient job description (${attempt.mode}, ${String(result.text || '').length} chars)`
+        : result.blocked
         ? `Blocked by anti-bot/challenge (${attempt.mode}, status ${result.status})`
         : `Failed to load content (${attempt.mode}, status ${result.status})`;
       console.warn(`[${logLabel}] [${attempt.mode}] ${lastError} for ${url}`);
@@ -2489,13 +2894,21 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
   if (lateKnownSourceResult?.ok && lateKnownSourceResult.text) {
     return lateKnownSourceResult;
   }
+  if (lateKnownSourceResult?.definitive) {
+    return {
+      ok: false,
+      text: '',
+      mode: lateKnownSourceResult.mode || 'failed',
+      error: lateKnownSourceResult.error || 'ATS posting not available',
+    };
+  }
 
   // Last resort: headed Chrome with the persistent (apply-runner) profile — the only
   // path that clears Cloudflare/anti-bot challenges. Local only; skipped on Vercel.
   if (!IS_VERCEL) {
     try {
       const browserResult = await fetchJobDescriptionViaBrowser(url, { maxChars, logLabel });
-      if (browserResult.ok && !browserResult.blocked && browserResult.text) {
+      if (browserResult.ok && !browserResult.blocked && browserResult.text && !isUnusableJobDescriptionText(browserResult.text)) {
         console.log(`[${logLabel}] [browser] fetched ${browserResult.text.length} chars for ${url}`);
         return { ok: true, text: browserResult.text.slice(0, maxChars), mode: 'browser', status: browserResult.status };
       }
@@ -2556,16 +2969,27 @@ async function fetchSourceSection(source = {}) {
     'Accept-Language': 'en-US,en;q=0.9',
   };
   let r;
-  try {
-    r = await fetch(url, { signal: AbortSignal.timeout(20000), headers: fetchHeaders });
-  } catch (err) {
-    console.error(`[scan] [${logType.toUpperCase()}] TIMEOUT/ERROR "${name}": ${err.message}`);
-    return fallbackToSecondarySource(`network error: ${err.message}`);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      r = await fetch(url, { signal: AbortSignal.timeout(20000), headers: fetchHeaders });
+      if (r.ok) break;
+      const retryable = r.status === 429 || r.status >= 500;
+      console.error(`[scan] [${logType.toUpperCase()}] HTTP ${r.status} "${name}"${retryable && attempt === 1 ? ' — retrying once...' : ''}`);
+      if (retryable && attempt === 1) {
+        await sleep(1500);
+        continue;
+      }
+      return fallbackToSecondarySource(`HTTP ${r.status}`);
+    } catch (err) {
+      console.error(`[scan] [${logType.toUpperCase()}] TIMEOUT/ERROR "${name}": ${err.message}${attempt === 1 ? ' — retrying once...' : ''}`);
+      if (attempt === 1) {
+        await sleep(1500);
+        continue;
+      }
+      return fallbackToSecondarySource(`network error: ${err.message}`);
+    }
   }
-  if (!r.ok) {
-    console.error(`[scan] [${logType.toUpperCase()}] HTTP ${r.status} "${name}"`);
-    return fallbackToSecondarySource(`HTTP ${r.status}`);
-  }
+  if (!r?.ok) return fallbackToSecondarySource(`HTTP ${r?.status || 'unknown'}`);
 
   let jobs = [];
   if (type === 'json') {
@@ -2595,6 +3019,7 @@ async function fetchSourceSection(source = {}) {
             url: cleanString(job.jobUrl || job.applyUrl || ''),
             location,
             remoteEvidence,
+            description: cleanString(job.descriptionPlain || job.descriptionHtml || job.description || '').slice(0, 4000),
             publishedAt: normalizeDateValue(job.publishedAt || ''),
           };
         });
@@ -2619,6 +3044,7 @@ async function fetchSourceSection(source = {}) {
           url: cleanString(job.hostedUrl || job.applyUrl || job.url || ''),
           location,
           remoteEvidence,
+          description: cleanString(job.descriptionPlain || job.description || '').slice(0, 4000),
           publishedAt: normalizeDateValue(job.createdAt || job.updatedAt || ''),
         };
       });
@@ -2646,6 +3072,7 @@ async function fetchSourceSection(source = {}) {
                 .join(', ')
             : '')
         ),
+        description: cleanString(job.content || job.description || '').slice(0, 4000),
         publishedAt: normalizeDateValue(
           job.published_at ||
           job.publishedAt ||
@@ -4498,9 +4925,11 @@ async function shouldIncludeLocalScanHistoryOrphans(userId) {
 async function appendScanHistoryEntries(entries = []) {
   if (!entries.length) return;
   const scanHistoryFile = join(WRITE_ROOT, 'data/scan-history.tsv');
-  const existingRows = await getScanHistoryRows();
-  const payload = `${existingRows.join('\n').replace(/\n+$/,'')}\n${entries.join('\n')}\n`;
-  await writeFile(scanHistoryFile, payload, 'utf-8');
+  await withPipelineLock(scanHistoryFile, async () => {
+    const existingRows = await getScanHistoryRows();
+    const payload = `${existingRows.join('\n').replace(/\n+$/,'')}\n${entries.join('\n')}\n`;
+    await writeFile(scanHistoryFile, payload, 'utf-8');
+  });
 }
 
 const DELETED_APPLICATIONS_HEADER = 'company\trole\tdate_deleted\treason';
@@ -5047,6 +5476,8 @@ function inferProfileMatchingRules(profileData = {}, profileMarkdown = '') {
       fullRemoteOnly,
       noRelocation,
       occasionalOnsiteOk,
+      authorizedIn: cleanList(location.authorized_in),
+      needsSponsorship: location.needs_sponsorship === true,
     },
   };
 }
@@ -5088,6 +5519,8 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
     `- Minimum compensation: ${rules.compensation.minimum || 'not specified'}`,
     `- Target compensation: ${rules.compensation.targetRange || 'not specified'}`,
     `- Visa status: ${rules.candidate.visaStatus || 'not specified'}`,
+    `- Authorized in: ${rules.location.authorizedIn.length ? rules.location.authorizedIn.join(', ') : 'not specified'}`,
+    `- Needs sponsorship outside authorized_in: ${rules.location.needsSponsorship ? 'yes' : 'no'}`,
     '',
     '### Target Roles',
     ...(rules.targeting.primaryRoles.length ? rules.targeting.primaryRoles.map(role => `- ${role}`) : ['- none']),
@@ -5119,8 +5552,10 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
     dealBreakers,
     '',
     '### Enforcement',
-    '- Any offer that violates a hard rule must be rejected immediately.',
-    '- If the profile says full remote only and the JD is hybrid or on-site, hard pass directly.',
+    '- Hard rules: full remote, no US/Canada/Americas-only residency, no US work authorization (I-9, E-Verify, authorized to work in the US) unless authorized_in includes the United States.',
+    '- If the profile says full remote only and the JD is hybrid or on-site (outside Thailand), hard pass directly.',
+    '- US-only remote, must live/reside in the US, or US work-auth → Score 1.0/5 and SKIP. Do not leave as Unstated.',
+    '- AI experience / AI scope on the JD is a preference, not a hard reject. 4 years of bootstrapped AI products meets typical 2–5 year AI asks. Do not score 1.0 because a design role lacks an AI mandate.',
     '- If a profile criterion is not visible in the JD, do not invent it; mark it as unknown.',
   ].join('\n');
 }
@@ -5183,13 +5618,61 @@ function inferWorkModeFromText(text = '') {
   return { mode: 'unknown', evidence: [] };
 }
 
+function candidateAuthorizedInUs(authorizedIn = []) {
+  return cleanList(authorizedIn).some(item => /\bunited states\b|\busa\b/i.test(item));
+}
+
+/**
+ * US residency / US work-auth in the JD or location field.
+ * Work-auth markers (I-9, E-Verify, authorized to work in the US) never widen.
+ * "Remote - US, Europe" can widen because an allowed region is an option.
+ */
+function inferUsConstraintFromText(text = '') {
+  const lower = String(text || '').toLowerCase();
+  const always = [
+    [/\bi-9\b/, 'I-9'],
+    [/\be-verify\b/, 'E-Verify'],
+    [/\bus citizens? only\b/, 'US citizens only'],
+    [/\bu\.s\. citizens? only\b/, 'US citizens only'],
+    [/\bgreen card required\b/, 'green card required'],
+    [/\blegally authorized to work in the (u\.?s\.?a?|united states)\b/, 'US work authorization'],
+    [/\bauthorized to work in the (u\.?s\.?a?|united states)\b/, 'US work authorization'],
+  ];
+  for (const [re, label] of always) {
+    if (re.test(lower)) return { blocked: true, label };
+  }
+
+  const residency = [
+    [/\bmust live in the (u\.?s\.?a?|united states)\b/, 'must live in the US'],
+    [/\bmust reside in the (u\.?s\.?a?|united states)\b/, 'must reside in the US'],
+    [/\bmust be (?:based|located) in the (u\.?s\.?a?|united states)\b/, 'must be based in the US'],
+    [/\bcandidates must (?:live|reside|be based|be located) in the (u\.?s\.?a?|united states)\b/, 'candidates must live in the US'],
+    [/\b(united states|usa|u\.s\.) only\b/, 'US-only'],
+    [/\bus-only\b/, 'US-only'],
+    [/\bremote\s*[-–—]\s*us\b/, 'Remote - US'],
+    [/\bremote \(us\)\b/, 'Remote (US)'],
+  ];
+  const multiRegion = /(?:europe|eu|emea|asia|apac|worldwide|global).{0,40}(?:or|,|\/|and).{0,40}(?:us|usa|united states)|(?:us|usa|united states).{0,40}(?:or|,|\/|and).{0,40}(?:europe|eu|emea|asia|apac|worldwide|global)|\bwork from anywhere\b|\banywhere in the world\b/i.test(lower);
+  for (const [re, label] of residency) {
+    if (re.test(lower) && !multiRegion) return { blocked: true, label };
+  }
+  return { blocked: false, label: '' };
+}
+
 function evaluateOfferAgainstProfile(jdText = '', profileData = {}, profileMarkdown = '') {
   const rules = inferProfileMatchingRules(profileData, profileMarkdown);
   const workMode = inferWorkModeFromText(jdText);
+  const usConstraint = inferUsConstraintFromText(jdText);
   const reasons = [];
+  let skip = false;
 
   if (rules.location.fullRemoteOnly && (workMode.mode === 'hybrid' || workMode.mode === 'onsite')) {
     reasons.push(`Profile requires full remote, but the JD looks ${workMode.mode}.`);
+  }
+
+  if (usConstraint.blocked && !candidateAuthorizedInUs(rules.location.authorizedIn)) {
+    reasons.push(`JD requires US residency or US work authorization (${usConstraint.label}); candidate is not authorized in the United States.`);
+    skip = true;
   }
 
   return {
@@ -5197,6 +5680,7 @@ function evaluateOfferAgainstProfile(jdText = '', profileData = {}, profileMarkd
     reasons,
     workMode,
     rules,
+    skip,
   };
 }
 
@@ -5245,21 +5729,30 @@ async function removeManyFromPipeline(urls = [], userId, { historyStatus = 'dele
     }
   }
 
-  // Single read+write of pipeline.md
-  const raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8');
-  const updated = raw
-    .split('\n')
-    .filter(l => {
-      const trimmed = l.trim();
-      const cleanUrlOnLine = trimmed.replace(/^[-*+]\s*(\[[ xX]\]\s*)?/, '').trim().split(/\s+(?:[—–|]|-(?!\s*[\w]))\s+/)[0];
-      if (removeSet.has(cleanUrlOnLine)) return false;
-      for (const url of cleanUrls) {
-        if (trimmed.startsWith(url) || trimmed.includes(url)) return false;
-      }
-      return true;
-    })
-    .join('\n');
-  await writeFile(join(WRITE_ROOT, 'data/pipeline.md'), updated, 'utf-8');
+  // Single locked read+write of pipeline.md so scan add and pipeline
+  // process cannot clobber each other on Windows.
+  const pipelineFile = join(WRITE_ROOT, 'data/pipeline.md');
+  await withPipelineLock(pipelineFile, async () => {
+    let raw = '';
+    try {
+      raw = await readFile(pipelineFile, 'utf-8');
+    } catch {
+      try { raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8'); } catch { raw = ''; }
+    }
+    const updated = raw
+      .split('\n')
+      .filter(l => {
+        const trimmed = l.trim();
+        const cleanUrlOnLine = trimmed.replace(/^[-*+]\s*(\[[ xX]\]\s*)?/, '').trim().split(/\s+(?:[—–|]|-(?!\s*[\w]))\s+/)[0];
+        if (removeSet.has(cleanUrlOnLine)) return false;
+        for (const url of cleanUrls) {
+          if (trimmed.startsWith(url) || trimmed.includes(url)) return false;
+        }
+        return true;
+      })
+      .join('\n');
+    await writeFile(pipelineFile, updated, 'utf-8');
+  });
 
   // Append all scan-history entries in one shot
   const today = new Date().toISOString().split('T')[0];
@@ -5356,56 +5849,6 @@ async function syncLocalApplicationsToSupabase(userId) {
   }
   console.log(`[sync-apps] ${rows.length} application(s) synced to Supabase (user=${uid || 'none'})`);
   return { ok: true, count: rows.length };
-}
-
-// ── Report Integrity ─────────────────────────────────────────────────────────
-
-const CORRUPTION_PATTERNS = [
-  '<tool_call>', '<tool_response>', '</tool_call>', '</tool_response>',
-  '"name": "browser_navigate"', '"name": "browser_snapshot"',
-  '"name": "bash"', '"name": "WebFetch"', '"name": "WebSearch"',
-  'Taking a screenshot...', '</thinking>', '<thinking>',
-];
-
-const REPORT_SECTION_PATTERNS = [
-  /^## (?:A\)|Block A|Bloque A|Resumen del Rol|Résumé)/m,
-  /^## (?:B\)|Block B|Bloque B|Match)/m,
-  /^## (?:C\)|Block C|Bloque C|Nivel|Stratégie|Niveau)/m,
-  /^## (?:D\)|Block D|Bloque D|Comp)/m,
-  /^## (?:E\)|Block E|Bloque E|Personali)/m,
-  /^## (?:F\)|Block F|Bloque F|Entrevista|Interview|Préparation)/m,
-  /^## (?:Scoring|Score|Recommand|Disqualification|🚨)/m,
-];
-
-/**
- * Validates that report content is a proper structured evaluation,
- * not raw LLM conversation logs or corrupted output.
- * Returns { valid: boolean, reason?: string }
- */
-function validateReportContent(content, scoreRaw, company, role) {
-  // Check 1: No corruption patterns (raw tool_call/tool_response logs)
-  const foundCorruption = CORRUPTION_PATTERNS.filter(p => content.includes(p));
-  if (foundCorruption.length > 0) {
-    return { valid: false, reason: `Contains raw LLM logs: ${foundCorruption.slice(0, 3).join(', ')}` };
-  }
-
-  // Check 2: Score must be a real number, not a placeholder dash
-  if (!scoreRaw || scoreRaw === '—' || scoreRaw === '-') {
-    return { valid: false, reason: `Score is placeholder (${scoreRaw}) — evaluation was not completed` };
-  }
-
-  // Check 3: Company and role must not be default placeholders
-  if (company === 'unknown' && role === 'role') {
-    return { valid: false, reason: 'Could not extract company/role from response — evaluation may have failed' };
-  }
-
-  // Check 4: Must have at least 2 structured evaluation sections
-  const sectionCount = REPORT_SECTION_PATTERNS.filter(p => p.test(content)).length;
-  if (sectionCount < 2) {
-    return { valid: false, reason: `Only ${sectionCount} evaluation sections found (need at least 2)` };
-  }
-
-  return { valid: true };
 }
 
 function parseCoverLetterSections(markdown = '') {
@@ -6675,11 +7118,12 @@ const server = createServer(async (req, res) => {
           ok: true,
           runId,
           region: spec.region,
-          cv: spec.cvPath.split('/').pop(),
+          cv: basename(spec.cvPath),
           answersCount: spec.answers.length,
           jobUrl: spec.jobUrl,
         });
       } catch (err) {
+        console.error('[apply] start failed:', err);
         return json(res, { error: String(err?.message || err) }, 500);
       }
     }
@@ -6956,10 +7400,15 @@ const server = createServer(async (req, res) => {
             allScanCandidates,
             portalsConfig.remote_filter || {}
           );
+          const countryFilteredCandidates = filterScanCandidatesByCountryEligibility(
+            remoteFilteredCandidates.kept,
+            portalsConfig.country_eligibility_filter,
+            profileStruct?.location?.country || ''
+          );
 
           // Verify that job URLs are still alive (filter out 404s, expired postings)
           const today = new Date().toISOString().slice(0, 10);
-          const { alive: verifiedCandidates, dead: deadCandidates } = await verifyJobLinks(remoteFilteredCandidates.kept);
+          const { alive: verifiedCandidates, dead: deadCandidates } = await verifyJobLinks(countryFilteredCandidates.kept);
           if (deadCandidates.length) {
             const deadEntries = deadCandidates.map(c =>
               `${c.url}\t${today}\tscan-link-check\t${c.title || ''}\t${c.company || ''}\texpired`
@@ -7081,6 +7530,9 @@ const server = createServer(async (req, res) => {
           }
           if (remoteFilteredCandidates.dropped.length) {
             statusParts.push(`${remoteFilteredCandidates.dropped.length} exclu${remoteFilteredCandidates.dropped.length !== 1 ? 's' : ''} par filtre remote`);
+          }
+          if (countryFilteredCandidates.dropped.length) {
+            statusParts.push(`${countryFilteredCandidates.dropped.length} exclu${countryFilteredCandidates.dropped.length !== 1 ? 's' : ''} par éligibilité pays (US/I-9)`);
           }
           send('status', { text: statusParts.join(' • ') });
 
@@ -7264,13 +7716,17 @@ const server = createServer(async (req, res) => {
         }
         if (includeArticleDigest) parts.push(`## Proof points détaillés (article-digest.md)\n${articleDigest}`);
         if (prefetchData) parts.push(`## Offres récupérées en direct\n${prefetchData}`);
+        const SCORE_FORMAT_RULE = `FORMAT DU SCORE (obligatoire, même en hard fail):
+- Le header DOIT contenir une ligne \`**Score:** X.X/5\` avec un nombre (ex. 4.3/5 ou 1.0/5).
+- Jamais "Rejected", "hard fail", "hard mismatch", "hard pass", "Immediate rejection", "—" ou un tiret à la place du nombre.
+- Un reject / hard fail / hard mismatch / hard pass / disqualification s'écrit \`**Score:** 1.0/5\` (motif optionnel après: \`**Score:** 1.0/5 (hard fail: remote inconnu)\`).`;
         if (mode === 'scan') {
           parts.push(`---\nRÈGLES STRICTES :
 1. Travaille UNIQUEMENT avec les offres présentes dans "## Offres récupérées en direct" ci-dessus. N'invente PAS d'offres et n'ajoute pas d'URL qui n'apparaît pas déjà dans ces sections.
 1b. La section "## Candidate Roster" est la source de vérité la plus fiable. Si tu gardes une offre, son URL doit apparaître telle quelle dans cette section.
 1c. Pour le remote: garde UNIQUEMENT les offres avec preuve EXPLICITE de remote dans les données récupérées. Si le remote est "probable", "compatible", "à confirmer", "remote-friendly", ou simplement supposé, EXCLUS l'offre.
-1d. Pour le full remote: garde UNIQUEMENT worldwide/global, Europe/EMEA/EU, Asia/APAC, ou Dubai/UAE. EXCLUS les offres remote US-only, Canada-only, LATAM/Latin America, Americas/North America/South America, même si elles disent "fully remote".
-2. FILTRE: garde uniquement les offres qui correspondent aux critères du profil. Si une offre viole une contrainte dure du profil, exclue-la immédiatement. Si l'offre n'est pas explicitement full remote / remote, hard pass direct.
+1d. Pour le full remote: garde UNIQUEMENT worldwide/global, Europe/EMEA/EU, Asia/APAC, ou Dubai/UAE. EXCLUS les offres remote US-only, Canada-only, LATAM/Latin America, Americas/North America/South America, même si elles disent "fully remote". EXCLUS aussi "must live/reside in the US", I-9, E-Verify, "authorized to work in the United States", US citizens only.
+2. FILTRE: garde uniquement les offres qui correspondent aux critères du profil. Si une offre viole une contrainte dure du profil (remote, US/Canada residency, US work-auth), exclue-la immédiatement. L'absence d'AI dans le titre n'est PAS une contrainte dure pour un rôle Product Designer / Design Lead. Si l'offre n'est pas explicitement full remote / remote, hard pass direct.
 2b. EXCLUS immédiatement toute URL qui est une page catégorie, une page entreprise, une page de listing, ou une page de recherche (ex: /role/r/*, /companies/*, /web3-companies/*, /jobs?*, /search?*). Seules les URLs pointant vers UN poste précis sont valides.
 2c. EXCLUS les offres junior (Associate, Junior, "entry-level") si le profil cible des rôles senior. EXCLUS les offres hors domaine produit/design/AI (marketing, finance, juridique, RH, payroll) sauf si le lien avec l'AI est central et explicite.
 3. Pour chaque offre retenue, indique: titre | entreprise | URL | preuve remote exacte | pourquoi pertinent par rapport aux rôles cibles et au profil.
@@ -7287,14 +7743,14 @@ ${profileGate.workMode.evidence.length ? `- Evidence: ${profileGate.workMode.evi
 Tu dois produire une évaluation de disqualification immédiate.
 Règles:
 - commence par "# Evaluation: {Company} — {Role}"
-- score global entre 1.0/5 et 2.0/5 maximum
+- le header DOIT contenir \`**Score:** 1.0/5\` (nombre obligatoire; jamais "Rejected", "hard fail", ni un tiret)
 - indique clairement que l'offre est rejetée parce qu'elle viole les critères du profil
-- la politique remote du profil est une contrainte dure ici
+- la politique remote ET la politique US (résidence / work-auth) sont des contraintes dures ici
 - ne cherche pas à sauver l'offre ni à proposer d'exception
 - garde le format A-D suffisamment structuré pour que le report reste exploitable
-- conclusion explicite: HARD PASS / DO NOT APPLY`);
+- conclusion explicite: SKIP / DO NOT APPLY`);
           } else {
-            parts.push(`---\nExécute l'évaluation complète (mode oferta) sur l'offre récupérée ci-dessus. L'URL est ${pipelineTarget.url}. Vérifie l'offre contre TOUS les critères dérivés du profil avant de scorer. Si une contrainte dure du profil est violée, rejette l'offre immédiatement. Génère directement le rapport final de A à D avec le bon format (Résumé du rôle, Match CV, Niveau et stratégie, Comp et demande) — n'inclus PAS de plan de personnalisation CV/LinkedIn, ce n'est pas le rôle de cette évaluation. Ne scanne pas le formulaire de candidature, ne génère pas de questions/réponses de candidature, ne génère pas de JSON de CV tailoré et ne demande pas de PDF. Ne mentionne pas tes actions au préalable, sois direct et commence avec "# Evaluation: {Company} — {Role}".`);
+            parts.push(`---\nExécute l'évaluation complète (mode oferta) sur l'offre récupérée ci-dessus. L'URL est ${pipelineTarget.url}. Vérifie l'offre contre les critères durs du profil avant de scorer: full remote, pas de résidence US/Canada, pas d'autorisation de travail US (I-9, E-Verify, authorized to work in the United States). Si une de ces contraintes dures est violée, Score 1.0/5 et SKIP. L'absence d'AI dans la JD, ou une exigence du type "5+ years AI" alors que le candidat a 4 ans de produits AI, n'est PAS un hard fail — déduction North Star de 0.5 max. Génère directement le rapport final de A à D avec le bon format (Résumé du rôle, Match CV, Niveau et stratégie, Comp et demande) — n'inclus PAS de plan de personnalisation CV/LinkedIn, ce n'est pas le rôle de cette évaluation. Ne scanne pas le formulaire de candidature, ne génère pas de questions/réponses de candidature, ne génère pas de JSON de CV tailoré et ne demande pas de PDF. Ne mentionne pas tes actions au préalable, sois direct et commence avec "# Evaluation: {Company} — {Role}".`);
           }
         } else if (mode === 'apply') {
           parts.push(`---\nTu démarres le mode apply pour une offre déjà sélectionnée. Utilise le report complet fourni ci-dessus pour préparer un starter pack d'application: résumé ciblé de l'offre, 3-5 angles forts à réutiliser, pièces à joindre, valeurs probables pour les champs standards (salaire, préavis, visa/remote) basées sur profile.yml si disponibles, puis une liste concise de ce qu'il faut partager ensuite (screenshot ou copier-coller des questions). N'invente aucun champ de formulaire non visible et ne prétends pas voir le formulaire tant qu'il n'a pas été fourni.`);
@@ -7321,17 +7777,11 @@ RÈGLES DE FOND :
 7. Privilégie une réponse simple, concrète, courte. 40 à 110 mots par défaut.
 8. Si la question demande produit + utilisateurs + problème + impact, réponds exactement dans cet ordre.
 
-RÈGLES DE COPYWRITING :
-1. Première personne, voix active — aucun passif.
-2. 2–4 phrases max sauf si la question demande clairement plus (ex: "décrivez un projet en détail").
-3. Lead avec un fait concret ou une métrique — JAMAIS "Je suis passionné par…" ou "I would love the opportunity to…".
-4. Ancre dans le spécifique : cite quelque chose de précis du JD/report ET un proof point réel du candidat, mais sans détourner la question.
-5. Ton "I'm choosing you" : confiant, direct, pas arrogant. On postule parce qu'on a analysé et que ça matche — pas par désespoir.
-6. Adapte l'archétype au contexte du rôle (cf. _profile.md section "Framing Adaptatif").
-7. Langue = celle de la question (FR si FR, EN si EN).
-8. Zéro corporate speak, zéro filler, zéro générique.
-9. N'invente aucune expérience ni métrique — si un gap existe, contourne intelligemment.
-10. Pour les questions niche ou domaine spécifique, l'honnêteté factuelle passe avant le framing.
+RÈGLES DE RÉDACTION COMMUNES :
+${STYLE_RULES}
+
+PRÉFÉRENCES DE VOIX DU CANDIDAT :
+${loadApplicationVoice(ROOT)}
 
 CLASSIFICATION DE LA QUESTION :
 - Motivation ("Pourquoi nous / ce rôle ?") → signal spécifique de l'offre + proof point qui y mappe directement
@@ -7390,13 +7840,16 @@ Contraintes :
         } else {
           parts.push(`---\nExécute le mode **${mode}**. Sois direct et actionnable.`);
         }
+        if (mode === 'pipeline' || mode === 'oferta') {
+          parts.push(SCORE_FORMAT_RULE);
+        }
 
         send('start', { mode });
 
         // ── Stream response ───────────────────────────────────────────────
         const promptLength = parts.join('\n\n').length;
         console.log(`[${mode}] sending prompt to Claude — ${promptLength} chars, systemPrompt=${systemPrompt?.length || 0} chars`);
-        const generationModel = MODELS.GPT4_1_MINI;
+        const generationModel = MODELS.SOL;
         const generationTemperature = mode === 'question' ? 0.1 : 0.3;
         const generationMaxTokens = mode === 'question'
           ? 2048
@@ -7404,7 +7857,7 @@ Contraintes :
             ? 4096
             : 8192;
         let fullResponse = '';
-        try {
+        const streamEvaluation = async () => {
           for await (const chunk of chatStream({
             model: generationModel,
             messages: [{ role: 'user', content: parts.join('\n\n') }],
@@ -7415,9 +7868,19 @@ Contraintes :
             fullResponse += chunk;
             send('chunk', { text: chunk });
           }
+        };
+        try {
+          await streamEvaluation();
         } catch (streamErr) {
           console.error(`[${mode}] chatStream error: ${streamErr.message}`, streamErr);
-          throw streamErr;
+          if (fullResponse.length > 200) throw streamErr;
+          send('status', { text: 'LLM stream failed, retrying once...' });
+          try {
+            await streamEvaluation();
+          } catch (retryErr) {
+            console.error(`[${mode}] chatStream retry error: ${retryErr.message}`, retryErr);
+            throw retryErr;
+          }
         }
         console.log(`[${mode}] stream complete — ${fullResponse.length} chars received`);
 
@@ -7445,13 +7908,21 @@ Contraintes :
           );
           const existingHistoryUrls = await getBlockingScanHistoryUrlSet().catch(() => new Set());
           const existingReportUrls = await getReportUrlSet().catch(() => new Set());
+          const companyRoleExclusions = await getCompanyRoleExclusions(req.userId).catch(() => new Map());
           const normalizedReportUrls = new Set([...existingReportUrls].map(url => normalizeUrlKey(url)).filter(Boolean));
-          const isKnown = (url) => {
+          const isKnown = (url, note = '') => {
             const key = normalizeUrlKey(url);
-            return existingPipelineUrls.has(key) || existingHistoryUrls.has(key) || normalizedReportUrls.has(key);
+            if (existingPipelineUrls.has(key) || existingHistoryUrls.has(key) || normalizedReportUrls.has(key)) return true;
+            const parts = extractPipelineNoteParts(note);
+            const candidate = candidateUrlIndex.get(url) || candidateUrlIndex.get(key);
+            return isCompanyRoleExcluded(
+              parts.company || candidate?.company || '',
+              parts.title || candidate?.title || '',
+              companyRoleExclusions
+            );
           };
-          const newEntries = validParsed.filter(({ url }) => !isKnown(url));
-          const duplicateEntries = validParsed.filter(({ url }) => isKnown(url));
+          const newEntries = validParsed.filter(({ url, note }) => !isKnown(url, note));
+          const duplicateEntries = validParsed.filter(({ url, note }) => isKnown(url, note));
 
           if (newEntries.length) {
             await addManyToPipeline(newEntries, req.userId);
@@ -7499,40 +7970,39 @@ Contraintes :
         // OFERTA/PIPELINE → save report + TSV tracker entry (WITH VALIDATION)
         if (['oferta', 'pipeline'].includes(mode) && fullResponse.length > 500) {
           console.log(`[${mode}] post-processing report — fullResponse=${fullResponse.length} chars`);
-          // Get next report number
-          const reportFiles = await readdir(join(ROOT, 'reports')).catch(() => []);
-          const maxNum = reportFiles
-            .map(f => parseInt(f.match(/^(\d+)/)?.[1] || '0'))
-            .reduce((a, b) => Math.max(a, b), 0);
-          const num = String(maxNum + 1).padStart(3, '0');
+          const reserveOpts = { rootDir: WRITE_ROOT };
+          let reserved = null;
+          let num;
+          try {
+            reserved = await reserveReportNumbers(1, reserveOpts);
+            num = formatReportNumber(reserved[0]);
+          } catch (err) {
+            console.warn(`[${mode}] reserve-report-num failed (${err.message}) — falling back to max+1`);
+            const reportFiles = await readdir(join(WRITE_ROOT, 'reports')).catch(() => []);
+            const maxNum = reportFiles
+              .map(f => parseInt(f.match(/^(\d+)/)?.[1] || '0'))
+              .reduce((a, b) => Math.max(a, b), 0);
+            num = String(maxNum + 1).padStart(3, '0');
+          }
           const today = new Date().toISOString().slice(0, 10);
 
           // Extract company/role/score from response with multiple fallback patterns
           const headerMatch  = fullResponse.match(/(?:#\s*)?Evaluation[:\s]+\*?\*?([^-—\|]+)\s*[-—\|]\s*([^\n\*]+)/i);
           const companyMatch = headerMatch || fullResponse.match(/\*\*Company[:\*]+\s*(.+?)[\*\n]/i) || fullResponse.match(/\*\*Empresa[:\*]+\s*(.+?)[\*\n]/i) || fullResponse.match(/entreprise[:\s]+\*?\*?([^\n\*]+)/i);
           const roleMatch    = (headerMatch ? { 1: headerMatch[2] } : null) || fullResponse.match(/\*\*Role[:\*]+\s*(.+?)[\*\n]/i) || fullResponse.match(/\*\*Rol[:\*]+\s*(.+?)[\*\n]/i) || fullResponse.match(/rôle[:\s]+\*?\*?([^\n\*]+)/i);
-          const scoreMatch   = fullResponse.match(/\*\*Score[:\*]+\s*([\d.]+(?:\/5)?)/i) || fullResponse.match(/Score[:\s]+\*?\*?([\d.]+(?:\/5)?)/i) || fullResponse.match(/\*\*Global\*\*[^|]*\|\s*\*\*([\d.]+\/5)\*\*/i) || fullResponse.match(/([\d.]+)\/5/);
-          
+
           const company  = (companyMatch?.[1] || 'unknown').trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 30);
           const role     = (roleMatch?.[1]    || 'role').trim().slice(0, 70);
-          let scoreRaw   = scoreMatch?.[1] || '—';
-          if (scoreRaw.includes('/') && !scoreRaw.endsWith('/5')) scoreRaw = scoreRaw.split('/')[0] + '/5';
-          if (!scoreRaw.includes('/') && scoreRaw !== '—') scoreRaw += '/5';
           const hardReject = Boolean(profileGate?.hardReject);
-          let numericScore = parseFloat(scoreRaw);
-          if (hardReject && (!Number.isFinite(numericScore) || numericScore > 2)) {
-            scoreRaw = '1.0/5';
-            numericScore = 1.0;
-          }
-          const trackerStatus = hardReject ? 'Discarded' : 'Evaluated';
+          const { scoreRaw } = resolveEvaluationScore(fullResponse, { hardReject });
+          const trackerStatus = hardReject ? (profileGate.skip ? 'SKIP' : 'Discarded') : 'Evaluated';
           const trackerNote = hardReject ? profileGate.reasons.join(' ') : '';
 
           const filename = `${num}-${company}-${today}.md`;
-
-          // Build the full report content
-          const reportUrlLine = mode === 'pipeline' && pipelineTarget?.url
-            ? `**URL:** ${pipelineTarget.url}\n`
-            : '';
+          const jobUrl = (mode === 'pipeline' && pipelineTarget?.url)
+            ? pipelineTarget.url
+            : (fullResponse.match(/\*\*URL:\*\*\s*(https?:\/\/\S+)/i) || [])[1] || '';
+          const reportUrlLine = jobUrl ? `**URL:** ${jobUrl}\n` : '';
           const reportContent = `# Evaluation — ${role}\n\n**Date:** ${today}\n${reportUrlLine}**Score:** ${scoreRaw}\n\n---\n\n${fullResponse}`;
 
           // ── VALIDATE before writing ──────────────────────────────────────
@@ -7542,7 +8012,13 @@ Contraintes :
           console.log(`[${mode}] parsed: company=${company}, role=${role.slice(0, 40)}, score=${scoreRaw}, status=${trackerStatus}`);
           if (validation.valid) {
             console.log(`[${mode}] writing report → reports/${filename}`);
+            await mkdir(join(WRITE_ROOT, 'reports'), { recursive: true });
             await writeFile(join(WRITE_ROOT, `reports/${filename}`), reportContent, 'utf-8');
+            if (reserved) {
+              await releaseReportNumbers(reserved, reserveOpts).catch(err => {
+                console.warn(`[${mode}] failed to release report reservation ${num}: ${err.message}`);
+              });
+            }
 
             // On Vercel, also sync report directly to Supabase (watcher can't run there)
             if (IS_VERCEL && useSupabase) {
@@ -7556,16 +8032,31 @@ Contraintes :
               await supabase.from('reports').upsert(row, { onConflict: 'filename' });
             }
 
-            // TSV entry
             const tsvDir = join(WRITE_ROOT, 'batch/tracker-additions');
+            await mkdir(tsvDir, { recursive: true });
+            const tsvLine = [
+              parseInt(num, 10),
+              today,
+              tsvSafe(companyMatch?.[1] || 'Unknown'),
+              tsvSafe(role),
+              tsvSafe(trackerStatus),
+              tsvSafe(scoreRaw),
+              '❌',
+              `[${parseInt(num, 10)}](reports/${filename})`,
+              tsvSafe(trackerNote),
+              jobUrl || '',
+            ].join('\t') + '\n';
             console.log(`[${mode}] writing TSV → batch/tracker-additions/${num}-${company}.tsv`);
-            await writeFile(join(tsvDir, `${num}-${company}.tsv`),
-              `${parseInt(num)}\t${today}\t${companyMatch?.[1]?.trim() || 'Unknown'}\t${role}\t${trackerStatus}\t${scoreRaw}\t❌\t[${parseInt(num)}](reports/${filename})\t${trackerNote}\n`
-            );
+            await writeFile(join(tsvDir, `${num}-${company}.tsv`), tsvLine);
             saves.push(`Report saved: ${filename}`);
+
+            let tracked = false;
             if (!IS_VERCEL) {
-              const mergeResult = await runScript('merge');
-              const summary = mergeResult.stdout.match(/📊 Summary: \+(\d+) added, 🔄(\d+) updated, ⏭️(\d+) skipped/);
+              const mergeResult = await runWithRetry(
+                () => runScript('merge'),
+                { attempts: 3, delayMs: 1500, label: `${mode}/merge-tracker` }
+              );
+              const summary = mergeResult.stdout?.match(/📊 Summary: \+(\d+) added, 🔄(\d+) updated, ⏭️(\d+) skipped/);
               const [, addedCount = '0', updatedCount = '0', skippedCount = '0'] = summary || [];
               if (!mergeResult.ok) {
                 console.error(`[${mode}] merge-tracker failed: ${mergeResult.stderr || mergeResult.stdout}`);
@@ -7573,22 +8064,22 @@ Contraintes :
               } else if (addedCount !== '0' || updatedCount !== '0') {
                 saves.push(`Tracker updated (+${addedCount} added, ${updatedCount} updated)`);
               } else if (skippedCount !== '0') {
-                saves.push(`⚠️ Tracker NOT updated — merge-tracker detected this as a duplicate of an existing entry and skipped it (existing score was equal or higher)`);
+                saves.push(`⚠️ Tracker NOT updated — merge-tracker skipped this entry (duplicate or malformed TSV)`);
               } else {
                 saves.push(`Tracker updated`);
               }
 
-              // Always push applications.md → Supabase with the request user id.
-              // merge-tracker also syncs, but often under the wrong/missing user_id,
-              // which made new evaluations invisible in the dashboard list.
-              const syncResult = await syncLocalApplicationsToSupabase(req.userId);
+              const syncResult = await runWithRetry(
+                () => syncLocalApplicationsToSupabase(req.userId),
+                { attempts: 3, delayMs: 1200, label: `${mode}/sync-apps` }
+              );
               if (!syncResult.ok && !syncResult.skipped) {
                 saves.push(`⚠️ Applications list sync failed: ${syncResult.error}`);
               } else if (syncResult.count) {
                 saves.push(`Applications list synced (${syncResult.count})`);
               }
+              tracked = await trackerHasEvaluation({ num, filename, url: jobUrl, userId: req.userId });
             } else {
-              // Vercel: write the row directly to Supabase
               const adminId = await getAdminUserId().catch(() => null);
               const uid = req.userId || adminId;
               const row = {
@@ -7603,18 +8094,31 @@ Contraintes :
                 notes: trackerNote,
               };
               if (uid) row.user_id = uid;
-              const { error: appErr } = await supabase.from('applications').upsert(row, { onConflict: 'num' });
-              if (appErr) saves.push(`⚠️ Tracker sync failed: ${appErr.message}`);
+              const upsert = await runWithRetry(async () => {
+                const { error: appErr } = await supabase.from('applications').upsert(row, { onConflict: 'num' });
+                return appErr ? { ok: false, error: appErr.message } : { ok: true };
+              }, { attempts: 3, delayMs: 1200, label: `${mode}/supabase-apps` });
+              if (!upsert.ok) saves.push(`⚠️ Tracker sync failed: ${upsert.error}`);
               else saves.push(`Tracker updated`);
+              tracked = Boolean(upsert.ok);
             }
 
             if (mode === 'pipeline' && pipelineTarget) {
-              await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'evaluated', historyPortal: 'pipeline' });
-              saves.push(`Removed URL from pipeline queue`);
+              if (tracked) {
+                await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'evaluated', historyPortal: 'pipeline' });
+                saves.push(`Removed URL from pipeline queue`);
+              } else {
+                const message = `Evaluation saved as ${filename}, but it is not in the applications list yet — URL kept in pipeline so you can retry`;
+                console.error(`[${mode}] ${message}`);
+                saves.push(`⚠️ ${message}`);
+                send('warning', { text: message });
+              }
             }
 
           } else {
-            // Report failed validation — DO NOT write corrupted file
+            if (reserved) {
+              await releaseReportNumbers(reserved, reserveOpts).catch(() => {});
+            }
             console.error(`❌ Report validation failed for ${filename}: ${validation.reason}`);
             saves.push(`⚠️ Report NOT saved — ${validation.reason}`);
             send('warning', { text: `Report not saved: ${validation.reason}. Evaluation must be restarted.` });
@@ -7834,7 +8338,11 @@ Contraintes :
         for await (const chunk of chatStream({
           model: MODELS.CLAUDE_HAIKU,
           messages,
-          systemPrompt: hrhvPrompt,
+          systemPrompt: `${hrhvPrompt}
+
+For prose style only (keep the portfolio assistant role and factual boundaries above):
+${STYLE_RULES}
+${loadApplicationVoice(ROOT)}`,
           temperature: 0.6,
           max_tokens: 512,
         })) {
