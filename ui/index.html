@@ -3266,7 +3266,7 @@ function normalizeApplications(apps = []) {
     PDF:      a.PDF      ?? a.pdf     ?? '',
     Report:   a.Report   ?? a.report  ?? '',
     Notes:    a.Notes    ?? a.notes   ?? '',
-    JobURL:   a.JobURL   ?? a.job_url ?? a.jobUrl ?? '',
+    JobURL:   a.JobURL   ?? a.job_url ?? a.jobUrl ?? a.URL ?? a.url ?? '',
   }));
 }
 

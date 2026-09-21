@@ -63,3 +63,12 @@ test('dial code +33 matches FR +33 in a country list', () => {
   const picked = pickMatchingOption(['US +1', 'FR +33', 'TH +66', 'DE +49'], '+33');
   assert.equal(picked?.text, 'FR +33');
 });
+
+test('month aliases: February ↔ Feb ↔ 2 ↔ 02', () => {
+  assert.equal(pickMatchingOption(['January', 'February', 'March'], '2')?.text, 'February');
+  assert.equal(pickMatchingOption(['January', 'February', 'March'], 'February')?.text, 'February');
+  assert.equal(pickMatchingOption(['01', '02', '03'], 'February')?.text, '02');
+  assert.equal(pickMatchingOption(['1', '2', '3'], 'February')?.text, '2');
+  assert.equal(pickMatchingOption(['2024', '2025', '2026'], '2026')?.text, '2026');
+  assert.equal(pickMatchingOption(['2024', '2025', '2026'], '2025')?.text, '2025');
+});

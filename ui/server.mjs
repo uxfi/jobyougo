@@ -10,6 +10,20 @@ import { spawn } from 'child_process';
 import { load as yamlLoad, dump as yamlDump } from 'js-yaml';
 import { supabase, isEnabled as useSupabase } from '../lib/supabase.mjs';
 import { chat, chatStream, MODELS } from '../lib/openrouter.mjs';
+import {
+  extractScanEntriesFromResponse,
+  isScanSelectionComplete,
+  scanResponseDeclaresNone,
+  buildScanLlmPrefetch,
+} from '../lib/scan-parse.mjs';
+import {
+  JEV_KEEP_THRESHOLD,
+  JEV_MODEL,
+  JEV_SCAN_LIMIT,
+  buildJevScanResponse,
+  decideOfferWorthEvaluating,
+  filterScanCandidatesWithJev,
+} from '../lib/jev.mjs';
 import { aggregateUsageEvents, readAiUsageEvents } from '../lib/ai-usage-log.mjs';
 import { loadCvTemplateData } from '../lib/cv-template-data.mjs';
 import { buildApplySpec, detectRegion } from '../lib/apply-spec.mjs';
@@ -24,9 +38,10 @@ import {
   pinchtabSolve as pinchtabSolveRaw,
   pinchtabSolveSucceeded,
 } from '../lib/pinchtab.mjs';
-import { STYLE_RULES, polishApplicationAnswer, loadApplicationVoice } from '../lib/application-writing.mjs';
+import { STYLE_RULES, polishApplicationAnswer, loadApplicationVoice, extractQuestionReportContext } from '../lib/application-writing.mjs';
 import { resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
+import { normalizeUrl } from '../url-key.mjs';
 import { withPipelineLock } from '../pipeline-lock.mjs';
 import { formatReportNumber, releaseReportNumbers, reserveReportNumbers } from '../reserve-report-num.mjs';
 import { getScanAggregators, fetchJobBoard, jobBoardProviders } from '../lib/scan-job-boards.mjs';
@@ -583,12 +598,25 @@ function normalizeDateValue(value = '') {
 function normalizeUrlKey(rawUrl = '') {
   const trimmed = String(rawUrl || '').trim();
   if (!trimmed) return '';
+  // Same key as merge-tracker Pass 0: keep functional query params (gh_jid,
+  // job id, …) and only strip tracking. Dropping the whole search string used
+  // to collapse two distinct postings that share a path into one scan/pipeline
+  // key. Non-http placeholders (scan-history `unknown:company:role`) stay as
+  // the raw string so they do not all hash to ''.
+  return normalizeUrl(trimmed) || trimmed;
+}
+
+function applicationIdentityNum(app) {
+  const n = parseInt(app?.num ?? app?.['#'] ?? '', 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+async function readMarkdownApplications() {
   try {
-    const parsed = new URL(trimmed);
-    const pathname = parsed.pathname.replace(/\/+$/, '');
-    return `${parsed.origin}${pathname}`;
+    const raw = await readFile(join(ROOT, 'data/applications.md'), 'utf-8');
+    return parseMarkdownTable(raw);
   } catch {
-    return trimmed;
+    return [];
   }
 }
 
@@ -814,7 +842,7 @@ async function findHistoricJobUrl(company = '', role = '') {
 
 async function enrichApplicationsWithJobUrl(apps, userId) {
   return Promise.all((apps || []).map(async (app) => {
-    const existingUrl = app.JobURL ?? app.job_url ?? app.jobUrl ?? '';
+    const existingUrl = app.JobURL ?? app.job_url ?? app.jobUrl ?? app.URL ?? app.url ?? '';
     if (existingUrl) return app;
 
     const reportCell = app.Report ?? app.report ?? '';
@@ -842,28 +870,51 @@ async function enrichApplicationsWithJobUrl(apps, userId) {
 // ─── Data Accessors ───────────────────────────────────────────────────────────
 
 async function getApplications(userId) {
+  const markdownApps = await readMarkdownApplications();
   if (useSupabase) {
-    let q = supabase.from('applications').select('*').order('num', { ascending: true });
-    if (userId) q = q.eq('user_id', userId);
-    const { data, error } = await q;
-    if (error) throw error;
-    return enrichApplicationsWithJobUrl(data, userId);
+    try {
+      let q = supabase.from('applications').select('*').order('num', { ascending: true });
+      if (userId) q = q.eq('user_id', userId);
+      const { data, error } = await q;
+      if (error) throw error;
+      const remote = data || [];
+      // Local source of truth is applications.md. A failed/stale Supabase sync
+      // used to hide freshly merged Evaluated rows from GET /api/applications
+      // (and from trackerHasEvaluation), even though merge-tracker had written
+      // them. On Vercel there is no durable markdown, so keep the remote list.
+      if (!IS_VERCEL && markdownApps.length) {
+        const remoteNums = new Set(remote.map(applicationIdentityNum).filter(Boolean));
+        const missing = markdownApps.filter(app => {
+          const n = applicationIdentityNum(app);
+          return n && !remoteNums.has(n);
+        });
+        if (missing.length) {
+          console.warn(`[applications] ${missing.length} markdown row(s) missing from Supabase — including them in GET`);
+        }
+        return enrichApplicationsWithJobUrl([...remote, ...missing], userId);
+      }
+      return enrichApplicationsWithJobUrl(remote, userId);
+    } catch (err) {
+      if (!IS_VERCEL) {
+        console.warn(`[applications] Supabase read failed (${err.message}) — falling back to applications.md`);
+        return enrichApplicationsWithJobUrl(markdownApps, userId);
+      }
+      throw err;
+    }
   }
-  try {
-    const raw = await readFile(join(ROOT, 'data/applications.md'), 'utf-8');
-    return enrichApplicationsWithJobUrl(parseMarkdownTable(raw));
-  } catch { return []; }
+  return enrichApplicationsWithJobUrl(markdownApps, userId);
 }
 
 async function trackerHasEvaluation({ num, filename, url, userId } = {}) {
   const apps = await getApplications(userId).catch(() => []);
-  const n = String(parseInt(num, 10));
+  const n = parseInt(num, 10);
   const urlKey = normalizeUrlKey(url || '');
   return (apps || []).some(app => {
-    if (n && String(app.num ?? app['#'] ?? '') === n) return true;
+    const appNum = applicationIdentityNum(app);
+    if (Number.isFinite(n) && n > 0 && appNum === n) return true;
     const report = String(app.Report ?? app.report ?? '');
     if (filename && report.includes(filename)) return true;
-    const jobUrl = String(app.JobURL ?? app.job_url ?? app.URL ?? app.url ?? '');
+    const jobUrl = String(app.JobURL ?? app.job_url ?? app.jobUrl ?? app.URL ?? app.url ?? '');
     return Boolean(urlKey && normalizeUrlKey(jobUrl) === urlKey);
   });
 }
@@ -997,9 +1048,9 @@ async function addToPipeline(url, note, userId) {
 const PORTALS_FILE = join(ROOT, 'portals.yml');
 const DIRECT_JOB_POSITIVE_PATTERNS = [
   /\b(ai|artificial intelligence|genai|generative ai|llm|agentic|agent\s+builder|automation)\b/i,
-  /\b(product\s+(manager|designer|lead|director|owner|strategist)|head\s+of\s+product|vp\s+product)\b/i,
+  /\b(product\s+(manager|designer|lead|director|owner|strategist|growth|engineer)|head\s+of\s+product|vp\s+product|product\s+\w+\s+manager)\b/i,
   /\b(ux|ui|ux\/ui|ui\/ux)\s+(designer|lead|director|researcher)\b/i,
-  /\b(product\s+design|design\s+lead|head\s+of\s+design|design\s+director)\b/i,
+  /\b(product\s+design|design\s+(lead|engineer|director)|head\s+of\s+design)\b/i,
   /\b(solutions?\s+(architect|engineer|consultant)|forward\s+deployed|deployed\s+engineer|field\s+(cto|engineer))\b/i,
   /\b(no-?code|low-?code|transformation|consultant|fractional|freelance|contract)\b/i,
 ];
@@ -1008,7 +1059,6 @@ const DIRECT_JOB_NEGATIVE_PATTERNS = [
   /\b(program|project|delivery|partner|channel|vendor|incident|release|site reliability)\s+manager\b/i,
   /\b(junior|intern|internship|working student|graduate)\b/i,
   /\b(android|ios|php|ruby|embedded|firmware|fpga|asic|mainframe|cobol)\b/i,
-  /\b(blockchain|web3|crypto)\b/i,
   /\b(data scientist|ml engineer|mlops|research scientist)\b/i,
 ];
 const DIRECT_JOB_FILTER_REGEX = {
@@ -1192,6 +1242,11 @@ function inferApiProviderFromUrl(url = '') {
 }
 
 function getCompanyScanAccess(company = {}) {
+  const explicitProvider = typeof company.provider === 'string' ? company.provider.trim() : '';
+  if (explicitProvider && jobBoardProviders.has(explicitProvider)) {
+    return { mode: 'provider', provider: explicitProvider };
+  }
+
   if (company.api) {
     return {
       mode: 'api',
@@ -1923,20 +1978,38 @@ async function verifyJobLinks(candidates = [], { concurrency = 10, timeoutMs = 6
     const url = candidate.url;
     if (!url || !url.startsWith('http')) { alive.push(candidate); return; }
 
-    try {
+    const requestHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    };
+
+    const probe = async (method) => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetch(url, {
-        method: 'HEAD',
-        redirect: 'follow',
-        signal: controller.signal,
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)' },
-      }).finally(() => clearTimeout(timer));
+      try {
+        const res = await fetch(url, {
+          method,
+          redirect: 'follow',
+          signal: controller.signal,
+          headers: requestHeaders,
+        });
+        if (res.body) {
+          try { await res.body.cancel(); } catch { /* ignore */ }
+        }
+        return { status: res.status, finalUrl: res.url };
+      } finally {
+        clearTimeout(timer);
+      }
+    };
 
-      const status = res.status;
-      const finalUrl = res.url;
+    try {
+      let { status, finalUrl } = await probe('HEAD');
+      // Greenhouse (and some CDNs) 403/405 HEAD under bot/rate-limit while the
+      // posting is live. Retry GET before treating the URL as expired.
+      if (status === 403 || status === 405) {
+        ({ status, finalUrl } = await probe('GET'));
+      }
 
-      if (status === 404 || status === 410 || status === 403 && url.includes('greenhouse')) {
+      if (status === 404 || status === 410) {
         dead.push({ ...candidate, deadReason: `HTTP ${status}` });
       } else if (isDeadRedirect(finalUrl, url)) {
         dead.push({ ...candidate, deadReason: `redirect → ${finalUrl}` });
@@ -2952,6 +3025,12 @@ async function fetchSourceSection(source = {}) {
       return fetchWebSearchSection(fallbackSource);
     }
     if (fallbackSource.careers_url) {
+      const failedKind = inferApiProviderFromUrl(url);
+      const careersKind = inferApiProviderFromUrl(fallbackSource.careers_url);
+      if (failedKind && careersKind && failedKind === careersKind) {
+        console.warn(`[scan] [${logType.toUpperCase()}] Skipping careers_url crawl for "${name}" — ${failedKind} API already failed (${reason})`);
+        return { ok: false, section: null, jobs: [], engine: `${logType}-api`, error: reason };
+      }
       console.warn(`[scan] [${logType.toUpperCase()}] Falling back to careers_url pinchtab for "${name}" (${reason})`);
       return fetchCareersUrlFallback(fallbackSource);
     }
@@ -5005,7 +5084,7 @@ function setApplicationStatusInMarkdown(raw, num, status) {
   const newLines = String(raw || '').split('\n').map(line => {
     if (!line.trim().startsWith('|')) return line;
     const rowNum = getMarkdownTableRowNumber(line);
-    if (!rowNum || rowNum === '#' || rowNum !== String(num)) return line;
+    if (!rowNum || rowNum === '#' || parseInt(rowNum, 10) !== parseInt(num, 10)) return line;
     const cells = line.split('|');
     if (cells.length < 7) return line;
     cells[6] = ` ${status} `;
@@ -5020,7 +5099,8 @@ function setApplicationStatusesInMarkdown(raw, nums, status) {
   const newLines = String(raw || '').split('\n').map(line => {
     if (!line.trim().startsWith('|')) return line;
     const rowNum = getMarkdownTableRowNumber(line);
-    if (!rowNum || rowNum === '#' || !nums.has(String(rowNum))) return line;
+    const n = parseInt(rowNum, 10);
+    if (!rowNum || rowNum === '#' || !Number.isFinite(n) || (!nums.has(String(n)) && !nums.has(String(rowNum)))) return line;
     const cells = line.split('|');
     if (cells.length < 7) return line;
     cells[6] = ` ${status} `;
@@ -5053,49 +5133,6 @@ async function recordManualApplicationDelete({ company, role, jobUrl, date }) {
   }
 }
 
-function extractScanEntriesFromResponse(fullResponse = '', scanUrlPublishedAt = new Map()) {
-  const sectionMatch = fullResponse.match(
-    /(?:##\s*)?URLs_À_AJOUTER[^\n]*\n(?:```+[^\n]*\n)?([\s\S]*?)(?:```+\n)?(?:\n##|\n---\s*$|$)/i
-  );
-  const rawLines = sectionMatch
-    ? sectionMatch[1].trim().split('\n')
-    : fullResponse.split('\n').filter(line => /https?:\/\//i.test(line));
-
-  const seen = new Set();
-  const results = [];
-
-  rawLines.forEach(rawLine => {
-    const line = String(rawLine || '').replace(/^[-*]\s*/, '').trim();
-    if (!line) return;
-
-    const markdownUrl = line.match(/\((https?:\/\/[^)\s]+)\)/i)?.[1] || '';
-    const bareUrl = line.match(/https?:\/\/[^\s|)]+/i)?.[0] || '';
-    const url = markdownUrl || bareUrl;
-    if (!url || seen.has(url)) return;
-    seen.add(url);
-
-    const normalizedLine = line
-      .replace(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/gi, '$1')
-      .replace(/\s+[—–]\s+/g, ' | ');
-    const pieces = normalizedLine.split('|').map(part => part.trim()).filter(Boolean);
-    const rest = pieces.filter(part => part !== url);
-    let note = rest.join(' | ');
-
-    const lastPart = rest[rest.length - 1] || '';
-    const hasDateAlready = looksLikeDate(lastPart);
-    if (!hasDateAlready && scanUrlPublishedAt?.size) {
-      const key = normalizeUrlKey(url);
-      const publishedAt = scanUrlPublishedAt.get(url) || scanUrlPublishedAt.get(key) || '';
-      if (publishedAt) {
-        note = note ? `${note} | ${publishedAt}` : publishedAt;
-      }
-    }
-
-    results.push({ url, note });
-  });
-
-  return results;
-}
 
 // ─── Search Queries (search_queries + eu_job_boards) ─────────────────────────
 
@@ -5553,7 +5590,10 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
     '',
     '### Enforcement',
     '- Hard rules: full remote, no US/Canada/Americas-only residency, no US work authorization (I-9, E-Verify, authorized to work in the US) unless authorized_in includes the United States.',
-    '- If the profile says full remote only and the JD is hybrid or on-site (outside Thailand), hard pass directly.',
+    '- Hard fail (Score 1.0/5 + SKIP) ONLY with verbatim JD/location evidence of: hybrid/onsite attendance outside Thailand, US/Canada/Americas residency lock, or US work-auth requirements.',
+    '- Do NOT hard-fail on: bare "Remote" with no country lock, HQ/office perks without mandatory days, assumed travel/OEM/tradeshows, domain skill gaps, or city names in the title when the posting is still remote.',
+    '- Domain gaps lower Block B / overall average — they are never a remote hard fail.',
+    '- If the profile says full remote only and the JD explicitly says hybrid or on-site (outside Thailand), hard pass directly.',
     '- US-only remote, must live/reside in the US, or US work-auth → Score 1.0/5 and SKIP. Do not leave as Unstated.',
     '- AI experience / AI scope on the JD is a preference, not a hard reject. 4 years of bootstrapped AI products meets typical 2–5 year AI asks. Do not score 1.0 because a design role lacks an AI mandate.',
     '- If a profile criterion is not visible in the JD, do not invent it; mark it as unknown.',
@@ -5819,6 +5859,9 @@ function parseApplicationsMarkdown(content = '') {
       pdf:     row['PDF']     || row['pdf'] || '',
       report:  row['Report']  || row['report'] || '',
       notes:   row['Notes']   || row['notes'] || '',
+      // Optional tracker URL column — omit from the upsert payload when empty
+      // so a Supabase schema without job_url/url does not reject the sync.
+      job_url: row['URL'] || row['url'] || row['JobURL'] || row['job_url'] || '',
     }))
     .filter(r => !isNaN(r.num));
 }
@@ -5841,8 +5884,14 @@ async function syncLocalApplicationsToSupabase(userId) {
 
   const uid = userId || await getAdminUserId().catch(() => null);
   if (uid) rows.forEach(r => { r.user_id = uid; });
+  rows.forEach(r => { if (!r.job_url) delete r.job_url; });
 
-  const { error } = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
+  let { error } = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
+  if (error && /job_url|schema cache|column/i.test(error.message || '')) {
+    rows.forEach(r => { delete r.job_url; });
+    const retry = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
+    error = retry.error;
+  }
   if (error) {
     console.error('[sync-apps] Supabase upsert failed:', error.message);
     return { ok: false, error: error.message, count: 0 };
@@ -6325,9 +6374,9 @@ function readBody(req) {
 const AI_USAGE_CACHE_TTL_MS = 10 * 60 * 1000;
 let aiUsageCache = null;
 
-function getTodayRange() {
+function getUsageRange() {
   const end = new Date();
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+  const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   return {
     start,
@@ -6336,7 +6385,7 @@ function getTodayRange() {
     endUnix: Math.floor(end.getTime() / 1000),
     startIso: start.toISOString(),
     endIso: end.toISOString(),
-    window: '24h',
+    window: '30d',
   };
 }
 
@@ -6392,7 +6441,7 @@ async function getOpenAiCosts(range) {
     start_time: String(range.startUnix),
     end_time: String(range.endUnix),
     bucket_width: '1d',
-    limit: '1',
+    limit: '31',
   });
 
   const data = await fetchJsonWithTimeout(`https://api.openai.com/v1/organization/costs?${params}`, {
@@ -6410,7 +6459,7 @@ async function getOpenAiUsage(range) {
     start_time: String(range.startUnix),
     end_time: String(range.endUnix),
     bucket_width: '1d',
-    limit: '1',
+    limit: '31',
   });
   params.append('group_by[]', 'model');
 
@@ -6484,7 +6533,7 @@ async function getOpenRouterUsage(range, localEvents = []) {
       const managed = await getOpenRouterManagedUsage(managementKey);
       provider.account_scope = 'all_keys';
       provider.key_count = managed.key_count;
-      provider.cost_usd = managed.usage_daily;
+      provider.cost_usd = managed.usage_monthly;
       provider.usage_daily_usd = managed.usage_daily;
       provider.usage_weekly_usd = managed.usage_weekly;
       provider.usage_monthly_usd = managed.usage_monthly;
@@ -6495,10 +6544,10 @@ async function getOpenRouterUsage(range, localEvents = []) {
       provider.account_scope = 'current_key';
       provider.credit_remaining = data?.data?.limit_remaining ?? null;
       provider.credit_limit = data?.data?.limit ?? null;
-      provider.cost_usd = addNumber(data?.data?.usage_daily) + addNumber(data?.data?.byok_usage_daily);
-      provider.usage_daily_usd = provider.cost_usd;
+      provider.cost_usd = addNumber(data?.data?.usage_monthly) + addNumber(data?.data?.byok_usage_monthly);
+      provider.usage_daily_usd = addNumber(data?.data?.usage_daily) + addNumber(data?.data?.byok_usage_daily);
       provider.usage_weekly_usd = addNumber(data?.data?.usage_weekly) + addNumber(data?.data?.byok_usage_weekly);
-      provider.usage_monthly_usd = addNumber(data?.data?.usage_monthly) + addNumber(data?.data?.byok_usage_monthly);
+      provider.usage_monthly_usd = provider.cost_usd;
     }
     if (!localUsage.total_tokens && provider.cost_usd > 0) {
       provider.total_tokens = estimateTokensFromUsd(provider.cost_usd);
@@ -6520,7 +6569,7 @@ async function getAiUsageToday({ force = false } = {}) {
   const now = Date.now();
   if (!force && aiUsageCache && now - aiUsageCache.cachedAt < AI_USAGE_CACHE_TTL_MS) return aiUsageCache.data;
 
-  const range = getTodayRange();
+  const range = getUsageRange();
   const localEvents = await readAiUsageEvents({ start: range.startIso, end: range.endIso });
   const providers = await Promise.all([
     getOpenAiUsage(range),
@@ -6751,10 +6800,9 @@ const server = createServer(async (req, res) => {
         }, 400);
       }
       if (useSupabase) {
-        const { error } = await supabase
-          .from('applications')
-          .update({ status })
-          .eq('num', Number(num));
+        let q = supabase.from('applications').update({ status }).eq('num', Number(num));
+        if (req.userId) q = q.eq('user_id', req.userId);
+        const { error } = await q;
         if (error) return json(res, { error: error.message }, 500);
 
         await writeMarkdownApplicationStatus(num, status).catch(() => {});
@@ -6771,11 +6819,9 @@ const server = createServer(async (req, res) => {
 
       // Soft-delete: keep the tracker row as Discarded and exclude it from future scans.
       if (useSupabase) {
-        const { data: existing, error: fetchError } = await supabase
-          .from('applications')
-          .select('*')
-          .eq('num', Number(num))
-          .maybeSingle();
+        let existingQ = supabase.from('applications').select('*').eq('num', Number(num));
+        if (req.userId) existingQ = existingQ.eq('user_id', req.userId);
+        const { data: existing, error: fetchError } = await existingQ.maybeSingle();
         if (fetchError) return json(res, { error: fetchError.message }, 500);
         if (!existing) return json(res, { error: 'Application not found' }, 404);
         const blockReason = deleteApplicationBlockReason(existing.status);
@@ -6785,10 +6831,9 @@ const server = createServer(async (req, res) => {
         const role = String(existing.role ?? existing.Role ?? '').trim();
         const jobUrl = await findPostingUrlFromReportLink(existing.report ?? '');
 
-        const { error } = await supabase
-          .from('applications')
-          .update({ status: 'Discarded' })
-          .eq('num', Number(num));
+        let updateQ = supabase.from('applications').update({ status: 'Discarded' }).eq('num', Number(num));
+        if (req.userId) updateQ = updateQ.eq('user_id', req.userId);
+        const { error } = await updateQ;
         if (error) return json(res, { error: error.message }, 500);
 
         await writeMarkdownApplicationStatus(num, 'Discarded').catch(() => {});
@@ -6798,7 +6843,10 @@ const server = createServer(async (req, res) => {
 
       const appFile = join(ROOT, 'data/applications.md');
       const raw = await readFile(appFile, 'utf-8');
-      const targetLine = raw.split('\n').find(line => getMarkdownTableRowNumber(line) === String(num));
+      const targetLine = raw.split('\n').find(line => {
+        const rowNum = getMarkdownTableRowNumber(line);
+        return rowNum && parseInt(rowNum, 10) === Number(num);
+      });
       if (!targetLine) return json(res, { error: 'Application not found' }, 404);
       const cells = targetLine.split('|').map(c => c.trim());
       const company = cells[3] || '';
@@ -7273,6 +7321,10 @@ const server = createServer(async (req, res) => {
         let prefetchData = '';
         let scanUrlPublishedAt = new Map();
         let scanCandidates = [];
+        let scanPreDedupSkipped = 0;
+        let scanDeadCount = 0;
+        let scanAgeDropped = 0;
+        let scanSourceSectionCount = 0;
         let pipelineTarget = null;
         let applyTarget = null;
         let coverLetterTarget = null;
@@ -7292,6 +7344,7 @@ const server = createServer(async (req, res) => {
 
           // ── Direct fetch sources (Greenhouse/Ashby/Lever APIs + RSS) ──────
           const directSources = [];
+          const providerCompanies = [];
           const webSearchSources = [];
           const playwrightCos = [];
           const selectedCompanies = (portalsConfig.tracked_companies || [])
@@ -7299,6 +7352,10 @@ const server = createServer(async (req, res) => {
 
           selectedCompanies.forEach(company => {
             const access = getCompanyScanAccess(company);
+            if (access.mode === 'provider') {
+              providerCompanies.push(company);
+              return;
+            }
             if (access.mode === 'api' && access.apiUrl) {
               directSources.push({
                 name: company.name,
@@ -7335,12 +7392,18 @@ const server = createServer(async (req, res) => {
           const runnableAggregators = selectedAggregators.filter(isAggregatorConfigured);
           const scannedSourceNames = [
             ...directSources.map(source => source.name),
+            ...providerCompanies.map(company => company.name),
             ...webSearchSources.map(source => source.name),
             ...playwrightCos.map(company => company.name),
             ...runnableAggregators.map(aggregator => aggregator.name),
           ];
 
-          const directResults = await Promise.allSettled(directSources.map(source => fetchSourceSection(source)));
+          const [directResults, providerResults] = await Promise.all([
+            Promise.allSettled(directSources.map(source => fetchSourceSection(source))),
+            Promise.allSettled(providerCompanies.map(company =>
+              fetchAggregatorSection({ ...company, sourceKind: 'job_board' }, portalsConfig)
+            )),
+          ]);
           const serpApiConfigured = Boolean(SERPAPI_KEY || process.env.SEARCHAPI_KEY);
           // Pre-flight: validate API key once before dispatching all parallel web searches
           if (serpApiConfigured) await probeSearchApi();
@@ -7357,6 +7420,9 @@ const server = createServer(async (req, res) => {
           directResults
             .filter(r => r.status === 'fulfilled' && r.value?.jobs?.length)
             .forEach(r => mergePublishedDates(scanUrlPublishedAt, r.value.jobs));
+          providerResults
+            .filter(r => r.status === 'fulfilled' && r.value?.jobs?.length)
+            .forEach(r => mergePublishedDates(scanUrlPublishedAt, r.value.jobs));
           webSearchResults
             .filter(r => r.status === 'fulfilled' && r.value?.jobs?.length)
             .forEach(r => mergePublishedDates(scanUrlPublishedAt, r.value.jobs));
@@ -7371,6 +7437,14 @@ const server = createServer(async (req, res) => {
             ...directResults.flatMap((result, index) =>
               result.status === 'fulfilled' && result.value?.jobs?.length
                 ? buildScanCandidateRecords(directSources[index]?.name, result.value.jobs, {
+                    engine: result.value.engine || '',
+                  })
+                : []
+            ),
+            ...providerResults.flatMap((result, index) =>
+              result.status === 'fulfilled' && result.value?.jobs?.length
+                ? buildScanCandidateRecords(providerCompanies[index]?.name, result.value.jobs, {
+                    includeCompany: true,
                     engine: result.value.engine || '',
                   })
                 : []
@@ -7409,6 +7483,7 @@ const server = createServer(async (req, res) => {
           // Verify that job URLs are still alive (filter out 404s, expired postings)
           const today = new Date().toISOString().slice(0, 10);
           const { alive: verifiedCandidates, dead: deadCandidates } = await verifyJobLinks(countryFilteredCandidates.kept);
+          scanDeadCount = deadCandidates.length;
           if (deadCandidates.length) {
             const deadEntries = deadCandidates.map(c =>
               `${c.url}\t${today}\tscan-link-check\t${c.title || ''}\t${c.company || ''}\texpired`
@@ -7443,6 +7518,7 @@ const server = createServer(async (req, res) => {
               console.log(`[scan] [pre-dedup] ${skippedCount} already-known URL(s)/company+role removed before manifest (pipeline/history/reports/apps/deleted)`);
             }
             scanCandidates = freshCandidates;
+            scanPreDedupSkipped = skippedCount;
           }
 
           // Look up missing publishedAt (API for Greenhouse/Lever/Ashby URLs,
@@ -7451,34 +7527,49 @@ const server = createServer(async (req, res) => {
             ? portalsConfig.scan_max_age_days
             : DEFAULT_SCAN_MAX_AGE_DAYS;
           await enrichCandidatesWithPublishedDates(scanCandidates);
+          const beforeAgeFilter = scanCandidates.length;
           scanCandidates = applyAgeFilter(scanCandidates, { maxAgeDays });
+          scanAgeDropped = beforeAgeFilter - scanCandidates.length;
 
-          const sections = [
-            ...directResults.filter(r => r.status === 'fulfilled' && r.value?.section).map(r => r.value.section),
-            ...webSearchResults.filter(r => r.status === 'fulfilled' && r.value?.section).map(r => r.value.section),
-            ...playwrightResults.filter(r => r.ok && r.section).map(r => r.section),
-            ...aggregatorResults.filter(r => r.status === 'fulfilled' && r.value?.section).map(r => r.value.section),
-            buildScanCandidateManifest(scanCandidates),
-          ];
-          prefetchData = sections.join('\n\n');
+          scanSourceSectionCount = [
+            ...directResults.filter(r => r.status === 'fulfilled' && r.value?.section),
+            ...providerResults.filter(r => r.status === 'fulfilled' && r.value?.section),
+            ...webSearchResults.filter(r => r.status === 'fulfilled' && r.value?.section),
+            ...playwrightResults.filter(r => r.ok && r.section),
+            ...aggregatorResults.filter(r => r.status === 'fulfilled' && r.value?.section),
+          ].length;
 
-          const fetchedDirectCount = directResults.filter(r => r.status === 'fulfilled' && r.value?.ok).length;
+          const fetchedDirectCount = [
+            ...directResults.filter(r => r.status === 'fulfilled' && r.value?.ok),
+            ...providerResults.filter(r => r.status === 'fulfilled' && r.value?.ok),
+          ].length;
           const fetchedWebCount = webSearchResults.filter(r => r.status === 'fulfilled' && r.value?.ok).length;
           const fetchedPlaywrightCount = playwrightResults.filter(r => r.ok).length;
           const fetchedAggregatorCount = aggregatorResults.filter(r => r.status === 'fulfilled' && r.value?.ok).length;
-          const failedDirect = directResults.filter(r => r.status === 'rejected' || !r.value?.ok);
+          const failedDirect = [
+            ...directResults.filter(r => r.status === 'rejected' || !r.value?.ok),
+            ...providerResults.filter(r => r.status === 'rejected' || !r.value?.ok),
+          ];
           const failedWeb = webSearchResults.filter(r => r.status === 'rejected' || !r.value?.ok);
           const failedPlaywright = playwrightResults.filter(r => !r.ok);
           const failedAggregators = aggregatorResults.filter(r => r.status === 'rejected' || !r.value?.ok);
 
           // Console recap
           console.log(`[scan] ── Fetch recap ──────────────────────────────`);
-          console.log(`[scan] API/RSS: ${fetchedDirectCount}/${directSources.length} OK${failedDirect.length ? ` | ${failedDirect.length} failed` : ''}`);
+          const directTotal = directSources.length + providerCompanies.length;
+          console.log(`[scan] API/RSS: ${fetchedDirectCount}/${directTotal} OK${failedDirect.length ? ` | ${failedDirect.length} failed` : ''}`);
           directResults.forEach((r, i) => {
             const src = directSources[i];
             if (r.status === 'rejected') console.error(`[scan]   ✗ ${src?.name}: ${r.reason?.message || r.reason}`);
             else if (!r.value?.ok) console.warn(`[scan]   ✗ ${src?.name}: returned ok=false`);
             else console.log(`[scan]   ✓ ${src?.name}`);
+          });
+          providerResults.forEach((r, i) => {
+            const src = providerCompanies[i];
+            const engine = r.value?.engine || src?.provider || '?';
+            if (r.status === 'rejected') console.error(`[scan]   ✗ ${src?.name}: ${r.reason?.message || r.reason}`);
+            else if (!r.value?.ok) console.warn(`[scan]   ✗ ${src?.name}: ${r.value?.error || 'returned ok=false'}`);
+            else console.log(`[scan]   ✓ ${src?.name} [${engine}]`);
           });
           console.log(`[scan] WebSearch: ${fetchedWebCount}/${webSearchSources.length} OK${failedWeb.length ? ` | ${failedWeb.length} failed` : ''}`);
           webSearchResults.forEach((r, i) => {
@@ -7503,12 +7594,12 @@ const server = createServer(async (req, res) => {
             else if (!result.value?.ok) console.warn(`[scan]   ✗ ${source?.name}: ${result.value?.error || 'returned ok=false'}`);
             else console.log(`[scan]   ✓ ${source?.name} [${result.value?.engine || '?'}]`);
           });
-          console.log(`[scan] Total sections built: ${sections.length} | prefetchData: ${prefetchData.length} chars`);
+          console.log(`[scan] Source sections fetched: ${scanSourceSectionCount} (raw dumps NOT sent to LLM)`);
           console.log(`[scan] ─────────────────────────────────────────────`);
 
           const apiLabel = process.env.SEARCHAPI_KEY && !process.env.SERPAPI_KEY ? 'SearchAPI' : 'SerpApi';
           const statusParts = [];
-          statusParts.push(`${fetchedDirectCount}/${directSources.length} source${directSources.length !== 1 ? 's' : ''} API/RSS fetchée${directSources.length !== 1 ? 's' : ''}`);
+          statusParts.push(`${fetchedDirectCount}/${directTotal} source${directTotal !== 1 ? 's' : ''} API/RSS fetchée${directTotal !== 1 ? 's' : ''}`);
           if (webSearchSources.length) {
             const fallbackLabel = serpApiConfigured
               ? `via ${apiLabel} (+ fallback HTML si besoin)`
@@ -7536,12 +7627,39 @@ const server = createServer(async (req, res) => {
           }
           send('status', { text: statusParts.join(' • ') });
 
+          prefetchData = buildScanLlmPrefetch({
+            recapLines: [
+              `API/RSS: ${fetchedDirectCount}/${directTotal} OK${failedDirect.length ? `, ${failedDirect.length} failed` : ''}`,
+              webSearchSources.length
+                ? `WebSearch: ${fetchedWebCount}/${webSearchSources.length} OK${failedWeb.length ? `, ${failedWeb.length} failed` : ''}`
+                : '',
+              playwrightCos.length
+                ? `Playwright: ${fetchedPlaywrightCount}/${playwrightCos.length} OK${failedPlaywright.length ? `, ${failedPlaywright.length} failed` : ''}`
+                : '',
+              runnableAggregators.length
+                ? `Aggregators: ${fetchedAggregatorCount}/${runnableAggregators.length} OK${failedAggregators.length ? `, ${failedAggregators.length} failed` : ''}`
+                : '',
+              scanDeadCount ? `Link-check: ${scanDeadCount} dead URL(s) removed` : '',
+              scanPreDedupSkipped ? `Pre-dedup: ${scanPreDedupSkipped} already-known URL(s) removed` : '',
+              remoteFilteredCandidates.dropped.length
+                ? `Remote filter: ${remoteFilteredCandidates.dropped.length} dropped`
+                : '',
+              countryFilteredCandidates.dropped.length
+                ? `Country filter: ${countryFilteredCandidates.dropped.length} dropped`
+                : '',
+              scanAgeDropped ? `Age filter: ${scanAgeDropped} old posting(s) removed` : '',
+              `Roster sent to Jev: ${Math.min(scanCandidates.length, JEV_SCAN_LIMIT)} of ${scanCandidates.length} surviving candidate(s)`,
+            ],
+            rosterText: buildScanCandidateManifest(scanCandidates, JEV_SCAN_LIMIT),
+          });
+          console.log(`[scan] Jev prefetch: ${prefetchData.length} chars (roster + recap, ${scanSourceSectionCount} raw source dumps omitted)`);
+
           if (!prefetchData) prefetchData = 'Aucune offre pré-filtrée trouvée cette fois.';
 
           // Clear selection after use so next scan defaults to all
           await writeFile(SCAN_SELECTION_FILE, JSON.stringify({ all: true }), 'utf-8').catch(() => {});
 
-          send('status', { text: 'Analyzing filtered results with Claude...' });
+          send('status', { text: `Filtrage Jev (${JEV_MODEL}) des candidats…` });
         } else if (mode === 'pipeline') {
           const pipe = await getPipeline(req.userId);
           if (pipe.length === 0) {
@@ -7596,7 +7714,33 @@ const server = createServer(async (req, res) => {
           if (profileGate.hardReject) {
             send('status', { text: `Hard pass détecté avant évaluation: ${profileGate.reasons.join(' ')}` });
           } else {
-            send('status', { text: 'Evaluating with Claude...' });
+            send('status', { text: `Gate Jev (${JEV_MODEL}) avant évaluation…` });
+            try {
+              const noteParts = extractPipelineNoteParts(pipelineTarget.note || '');
+              const jevGate = await decideOfferWorthEvaluating({
+                jdText: prefetchData,
+                title: noteParts.title || pipelineTarget.title || '',
+                company: noteParts.company || pipelineTarget.company || '',
+                url: pipelineTarget.url || '',
+                profileRules: inferProfileMatchingRules(profileStruct, profile),
+              });
+              console.log(`[pipeline] jevGate: worth=${jevGate.worth} pass=${jevGate.pass} threshold=${jevGate.threshold}`);
+              profileGate.jev = jevGate;
+              if (!jevGate.pass) {
+                profileGate.hardReject = true;
+                profileGate.skip = true;
+                profileGate.reasons = [
+                  ...(profileGate.reasons || []),
+                  `Jev worth_evaluating=${jevGate.worth == null ? 'n/a' : Number(jevGate.worth).toFixed(2)} < ${jevGate.threshold} — skip full text eval.`,
+                ];
+                send('status', { text: `Hard pass Jev: ${profileGate.reasons.join(' ')}` });
+              } else {
+                send('status', { text: 'Evaluating with Claude...' });
+              }
+            } catch (jevErr) {
+              console.warn(`[pipeline] Jev gate failed (continuing to text eval): ${jevErr.message}`);
+              send('status', { text: 'Evaluating with Claude...' });
+            }
           }
         } else if (mode === 'apply' || mode === 'coverletter' || mode === 'question') {
           const selectedCompany = urlObj.searchParams.get('company')?.trim() || '';
@@ -7690,14 +7834,18 @@ const server = createServer(async (req, res) => {
             '',
             rawJD ? `## Raw Job Description (source: ${jobUrl})\n${rawJD}` : '',
             '## Full evaluation report',
-            reportContent,
+            mode === 'question' ? extractQuestionReportContext(reportContent) : reportContent,
           ].filter(Boolean).join('\n');
 
           send('status', { text: mode === 'apply' ? 'Preparing apply starter pack...' : mode === 'question' ? 'Generating answer...' : 'Generating tailored cover letter...' });
         }
 
         // ── Build prompt ──────────────────────────────────────────────────
-        const systemPrompt = [shared, modeFile].filter(Boolean).join('\n\n---\n\n');
+        // UI scan already crawled sources; modes/scan.md is the agent Playwright
+        // playbook and must not be the system prompt (it asks the model to tool-use
+        // and drowns the roster in ~48k of scrape instructions).
+        const scanSystemExtra = 'Tu filtres un roster d\'offres déjà récupéré par le serveur. Tu n\'as pas d\'outils et tu ne dois pas inventer d\'URL. Travaille uniquement les sections du prompt utilisateur, surtout "## Candidate Roster".';
+        const systemPrompt = [shared, mode === 'scan' ? scanSystemExtra : modeFile].filter(Boolean).join('\n\n---\n\n');
         const leanEvaluationModes = new Set(['scan', 'oferta', 'pipeline']);
         const includeGlobalTrackingContext = !['apply', 'coverletter', 'question', 'scan', 'oferta', 'pipeline'].includes(mode);
         const includeCvContext = mode !== 'scan';
@@ -7715,6 +7863,10 @@ const server = createServer(async (req, res) => {
           parts.push(`## Pipeline actuel\n${pipeline}`);
         }
         if (includeArticleDigest) parts.push(`## Proof points détaillés (article-digest.md)\n${articleDigest}`);
+        if (mode === 'question') {
+          const stories = await readFile(join(ROOT, 'interview-prep/story-bank.md'), 'utf-8').catch(() => '');
+          if (stories.trim()) parts.push(`## Story bank (behavioral questions only — do not paste into why-us / salary / yes-no)\n${stories}`);
+        }
         if (prefetchData) parts.push(`## Offres récupérées en direct\n${prefetchData}`);
         const SCORE_FORMAT_RULE = `FORMAT DU SCORE (obligatoire, même en hard fail):
 - Le header DOIT contenir une ligne \`**Score:** X.X/5\` avec un nombre (ex. 4.3/5 ou 1.0/5).
@@ -7750,7 +7902,19 @@ Règles:
 - garde le format A-D suffisamment structuré pour que le report reste exploitable
 - conclusion explicite: SKIP / DO NOT APPLY`);
           } else {
-            parts.push(`---\nExécute l'évaluation complète (mode oferta) sur l'offre récupérée ci-dessus. L'URL est ${pipelineTarget.url}. Vérifie l'offre contre les critères durs du profil avant de scorer: full remote, pas de résidence US/Canada, pas d'autorisation de travail US (I-9, E-Verify, authorized to work in the United States). Si une de ces contraintes dures est violée, Score 1.0/5 et SKIP. L'absence d'AI dans la JD, ou une exigence du type "5+ years AI" alors que le candidat a 4 ans de produits AI, n'est PAS un hard fail — déduction North Star de 0.5 max. Génère directement le rapport final de A à D avec le bon format (Résumé du rôle, Match CV, Niveau et stratégie, Comp et demande) — n'inclus PAS de plan de personnalisation CV/LinkedIn, ce n'est pas le rôle de cette évaluation. Ne scanne pas le formulaire de candidature, ne génère pas de questions/réponses de candidature, ne génère pas de JSON de CV tailoré et ne demande pas de PDF. Ne mentionne pas tes actions au préalable, sois direct et commence avec "# Evaluation: {Company} — {Role}".`);
+            parts.push(`---\nExécute l'évaluation complète (mode oferta) sur l'offre récupérée ci-dessus. L'URL est ${pipelineTarget.url}.
+
+CONTRAINTES DURES (Score 1.0/5 + SKIP) — uniquement avec preuve VERBATIM dans la JD ou le champ location :
+- hybrid / on-site / "X days in office" hors Thaïlande
+- résidence US/Canada/Americas-only, I-9, E-Verify, authorized to work in the United States
+
+INTERDIT de hard-fail 1.0 pour :
+- "Remote" / "Remote-first" sans verrouillage pays ni jours bureau
+- travel / OEM / tradeshows / HQ "implicites"
+- gaps de domaine (AV, hardware, vertical) → baisser le Match CV, pas 1.0 remote
+- ville dans le titre si le posting reste remote sans contrainte de résidence
+
+L'absence d'AI dans la JD, ou "5+ years AI" alors que le candidat a 4 ans de produits AI, n'est PAS un hard fail — déduction North Star de 0.5 max. Génère directement le rapport final de A à D avec le bon format (Résumé du rôle, Match CV, Niveau et stratégie, Comp et demande) — n'inclus PAS de plan de personnalisation CV/LinkedIn. Ne scanne pas le formulaire, ne génère pas de Q&A candidature ni de JSON CV tailoré. Sois direct : commence avec "# Evaluation: {Company} — {Role}".`);
           }
         } else if (mode === 'apply') {
           parts.push(`---\nTu démarres le mode apply pour une offre déjà sélectionnée. Utilise le report complet fourni ci-dessus pour préparer un starter pack d'application: résumé ciblé de l'offre, 3-5 angles forts à réutiliser, pièces à joindre, valeurs probables pour les champs standards (salaire, préavis, visa/remote) basées sur profile.yml si disponibles, puis une liste concise de ce qu'il faut partager ensuite (screenshot ou copier-coller des questions). N'invente aucun champ de formulaire non visible et ne prétends pas voir le formulaire tant qu'il n'a pas été fourni.`);
@@ -7762,34 +7926,40 @@ Tu dois répondre à une question de formulaire de candidature pour l'offre ci-d
 **Question posée dans le formulaire :**
 ${userQuestion || '(aucune question fournie — demande à l\'utilisateur de la préciser)'}
 
-SOURCES À UTILISER :
-1. Pour les questions d'expérience / produit / projet : cv.md + article-digest.md + _profile.md d'abord. Le report sert à reprendre le vocabulaire de la JD, pas à inventer des analogies.
-2. Pour les questions de motivation : report d'évaluation ci-dessus — blocs B/C/D (critères, match CV, signaux pratiques)
-3. Pour les questions factuelles : profile.yml
+SOURCES À UTILISER (cartes actuelles, pas d'anciens blocs) :
+1. Expérience / produit / projet : article-digest.md (chiffres) + cv.md (Skills, projets) + _profile.md Evidence order. Le report A/B sert au vocabulaire de la JD, pas à inventer des métriques.
+2. Motivation : report A (détail JD) + un proof de B / digest / cv. Ne pas copier Cover Letter Draft ni Block F Interview.
+3. Factuel : profile.yml (salaire, préavis « To be confirmed », authorized_in, remote).
+4. Behavioral : interview-prep/story-bank.md seulement si la question est « tell me about a time ».
+5. Voix : Writing Style dans _profile.md + copywriting ATS.
 
 RÈGLES DE FOND :
 1. Réponds à la question LITTÉRALEMENT. Si elle contient plusieurs sous-questions, couvre-les toutes dans le même ordre.
-2. Pour une question d'expérience, cite un produit ou projet réel dès la première phrase.
-3. Si l'expérience exacte demandée n'existe pas, dis-le clairement en une courte clause, puis bascule vers l'expérience adjacente la plus crédible.
-4. Ne transforme jamais une expérience adjacente en expérience directe.
-5. N'invente jamais les utilisateurs. Nomme les vrais users du projet cité.
-6. N'utilise jamais du langage de translation flou du type "maps closely to", "similar infrastructure field", "this experience translates to", "internal AI operators", "robust pipeline orchestration", sauf si c'est un fait exact présent dans les sources.
-7. Privilégie une réponse simple, concrète, courte. 40 à 110 mots par défaut.
-8. Si la question demande produit + utilisateurs + problème + impact, réponds exactement dans cet ordre.
+2. Pour une question d'expérience : commence par ce que tu as FAIT (méthode), pas par un nom de produit. Un seul exemple pertinent.
+3. Side projects (UXfi, Flemme, Creads, Panfy, Jarvos, JobYouGo) = outils / projets PERSONNELS, pas des marques connues. Jamais « Sur Creads.io… » / « Chez Flemme… ». Préférer « J'ai construit un outil perso de [type] où j'ai [méthode] ». Nom optionnel une fois entre parenthèses. Emplois salariés : « Chez OneAsset… ».
+4. Questions AI/LLM : pratiques concrètes (API, prompt, validation, JSON structuré, RAG, étapes d'agent). Pas une liste de buzzwords sans dire ce que chaque étape fait.
+5. Si l'expérience exacte demandée n'existe pas, dis-le clairement en une courte clause, puis bascule vers l'expérience adjacente la plus crédible.
+6. Ne transforme jamais une expérience adjacente en expérience directe.
+7. N'invente jamais les utilisateurs. Nomme les vrais users du projet cité seulement si qualitatif et utile.
+8. N'utilise jamais du langage de translation flou du type "maps closely to", "similar infrastructure field", "this experience translates to", "internal AI operators", "robust pipeline orchestration", sauf si c'est un fait exact présent dans les sources.
+9. Privilégie une réponse simple, concrète, courte. 40 à 110 mots par défaut.
+10. Si la question demande produit + utilisateurs + problème + impact, réponds exactement dans cet ordre (sans présenter le produit comme une marque célèbre).
 
-RÈGLES DE RÉDACTION COMMUNES :
+RÈGLES DE RÉDACTION — mode question (copywriting ATS, puis copy-editing ATS pass, humanizer, stop-slop) :
 ${STYLE_RULES}
+
+Lis et applique aussi modes/question.md Step 4. Pas de tiret cadratin. Phrases courtes. Une idée par phrase. Réponds puis arrête. Pas d'accroche (« I'm excited to ») ni de closer (« That's the work I do »). Yes / No / URL = la valeur seule. N'invente rien.
 
 PRÉFÉRENCES DE VOIX DU CANDIDAT :
 ${loadApplicationVoice(ROOT)}
 
 CLASSIFICATION DE LA QUESTION :
-- Motivation ("Pourquoi nous / ce rôle ?") → signal spécifique de l'offre + proof point qui y mappe directement
-- Expérience / projet → réponds d'abord "direct" ou "adjacent", puis : produit construit → utilisateurs → problème résolu → impact réel
-- Compétence ("Comment gérez-vous X ?") → méthode concrète + outcome, pas de liste générique
+- Motivation ("Pourquoi nous / ce rôle ?") → détail concret de l'offre + une méthode documentée qui y mappe
+- Expérience / projet → "direct" ou "adjacent", puis méthode d'abord. Side project = outil perso, pas marque. Employeur = « Chez [entreprise]… ». Un seul exemple.
+- Compétence / AI-LLM ("Comment gérez-vous X ?") → pratique concrète (API, prompt, validation…) + un exemple, pas une liste de buzzwords
 - Valeurs / style de travail → honnête + cohérent avec _profile.md (autonomie, systèmes, ownership)
 - Factuel (salaire, préavis, remote, visa) → réponse directe depuis profile.yml
-- Open-ended ("Parlez-nous de vous") → archétype + meilleur proof point + fit spécifique à cette offre
+- Open-ended ("Parlez-nous de vous") → archétype + une preuve méthode + fit spécifique à cette offre
 
 Format de sortie — UNIQUEMENT ceci, prêt à coller :
 
@@ -7846,43 +8016,112 @@ Contraintes :
 
         send('start', { mode });
 
-        // ── Stream response ───────────────────────────────────────────────
-        const promptLength = parts.join('\n\n').length;
-        console.log(`[${mode}] sending prompt to Claude — ${promptLength} chars, systemPrompt=${systemPrompt?.length || 0} chars`);
-        const generationModel = MODELS.SOL;
-        const generationTemperature = mode === 'question' ? 0.1 : 0.3;
-        const generationMaxTokens = mode === 'question'
-          ? 2048
-          : (mode === 'scan' || mode === 'oferta' || mode === 'pipeline')
-            ? 4096
-            : 8192;
+        // ── Stream / decide response ──────────────────────────────────────
         let fullResponse = '';
-        const streamEvaluation = async () => {
-          for await (const chunk of chatStream({
-            model: generationModel,
-            messages: [{ role: 'user', content: parts.join('\n\n') }],
-            systemPrompt,
-            temperature: generationTemperature,
-            max_tokens: generationMaxTokens,
-          })) {
-            fullResponse += chunk;
-            send('chunk', { text: chunk });
+        const streamMeta = {};
+
+        if (mode === 'scan') {
+          // Jev Decisions API owns keep/drop — chat LLM is not used for scan selection.
+          const profileRules = inferProfileMatchingRules(profileStruct, profile);
+          send('status', {
+            text: `Jev ${JEV_MODEL} — keep≥${JEV_KEEP_THRESHOLD} sur ${Math.min(scanCandidates.length, JEV_SCAN_LIMIT)} candidat(s)…`,
+          });
+          console.log(
+            `[scan] Jev filter starting model=${JEV_MODEL} candidates=${scanCandidates.length} limit=${JEV_SCAN_LIMIT} threshold=${JEV_KEEP_THRESHOLD}`
+          );
+          let jevResult = { kept: [], dropped: [], errors: [], considered: 0 };
+          if (scanCandidates.length) {
+            jevResult = await filterScanCandidatesWithJev(scanCandidates, profileRules, {
+              onProgress: ({ index, total, keepProb, kept: wasKept, error }) => {
+                if ((index + 1) % 10 === 0 || index + 1 === total) {
+                  send('status', {
+                    text: `Jev ${index + 1}/${total}${error ? ` (err: ${error})` : keepProb != null ? ` keep=${Number(keepProb).toFixed(2)}` : ''}${wasKept ? ' ✓' : ''}`,
+                  });
+                }
+              },
+            });
           }
-        };
-        try {
-          await streamEvaluation();
-        } catch (streamErr) {
-          console.error(`[${mode}] chatStream error: ${streamErr.message}`, streamErr);
-          if (fullResponse.length > 200) throw streamErr;
-          send('status', { text: 'LLM stream failed, retrying once...' });
+          fullResponse = buildJevScanResponse(jevResult);
+          streamMeta.finish_reason = 'jev';
+          streamMeta.jev_kept = jevResult.kept.length;
+          streamMeta.jev_dropped = jevResult.dropped.length;
+          streamMeta.jev_errors = jevResult.errors.length;
+          console.log(
+            `[scan] Jev filter done — kept=${jevResult.kept.length} dropped=${jevResult.dropped.length} errors=${jevResult.errors.length} considered=${jevResult.considered}`
+          );
+          send('chunk', { text: fullResponse });
+        } else if (mode === 'pipeline' && profileGate?.hardReject) {
+          // Hard pass (profile rules or Jev gate) — skip expensive text LLM.
+          const noteParts = extractPipelineNoteParts(pipelineTarget?.note || '');
+          const companyLabel = noteParts.company || pipelineTarget?.company || 'Unknown';
+          const roleLabel = noteParts.title || pipelineTarget?.title || 'Role';
+          const reasons = (profileGate.reasons || []).map(r => `- ${r}`).join('\n') || '- Hard mismatch with profile criteria.';
+          const jevWorth = profileGate.jev?.worth;
+          fullResponse = [
+            `# Evaluation: ${companyLabel} — ${roleLabel}`,
+            '',
+            `**Score:** 1.0/5 (hard pass${jevWorth != null ? `; Jev worth=${Number(jevWorth).toFixed(2)}` : ''})`,
+            `**URL:** ${pipelineTarget?.url || ''}`,
+            '',
+            '## A. Résumé',
+            'Offre rejetée avant évaluation texte complète (gate profil / Jev).',
+            '',
+            '## Motifs',
+            reasons,
+            '',
+            '## Conclusion',
+            'SKIP / DO NOT APPLY',
+          ].join('\n');
+          streamMeta.finish_reason = 'jev-hard-reject';
+          console.log(`[pipeline] skipping text LLM — hardReject=true reasons=${JSON.stringify(profileGate.reasons)}`);
+          send('status', { text: 'Hard pass — pas d’évaluation LLM texte' });
+          send('chunk', { text: fullResponse });
+        } else {
+          const promptLength = parts.join('\n\n').length;
+          // Was hardcoded to MODELS.SOL (openai/gpt-5.6-sol) for every mode —
+          // 68% of the project's entire OpenRouter spend ($5.99 of $8.77,
+          // data/ai-usage-ledger.jsonl) came from this one line. Switched to a
+          // cheap model per the user's explicit cost-control request (2026-09-18).
+          const generationModel = MODELS.GPT41_MINI;
+          console.log(`[${mode}] sending prompt to ${generationModel} — ${promptLength} chars, systemPrompt=${systemPrompt?.length || 0} chars`);
+          const generationTemperature = mode === 'question' ? 0.1 : 0.3;
+          const generationMaxTokens = mode === 'question'
+            ? 2048
+            : (mode === 'oferta' || mode === 'pipeline')
+              ? 4096
+              : 8192;
+          const streamEvaluation = async () => {
+            fullResponse = '';
+            for await (const chunk of chatStream({
+              model: generationModel,
+              messages: [{ role: 'user', content: parts.join('\n\n') }],
+              systemPrompt,
+              temperature: generationTemperature,
+              max_tokens: generationMaxTokens,
+              meta: streamMeta,
+            })) {
+              fullResponse += chunk;
+              send('chunk', { text: chunk });
+            }
+          };
           try {
             await streamEvaluation();
-          } catch (retryErr) {
-            console.error(`[${mode}] chatStream retry error: ${retryErr.message}`, retryErr);
-            throw retryErr;
+          } catch (streamErr) {
+            console.error(`[${mode}] chatStream error: ${streamErr.message}`, streamErr);
+            if (fullResponse.length > 200) throw streamErr;
+            send('status', { text: 'LLM stream failed, retrying once...' });
+            try {
+              await streamEvaluation();
+            } catch (retryErr) {
+              console.error(`[${mode}] chatStream retry error: ${retryErr.message}`, retryErr);
+              throw retryErr;
+            }
           }
         }
-        console.log(`[${mode}] stream complete — ${fullResponse.length} chars received`);
+        console.log(`[${mode}] stream complete — ${fullResponse.length} chars received, finish=${streamMeta.finish_reason || '?'}, reasoning_chars=${streamMeta.reasoning_chars ?? 0}`);
+        if (mode === 'scan') {
+          console.log(`[scan] Jev output preview: ${JSON.stringify(fullResponse.slice(0, 400))}`);
+        }
 
         // ── Post-processing: persist results ──────────────────────────────
         const saves = [];
@@ -7957,7 +8196,13 @@ Contraintes :
           } else if (validParsed.length > 0) {
             saves.push(`Found ${validParsed.length} valid scanned URLs, but all were already known (pipeline or scan history)`);
           } else if (scanCandidates.length > 0) {
-            const message = `Claude selected 0 URL from ${scanCandidates.length} scanned candidate(s)`;
+            const none = scanResponseDeclaresNone(fullResponse);
+            const incomplete = !isScanSelectionComplete(fullResponse);
+            const message = incomplete
+              ? `Scan LLM output incomplete (${fullResponse.length} chars) — 0 URL extracted from ${scanCandidates.length} scanned candidate(s)`
+              : none
+                ? `Claude selected 0 URL from ${scanCandidates.length} scanned candidate(s) (AUCUNE)`
+                : `Claude selected 0 URL from ${scanCandidates.length} scanned candidate(s)`;
             saves.push(message);
             send('warning', { text: message });
           } else {
@@ -7968,7 +8213,8 @@ Contraintes :
         }
 
         // OFERTA/PIPELINE → save report + TSV tracker entry (WITH VALIDATION)
-        if (['oferta', 'pipeline'].includes(mode) && fullResponse.length > 500) {
+        const pipelineHardSkip = mode === 'pipeline' && profileGate?.hardReject && fullResponse.length > 100;
+        if (['oferta', 'pipeline'].includes(mode) && (fullResponse.length > 500 || pipelineHardSkip)) {
           console.log(`[${mode}] post-processing report — fullResponse=${fullResponse.length} chars`);
           const reserveOpts = { rootDir: WRITE_ROOT };
           let reserved = null;
@@ -7994,9 +8240,18 @@ Contraintes :
           const company  = (companyMatch?.[1] || 'unknown').trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 30);
           const role     = (roleMatch?.[1]    || 'role').trim().slice(0, 70);
           const hardReject = Boolean(profileGate?.hardReject);
-          const { scoreRaw } = resolveEvaluationScore(fullResponse, { hardReject });
-          const trackerStatus = hardReject ? (profileGate.skip ? 'SKIP' : 'Discarded') : 'Evaluated';
-          const trackerNote = hardReject ? profileGate.reasons.join(' ') : '';
+          const { scoreRaw, numericScore } = resolveEvaluationScore(fullResponse, { hardReject });
+          const llmHardSkip = !hardReject
+            && Number.isFinite(numericScore)
+            && numericScore <= 1.5
+            && /\b(?:hard\s*fail|hard\s*pass|do\s+not\s+apply|SKIP\s*\/\s*DO NOT APPLY)\b/i.test(fullResponse);
+          const effectiveSkip = hardReject || llmHardSkip;
+          const trackerStatus = effectiveSkip
+            ? ((profileGate?.skip || llmHardSkip) ? 'SKIP' : 'Discarded')
+            : 'Evaluated';
+          const trackerNote = hardReject
+            ? profileGate.reasons.join(' ')
+            : (llmHardSkip ? 'LLM hard-fail (see report)' : '');
 
           const filename = `${num}-${company}-${today}.md`;
           const jobUrl = (mode === 'pipeline' && pipelineTarget?.url)
@@ -8095,8 +8350,12 @@ Contraintes :
               };
               if (uid) row.user_id = uid;
               const upsert = await runWithRetry(async () => {
-                const { error: appErr } = await supabase.from('applications').upsert(row, { onConflict: 'num' });
-                return appErr ? { ok: false, error: appErr.message } : { ok: true };
+                try {
+                  const { error: appErr } = await supabase.from('applications').upsert(row, { onConflict: 'num' });
+                  return appErr ? { ok: false, error: appErr.message } : { ok: true };
+                } catch (err) {
+                  return { ok: false, error: err.message };
+                }
               }, { attempts: 3, delayMs: 1200, label: `${mode}/supabase-apps` });
               if (!upsert.ok) saves.push(`⚠️ Tracker sync failed: ${upsert.error}`);
               else saves.push(`Tracker updated`);
@@ -8230,12 +8489,25 @@ Contraintes :
       return;
     }
 
-    if (path === '/Hugo_Vermot_CV_Paris.pdf' || path === '/Hugo_Vermot_CV.pdf') {
+    if (path === '/Hugo_Vermot_CV_Paris.pdf' || path === '/Hugo_Vermot_CV.pdf' || path === '/Hugo_Vermot_CV_Complete_Paris.pdf') {
       try {
-        const filename = 'Hugo_Vermot_CV_Paris.pdf';
-        const content = await readFile(join(__dirname, filename));
+        const filename = 'Hugo_Vermot_CV_Complete_Paris.pdf';
+        const candidates = [
+          join(ROOT, 'output', filename),
+          join(ROOT, 'output', 'Hugo_Vermot_CV_Paris.pdf'),
+          join(__dirname, 'Hugo_Vermot_CV_Paris.pdf'),
+        ];
+        let content = null;
+        for (const candidate of candidates) {
+          try {
+            content = await readFile(candidate);
+            break;
+          } catch {}
+        }
+        if (!content) throw new Error('CV PDF not found');
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-cache');
         res.writeHead(200);
         res.end(content);
         return;
@@ -8523,6 +8795,8 @@ if (useSupabase && !IS_VERCEL) {
 
   async function syncReport(filename) {
     if (!filename.endsWith('.md')) return;
+    // Temporary occupancy sentinels from reserve-report-num — never sync them.
+    if (/^\d+-RESERVED\.md$/i.test(filename)) return;
     try {
       const content = await readFile(join(reportsDir, filename), 'utf-8');
       const parts = filename.replace('.md', '').split('-');

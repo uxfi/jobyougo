@@ -191,7 +191,8 @@ export default {
     // is meaningful, then redirect:'error' blocks SSRF via server-side
     // redirects — together they keep the request on getmanfred.com.
     const url = assertManfredUrl(buildFeedUrl(entry));
-    const json = /** @type {any} */ (await ctx.fetchJson(url, { redirect: 'error' }));
+    // Full catalogue is large (~1.6k offers); 10s default aborts mid-download.
+    const json = /** @type {any} */ (await ctx.fetchJson(url, { redirect: 'error', timeoutMs: 45_000 }));
     if (!Array.isArray(json)) {
       throw new Error(
         `manfred: unexpected API response — expected a JSON array of offers, got ${json === null ? 'null' : typeof json}`,

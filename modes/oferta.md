@@ -73,6 +73,8 @@ On contradiction, add exactly one flag line at the top of Block B in the report,
 
 The flag is an additive line only — Block B's existing content stays unchanged below it, and no flag line appears when there is no contradiction.
 
+**Hard-fail scoring for location/remote:** Score **1.0/5 + SKIP** only when the contradiction (or location field alone) states an **explicit** binding attendance or residency lock listed in `modes/_profile.md` → Your Location Policy. Do **not** hard-fail on bare "Remote", HQ/office perks, assumed travel, OEM visits, domain gaps, or city-in-title when the posting remains remote without a residency lock. Domain skill gaps reduce Block B; they never become a remote 1.0.
+
 ### Work-authorization check
 
 After the Role Summary table, compare the candidate's work authorization against what the JD says about sponsorship and work eligibility. Read the candidate's work rights from `config/profile.yml` → `location.authorized_in` (list of countries/regions where they already hold authorization) and `location.needs_sponsorship`, falling back to the free-text `location.visa_status` when those structured keys are absent. Classify into exactly one tier:

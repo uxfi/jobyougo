@@ -14,7 +14,7 @@ User says something like:
 
 ```
 1. LOAD     → Find the report for this job in reports/
-2. CONTEXT  → Load report + cv.md + article-digest.md + _profile.md + profile.yml
+2. CONTEXT  → Load digest + cv + _profile + profile.yml + Writing Style; report A/B only
 3. CLASSIFY → Identify the question type
 4. GENERATE → Write a first-person answer using the right sources
 5. DELIVER  → Output only the answer, ready to paste
@@ -24,104 +24,136 @@ User says something like:
 
 User provides: company name, role title, or job URL.
 
-Search `reports/` for the matching report (grep company name). Load:
-- Full report block C (proof points aligned to JD)
-- Block F (application form questions + draft answers, if present)
+Search `reports/` for the matching report (grep company name). Load only:
+
+- Header (`**URL:**`, score, role)
+- **A) Role Summary** — JD vocabulary for this offer
+- **B) Match with CV** — mapped proof, not a source of new metrics
+- **D) Comp and Demand** — only for salary / package questions
+- **`## Application Answers`** — previous form drafts, if present
+- Machine Summary / Risk Summary — logistics and knock-outs (travel, relocation, work-auth)
+
+**Do not use as facts or as prose to rewrite:** Cover Letter Draft, Block E (Customization Plan), Block F (Interview Plan / STAR). Those are generated and often AI-slop. Ignore them unless the user asks for interview prep.
 
 If no report:
 > "No report found for [Company]. Run auto-pipeline first — I need the JD context to write a good answer."
 
 ## Step 2 — Load all context
 
-Before writing anything, read ALL of these:
+Read these. They are the only fact sources. Section names below are the **current** headings; do not look for SKILL PROFILE / Stack technique / Produits livrés / Impact mesurable — those blocks do not exist.
 
 | Source | What to use it for |
 |--------|-------------------|
-| Report block C | Motivation and wording calibration for THIS JD — do not let it replace factual experience |
-| Report block F | Draft answers if they exist — refine, don't rewrite from scratch |
-| `article-digest.md` | Detailed proof points with real metrics — source of truth for numbers |
-| `cv.md` | Full experience, projects, stack |
-| `modes/_profile.md` | **Read FIRST — SKILL PROFILE block at top has all tools, experience, personality** |
-| `config/profile.yml` | Factual data: salary target, remote policy, notice period, location, visa |
+| `article-digest.md` | **Numbers.** Facts table, career timeline, case-study material. Wins over cv.md on metrics. |
+| `cv.md` | Experience, products, **Skills**, languages. Use Summary + Selected evidence + the relevant project/role. |
+| `modes/_profile.md` | Positioning, Framing Adaptatif, Evidence order, location/work-auth, **Writing Style**. Not a metric dump. |
+| `config/profile.yml` | Salary, notice, start date, visa, `authorized_in`, `needs_sponsorship`, remote, contact URLs. |
+| `modes/_custom.md` | House rules + Voix des réponses. Procedural, not facts. |
+| `voice-dna.md` | Anti-slop (no em dash, no not-X-but-Y). First 2000 chars are §4 then §3 on purpose. |
+| `writing-samples/` | Only if `_profile.md` has no `## Writing Style`. |
+| `interview-prep/story-bank.md` | Behavioral / "tell me about a time" only. Do not paste STAR into why-us / salary / yes-no. |
+| Report A + B | JD wording + which proof maps to this offer. Never a new number. |
+| `## Application Answers` | Reuse a prior form answer for the same question. Refine; do not invent. |
 
 ### CRITICAL FACTS — NEVER CONTRADICT, NEVER OMIT ON RELEVANT QUESTIONS
 
-The candidate's verified facts live in `_profile.md` (SKILL PROFILE block), `cv.md`, and `article-digest.md`. Before answering, read those files and treat them as ground truth. If a question touches any topic covered there, cite the relevant fact explicitly. NEVER say "I have not used X" when X is documented in those files.
+If a question touches a topic in those files, cite the documented fact. NEVER say "I have not used X" when X is in `cv.md` Skills or article-digest.
 
 **Where to look:**
-- AI tools and proficiency levels → `_profile.md` (Stack technique block) + `cv.md` (Skills block)
-- Products / projects shipped → `_profile.md` (Produits livrés block) + `cv.md` (Projects block)
-- Quantified outcomes → `article-digest.md` if present, otherwise `cv.md` (Experience bullets) and `_profile.md` (Impact mesurable block)
+- AI tools and levels → `cv.md` → **Skills** (AI & Technical)
+- Products / projects → `cv.md` Independent products + Professional Experience, and `_profile.md` Evidence order
+- Management / leadership → `article-digest.md` **Management, agents, and 1-to-100**, then `cv.md` Agence V0 and OneAsset (one PO)
+- Agents / AI flows → methods first (semantic dispatch, planner/executor/verifier, Brand Agent two-pass check, modular scrape/DM agents, Git/Cursor hand-off). Name Jarvos / Creads / Flemme / OneAsset only as personal or employer context after the method, never as famous brands
+- 1-to-100 / startup product → Vloggy, personal launched SaaS (Creads.io), Agence V0, OneAsset (+ OTC). Arlequin is help only: no dates or metrics
+- Strategy / UX method / AI facilitation → `article-digest.md` **Strategy, UX method, AI facilitation, collaboration**. Prototypes in Cursor/Claude Code. Figmol = internal Figma-like review tool. GitHub flow. Marcel Sprint Design / Lean UX. UpViral interviews.
+- Collaboration → OneAsset (PO + engineering PRs), UpViral (CPO + developers), LVMH (15+ maisons), Renault (workshops)
+- Compliance → OneAsset (VARA, KYB/KYC, reporting, OTC). Société Générale MIF2 is adjacent.
+- Engineering pairing → OneAsset (Cursor/Claude Code + GitHub) and UpViral (implementation with developers). Not every production backend line.
+- Business / data → LVMH data marketing platform (customer data, campaign performance, monitoring). Do not retitle BA/DA.
+- International → Renault Renew, multi-country FO/BO and design system
+- Numbers → `article-digest.md` Facts table first
+- Work authorization → `profile.yml` `authorized_in` (France, EU/EEA, Thailand). **Yes** only if the job country is on that list or the role is remote from those bases. **No** for US, UK, GCC, etc. Sponsorship: **No** inside `authorized_in`; **Yes** (`needs_sponsorship: true`) outside it.
+- Notice / start → `profile.yml` availability: "To be confirmed". Do not write Immediate.
+- Location → `_profile.md` / `profile.yml`: Paris CET or Bangkok ICT, per offer.
 
-If a tool, project, or metric is asked about and you cannot find it in those files, say so plainly — do not invent.
+If a tool, project, or metric is asked about and you cannot find it, say so. Do not invent.
 
 ## Step 3 — Classify the question
 
 | Type | Examples | Primary source |
 |------|----------|---------------|
-| **Motivation** | "Why us?", "Pourquoi ce rôle ?" | Report block C + something specific from JD |
-| **Experience / project** | "Describe a project", "Parlez d'une réalisation" | cv.md + article-digest.md + _profile.md first, report block C second |
-| **Skill / method** | "How do you handle X?", "Comment gérez-vous X ?" | cv.md + article-digest.md + concrete outcome |
-| **Values / work style** | "What matters to you?", "Votre style de travail ?" | _profile.md (autonomie, systèmes, ownership, hands-on) |
-| **Factual** | Salary, notice period, remote, visa, location | profile.yml — answer directly, no hedging |
-| **Open-ended** | "Tell us about yourself", "Anything to add?" | Archetype from report + top proof point + fit signal |
+| **Motivation** | "Why us?", "Pourquoi ce rôle ?" | Report A (JD detail) + one proof from B / digest / cv |
+| **Experience / project** | "Describe a project", "Parlez d'une réalisation" | cv.md + article-digest.md, then `_profile.md` Evidence order |
+| **Leadership / management** | "Have you managed people?", "How do you lead a team?" | Agence V0 (up to 7 designers) then OneAsset with one PO. No engineering line-management claim |
+| **Agents / AI flow** | "Experience with agents?", "AI workflows", "LLMs" | Concrete methods first. Personal side-project tools as examples, not brand drops. Employer workflows (OneAsset) when relevant |
+| **1-to-100 / startup** | "0-to-1", "scale a product", "startup experience" | Vloggy, personal SaaS (Creads.io framed as self-built), Agence V0, OneAsset (+ OTC). Arlequin as product/design help only |
+| **Strategy / UX method** | "How do you work?", "product strategy", "UX process" | OneAsset strategy + UpViral interviews + Marcel Sprint Design / Lean UX. Users and journeys first |
+| **AI facilitation / new process** | "How do you use AI in design?", "prototyping", "Figmol", "GitHub" | Prototypes in Cursor and Claude Code. Figmol = internal Figma-like review. GitHub PRs with engineering |
+| **Collaboration** | "How do you work with PMs / engineers / stakeholders?" | OneAsset PO + GitHub; UpViral CPO + developers; LVMH maisons; Renault workshops |
+| **Compliance** | "regulated", "KYC", "fintech compliance" | OneAsset first (VARA, KYB/KYC, reporting). Société Générale MIF2 adjacent |
+| **Business / data** | "business analysis", "data", "insights" | LVMH data marketing platform. Do not claim a BA/DA job title |
+| **International** | "global", "multi-market", "localisation" | Renault Renew: multi-country FO/BO and design system |
+| **Skill / method** | "How do you handle X?" | cv.md Skills + a matching project |
+| **Values / work style** | "What matters to you?" | `_profile.md` Writing Style + one project example |
+| **Factual** | Salary, notice, remote, visa, location | `profile.yml` only |
+| **Behavioral** | "Tell me about a time" | `interview-prep/story-bank.md` if a matching story exists, else cv.md |
+| **Open-ended** | "Tell us about yourself" | `_profile.md` Primary positioning + one proof from digest |
 
 ## Step 4 — Generate the answer
 
-Before drafting, read `modes/_profile.md` → **Guidelines de copywriting** and apply the **Application answers — Hugo voice** block as the voice contract.
+Before drafting, **read these skills in order** (do not invent a second style guide):
 
-**Voice target:**
+1. `~/.codex/skills/copywriting/SKILL.md` → section **ATS / job-application answers**
+2. `~/.codex/skills/copy-editing/SKILL.md` → section **Short ATS / job-application answers** only (skip sweeps 3, 6, 7)
+3. `~/.codex/skills/humanizer/SKILL.md` → signs 1–8 and 12, plus the ATS section
+4. `~/.codex/skills/stop-slop/SKILL.md` → ATS section
 
-- Sounds like Hugo Vermot answering directly, not like an AI cover-letter generator.
-- Builder/founder energy: proof first, concrete systems, real users, shipped products.
-- Terse, selective, and specific. No HR polish, no "please pick me" posture.
-- Natural first person with contractions. A controlled blunt sentence is OK if it is true and professional.
-- Default rhythm: proof → method / trade-off → why this role or company now.
+Then read `modes/_profile.md` → **Writing Style** and `modes/_custom.md` → **Voix des réponses de candidature**. Profile voice wins on cadence. The four skills win on slop (em dashes, not-X-but-Y, staged openers, closers, sales words).
 
-**Copywriting rules — non-negotiable:**
+**Voice:** first person as the candidate, answering a form. Short sentences. One idea per sentence. Proof first. Readable out loud. Not a landing page, not ChatGPT, not a pitch.
 
-1. **First person, active voice** — no passive, no "would be", no "I am looking for"
-2. **Lead with proof, not claim** — "I built X that does Y" not "I'm great at X"
-3. **Answer the literal question** — if it has 2 or 3 sub-questions, answer all of them in the same order
-4. **2–4 sentences max** unless the question explicitly calls for a longer narrative (e.g. "describe a project in detail" → STAR format, still tight)
-5. **Anchor in the specific** — one signal from the JD/report + one real proof point from the candidate, without drifting away from the asked topic
-6. **For experience questions, name a real product in sentence one**
-7. **If the exact domain experience is missing, say so plainly in a short clause, then pivot to the closest adjacent experience**
-8. **Never turn adjacent experience into direct experience**
-9. **Never invent the users** — name the real users of the cited product
-10. **Ban vague bridge phrases** — don't write "maps closely to", "this experience translates to", "similar infrastructure field", "internal AI operators", or other fuzzy analogies unless they are literally factual
-11. **Keep it simple** — short sentences, concrete nouns, minimal abstraction
-12. **If the question asks product + users + problem + impact, answer in exactly that order**
-13. **Adaptive archetype** — frame using the archetype that maps to this role (see _profile.md Framing Adaptatif)
-14. **Tone: "I'm choosing you"** — confident, deliberate, selective. Not desperate, not arrogant.
-15. **Language** = language of the question. FR if FR, EN if EN.
-16. **Zero filler** — no "I am passionate about", "I would love the opportunity to", "I believe I would be a great fit"
-17. **Never invent** — no fake metrics, no invented experience. If a gap exists, reframe around adjacent strength, but stay explicit about the gap.
-18. **CRITICAL — AI tools questions:** If the question mentions specific AI tools or generative AI experience, ALWAYS read `_profile.md` and `cv.md` for the candidate's documented proficiency, daily usage, and production projects, and cite that directly. Never generate a generic or hedged answer when the source files contain the proof. Lead with the strongest documented signal.
-19. **No unnecessary hyphens** — write compound words without hyphens unless grammatically required.
-20. **Use contractions** — "I've", "I'm", "you're", etc. Avoid stiff constructions where a contraction fits.
-21. **Hugo voice check** — if the answer could be written by any senior candidate, rewrite it around a real project, a hard decision, or a verified metric.
-22. **No career-coach gloss** — avoid "thrilled", "excited", "meaningful impact", "dynamic environment", "strong fit", "unique blend", unless the phrase is forced by the question.
+**Hard rules:**
 
-**Templates per type:**
+1. Answer the question first. Then stop. No motivational coda. No "that's the work I do / that's what I'd bring".
+2. First person, active. Lead with a documented action or method: "I [did X with Y]", not "I'm great at X", and not a product-name open.
+3. If the question has sub-questions, cover them in the same order.
+4. Default: 2–4 short sentences. Longer only if the form asks for a narrative. Still one idea per sentence, max ~25 words.
+5. One JD detail + one real proof point. Describe the method and scope. Do not catalogue projects. Do not paste headcounts, %, revenue, month counts, or year ranges into free-text answers.
+6. Experience: lead with **what you did** (method / LLM step / design process), not with a product brand. Name a real product only after the work is clear, and only once. Real users only (qualitative). Never invent users, metrics, emotion, or employers. Prefer how you worked (research, prototypes, collaboration, tools) over scored results.
+6b. **Independent / bootstrapped work (UXfi, Flemme OS, Creads.io, Panfy, Jarvos, Ancient World, JobYouGo):** these are personal side projects or self-built tools, not known brands. Never write as if the recruiter already knows them ("On Creads.io…", "At Flemme OS…"). Prefer: "I built a personal [type of tool] where I [method]." Optional short name once in parentheses. Employer roles (OneAsset, LVMH, Renault, Société Générale, UpViral, Agence V0) stay normal employment framing ("At OneAsset…"). Do not stack three product names to sound impressive.
+7. Missing exact experience: say so in one short clause, then the closest adjacent fact. Never recast adjacent as direct.
+8. No vague bridges: "maps closely to", "this experience translates to", "similar infrastructure field".
+9. If the form asks product + users + problem + impact together → method/what you built first, then users/problem in plain terms. Still no famous-brand framing for side projects. Skip numeric impact unless the field is explicitly about metrics or salary.
+10. Language of the question (FR or EN).
+11. **No em dash (—). No en dash as a pause.** Period or comma. Numeric ranges use a hyphen (`70-110K`) only on salary/comp fields. No semicolon as a fancy comma.
+12. No not-X-but-Y. No forced triads. No staged openers ("I'm excited to", "Throughout my career", "Here's the thing").
+13. Banned unless they are a product name: delve, leverage, utilize, robust, seamless, cutting-edge, passionate, thrilled, unique blend, meaningful impact, game-changer.
+14. Yes / No / URL: the short value only. Do not dress them up.
+15. Factual (salary, notice, visa, remote): `profile.yml`, one sentence. No persuasive closing. Dates and numbers belong here, not in motivation/experience prose.
+16. AI / LLM tools: answer with **concrete methods** (API calls, prompt design, validation pass, structured JSON, RAG, agent steps). Do not dump a buzzword list (multi-agent, orchestration, pipelines) without saying what each step did. Read `_profile.md` and `cv.md` first. Cite documented use. Do not hedge when the files have the proof.
+17. If the facts cannot answer honestly, leave the field empty. Do not pad.
+18. Optional form fields: skip unless the user asked to fill them anyway.
+19. Contractions are fine ("I've", "I'm") when they match Writing Style. Do not add slang or fake typos.
+20. Free-text description fields: pragmatic methods only. No "in the first N months", no "15+ maisons", no "EUR…", no "since 2022" as proof.
 
-- **Motivation (why role/company)**
-  > "[Specific signal from JD] caught my attention because it is not abstract for me. I built [project], where [proof point]. That's the kind of scope I want next: real product ownership, real AI/system complexity, and room to ship."
+**Checks before returning:**
 
-- **Experience / project**
-  > "I built [real product]. The users were [real users], and I solved [specific problem] by [concrete action]. The impact was [real metric or concrete outcome]."
+- [ ] No `—` or clause `–`
+- [ ] No sentence over ~25 words without a period
+- [ ] No banned word, staged opener, or restating closer
+- [ ] Every claim is in cv.md / article-digest.md / _profile.md / profile.yml
+- [ ] Side projects are framed as personal work, not famous products
+- [ ] The question is actually answered
 
-- **Skill / method**
-  > "I [concrete method]. At [context], that meant [measurable outcome]. For [JD challenge], I'd use the same discipline: start with the real workflow, build the system, then measure whether it works."
+**Shapes (facts only, not slogans):**
 
-- **Work style / values**
-  > "I work best with clear ownership and a real problem to solve. In practice, that meant [concrete example from a project]. I own the problem end-to-end before asking for help."
-
-- **Open-ended / "tell us about yourself"**
-  > "I'm a [archetype from report] who designs the experience, architects the AI/product system, and ships it. I [top proof point from article-digest or cv.md]. [Company]'s [specific thing] is why this role is on my list right now."
-
-- **Factual (salary)**
-  > Use the script from _profile.md negotiation section. Keep it one sentence, firm but open.
+- **Motivation:** "[JD detail]. I [method from a relevant project]. [One concrete link to the role]."
+- **Experience (employer):** "At [employer] I [action]. [Method / collaboration]."
+- **Experience (side project / AI tool):** "I built a personal [tool type] where I [LLM or design method]. [Optional: (ProjectName).] [What the flow did in plain terms]."
+- **Skill / LLM:** "I [concrete LLM practice]. Example: [one personal tool or employer workflow]."
+- **Work style:** "At [project] I [concrete example of how I work]."
+- **Open-ended:** "I'm a [archetype from the report]. I [one method-focused proof]. This role [one JD fact]."
+- **Factual:** one sentence from `profile.yml` (numbers/dates only here).
 
 ## Step 5 — Output format
 

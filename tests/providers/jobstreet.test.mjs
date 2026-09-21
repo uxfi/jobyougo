@@ -42,6 +42,22 @@ try {
     fail(`parseJobstreetItem returned ${JSON.stringify(parsed)}`);
   }
 
+  const regionalUrls = [
+    ['https://sg.jobstreet.com', 'https://sg.jobstreet.com/job/92996157'],
+    ['https://my.jobstreet.com', 'https://my.jobstreet.com/job/92996157'],
+    ['https://ph.jobstreet.com', 'https://ph.jobstreet.com/job/92996157'],
+    ['https://th.jobsdb.com', 'https://th.jobsdb.com/job/92996157'],
+  ];
+  let regionalOk = true;
+  for (const [origin, expected] of regionalUrls) {
+    const regional = parseJobstreetItem(sampleItem, origin, 'FallbackCo');
+    if (!regional || regional.url !== expected) {
+      fail(`parseJobstreetItem ${origin} url: ${JSON.stringify(regional?.url)} (expected ${expected})`);
+      regionalOk = false;
+    }
+  }
+  if (regionalOk) pass('parseJobstreetItem uses /job/{id} for SG/MY/PH/TH (not /id/job/)');
+
   // parseJobstreetItem — uses companyName fallback when advertiser.description is absent
   const noAdvertiserItem = {
     id: '2',

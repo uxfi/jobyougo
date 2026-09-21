@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan } from '../lib/apply-fill-guards.mjs';
+import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel } from '../lib/apply-fill-guards.mjs';
 
 const field = (label, extra = {}) => ({ label, type: 'text', name: '', idAttr: '', ...extra });
 
@@ -44,11 +44,12 @@ test('looksLikeTypeahead: city/country/university/source, not identity or Yes/No
   assert.equal(looksLikeTypeahead(field('Country of residence')), true);
   assert.equal(looksLikeTypeahead(field('University')), true);
   assert.equal(looksLikeTypeahead(field('How did you hear about us?')), true);
+  assert.equal(looksLikeTypeahead(field('Company name')), true);
+  assert.equal(looksLikeTypeahead(field('Current company')), true);
   assert.equal(looksLikeTypeahead(field('First name')), false);
   assert.equal(looksLikeTypeahead(field('Email')), false);
   assert.equal(looksLikeTypeahead(field('Do you require visa sponsorship?')), false);
   assert.equal(looksLikeTypeahead(field('Are you authorized to work in this country?')), false);
-  assert.equal(looksLikeTypeahead(field('Current company')), false);
   assert.equal(looksLikeTypeahead(field('Skills')), false);
   assert.equal(looksLikeTypeahead(field('Open source experience')), false);
 });
@@ -175,4 +176,48 @@ test('shouldReplaceFilledValue overwrites salary autofill junk, not essays', () 
   assert.equal(shouldReplaceFilledValue(field('Email', { type: 'email' }), 'wrong@x.com', 'hugo@x.com'), true);
   assert.equal(shouldReplaceFilledValue(field('Email', { type: 'email' }), 'hugo@x.com', 'hugo@x.com'), false);
   assert.equal(shouldReplaceFilledValue({ ...field('Cover letter'), tag: 'textarea' }, 'Long enough essay from the ATS', 'A different draft'), false);
+});
+
+const job = {
+  company: 'OneAsset',
+  title: 'Senior Product Designer / Product Lead',
+  startMonth: 2,
+  startYear: '2026',
+  current: true,
+};
+
+test('employmentHistoryPlan fills Greenhouse work-history block', () => {
+  assert.equal(employmentHistoryPlan(field('Company name*'), job)?.value, 'OneAsset');
+  assert.equal(employmentHistoryPlan(field('Who is your most recent/current employer?'), job)?.value, 'OneAsset');
+  assert.equal(employmentHistoryPlan(field('Title*'), job)?.value, 'Senior Product Designer / Product Lead');
+  assert.equal(employmentHistoryPlan(field('Start date month*'), job)?.selectText, 'February');
+  assert.equal(employmentHistoryPlan(field('Start date year*'), job)?.value, '2026');
+  assert.equal(employmentHistoryPlan(field('End date month*'), job)?.currentRoleEnd, true);
+  assert.equal(employmentHistoryPlan(field('End date year*'), job)?.currentRoleEnd, true);
+  assert.equal(employmentHistoryPlan(field('Current role', { type: 'checkbox' }), job)?.check, true);
+  assert.equal(monthLabel(2), 'February');
+});
+
+test('isAvailabilityStartField ignores employment month/year dropdowns', () => {
+  assert.equal(isAvailabilityStartField(field('Start date month*')), false);
+  assert.equal(isAvailabilityStartField(field('Start date year*')), false);
+  assert.equal(isAvailabilityStartField(field('When can you start?')), true);
+  assert.equal(isAvailabilityStartField(field('Start date')), true);
+});
+
+test('screeningChoicePlan: 18+, previously worked, state, postal', () => {
+  assert.equal(screeningChoicePlan(field('Are you 18 or older?*'))?.yesNo, 'yes');
+  assert.equal(screeningChoicePlan(field('Have you previously worked at Natera?*'), { company: 'Natera' })?.yesNo, 'no');
+  const state = screeningChoicePlan(field('What state do you currently live in?*'), {
+    identity: { country: 'France' },
+  });
+  assert.ok(state?.selectPrefer);
+  assert.equal(state?.leaveBlank, true);
+  assert.equal(state?.value, undefined);
+  assert.equal(screeningChoicePlan(field('Postal Code*'), { identity: {} })?.leaveBlank, true);
+  assert.equal(screeningChoicePlan(field('Postal Code*'), { identity: { postal: '75011' } })?.value, '75011');
+  // bare "employer" must not hijack EEO / equal-opportunity copy
+  assert.equal(employmentHistoryPlan(field('Equal Opportunity Employer acknowledgement'), {
+    company: 'OneAsset', title: 'X', startMonth: 2, startYear: '2026', current: true,
+  }), null);
 });

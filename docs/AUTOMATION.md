@@ -11,10 +11,11 @@ Two independent pieces, smallest first. You can use either on its own.
 - **[1. Schedule the scan](#1-schedule-the-scan)** — run `node scan.mjs` on cron /
   launchd / Windows Task Scheduler. Zero tokens: the scanner only reads public
   job-board APIs and appends URLs to `data/pipeline.md`.
-- **[2. Triage the queue](#2-triage-the-queue)** — a Read/Write-only prompt that
-  reads `## Pending` from `data/pipeline.md`, compares each posting against
-  `config/profile.yml`, and writes a shortlist you actually open. No web, no JD
-  extraction, no PDFs, no subagents.
+- **[2. Triage the queue](#2-triage-the-queue)** — two passes against `## Pending`
+  in `data/pipeline.md`: a deterministic, tested script (`node remote-eligibility.mjs`)
+  for location/remote eligibility, then a Read/Write-only prompt for title/role
+  relevance that writes a shortlist you actually open. No web, no JD extraction, no
+  PDFs, no subagents, either way.
 
 > Everything here is **local-first**: your CV, profile, and pipeline stay on your
 > machine — none of your data is uploaded. The scan does reach out to *public*
@@ -108,9 +109,38 @@ each run. Next you decide which are worth your attention — cheaply.
 ## 2. Triage the queue
 
 An unattended scan quietly piles URLs into `data/pipeline.md`. A full evaluation of
-every one costs tokens; most aren't worth it. This triage is the cheap first glance
-in between: it ranks the pending postings on **title + location alone** — the two
-fields the scanner already wrote — against your profile, and writes a shortlist.
+every one costs tokens; most aren't worth it. Triage is the cheap first glance in
+between, split into two passes so the part that's actually deterministic doesn't
+depend on an LLM re-deriving it correctly every single run:
+
+### 2a. Location eligibility — zero-token, deterministic
+
+```bash
+node remote-eligibility.mjs           # annotate every pending row in place
+node remote-eligibility.mjs --summary # just print the compatible/incompatible/unclear counts
+node remote-eligibility.mjs --dry-run # preview the annotations, write nothing
+```
+
+Reads `config/profile.yml`'s `location.authorized_in` and tags every pending row
+with `| location: compatible|incompatible|unclear — {reason}`, using the rule in
+`remote-eligibility-core.mjs` (tested in `tests/remote-eligibility.test.mjs`). It
+never opens a URL and never guesses: a posting with no remote/on-site signal in its
+captured location text is tagged `unclear`, never silently accepted or rejected.
+
+This exists because a one-off natural-language version of this same judgment —
+"pick postings with explicit proof of remote-international eligibility" — was tried
+as an unsaved prompt and returned 0 matches out of a candidate count that didn't
+correspond to anything in the project. Re-deriving the same judgment by hand found
+60+ postings that plainly qualified. The rule was never the hard part (it's a
+handful of lines already sitting in `config/profile.yml` and `modes/_custom.md`);
+what was missing was somewhere durable to put it. Run this first — it costs nothing
+— and only the postings NOT already ruled out need the LLM pass below.
+
+### 2b. Title/role relevance — opt-in LLM re-rank
+
+An unattended scan quietly piles URLs into `data/pipeline.md`. This second pass
+ranks the pending postings on **title + location alone** — the two fields the
+scanner already wrote — against your profile, and writes a shortlist.
 
 It is deliberately **Read/Write only**: it never opens a URL, fetches a JD, generates
 a PDF, or spawns a subagent, so it costs a single, small prompt. Paste this to your

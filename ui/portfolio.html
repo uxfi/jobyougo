@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" href="../images/favicon.png">
-  <title>Hugo Vermot, Senior Product Designer | AI Products</title>
+  <title>Hugo Vermot, Product Manager | AI Products</title>
   <!-- OpenGraph / Social sharing -->
-  <meta property="og:title" content="Hugo Vermot, Senior Product Designer | AI Products">
-  <meta property="og:description" content="Senior Product Designer building AI products. Selected work: OneAsset, Creads.io, LVMH, Renault and Société Générale.">
+  <meta property="og:title" content="Hugo Vermot, Product Manager | AI Products">
+  <meta property="og:description" content="Product Manager building AI products. Selected work: OneAsset, Creads.io, LVMH, Renault and Société Générale.">
   <meta property="og:image" content="../images/og-portfolio.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Hugo Vermot, Senior Product Designer | AI Products">
-  <meta name="twitter:description" content="Senior Product Designer building AI products. Selected work: OneAsset, Creads.io, LVMH, Renault and Société Générale.">
+  <meta name="twitter:title" content="Hugo Vermot, Product Manager | AI Products">
+  <meta name="twitter:description" content="Product Manager building AI products. Selected work: OneAsset, Creads.io, LVMH, Renault and Société Générale.">
   <meta name="twitter:image" content="../images/og-portfolio.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -73,27 +73,6 @@
     .method-token-stage canvas:active {
       cursor: grabbing !important;
     }
-
-    /* ── CUSTOM CURSOR (clickable links only) ── */
-    #cursor-dot {
-      position: fixed; top: 0; left: 0; z-index: 20000;
-      width: 64px; height: 64px;
-      background: url('../images/curseur-small.png') no-repeat center center;
-      background-size: contain;
-      pointer-events: none;
-      transform: translate(-50%, -50%) rotate(-15deg);
-      opacity: 0;
-      transition: transform 60ms ease, width 200ms ease, height 200ms ease, opacity 160ms ease;
-    }
-    body.cursor-link,
-    body.cursor-link * {
-      cursor: none !important;
-    }
-    body.cursor-link #cursor-dot { opacity: 1; }
-    .cursor-hover #cursor-dot { width: 80px; height: 80px; }
-
-    /* Adapt cursor for dark sections */
-    .cursor-white #cursor-dot { filter: invert(1); }
 
     /* ── HIDDEN UTIL ── */
     .hidden { display: none !important; }
@@ -968,15 +947,16 @@
     }
     /* ── EXPLORE INTRO (intro to UI playground) ── */
     .explore-intro {
-      padding: 120px 48px 110px;
+      padding: 120px 48px 80px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 88px;
+      gap: 72px;
       background: var(--bg);
       text-align: center;
       position: relative;
+      overflow: hidden;
     }
     .explore-intro-stage {
       position: relative;
@@ -999,7 +979,90 @@
       color: var(--ink-2);
     }
     @media (max-width: 720px) {
-      .explore-intro { padding: 88px 24px 80px; gap: 64px; }
+      .explore-intro { padding: 88px 24px 56px; gap: 48px; }
+    }
+
+    /* ── METHODS CAROUSEL ── */
+    .methods-carousel {
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+      overflow: hidden;
+      position: relative;
+      padding: 8px 0 4px;
+      cursor: grab;
+      touch-action: pan-y;
+      user-select: none;
+      -webkit-user-select: none;
+      mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+    }
+    .methods-carousel.is-dragging {
+      cursor: grabbing;
+    }
+    .methods-carousel-track {
+      display: flex;
+      align-items: stretch;
+      gap: 18px;
+      width: max-content;
+      will-change: transform;
+      transform: translate3d(0, 0, 0);
+    }
+    .methods-carousel-item {
+      flex: 0 0 148px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      --stage: #efeae3;
+      pointer-events: none;
+    }
+    .methods-carousel-visual {
+      position: relative;
+      height: 148px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--stage);
+      box-shadow:
+        inset 0 -28px 36px rgba(12,11,9,.04),
+        0 14px 28px rgba(12,11,9,.07);
+    }
+    .methods-carousel-item[data-type="ai-vibe-code"] .methods-carousel-visual {
+      box-shadow:
+        inset 0 0 56px rgba(124, 58, 237, .28),
+        inset 0 -28px 36px rgba(12,11,9,.1),
+        0 14px 28px rgba(12,11,9,.07);
+    }
+    .methods-carousel-visual .method-obj {
+      position: absolute;
+      left: 50%;
+      top: 54%;
+      width: 180px;
+      height: 180px;
+      margin: -90px 0 0 -90px;
+      transform: scale(.48);
+      transform-style: preserve-3d;
+    }
+    .methods-carousel-visual .s3d-shadow { display: none; }
+    .methods-carousel-visual .s3d-scene {
+      animation: s3d-spin 7.2s ease-in-out infinite;
+    }
+    .methods-carousel-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .02em;
+      color: var(--ink-2);
+      text-align: center;
+      line-height: 1.25;
+      min-height: 2.5em;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .methods-carousel-visual .s3d-scene { animation: none; }
+    }
+    @media (max-width: 720px) {
+      .methods-carousel-item { flex-basis: 118px; }
+      .methods-carousel-visual { height: 118px; border-radius: 16px; }
+      .methods-carousel-visual .method-obj { transform: scale(.4); }
+      .methods-carousel-track { gap: 12px; }
     }
     /* MacBook 3D animation */
     .macbook-container {
@@ -1531,6 +1594,11 @@
       --hero-stat-float-delay: 1220ms;
       top: 138px;
       right: 0;
+      width: 282px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
     }
     .hero-stat--cursor {
       --hero-stat-rotate: -2deg;
@@ -1834,7 +1902,7 @@
       max-width: 1180px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 16px;
     }
     .ai-bento-tile {
@@ -1942,9 +2010,9 @@
     .proj-list { padding: 0 48px 40px; }
     .proj-list-item {
       display: grid;
-      grid-template-columns: 52px 1fr 220px;
+      grid-template-columns: 80px 1fr 220px;
       align-items: center;
-      gap: 24px;
+      gap: 36px;
       padding: 28px 16px;
       margin: 0 -16px;
       border-top: 1px solid var(--rule);
@@ -1969,13 +2037,15 @@
     }
     .proj-list-logo {
       width: 48px; height: 48px; object-fit: contain;
+      justify-self: center;
+      margin-inline: 8px;
       filter: grayscale(1); opacity: .4;
       transition: opacity 350ms, filter 350ms, transform 350ms;
     }
     .proj-list-item:hover .proj-list-logo {
       transform: scale(1.05);
     }
-    .proj-list-logo-placeholder { width: 48px; height: 48px; }
+    .proj-list-logo-placeholder { width: 48px; height: 48px; justify-self: center; margin-inline: 8px; }
     .proj-list-title-block {
       display: flex;
       flex-direction: column;
@@ -2040,6 +2110,10 @@
     .badge-vibe  { color: #0369a1; background: #f0f9ff; border: 1px solid #bae6fd; }
     .badge-green { color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; }
     .badge-pink  { color: #be185d; background: #fdf2f8; border: 1px solid #fbcfe8; }
+    .badge-role  {
+      color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0;
+      text-transform: none; letter-spacing: .02em; font-weight: 600;
+    }
     .badge-biz-b2b        { color: #0369a1; background: #f0f9ff; border-color: #bae6fd; }
     .badge-biz-b2c        { color: #be185d; background: #fdf2f8; border-color: #fbcfe8; }
     .badge-biz-saas       { color: #7c3aed; background: #f5f3ff; border-color: #ddd6fe; }
@@ -2112,10 +2186,9 @@
       transform-style: preserve-3d;
     }
     .proj-list-method .s3d-shadow { display: none; }
-    .proj-list-method .s3d-scene { animation: none; }
-    .proj-list-item:hover .proj-list-method .s3d-scene,
-    .ai-bento-tile:hover .proj-list-method .s3d-scene {
-      animation: s3d-spin 7.2s ease-in-out infinite;
+    .proj-list-method .s3d-scene {
+      animation: none !important;
+      transform: rotateX(-22deg) rotateY(-28deg);
     }
 
     /* ── INTERFACE GRID ── */
@@ -3506,34 +3579,34 @@
         inset 0 -40px 50px rgba(12,11,9,.04),
         0 18px 40px rgba(12,11,9,.08);
     }
-    .proj-method-card[data-type="research"], .proj-list-method[data-type="research"] { --stage: #f3e6c8; }
-    .proj-method-card[data-type="user-research"], .proj-list-method[data-type="user-research"] { --stage: #d7eee8; }
-    .proj-method-card[data-type="workshops"], .proj-list-method[data-type="workshops"] { --stage: #ffe8c2; }
-    .proj-method-card[data-type="user-flows"], .proj-list-method[data-type="user-flows"] { --stage: #d9e7ff; }
-    .proj-method-card[data-type="ia"], .proj-list-method[data-type="ia"] { --stage: #ece7dc; }
-    .proj-method-card[data-type="wireframe"], .proj-list-method[data-type="wireframe"] { --stage: #e8e4db; }
-    .proj-method-card[data-type="prototype"], .proj-list-method[data-type="prototype"] { --stage: #1b1c22; }
-    .proj-method-card[data-type="user-tests"], .proj-list-method[data-type="user-tests"] { --stage: #d9f3e3; }
-    .proj-method-card[data-type="ui-design"], .proj-list-method[data-type="ui-design"] { --stage: #f3d9e8; }
-    .proj-method-card[data-type="design-system"], .proj-list-method[data-type="design-system"] { --stage: #e4ddf5; }
-    .proj-method-card[data-type="ai-vibe-code"], .proj-list-method[data-type="ai-vibe-code"] { --stage: #10081d; }
+    .proj-method-card[data-type="research"], .proj-list-method[data-type="research"], .methods-carousel-item[data-type="research"] { --stage: #f3e6c8; }
+    .proj-method-card[data-type="user-research"], .proj-list-method[data-type="user-research"], .methods-carousel-item[data-type="user-research"] { --stage: #d7eee8; }
+    .proj-method-card[data-type="workshops"], .proj-list-method[data-type="workshops"], .methods-carousel-item[data-type="workshops"] { --stage: #ffe8c2; }
+    .proj-method-card[data-type="user-flows"], .proj-list-method[data-type="user-flows"], .methods-carousel-item[data-type="user-flows"] { --stage: #d9e7ff; }
+    .proj-method-card[data-type="ia"], .proj-list-method[data-type="ia"], .methods-carousel-item[data-type="ia"] { --stage: #ece7dc; }
+    .proj-method-card[data-type="wireframe"], .proj-list-method[data-type="wireframe"], .methods-carousel-item[data-type="wireframe"] { --stage: #e8e4db; }
+    .proj-method-card[data-type="prototype"], .proj-list-method[data-type="prototype"], .methods-carousel-item[data-type="prototype"] { --stage: #1b1c22; }
+    .proj-method-card[data-type="user-tests"], .proj-list-method[data-type="user-tests"], .methods-carousel-item[data-type="user-tests"] { --stage: #d9f3e3; }
+    .proj-method-card[data-type="ui-design"], .proj-list-method[data-type="ui-design"], .methods-carousel-item[data-type="ui-design"] { --stage: #f3d9e8; }
+    .proj-method-card[data-type="design-system"], .proj-list-method[data-type="design-system"], .methods-carousel-item[data-type="design-system"] { --stage: #e4ddf5; }
+    .proj-method-card[data-type="ai-vibe-code"], .proj-list-method[data-type="ai-vibe-code"], .methods-carousel-item[data-type="ai-vibe-code"] { --stage: #10081d; }
     .proj-method-card[data-type="ai-vibe-code"] .method-visual {
       box-shadow:
         inset 0 0 70px rgba(124, 58, 237, .28),
         inset 0 -36px 48px rgba(12,11,9,.12),
         0 18px 40px rgba(12,11,9,.08);
     }
-    .proj-method-card[data-type="audit"], .proj-list-method[data-type="audit"] { --stage: #fde7d2; }
-    .proj-method-card[data-type="handoff"], .proj-list-method[data-type="handoff"] { --stage: #dce8f6; }
-    .proj-method-card[data-type="brand"], .proj-list-method[data-type="brand"] { --stage: #fbe2d6; }
-    .proj-method-card[data-type="product-vision"], .proj-list-method[data-type="product-vision"] { --stage: #f6e7b8; }
-    .proj-method-card[data-type="journey-mapping"], .proj-list-method[data-type="journey-mapping"] { --stage: #dceef2; }
-    .proj-method-card[data-type="automation"], .proj-list-method[data-type="automation"] { --stage: #14221c; }
-    .proj-method-card[data-type="data-ops"], .proj-list-method[data-type="data-ops"] { --stage: #dcefe4; }
-    .proj-method-card[data-type="project-mgmt"], .proj-list-method[data-type="project-mgmt"] { --stage: #efe4d4; }
-    .proj-method-card[data-type="dev-follow"], .proj-list-method[data-type="dev-follow"] { --stage: #161b24; }
-    .proj-method-card[data-type="marketing"], .proj-list-method[data-type="marketing"] { --stage: #fde2d0; }
-    .proj-method-card[data-type="game-3d"], .proj-list-method[data-type="game-3d"] { --stage: #24180e; }
+    .proj-method-card[data-type="audit"], .proj-list-method[data-type="audit"], .methods-carousel-item[data-type="audit"] { --stage: #f4d7c0; }
+    .proj-method-card[data-type="handoff"], .proj-list-method[data-type="handoff"], .methods-carousel-item[data-type="handoff"] { --stage: #cfdced; }
+    .proj-method-card[data-type="brand"], .proj-list-method[data-type="brand"], .methods-carousel-item[data-type="brand"] { --stage: #fbe2d6; }
+    .proj-method-card[data-type="product-vision"], .proj-list-method[data-type="product-vision"], .methods-carousel-item[data-type="product-vision"] { --stage: #f6e7b8; }
+    .proj-method-card[data-type="journey-mapping"], .proj-list-method[data-type="journey-mapping"], .methods-carousel-item[data-type="journey-mapping"] { --stage: #dceef2; }
+    .proj-method-card[data-type="automation"], .proj-list-method[data-type="automation"], .methods-carousel-item[data-type="automation"] { --stage: #14221c; }
+    .proj-method-card[data-type="data-ops"], .proj-list-method[data-type="data-ops"], .methods-carousel-item[data-type="data-ops"] { --stage: #dcefe4; }
+    .proj-method-card[data-type="project-mgmt"], .proj-list-method[data-type="project-mgmt"], .methods-carousel-item[data-type="project-mgmt"] { --stage: #efe4d4; }
+    .proj-method-card[data-type="dev-follow"], .proj-list-method[data-type="dev-follow"], .methods-carousel-item[data-type="dev-follow"] { --stage: #161b24; }
+    .proj-method-card[data-type="marketing"], .proj-list-method[data-type="marketing"], .methods-carousel-item[data-type="marketing"] { --stage: #f9d4c4; }
+    .proj-method-card[data-type="game-3d"], .proj-list-method[data-type="game-3d"], .methods-carousel-item[data-type="game-3d"] { --stage: #24180e; }
     .method-frame-num {
       position: absolute; top: 14px; left: 14px; z-index: 2;
       font-size: 11px; font-weight: 700; letter-spacing: .08em;
@@ -3595,19 +3668,26 @@
       50% { transform: rotateX(-18deg) rotateY(22deg) translateY(-8px); }
     }
     .proj-method-card[data-type="research"] .s3d-scene,
-    .proj-list-method[data-type="research"] .s3d-scene { animation-duration: 8.4s; }
+    .proj-list-method[data-type="research"] .s3d-scene,
+    .methods-carousel-item[data-type="research"] .s3d-scene { animation-duration: 8.4s; }
     .proj-method-card[data-type="automation"] .s3d-scene,
-    .proj-list-method[data-type="automation"] .s3d-scene { animation-duration: 4.6s; }
+    .proj-list-method[data-type="automation"] .s3d-scene,
+    .methods-carousel-item[data-type="automation"] .s3d-scene { animation-duration: 4.6s; }
     .proj-method-card[data-type="ai-vibe-code"] .s3d-scene,
-    .proj-list-method[data-type="ai-vibe-code"] .s3d-scene { animation-duration: 5.4s; }
+    .proj-list-method[data-type="ai-vibe-code"] .s3d-scene,
+    .methods-carousel-item[data-type="ai-vibe-code"] .s3d-scene { animation-duration: 5.4s; }
     .proj-method-card[data-type="game-3d"] .s3d-scene,
-    .proj-list-method[data-type="game-3d"] .s3d-scene { animation-duration: 6s; }
+    .proj-list-method[data-type="game-3d"] .s3d-scene,
+    .methods-carousel-item[data-type="game-3d"] .s3d-scene { animation-duration: 6s; }
     .proj-method-card[data-type="marketing"] .s3d-scene,
-    .proj-list-method[data-type="marketing"] .s3d-scene { animation-duration: 5.8s; }
+    .proj-list-method[data-type="marketing"] .s3d-scene,
+    .methods-carousel-item[data-type="marketing"] .s3d-scene { animation-duration: 5.8s; }
     .proj-method-card[data-type="data-ops"] .s3d-scene,
-    .proj-list-method[data-type="data-ops"] .s3d-scene { animation-duration: 9s; }
+    .proj-list-method[data-type="data-ops"] .s3d-scene,
+    .methods-carousel-item[data-type="data-ops"] .s3d-scene { animation-duration: 9s; }
     .proj-method-card[data-type="prototype"] .s3d-scene,
-    .proj-list-method[data-type="prototype"] .s3d-scene { animation-duration: 7.8s; }
+    .proj-list-method[data-type="prototype"] .s3d-scene,
+    .methods-carousel-item[data-type="prototype"] .s3d-scene { animation-duration: 7.8s; }
     @media (prefers-reduced-motion: reduce) {
       .s3d-scene { animation: none; }
     }
@@ -6054,11 +6134,11 @@
       .h-rule { margin: 0 24px; }
       .s-header { padding: 48px 24px 32px; }
       .proj-list { padding: 0 24px 32px; }
-       .proj-list-item { grid-template-columns: 36px 1fr; gap: 12px; }
+       .proj-list-item { grid-template-columns: 48px 1fr; gap: 20px; }
        .proj-list-preview-trigger { padding-right: 10px; }
        .proj-list-subtitle { font-size: 12px; line-height: 1.45; }
-       .proj-list-logo { width: 32px; height: 32px; filter:none; opacity:1; }
-       .proj-list-logo-placeholder { width: 32px; height: 32px; }
+       .proj-list-logo { width: 32px; height: 32px; filter:none; opacity:1; margin-inline: 4px; }
+       .proj-list-logo-placeholder { width: 32px; height: 32px; margin-inline: 4px; }
        .proj-list-tag, .proj-list-year { display: none; }
       .proj-list-badges { display: none; }
       .proj-list-method { width: 40px; height: 40px; border-radius: 10px; }
@@ -6071,7 +6151,6 @@
       .about-grid { grid-template-columns: 1fr; gap: 32px; }
       .contact-headline { letter-spacing: -3px; }
       footer { padding: 24px; flex-direction: column; gap: 12px; text-align: center; }
-      #cursor-dot { display: none; }
       .proj-hero { padding: 80px 24px 48px; min-height: auto; }
       .proj-object-switch { top: 72px; right: 24px; }
       .aw-models { grid-template-columns: 1fr; gap: 14px; }
@@ -6528,9 +6607,6 @@
 </head>
 <body>
 
-<!-- CUSTOM CURSOR -->
-<div id="cursor-dot"></div>
-
 <!-- FLOATING PROJECT PREVIEW -->
 <div id="proj-preview">
   <div id="proj-preview-inner">
@@ -6568,7 +6644,7 @@
       <button class="nav-usage-trigger" id="nav-usage-trigger" type="button" aria-expanded="false" aria-controls="nav-usage-panel">
         <span class="nav-usage-dot" aria-hidden="true"></span>
         <span class="nav-usage-total" id="nav-usage-total">--</span>
-        <span class="nav-usage-label">tokens / 24h</span>
+        <span class="nav-usage-label">tokens / month</span>
       </button>
       <div class="nav-usage-panel" id="nav-usage-panel" role="dialog" aria-label="AI usage dashboard">
         <div class="usage-panel-head">
@@ -6576,7 +6652,7 @@
             <div class="usage-panel-kicker">AI usage</div>
             <div class="usage-panel-total" id="usage-panel-total">--</div>
           </div>
-          <div class="usage-panel-date" id="usage-panel-date">Last 24h</div>
+          <div class="usage-panel-date" id="usage-panel-date">Last 30 days</div>
         </div>
         <div class="usage-metrics">
           <div class="usage-metric"><strong id="usage-input">--</strong><span>Input</span></div>
@@ -6741,10 +6817,10 @@
     <img class="hero-video" id="hero-bg" src="../images/bg-header-new.optimized.jpg" alt="" aria-hidden="true" fetchpriority="high" />
     <div class="hero-3d">
       <div class="hero-3d-stage" id="hero-3d-stage" aria-hidden="true"></div>
-      <div class="hero-shape-switch" id="hero-shape-toggle" data-object="emerald" role="group" aria-label="Switch the 3D hero shape">
+      <div class="hero-shape-switch" id="hero-shape-toggle" data-object="sunstone" role="group" aria-label="Switch the 3D hero shape">
         <span class="hero-shape-switch-name hero-shape-switch-name--left">Emerald</span>
         <div class="hsw">
-          <input class="hsw-check" id="hero-shape-toggle-check" type="checkbox" aria-label="Switch hero 3D shape">
+          <input class="hsw-check" id="hero-shape-toggle-check" type="checkbox" checked aria-label="Switch hero 3D shape">
           <label class="hsw-label" for="hero-shape-toggle-check">Switch shape<span></span></label>
         </div>
         <span class="hero-shape-switch-name hero-shape-switch-name--right">Sunstone</span>
@@ -6753,7 +6829,7 @@
     <div class="hero-copy">
       <div class="hero-role-tag">
         <span class="hero-role-tag-glass" aria-hidden="true"></span>
-        <span class="hero-role-tag-label">Senior Product Designer</span>
+        <span class="hero-role-tag-label">Product Manager</span>
       </div>
       <h1 class="hero-headline" data-i18n-html="hero_headline">I design<br><em>products</em><br>and build<br><em>with AI.</em></h1>
       <div class="hero-story-launch">
@@ -6776,13 +6852,13 @@
 
       <div class="hero-bottom">
         <p class="hero-desc">
-          <span data-i18n="hero_desc">Senior Product Designer working across product, admin and marketing at OneAsset. I also build AI products, including Creads.io, with 1,200 registered users.</span>
+          <span data-i18n="hero_desc">Product Manager working across product, admin and marketing at OneAsset. I also build AI products, including Creads.io, with 1,200 registered users.</span>
         </p>
       </div>
     </div>
     <div class="hero-stats">
       <div class="hero-stat hero-stat--years"><div class="hero-stat-val">12+</div><div class="hero-stat-lbl" data-i18n="stat_years">Years in design</div></div>
-      <div class="hero-stat hero-stat--projects"><div class="hero-stat-val">15+</div><div class="hero-stat-lbl" data-i18n="stat_seed">LVMH maisons</div></div>
+      <div class="hero-stat hero-stat--projects"><img class="hero-stat-logo" src="../images/cursor-logo.jpg" alt="Cursor"><div><div class="hero-stat-val">Top 3%</div><div class="hero-stat-lbl" data-i18n="stat_seed">users in 2025</div></div></div>
       <div class="hero-stat hero-stat--cursor"><img class="hero-stat-logo" src="../images/creads-logo.webp" alt="Creads.io"><div><div class="hero-stat-val">1,200</div><div class="hero-stat-lbl" data-i18n="stat_cursor">Creads registered users</div></div></div>
     </div>
   </section>
@@ -6829,7 +6905,10 @@
         <div class="macbook-shadow custom-animate-macbook-shadow"></div>
       </div>
     </div>
-    <h2 class="explore-intro-title">Explore the <em>projects</em></h2>
+    <h2 class="explore-intro-title" data-i18n="explore_intro_title">Methods used for my work</h2>
+    <div class="methods-carousel" id="methods-carousel" aria-label="Methods used for my work">
+      <div class="methods-carousel-track" id="methods-carousel-track"></div>
+    </div>
   </section>
   <script>
     (function buildMacbookKeyboard(){
@@ -6857,7 +6936,7 @@
   <div id="work">
     <div class="s-header">
       <h2 class="s-headline" data-i18n="work_label">Selected work</h2>
-      <a class="btn-download-cv" href="/Hugo_Vermot_CV_Paris.pdf" download="Hugo_Vermot_CV_Paris.pdf" id="ripple-btn-cv">
+      <a class="btn-download-cv" href="/Hugo_Vermot_CV_Complete_Paris.pdf" target="_blank" rel="noopener" id="ripple-btn-cv">
         <span class="btn-text">
           <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4 7l4 4 4-4"/><path d="M2 13h12"/></svg>
           Download CV
@@ -6873,9 +6952,8 @@
     <canvas class="ai-products-matrix" id="ai-products-matrix" aria-hidden="true"></canvas>
     <div class="ai-products-header">
       <div>
-        <h2 class="ai-products-title" data-i18n-html="ai_products_title">Other projects and prototypes</h2>
+        <h2 class="ai-products-title" data-i18n-html="ai_products_title">Other AI projects and prototypes</h2>
       </div>
-      <p class="ai-products-kicker" data-i18n="ai_products_kicker">UXfi is an audit prototype; Panfy is on hold. Flemme OS explores outbound automation. Jarvos and Ancient World are side projects in progress.</p>
     </div>
     <div class="ai-bento" id="ai-bento-el"></div>
     <div class="ai-bento ai-bento--wide" id="ai-bento-wide-el"></div>
@@ -7898,7 +7976,7 @@ const PROJECTS = [
     "logo": "../images/oneasset-logo.png",
     "company": "OneAsset",
     "tagline": "Regulated Real-World Asset Investment Platform",
-    "role": "Senior Product Designer / Product Lead",
+    "role": "Product Manager / Product Lead",
     "year": "Feb 2026 – Present",
     "duration": "Ongoing",
     "team": "Sole designer · Product and engineering team",
@@ -8357,6 +8435,7 @@ const PROJECTS = [
     ],
     "outcome": "A shared data marketing platform live across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo, built from interviews that reconciled conflicting maison-level needs into one data model and onboarding flow.",
     "outcomeStat": "15+ maisons",
+    "url": "https://www.lvmh.com",
     "video": "../images/lvmh-video.mp4",
     "narrative": [
       {
@@ -8715,8 +8794,8 @@ const PROJECTS = [
     ],
   },
   {
-    id:'jarvos', num:'13b', group:'ai', logo:'../images/jarvos-logo.svg', badges:['Side project'],
-    company:'Jarvos', tagline:'AI Agent OS — Semantic Orchestration',
+    id:'jarvos', num:'13b', group:'ai', logo:'../images/jarvos-logo.svg', badges:['Side project','Agent'],
+    company:'Jarvos Agent', tagline:'AI Agent OS — Semantic Orchestration',
     role:'Builder (side project)',
     year:'2025 – Present', duration:'Ongoing', team:'Solo',
     platforms:['Desktop'], tag:'AI Agent OS · Side project', accent:'#7c3aed',
@@ -8761,13 +8840,13 @@ const PROJECTS = [
     ],
   },
   {
-    id:'ancient-world', num:'13c', group:'game', logo:'../images/ancient-world-logo.svg', badges:['Side project','Game'],
-    company:'Ancient World', tagline:'PC MMORPG — Unreal Engine 5 + OWS + Supabase',
+    id:'ancient-world', num:'13c', group:'game', logo:'../images/ancient-world-logo.svg', badges:['Side project','Game','RPG'],
+    company:'Ancient World RPG', tagline:'PC MMORPG — Unreal Engine 5 + OWS + Supabase',
     role:'Builder (side project)',
     year:'2025 – Present', duration:'Ongoing', team:'Solo',
     platforms:['PC'], tag:'MMORPG · Side project', accent:'#d97706',
     desc:'A semi-historical / semi-fantasy PC MMORPG inspired by Ancient Egypt, Mayan civilizations, pyramids, relics, temples and sacred wars — built on Unreal Engine 5.7 + OWS, with Supabase as the persistent source of truth for combat, inventory, loot, progression and quests.',
-    subtitle:'An MMORPG side project built with Unreal Engine and Supabase',
+    subtitle:'An RPG side project built with Unreal Engine and Supabase',
     challenge:"Connect a local multiplayer loop to persistent inventory, loot and quest data while developing the game as a side project.",
     goals:'Ship the full core loop — login, character selection, open world, combat, loot, inventory, equipment, XP, skills, quests — on a stack where the client displays, the server validates, Supabase persists, and Unreal replicates. Build readable early-game choices (3 classes, 2 warring factions) and deep late-game systems (cards, relics, artifacts, hidden pyramid content, seasonal Pyramidion PvPvE).',
     solution:'Unreal Engine 5.7 + OWS + HubWorldMMO on Docker, with a validated OWS → Ancient World identity bridge and a full `aw` schema in Supabase/Postgres. Combat loadouts, abilities, base stats and weapon unlocks are pulled from the database — the first validated pipeline runs `solar_strike` from Supabase through to `GA_AW_SolarStrike` in Unreal GAS. Itemization V1 is audited clean end-to-end.',
@@ -8933,7 +9012,7 @@ function publicProjects() {
 }
 
 const EXP_LIST = [
-  {num:'01', company:'OneAsset', logo:'../images/oneasset-logo.png', role:'Senior Product Designer / Product Lead', type:'Salaried · Sole designer', year:'2026 – Present'},
+  {num:'01', company:'OneAsset', logo:'../images/oneasset-logo.png', role:'Product Manager / Product Lead', type:'Salaried · Sole designer', year:'2026 – Present'},
   {num:'01', company:'UpViral', logo:'../images/upviral.png', role:'Product Manager / Designer', type:'SaaS · Remote', year:'2024 – 2025'},
   {num:'02', company:'Shiseido Group', logo:'../images/shisideo.png', role:'Senior Product Designer', type:'Beauty · Paris', year:'2024'},
   {num:'03', company:'Société Générale', logo:'../images/societegenerale.png', role:'Senior Product Designer', type:'Finance · Paris', year:'2023 – 2024'},
@@ -8948,77 +9027,12 @@ const EXP_LIST = [
   {num:'12', company:'France Télévisions', logo:'../images/francetv.png', role:'Web Graphic Designer', type:'Media · Paris', year:'2013'},
 ];
 
-/* ═══════════════════════════════════════════
-   CUSTOM CURSOR
-═══════════════════════════════════════════ */
-const dot  = document.getElementById('cursor-dot');
-let mouseX = 0, mouseY = 0;
-const CUSTOM_CURSOR_LINK_SELECTOR = 'a[href]:not([href=""]), button:not(:disabled), [role="button"]:not([aria-disabled="true"]), [role="link"], label[for], summary, .btn-cta, .btn-back, .btn-contact, .nav-link, .proj-list-item, .ifaces-showmore, .iface-card, .hero-story-cta, .ai-bento-tile, .nav-object-switch, .proj-object-switch, .nav-usage-trigger, .contact-btn-submit, .iface-modal-copy, [class*="-modal-close"], .hrhv-suggestion, #hrhv-toggle';
-
-const heroEl = document.getElementById('hero');
-let heroAbsoluteBottom = 0;
-
-function refreshHeroMetrics() {
-  if (heroEl) {
-    const rect = heroEl.getBoundingClientRect();
-    heroAbsoluteBottom = rect.top + window.scrollY + rect.height;
-  }
-}
-window.addEventListener('resize', refreshHeroMetrics, { passive: true });
-refreshHeroMetrics();
-
 function isAnyModalOpen() {
   const ifaceOpen = document.getElementById('iface-modal')?.classList.contains('open');
   const storyOpen = document.getElementById('story-modal')?.classList.contains('open');
   const contactOpen = document.getElementById('contact-modal')?.classList.contains('is-open');
   return ifaceOpen || storyOpen || contactOpen;
 }
-
-function setCustomCursorActive(active, doc = document) {
-  const root = doc.body;
-  if (!root) return;
-  root.classList.toggle('cursor-link', active);
-  root.classList.toggle('cursor-hover', active);
-}
-
-function moveCustomCursor(clientX, clientY, options = {}) {
-  if (!dot) return;
-
-  mouseX = clientX; mouseY = clientY;
-  dot.style.left = mouseX + 'px';
-  dot.style.top  = mouseY + 'px';
-
-  if (options.hidden) document.body.classList.remove('cursor-link', 'cursor-hover');
-
-  const inHero = !isAnyModalOpen() && heroEl && (clientY + window.scrollY) < heroAbsoluteBottom;
-  document.body.classList.toggle('cursor-white', inHero && document.body.classList.contains('cursor-link'));
-}
-
-function updateCustomCursorHover(target, doc = document) {
-  const t = target?.closest?.(CUSTOM_CURSOR_LINK_SELECTOR);
-  const active = !!t;
-  setCustomCursorActive(active, doc);
-  if (doc === document) {
-    const inHero = !isAnyModalOpen() && heroEl && (mouseY + window.scrollY) < heroAbsoluteBottom;
-    document.body.classList.toggle('cursor-white', inHero && active);
-  }
-}
-
-document.addEventListener('mousemove', e => {
-  const onHero3d = e.target.closest('.hero-3d, .hero-3d-stage, .proj-hero-3d, .proj-hero-3d-stage, .aw-model-stage');
-  moveCustomCursor(e.clientX, e.clientY, { hidden: !!onHero3d });
-  if (onHero3d) return;
-  updateCustomCursorHover(e.target);
-}, { passive: true });
-
-document.addEventListener('mouseover', e => {
-  updateCustomCursorHover(e.target);
-});
-
-document.addEventListener('mouseleave', () => {
-  setCustomCursorActive(false);
-  document.body.classList.remove('cursor-white');
-});
 
 /* ═══════════════════════════════════════════
    HERO STAT REPULSION
@@ -9272,7 +9286,7 @@ function goHome() {
   document.getElementById('view-project').classList.add('hidden');
   document.getElementById('nav-links').style.display = '';
   window.scrollTo(0, 0);
-  document.title = 'Hugo Vermot, Senior Product Designer | AI Products';
+  document.title = 'Hugo Vermot, Product Manager | AI Products';
   if (history.pushState) history.pushState(null, '', '#');
 }
 
@@ -10674,20 +10688,36 @@ function renderMethodObject(type) {
       s3dItem(-26, 16, 20, '', box3d('green', 34, 34, 34)) +
       s3dItem(24, -6, 20, '', box3d('pink', 34, 52, 34)),
     'ai-vibe-code':
-      s3dItem(0, 34, 0, '', box3d('night', 72, 10, 72)) +
-      s3dItem(0, 6, 0, '', pyr3d('purple', 68, 86)) +
-      s3dItem(0, 14, 0, 'rotateX(90deg)', cyl3d('mint', 38, 5)) +
-      s3dItem(0, 8, 6, 'rotateX(62deg) rotateY(36deg)', cyl3d('pink', 30, 4)) +
-      s3dItem(42, -14, 18, '', box3d('mint', 14, 14, 14)) +
-      s3dItem(-38, 18, 12, '', box3d('gold', 12, 12, 12)),
+      s3dItem(0, 22, -6, '', box3d('night', 92, 62, 14)) +
+      s3dItem(0, 10, 4, '', box3d('purple', 76, 42, 6)) +
+      s3dItem(-22, 2, 12, '', box3d('mint', 22, 7, 5)) +
+      s3dItem(8, 10, 12, '', box3d('pink', 30, 7, 5)) +
+      s3dItem(24, -6, 12, '', box3d('gold', 18, 7, 5)) +
+      s3dItem(-28, -4, 12, '', box3d('mint', 8, 18, 5)) +
+      s3dItem(40, -30, 26, '', pyr3d('purple', 24, 34)) +
+      s3dItem(-40, -26, 22, '', ball3d('mint', 8)) +
+      s3dItem(18, -34, 18, '', ball3d('pink', 6)),
     audit:
-      s3dItem(-10, 26, -8, '', box3d('paper', 64, 78, 8)) +
-      s3dItem(16, 8, 12, '', box3d('orange', 48, 28, 20)) +
-      s3dItem(16, -10, 12, '', pyr3d('orange', 48, 46)),
+      s3dItem(-18, 18, -10, '', box3d('paper', 58, 78, 10)) +
+      s3dItem(-18, -28, 0, '', box3d('orange', 22, 12, 12)) +
+      s3dItem(-28, 2, 8, '', box3d('orange', 28, 6, 5)) +
+      s3dItem(-10, 12, 8, '', box3d('yellow', 34, 6, 5)) +
+      s3dItem(-18, 22, 8, '', box3d('green', 22, 6, 5)) +
+      s3dItem(28, -6, 18, 'rotateX(18deg) rotateZ(-12deg)', cyl3d('gold', 22, 8)) +
+      s3dItem(28, -6, 18, 'rotateX(18deg) rotateZ(-12deg)', cyl3d('paper', 14, 4)) +
+      s3dItem(42, 18, 22, 'rotateZ(38deg) rotateX(10deg)', box3d('gold', 8, 36, 8)) +
+      s3dItem(-6, -8, 20, '', ball3d('orange', 7)) +
+      s3dItem(8, 6, 16, '', ball3d('yellow', 5)),
     handoff:
-      s3dItem(-30, 10, 4, 'rotateY(18deg)', box3d('paper', 42, 62, 12)) +
-      s3dItem(0, 8, 0, 'rotateZ(90deg)', cyl3d('gold', 6, 28)) +
-      s3dItem(30, 4, -4, 'rotateY(-16deg)', box3d('ink', 44, 58, 12)),
+      s3dItem(-34, 10, -8, 'rotateY(22deg)', box3d('frame paper', 52, 68, 8)) +
+      s3dItem(-34, 0, 0, 'rotateY(22deg)', box3d('blue', 28, 18, 4)) +
+      s3dItem(-34, 18, 0, 'rotateY(22deg)', box3d('teal', 20, 10, 4)) +
+      s3dItem(-2, 4, 6, 'rotateZ(90deg)', cyl3d('gold', 5, 26)) +
+      s3dItem(8, 4, 6, '', box3d('gold', 10, 10, 10)) +
+      s3dItem(36, 8, 4, 'rotateY(-18deg)', box3d('night', 54, 64, 12)) +
+      s3dItem(36, -2, 12, 'rotateY(-18deg)', box3d('mint', 30, 6, 4)) +
+      s3dItem(36, 8, 12, 'rotateY(-18deg)', box3d('blue', 38, 6, 4)) +
+      s3dItem(36, 18, 12, 'rotateY(-18deg)', box3d('gold', 22, 6, 4)),
     brand:
       s3dItem(0, 18, 0, '', cyl3d('paper', 42, 12)) +
       s3dItem(-20, -8, 12, '', ball3d('orange', 10)) +
@@ -10695,17 +10725,37 @@ function renderMethodObject(type) {
       s3dItem(4, -4, 22, '', ball3d('green', 9)) +
       s3dItem(-4, -18, 4, '', ball3d('pink', 8)),
     'product-vision':
-      s3dItem(0, 34, 0, '', box3d('paper', 78, 12, 78)) +
-      s3dItem(0, 22, 0, '', box3d('gold', 54, 10, 54)) +
-      s3dItem(0, 4, 0, '', pyr3d('gold', 62, 78)),
+      s3dItem(0, 34, 0, '', box3d('paper', 70, 10, 70)) +
+      s3dItem(0, 24, 0, 'rotateX(90deg)', cyl3d('gold', 34, 5)) +
+      s3dItem(0, 20, 0, 'rotateX(90deg)', cyl3d('paper', 22, 5)) +
+      s3dItem(0, 16, 0, 'rotateX(90deg)', cyl3d('gold', 10, 6)) +
+      s3dItem(0, -8, 0, '', box3d('ink', 14, 44, 14)) +
+      s3dItem(0, -34, 0, '', ball3d('yellow', 9)) +
+      s3dItem(32, -18, 18, '', box3d('gold', 10, 10, 10)),
     'journey-mapping':
-      s3dItem(-38, 22, 16, '', ball3d('teal', 11)) +
-      s3dItem(0, 4, 0, '', ball3d('blue', 16)) +
-      s3dItem(36, -18, -14, '', ball3d('gold', 20)),
+      s3dItem(-42, 26, 12, '', box3d('teal', 30, 12, 30)) +
+      s3dItem(-6, 4, 0, '', box3d('blue', 30, 12, 30)) +
+      s3dItem(34, -22, -12, '', box3d('gold', 30, 12, 30)) +
+      s3dItem(-42, 8, 12, '', ball3d('mint', 9)) +
+      s3dItem(-6, -14, 0, '', ball3d('blue', 9)) +
+      s3dItem(34, -40, -12, '', ball3d('gold', 10)) +
+      s3dItem(-24, 14, 6, 'rotateZ(38deg) rotateX(8deg)', cyl3d('teal', 3.5, 40)) +
+      s3dItem(14, -10, -6, 'rotateZ(40deg) rotateX(-10deg)', cyl3d('blue', 3.5, 42)) +
+      s3dItem(34, -52, -12, '', box3d('yellow', 12, 8, 12)),
     automation:
-      s3dItem(-18, 2, 0, 'rotateX(72deg)', cyl3d('green', 32, 14)) +
-      s3dItem(24, 12, 14, 'rotateX(72deg) rotateZ(28deg)', cyl3d('mint', 22, 12)) +
-      s3dItem(4, 8, 8, 'rotateZ(90deg)', cyl3d('gold', 5, 22)),
+      s3dItem(-22, 6, 0, 'rotateX(72deg)', cyl3d('green', 20, 14)) +
+      s3dItem(-22, 6, 30, 'rotateX(72deg)', box3d('green', 12, 14, 16)) +
+      s3dItem(-22, 6, -30, 'rotateX(72deg)', box3d('green', 12, 14, 16)) +
+      s3dItem(4, 6, 0, 'rotateX(72deg)', box3d('green', 16, 14, 12)) +
+      s3dItem(-48, 6, 0, 'rotateX(72deg)', box3d('green', 16, 14, 12)) +
+      s3dItem(-22, 6, 0, 'rotateX(72deg)', cyl3d('night', 7, 16)) +
+      s3dItem(30, 16, 16, 'rotateX(72deg)', cyl3d('mint', 14, 12)) +
+      s3dItem(30, 16, 36, 'rotateX(72deg)', box3d('mint', 9, 12, 12)) +
+      s3dItem(30, 16, -4, 'rotateX(72deg)', box3d('mint', 9, 12, 12)) +
+      s3dItem(48, 16, 16, 'rotateX(72deg)', box3d('mint', 12, 12, 9)) +
+      s3dItem(12, 16, 16, 'rotateX(72deg)', box3d('mint', 12, 12, 9)) +
+      s3dItem(30, 16, 16, 'rotateX(72deg)', cyl3d('night', 5, 14)) +
+      s3dItem(4, 10, 8, 'rotateZ(90deg)', cyl3d('gold', 4, 20)),
     'data-ops':
       s3dItem(0, 30, 0, '', cyl3d('green', 34, 14)) +
       s3dItem(0, 10, 0, '', cyl3d('green', 40, 14)) +
@@ -10722,14 +10772,22 @@ function renderMethodObject(type) {
       s3dItem(0, -2, 12, '', box3d('mint', 16, 28, 16)) +
       s3dItem(22, 0, 12, '', box3d('green', 16, 22, 16)),
     marketing:
-      s3dItem(10, -6, 0, 'rotateZ(-48deg) rotateX(10deg)', pyr3d('orange', 56, 76)) +
-      s3dItem(-22, 28, 8, 'rotateZ(38deg)', cyl3d('orange', 9, 34)) +
-      s3dItem(28, -18, 12, 'rotateX(90deg)', cyl3d('yellow', 16, 5)),
+      s3dItem(-8, 34, 0, '', box3d('orange', 72, 10, 48)) +
+      s3dItem(-8, 16, 0, '', box3d('yellow', 54, 10, 40)) +
+      s3dItem(-8, -2, 0, '', box3d('gold', 36, 10, 32)) +
+      s3dItem(-8, -20, 0, '', box3d('night', 22, 10, 24)) +
+      s3dItem(42, 4, 16, '', box3d('pink', 12, 48, 12)) +
+      s3dItem(58, 12, 16, '', box3d('orange', 12, 32, 12)) +
+      s3dItem(74, 20, 16, '', box3d('yellow', 12, 18, 12)) +
+      s3dItem(-48, -22, 18, '', ball3d('pink', 8)) +
+      s3dItem(20, -34, 20, '', ball3d('yellow', 6)),
     'game-3d':
-      s3dItem(0, 20, 0, '', box3d('night', 62, 62, 62)) +
-      s3dItem(-6, -6, -6, '', pyr3d('gold', 32, 40)) +
-      s3dItem(22, -28, 24, '', ball3d('gold', 12)) +
-      s3dItem(22, -10, 24, '', box3d('teal', 16, 20, 16)),
+      s3dItem(0, 34, 0, '', box3d('night', 78, 12, 78)) +
+      s3dItem(0, 6, 0, '', pyr3d('gold', 58, 78)) +
+      s3dItem(-34, 16, 26, '', box3d('teal', 16, 30, 16)) +
+      s3dItem(36, 18, 22, '', box3d('orange', 14, 26, 14)) +
+      s3dItem(0, -36, 6, '', ball3d('yellow', 9)) +
+      s3dItem(28, -8, 30, '', ball3d('gold', 6)),
   };
   return `<div class="s3d-shadow"></div><div class="s3d-scene">${shapes[type] || shapes.research}</div>`;
 }
@@ -10750,6 +10808,146 @@ function renderMethodMinis(id, extraClass) {
       <div class="method-obj" data-type="${step.type}" style="--d:${(i * 0.18).toFixed(2)}s">${renderMethodObject(step.type)}</div>
     </div>`;
   }).join('')}</div>`;
+}
+
+function getUsedMethodTypes() {
+  const used = new Set();
+  Object.values(PROJECT_METHODS).forEach(steps => {
+    steps.forEach(step => {
+      if (METHOD_STEPS[step.type]) used.add(step.type);
+    });
+  });
+  return Object.keys(METHOD_STEPS).filter(type => used.has(type));
+}
+
+function renderMethodsCarousel() {
+  const root = document.getElementById('methods-carousel');
+  const track = document.getElementById('methods-carousel-track');
+  if (!root || !track) return;
+  const types = getUsedMethodTypes();
+  if (!types.length) {
+    track.innerHTML = '';
+    return;
+  }
+  const itemsHTML = types.map((type, i) => {
+    const meta = METHOD_STEPS[type];
+    const name = methodLangText(meta.label);
+    return `<div class="methods-carousel-item" data-type="${type}">
+      <div class="methods-carousel-visual" aria-hidden="true">
+        <div class="method-obj" data-type="${type}" style="--d:${(i * 0.16).toFixed(2)}s">${renderMethodObject(type)}</div>
+      </div>
+      <div class="methods-carousel-label" data-method-type-label="${type}">${name}</div>
+    </div>`;
+  }).join('');
+  // Duplicate for seamless infinite scroll
+  track.innerHTML = itemsHTML + itemsHTML;
+
+  if (root.dataset.carouselReady === '1') return;
+  root.dataset.carouselReady = '1';
+
+  let offset = 0;
+  let halfWidth = 0;
+  let dragging = false;
+  let pointerId = null;
+  let startX = 0;
+  let startOffset = 0;
+  let lastX = 0;
+  let lastT = 0;
+  let velocity = 0;
+  let resumeTimer = null;
+  let autoPaused = false;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const autoSpeed = 0.45;
+
+  function measure() {
+    halfWidth = track.scrollWidth / 2;
+  }
+
+  function normalize() {
+    if (!halfWidth) return;
+    while (offset <= -halfWidth) offset += halfWidth;
+    while (offset > 0) offset -= halfWidth;
+  }
+
+  function apply() {
+    normalize();
+    track.style.transform = `translate3d(${offset}px, 0, 0)`;
+  }
+
+  function pauseAuto(ms = 1800) {
+    autoPaused = true;
+    clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(() => { autoPaused = false; }, ms);
+  }
+
+  function onPointerDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    dragging = true;
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    startOffset = offset;
+    lastX = e.clientX;
+    lastT = performance.now();
+    velocity = 0;
+    autoPaused = true;
+    clearTimeout(resumeTimer);
+    root.classList.add('is-dragging');
+    try { root.setPointerCapture(pointerId); } catch {}
+  }
+
+  function onPointerMove(e) {
+    if (!dragging || e.pointerId !== pointerId) return;
+    const now = performance.now();
+    const dx = e.clientX - startX;
+    offset = startOffset + dx;
+    const dt = Math.max(1, now - lastT);
+    velocity = (e.clientX - lastX) / dt;
+    lastX = e.clientX;
+    lastT = now;
+    apply();
+  }
+
+  function onPointerUp(e) {
+    if (!dragging || e.pointerId !== pointerId) return;
+    dragging = false;
+    pointerId = null;
+    root.classList.remove('is-dragging');
+    offset += velocity * 120;
+    apply();
+    pauseAuto(2200);
+  }
+
+  root.addEventListener('pointerdown', onPointerDown);
+  root.addEventListener('pointermove', onPointerMove);
+  root.addEventListener('pointerup', onPointerUp);
+  root.addEventListener('pointercancel', onPointerUp);
+  root.addEventListener('wheel', (e) => {
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (!delta) return;
+    e.preventDefault();
+    offset -= delta;
+    apply();
+    pauseAuto(1600);
+  }, { passive: false });
+
+  window.addEventListener('resize', () => {
+    measure();
+    apply();
+  }, { passive: true });
+
+  requestAnimationFrame(() => {
+    measure();
+    apply();
+  });
+
+  function tick() {
+    if (!dragging && !autoPaused && !reduceMotion && halfWidth) {
+      offset -= autoSpeed;
+      apply();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 }
 
 function renderMethodSchema(p) {
@@ -10989,25 +11187,24 @@ function renderProjList() {
     const id = p.id;
     const co = p.company.toLowerCase();
 
-    if (id === 'vloggy') derivedTags.push('Social Video', 'Mobile App');
+    if (id === 'vloggy') derivedTags.push('Social Video');
     else if (id === 'bmw') derivedTags.push('Retail', 'B2C');
     else if (id === 'casino') derivedTags.push('Retail');
     else if (id === 'shiseido') derivedTags.push('E-Commerce');
     else if (id === 'skiset') derivedTags.push('B2C', 'E-Commerce');
-    else if (id === 'sg') derivedTags.push('B2C', 'FinTech', 'Mobile App');
-    else if (id === 'arlequin') derivedTags.push('FinTech', 'Mobile App', 'Web3');
+    else if (id === 'sg') derivedTags.push('B2C', 'FinTech');
+    else if (id === 'arlequin') derivedTags.push('FinTech', 'Web3');
     else if (id === 'upviral') derivedTags.push('B2B', 'SaaS');
-    else if (id === 'edenred') derivedTags.push('B2B', 'FinTech', 'Mobile App');
+    else if (id === 'edenred') derivedTags.push('B2B', 'FinTech');
+    else if (id === 'oneasset') derivedTags.push('AI Product');
     else if (p.group === 'automation') derivedTags.push('Automation', 'CRM Ops');
     else if (p.group === 'ai') derivedTags.push('AI Product');
     else if (p.group === 'enterprise') derivedTags.push('B2B Enterprise');
-    
-    // Fallback platform tag ONLY for desktop non-ecom
-    if (p.platforms.includes('Desktop') && !derivedTags.some(t => ['Retail','E-Commerce','B2C'].includes(t)) && derivedTags.length < 2) {
-       derivedTags.push('Web Platform');
-    }
 
-    const allTags = [...(p.badges || []), ...derivedTags].slice(0, 3);
+    const PLATFORM_TAGS = new Set(['mobile app', 'web platform', 'desktop', 'mobile', 'app']);
+    const allTags = [...(p.badges || []), ...derivedTags]
+      .filter(t => !PLATFORM_TAGS.has(String(t).toLowerCase().trim()))
+      .slice(0, 3);
     
     const BUSINESS_BADGE_CLASS = {
       'b2b': 'badge-biz-b2b',
@@ -11033,18 +11230,6 @@ function renderProjList() {
 
     const getBusinessBadgeClass = (txt) => BUSINESS_BADGE_CLASS[txt.toLowerCase().trim()] || '';
 
-    const PLATFORM_TAGS = new Set(['mobile app', 'web platform', 'desktop', 'mobile', 'app']);
-
-    const isPlatformTag = (txt) => PLATFORM_TAGS.has(txt.toLowerCase().trim());
-
-    const getPlatformIcon = (txt) => {
-      const low = txt.toLowerCase().trim();
-      if (low === 'mobile app' || low === 'mobile' || low === 'app') {
-        return `<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="1" width="8" height="14" rx="1.5"/><path d="M8 12h0"/></svg>`;
-      }
-      return `<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13h4M8 11v2"/></svg>`;
-    };
-
     const getTagIcon = (txt) => {
       const low = txt.toLowerCase();
       if (low.includes('mobile')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="8" height="14" rx="1.5"/><path d="M8 12h0"/></svg>`;
@@ -11059,13 +11244,12 @@ function renderProjList() {
     };
 
     const allBadgesHTML = [
+      ...(p.role ? [`<span class="proj-list-badge badge-role">${p.role}</span>`] : []),
       ...allTags.map(t => {
         const bizClass = getBusinessBadgeClass(t);
-        const platformOnly = isPlatformTag(t);
-        const icon = platformOnly ? getPlatformIcon(t) : getTagIcon(t);
-        const classes = ['proj-list-badge', bizClass, platformOnly ? 'proj-list-badge--platform' : ''].filter(Boolean).join(' ');
-        const a11y = platformOnly ? ` title="${t}" aria-label="${t}"` : '';
-        return `<span class="${classes}"${a11y}>${icon}${platformOnly ? '' : t}</span>`;
+        const icon = getTagIcon(t);
+        const classes = ['proj-list-badge', bizClass].filter(Boolean).join(' ');
+        return `<span class="${classes}">${icon}${t}</span>`;
       }),
       ...(RESULT_TAGS[p.id] || []).map(tag => `<span class="proj-list-badge badge-green">${tag.value} ${tag.label}</span>`)
     ].join('');
@@ -11105,17 +11289,13 @@ function renderAiBento() {
   const aiProjects = PROJECTS.filter(p => AI_PROJECT_IDS.includes(p.id));
   el.innerHTML = aiProjects.map(p => {
     const bgSrc = p.screenshot || p.cover;
-    const projectStatus = { uxfi: 'Prototype', panfy: 'Prototype · On hold', flemme: 'Automation platform' };
-    const badges = [projectStatus[p.id], ...(p.badges || [])].filter(Boolean).slice(0, 2);
     return `
     <div class="ai-bento-tile" onclick="openProject('${p.id}')">
       <img class="ai-bento-bg" src="${bgSrc}" alt="${p.company}" loading="lazy" decoding="async">
       <div class="ai-bento-overlay"></div>
       <div class="ai-bento-content">
-        <div class="ai-bento-badges">${badges.map(b => `<span class="ai-bento-badge">${b}</span>`).join('')}</div>
         <div class="ai-bento-name">${p.company}</div>
         <div class="ai-bento-desc">${p.subtitle || p.desc}</div>
-        ${renderMethodMinis(p.id, 'ai-bento-methods')}
       </div>
     </div>`;
   }).join('');
@@ -11124,8 +11304,8 @@ function renderAiBento() {
   const wideEl = document.getElementById('ai-bento-wide-el');
   if (!wideEl) return;
   const WIDE_TILES = [
-    { id: 'jarvos', accent: '#a78bfa', soft: 'rgba(124,58,237,.2)', meta: 'AI Agent OS · In progress' },
-    { id: 'ancient-world', accent: '#fbbf24', soft: 'rgba(217,119,6,.2)', meta: 'MMORPG · Local prototype · In progress' },
+    { id: 'jarvos', accent: '#a78bfa', soft: 'rgba(124,58,237,.2)' },
+    { id: 'ancient-world', accent: '#fbbf24', soft: 'rgba(217,119,6,.2)' },
   ];
   wideEl.innerHTML = WIDE_TILES.map(w => {
     const p = PROJECTS.find(x => x.id === w.id);
@@ -11133,10 +11313,8 @@ function renderAiBento() {
     return `
     <div class="ai-bento-tile ai-wide-tile" style="--wt:${w.accent};--wt-soft:${w.soft}" onclick="openProject('${p.id}')">
       <div class="ai-wide-content">
-        <div class="ai-wide-meta">${w.meta}</div>
         <div class="ai-bento-name">${p.company}</div>
         <div class="ai-bento-desc">${p.subtitle || p.desc}</div>
-        ${renderMethodMinis(p.id, 'ai-bento-methods')}
         <div class="ai-bento-cta" style="color:${w.accent}">View case study →</div>
       </div>
       <div class="ai-wide-visual${p.heroCover ? ' ai-wide-visual--cover' : ''}"${p.heroCover ? ` style="background-image:url('${p.heroCover}')"` : ''}>
@@ -11210,6 +11388,7 @@ function renderClientsTable() {
 renderProjList();
 renderAiBento();
 renderClientsTable();
+renderMethodsCarousel();
 
 (function() {
   const hash = window.location.hash;
@@ -11278,8 +11457,8 @@ window.addEventListener('popstate', function() {
     if (provider.status === 'estimated') return compactNumber(provider.total_tokens) + ' est.';
     if (provider.id === 'openrouter') {
       if (Number(provider.cost_usd || 0) > 0) return compactUsd(provider.cost_usd);
-      if (Number(provider.usage_weekly_usd || 0) > 0) return compactUsd(provider.usage_weekly_usd);
       if (Number(provider.usage_monthly_usd || 0) > 0) return compactUsd(provider.usage_monthly_usd);
+      if (Number(provider.usage_weekly_usd || 0) > 0) return compactUsd(provider.usage_weekly_usd);
     }
     if (provider.status === 'limited') return 'Connected';
     if (provider.status === 'logging_required') return 'Logging needed';
@@ -11330,10 +11509,10 @@ window.addEventListener('popstate', function() {
   }
 
   function latestSpendSummary(providers = []) {
-    const weekly = providers.reduce((sum, provider) => sum + Number(provider.usage_weekly_usd || 0), 0);
     const monthly = providers.reduce((sum, provider) => sum + Number(provider.usage_monthly_usd || 0), 0);
-    if (weekly > 0) return { label: '7d estimate', value: compactUsd(weekly), date: `30d ${compactUsd(monthly)}`, spend: weekly };
-    if (monthly > 0) return { label: '30d estimate', value: compactUsd(monthly), date: 'No 24h token usage', spend: monthly };
+    const weekly = providers.reduce((sum, provider) => sum + Number(provider.usage_weekly_usd || 0), 0);
+    if (monthly > 0) return { label: '30d estimate', value: compactUsd(monthly), date: 'Last 30 days', spend: monthly };
+    if (weekly > 0) return { label: '7d estimate', value: compactUsd(weekly), date: 'Last 7 days', spend: weekly };
     return null;
   }
 
@@ -11364,7 +11543,7 @@ window.addEventListener('popstate', function() {
       outputEl.textContent = estimatedUsage ? compactNumber(estimatedUsage.output) + ' est.' : compactNumber(totals.output_tokens);
       requestsEl.textContent = estimatedUsage ? compactNumber(estimatedUsage.calls) + ' est.' : compactNumber(totals.requests);
       costEl.textContent = spendSummary ? spendSummary.value : compactUsd(totals.cost_usd);
-      dateEl.textContent = spendSummary ? spendSummary.label + ' · ' + spendSummary.date : 'Last 24h';
+      dateEl.textContent = spendSummary ? spendSummary.label + ' · ' + spendSummary.date : 'Last 30 days';
       renderProviders(providers, total);
     } catch (err) {
       totalEl.textContent = '--';
@@ -11373,7 +11552,7 @@ window.addEventListener('popstate', function() {
       outputEl.textContent = '--';
       requestsEl.textContent = '--';
       costEl.textContent = '--';
-      providersEl.innerHTML = '<div class="usage-provider-note">Connect an OpenAI admin key to show live daily usage.</div>';
+      providersEl.innerHTML = '<div class="usage-provider-note">Connect an OpenAI admin key to show live monthly usage.</div>';
     }
   }
 
@@ -11420,9 +11599,9 @@ const TRANSLATIONS = {
     "nav_contact": "Contact",
     "nav_cta": "Contact by email",
     "hero_headline": "I design<br><em>products</em><br>and build<br><em>with AI.</em>",
-    "hero_desc": "Senior Product Designer working across product, admin and marketing at OneAsset. I also build AI products, including Creads.io, with 1,200 registered users.",
+    "hero_desc": "Product Manager working across product, admin and marketing at OneAsset. I also build AI products, including Creads.io, with 1,200 registered users.",
     "stat_years": "Years in design",
-    "stat_seed": "LVMH maisons",
+    "stat_seed": "users in 2025",
     "stat_cursor": "Creads registered users",
     "story_badge": "1-min intro",
     "story_cta": "My background in 1 minute",
@@ -11432,16 +11611,16 @@ const TRANSLATIONS = {
     "res_invest": "Investment activity",
     "res_dev": "Dev time via design system",
     "work_label": "Selected work",
+    "explore_intro_title": "Methods used for my work",
     "work_count": "16 projects",
     "ai_products_label": "AI projects built independently",
-    "ai_products_title": "Other projects and prototypes",
-    "ai_products_kicker": "UXfi is an audit prototype; Panfy is on hold. Flemme OS explores outbound automation. Jarvos and Ancient World are side projects in progress.",
+    "ai_products_title": "Other AI projects and prototypes",
     "ait_eyebrow": "Building with AI for 4 years",
     "ait_headline": "Product design<br>and <em>AI</em><br>development.",
     "ait_desc": "I have worked with AI for 4 years and rebuilt my UX and design workflow around it. At OneAsset, I design the product, admin platform and marketing site, using interactive prototypes, agents on GitHub and Figmol.",
     "ait_products_label": "AI stack I use daily.",
     "about_headline": "A designer who<br><em>builds</em> and<br>ships AI.",
-    "about_p1": "I am a Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I have worked with AI for 4 years.",
+    "about_p1": "I am a Product Manager with 12 years across SaaS, enterprise platforms and financial services. I have worked with AI for 4 years.",
     "about_p2": "At OneAsset, I am the sole designer across the product, admin platform and marketing website. I build interactive prototypes with AI coding tools and run design work through agents on GitHub and Figmol.",
     "about_p3": "My experience includes shared data-marketing workflows for 15+ LVMH maisons, Renault’s international marketplace and regulated investment journeys at Société Générale.",
     "about_p4": "Since 2022 I have built bootstrapped AI products: UXfi, Flemme OS and Creads.io, which has 1,200 registered users and 20 paying clients. Earlier, I co-founded Vloggy and ran Agence V0, managing up to 7 junior freelance designers.",
@@ -11470,9 +11649,9 @@ const TRANSLATIONS = {
     "nav_contact": "Contact",
     "nav_cta": "Me contacter par email",
     "hero_headline": "Je conçois<br>des <em>produits</em><br>et développe<br>avec <em>l’IA.</em>",
-    "hero_desc": "Senior Product Designer, je conçois le produit, l’administration et le site marketing de OneAsset. Je développe aussi des produits IA, dont Creads.io, avec 1 200 utilisateurs inscrits.",
+    "hero_desc": "Product Manager, je conçois le produit, l’administration et le site marketing de OneAsset. Je développe aussi des produits IA, dont Creads.io, avec 1 200 utilisateurs inscrits.",
     "stat_years": "Ans de design",
-    "stat_seed": "Maisons LVMH",
+    "stat_seed": "utilisateurs en 2025",
     "stat_cursor": "Inscrits sur Creads",
     "story_badge": "Intro 1 min",
     "story_cta": "Me connaître en 1 min",
@@ -11482,16 +11661,16 @@ const TRANSLATIONS = {
     "res_invest": "Activité investissement",
     "res_dev": "Temps dev via design system",
     "work_label": "Sélection de projets",
+    "explore_intro_title": "Méthodes utilisées dans mon travail",
     "work_count": "16 projets",
     "ai_products_label": "Projets IA développés en solo",
-    "ai_products_title": "Autres projets et prototypes",
-    "ai_products_kicker": "UXfi est un prototype d’audit ; Panfy est en pause. Flemme OS explore l’automatisation de la prospection. Jarvos et Ancient World sont des projets personnels en cours.",
+    "ai_products_title": "Autres projets IA et prototypes",
     "ait_eyebrow": "Je travaille avec l’IA depuis 4 ans",
     "ait_headline": "Product design<br>et développement<br>avec <em>l’IA.</em>",
     "ait_desc": "Je travaille avec l’IA depuis 4 ans, et j’ai adapté mon workflow UX et design autour d’elle. Chez OneAsset, je conçois le produit, l’administration et le site marketing avec des prototypes interactifs, des agents sur GitHub et Figmol.",
     "ait_products_label": "Les outils que j’utilise au quotidien.",
     "about_headline": "Un designer qui<br><em>construit</em> et<br>livre de l'IA.",
-    "about_p1": "Je suis Senior Product Designer, avec 12 ans d’expérience en SaaS, plateformes d’entreprise et services financiers. Je travaille avec l’IA depuis 4 ans.",
+    "about_p1": "Je suis Product Manager, avec 12 ans d’expérience en SaaS, plateformes d’entreprise et services financiers. Je travaille avec l’IA depuis 4 ans.",
     "about_p2": "Chez OneAsset, je réalise seul le design du produit, de l’administration et du site marketing. Je développe des prototypes interactifs avec l’IA et travaille avec des agents sur GitHub et mon outil interne Figmol.",
     "about_p3": "Mon expérience comprend une plateforme de data marketing pour 15+ maisons LVMH, la marketplace internationale de Renault et les parcours d’investissement réglementés de Société Générale.",
     "cursor_agents": "Agents lancés",
@@ -12602,57 +12781,6 @@ function getAbsolutePreviewUrl(src) {
   }
 }
 
-const previewCursorFrames = new WeakSet();
-const previewCursorDocs = new WeakSet();
-const PREVIEW_CURSOR_STYLE_ID = 'portfolio-preview-custom-cursor-style';
-
-function installPreviewCursorBridge(frame) {
-  if (!frame || previewCursorFrames.has(frame)) return;
-  previewCursorFrames.add(frame);
-
-  const attachToFrameDocument = () => {
-    let doc;
-    try {
-      doc = frame.contentDocument;
-    } catch {
-      return;
-    }
-    if (!doc || frame.contentWindow?.location?.href === 'about:blank') return;
-
-    if (!doc.getElementById(PREVIEW_CURSOR_STYLE_ID)) {
-      const style = doc.createElement('style');
-      style.id = PREVIEW_CURSOR_STYLE_ID;
-      style.textContent = 'body.cursor-link, body.cursor-link * { cursor: none !important; }';
-      (doc.head || doc.documentElement).appendChild(style);
-    }
-    if (previewCursorDocs.has(doc)) return;
-    previewCursorDocs.add(doc);
-
-    const moveFromFrame = (event) => {
-      const rect = frame.getBoundingClientRect();
-      moveCustomCursor(rect.left + event.clientX, rect.top + event.clientY);
-      updateCustomCursorHover(event.target, doc);
-    };
-
-    doc.addEventListener('mousemove', moveFromFrame, { passive: true });
-    doc.addEventListener('mouseover', event => updateCustomCursorHover(event.target, doc), { passive: true });
-    doc.addEventListener('mouseleave', () => {
-      setCustomCursorActive(false, doc);
-      setCustomCursorActive(false);
-    }, { passive: true });
-  };
-
-  frame.addEventListener('load', () => {
-    window.requestAnimationFrame(attachToFrameDocument);
-  });
-  attachToFrameDocument();
-}
-
-function installPreviewCursorBridges(root = document) {
-  const selector = root === document ? '#iface-modal iframe' : 'iframe';
-  root.querySelectorAll?.(selector).forEach(installPreviewCursorBridge);
-}
-
 function setModalUrl(raw) {
   const bar = document.getElementById('iface-modal-url');
   const copyBtn = document.getElementById('iface-modal-copy');
@@ -12739,7 +12867,6 @@ function openIfaceModal(id) {
         </div>
         ${screens.length > 1 ? `<div class="iface-phone-label">${s.label}</div>` : ''}
       </div>`).join('');
-    installPreviewCursorBridges(row);
     const resetMobileRow = () => {
       row.scrollTo({ left: 0, top: 0, behavior: 'auto' });
       const firstScreen = row.querySelector('.iface-phone-wrap');
@@ -12752,7 +12879,6 @@ function openIfaceModal(id) {
     modal.classList.remove('two-screens');
     document.getElementById('iface-phones-row').innerHTML = '';
     const frame = document.getElementById('iface-modal-frame');
-    installPreviewCursorBridge(frame);
     frame.src = normalizePreviewPath(iface.src);
   }
 
@@ -12765,7 +12891,6 @@ function closeIfaceModal() {
   document.getElementById('iface-modal').classList.remove('open', 'mobile', 'two-screens');
   document.getElementById('iface-modal-frame').src = 'about:blank';
   document.getElementById('iface-phones-row').innerHTML = '';
-  updateCustomCursorHover(null);
   setModalUrl('');
   if (options.updateHistory !== false && window.location.pathname.startsWith('/portfolio/layout-')) {
     window.history.pushState({}, '', '/portfolio');
@@ -12853,6 +12978,7 @@ window.addEventListener('popstate', () => {
       toggleWrap,
       variants,
       storageKey = 'stage3dObject',
+      defaultVariantId = '',
       targetSize = 2.1,
       rimColor = 0x9fffd1,
       fillColor = 0xbcd4ff,
@@ -12885,7 +13011,9 @@ window.addEventListener('popstate', () => {
     const savedVariant = (() => {
       try { return localStorage.getItem(storageKey); } catch { return ''; }
     })();
-    let currentVariant = variants.find(variant => variant.id === savedVariant) || variants[0];
+    let currentVariant = variants.find(variant => variant.id === savedVariant)
+      || variants.find(variant => variant.id === defaultVariantId)
+      || variants[0];
     let model = null;
     let loadToken = 0;
     const loader = new GLTFLoader();
@@ -13229,9 +13357,15 @@ window.addEventListener('popstate', () => {
         break;
       }
       case 'ai-vibe-code': {
+        add(g, box(1.12, 0.78, 0.14, C.night, { metalness: 0.3, roughness: 0.32 }), 0, 0.08, -0.08);
+        add(g, box(0.94, 0.54, 0.05, 0x7c3aed, glow(0x7c3aed, 0.35)), 0, 0.04, 0.02);
+        mark('line1', add(g, box(0.28, 0.07, 0.04, C.mint, glow(C.mint, 0.45)), -0.24, 0.12, 0.08));
+        mark('line2', add(g, box(0.38, 0.07, 0.04, C.pink, glow(C.pink, 0.35)), 0.1, 0.0, 0.08));
+        mark('line3', add(g, box(0.22, 0.07, 0.04, C.gold, metal), 0.24, -0.12, 0.08));
+        add(g, box(0.08, 0.22, 0.04, C.mint, glow(C.mint, 0.4)), -0.34, -0.02, 0.08);
         const crystal = mark('crystal', methodMesh(
           THREE,
-          new THREE.OctahedronGeometry(0.5, 0),
+          new THREE.OctahedronGeometry(0.28, 0),
           0xc4b5fd,
           {
             metalness: 0.18,
@@ -13242,55 +13376,49 @@ window.addEventListener('popstate', () => {
             opacity: 0.94,
           }
         ));
-        add(g, crystal);
-        const core = mark('core', methodMesh(
-          THREE,
-          new THREE.OctahedronGeometry(0.2, 0),
-          0x5eead4,
-          { metalness: 0.45, roughness: 0.08, emissive: 0x5eead4, emissiveIntensity: 0.85 }
-        ));
-        add(g, core);
-        const lattice = mark('lattice', new THREE.LineSegments(
-          new THREE.EdgesGeometry(new THREE.OctahedronGeometry(0.74, 0)),
-          new THREE.LineBasicMaterial({ color: 0xd8b4fe })
-        ));
-        add(g, lattice);
-        mark('ring', add(
-          g,
-          methodMesh(THREE, new THREE.TorusGeometry(0.62, 0.032, 12, 56), 0x5eead4, {
-            metalness: 0.55, roughness: 0.16, emissive: 0x5eead4, emissiveIntensity: 0.5,
-          }),
-          0, 0.02, 0, Math.PI / 2.35, 0, 0
-        ));
-        mark('ring2', add(
-          g,
-          methodMesh(THREE, new THREE.TorusGeometry(0.5, 0.026, 10, 48), 0xf0abfc, {
-            metalness: 0.48, roughness: 0.18, emissive: 0xec4899, emissiveIntensity: 0.4,
-          }),
-          0, 0.04, 0, 0.55, 0.7, 0.25
-        ));
-        const bits = mark('bits', new THREE.Group());
-        g.add(bits);
-        add(bits, box(0.18, 0.08, 0.08, 0x22d3ee, glow(0x22d3ee, 0.55)), 0.78, 0.16, 0.1);
-        add(bits, box(0.12, 0.12, 0.12, 0xa78bfa, glow(0xa78bfa, 0.4)), -0.7, -0.12, 0.2);
-        add(bits, box(0.1, 0.2, 0.08, C.mint, glow(C.mint, 0.4)), 0.16, 0.62, -0.46);
-        add(bits, box(0.14, 0.07, 0.07, C.gold, metal), -0.22, 0.46, 0.54);
-        add(g, box(0.78, 0.08, 0.78, C.night, { metalness: 0.32, roughness: 0.32 }), 0, -0.66, 0);
+        add(g, crystal, 0.52, -0.34, 0.28);
+        add(g, ball(0.08, C.mint, glow(C.mint, 0.5)), -0.52, -0.28, 0.24);
+        add(g, ball(0.06, C.pink, glow(C.pink, 0.4)), 0.22, -0.42, 0.2);
         break;
       }
       case 'audit': {
-        add(g, box(0.72, 0.9, 0.08, C.paper, soft), -0.22, -0.04, -0.16, 0, 0.28, 0);
-        add(g, box(0.4, 0.05, 0.03, C.ink, soft), -0.22, 0.18, -0.1, 0, 0.28, 0);
-        add(g, box(0.34, 0.05, 0.03, C.ink, soft), -0.2, 0.02, -0.1, 0, 0.28, 0);
-        mark('cone', add(g, methodMesh(THREE, new THREE.ConeGeometry(0.38, 0.72, 4), C.orange, { metalness: 0.18, roughness: 0.34 }), 0.28, 0.18, 0.16));
-        add(g, box(0.5, 0.16, 0.28, C.orange, soft), 0.28, -0.28, 0.16);
+        add(g, box(0.7, 0.96, 0.1, C.paper, soft), -0.28, -0.02, -0.12, 0, 0.22, 0);
+        add(g, box(0.24, 0.12, 0.12, C.orange, metal), -0.28, -0.42, -0.02, 0, 0.22, 0);
+        mark('bar1', add(g, box(0.32, 0.07, 0.05, C.orange, glow(C.orange, 0.2)), -0.34, 0.18, 0.0, 0, 0.22, 0));
+        mark('bar2', add(g, box(0.4, 0.07, 0.05, C.yellow, soft), -0.28, 0.04, 0.02, 0, 0.22, 0));
+        mark('bar3', add(g, box(0.26, 0.07, 0.05, C.green, glow(C.green, 0.2)), -0.32, -0.1, 0.02, 0, 0.22, 0));
+        const loupe = mark('loupe', new THREE.Group());
+        g.add(loupe);
+        loupe.position.set(0.38, 0.06, 0.22);
+        loupe.userData.base = loupe.position.clone();
+        add(loupe, methodMesh(THREE, new THREE.TorusGeometry(0.26, 0.05, 12, 32), C.gold, metal), 0, 0, 0, 0.2, 0, -0.15);
+        add(loupe, methodMesh(THREE, new THREE.CircleGeometry(0.18, 24), 0xfff4c0, { transparent: true, opacity: 0.35, roughness: 0.08, metalness: 0.3 }), 0, 0, 0.02, 0.2, 0, -0.15);
+        add(loupe, box(0.08, 0.36, 0.08, C.gold, metal), 0.22, -0.28, 0.04, 0, 0, 0.55);
+        mark('dot1', add(g, ball(0.07, C.orange, glow(C.orange, 0.35)), -0.02, -0.18, 0.26));
+        mark('dot2', add(g, ball(0.055, C.yellow, glow(C.yellow, 0.3)), 0.14, 0.12, 0.2));
         break;
       }
       case 'handoff': {
-        mark('docA', add(g, box(0.58, 0.86, 0.1, C.paper, soft), -0.32, -0.02, 0.1, 0, 0.28, 0));
-        mark('docB', add(g, box(0.58, 0.86, 0.1, C.ink, { metalness: 0.18, roughness: 0.38 }), 0.32, 0.04, -0.08, 0, -0.24, 0));
-        add(g, cyl(0.045, 0.045, 0.36, C.gold, 10, metal), 0, 0.08, 0.02, 0, 0, 1.57);
-        add(g, box(0.12, 0.12, 0.12, C.gold, metal), 0.16, 0.08, 0.02, 0, 0, 0.78);
+        const design = mark('design', new THREE.Group());
+        g.add(design);
+        design.position.set(-0.4, 0.02, -0.06);
+        design.userData.base = design.position.clone();
+        design.rotation.y = 0.28;
+        add(design, box(0.68, 0.88, 0.08, C.paper, soft));
+        add(design, box(0.36, 0.22, 0.04, C.blue, soft), 0, 0.08, 0.06);
+        add(design, box(0.24, 0.12, 0.04, C.teal, soft), -0.08, -0.18, 0.06);
+        add(design, box(0.14, 0.14, 0.04, C.gold, metal), 0.18, -0.22, 0.06);
+        mark('pipe', add(g, cyl(0.045, 0.045, 0.34, C.gold, 10, metal), -0.02, 0.06, 0.08, 0, 0, 1.57));
+        mark('arrow', add(g, box(0.12, 0.12, 0.12, C.gold, metal), 0.16, 0.06, 0.08, 0, 0, 0.78));
+        const code = mark('code', new THREE.Group());
+        g.add(code);
+        code.position.set(0.42, 0.04, 0.06);
+        code.userData.base = code.position.clone();
+        code.rotation.y = -0.22;
+        add(code, box(0.7, 0.84, 0.12, C.night, { metalness: 0.28, roughness: 0.32 }));
+        mark('line1', add(code, box(0.38, 0.07, 0.04, C.mint, glow(C.mint, 0.35)), -0.04, 0.16, 0.1));
+        mark('line2', add(code, box(0.48, 0.07, 0.04, C.blue, soft), 0.02, 0.0, 0.1));
+        mark('line3', add(code, box(0.28, 0.07, 0.04, C.gold, metal), -0.08, -0.16, 0.1));
         break;
       }
       case 'brand': {
@@ -13306,45 +13434,53 @@ window.addEventListener('popstate', () => {
         break;
       }
       case 'product-vision': {
-        add(g, box(1.08, 0.12, 1.08, C.paper, soft), 0, -0.48, 0);
-        add(g, box(0.72, 0.1, 0.72, C.gold, metal), 0, -0.36, 0);
-        mark('obelisk', add(g, methodMesh(THREE, new THREE.ConeGeometry(0.46, 1.12, 4), C.gold, { metalness: 0.55, roughness: 0.22, emissive: 0x8a6208, emissiveIntensity: 0.12 }), 0, 0.22, 0));
+        add(g, box(0.96, 0.1, 0.96, C.paper, soft), 0, -0.48, 0);
+        mark('ring1', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.42, 0.035, 12, 48), C.gold, metal), 0, -0.36, 0, Math.PI / 2, 0, 0));
+        mark('ring2', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.26, 0.03, 10, 40), C.cream, soft), 0, -0.32, 0, Math.PI / 2, 0, 0));
+        add(g, cyl(0.1, 0.1, 0.06, C.gold, 18, metal), 0, -0.28, 0);
+        mark('obelisk', add(g, box(0.16, 0.72, 0.16, C.ink, { metalness: 0.25, roughness: 0.35 }), 0, 0.12, 0));
+        add(g, ball(0.1, C.yellow, glow(C.yellow, 0.45)), 0, 0.52, 0);
+        add(g, box(0.12, 0.12, 0.12, C.gold, metal), 0.38, 0.18, 0.22);
         break;
       }
       case 'journey-mapping': {
-        mark('s1', add(g, ball(0.15, C.teal, glow(C.teal, 0.15)), -0.52, -0.28, 0.16));
-        mark('s2', add(g, ball(0.21, C.blue, glow(C.blue, 0.15)), 0, 0.02, 0));
-        mark('s3', add(g, ball(0.28, C.gold, glow(C.gold, 0.2)), 0.5, 0.32, -0.16));
+        mark('s1', add(g, box(0.36, 0.12, 0.36, C.teal, soft), -0.52, -0.28, 0.16));
+        mark('s2', add(g, box(0.36, 0.12, 0.36, C.blue, soft), 0, 0.0, 0));
+        mark('s3', add(g, box(0.36, 0.12, 0.36, C.gold, soft), 0.5, 0.28, -0.16));
+        add(g, ball(0.1, C.mint, glow(C.mint, 0.25)), -0.52, -0.1, 0.16);
+        add(g, ball(0.1, C.blue, glow(C.blue, 0.25)), 0, 0.18, 0);
+        add(g, ball(0.11, C.gold, glow(C.gold, 0.3)), 0.5, 0.46, -0.16);
         const curve = new THREE.QuadraticBezierCurve3(
-          new THREE.Vector3(-0.52, -0.28, 0.16),
-          new THREE.Vector3(0, 0.26, 0.08),
-          new THREE.Vector3(0.5, 0.32, -0.16)
+          new THREE.Vector3(-0.52, -0.1, 0.16),
+          new THREE.Vector3(0, 0.34, 0.08),
+          new THREE.Vector3(0.5, 0.46, -0.16)
         );
-        add(g, methodMesh(THREE, new THREE.TubeGeometry(curve, 28, 0.032, 8, false), C.teal, { metalness: 0.2, roughness: 0.35 }));
+        add(g, methodMesh(THREE, new THREE.TubeGeometry(curve, 28, 0.03, 8, false), C.teal, { metalness: 0.2, roughness: 0.35 }));
+        add(g, box(0.14, 0.08, 0.14, C.yellow, soft), 0.5, 0.58, -0.16);
         break;
       }
       case 'automation': {
         const makeGear = (radius, teeth, color, thick) => {
           const gear = new THREE.Group();
           add(gear, cyl(radius * 0.58, radius * 0.58, thick, color, 28, { metalness: 0.25, roughness: 0.35 }));
-          add(gear, cyl(radius * 0.14, radius * 0.14, thick + 0.05, C.night, 12, metal));
+          add(gear, cyl(radius * 0.16, radius * 0.16, thick + 0.05, C.night, 12, metal));
           for (let i = 0; i < teeth; i++) {
-            const tooth = box(0.14, thick, radius * 0.36, color, { metalness: 0.25, roughness: 0.35 });
+            const tooth = box(0.14, thick, radius * 0.38, color, { metalness: 0.25, roughness: 0.35 });
             const a = (i / teeth) * Math.PI * 2;
-            tooth.position.set(Math.cos(a) * radius * 0.8, 0, Math.sin(a) * radius * 0.8);
+            tooth.position.set(Math.cos(a) * radius * 0.82, 0, Math.sin(a) * radius * 0.82);
             tooth.rotation.y = a;
             gear.add(tooth);
           }
           gear.rotation.x = Math.PI / 2;
           return gear;
         };
-        const a = mark('gearA', makeGear(0.46, 10, C.green, 0.16));
-        a.position.set(-0.24, 0.04, 0);
+        const a = mark('gearA', makeGear(0.48, 10, C.green, 0.16));
+        a.position.set(-0.26, 0.04, 0);
         g.add(a);
         const b = mark('gearB', makeGear(0.34, 8, C.mint, 0.14));
-        b.position.set(0.34, 0.14, 0.08);
+        b.position.set(0.36, 0.16, 0.1);
         g.add(b);
-        add(g, cyl(0.04, 0.04, 0.28, C.gold, 8, metal), 0.06, 0.1, 0.04, 0, 0, 1.2);
+        add(g, cyl(0.04, 0.04, 0.3, C.gold, 8, metal), 0.06, 0.1, 0.04, 0, 0, 1.2);
         break;
       }
       case 'data-ops': {
@@ -13378,23 +13514,28 @@ window.addEventListener('popstate', () => {
         break;
       }
       case 'marketing': {
-        const horn = mark('horn', new THREE.Group());
-        g.add(horn);
-        add(horn, methodMesh(THREE, new THREE.ConeGeometry(0.46, 0.92, 18), C.orange, { metalness: 0.16, roughness: 0.36 }), 0.14, 0.08, 0, 0, 0, -0.68);
-        add(horn, methodMesh(THREE, new THREE.ConeGeometry(0.22, 0.28, 16), C.yellow, glow(C.yellow, 0.2)), 0.42, 0.28, 0.02, 0, 0, -0.68);
-        add(horn, cyl(0.08, 0.08, 0.52, C.orange, 12, metal), -0.36, -0.28, 0.06, 0, 0, 0.62);
-        mark('ring1', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.22, 0.03, 8, 24), C.yellow, glow(C.yellow, 0.25)), 0.62, 0.38, 0.08, 0, 1.1, 0));
+        mark('f1', add(g, box(0.96, 0.12, 0.62, C.orange, soft), -0.12, 0.42, 0));
+        mark('f2', add(g, box(0.72, 0.12, 0.52, C.yellow, soft), -0.12, 0.2, 0));
+        mark('f3', add(g, box(0.48, 0.12, 0.42, C.gold, metal), -0.12, -0.02, 0));
+        mark('f4', add(g, box(0.28, 0.12, 0.32, C.night, { metalness: 0.28, roughness: 0.32 }), -0.12, -0.24, 0));
+        mark('b1', add(g, box(0.14, 0.52, 0.14, C.pink, glow(C.pink, 0.25)), 0.52, 0.08, 0.22));
+        mark('b2', add(g, box(0.14, 0.36, 0.14, C.orange, soft), 0.72, 0.16, 0.22));
+        mark('b3', add(g, box(0.14, 0.22, 0.14, C.yellow, soft), 0.92, 0.24, 0.22));
+        add(g, ball(0.08, C.pink, glow(C.pink, 0.4)), -0.58, -0.28, 0.26);
+        add(g, ball(0.06, C.yellow, glow(C.yellow, 0.35)), 0.28, -0.4, 0.28);
         break;
       }
       case 'game-3d': {
-        mark('world', add(g, box(0.78, 0.78, 0.78, C.night, { metalness: 0.32, roughness: 0.3 })));
-        add(g, methodMesh(THREE, new THREE.ConeGeometry(0.24, 0.46, 4), C.gold, metal), -0.08, 0.16, -0.08);
+        mark('pyramid', add(g, methodMesh(THREE, new THREE.ConeGeometry(0.62, 0.86, 4), C.gold, { metalness: 0.45, roughness: 0.22, emissive: 0x8a6208, emissiveIntensity: 0.15 }), 0, 0.08, 0));
+        add(g, box(0.72, 0.1, 0.72, C.night, { metalness: 0.3, roughness: 0.32 }), 0, -0.42, 0);
+        add(g, box(0.18, 0.18, 0.18, C.teal, soft), -0.28, -0.22, 0.28);
         const hero = mark('hero', new THREE.Group());
         g.add(hero);
-        hero.position.set(0.28, -0.12, 0.36);
+        hero.position.set(0.32, -0.18, 0.34);
         hero.userData.base = hero.position.clone();
-        add(hero, ball(0.11, C.gold, metal), 0, 0.22, 0);
-        add(hero, cyl(0.09, 0.12, 0.22, C.teal, 12, soft), 0, 0.02, 0);
+        add(hero, ball(0.1, C.gold, metal), 0, 0.2, 0);
+        add(hero, cyl(0.08, 0.11, 0.2, C.teal, 12, soft), 0, 0.02, 0);
+        mark('orb', add(g, ball(0.08, C.mint, glow(C.mint, 0.45)), -0.36, 0.28, 0.22));
         break;
       }
       default: {
@@ -13473,43 +13614,56 @@ window.addEventListener('popstate', () => {
       case 'ai-vibe-code': {
         const speed = paused ? 0.22 : 1;
         if (parts.crystal) {
-          parts.crystal.rotation.y = t * 0.55 * speed;
-          parts.crystal.rotation.x = Math.sin(t * 0.85) * 0.16 * k;
+          parts.crystal.rotation.y = t * 0.7 * speed;
+          parts.crystal.rotation.x = Math.sin(t * 0.9) * 0.18 * k;
         }
-        if (parts.core) parts.core.rotation.y = -t * 1.25 * speed;
-        if (parts.lattice) {
-          parts.lattice.rotation.y = -t * 0.38 * speed;
-          parts.lattice.rotation.z = Math.sin(t * 0.6) * 0.1 * k;
-        }
-        if (parts.ring) {
-          parts.ring.rotation.z = t * 1.25 * speed;
-          parts.ring.rotation.x = Math.PI / 2.35 + Math.sin(t * 0.7) * 0.14 * k;
-        }
-        if (parts.ring2) {
-          parts.ring2.rotation.y = t * 0.95 * speed;
-          parts.ring2.rotation.z = t * 0.55 * speed;
-        }
-        if (parts.bits) parts.bits.rotation.y = t * 0.9 * speed;
         if (parts.crystal?.material) {
           parts.crystal.material.emissiveIntensity = 0.42 + Math.sin(t * 2.5) * 0.22 * k;
         }
-        if (parts.core?.material) {
-          parts.core.material.emissiveIntensity = 0.7 + Math.sin(t * 3.2) * 0.22 * k;
-        }
+        if (parts.line1) parts.line1.scale.x = 0.85 + Math.sin(t * 2.4) * 0.18 * k;
+        if (parts.line2) parts.line2.scale.x = 0.85 + Math.sin(t * 2.1 + 0.8) * 0.2 * k;
+        if (parts.line3) parts.line3.scale.x = 0.85 + Math.sin(t * 2.7 + 1.4) * 0.16 * k;
         break;
       }
       case 'audit':
-        if (parts.cone) parts.cone.rotation.z = Math.sin(t * 1.4) * 0.1 * k;
+        if (parts.loupe) {
+          parts.loupe.rotation.z = Math.sin(t * 1.25) * 0.12 * k;
+          baseY(parts.loupe, 0.035, 1.4);
+        }
+        if (parts.bar1) parts.bar1.scale.x = 0.82 + Math.sin(t * 1.8) * 0.18 * k;
+        if (parts.bar2) parts.bar2.scale.x = 0.82 + Math.sin(t * 1.8 + 0.7) * 0.16 * k;
+        if (parts.bar3) parts.bar3.scale.x = 0.82 + Math.sin(t * 1.8 + 1.4) * 0.14 * k;
+        if (parts.dot1?.material) parts.dot1.material.emissiveIntensity = 0.25 + Math.sin(t * 2.4) * 0.2 * k;
+        if (parts.dot2?.material) parts.dot2.material.emissiveIntensity = 0.22 + Math.sin(t * 2.1 + 1) * 0.18 * k;
         break;
       case 'handoff':
-        if (parts.docA?.userData.base) parts.docA.position.x = parts.docA.userData.base.x + Math.sin(t * 1.1) * 0.04 * k;
-        if (parts.docB?.userData.base) parts.docB.position.x = parts.docB.userData.base.x - Math.sin(t * 1.1) * 0.04 * k;
+        if (parts.design?.userData.base) {
+          parts.design.position.x = parts.design.userData.base.x + Math.sin(t * 1.15) * 0.03 * k;
+        }
+        if (parts.code?.userData.base) {
+          parts.code.position.x = parts.code.userData.base.x - Math.sin(t * 1.15) * 0.03 * k;
+        }
+        if (parts.arrow) {
+          const s = 1 + Math.sin(t * 2.2) * 0.12 * k;
+          parts.arrow.scale.setScalar(s);
+        }
+        if (parts.line1) parts.line1.scale.x = 0.85 + Math.sin(t * 2.3) * 0.15 * k;
+        if (parts.line2) parts.line2.scale.x = 0.85 + Math.sin(t * 2.0 + 0.6) * 0.18 * k;
+        if (parts.line3) parts.line3.scale.x = 0.85 + Math.sin(t * 2.5 + 1.2) * 0.14 * k;
         break;
       case 'brand':
         if (parts.swatches) parts.swatches.rotation.y = t * 0.5 * (paused ? 0.2 : 1);
         break;
       case 'product-vision':
         if (parts.obelisk) parts.obelisk.rotation.y = t * 0.32 * (paused ? 0.15 : 1);
+        if (parts.ring1) {
+          const s = 1 + Math.sin(t * 1.6) * 0.06 * k;
+          parts.ring1.scale.set(s, 1, s);
+        }
+        if (parts.ring2) {
+          const s = 1 + Math.sin(t * 1.6 + 1) * 0.08 * k;
+          parts.ring2.scale.set(s, 1, s);
+        }
         break;
       case 'journey-mapping':
         baseY(parts.s1, 0.05, 1.65);
@@ -13535,15 +13689,21 @@ window.addEventListener('popstate', () => {
         }
         break;
       case 'marketing':
-        if (parts.horn) parts.horn.rotation.z = Math.sin(t * 1.35) * 0.1 * k;
-        if (parts.ring1) {
-          const s = 1 + Math.sin(t * 2.1) * 0.16 * k;
-          parts.ring1.scale.setScalar(s);
-        }
+        baseY(parts.f1, 0.02, 1.2);
+        baseY(parts.f2, 0.025, 1.2, 0.5);
+        baseY(parts.f3, 0.03, 1.2, 1);
+        baseY(parts.f4, 0.035, 1.2, 1.5);
+        if (parts.b1) parts.b1.scale.y = 0.88 + Math.sin(t * 1.7) * 0.14 * k;
+        if (parts.b2) parts.b2.scale.y = 0.88 + Math.sin(t * 1.7 + 0.6) * 0.16 * k;
+        if (parts.b3) parts.b3.scale.y = 0.88 + Math.sin(t * 1.7 + 1.2) * 0.18 * k;
         break;
       case 'game-3d':
-        if (parts.world) parts.world.rotation.y = t * 0.38 * (paused ? 0.2 : 1);
+        if (parts.pyramid) parts.pyramid.rotation.y = t * 0.42 * (paused ? 0.2 : 1);
         baseY(parts.hero, 0.06, 2.05);
+        if (parts.orb) {
+          parts.orb.position.y = (parts.orb.userData.base?.y || 0.28) + Math.sin(t * 2.2) * 0.05 * k;
+          parts.orb.rotation.y = t * 1.1 * (paused ? 0.2 : 1);
+        }
         break;
     }
   }
@@ -13680,7 +13840,8 @@ window.addEventListener('popstate', () => {
         stage: heroStage,
         toggle: document.getElementById('hero-shape-toggle-check'),
         toggleWrap: document.getElementById('hero-shape-toggle'),
-        storageKey: 'hero3dObject',
+        storageKey: 'hero3dObjectV2',
+        defaultVariantId: 'sunstone',
         variants: [
           { id: 'emerald', label: 'Emerald', src: '../images/hero-emerald.v4.glb', exposure: 5.4, ambient: 6.2, key: 8.6, rim: 6.8, fill: 4.4 },
           { id: 'sunstone', label: 'Sunstone', src: '../images/hero-sunstone.v4.glb', exposure: 2.2, ambient: 1.2, key: 3.4, rim: 2.1, fill: 1.2 },

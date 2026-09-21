@@ -86,6 +86,27 @@ test('match mode never touches a pre-existing data-co-opt marker elsewhere on th
   assert.equal(optStillThere, true);
 });
 
+// Regression: a dropdown near the bottom of the viewport commonly flips
+// UPWARD (react-select/Radix/MUI all do this) to stay on screen. Before the
+// "near" window was made symmetric above/below the field, an upward menu
+// (rendered well above the field's own top edge) was invisible to an
+// unrecognized combobox (allowGlobal:false) and the runner fell through to
+// typing raw text into the field instead of clicking the real option.
+test('snapshot mode finds an upward-flipped menu (options rendered ABOVE the field)', async () => {
+  await withContent(`
+    <div style="height:500px"></div>
+    <div style="position:relative">
+      <div class="pac-container" style="position:absolute; top:-200px; left:0;">
+        <div class="pac-item">Paris, France</div>
+      </div>
+      <input data-co-i="0">
+    </div>
+  `);
+  const result = await page.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'snapshot', i: 0, allowGlobal: false });
+  assert.equal(result.count, 1);
+  assert.match(result.sig, /Paris, France/);
+});
+
 test('list mode returns visible option texts including .pac-item', async () => {
   await withContent(`
     <input data-co-i="0">

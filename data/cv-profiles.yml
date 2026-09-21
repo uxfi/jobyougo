@@ -9,9 +9,10 @@ ai_builder:
     users. My work covers the user flow, structured inputs, LLM workflow and deployment.
 
 
-    At OneAsset, I work on product strategy and design, and built Figmol to connect live-prototype review with
-    engineering. I am looking for an AI product building role with responsibility for user experience and
-    delivery.
+    At OneAsset I shipped the full product in 6 months with one Product Owner (investor app, admin, marketing
+    site, plus OTC). Prototypes are built in Cursor and Claude Code, reviewed in Figmol, and handed to
+    engineering on GitHub. I am looking for an AI product building role with responsibility for user
+    experience and delivery.
 
 
     Currently employed at OneAsset; seeking a new full-time role. Start date to be agreed.
@@ -68,7 +69,7 @@ ai_builder:
         - name: Cursor
   transformation:
     title: AI Product Building Scope
-    subtitle: Self-taught. 5 live products shipped end to end.
+    subtitle: Self-taught. Bootstrapped products from UX through deployment.
     description: >-
       Builds production-ready MVPs with Vercel, Supabase, PostgreSQL, n8n, Cloud Run, and LLM APIs. Designs
       LLM workflows, structured outputs, scoring systems, and automation pipelines, then works with engineers
@@ -94,14 +95,14 @@ ai_builder:
         desc: Crypto analytics + AI signals
         status: MVP
       - name: Jarvos
-        desc: AI Agent OS (side project)
+        desc: AI Agent OS (agent-flow proof)
         status: In progress
       - name: Ancient World
         desc: UE5 MMORPG + Supabase backend (side project)
         status: In progress
   highlights_title: Proof Points
   highlights:
-    - 'OneAsset: investor journeys, compliance UX, design system and Figmol live-prototype review.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Figmol Git hand-off.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -109,14 +110,14 @@ ai_builder:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: Investor journeys, compliance UX and a shared design system
+      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
       tag: Product Lead
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
-        - Design and prototype ownership across the product; collaboration with engineering on delivery.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
+        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
       screenshot: screenshot_creads.png
@@ -132,11 +133,11 @@ ai_builder:
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.png
-      desc: Shared data-marketing workflows across 15+ maisons
+      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons.
-        - Designed journey maps and internal tools to reconcile different brand needs.
+        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
+        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
@@ -160,9 +161,9 @@ ai_builder:
       period: Feb 2026 – Present
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
         - >-
           Product strategy, investor UX, KYB compliance onboarding, and PM workspace architecture for a
           regulated RWA investment platform (commercial real estate, daily USDC yield, Base / ERC-3643).
@@ -229,7 +230,8 @@ product_designer:
   summary: >-
     Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
     research, complex journeys and design systems with product and engineering teams. My experience includes
-    OneAsset, LVMH, Renault and Société Générale.
+    OneAsset, LVMH, Renault and Société Générale. In the first 6 months at OneAsset I shipped the full product
+    with one Product Owner: investor app, admin panel, marketing site, plus an OTC product.
 
 
     I have worked with AI for 4 years, building bootstrapped products: UXfi, Flemme OS and Creads.io, an AI
@@ -290,7 +292,7 @@ product_designer:
         - name: MVP prototypes
   highlights_title: Design Impact
   highlights:
-    - 'OneAsset: investor journeys, compliance UX, design system and Figmol live-prototype review.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Figmol Git hand-off.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -298,14 +300,14 @@ product_designer:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: Investor journeys, compliance UX and a shared design system
+      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
       tag: Product Lead
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
-        - Design and prototype ownership across the product; collaboration with engineering on delivery.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
+        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
       screenshot: screenshot_creads.png
@@ -321,11 +323,11 @@ product_designer:
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.png
-      desc: Shared data-marketing workflows across 15+ maisons
+      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons.
-        - Designed journey maps and internal tools to reconcile different brand needs.
+        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
+        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
@@ -349,9 +351,9 @@ product_designer:
       period: Feb 2026 – Present
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
         - >-
           Design lead on a regulated RWA investment platform: investor homepage, asset marketplace, fractional
           purchase flows, five-step KYB onboarding, and the Property Manager workspace.
@@ -421,7 +423,8 @@ complete_paris:
   summary: >-
     Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
     research, complex journeys and design systems with product and engineering teams. My experience includes
-    OneAsset, LVMH, Renault and Société Générale.
+    OneAsset, LVMH, Renault and Société Générale. In the first 6 months at OneAsset I shipped the full product
+    with one Product Owner: investor app, admin panel, marketing site, plus an OTC product.
 
 
     I have worked with AI for 4 years, building bootstrapped products: UXfi, Flemme OS and Creads.io, an AI
@@ -484,14 +487,14 @@ complete_paris:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: Investor journeys, compliance UX and a shared design system
+      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
       tag: Product Lead
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
-        - Design and prototype ownership across the product; collaboration with engineering on delivery.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
+        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
       screenshot: screenshot_creads.png
@@ -507,11 +510,11 @@ complete_paris:
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.png
-      desc: Shared data-marketing workflows across 15+ maisons
+      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons.
-        - Designed journey maps and internal tools to reconcile different brand needs.
+        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
+        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
@@ -532,7 +535,7 @@ complete_paris:
     - name: Jarvos
       logo: jarvos-logo.svg
       desc: AI Agent OS with semantic orchestration
-      tag: Side project in progress
+      tag: Agent OS in progress
     - name: Ancient World
       logo: ancient-world-logo.svg
       desc: MMORPG on Unreal Engine 5 + Supabase
@@ -572,7 +575,8 @@ complete_bangkok:
   summary: >-
     Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
     research, complex journeys and design systems with product and engineering teams. My experience includes
-    OneAsset, LVMH, Renault and Société Générale.
+    OneAsset, LVMH, Renault and Société Générale. In the first 6 months at OneAsset I shipped the full product
+    with one Product Owner: investor app, admin panel, marketing site, plus an OTC product.
 
 
     I have worked with AI for 4 years, building bootstrapped products: UXfi, Flemme OS and Creads.io, an AI
@@ -635,14 +639,14 @@ complete_bangkok:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: Investor journeys, compliance UX and a shared design system
+      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
       tag: Product Lead
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
-        - Design and prototype ownership across the product; collaboration with engineering on delivery.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
+        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
       screenshot: screenshot_creads.png
@@ -658,11 +662,11 @@ complete_bangkok:
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.png
-      desc: Shared data-marketing workflows across 15+ maisons
+      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons.
-        - Designed journey maps and internal tools to reconcile different brand needs.
+        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
+        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
@@ -683,7 +687,7 @@ complete_bangkok:
     - name: Jarvos
       logo: jarvos-logo.svg
       desc: AI Agent OS with semantic orchestration
-      tag: Side project in progress
+      tag: Agent OS in progress
     - name: Ancient World
       logo: ancient-world-logo.svg
       desc: MMORPG on Unreal Engine 5 + Supabase
@@ -719,8 +723,8 @@ product_manager:
   portrait: hugo_vermot.png
   summary: >-
     Product Designer / Product Manager with experience in SaaS discovery, prioritization and delivery. At
-    UpViral, I ran user interviews and worked with the CPO on a product overhaul. At OneAsset, I own product
-    strategy and UX across investor and operator journeys.
+    UpViral, I ran user interviews and worked with the CPO on a product overhaul. At OneAsset, I shipped the
+    full product in 6 months with one Product Owner (investor app, admin, marketing site, plus OTC).
 
 
     I have worked with AI for 4 years, building UXfi, Flemme OS and Creads.io (1,200 registered users). I am
@@ -806,7 +810,7 @@ product_manager:
         status: ''
   highlights_title: Product Leadership Signals
   highlights:
-    - 'OneAsset: investor journeys, compliance UX, design system and Figmol live-prototype review.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Figmol Git hand-off.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -814,14 +818,14 @@ product_manager:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: Investor journeys, compliance UX and a shared design system
+      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
       tag: Product Lead
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
-        - Design and prototype ownership across the product; collaboration with engineering on delivery.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
+        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
       screenshot: screenshot_creads.png
@@ -837,11 +841,11 @@ product_manager:
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.png
-      desc: Shared data-marketing workflows across 15+ maisons
+      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons.
-        - Designed journey maps and internal tools to reconcile different brand needs.
+        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
+        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
@@ -867,9 +871,9 @@ product_manager:
       period: Feb 2026 – Present
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
         - >-
           Own product strategy and UX architecture for a regulated RWA investment platform: investor flows,
           KYB compliance onboarding, reporting logic, and the Property Manager workspace.
@@ -937,14 +941,14 @@ shared:
       period: Feb 2026 – Present
       bullets:
         - >-
-          Sole designer for the OneAsset product, from the admin platform and user-facing application to the
-          marketing website. Built interactive prototypes with AI coding tools, an AI-agent workflow on
-          GitHub, and Figmol for internal design review.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (internal Figma-like tool), GitHub flow with engineering.
         - >-
           Regulated real-world asset investment platform: fractional real estate ownership from $10,000, daily
           USDC yield (Base / ERC-3643).
         - >-
-          Own product strategy and full UX architecture solo across the platform: investor journey,
+          Own product strategy and full UX architecture with one Product Owner: investor journey,
           marketplace, onboarding, and internal PM tooling.
     - company: UpViral
       url: https://upviral.com
@@ -996,7 +1000,7 @@ shared:
           others).
         - >-
           Unified customer data and campaign performance across maisons, running stakeholder interviews to
-          reconcile conflicting brand-level needs.
+          reconcile conflicting brand-level needs. Business and data analysis sat inside that product work.
     - company: BMW Group
       logo: bmw.png
       role: Senior Product Designer

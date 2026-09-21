@@ -24,6 +24,8 @@
 //   ID-Main  → id.jobstreet.com (Indonesia)
 //   SG-Main  → sg.jobstreet.com (Singapore)
 //   MY-Main  → my.jobstreet.com (Malaysia)
+//   PH-Main  → ph.jobstreet.com (Philippines)
+//   TH-Main  → th.jobsdb.com (Thailand, SEEK/JobsDB)
 
 const DEFAULT_API = 'https://id.jobstreet.com/api/jobsearch/v5/search';
 const DEFAULT_SITE_KEY = 'ID-Main';
@@ -38,6 +40,10 @@ const ALLOWED_JOBSTREET_HOSTS = new Set([
   'jobstreet.co.id',
   'sg.jobstreet.com',
   'my.jobstreet.com',
+  'ph.jobstreet.com',
+  'th.jobsdb.com',
+  'www.jobsdb.com',
+  'jobsdb.com',
   'www.seek.com.au',
   'www.seek.co.nz',
 ]);
@@ -74,6 +80,26 @@ function deriveOrigin(apiUrl) {
   } catch {
     return 'https://id.jobstreet.com';
   }
+}
+
+const ID_LOCALE_JOB_HOSTS = new Set([
+  'id.jobstreet.com',
+  'www.jobstreet.co.id',
+  'jobstreet.co.id',
+]);
+
+/**
+ * Job detail path for a SEEK origin. Hardcoding `/id/job/` for every market
+ * 404s SG/MY/PH/TH listings (e.g. https://ph.jobstreet.com/id/job/94706320).
+ * @param {string} origin
+ * @returns {string}
+ */
+function jobDetailPath(origin) {
+  try {
+    const host = new URL(origin).hostname;
+    if (ID_LOCALE_JOB_HOSTS.has(host)) return '/id/job/';
+  } catch { /* fall through */ }
+  return '/job/';
 }
 
 // NaN-safe Date.parse
@@ -116,10 +142,11 @@ export function parseJobstreetItem(item, origin, fallbackCompany) {
   const title = (item.title || '').trim();
   if (!title) return null;
 
-  // Build job URL from the job ID
+  // Build job URL from the job ID. Indonesia uses a locale prefix (`/id/job/`);
+  // other SEEK markets (SG, MY, PH, TH JobsDB, AU/NZ) use `/job/`.
   const jobId = (item.id || '').trim();
   if (!jobId) return null;
-  const url = `${origin}/id/job/${jobId}`;
+  const url = `${origin}${jobDetailPath(origin)}${jobId}`;
 
   // Validate URL hostname belongs to allowed set
   try {

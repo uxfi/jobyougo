@@ -224,6 +224,14 @@ const SYSTEM_PATHS = [
   'stats.mjs',
   'detect-reposts.mjs',
   'rank-pipeline.mjs',
+  // Location/remote-eligibility annotator (#1145) — same annotate-never-drop
+  // contract as rank-pipeline.mjs, one column earlier in the pipeline.
+  'remote-eligibility.mjs',
+  'remote-eligibility-core.mjs',
+  // Pre-existing coverage gap caught by the SYSTEM_PATHS guard test: shipped
+  // via the package.json postinstall hook but never registered here, so an
+  // update would not have carried it to existing installs.
+  'install-browsers.mjs',
   'discover-ats.mjs',
   'discover-ats.test.mjs',
   'check-table-freshness.mjs',

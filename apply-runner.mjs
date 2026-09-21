@@ -18,7 +18,7 @@ import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { resolveUnknownFields } from './lib/apply-llm.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice } from './lib/application-writing.mjs';
-import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, trivialFieldPlan, skipComboboxProbe, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldFillField, isSecretCredentialField, travelOrRelocatePlan, shouldReplaceFilledValue } from './lib/apply-fill-guards.mjs';
+import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, trivialFieldPlan, skipComboboxProbe, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldFillField, isSecretCredentialField, travelOrRelocatePlan, shouldReplaceFilledValue, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
 import { fieldCompletionIssue, fieldMatchesAnswer, looksReadyToSubmit } from './lib/apply-completion.mjs';
 import { COLLECT_FIELDS } from './lib/apply-collect-fields.mjs';
@@ -1152,6 +1152,12 @@ function classifyField(f, spec, usedAnswers = new Set()) {
   const trivial = trivialFieldPlan(f, id);
   if (trivial) return trivial;
 
+  const employment = employmentHistoryPlan(f, id.employment || {});
+  if (employment) return employment;
+
+  const screening = screeningChoicePlan(f, { company: spec.company, identity: id });
+  if (screening) return screening;
+
   if (f.type === 'checkbox') {
     // Optional consents are only ticked when the user opted in for this run
     // (spec.consentOptIn) — agreeing to data retention or future contact on
@@ -1270,7 +1276,7 @@ function classifyField(f, spec, usedAnswers = new Set()) {
     return value ? { value } : { skip: 'salaire non numérique dans le profil' };
   }
   if (m(/notice period|pr[ée]avis/)) return { value: id.noticePeriod };
-  if (m(/start date|available (to start|from)|disponibilit|when can you start/)) return { value: id.startDate, dateISO: id.startDateISO };
+  if (isAvailabilityStartField(f)) return { value: id.startDate, dateISO: id.startDateISO };
   // Bare "source"/"referr" substrings used to false-positive on unrelated
   // fields (any label/name/id containing "resource", "preferred", etc.) —
   // require the fuller phrase instead.
@@ -1332,8 +1338,8 @@ function pickSelectOption(options, plan, fieldLabel) {
     const opt = usable.find(o => plan.selectPrefer.test(o.text));
     if (opt) return opt;
   }
-  const needle = plan.selectMatch || plan.selectText || plan.value || '';
-  if (needle) {
+  // Try selectMatch, then selectText, then value (month "2" vs "February").
+  for (const needle of [plan.selectMatch, plan.selectText, plan.value].filter(Boolean)) {
     const opt = pickMatchingOption(usable, needle);
     if (opt) return opt;
   }
@@ -1368,18 +1374,18 @@ async function scrapeComboboxOptions(frame, f) {
   const loc = frame.locator(`[data-co-i="${f.i}"]`);
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      await loc.click({ timeout: 3000 });
-      // poll up to ~2.4s for the menu to render
+      await loc.click({ timeout: 2500 });
+      // poll up to ~0.6s for the menu to render (was ~2.4s)
       let opts = [];
-      for (let i = 0; i < 8; i++) {
-        await sleep(300);
+      for (let i = 0; i < 5; i++) {
+        await sleep(120);
         opts = await listNearbyOptions(frame, f.i, isComboboxField(f));
         if (opts.length) break;
       }
       await loc.press('Escape').catch(() => {});
       dbg(`scrape "${String(f.label).slice(0, 40)}" attempt=${attempt} → ${opts.length} option(s) ${JSON.stringify(opts.slice(0, 6).map(o => o.text))}`);
       if (opts.length) return opts;
-      await sleep(rand(200, 400)); // let the widget settle before re-opening
+      await sleep(rand(60, 140)); // brief settle before re-opening
     } catch (err) { dbg(`scrape "${String(f.label).slice(0, 40)}" threw: ${String(err.message || err).slice(0, 60)}`); return []; }
   }
   return [];
@@ -1393,7 +1399,7 @@ async function selectComboboxOption(frame, f, query) {
   const first = await selectComboboxOptionOnce(frame, f, query);
   if (first.matched || first.hadOptions) return first;
   if (!isComboboxField(f)) return first;
-  await sleep(rand(250, 500));
+  await sleep(rand(80, 180));
   const second = await selectComboboxOptionOnce(frame, f, query);
   return { matched: second.matched, hadOptions: second.hadOptions || first.hadOptions };
 }
@@ -1435,7 +1441,7 @@ async function selectComboboxOptionOnce(frame, f, query) {
   const binary = !!choiceKind(q);
   try {
     await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
-    await sleep(rand(120, 320));
+    await sleep(rand(40, 100));
     const before = await nearbyOptionSnapshot(frame, f.i);
     await humanClick(loc, { timeout: 4000 }).catch(() => {});
 
@@ -1443,15 +1449,15 @@ async function selectComboboxOptionOnce(frame, f, query) {
       const snap = await nearbyOptionSnapshot(frame, f.i);
       return snap.count > 0 && snap.sig !== before.sig;
     };
-    let hadOptionsOnOpen = await pollUntil(menuOpened, 5, 200, 320);
+    let hadOptionsOnOpen = await pollUntil(menuOpened, 4, 70, 130);
 
     let typedPrefix = '';
     if (!hadOptionsOnOpen && !known) {
       if (looksLikeTypeahead(f) && q.length >= 2 && !binary) {
         await loc.fill('').catch(() => {});
         typedPrefix = q.slice(0, 2);
-        await loc.pressSequentially(typedPrefix, { delay: rand(55, 130) }).catch(() => {});
-        hadOptionsOnOpen = await pollUntil(menuOpened, 5, 180, 280);
+        await loc.pressSequentially(typedPrefix, { delay: rand(35, 80) }).catch(() => {});
+        hadOptionsOnOpen = await pollUntil(menuOpened, 4, 70, 130);
         if (!hadOptionsOnOpen) {
           await clearField(loc);
           await loc.press('Escape').catch(() => {});
@@ -1493,8 +1499,8 @@ async function selectComboboxOptionOnce(frame, f, query) {
     const rest = q.slice(typedPrefix.length);
     if (!binary && rest) {
       if (!typedPrefix) await loc.fill('').catch(() => {});
-      await loc.pressSequentially(rest, { delay: rand(55, 130) }).catch(() => loc.fill(q).catch(() => {}));
-      await pollUntil(menuOpened, 4, 180, 280);
+      await loc.pressSequentially(rest, { delay: rand(35, 80) }).catch(() => loc.fill(q).catch(() => {}));
+      await pollUntil(menuOpened, 3, 70, 130);
       const filtered = await tryPickVisible();
       if (filtered.clicked) {
         dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" typed-match="${filtered.matched}"`);
@@ -1862,9 +1868,8 @@ async function fillFields(frame, spec) {
     const loc = frame.locator(sel);
     const plan = classifyField(f, spec, usedAnswers);
     if (plan?.fromQuestion) usedAnswers.add(plan.fromQuestion);
-    // brief pause between fields so the form isn't completed in one instant
-    // burst (humans move/read between fields); skip before the very first action
-    if (plan && !plan.skip && actedCount > 0) await jitter(rand(280, 950));
+    // brief pause between fields (anti-bot, kept short for throughput)
+    if (plan && !plan.skip && actedCount > 0) await jitter(rand(60, 180));
     if (plan && !plan.skip) actedCount++;
     const labelShort = (f.label || f.name || f.type).slice(0, 80);
 
@@ -1898,6 +1903,20 @@ async function fillFields(frame, spec) {
             continue;
           }
         }
+        // End date while "current role" is checked: leave blank on purpose
+        // (ATS usually clears required once the checkbox is ticked).
+        if (plan.currentRoleEnd) continue;
+        // No inventable profile data (postal / US state without Outside-US option):
+        // surface as manual for REQUIRED fields; do not send to the LLM.
+        if (plan.leaveBlank) {
+          if (f.required) {
+            pending.push({
+              label: labelShort,
+              reason: plan.skip || 'requis — pas de donnée profil (à remplir manuellement)',
+            });
+          }
+          continue;
+        }
         if (f.required) unresolved.push(f);
 
         continue;
@@ -1919,6 +1938,8 @@ async function fillFields(frame, spec) {
         if (opt) {
           await loc.selectOption(opt.value, { timeout: 4000 });
           filled.push({ label: labelShort, value: opt.text });
+        } else if (f.required && plan.leaveBlank) {
+          pending.push({ label: labelShort, reason: 'requis — option hors profil introuvable (à remplir manuellement)' });
         } else if (f.required) {
           unresolved.push(f);
         }
@@ -1936,7 +1957,11 @@ async function fillFields(frame, spec) {
         if (want) {
           const ok = await clickRadioOption(frame, f, want, isYesNo);
           if (ok) filled.push({ label: labelShort, value: want });
-          else if (f.required) unresolved.push(f);
+          else if (f.required && plan.leaveBlank) {
+            pending.push({ label: labelShort, reason: 'requis — choix hors profil introuvable (à remplir manuellement)' });
+          } else if (f.required) unresolved.push(f);
+        } else if (f.required && plan.leaveBlank) {
+          pending.push({ label: labelShort, reason: 'requis — choix hors profil introuvable (à remplir manuellement)' });
         } else if (f.required) {
           unresolved.push(f);
         }
@@ -1965,19 +1990,38 @@ async function fillFields(frame, spec) {
         // searchable dropdown (Ashby, Greenhouse new UI): type the query, then
         // CLICK the matching option. selectText = the short query that filters
         // to the right option; fall back to the yes/no literal, then free text.
-        const query = plan.selectText
+        let query = plan.selectText
           || (plan.yesNo ? (plan.yesNo === 'yes' ? 'Yes' : 'No') : value.slice(0, 60));
+        // selectPrefer-only plans (e.g. US state → Outside US): scrape options
+        // and pick before typing a free-text guess.
+        if (!query && plan.selectPrefer) {
+          const opts = (f.options && f.options.length) ? f.options : await scrapeComboboxOptions(frame, f);
+          const opt = pickSelectOption(opts, plan, f.label);
+          if (opt) query = opt.text;
+          else if (plan.leaveBlank) {
+            if (f.required) {
+              pending.push({ label: labelShort, reason: 'requis — option hors profil introuvable (à remplir manuellement)' });
+            }
+            continue;
+          } else if (f.required) { unresolved.push(f); continue; }
+        }
         if (!query) {
-          if (f.required) unresolved.push(f);
+          if (f.required && plan.leaveBlank) {
+            pending.push({ label: labelShort, reason: 'requis — pas de donnée profil (à remplir manuellement)' });
+          } else if (f.required && !plan.leaveBlank) unresolved.push(f);
           continue;
         }
         const { matched } = await selectComboboxOption(frame, f, query);
         if (matched) filled.push({ label: labelShort, value: matched });
-        else if (f.required) unresolved.push(f); // couldn't confirm a real option → LLM/human
+        else if (f.required && plan.leaveBlank) {
+          pending.push({ label: labelShort, reason: 'requis — option hors profil introuvable (à remplir manuellement)' });
+        } else if (f.required && !plan.leaveBlank) unresolved.push(f);
         continue;
       }
       if (!value) {
-        if (f.required && !plan.optionalEmpty) unresolved.push(f);
+        if (f.required && plan.leaveBlank) {
+          pending.push({ label: labelShort, reason: plan.skip || 'requis — pas de donnée profil (à remplir manuellement)' });
+        } else if (f.required && !plan.optionalEmpty && !plan.leaveBlank) unresolved.push(f);
         continue;
       }
       // Already filled? Compare against the polished text too — that is what
@@ -2156,6 +2200,48 @@ async function remainingCompletionIssues(frame, uploadedLabels = []) {
     log(`Vérification des champs requis impossible (${String(err.message || err).slice(0, 60)}) — relis le formulaire dans Chrome.`);
     return [{ label: 'vérification des champs requis', reason: 'échec du contrôle — relire le formulaire' }];
   }
+}
+
+function mergeFillResults(first, second) {
+  const byLabel = new Map();
+  for (const row of [...(first.filled || []), ...(second.filled || [])]) {
+    byLabel.set(row.label, row);
+  }
+  const filled = [...byLabel.values()];
+  const filledLabels = new Set(filled.map(f => f.label));
+  const pending = [];
+  const seen = new Set();
+  for (const row of [...(first.pending || []), ...(second.pending || [])]) {
+    if (filledLabels.has(row.label) || seen.has(row.label)) continue;
+    seen.add(row.label);
+    pending.push(row);
+  }
+  return { filled, pending };
+}
+
+// One automatic refill only on real fill failures (upload/exception/option
+// click missed). Empty leaveBlank / manual gaps do not trigger a full 2nd pass.
+const RETRYABLE_PENDING_RE = /upload échoué|^échec:|option introuvable dans la liste|champ introuvable après re-rendu/i;
+
+async function fillFieldsWithRequiredRetry(frame, spec) {
+  let result = await fillFields(frame, spec);
+  const uploadedLabels = result.filled.filter(x => String(x.value || '').includes('📎')).map(x => x.label);
+  let issues = await remainingCompletionIssues(frame, uploadedLabels);
+  if (issues === null) return { ...result, completionIssues: null };
+
+  const failed = (result.pending || []).filter(p => RETRYABLE_PENDING_RE.test(p.reason));
+  // Also retry when a required file still looks missing after we thought we uploaded it.
+  const fileStillMissing = (issues || []).some(i => /fichier requis/i.test(i.reason));
+  if (!failed.length && !fileStillMissing) return { ...result, completionIssues: issues };
+
+  const n = failed.length + (fileStillMissing ? 1 : 0);
+  log(`Relance automatique: ${n} échec(s) de remplissage…`);
+  await sleep(rand(150, 350));
+  const second = await fillFields(frame, spec);
+  result = mergeFillResults(result, second);
+  const uploaded2 = result.filled.filter(x => String(x.value || '').includes('📎')).map(x => x.label);
+  issues = await remainingCompletionIssues(frame, uploaded2);
+  return { ...result, completionIssues: issues };
 }
 
 // ── Submit ────────────────────────────────────────────────────────────────────
@@ -2463,8 +2549,9 @@ async function main() {
       setState('filling', 'Remplissage du formulaire…');
       let filled;
       let pending;
+      let completionIssues;
       try {
-        ({ filled, pending } = await fillFields(frame, spec));
+        ({ filled, pending, completionIssues } = await fillFieldsWithRequiredRetry(frame, spec));
       } catch (err) {
         if (!isTargetClosedError(err)) throw err;
         const outcomeUrl = await recoverPostApply(activePage);
@@ -2474,8 +2561,6 @@ async function main() {
         continue;
       }
       state.filled = filled;
-      const uploadedLabels = filled.filter(x => String(x.value || '').includes('📎')).map(x => x.label);
-      const completionIssues = await remainingCompletionIssues(frame, uploadedLabels);
       if (completionIssues === null) {
         const outcomeUrl = await recoverPostApply(activePage);
         if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
@@ -2483,11 +2568,27 @@ async function main() {
         ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
         continue;
       }
-      // Browser validation is authoritative, including fields we just filled.
-      const seen = new Set(pending.map(p => p.label));
-      for (const r of completionIssues) if (!seen.has(r.label)) pending.push(r);
+      // Merge fillFields pending + live browser required check. Browser wins on
+      // emptiness; keep the more specific manual reason when both exist.
+      {
+        const byLabel = new Map();
+        for (const p of pending) byLabel.set(p.label, p);
+        for (const r of completionIssues) {
+          if (!byLabel.has(r.label)) byLabel.set(r.label, r);
+        }
+        const stillBroken = new Set(completionIssues.map(i => i.label));
+        pending = [...byLabel.values()].filter(p => {
+          if (stillBroken.has(p.label)) return true;
+          // Filled successfully and the form no longer flags it (e.g. Current
+          // role cleared end-date required) → drop.
+          if (filled.some(f => f.label === p.label)) return false;
+          // leaveBlank / manual gap that collectFields did not mark required
+          // (no asterisk in DOM yet) — keep so the UI still asks the human.
+          return /manuellement|profil|hors profil/.test(p.reason || '');
+        });
+      }
       state.pending = pending;
-      log(`${filled.length} champ(s) rempli(s), ${pending.length} en attente`);
+      log(`${filled.length} champ(s) rempli(s), ${pending.length} requis en attente`);
       await screenshot(activePage, 'filled');
 
       const newBlocker = await detectBlocker(activePage);
@@ -2570,7 +2671,7 @@ async function main() {
           if (c2 === 'rescan') { outerAction = 'rescan'; break; }
           // 'submit' = user clicked Submit manually → verify below
         }
-        await sleep(5000);
+        await sleep(1500);
 
         const postBlocker = await detectBlocker(activePage);
         if (postBlocker) { blocker = postBlocker; outerAction = 'blocker'; break; }
@@ -2617,7 +2718,7 @@ async function main() {
   } finally {
     await writeState();
     // leave the window open briefly so the user can see the final page
-    await sleep(state.state === 'submitted' ? 30000 : 5000);
+    await sleep(state.state === 'submitted' ? 8000 : 2000);
     await context.close().catch(() => {});
   }
 }

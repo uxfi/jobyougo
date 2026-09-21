@@ -31,6 +31,8 @@ const cases = [
     { html: '<script src="https://client.perimeterx.net/PX123/main.min.js"></script>', text: LONG }, false],
   ['page longue avec SDK Kasada passif',
     { html: '<script src="https://api.kasada.io/p.js"></script>', text: LONG }, false],
+  ['page live avec beacon Cloudflare JS Detections (passif, pas un challenge)',
+    { html: '<script>window.__CF$cv$params={r:"a3cd05035c4dfa38",t:"MTc4OTY5OTU3OQ=="};var a=document.createElement("script");a.src="/cdn-cgi/challenge-platform/scripts/jsd/main.js";document.getElementsByTagName("head")[0].appendChild(a);</script>', text: LONG }, false],
 
   // ── Vrais challenges (doivent BLOQUER) ───────────────────────────────────
   ['challenge Cloudflare (infrastructure)',

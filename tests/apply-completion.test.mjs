@@ -52,3 +52,19 @@ test('optional invalid values are reported while optional empty fields are allow
   assert.ok(fieldCompletionIssue({ type: 'email', required: false, value: 'broken', invalid: true }));
   assert.equal(fieldCompletionIssue({ type: 'email', required: false, value: '', invalid: false }), null);
 });
+
+test('required empty text / choice / file are completion blockers', () => {
+  assert.equal(fieldCompletionIssue({ type: 'text', required: true, value: '' }), 'requis et vide');
+  assert.equal(fieldCompletionIssue({ type: 'radio', required: true, groupChecked: false }), 'choix requis non renseigné');
+  assert.equal(fieldCompletionIssue({ type: 'checkbox', required: true, groupChecked: false }), 'choix requis non renseigné');
+  assert.equal(fieldCompletionIssue({ type: 'file', required: true, fileCount: 0, label: 'CV' }), 'fichier requis manquant');
+  assert.equal(fieldCompletionIssue({ type: 'text', required: true, value: 'OneAsset' }), null);
+});
+
+test('looksReadyToSubmit blocks when required pending remain', () => {
+  assert.equal(looksReadyToSubmit({
+    filled: [{ label: 'Email', value: 'hugo@example.com' }],
+    pending: [{ label: 'Postal Code', reason: 'requis et vide' }],
+    applyEntryVisible: false,
+  }), false);
+});

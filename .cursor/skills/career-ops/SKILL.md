@@ -8,7 +8,7 @@ description: >-
 arguments: mode
 user_invocable: true
 user-invocable: true
-argument-hint: "[scan | discover | deep | pdf | latex | latex-tex | cover | email | add | expand | eu-swe | oferta | ofertas | apply | batch | tracker | agent-inbox | pipeline | contacto | training | project | interview-prep | interview | interview/plan | interview/practice | interview/debrief | interview-redflag | patterns | offer-prep | titles | upskill | followup | reply-watch | outcome | update]"
+argument-hint: "[scan | discover | deep | pdf | latex | latex-tex | cover | email | add | expand | eu-swe | oferta | ofertas | apply | question | batch | tracker | agent-inbox | pipeline | contacto | training | project | interview-prep | interview | interview/plan | interview/practice | interview/debrief | interview-redflag | patterns | offer-prep | titles | upskill | followup | reply-watch | outcome | update]"
 license: MIT
 ---
 
@@ -66,6 +66,7 @@ Determine the mode from `$mode`:
 | `inbox` | `agent-inbox` |
 | `pipeline` | `pipeline` |
 | `apply` | `apply` |
+| `question` | `question` |
 | `scan` | `scan` |
 | `discover` | `discover` |
 | `batch` | `batch` |
@@ -147,6 +148,7 @@ Available commands:
   /career-ops tracker   → Application status overview
   /career-ops agent-inbox → Queue/drain requests for the next session (data/agent-inbox.md)
   /career-ops apply     → Live application assistant (reads form + generates answers)
+  /career-ops question  → Answer one application-form question (copywriting ATS, no AI slop)
   /career-ops scan      → Scan portals and discover new offers
   /career-ops discover  → Resolve a company list to scannable ATS boards + append to portals.yml (zero-token)
   /career-ops batch     → Batch processing with parallel workers
@@ -180,7 +182,7 @@ Applies to: `auto-pipeline`, `oferta`, `ofertas`, `pdf`, `contacto`, `apply`, `p
 
 Read `modes/_profile.md` (if exists) + `modes/_custom.md` (if exists) + `modes/{mode}.md`
 
-Applies to: `tracker`, `agent-inbox`, `deep`, `interview-prep`, `interview`, `regional/eu-swe`, `interview/plan`, `interview/practice`, `interview/debrief`, `latex`, `latex-tex`, `training`, `project`, `patterns`, `titles`, `upskill`, `followup`, `reply-watch`, `outcome`, `cover`, `email`, `add`, `offer-prep`, `discover`
+Applies to: `tracker`, `agent-inbox`, `deep`, `interview-prep`, `interview`, `regional/eu-swe`, `interview/plan`, `interview/practice`, `interview/debrief`, `latex`, `latex-tex`, `training`, `project`, `patterns`, `titles`, `upskill`, `followup`, `reply-watch`, `outcome`, `cover`, `email`, `add`, `offer-prep`, `discover`, `question`
 
 ### Modes delegated to subagent
 
