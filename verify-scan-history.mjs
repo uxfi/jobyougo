@@ -7,8 +7,15 @@
  * has split rows in the past (e.g. "...dele\nted", "...Soluti\nons Engineer").
  * Nothing validated this file — verify-pipeline.mjs only covers applications.md.
  *
- * Expected format: 6 tab-separated columns
- *   url \t first_seen(YYYY-MM-DD) \t portal \t title \t company \t status
+ * Expected format: append-only, 6 to N tab-separated columns (N = current
+ * SCAN_HISTORY_HEADER width in scan.mjs — today 12: url, first_seen, portal,
+ * title, company, status, location, fingerprint, posted_at, trust_score,
+ * trust_flags, normalized_company). Older rows keep their narrower shape
+ * forever (appendToScanHistory never rewrites existing rows), so a mix of
+ * row widths in the same file is normal, not corruption — this validates
+ * against scan.mjs's own header constant instead of a fixed column count so
+ * the next schema widening can't silently desync the two again (it did once:
+ * a 6-column check flagged every current-format row as malformed).
  *
  * Usage:
  *   node verify-scan-history.mjs           → report only, exit 1 if malformed found
@@ -31,6 +38,7 @@ import { readFileSync, writeFileSync, copyFileSync, existsSync, appendFileSync }
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { tsvSafe, slugify } from './lib/scan-filters.mjs';
+import { SCAN_HISTORY_HEADER } from './scan.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const HISTORY = join(ROOT, 'data/scan-history.tsv');
@@ -38,6 +46,10 @@ const DELETED = join(ROOT, 'data/deleted-applications.tsv');
 const FIX = process.argv.includes('--fix');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Legacy floor (pre-`location` column) — old rows already written keep this
+// shape forever, so it stays hardcoded; only the ceiling tracks scan.mjs.
+const MIN_COLS = 6;
+const MAX_COLS = SCAN_HISTORY_HEADER.trim().split('\t').length;
 const KNOWN_STATUSES = new Set([
   'added', 'deleted', 'expired',
   'skipped_remote', 'skipped_title', 'skipped_dup', 'skipped_blocked', 'recovered',
@@ -62,7 +74,15 @@ const urlCounts = new Map();
 physicalLines.forEach((line, i) => {
   if (line.trim() === '') return; // ignore blank / trailing newline
   const fields = line.split('\t');
-  const isValid = fields.length === 6 && DATE_RE.test(fields[1]);
+  // Header row (same `cols[0] === 'url'` check scan.mjs/stats.mjs use to
+  // detect it) is structural, not a data row — keep it verbatim, don't run
+  // it through the data-row shape check (its own cells, e.g. "first_seen",
+  // never match DATE_RE).
+  if (fields[0] === 'url') {
+    valid.push(line);
+    return;
+  }
+  const isValid = fields.length >= MIN_COLS && fields.length <= MAX_COLS && DATE_RE.test(fields[1]);
   if (isValid) {
     valid.push(line);
     urlCounts.set(fields[0], (urlCounts.get(fields[0]) || 0) + 1);

@@ -200,6 +200,49 @@ test('visible dropzone with hidden file input is collected', async () => {
   assert.equal(fields.filter(f => f.type === 'file').length, 1, JSON.stringify(fields));
 });
 
+test('SmartRecruiters-style shadow SPL-DROPZONE file input is collected', async () => {
+  await page.setContent(`<!doctype html><html><body>
+    <label>Resume *</label>
+    <spl-dropzone id="cv-dz"></spl-dropzone>
+  </body></html>`);
+  await page.evaluate(() => {
+    const host = document.getElementById('cv-dz');
+    const root = host.attachShadow({ mode: 'open' });
+    root.innerHTML = `
+      <div style="width:280px;height:96px;border:1px dashed #888;padding:12px">
+        <p>Choose a file or drop it here</p>
+        <input type="file" name="resume" accept=".pdf,.doc,.docx"
+          style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden">
+      </div>`;
+  });
+  const fields = await page.evaluate(COLLECT_FIELDS);
+  const files = fields.filter(f => f.type === 'file');
+  assert.equal(files.length, 1, JSON.stringify(fields));
+  assert.match(files[0].label || '', /resume|choose a file|drop it here/i);
+  assert.equal(String(files[0].i), '0');
+  assert.equal(files[0].fileChip || '', '');
+});
+
+test('a filename chip counts as attached; a format hint in the empty dropzone does not', async () => {
+  const empty = await collect(`
+    <div style="width:280px;height:80px">
+      <p>Choose a file or drop it here. Example: resume.pdf</p>
+      <input type="file" name="resume">
+    </div>
+  `);
+  assert.equal(empty.find(f => f.type === 'file')?.fileChip || '', '');
+
+  const attached = await collect(`
+    <div>
+      <p>Click or drag file to upload</p>
+      <span>Hugo-Vermot.pdf</span>
+      <button type="button">Remove</button>
+      <input type="file" name="resume" style="display:none">
+    </div>
+  `);
+  assert.equal(attached.find(f => f.type === 'file')?.fileChip, 'Hugo-Vermot.pdf');
+});
+
 test('file in an aria-hidden Application tabpanel is not collected', async () => {
   const fields = await collect(`
     <button role="tab" aria-selected="true">Overview</button>
@@ -213,6 +256,18 @@ test('file in an aria-hidden Application tabpanel is not collected', async () =>
   `);
   assert.equal(fields.filter(f => f.type === 'file').length, 0, JSON.stringify(fields));
   assert.ok(!fields.some(f => f.name === 'first_name'));
+});
+
+test('button aria-haspopup=listbox is collected even without role=combobox', async () => {
+  const fields = await collect(`
+    <label>Country *</label>
+    <button type="button" aria-haspopup="listbox">Select...</button>
+    <button type="button" aria-haspopup="menu">Apply</button>
+  `);
+  const lists = fields.filter(f => f.ariaHaspopup === 'listbox' || f.ariaHaspopup === 'menu');
+  assert.equal(lists.length, 1, JSON.stringify(fields.map(f => `${f.tag}:${f.ariaHaspopup}:${f.label}`)));
+  assert.equal(lists[0].ariaHaspopup, 'listbox');
+  assert.match(lists[0].label, /country/i);
 });
 
 test('button role=combobox is collected (custom ATS select)', async () => {
@@ -312,6 +367,21 @@ test('completion rejects truncated, duplicated and unreadable answers', async ()
   await page.locator('[contenteditable]').fill('A complete answerA complete answer');
   assert.equal(await fieldMatchesAnswer(page.locator('[contenteditable]'), 'A complete answer'), false);
   assert.equal(await fieldMatchesAnswer({inputValue:async()=>{throw Error();},evaluate:async()=>{throw Error();}}, 'answer'), false);
+});
+
+test('tel fields compare digits only — a masked phone widget reformatting spacing is not a mismatch (#3510-phone)', async () => {
+  await collect('<input type="tel" name="phone" value="+1 ">');
+  const input = page.locator('input[type="tel"]');
+  // react-international-phone and similar widgets keep every digit but drop
+  // the spacing a fill() typed in — byte-exact comparison would report this
+  // as a failed fill and send the caller into a retry loop that clears the
+  // field without ever landing a value.
+  await input.fill('+66 627842137');
+  assert.equal(await fieldMatchesAnswer(input, '+66 62 784 2137', 'tel'), true);
+  assert.equal(await fieldMatchesAnswer(input, '+66 62 784 2137'), false); // untyped: exact match still applies elsewhere
+  assert.equal(await fieldMatchesAnswer(input, '+33 6 12 34 56 78', 'tel'), false); // genuinely wrong number
+  await input.fill('');
+  assert.equal(await fieldMatchesAnswer(input, '', 'tel'), false); // empty actual never "matches" — even an empty expectation
 });
 
 test('Ashby Yes/No exposes two options and No counts as answered', async () => {

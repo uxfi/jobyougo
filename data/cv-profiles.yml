@@ -102,7 +102,7 @@ ai_builder:
         status: In progress
   highlights_title: Proof Points
   highlights:
-    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Figmol Git hand-off.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset's internal tool.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -116,7 +116,7 @@ ai_builder:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
@@ -163,7 +163,7 @@ ai_builder:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - >-
           Product strategy, investor UX, KYB compliance onboarding, and PM workspace architecture for a
           regulated RWA investment platform (commercial real estate, daily USDC yield, Base / ERC-3643).
@@ -292,7 +292,7 @@ product_designer:
         - name: MVP prototypes
   highlights_title: Design Impact
   highlights:
-    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Figmol Git hand-off.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset's internal tool.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -306,7 +306,7 @@ product_designer:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
@@ -353,7 +353,7 @@ product_designer:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - >-
           Design lead on a regulated RWA investment platform: investor homepage, asset marketplace, fractional
           purchase flows, five-step KYB onboarding, and the Property Manager workspace.
@@ -493,7 +493,7 @@ complete_paris:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
@@ -645,7 +645,7 @@ complete_bangkok:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
@@ -810,7 +810,7 @@ product_manager:
         status: ''
   highlights_title: Product Leadership Signals
   highlights:
-    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Figmol Git hand-off.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset's internal tool.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -824,7 +824,7 @@ product_manager:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads_logo_final.png
@@ -873,7 +873,7 @@ product_manager:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - >-
           Own product strategy and UX architecture for a regulated RWA investment platform: investor flows,
           KYB compliance onboarding, reporting logic, and the Property Manager workspace.
@@ -943,7 +943,7 @@ shared:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (internal Figma-like tool), GitHub flow with engineering.
+          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - >-
           Regulated real-world asset investment platform: fractional real estate ownership from $10,000, daily
           USDC yield (Base / ERC-3643).

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel } from '../lib/apply-fill-guards.mjs';
+import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint } from '../lib/apply-fill-guards.mjs';
 
 const field = (label, extra = {}) => ({ label, type: 'text', name: '', idAttr: '', ...extra });
 
@@ -14,8 +14,9 @@ test('skipComboboxProbe: identity labels go straight to fill()', () => {
   const skip = [
     'First name', 'First name *', 'Your first name',
     'Last name', 'Email', 'Email *', 'Work email', 'Email address',
-    'Phone', 'Phone number', 'Mobile', 'LinkedIn', 'LinkedIn URL',
-    'GitHub', 'Prénom', 'Nom de famille', 'Full name',
+    'Phone', 'Phone number', 'Mobile', 'Mobile phone', 'LinkedIn', 'LinkedIn URL',
+    'GitHub', 'Prénom', 'Nom de famille', 'Full name', 'Middle name',
+    'First and last name', 'First & Last Name',
   ];
   for (const label of skip) {
     assert.equal(skipComboboxProbe(field(label)), true, label);
@@ -137,13 +138,34 @@ test('fileUploadPlan never dumps the CV into employment-reference / other', () =
   assert.match(fileUploadPlan(field('Browse The file exceeds the allowed'), { cvPath: '/tmp/cv.pdf' }).skip, /taille/);
 });
 
-test('shouldFillField: optional LinkedIn/salary/cover stay blank, required questions fill', () => {
-  assert.equal(shouldFillField(field('LinkedIn Profile')), false);
-  assert.equal(shouldFillField(field('Cover letter', { tag: 'textarea' })), false);
-  assert.equal(shouldFillField(field('How did you hear about us?')), false);
+test('application-gate privacy consent is always filled (even without HTML required)', () => {
+  const privacy = field('Required. By submitting this application, I agree that I have read the Privacy Policy', { type: 'checkbox' });
+  assert.equal(isApplicationGateConsent(privacy), true);
+  assert.equal(shouldFillField(privacy), true);
+  assert.equal(fieldLooksRequired(privacy), true);
+  assert.equal(trivialFieldPlan(privacy)?.check, true);
+  assert.equal(isApplicationGateConsent(field('Email updates / newsletter', { type: 'checkbox' })), false);
+});
+
+test('shouldFillField: profile links / cover / location fill even when optional; salary and EEO stay blank', () => {
+  assert.equal(shouldFillField(field('LinkedIn Profile')), true);
+  assert.equal(shouldFillField(field('Portfolio URL')), true);
+  assert.equal(shouldFillField(field('GitHub')), true);
+  assert.equal(shouldFillField(field('Website')), true);
+  assert.equal(shouldFillField(field('Cover letter', { tag: 'textarea' })), true);
+  assert.equal(shouldFillField(field('How did you hear about us?')), true);
+  assert.equal(shouldFillField(field('Current location')), true);
+  assert.equal(shouldFillField(field('Country')), true);
   assert.equal(shouldFillField(field('Expected salary')), false);
   assert.equal(shouldFillField(field('Gender')), false);
   assert.equal(shouldFillField(field('First name')), true);
+  assert.equal(shouldFillField(field('First and last name')), true);
+  assert.equal(shouldFillField(field('First & Last Name')), true);
+  assert.equal(shouldFillField(field('Name')), true);
+  assert.equal(shouldFillField(field('Mobile phone')), true);
+  assert.equal(shouldFillField(field('City')), true);
+  assert.equal(shouldFillField(field('Timezone')), true);
+  assert.equal(shouldFillField(field('Years of experience')), true);
   assert.equal(shouldFillField(field('Email', { type: 'email' })), true);
   assert.equal(shouldFillField(field('Phone number', { type: 'tel' })), true);
   assert.equal(shouldFillField(field('Are you fluent in Arabic?*')), true);
@@ -152,6 +174,12 @@ test('shouldFillField: optional LinkedIn/salary/cover stay blank, required quest
   assert.equal(shouldFillField(field('Confirm email', { required: true })), true);
   assert.equal(shouldFillField({ label: 'Attach', type: 'file', name: 'resume', idAttr: '' }), true);
   assert.equal(shouldFillField({ label: 'Upload Other', type: 'file', name: 'other', idAttr: '' }), false);
+  assert.equal(shouldFillField({ label: 'Choose a file or drop it here', type: 'file', name: '', idAttr: '' }), true);
+  assert.equal(shouldFillField({ label: 'Click or drag file to upload', type: 'file', name: '', idAttr: '' }), true);
+  assert.equal(isComboboxField({ role: 'combobox' }), true);
+  assert.equal(isComboboxField({ tag: 'button', label: 'Select country', ariaHaspopup: 'listbox' }), true);
+  assert.equal(isComboboxField({ idAttr: 'react-select-3-input', nearSelectWrapper: false }), true);
+  assert.equal(isComboboxField({ tag: 'input', label: 'First name', type: 'text' }), false);
   assert.equal(fieldLooksRequired(field('Location (City)*')), true);
   assert.equal(fieldLooksRequired(field('LinkedIn Profile')), false);
   assert.equal(fieldLooksRequired(field('Email (required)')), true);
@@ -214,10 +242,22 @@ test('screeningChoicePlan: 18+, previously worked, state, postal', () => {
   assert.ok(state?.selectPrefer);
   assert.equal(state?.leaveBlank, true);
   assert.equal(state?.value, undefined);
-  assert.equal(screeningChoicePlan(field('Postal Code*'), { identity: {} })?.leaveBlank, true);
+  assert.equal(screeningChoicePlan(field('Postal Code'), { identity: {} })?.leaveBlank, true);
+  assert.equal(screeningChoicePlan(field('Postal Code*'), { identity: {} })?.value, 'N/A');
   assert.equal(screeningChoicePlan(field('Postal Code*'), { identity: { postal: '75011' } })?.value, '75011');
+  assert.equal(screeningChoicePlan(field('Do you have experience working with Agentic AI Products/ Systems? *'))?.yesNo, 'yes');
   // bare "employer" must not hijack EEO / equal-opportunity copy
   assert.equal(employmentHistoryPlan(field('Equal Opportunity Employer acknowledgement'), {
     company: 'OneAsset', title: 'X', startMonth: 2, startYear: '2026', current: true,
   }), null);
+});
+
+test('required third-party names get N/A; location typeahead uses the first word', () => {
+  assert.equal(unknownThirdPartyPlan(field('Hiring manager name*'))?.value, 'N/A');
+  assert.equal(unknownThirdPartyPlan(field('Emergency contact'))?.leaveBlank, true);
+  assert.equal(unknownThirdPartyPlan(field('School name*'))?.selectText, 'N/A');
+  const hint = locationTypeaheadHint(field('City'), { city: 'Paris' });
+  assert.equal(hint.prefix, 'Par');
+  assert.equal(hint.contains, 'Paris');
+  assert.equal(locationTypeaheadHint(field('Country'), { country: 'France' }).contains, 'France');
 });

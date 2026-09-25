@@ -24,7 +24,22 @@ function assertWwrUrl(url) {
   if (parsed.hostname !== TRUSTED_HOST) {
     throw new Error(`weworkremotely: untrusted hostname "${parsed.hostname}" - must be ${TRUSTED_HOST}`);
   }
-  return url;
+  // Only the board-wide feed and category RSS paths — never arbitrary WWR pages.
+  if (!/^\/(remote-jobs\.rss|categories\/remote-[a-z0-9-]+\.rss)$/i.test(parsed.pathname)) {
+    throw new Error(`weworkremotely: URL must be a jobs RSS path, got ${parsed.pathname}`);
+  }
+  return parsed.href;
+}
+
+/**
+ * Prefer entry.api / careers_url when set (category feeds); else the board-wide feed.
+ * @param {Record<string, unknown>} [entry]
+ * @returns {string}
+ */
+export function resolveWwrFeedUrl(entry) {
+  const raw = entry?.api ?? entry?.careers_url;
+  if (typeof raw === 'string' && raw.trim()) return assertWwrUrl(raw.trim());
+  return FEED_URL;
 }
 
 // NaN-safe Date.parse - `|| undefined` would also coerce a valid epoch 0.
@@ -43,11 +58,16 @@ export default {
   id: 'weworkremotely',
 
   detect(entry) {
-    return entry?.provider === 'weworkremotely' ? { url: FEED_URL } : null;
+    if (entry?.provider !== 'weworkremotely') return null;
+    try {
+      return { url: resolveWwrFeedUrl(entry) };
+    } catch {
+      return null;
+    }
   },
 
   async fetch(entry, ctx) {
-    const feedUrl = assertWwrUrl(FEED_URL);
+    const feedUrl = resolveWwrFeedUrl(entry);
     // redirect:'error' prevents SSRF via server-side redirects; combined with
     // assertWwrUrl above it keeps the request pinned to weworkremotely.com.
     const text = await ctx.fetchText(feedUrl, { redirect: 'error' });

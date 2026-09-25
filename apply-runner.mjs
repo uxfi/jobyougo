@@ -9,7 +9,7 @@
 // The run dir must contain spec.json (built by lib/apply-spec.mjs).
 // Protocol (file-based, survives server restarts):
 //   - state.json   ← runner writes status after every step (server polls it)
-//   - command.json ← server writes {action: submit|rescan|abort|close}, runner consumes it
+//   - command.json ← server writes {action: submit|rescan|abort|manual_sent|close}, runner consumes it
 
 import 'dotenv/config';
 import { readFileSync, writeFileSync, renameSync, existsSync, unlinkSync, mkdirSync } from 'fs';
@@ -17,14 +17,16 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { resolveUnknownFields } from './lib/apply-llm.mjs';
+import { classifyField } from './lib/apply-classify.mjs';
+import { pickDeclineOption, pickSelectOption, llmKind } from './lib/apply-select.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice } from './lib/application-writing.mjs';
-import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, trivialFieldPlan, skipComboboxProbe, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldFillField, isSecretCredentialField, travelOrRelocatePlan, shouldReplaceFilledValue, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField } from './lib/apply-fill-guards.mjs';
+import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isResumeFileField, shouldReplaceFilledValue, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
 import { fieldCompletionIssue, fieldMatchesAnswer, looksReadyToSubmit } from './lib/apply-completion.mjs';
 import { COLLECT_FIELDS } from './lib/apply-collect-fields.mjs';
 import { watchApplicationTransition, exploreApplicationInterface } from './lib/apply-navigation.mjs';
-import { COMBOBOX_OPTION_QUERY } from './lib/apply-combobox-dom.mjs';
-import { pickMatchingOption, choiceKind } from './lib/apply-option-match.mjs';
+import { ACTIVATE_MATCHED_OPTION, COMBOBOX_OPTION_QUERY, COMBOBOX_OPTION_SEL, LIST_SELECTION_STATE } from './lib/apply-combobox-dom.mjs';
+import { pickMatchingOption, choiceKind, selectionLooksCommitted } from './lib/apply-option-match.mjs';
 import {
   PINCHTAB_URL,
   pinchtabClose,
@@ -34,7 +36,17 @@ import {
   pinchtabSolve,
   pinchtabSolveSucceeded,
 } from './lib/pinchtab.mjs';
-import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY } from './lib/form-detect.mjs';
+import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, LIST_VISIBLE_NAV_BUTTONS, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY, PAGE_STEP_SNAPSHOT } from './lib/form-detect.mjs';
+import { normalizeAtsUrl } from './extension/apply-ats.mjs';
+import {
+  AUTOFILL_WAIT_MS,
+  autofillShouldKeepWaiting,
+  judgeAutofillSnapshot,
+  snapshotIdentityFields,
+} from './extension/apply-autofill.mjs';
+import { collectUploadSignals, judgeUploadSignals } from './extension/apply-upload-signals.mjs';
+import { APPLY_TEXT_RE, PROGRESS_TEXT_RE, SUBMIT_TEXT_RE, countEditableApplyFields, fieldsFingerprint, isBlockingApplyPending, pageLooksLikeReviewStep, reviewStepNeedsAi } from './lib/apply-progression.mjs';
+import { exactControlPattern, filterNavButtons, navDecisionLog, resolveNavAction } from './lib/apply-nav-llm.mjs';
 import {
   isHimalayasHost,
   isHimalayasLoginPath,
@@ -45,7 +57,6 @@ import {
   looksLikeHimalayasLoginError,
 } from './lib/himalayas-apply.mjs';
 import { computeStartDateISO as toIsoDate } from './lib/apply-spec.mjs';
-import { formSalaryValue } from './lib/apply-salary.mjs';
 import {
   basenamePath,
   chromeClosedMessage,
@@ -255,7 +266,7 @@ async function clearField(loc) {
 // (unlike fill(), which populates a field with zero keystrokes — a classic bot
 // signal). VERIFIES the value landed (rich-text engines can swallow keystrokes)
 // and falls back to fill(). Returns true only if content actually stuck.
-async function humanType(loc, text) {
+async function humanType(loc, text, f) {
   const str = String(text);
   try {
     await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
@@ -285,9 +296,9 @@ async function humanType(loc, text) {
     await sleep(rand(120, 320));
   } catch { /* fall through to verify + fallback */ }
   // confirm it stuck; rich-text editors (Quill/Slate) sometimes swallow keys
-  if (await fieldMatchesAnswer(loc, str)) return true;
+  if (await fieldMatchesAnswer(loc, str, f?.type)) return true;
   try { await loc.fill(str, { timeout: 5000 }); } catch { return false; }
-  if (await fieldMatchesAnswer(loc, str)) return true;
+  if (await fieldMatchesAnswer(loc, str, f?.type)) return true;
   // Both techniques failed to land the answer. If clearField couldn't
   // confirm empty earlier, pressSequentially may have appended onto
   // whatever was already there — leave the field genuinely empty (an
@@ -304,13 +315,13 @@ const UPLOAD_SETTLE_MS = 2000;
 // real keystrokes.
 async function putText(loc, text, f) {
   const str = String(text);
-  if (shouldHumanType(f, str)) return humanType(loc, str);
+  if (shouldHumanType(f, str)) return humanType(loc, str, f);
   try {
     await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
     await loc.fill(str, { timeout: 4000 });
-    if (await fieldMatchesAnswer(loc, str)) return true;
+    if (await fieldMatchesAnswer(loc, str, f?.type)) return true;
   } catch { /* controlled / custom widgets often ignore fill() */ }
-  return humanType(loc, str);
+  return humanType(loc, str, f);
 }
 
 async function waitForFormResettle(frame, timeoutMs = UPLOAD_SETTLE_MS) {
@@ -338,24 +349,61 @@ async function waitForFormResettle(frame, timeoutMs = UPLOAD_SETTLE_MS) {
   }
 }
 
-async function waitForResumeAutofill(frame, timeoutMs = 4000) {
+async function waitForResumeAutofill(frame, identity = {}, timeoutMs = AUTOFILL_WAIT_MS) {
+  const read = () => frame.evaluate(snapshotIdentityFields).catch(() => []);
   const deadline = Date.now() + timeoutMs;
+  let last = judgeAutofillSnapshot([], identity);
   while (Date.now() < deadline) {
-    const ready = await frame.evaluate(() => {
-      const inputs = [...document.querySelectorAll('input, textarea')];
-      return inputs.some((el) => {
-        const v = String(el.value || '').trim();
-        if (v.includes('@')) return true;
-        const key = `${el.name || ''} ${el.id || ''} ${el.getAttribute('aria-label') || ''}`;
-        return /first\s*name|pr[ée]nom/i.test(key) && v.length >= 2;
-      });
-    }).catch(() => false);
-    if (ready) {
-      await sleep(400);
-      return;
-    }
+    last = judgeAutofillSnapshot(await read(), identity);
+    if (!autofillShouldKeepWaiting(last.status)) break;
     await sleep(200);
   }
+  if (autofillShouldKeepWaiting(last.status)) {
+    last = judgeAutofillSnapshot(await read(), identity);
+  }
+  const timedOut = autofillShouldKeepWaiting(last.status);
+  if (last.status === 'matched') await sleep(400);
+  return { ...last, timedOut, manualFill: last.status !== 'matched' };
+}
+
+async function confirmFrameUpload(frame, expectedName) {
+  const page = frame.page();
+  let networkOk = false;
+  const onResponse = (res) => {
+    try {
+      const status = res.status();
+      const method = res.request().method();
+      const url = res.url();
+      if (status >= 200 && status < 300 && /^(POST|PUT|PATCH)$/i.test(method) && /upload|resume|attachment|\bcv\b|\/file|document/i.test(url)) {
+        networkOk = true;
+      }
+    } catch { /* detached */ }
+  };
+  page.on('response', onResponse);
+  const deadline = Date.now() + 6000;
+  let stable = 0;
+  let last = judgeUploadSignals({}, { expectedName });
+  try {
+    while (Date.now() < deadline) {
+      const raw = await frame.evaluate(collectUploadSignals, expectedName).catch(() => null);
+      last = judgeUploadSignals({ ...(raw || {}), networkOk }, { expectedName });
+      if (last.error) return last;
+      if (last.ok && !last.pending) {
+        stable += 1;
+        if (stable >= 2) return last;
+      } else {
+        stable = 0;
+      }
+      await sleep(400);
+    }
+  } finally {
+    page.off('response', onResponse);
+  }
+  if (last.pending && last.hits?.length) {
+    return { ok: true, pending: false, error: false, reason: last.hits.join(', '), hits: last.hits };
+  }
+  if (last.pending) return { ok: false, reason: last.reason || 'spinner encore actif' };
+  return last;
 }
 
 let shotCount = 0;
@@ -386,15 +434,80 @@ async function launchBrowser() {
     for (const channel of ['chrome', undefined]) {
       try {
         const ctx = await chromium.launchPersistentContext(profileDir, channel ? { ...opts, channel } : opts);
-        // Mask the most obvious automation signals before any page script runs:
-        // navigator.webdriver=true is the #1 bot tell Playwright exposes.
+        // Mask automation signals before any page script runs. Each one below
+        // is a documented detector a real ATS bot-check (Cloudflare, DataDome,
+        // PerimeterX-style) is known to probe:
         await ctx.addInitScript(() => {
           try {
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            // navigator.webdriver=true is the #1 tell. A getter override is
+            // itself detectable (its toString() isn't native code) — deleting
+            // the property from the prototype is what real, non-automated
+            // Chrome looks like: the property simply doesn't exist there.
+            delete Object.getPrototypeOf(navigator).webdriver;
+
+            // Any function we DO have to override needs to lie about its own
+            // toString() too, or `fn.toString()` gives away the patch. Wrap
+            // once, reuse below.
+            const nativeToString = Function.prototype.toString;
+            const patched = new WeakMap();
+            Function.prototype.toString = function toString() {
+              if (patched.has(this)) return `function ${patched.get(this)}() { [native code] }`;
+              return nativeToString.call(this);
+            };
+            const markNative = (fn, name) => { patched.set(fn, name); return fn; };
+
             if (!navigator.languages || !navigator.languages.length) {
               Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
             }
             window.chrome = window.chrome || { runtime: {} };
+
+            // A blank plugins/mimeTypes array is a classic headless/automation
+            // tell — real Chrome always ships the built-in PDF plugins.
+            if (!navigator.plugins || navigator.plugins.length === 0) {
+              const fakePlugins = [
+                { name: 'PDF Viewer', filename: 'internal-pdf-viewer' },
+                { name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer' },
+                { name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer' },
+                { name: 'Microsoft Edge PDF Viewer', filename: 'internal-pdf-viewer' },
+                { name: 'WebKit built-in PDF', filename: 'internal-pdf-viewer' },
+              ];
+              Object.defineProperty(navigator, 'plugins', { get: () => fakePlugins });
+              Object.defineProperty(navigator, 'mimeTypes', { get: () => fakePlugins.map(p => ({ type: 'application/pdf', description: p.name })) });
+            }
+
+            // navigator.permissions.query('notifications') answers 'denied' in
+            // headless/automated Chrome even when Notification.permission is
+            // still 'default' — a real browser never disagrees with itself
+            // like this (a known Puppeteer/Playwright fingerprint check).
+            if (window.navigator.permissions && window.navigator.permissions.query) {
+              const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
+              window.navigator.permissions.query = markNative((parameters) => (
+                parameters?.name === 'notifications'
+                  ? Promise.resolve({ state: Notification.permission, onchange: null })
+                  : originalQuery(parameters)
+              ), 'query');
+            }
+
+            // WebGL vendor/renderer leaking "Google SwiftShader" (the software
+            // rasterizer some automated/virtualized Chrome falls back to)
+            // instead of a real GPU string is another documented check. Only
+            // override when that leak is actually present — channel:'chrome'
+            // with hardware acceleration normally reports real values already,
+            // so this is a fallback, not a blanket spoof.
+            const patchWebglVendor = (proto) => {
+              if (!proto) return;
+              const getParameter = proto.getParameter;
+              proto.getParameter = markNative(function (parameter) {
+                const value = getParameter.call(this, parameter);
+                if (typeof value === 'string' && /swiftshader|llvmpipe|software/i.test(value)) {
+                  if (parameter === 37445) return 'Google Inc. (Intel)'; // UNMASKED_VENDOR_WEBGL
+                  if (parameter === 37446) return 'ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0)'; // UNMASKED_RENDERER_WEBGL
+                }
+                return value;
+              }, 'getParameter');
+            };
+            patchWebglVendor(window.WebGLRenderingContext?.prototype);
+            patchWebglVendor(window.WebGL2RenderingContext?.prototype);
           } catch { /* best effort */ }
         }).catch(() => {});
         if (profileDir !== mainProfile) log('Profil principal verrouillé (autre run en cours) — profil isolé pour ce run.');
@@ -784,7 +897,7 @@ async function tryAutoSolveBlocker(context, page, blocker, phase = 'navigation')
 
 // ── Apply navigation: follow links/redirects until a real form is reached ─────
 
-const APPLY_TEXT_RE = /^(apply(\s+(now|here|for|to)\b.*)?|postuler.*|candidater.*|d[ée]poser (ma |une )?candidature|easy apply|i'?m interested|apply for this (job|position|role)|soumettre|submit application|apply on company (web)?site)$/i;
+// APPLY_TEXT_RE / PROGRESS_TEXT_RE → lib/apply-progression.mjs (shared with bridge)
 
 // Interstitial modals between the job page and the real form (e.g. Jobicy's
 // "Sign Up and Apply / Continue as Guest") — always pick the no-account path.
@@ -792,34 +905,7 @@ const APPLY_TEXT_RE = /^(apply(\s+(now|here|for|to)\b.*)?|postuler.*|candidater.
 // the "take this path" and "never take that path" vocabularies stay in sync.
 const CONTINUE_TEXT_RE = GUEST_TEXT_RE;
 
-// Multi-step wizard progression (when there is NO form on the page yet): landing
-// pages, "start application" splash screens, intro steps before the real form.
-const PROGRESS_TEXT_RE = /^(continue|next|next step|start( your)?( application)?|get started|begin( application)?|proceed|go to application|apply for this (job|position|role)|view application|start now|application|candidature|commencer|continuer|suivant|[ée]tape suivante|d[ée]marrer|acc[ée]der au formulaire)$/i;
-
-function normalizeAtsUrl(url) {
-  // Insert the apply segment into the PATHNAME (not the raw string): appending
-  // to a URL that carries a query string (e.g. Lever's ?ref=…) would glue
-  // "/apply" onto the query value and produce a broken URL that reloads the
-  // job page forever.
-  try {
-    const u = new URL(url);
-    const host = u.hostname;
-    const p = u.pathname.replace(/\/$/, '');
-    if (/jobs\.lever\.co$/.test(host) && /\/[0-9a-f-]{36}$/i.test(p)) {
-      u.pathname = p + '/apply';
-      return u.toString();
-    }
-    if (/jobs\.ashbyhq\.com$/.test(host) && !/\/application/.test(p)) {
-      u.pathname = p + '/application';
-      return u.toString();
-    }
-    if (/apply\.workable\.com$/.test(host) && /\/j\//.test(p) && !/\/apply$/.test(p)) {
-      u.pathname = p + '/apply';
-      return u.toString();
-    }
-  } catch { /* keep original */ }
-  return url;
-}
+// normalizeAtsUrl lives in extension/apply-ats.mjs (query string stays on the URL).
 
 // A frame "has a form" when it shows fillable application fields.
 // Scored verdict from lib/form-detect.mjs. The old inline predicate
@@ -948,6 +1034,74 @@ async function dismissCookieBanner(page) {
   } catch { /* no banner */ }
 }
 
+const navAiBudget = { nav: 0, review: 0 };
+
+async function askPageNavAi(page, {
+  phase = 'navigate',
+  skipTexts = [],
+  fields = [],
+  heading = '',
+  bodySnippet = '',
+} = {}) {
+  const bucket = phase === 'review' ? 'review' : 'nav';
+  const max = phase === 'review' ? 3 : 2;
+  if (navAiBudget[bucket] >= max) return { action: 'human', reason: 'plafond', skipped: true };
+  let listed = [];
+  try {
+    listed = await page.evaluate(LIST_VISIBLE_NAV_BUTTONS, {
+      avoidSrc: AUTH_AVOID_TEXT_RE.source,
+      skip: skipTexts,
+    });
+  } catch { listed = []; }
+  const buttons = filterNavButtons(listed || [], skipTexts);
+  if (phase !== 'review' && !buttons.length) return { action: 'human', reason: 'aucun bouton', skipped: true };
+  navAiBudget[bucket] += 1;
+  const decision = await resolveNavAction({
+    phase,
+    url: currentPageUrl(page),
+    heading,
+    bodySnippet,
+    buttons,
+    fieldsSummary: `${(fields || []).length} champs, ${countEditableApplyFields(fields || [])} éditables`,
+  });
+  const line = navDecisionLog(decision);
+  if (line) log(line);
+  return decision;
+}
+
+async function clickListedNav(page, decision) {
+  if (!decision?.text) return false;
+  const stamp = await page.evaluate((text) => {
+    const want = String(text).replace(/\s+/g, ' ').trim().toLowerCase();
+    const hit = [...document.querySelectorAll('[data-co-nav]')].find((el) => {
+      const t = (el.innerText || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '')
+        .replace(/\s+/g, ' ').trim().toLowerCase();
+      return t === want;
+    });
+    return hit ? hit.getAttribute('data-co-nav') : null;
+  }, decision.text).catch(() => null);
+  if (stamp == null) return false;
+  try {
+    await humanClick(page.locator(`[data-co-nav="${stamp}"]`), { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function clickExactLabelOnPage(page, text) {
+  if (!text) return false;
+  const loc = page.locator('a, button, [role="button"], input[type="submit"], input[type="button"]')
+    .filter({ hasText: exactControlPattern(text) })
+    .first();
+  try {
+    await humanClick(loc, { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function reachApplicationForm(context, page) {
   // Walk through any number of intermediate pages (aggregator redirect → job
   // page → "apply" → guest modal → wizard "next/start" → form). Each hop:
@@ -1008,6 +1162,18 @@ async function reachApplicationForm(context, page) {
       log(`Mur d'inscription/connexion détecté (${authWall.blockers.join(', ')}) — recherche d'un accès invité.`);
       const guest = await clickApplyAndFollow(context, page, GUEST_TEXT_RE, attempted);
       if (guest) { page = guest; continue; }
+      const guestUrl = currentPageUrl(page);
+      const guestAi = await askPageNavAi(page, {
+        phase: 'navigate',
+        skipTexts: [...attempted].filter((k) => k.startsWith(`${guestUrl}::`)).map((k) => k.slice(guestUrl.length + 2)),
+      });
+      if (guestAi?.action === 'click' && await clickListedNav(page, guestAi)) {
+        attempted.add(`${guestUrl}::${guestAi.text}`);
+        const observed = await watchApplicationTransition(page, { findForm: findFormFrame });
+        page = observed.page;
+        if (observed.frame) return { ...observed, blocker: null };
+        continue;
+      }
       log('Aucun accès invité proposé — connexion manuelle requise.');
       return { page, frame: null, blocker: 'auth_wall' };
     }
@@ -1028,6 +1194,21 @@ async function reachApplicationForm(context, page) {
       || await clickApplyAndFollow(context, page, APPLY_TEXT_RE, attempted)
       || await clickApplyAndFollow(context, page, PROGRESS_TEXT_RE, attempted);
     if (!next) {
+      let hopUrl = '';
+      try { hopUrl = page.url(); } catch { hopUrl = ''; }
+      const skipTexts = [...attempted].filter((k) => k.startsWith(`${hopUrl}::`)).map((k) => k.slice(hopUrl.length + 2));
+      const navAi = await askPageNavAi(page, { phase: 'navigate', skipTexts });
+      if (navAi?.action === 'fill') {
+        const again = await findFormFrame(page);
+        if (again.frame) return { page, frame: again.frame, blocker: null };
+      }
+      if (navAi?.action === 'click' && await clickListedNav(page, navAi)) {
+        attempted.add(`${hopUrl}::${navAi.text}`);
+        const observed = await watchApplicationTransition(page, { findForm: findFormFrame });
+        if (observed.frame) return { ...observed, blocker: null };
+        page = observed.page;
+        continue;
+      }
       const currentUrl = page.url();
       if (!inspectedUrls.has(currentUrl)) {
         inspectedUrls.add(currentUrl);
@@ -1078,236 +1259,7 @@ async function collectFields(frame) {
   return await frame.evaluate(COLLECT_FIELDS);
 }
 
-const STOPWORDS = new Set(['the', 'a', 'an', 'to', 'of', 'in', 'for', 'and', 'or', 'you', 'your', 'is', 'are', 'do', 'does', 'this', 'that', 'with', 'us', 'we', 'at', 'on', 'what', 'why', 'how', 'about', 'tell', 'please', 'would', 'be', 'it', 'le', 'la', 'les', 'de', 'des', 'un', 'une', 'vous', 'pour', 'et']);
-
-// Job-domain nouns that appear in nearly EVERY question on an application form
-// and therefore carry no power to tell two questions apart. Without this, a
-// single shared "role" was enough to score 0.5 and clear the 0.4 threshold:
-// "What is your current role?" {current, role} matched "How did you hear about
-// this role?" {did, hear, role} and the form was submitted with the
-// how-did-you-hear answer in the current-role box. Dropping these leaves only
-// the words that actually discriminate ("interested", "hear", "experience").
-const GENERIC_TERMS = new Set(['role', 'roles', 'position', 'positions', 'job', 'jobs', 'company', 'companies', 'work', 'working', 'poste', 'entreprise', 'travail']);
-
-function tokens(s) {
-  return new Set(String(s).toLowerCase().replace(/[^a-z0-9àâéèêëîïôùûüç\s]/gi, ' ').split(/\s+/).filter(w => w.length > 2 && !STOPWORDS.has(w) && !GENERIC_TERMS.has(w)));
-}
-
-function similarity(a, b) {
-  const ta = tokens(a), tb = tokens(b);
-  if (!ta.size || !tb.size) return 0;
-  let inter = 0;
-  for (const t of ta) if (tb.has(t)) inter++;
-  return inter / Math.min(ta.size, tb.size);
-}
-
-function bestAnswerFor(label, answers, usedAnswers = new Set()) {
-  // Prefer an unused answer when scores are close, so two similar questions
-  // ("why us?" / "why this role?") don't get the exact same text.
-  const scored = answers
-    .map(qa => ({ qa, s: similarity(label, qa.question) }))
-    .filter(x => x.s >= 0.4)
-    .sort((a, b) => b.s - a.s);
-  if (!scored.length) return null;
-  const fresh = scored.find(x => !usedAnswers.has(x.qa.question) && x.s >= scored[0].s - 0.2);
-  if (fresh) return fresh.qa;
-  // The best match was already consumed by an earlier (similar) question. Don't
-  // reuse it verbatim — return null so this field goes to the LLM resolver,
-  // which writes a distinct answer for its specific angle.
-  if (usedAnswers.has(scored[0].qa.question)) return null;
-  return scored[0].qa;
-}
-
-function classifyField(f, spec, usedAnswers = new Set()) {
-  const s = `${f.label} ${f.name} ${f.idAttr}`.toLowerCase();
-  const id = spec.identity;
-
-  if (f.type === 'file') return fileUploadPlan(f, spec);
-  // "Resume/CV" textarea (alternative to the file upload) → paste the CV text.
-  if (f.tag === 'textarea' && /resume|curriculum|\bcv\b/.test(s) && !/cover|lettre|why|describe|experience/.test(s)) {
-    return { resume: true };
-  }
-  // Sensitive EEO questions stay blank (usually optional / "prefer not to say").
-  // Pronouns are handled separately: many ATS make them required. \bage\b is
-  // word-boundary anchored so it doesn't false-positive on "message",
-  // "manage", "package", "language" (seen in the wild: Ashby's optional
-  // "Diversity Survey" section asks "What is your current age?").
-  // A gender declared in profile.yml is an answer the candidate chose to give,
-  // so use it instead of declining. Scoped to the gender question itself: the
-  // LGBTQIA+ question also contains "transgender", and race/veteran/disability
-  // stay blank regardless.
-  const asksGender = /\bgender\b|\bsexe\b|\bgenre\b/.test(s)
-    && !/lgbt|transgender community|identify as part of|race|ethnic/.test(s);
-  if (asksGender && id.gender) return { value: id.gender, selectText: id.gender };
-  if (/gender|race|ethnic|veteran|disab|diversity|origine|sexe|\bage\b|date of birth|birth\s*date/.test(s) && !/pronoun/.test(s)) {
-    // declinePreferred: if this turns out to be required, prefer the
-    // dropdown's own decline/non-disclosure option over skipping outright —
-    // see fillDeclineDropdown / DECLINE_RE.
-    return { skip: 'question démographique (laissée vide)', declinePreferred: true };
-  }
-
-  const travel = travelOrRelocatePlan(f);
-  if (travel) return travel;
-
-  const trivial = trivialFieldPlan(f, id);
-  if (trivial) return trivial;
-
-  const employment = employmentHistoryPlan(f, id.employment || {});
-  if (employment) return employment;
-
-  const screening = screeningChoicePlan(f, { company: spec.company, identity: id });
-  if (screening) return screening;
-
-  if (f.type === 'checkbox') {
-    // Optional consents are only ticked when the user opted in for this run
-    // (spec.consentOptIn) — agreeing to data retention or future contact on
-    // someone's behalf is never a silent default.
-    const isConsent = /privacy|consent|gdpr|rgpd|terms|conditions|politique de confidentialité|j'accepte|i (agree|consent|acknowledge)/.test(s);
-    if (isConsent && (f.required || spec.consentOptIn)) return { check: true };
-    // A REQUIRED checkbox that isn't a consent is a factual claim to confirm
-    // ("Have you ever designed a product that leverages AI?"). Skipping it left
-    // a mandatory field blank on n8n's form; hand it to the resolver, which
-    // reads the CV and answers yes/no.
-    if (f.required) return null;
-    return { skip: 'checkbox non requise' };
-  }
-
-  const m = (re) => re.test(s);
-  // visa/sponsorship BEFORE country/location: these questions usually contain
-  // the word "country" ("…require sponsorship to work in the country…").
-  // "authorized/eligible to work WITHOUT sponsorship?" is an eligibility yes →
-  // must be caught before the generic sponsorship rule flips it to No.
-  if (m(/without[^.?]{0,25}sponsor/)) {
-    return { yesNo: id.needsSponsorship ? 'no' : 'yes', selectText: id.needsSponsorship ? 'No' : 'Yes', value: id.visaStatus };
-  }
-  // "require sponsorship / a visa transfer / a work permit" → No (he never does)
-  if (m(/sponsor|visa transfer|transfer.*visa|requir[a-z]*[^.?]*\b(visa|work permit|work authori[sz])/)) {
-    return { yesNo: id.needsSponsorship ? 'yes' : 'no', selectText: id.needsSponsorship ? 'Yes' : 'No', value: id.visaStatus };
-  }
-  // "are you legally eligible / authorized / have the right to work" → Yes
-  if (m(/visa|work authori[sz]|right to work|legally (entitled|authori[sz]ed)|eligible to work|permis de travail|authori[sz]ed to work/)) {
-    return { yesNo: id.needsSponsorship ? 'no' : 'yes', selectText: id.needsSponsorship ? 'No' : 'Yes', value: id.visaStatus };
-  }
-  if (m(/relatives?|family member/)) return { yesNo: 'no', value: 'No' };
-  if (m(/pronoun/)) {
-    const p = (id.pronouns || '').toLowerCase();
-    return p ? { value: id.pronouns, selectText: p.split('/')[0] || id.pronouns } : { skip: 'pronoms (laissés vides)' };
-  }
-  if (m(/non-?compete|non-?competition|non-concurrence/)) return { yesNo: 'no', selectText: 'No' };
-  // "select the status that allows you to work and live in that country" — work
-  // eligibility status (distinct from the plain yes/no eligibility question).
-  if (m(/status that allows you to (work|live)|allows you to (work|live) and (work|live)|immigration status|residency status/)) {
-    const asia = spec.region === 'asia';
-    return { value: asia ? 'Work VISA' : 'Citizen', selectText: asia ? 'Work VISA' : 'Citizen' };
-  }
-  // consent to interview recording / transcription (Brighthire etc.) → yes
-  if (m(/consent.*(record|using this tool|transcri)|brighthire|record.*(interview|transcri)/)) {
-    return { yesNo: 'yes', selectText: 'Yes' };
-  }
-  // Same opt-in as the checkbox rule above, for ATS that render their consents
-  // as a yes/no group instead of a tickbox.
-  if (spec.consentOptIn && m(/consent|do you agree|j'accepte|autoris|storing your|store your (information|data)|contact you about/)) {
-    return { yesNo: 'yes', selectText: 'Yes', value: 'Yes' };
-  }
-  // Demographic self-ID consent: we leave the EEO fields blank, so decline the
-  // consent to process self-identification data (coherent + privacy-preserving).
-  if (m(/self-?identification data|consent.*self-?identif/)) {
-    return { value: "I don't wish to answer", selectText: "don't wish" };
-  }
-  // California "Notice at Collection" — Hugo is not a California resident.
-  if (m(/california/)) return { value: 'I am not a California resident', selectText: 'not a California resident' };
-  // single-option acknowledgement selects (privacy notice, data-protection notice)
-  if (m(/privacy notice|notice at collection|acknowledge|data (privacy|protection) notice/)) {
-    return { value: 'Acknowledge', selectText: 'Acknowledge' };
-  }
-  if (m(/preferred\s*name|nickname|nom pr[ée]f[ée]r/)) return { value: id.firstName };
-  // Combined single-input name field ("First and last name"): must be caught
-  // before the first/last rules below, which both match it — the last-name rule
-  // won on n8n's form and the application went out signed "Vermot".
-  if (m(/first\s*(name)?\s*(and|&|\/|\+|et)\s*last\s*name|last\s*(name)?\s*(and|&|\/|\+|et)\s*first\s*name|pr[ée]nom et nom|nom et pr[ée]nom/)) {
-    return { value: id.fullName };
-  }
-  if (m(/first\s*name|pr[ée]nom|given name/)) return { value: id.firstName };
-  if (m(/last\s*name|family name|surname|nom de famille/)) return { value: id.lastName };
-  if (m(/full\s*name|your name|^name\b|legal name|^nom\b/) && !m(/company|file/)) return { value: id.fullName };
-  if (m(/e-?mail|courriel/)) return { value: id.email };
-  if (looksLikeDialCodeField(f)) {
-    const code = id.dialCode || formDialCode(id.phone, id.country);
-    return code
-      ? { value: code, selectText: code, selectMatch: code }
-      : { skip: 'indicatif téléphonique inconnu' };
-  }
-  if (m(/phone|t[ée]l[ée]phone|mobile/)) return { value: id.phone, optionalEmpty: !id.phone };
-  if (m(/linkedin/)) return { value: id.linkedin };
-  if (m(/github/)) return { value: id.github };
-  // Must come BEFORE the generic portfolio/website/URL catch-all below: its
-  // bare \burl\b match would otherwise swallow "Twitter URL" too and hand it
-  // the portfolio link instead (a real bug found in live testing).
-  if (m(/twitter|\bx\.com\b/)) return { value: id.twitter, optionalEmpty: !id.twitter };
-  // Credentials are never ours to type. Ashby's "Password to portfolio link (if
-  // applicable)" sits right next to the portfolio field and matched the URL rule
-  // below, so the live run pasted the portfolio URL into it as a password.
-  if (isSecretCredentialField(f)) {
-    return { skip: 'champ mot de passe (jamais rempli automatiquement)' };
-  }
-  // "Additional portfolio link (if applicable)" is a SECOND slot, not a repeat
-  // of the first — filling both with the same URL is visible sloppiness. Offer
-  // the other public profile if there is one, else leave it blank.
-  if (m(/(additional|autre|second|other)\b/) && m(/portfolio|website|link|lien|\burl\b/)) {
-    return id.github ? { value: id.github } : { skip: 'lien supplémentaire (laissé vide)' };
-  }
-  if (m(/portfolio|website|site (web|internet)|personal site|\burl\b/)) return { value: id.portfolio };
-  // Word-boundary anchored: a bare /location/ also matches "reLOCATION", so
-  // "This role requires relocation to Bangkok — are you open to it?" was being
-  // classified as a city field and answered with the candidate's address
-  // instead of Yes/No (caught by live tracing: the runner typed "Bangkok,
-  // Thailand" into a Yes/No dropdown). Same reasoning for \bcity\b, which
-  // otherwise matches "capaCITY".
-  if (m(/current location|where (are you|do you) (based|live)|\bcity\b|\bville\b|\blocation\b|\baddress\b|\badresse\b/)) return { value: id.location };
-  if (m(/country|pays/)) return { value: id.country, selectMatch: id.country };
-  if (m(/time\s*zone|fuseau/)) return { value: id.timezone };
-  if (m(/salary|compensation|r[ée]mun[ée]ration|expected pay|pay expectation|pretension|daily rate|tjm|expected (comp|ctc)|ctc\b|pay range|salary range/)) {
-    // Never type the profile prose ("EUR70K-110K …") or a Section F range:
-    // numeric inputs concatenate min+max into garbage like "v76000119000".
-    const value = formSalaryValue(
-      { minimum: id.salaryMinimum, target_range: id.salary },
-      f.label,
-    );
-    return value ? { value } : { skip: 'salaire non numérique dans le profil' };
-  }
-  if (m(/notice period|pr[ée]avis/)) return { value: id.noticePeriod };
-  if (isAvailabilityStartField(f)) return { value: id.startDate, dateISO: id.startDateISO };
-  // Bare "source"/"referr" substrings used to false-positive on unrelated
-  // fields (any label/name/id containing "resource", "preferred", etc.) —
-  // require the fuller phrase instead.
-  if (m(/how did you (hear|find)|where did you (hear|find)|referral source|how you (heard|found)|comment avez-vous (entendu|trouv[ée])/)) return { value: id.howDidYouHear, selectText: 'Other', selectPrefer: /other|job board|search|website|autre/i };
-  if (m(/reference/) && !m(/referr/)) return { value: id.references };
-
-  // Factual yes/no questions ("Do you…", "Have you…") must never receive a
-  // Section F motivation answer, even when token overlap is high (company
-  // name + "work" match "why do you want to work at …"). Strip any leading
-  // numbering / asterisk / bullet so "* Do you…" or "1. Have you…" still match.
-  const cleanLabel = (f.label || '').replace(/^[\s*••\-–—.)\d:]+/, '').trim();
-  if (/^(do|did|does|have|has|are|were|will|would|can|is) (you|your)\b/i.test(cleanLabel)) return null;
-
-  // A Section F answer is a paragraph of prose, so it can never be a valid
-  // value for a closed-option widget — a <select>, radio group, or react-select
-  // combobox only accepts one of its OWN options. Live tracing caught a
-  // three-sentence motivation answer being typed into a Yes/No dropdown
-  // ("This role requires relocation to Bangkok…"), which matched nothing.
-  // Send these to the LLM resolver instead: it gets the real scraped option
-  // list and picks a genuine option.
-  if (f.tag === 'select' || f.type === 'radio' || isComboboxField(f)) return null;
-
-  // Free-text questions → Section F answers
-  const qa = bestAnswerFor(f.label, spec.answers, usedAnswers);
-  if (qa) return { value: polishApplicationAnswer(qa.answer), fromQuestion: qa.question };
-  if (m(/cover letter|lettre de motivation|motivation|why (do you want|are you interested|us|join)/) && spec.answers.length) {
-    const motiv = spec.answers.slice(0, 2).map(a => a.answer).join('\n\n');
-    return { value: polishApplicationAnswer(motiv), fromQuestion: 'cover letter (combinaison des réponses F)' };
-  }
-  return null; // unknown → left for human
-}
+// classifyField / bestAnswerFor → lib/apply-classify.mjs
 
 // ── Fill engine ───────────────────────────────────────────────────────────────
 
@@ -1321,40 +1273,7 @@ function classifyField(f, spec, usedAnswers = new Set()) {
 // not to disclose", the real option read "I don't wish to answer" — zero
 // substring overlap, so the field was reported unfillable). Matching against
 // this pattern directly, deterministically, skips the paraphrase risk entirely.
-const DECLINE_RE = /prefer not|decline|not to disclose|don.?t wish|rather not (to )?(say|answer|disclose)|not to (answer|say|respond|specify)|choose not to|no,? i (do not|don.t)|would rather not|not (to )?(self.?identify|specify)/i;
-
-function pickDeclineOption(options) {
-  const usable = options.filter(o => o.text && !/^(select|choose|--|please|sélection)/i.test(o.text.trim()));
-  return usable.find(o => DECLINE_RE.test(o.text)) || null;
-}
-
-function pickSelectOption(options, plan, fieldLabel) {
-  const usable = options.filter(o => o.text && !/^(select|choose|--|please|sélection)/i.test(o.text.trim()));
-  if (plan.yesNo) {
-    const opt = pickMatchingOption(usable, plan.yesNo === 'yes' ? 'Yes' : 'No');
-    if (opt) return opt;
-  }
-  if (plan.selectPrefer) {
-    const opt = usable.find(o => plan.selectPrefer.test(o.text));
-    if (opt) return opt;
-  }
-  // Try selectMatch, then selectText, then value (month "2" vs "February").
-  for (const needle of [plan.selectMatch, plan.selectText, plan.value].filter(Boolean)) {
-    const opt = pickMatchingOption(usable, needle);
-    if (opt) return opt;
-  }
-  // A field asking to "decline"/"prefer not to say" that didn't match by text
-  // still deserves the decline option over being left unfilled.
-  if (plan.declinePreferred) {
-    const decline = pickDeclineOption(usable);
-    if (decline) return decline;
-  }
-  // Exactly one real (non-placeholder) choice exists — nothing to disambiguate,
-  // so take it rather than fail a field that structurally can't be answered
-  // any other way (single-option acknowledgement/consent selects).
-  if (usable.length === 1) return usable[0];
-  return null;
-}
+// pickSelectOption / pickDeclineOption → lib/apply-select.mjs
 
 // Open a custom dropdown and scrape its rendered options (react-select, Ashby…)
 // so the LLM resolver can pick a valid one. Best-effort; restores closed state.
@@ -1365,7 +1284,7 @@ function pickSelectOption(options, plan, fieldLabel) {
 // field to "LLM guesses blind", which is exactly how a plain Yes/No dropdown
 // ended up unanswerable in live testing despite having an obvious "Yes".
 async function listNearbyOptions(frame, i, allowGlobal) {
-  const listed = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'list', i, allowGlobal: !!allowGlobal })
+  const listed = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'list', i, allowGlobal: !!allowGlobal, sel: COMBOBOX_OPTION_SEL })
     .catch(() => ({ count: 0, texts: [] }));
   return (listed.texts || []).map(t => ({ value: t, text: t }));
 }
@@ -1385,27 +1304,26 @@ async function scrapeComboboxOptions(frame, f) {
       await loc.press('Escape').catch(() => {});
       dbg(`scrape "${String(f.label).slice(0, 40)}" attempt=${attempt} → ${opts.length} option(s) ${JSON.stringify(opts.slice(0, 6).map(o => o.text))}`);
       if (opts.length) return opts;
-      await sleep(rand(60, 140)); // brief settle before re-opening
+      await sleep(rand(200, 400)); // let the widget settle before re-opening
     } catch (err) { dbg(`scrape "${String(f.label).slice(0, 40)}" threw: ${String(err.message || err).slice(0, 60)}`); return []; }
   }
   return [];
 }
 
-// Open → type → click a searchable dropdown. hadOptions is decided from the
-// menu after click (or a 2-char typeahead reveal), never by typing the answer
-// into a plain text field. Known comboboxes retry once if the first open
-// found nothing; speculative probes do not.
+// Open the list, click a real option. Typing is only a short filter once the
+// menu is already open — never the answer written into a closed field.
+// Known comboboxes retry once if the first open found nothing.
 async function selectComboboxOption(frame, f, query) {
   const first = await selectComboboxOptionOnce(frame, f, query);
   if (first.matched || first.hadOptions) return first;
   if (!isComboboxField(f)) return first;
-  await sleep(rand(80, 180));
+  await sleep(rand(250, 500));
   const second = await selectComboboxOptionOnce(frame, f, query);
   return { matched: second.matched, hadOptions: second.hadOptions || first.hadOptions };
 }
 
 async function nearbyOptionSnapshot(frame, i) {
-  return await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'snapshot', i, allowGlobal: false })
+  return await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'snapshot', i, allowGlobal: false, sel: COMBOBOX_OPTION_SEL })
     .catch(() => ({ count: 0, sig: '' }));
 }
 
@@ -1417,31 +1335,36 @@ async function pollUntil(fn, times, lo, hi) {
   return false;
 }
 
-async function clickStampedComboboxOption(frame, f, loc, want, allowGlobal) {
-  const result = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'match', want, i: f.i, allowGlobal });
+async function clickStampedComboboxOption(frame, f, loc, want, allowGlobal, filterTyped = '') {
+  const result = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'match', want, i: f.i, allowGlobal, sel: COMBOBOX_OPTION_SEL });
   if (!result.matched) return { ...result, clicked: false };
+  const extra = { query: want, clickedText: result.matched, filterTyped };
   try {
-    await humanClick(frame.locator('[data-co-match="1"]'), { timeout: 3000 });
-    const ok = await comboboxSelectionRegistered(frame, f);
-    dbg(`  → clicked "${result.matched}", registered=${ok}`);
-    if (ok) {
-      await loc.press('Escape').catch(() => {});
-      return { ...result, clicked: true };
+    // In-page mousedown. humanClick moves the pointer off the menu first,
+    // which closes it, so the option is gone before the click arrives.
+    await frame.evaluate(ACTIVATE_MATCHED_OPTION);
+    let ok = await comboboxSelectionRegistered(frame, f, extra);
+    if (!ok) {
+      await frame.locator('[data-co-match="1"]').click({ force: true, timeout: 1500 }).catch(() => {});
+      ok = await comboboxSelectionRegistered(frame, f, extra);
     }
+    dbg(`  → clicked "${result.matched}", registered=${!!ok}`);
+    if (ok) return { ...result, clicked: true, matched: ok };
   } catch (err) {
     dbg(`  → click failed: ${String(err.message || err).slice(0, 60)}`);
   }
   return { ...result, clicked: false };
 }
 
-async function selectComboboxOptionOnce(frame, f, query) {
+async function selectComboboxOptionOnce(frame, f, query, contains = '') {
   const loc = frame.locator(`[data-co-i="${f.i}"]`);
   const q = String(query).slice(0, 60);
   const known = isComboboxField(f);
   const binary = !!choiceKind(q);
+  let filterTyped = '';
   try {
     await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
-    await sleep(rand(40, 100));
+    await sleep(rand(120, 320));
     const before = await nearbyOptionSnapshot(frame, f.i);
     await humanClick(loc, { timeout: 4000 }).catch(() => {});
 
@@ -1450,56 +1373,64 @@ async function selectComboboxOptionOnce(frame, f, query) {
       return snap.count > 0 && snap.sig !== before.sig;
     };
     let hadOptionsOnOpen = await pollUntil(menuOpened, 4, 70, 130);
-
-    let typedPrefix = '';
-    if (!hadOptionsOnOpen && !known) {
-      if (looksLikeTypeahead(f) && q.length >= 2 && !binary) {
-        await loc.fill('').catch(() => {});
-        typedPrefix = q.slice(0, 2);
-        await loc.pressSequentially(typedPrefix, { delay: rand(35, 80) }).catch(() => {});
-        hadOptionsOnOpen = await pollUntil(menuOpened, 4, 70, 130);
-        if (!hadOptionsOnOpen) {
-          await clearField(loc);
-          await loc.press('Escape').catch(() => {});
-          dbg(`combobox "${String(f.label).slice(0, 40)}" typeahead reveal: no menu after "${typedPrefix}" → not a list`);
-          return { matched: null, hadOptions: false };
-        }
-      } else {
-        await loc.press('Escape').catch(() => {});
-        dbg(`combobox "${String(f.label).slice(0, 40)}" speculative probe: no menu after click → not a list`);
-        return { matched: null, hadOptions: false };
-      }
+    if (!hadOptionsOnOpen) {
+      await loc.press('ArrowDown').catch(() => {});
+      hadOptionsOnOpen = await pollUntil(menuOpened, 3, 70, 130);
+    }
+    if (!hadOptionsOnOpen && known) {
+      await loc.press('Alt+ArrowDown').catch(() => {});
+      hadOptionsOnOpen = await pollUntil(menuOpened, 3, 70, 130);
     }
 
-    const abandon = async (had) => {
+    // City / country widgets hide the menu until a few letters are typed.
+    // The prefix is cleared again if no option is clicked.
+    if (!hadOptionsOnOpen && looksLikeTypeahead(f) && q.length >= 2 && !binary) {
+      filterTyped = q.slice(0, Math.min(3, q.length));
+      await loc.fill('').catch(() => {});
+      await loc.pressSequentially(filterTyped, { delay: rand(55, 130) }).catch(() => {});
+      hadOptionsOnOpen = await pollUntil(menuOpened, 4, 70, 130);
+    }
+
+    const abandon = async () => {
       await loc.press('Escape').catch(() => {});
       await clearField(loc);
-      return { matched: null, hadOptions: had };
+      return { matched: null, hadOptions: hadOptionsOnOpen };
     };
+
+    if (!hadOptionsOnOpen) {
+      dbg(`combobox "${String(f.label).slice(0, 40)}" no menu → not writing "${q}"`);
+      return abandon();
+    }
 
     const tryPickVisible = async () => {
       const listed = await listNearbyOptions(frame, f.i, known);
-      const picked = pickMatchingOption(listed, q);
-      if (!picked) return { listed, picked: null, clicked: false };
-      const stamped = await clickStampedComboboxOption(frame, f, loc, picked.text, known);
+      const matchWant = contains || q;
+      let picked = pickMatchingOption(listed, matchWant);
+      if (!picked && contains) {
+        const needle = String(contains).toLowerCase();
+        const hit = listed.find((o) => String(o.text || o.value || '').toLowerCase().includes(needle));
+        if (hit) picked = hit.text ? hit : { text: String(hit), value: String(hit) };
+      }
+      if (!picked) {
+        // Visible rows the text scorer refused still get one DOM match+click.
+        const stamped = await clickStampedComboboxOption(frame, f, loc, matchWant, known, filterTyped);
+        return { listed, picked: null, clicked: stamped.clicked, matched: stamped.matched };
+      }
+      const stamped = await clickStampedComboboxOption(frame, f, loc, picked.text, known, filterTyped);
       return { listed, picked, clicked: stamped.clicked, matched: stamped.matched };
     };
 
-    // Open → scrape → click. Only when the menu actually appeared — a known
-    // combobox with no open list must not click leftover options from a
-    // previous field. Yes/No skips typing so "No" cannot filter to "None".
-    if (hadOptionsOnOpen) {
-      const first = await tryPickVisible();
-      if (first.clicked) {
-        dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" open-match="${first.matched}"`);
-        return { matched: first.matched, hadOptions: true };
-      }
+    const first = await tryPickVisible();
+    if (first.clicked) {
+      dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" open-match="${first.matched}"`);
+      return { matched: first.matched, hadOptions: true };
     }
 
-    const rest = q.slice(typedPrefix.length);
-    if (!binary && rest) {
-      if (!typedPrefix) await loc.fill('').catch(() => {});
-      await loc.pressSequentially(rest, { delay: rand(35, 80) }).catch(() => loc.fill(q).catch(() => {}));
+    // Filter the open menu with a short prefix. Never type the whole answer.
+    if (!binary && !filterTyped && q.length >= 2) {
+      filterTyped = q.slice(0, Math.min(3, q.length));
+      await loc.fill('').catch(() => {});
+      await loc.pressSequentially(filterTyped, { delay: rand(55, 130) }).catch(() => {});
       await pollUntil(menuOpened, 3, 70, 130);
       const filtered = await tryPickVisible();
       if (filtered.clicked) {
@@ -1508,57 +1439,31 @@ async function selectComboboxOptionOnce(frame, f, query) {
       }
     }
 
-    const fallback = await frame.evaluate(COMBOBOX_OPTION_QUERY, { mode: 'match', want: q, i: f.i, allowGlobal: known });
-    dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" openHadOpts=${hadOptionsOnOpen} count=${fallback.count} matched=${fallback.matched} seen=${JSON.stringify(fallback.seen)}`);
-    const hadOptions = hadOptionsOnOpen || fallback.count > 0;
-    if (fallback.matched) {
-      const stamped = await clickStampedComboboxOption(frame, f, loc, fallback.matched, known);
+    const listed = await listNearbyOptions(frame, f.i, known);
+    if (listed.length === 1) {
+      const stamped = await clickStampedComboboxOption(frame, f, loc, listed[0].text, known, filterTyped);
       if (stamped.clicked) return { matched: stamped.matched, hadOptions: true };
-      return abandon(true);
     }
-    if (fallback.count === 1) {
-      await loc.press('Enter').catch(() => {});
-      const ok = await comboboxSelectionRegistered(frame, f);
-      if (ok) return { matched: q, hadOptions: true };
-      return abandon(true);
-    }
-    return abandon(hadOptions);
+    dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" menu open but no committed option`);
+    return abandon();
   } catch {
+    try { await frame.locator(`[data-co-i="${f.i}"]`).press('Escape'); } catch { /* already gone */ }
     return { matched: null, hadOptions: false };
   }
 }
 
-// Confirms a combobox click actually registered as a real selection, not just
-// leftover typed text sitting in the filter input. When the widget exposes the
-// react-select-style hidden "required" shadow input, its value is the ground
-// truth (only set on a genuine onChange); otherwise fall back to trusting the
-// click (no shadow input to check against).
-async function comboboxSelectionRegistered(frame, f) {
+// True only when the widget committed an option. A click used to count as
+// success whenever the control had no hidden react-select input — the typed
+// filter then stayed in the field and looked filled.
+async function comboboxSelectionRegistered(frame, f, extra = {}) {
   const probe = async () => {
     try {
-      return await frame.evaluate((i) => {
-        const el = document.querySelector(`[data-co-i="${i}"]`);
-        if (!el) return true;
-        // Walk up looking for the shadow input as a DESCENDANT at each level —
-        // matches collectFields()'s logic; el.closest(selectorList) would stop
-        // at the nearest wrapper class match, which can sit below the shadow
-        // input's real parent and silently miss it.
-        let shadow = null;
-        let node = el.parentElement;
-        for (let d = 0; d < 6 && node; d++, node = node.parentElement) {
-          shadow = node.querySelector('input[aria-hidden="true"][required], [class*="requiredInput" i]');
-          if (shadow) break;
-        }
-        if (!shadow) return true; // no shadow input on this widget → trust the click
-        return !!(shadow.value || '').trim();
-      }, f.i);
-    } catch { return true; }
+      const state = await frame.evaluate(LIST_SELECTION_STATE, { i: f.i });
+      return selectionLooksCommitted({ ...state, ...extra });
+    } catch { return null; }
   };
-  // React's onChange → shadow-input update isn't always synchronous with the
-  // click resolving — retry briefly before concluding the selection failed,
-  // rather than flagging a genuinely-fine field as broken from a one-shot
-  // check that ran a beat too early.
-  if (await probe()) return true;
+  const first = await probe();
+  if (first) return first;
   await sleep(400);
   return probe();
 }
@@ -1597,7 +1502,7 @@ async function fillDeclineDropdown(frame, f) {
 // co. listen to. Returns true only once the input reports itself checked, so a
 // click a controlled component ignored is reported as a failure, not a success.
 async function clickRadioOption(frame, f, want, isYesNo = false) {
-  return await frame.evaluate(async ({ name, want, isYesNo, options }) => {
+  return await frame.evaluate(async ({ i, name, want, isYesNo, options }) => {
     const norm = (s) => (s || '').trim().toLowerCase();
     const wanted = norm(want);
     // Matching runs in three passes over the WHOLE group, strictest first.
@@ -1623,7 +1528,7 @@ async function clickRadioOption(frame, f, want, isYesNo = false) {
     // "option introuvable" on forms that actually did register the click).
     // Poll briefly instead of trusting the first read.
     const waitFor = async (check) => {
-      for (let i = 0; i < 10; i++) {
+      for (let n = 0; n < 10; n++) {
         if (check()) return true;
         await sleep(30);
       }
@@ -1657,7 +1562,7 @@ async function clickRadioOption(frame, f, want, isYesNo = false) {
       const el = o.key ? document.querySelector(`[data-co-opt="${o.key}"]`) : null;
       return el ? { el, text: norm(o.text || '') } : null;
     }).filter(Boolean);
-    const live = fromKeys.length ? fromKeys : (name ? [...document.querySelectorAll(
+    let live = fromKeys.length ? fromKeys : (name ? [...document.querySelectorAll(
       `input[type="radio"][name="${CSS.escape(name)}"]`,
     )].map((r) => {
       const lbl = r.id ? document.querySelector(`label[for="${CSS.escape(r.id)}"]`) : null;
@@ -1665,14 +1570,40 @@ async function clickRadioOption(frame, f, want, isYesNo = false) {
     }) : []);
     if (isYesNo) {
       const hit = live.find(o => yesNoMatch(o.text));
-      return !!hit && (await activate(hit.el));
-    }
-    for (const pass of passes) {
-      const hit = live.find(o => o.text && pass(o.text));
       if (hit && (await activate(hit.el))) return true;
+    } else {
+      for (const pass of passes) {
+        const hit = live.find(o => o.text && pass(o.text));
+        if (hit && (await activate(hit.el))) return true;
+      }
+    }
+    // Plugin parity: Ashby Yes/No is a hidden checkbox + button[data-option].
+    // Collect stamps can vanish on re-render; walk ancestors for the buttons.
+    const root = (i != null && document.querySelector(`[data-co-i="${i}"]`)) || null;
+    let node = root;
+    for (let d = 0; d < 7 && node; d++, node = node.parentElement) {
+      const ashby = node.matches?.('.ashby-application-form-input-yesno, [class*="yesno" i], [class*="YesNo"]')
+        ? node
+        : node.querySelector?.('.ashby-application-form-input-yesno, [class*="yesno" i]');
+      const scope = ashby || node;
+      const btns = [...(scope.querySelectorAll?.('button[data-option], [data-option="yes"], [data-option="no"]') || [])];
+      const yesNo = btns.filter((b) => /^(yes|no)$/i.test(b.getAttribute('data-option') || ''));
+      if (yesNo.length < 2) continue;
+      const wantYes = wanted === 'yes' || /^(yes|oui|y|true|1)$/i.test(wanted);
+      const wantNo = wanted === 'no' || /^(no|non|n|false|0)$/i.test(wanted);
+      const labelOf = (o) => (
+        `${o.getAttribute?.('data-option') || ''} ${o.innerText || ''} ${o.getAttribute?.('aria-label') || ''}`
+      ).replace(/\s+/g, ' ').trim().toLowerCase();
+      let hit = yesNo.find((o) => {
+        const t = labelOf(o);
+        return t === wanted || (wanted.length >= 2 && t.includes(wanted));
+      });
+      if (!hit && wantYes) hit = yesNo.find((o) => o.getAttribute('data-option') === 'yes' || /^(yes|oui)\b/i.test(labelOf(o)));
+      if (!hit && wantNo) hit = yesNo.find((o) => o.getAttribute('data-option') === 'no' || (/^(no|non)\b/i.test(labelOf(o)) && !/^non-?binary/i.test(labelOf(o))));
+      if (hit && (await activate(hit))) return true;
     }
     return false;
-  }, { name: f.name, want, isYesNo, options: f.options || [] });
+  }, { i: f.i, name: f.name, want, isYesNo, options: f.options || [] });
 }
 
 // Tick a checkbox. Same visibility problem as radios, same escalation ladder:
@@ -1799,13 +1730,6 @@ async function fillValueIntoField(frame, f, answer) {
   return text.length > 70 ? text.slice(0, 70) + '…' : text;
 }
 
-function llmKind(f) {
-  if (f.tag === 'select' || isComboboxField(f)) return 'dropdown';
-  if (f.type === 'radio') return 'choice';
-  if (f.type === 'textarea') return 'long text';
-  return 'short text';
-}
-
 async function fillFields(frame, spec) {
   const filled = [];
   const pending = [];
@@ -1817,19 +1741,66 @@ async function fillFields(frame, spec) {
   // for the same reason.
   const doneFiles = new Set();
   let uploaded = false;
+  let sawResumeSlot = false;
   for (let pass = 0; pass < 4; pass++) {
-    const fileFields = (await collectFields(frame)).filter(f => f.type === 'file');
+    let fileFields = (await collectFields(frame)).filter(f => f.type === 'file');
+    // Plugin parity: Ashby sometimes hides the resume input so hard that
+    // collect misses it — probe raw file inputs and synthesize a slot.
+    if (!fileFields.length && pass === 0 && spec.cvPath) {
+      const probe = await frame.evaluate(() => {
+        const deep = (root, sel) => {
+          const out = [];
+          const walk = (n) => {
+            if (!n?.querySelectorAll) return;
+            try { out.push(...n.querySelectorAll(sel)); } catch { /* */ }
+            for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+          };
+          walk(root);
+          return out;
+        };
+        const files = deep(document, 'input[type="file"]');
+        const score = (el) => {
+          const blob = `${el.name || ''} ${el.id || ''} ${el.accept || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
+          let s = 0;
+          if (/resume|\bcv\b|curriculum|autofill|_systemfield_resume/.test(blob)) s += 50;
+          if (/pdf|msword|officedocument/.test(el.accept || '')) s += 20;
+          if (/cover|lettre|reference|diploma|other/.test(blob) && !/resume|\bcv\b/.test(blob)) s -= 80;
+          return s;
+        };
+        files.sort((a, b) => score(b) - score(a));
+        const el = files.find((f) => score(f) > 0) || files[0];
+        if (!el) return null;
+        el.setAttribute('data-co-i', '9901');
+        el.setAttribute('data-co-upload', '1');
+        return {
+          i: 9901,
+          type: 'file',
+          tag: 'input',
+          label: el.getAttribute('aria-label') || el.name || 'Resume/CV',
+          name: el.name || '_systemfield_resume',
+          required: true,
+          fileCount: el.files?.length || 0,
+        };
+      }).catch(() => null);
+      if (probe?.type === 'file') {
+        fileFields = [probe];
+        log(`CV slot forcé (input caché): ${probe.label || probe.name}`);
+      }
+    }
     const todo = fileFields.find(f => !doneFiles.has((f.label || f.name || 'file').slice(0, 80)));
     if (!todo) break;
     const labelShort = (todo.label || todo.name || 'file').slice(0, 80);
     doneFiles.add(labelShort);
+    if (todo.required || isResumeFileField(todo)) sawResumeSlot = true;
     const plan = classifyField(todo, spec);
-    if (!shouldFillField(todo)) {
+    if (!shouldFillField(todo) && !isResumeFileField(todo)) {
       if (todo.required) pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
       continue;
     }
     if (!plan || plan.skip || !plan.upload) {
-      if (todo.required) pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
+      if (todo.required || isResumeFileField(todo)) {
+        pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
+      }
       continue;
     }
     const sel = `[data-co-i="${todo.i}"]`;
@@ -1844,16 +1815,27 @@ async function fillFields(frame, spec) {
         }, sel);
         await loc.setInputFiles(plan.upload, { timeout: 8000 });
       }
-      filled.push({ label: labelShort, value: `📎 ${basenamePath(plan.upload)}` });
-      uploaded = true;
-      await waitForFormResettle(frame, UPLOAD_SETTLE_MS);
+      const upload = await confirmFrameUpload(frame, basenamePath(plan.upload));
+      if (upload.ok) {
+        filled.push({ label: labelShort, value: `📎 ${basenamePath(plan.upload)}` });
+        uploaded = true;
+        await waitForFormResettle(frame, UPLOAD_SETTLE_MS);
+      } else {
+        pending.push({ label: labelShort, reason: `upload échoué: ${upload.reason || 'aucun signal'}` });
+      }
     } catch (err) {
-      if (todo.required) pending.push({ label: labelShort, reason: `upload échoué: ${String(err.message || err).slice(0, 60)}` });
+      pending.push({ label: labelShort, reason: `upload échoué: ${String(err.message || err).slice(0, 60)}` });
     }
   }
   if (uploaded) {
     await waitForFormResettle(frame, UPLOAD_SETTLE_MS);
-    await waitForResumeAutofill(frame);
+    const auto = await waitForResumeAutofill(frame, spec?.identity || {});
+    if (auto.status === 'matched') log('Autofill ATS: nom ou email recopié.');
+    else if (auto.status === 'mismatch') {
+      const detail = (auto.mismatches || []).map((m) => m.kind).join(', ') || 'identité';
+      log(`Autofill ATS incorrect (${detail}) — correction avec le profil.`);
+    } else if (auto.status === 'partial') log('Autofill ATS partiel — les champs vides seront remplis.');
+    else if (auto.manualFill) log('Autofill ATS absent après le délai — remplissage manuel des champs identité.');
   }
 
   // Phase B — re-collect (fresh markers after any re-render) and fill the rest
@@ -1863,13 +1845,24 @@ async function fillFields(frame, spec) {
   let actedCount = 0;
   for (const f of fields) {
     if (f.type === 'file') continue;
-    if (!shouldFillField(f)) continue;
+    // Required checkboxes (consent / factual claims) must not be skipped just
+    // because shouldFillField returns false for optional marketing ticks —
+    // same exception as the Chrome plugin bridge.
+    if (!shouldFillField(f) && !(f.type === 'checkbox' && f.required)) continue;
+    // Skip already-answered choice widgets (plugin parity).
+    if (f.type === 'checkbox' && f.checked) continue;
+    if (f.type === 'radio' && f.groupChecked) continue;
+    const alreadyFilled = f.value && f.type !== 'radio' && f.type !== 'checkbox';
+    if (alreadyFilled) {
+      // Still allow identity overwrite via reconcile later; skip first pass.
+      continue;
+    }
     const sel = `[data-co-i="${f.i}"]`;
     const loc = frame.locator(sel);
     const plan = classifyField(f, spec, usedAnswers);
     if (plan?.fromQuestion) usedAnswers.add(plan.fromQuestion);
-    // brief pause between fields (anti-bot, kept short for throughput)
-    if (plan && !plan.skip && actedCount > 0) await jitter(rand(60, 180));
+    // brief pause between fields so the form isn't completed in one instant
+    if (plan && !plan.skip && actedCount > 0) await jitter(rand(280, 950));
     if (plan && !plan.skip) actedCount++;
     const labelShort = (f.label || f.name || f.type).slice(0, 80);
 
@@ -2012,8 +2005,19 @@ async function fillFields(frame, spec) {
           continue;
         }
         const { matched } = await selectComboboxOption(frame, f, query);
-        if (matched) filled.push({ label: labelShort, value: matched });
-        else if (f.required && plan.leaveBlank) {
+        if (matched) {
+          filled.push({ label: labelShort, value: matched });
+          continue;
+        }
+        const hint = locationTypeaheadHint(f, spec.identity || {});
+        if (hint) {
+          const loose = await selectComboboxOptionOnce(frame, f, hint.prefix, hint.contains);
+          if (loose.matched) {
+            filled.push({ label: labelShort, value: loose.matched });
+            continue;
+          }
+        }
+        if (f.required && plan.leaveBlank) {
           pending.push({ label: labelShort, reason: 'requis — option hors profil introuvable (à remplir manuellement)' });
         } else if (f.required && !plan.leaveBlank) unresolved.push(f);
         continue;
@@ -2029,7 +2033,7 @@ async function fillFields(frame, spec) {
       // pass (re-scan, blocker resolved) re-type a field it had just filled.
       const textValue = polishApplicationAnswer(value);
       const current = (f.value || '').trim();
-      if (current && !shouldReplaceFilledValue(f, current, textValue)) continue;
+      if (current && !f.ariaInvalid && !shouldReplaceFilledValue(f, current, textValue)) continue;
 
       // Last-resort: click and see if a list opens. Must not type unless it did.
       if (shouldSpeculativeProbe(f)) {
@@ -2116,6 +2120,8 @@ async function fillFields(frame, spec) {
         if (f.tag === 'select') {
           await frame.locator(`[data-co-i="${f.i}"]`).selectOption(opt.value, { timeout: 4000 });
           shown = opt.text;
+        } else if (f.type === 'radio') {
+          shown = (await clickRadioOption(frame, f, opt.text)) ? opt.text : null;
         } else {
           shown = (await selectComboboxOption(frame, f, opt.text)).matched;
         }
@@ -2158,7 +2164,11 @@ async function fillFields(frame, spec) {
   // unanswered siblings of an option we did tick are not gaps to fix by hand —
   // reporting them made a complete n8n form look like it had 5 missing fields.
   const filledLabels = new Set(filled.map(f => f.label));
-  return { filled, pending: pending.filter(p => !filledLabels.has(p.label)) };
+  return {
+    filled,
+    pending: pending.filter(p => !filledLabels.has(p.label)),
+    sawResumeSlot: sawResumeSlot || filled.some(x => String(x.value || '').includes('📎')),
+  };
 }
 
 async function reconcileProfileFields(frame, spec, filled) {
@@ -2216,7 +2226,12 @@ function mergeFillResults(first, second) {
     seen.add(row.label);
     pending.push(row);
   }
-  return { filled, pending };
+  return {
+    filled,
+    pending,
+    sawResumeSlot: !!(first.sawResumeSlot || second.sawResumeSlot
+      || filled.some(x => String(x.value || '').includes('📎'))),
+  };
 }
 
 // One automatic refill only on real fill failures (upload/exception/option
@@ -2246,7 +2261,7 @@ async function fillFieldsWithRequiredRetry(frame, spec) {
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 
-const SUBMIT_TEXT_RE = /^(submit( application)?|send( application)?|envoyer( ma candidature)?|postuler|apply|soumettre|finish|valider)$/i;
+// SUBMIT_TEXT_RE → lib/apply-progression.mjs (shared with bridge)
 
 async function clickSubmit(frame, page) {
   if (!frameAlive(frame)) return false;
@@ -2427,11 +2442,33 @@ async function waitForCommand(page, frame, { allowAutoResume = false } = {}) {
   }
 }
 
+async function waitForStepChange(page, previousFp, timeoutMs = 8000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const found = await findFormFrame(page).catch(() => ({ frame: null }));
+    if (found?.frame) {
+      const fields = await collectFields(found.frame).catch(() => []);
+      let url = '';
+      let heading = '';
+      try { url = page.url(); } catch { url = ''; }
+      try {
+        const snap = await page.evaluate(PAGE_STEP_SNAPSHOT);
+        heading = snap?.heading || '';
+      } catch { heading = ''; }
+      const sig = fieldsFingerprint(fields, { url, heading });
+      if (sig && previousFp && sig !== previousFp) return { frame: found.frame, sig };
+    }
+    await sleep(400);
+  }
+  return null;
+}
+
 async function main() {
   function finish(s, msg) {
     setState(s, msg);
   }
   function stopFromCommand(cmd) {
+    if (cmd === 'manual_sent') return finish('submitted', '📨 Envoi confirmé manuellement.');
     if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
     if (cmd === 'browser_closed') {
       const url = state.currentUrl || '';
@@ -2461,7 +2498,7 @@ async function main() {
       if (!(await sessionHandler.ensureSession(context, page))) {
         setState('needs_human', '🔐 Connexion requise — connecte-toi dans Chrome, puis Re-scanner.');
         const cmd = await waitForCommand(page, null, { allowAutoResume: true });
-        if (cmd === 'abort' || cmd === 'browser_closed') return stopFromCommand(cmd);
+        if (cmd === 'abort' || cmd === 'browser_closed' || cmd === 'manual_sent') return stopFromCommand(cmd);
         if (!(await sessionHandler.ensureSession(context, page))) {
           return finish('needs_human', 'Connexion non établie.');
         }
@@ -2494,6 +2531,9 @@ async function main() {
     // per-type count that never resets, as a hard ceiling under the streak.
     const blockerTotals = new Map();
     const MAX_BLOCKER_TOTAL = 5;
+    let aiSubmitText = '';
+    navAiBudget.nav = 0;
+    navAiBudget.review = 0;
 
     for (;;) {
       if (blocker) {
@@ -2518,7 +2558,7 @@ async function main() {
           log(`⚠️ Blocker "${blocker}" toujours présent (${sameBlockerStreak} d'affilée, ${totalForType} au total) — reprise automatique désactivée, clique "Re-scanner" une fois résolu.`);
         }
         const cmd = await waitForCommand(activePage, frame, { allowAutoResume: autoResume });
-        if (cmd === 'abort' || cmd === 'browser_closed') return stopFromCommand(cmd);
+        if (cmd === 'abort' || cmd === 'browser_closed' || cmd === 'manual_sent') return stopFromCommand(cmd);
         blocker = null;
         ({ page: activePage, frame, blocker } = await reachApplicationForm(context, activePage));
         // Genuine resolution (auto-detected by waitForCommand or fixed by hand)
@@ -2537,7 +2577,7 @@ async function main() {
         await screenshot(activePage, 'no-form');
         setState('needs_human', '❓ Formulaire introuvable automatiquement — navigue manuellement jusqu\'au formulaire dans Chrome, puis clique "Re-scanner".');
         const cmd = await waitForCommand(activePage, frame);
-        if (cmd === 'abort' || cmd === 'browser_closed') return stopFromCommand(cmd);
+        if (cmd === 'abort' || cmd === 'browser_closed' || cmd === 'manual_sent') return stopFromCommand(cmd);
         // after manual navigation, the form may be in any open tab
         for (const p of context.pages()) {
           const { frame: fr } = await findFormFrame(p);
@@ -2550,8 +2590,9 @@ async function main() {
       let filled;
       let pending;
       let completionIssues;
+      let sawResumeSlot = false;
       try {
-        ({ filled, pending, completionIssues } = await fillFieldsWithRequiredRetry(frame, spec));
+        ({ filled, pending, completionIssues, sawResumeSlot } = await fillFieldsWithRequiredRetry(frame, spec));
       } catch (err) {
         if (!isTargetClosedError(err)) throw err;
         const outcomeUrl = await recoverPostApply(activePage);
@@ -2595,10 +2636,111 @@ async function main() {
       if (newBlocker) { blocker = newBlocker; continue; }
 
       const applyEntryVisible = await activePage.evaluate(PAGE_SHOWS_APPLY_ENTRY).catch(() => false);
-      const ready = looksReadyToSubmit({ filled, pending, applyEntryVisible });
+      let ready = looksReadyToSubmit({ filled, pending, applyEntryVisible });
+      // Plugin parity: never auto-submit when a resume slot was seen but 📎 never landed.
+      const hasCvAttached = filled.some((f) => /📎/.test(String(f.value || '')));
+      let cvBlocksSubmit = !!sawResumeSlot && !hasCvAttached;
+      if (cvBlocksSubmit) {
+        const already = pending.some((p) => /resume|\bcv\b|upload|fichier|CV /i.test(`${p.reason || ''} ${p.label || ''}`));
+        if (!already) {
+          pending = [...pending, { label: 'Resume/CV', reason: 'CV manquant — upload non confirmé' }];
+          state.pending = pending;
+        }
+        log('CV manquant — envoi bloqué jusqu’à upload réussi.');
+      }
+
+      aiSubmitText = '';
+      let stepFields = [];
+      try { stepFields = await collectFields(frame); } catch { stepFields = []; }
+      const chip = stepFields.find((f) => f.type === 'file' && String(f.fileChip || '').trim());
+      if (chip && !filled.some((f) => /📎/.test(String(f.value || '')))) {
+        filled = [...filled, {
+          label: String(chip.label || chip.name || 'Resume/CV').slice(0, 80),
+          value: `📎 ${chip.fileChip}`,
+        }];
+        state.filled = filled;
+        pending = pending.filter((p) => !/CV manquant|fichier requis|upload non confirmé/i.test(String(p.reason || '')));
+        state.pending = pending;
+        cvBlocksSubmit = false;
+      }
+      let snap = { heading: '', bodySnippet: '' };
+      try { snap = await activePage.evaluate(PAGE_STEP_SNAPSHOT) || snap; } catch { /* page gone */ }
+      const editableCount = countEditableApplyFields(stepFields);
+      let isReviewStep = pageLooksLikeReviewStep({
+        heading: snap.heading || '',
+        bodySnippet: snap.bodySnippet || '',
+        fieldCount: stepFields.length,
+        editableCount,
+      });
+      if (!isReviewStep && reviewStepNeedsAi({
+        heading: snap.heading || '',
+        bodySnippet: snap.bodySnippet || '',
+        fieldCount: stepFields.length,
+        editableCount,
+      })) {
+        const d = await askPageNavAi(activePage, {
+          phase: 'review',
+          fields: stepFields,
+          heading: snap.heading || '',
+          bodySnippet: snap.bodySnippet || '',
+        });
+        if (d?.action === 'review' || (d?.action === 'click' && SUBMIT_TEXT_RE.test(d.text || ''))) {
+          isReviewStep = true;
+          if (d.action === 'click') aiSubmitText = d.text;
+        } else if (d?.action === 'click' && d.text && await clickListedNav(activePage, d)) {
+          await sleep(1000);
+          const again = await findFormFrame(activePage);
+          const afterFp = again.frame ? fieldsFingerprint(await collectFields(again.frame).catch(() => [])) : '';
+          if (afterFp && afterFp !== fieldsFingerprint(stepFields)) {
+            frame = again.frame;
+            continue;
+          }
+        }
+      }
+      if (isReviewStep) {
+        log('Étape de vérification / récapitulatif détectée');
+        pending = pending.filter((p) => isBlockingApplyPending(p.reason));
+        state.pending = pending;
+      }
+
+      const hardBlock = pending.some((p) => isBlockingApplyPending(p.reason));
+      const stepFp = fieldsFingerprint(stepFields, {
+        url: currentPageUrl(activePage),
+        heading: snap.heading || '',
+      });
+      if (!isReviewStep && !hardBlock && !cvBlocksSubmit && !applyEntryVisible && filled.length >= 1) {
+        const nxt = await clickApplyAndFollow(context, activePage, PROGRESS_TEXT_RE);
+        if (nxt) {
+          const changed = await waitForStepChange(nxt, stepFp, 8000);
+          if (changed?.frame) {
+            activePage = nxt;
+            frame = changed.frame;
+            blocker = null;
+            continue;
+          }
+          log('Next sans changement — correction des champs invalides puis second Next…');
+          try { await fillFieldsWithRequiredRetry(frame, spec); } catch (err) {
+            if (!isTargetClosedError(err)) log(String(err?.message || err).slice(0, 120));
+          }
+          const nxt2 = await clickApplyAndFollow(context, activePage, PROGRESS_TEXT_RE);
+          const page2 = nxt2 || activePage;
+          const changed2 = await waitForStepChange(page2, stepFp, 8000);
+          if (changed2?.frame) {
+            activePage = page2;
+            frame = changed2.frame;
+            blocker = null;
+            continue;
+          }
+          log('Next sans changement d’étape — tentative d’envoi une fois.');
+        }
+      }
+
+      ready = looksReadyToSubmit({ filled, pending, applyEntryVisible });
 
       if (pending.length) {
-        setState('needs_human', `✋ ${pending.length} champ(s) à compléter manuellement dans Chrome, puis "Re-scanner" ou "Envoyer".`);
+        setState('needs_human', cvBlocksSubmit
+          ? `✋ CV manquant (${pending.length} champ(s) à compléter). Attache le CV dans Chrome puis Re-scanner.`
+          : `✋ ${pending.length} champ(s) à compléter manuellement dans Chrome, puis "Re-scanner" ou "Envoyer".`);
       } else if (applyEntryVisible) {
         log('Bouton « Apply for this job » encore visible — le formulaire n’est pas ouvert, pas d’envoi.');
         const next = await clickApplyAndFollow(context, activePage, APPLY_TEXT_RE)
@@ -2612,19 +2754,19 @@ async function main() {
       } else if (!ready) {
         log('Identité absente — envoi automatique bloqué (pending=0 n’est pas une candidature complète).');
         setState('needs_human', '✋ Formulaire incomplet (email/identité manquants). Vérifie dans Chrome puis Re-scanner ou Envoyer.');
-      } else if (spec.autoSubmit) {
+      } else if (spec.autoSubmit && !cvBlocksSubmit) {
         log('Aucun champ en attente — envoi automatique activé.');
       } else {
-        setState('ready_to_review', '✅ Formulaire rempli — vérifie dans Chrome puis clique "Confirmer l\'envoi".');
+        setState('ready_to_review', '✅ Formulaire rempli — vérifie dans Chrome puis clique "Confirmer l\'envoi", ou "J\'ai envoyé" si tu as déjà validé.');
       }
 
       let cmd;
-      if (spec.autoSubmit && ready) {
+      if (spec.autoSubmit && ready && !cvBlocksSubmit) {
         cmd = 'submit';
       } else {
         cmd = await waitForCommand(activePage, frame);
       }
-      if (cmd === 'abort' || cmd === 'browser_closed') return stopFromCommand(cmd);
+      if (cmd === 'abort' || cmd === 'browser_closed' || cmd === 'manual_sent') return stopFromCommand(cmd);
       if (cmd === 'rescan') {
         ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
         continue;
@@ -2636,6 +2778,7 @@ async function main() {
       // (rescan/blocker), or blocks on a user command, so it can't busy-spin and
       // never falls through to a re-fill.
       let outerAction = null;
+      let submitHealUsed = false;
       for (;;) {
         // Re-verify right before the click, not just once after filling: a
         // required radio/checkbox group can read as checked immediately after
@@ -2655,19 +2798,26 @@ async function main() {
           state.pending = staleIssues;
           setState('needs_human', `✋ ${staleIssues.length} champ(s) à compléter manuellement dans Chrome, puis "Re-scanner" ou "Envoyer".`);
           const c1 = await waitForCommand(activePage, frame);
-          if (c1 === 'abort' || c1 === 'browser_closed') return stopFromCommand(c1);
+          if (c1 === 'abort' || c1 === 'browser_closed' || c1 === 'manual_sent') return stopFromCommand(c1);
           if (c1 === 'rescan') { outerAction = 'rescan'; break; }
           continue; // 'submit' = user fixed it manually → re-verify from the top
         }
         setState('submitting', 'Envoi de la candidature…');
         const preSubmitUrl = currentPageUrl(activePage);
-        const clicked = await clickSubmit(frame, activePage);
+        let clicked = await clickSubmit(frame, activePage);
+        if (!clicked && aiSubmitText) clicked = await clickExactLabelOnPage(activePage, aiSubmitText);
         if (!clicked) {
           const outcomeUrl = await recoverPostApply(activePage, preSubmitUrl);
           if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
-          setState('needs_human', '❓ Bouton d\'envoi introuvable — clique sur Submit dans Chrome puis "Envoyer" pour confirmer.');
+          const d = await askPageNavAi(activePage, { phase: 'stuck' });
+          if (d?.action === 'click' && d.text) {
+            clicked = await clickListedNav(activePage, d) || await clickExactLabelOnPage(activePage, d.text);
+          }
+        }
+        if (!clicked) {
+          setState('needs_human', '❓ Bouton d\'envoi introuvable — clique sur Submit dans Chrome, puis "J\'ai envoyé".');
           const c2 = await waitForCommand(activePage, frame);
-          if (c2 === 'abort' || c2 === 'browser_closed') return stopFromCommand(c2);
+          if (c2 === 'abort' || c2 === 'browser_closed' || c2 === 'manual_sent') return stopFromCommand(c2);
           if (c2 === 'rescan') { outerAction = 'rescan'; break; }
           // 'submit' = user clicked Submit manually → verify below
         }
@@ -2691,9 +2841,17 @@ async function main() {
         // No confirmation → did the form reject us (validation errors shown)?
         const rejection = await detectSubmitRejection(activePage);
         if (rejection.stillForm && rejection.errorCount > 0) {
+          if (!submitHealUsed && frameAlive(frame)) {
+            submitHealUsed = true;
+            log('Envoi refusé — correction des champs invalides puis second envoi…');
+            try { await fillFieldsWithRequiredRetry(frame, spec); } catch (err) {
+              if (!isTargetClosedError(err)) log(String(err?.message || err).slice(0, 120));
+            }
+            continue;
+          }
           setState('needs_human', `⚠️ Envoi refusé — ${rejection.errorCount} champ(s) invalide(s)${rejection.sample ? ` (« ${rejection.sample} »)` : ''}. Corrige dans Chrome puis clique "Envoyer" (ou "Re-scanner" pour me laisser recompléter).`);
           const c3 = await waitForCommand(activePage, frame);
-          if (c3 === 'abort' || c3 === 'browser_closed') return stopFromCommand(c3);
+          if (c3 === 'abort' || c3 === 'browser_closed' || c3 === 'manual_sent') return stopFromCommand(c3);
           if (c3 === 'rescan') { outerAction = 'rescan'; break; }
           if (c3 === 'submit') continue; // user fixed it → re-click submit only
         }

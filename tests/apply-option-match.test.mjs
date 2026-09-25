@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { choiceKind, optionMatchScore, pickMatchingOption } from '../lib/apply-option-match.mjs';
+import { choiceKind, optionMatchScore, pickMatchingOption, selectionLooksCommitted } from '../lib/apply-option-match.mjs';
 
 test('choiceKind recognizes yes/no literals only', () => {
   assert.equal(choiceKind('Yes'), 'yes');
@@ -62,6 +62,21 @@ test('pickMatchingOption keeps the original option object', () => {
 test('dial code +33 matches FR +33 in a country list', () => {
   const picked = pickMatchingOption(['US +1', 'FR +33', 'TH +66', 'DE +49'], '+33');
   assert.equal(picked?.text, 'FR +33');
+});
+
+test('typed filter text is not a list selection', () => {
+  assert.equal(selectionLooksCommitted({ inputValue: 'Yes', query: 'Yes' }), null);
+  assert.equal(selectionLooksCommitted({ inputValue: 'Fra', query: 'France', filterTyped: 'Fra' }), null);
+  assert.equal(selectionLooksCommitted({ displayed: 'France', query: 'France' }), 'France');
+  assert.equal(selectionLooksCommitted({ buttonText: '2-5 years', query: '2' }), '2-5 years');
+  assert.equal(selectionLooksCommitted({ shadowValue: 'opt-12', query: 'France' }), 'opt-12');
+  assert.equal(selectionLooksCommitted({
+    inputValue: 'France', clickedText: 'France', filterTyped: 'Fra', query: 'France',
+  }), 'France');
+  assert.equal(selectionLooksCommitted({
+    inputValue: 'Paris, France', query: 'Paris', filterTyped: 'Par',
+  }), 'Paris, France');
+  assert.equal(selectionLooksCommitted({ buttonText: 'Select...', query: 'France' }), null);
 });
 
 test('month aliases: February ↔ Feb ↔ 2 ↔ 02', () => {

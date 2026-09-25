@@ -40,6 +40,18 @@ test('sanitizer follows copywriting/humanizer/stop-slop/copy-editing: dashes, st
     sanitizeApplicationProse('I want to delve into the hiring workflow — one flow, real users.'),
     'I want to look at the hiring workflow, one flow, real users.',
   );
+  assert.equal(
+    polishApplicationAnswer('On Creads.io, I used Claude via API for structured JSON.'),
+    'In a personal project (Creads.io), I used Claude via API for structured JSON.',
+  );
+  assert.equal(
+    polishApplicationAnswer('Chez Flemme OS, j\'ai branché un agent de validation.'),
+    'Dans un projet perso (Flemme OS), j\'ai branché un agent de validation.',
+  );
+  assert.equal(
+    polishApplicationAnswer('At OneAsset I shipped compliance UX with one PO.'),
+    'At OneAsset I shipped compliance UX with one PO.',
+  );
 });
 
 test('plain text cleanup preserves paragraphs and meaningful lists', () => {

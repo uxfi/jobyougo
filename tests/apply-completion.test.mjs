@@ -22,6 +22,32 @@ test('already-uploaded resume is not pending just because the ATS cloned the inp
   assert.equal(fieldCompletionIssue(f, { uploadedLabels: ['Resume'] }), null);
 });
 
+test('resume dropzone without HTML required still blocks until a CV is attached', () => {
+  const f = { type: 'file', required: false, fileCount: 0, label: 'Choose a file or drop it here', name: '' };
+  assert.equal(fieldCompletionIssue(f), 'CV manquant');
+  assert.equal(fieldCompletionIssue({ ...f, fileChip: 'Hugo-Vermot.pdf' }), null);
+  assert.equal(fieldCompletionIssue(f, { uploadedLabels: ['Choose a file or drop it here'] }), null);
+  assert.equal(fieldCompletionIssue({
+    type: 'file', required: false, fileCount: 0, label: 'Upload Other', name: 'other',
+  }), null);
+});
+
+test('application-gate privacy consent blocks completion until checked', () => {
+  const privacy = {
+    type: 'checkbox',
+    label: 'Required. By submitting this application, I agree that I have read the Privacy Policy',
+    required: false,
+    groupChecked: false,
+    checked: false,
+  };
+  assert.equal(fieldCompletionIssue(privacy), 'choix requis non renseigné');
+  assert.equal(fieldCompletionIssue({ ...privacy, groupChecked: true }), null);
+  assert.equal(looksReadyToSubmit({
+    filled: [{ label: 'Email', value: 'a@b.com' }],
+    pending: [{ label: privacy.label, reason: 'choix requis non renseigné' }],
+  }), false);
+});
+
 test('looksReadyToSubmit: Apply-for-this-job or missing email blocks auto-send', () => {
   assert.equal(looksReadyToSubmit({
     filled: [{ label: 'Resume', value: '📎 cv.pdf' }],

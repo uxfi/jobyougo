@@ -144,6 +144,40 @@ for (const [name, body, expected] of cases) {
     `${ok ? '' : `  (attendu ${expected})`}  [score ${r.score}${r.signals.length ? ' · ' + r.signals.join(',') : ''}${r.blockers.length ? ' · !' + r.blockers.join(',') : ''}]`,
   );
 }
+
+// Shadow SPL-DROPZONE (SmartRecruiters oneclick-ui) — file input not in light DOM.
+{
+  const name = 'Shadow SPL-DROPZONE Choose a file';
+  await page.route('**/*', r => r.fulfill({
+    contentType: 'text/html',
+    body: `<html><body>
+      <h1>Apply</h1>
+      <label>Resume *</label>
+      <spl-dropzone id="cv-dz"></spl-dropzone>
+      <input name="first_name"><input type="email" name="email">
+    </body></html>`,
+  }));
+  await page.goto('https://x.test/jobs/1/apply');
+  await page.evaluate(() => {
+    const host = document.getElementById('cv-dz');
+    const root = host.attachShadow({ mode: 'open' });
+    root.innerHTML = `
+      <div style="width:280px;height:96px;border:1px dashed #888;padding:12px">
+        <p>Choose a file or drop it here</p>
+        <input type="file" name="resume" style="position:absolute;width:0;height:0;opacity:0">
+      </div>`;
+  });
+  const r = await page.evaluate(APPLICATION_FORM_PROBE);
+  const expected = 'application_form';
+  const ok = r.verdict === expected;
+  ok ? passed++ : failed++;
+  if (ok) pass(`form-detect probe: ${name}`);
+  else fail(`form-detect probe: ${name} expected ${expected}, got ${r.verdict}`);
+  console.log(
+    `  ${ok ? 'OK   ' : 'ECHEC'}  ${r.verdict.padEnd(17)}${name}` +
+    `${ok ? '' : `  (attendu ${expected})`}  [score ${r.score}${r.signals.length ? ' · ' + r.signals.join(',') : ''}${r.blockers.length ? ' · !' + r.blockers.join(',') : ''}]`,
+  );
+}
 await browser.close();
 
 // ── Vocabulaire de navigation ─────────────────────────────────────────────

@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "JobYouGo Apply Bridge (dev POC)",
+  "version": "0.0.25",
+  "description": "Open a job-application tab in the user's Chrome, navigate Apply/Next, adopt a new tab only when it matches the offer, fill with classify + LLM + CV upload checks + combobox CDP, optional Submit.",
+  "permissions": ["tabs", "scripting", "windows", "alarms", "debugger"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}

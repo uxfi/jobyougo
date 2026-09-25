@@ -1,7 +1,40 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { navigationCandidate, watchApplicationTransition, exploreApplicationInterface } from '../lib/apply-navigation.mjs';
+import { extractEmbeddedApplyUrl, progressionOpensNewTab, navigationCandidate, watchApplicationTransition, exploreApplicationInterface } from '../lib/apply-navigation.mjs';
+
+test('progressionOpensNewTab follows target=_blank and stays for same-tab links', () => {
+  const page = 'https://jobs.example/role';
+  assert.equal(
+    progressionOpensNewTab('https://jobs.lever.co/acme/abc/apply', '_blank', page),
+    'https://jobs.lever.co/acme/abc/apply',
+  );
+  assert.equal(progressionOpensNewTab('https://jobs.example/role/apply', '_self', page), null);
+  assert.equal(progressionOpensNewTab(`${page}#form`, '_blank', page), null);
+  assert.equal(progressionOpensNewTab('', '_blank', page), null);
+  assert.equal(progressionOpensNewTab('javascript:void(0)', '_blank', page), null);
+});
+
+test('extractEmbeddedApplyUrl accepts JSON-escaped slashes', () => {
+  const html = '{"applicationLink":"https:\\/\\/jobs.lever.co\\/acme\\/abc\\/apply"}';
+  assert.equal(
+    extractEmbeddedApplyUrl(html, 'https://cryptojobslist.com/jobs/x'),
+    'https://jobs.lever.co/acme/abc/apply',
+  );
+});
+
+test('extractEmbeddedApplyUrl follows an off-site applicationLink and ignores the listing host', () => {
+  const html = '{"applicationLink":"https://jobs.lever.co/binance/fc5c7a53-3e41-4946-a37e-22da932abb6f/apply","title":"Apply"}';
+  assert.equal(
+    extractEmbeddedApplyUrl(html, 'https://cryptojobslist.com/jobs/vip-institution-product-manager-6-taiwan-taipei-hong-kong-at-binance'),
+    'https://jobs.lever.co/binance/fc5c7a53-3e41-4946-a37e-22da932abb6f/apply',
+  );
+  assert.equal(
+    extractEmbeddedApplyUrl('{"applicationLink":"https://cryptojobslist.com/apply/1"}', 'https://www.cryptojobslist.com/jobs/x'),
+    null,
+  );
+  assert.equal(extractEmbeddedApplyUrl('<button>Apply</button>', 'https://example.com/job'), null);
+});
 
 function browserFlow(pages) {
   let index = 0;

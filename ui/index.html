@@ -2273,7 +2273,7 @@
           <div class="dashboard-hero-main">
             <span class="dashboard-eyebrow">Overview</span>
             <div class="dashboard-hero-heading">
-              <h1 class="dashboard-hero-title" id="dashboard-hero-title">Keep the funnel moving.</h1>
+              <h1 class="dashboard-hero-title" id="dashboard-hero-title" data-metal-host="true">Keep the funnel moving.</h1>
               <p class="dashboard-hero-copy" id="dashboard-hero-copy">Track signals, process the queue, and turn strong evaluations into real applications.</p>
             </div>
             <div class="dashboard-hero-meta" id="dashboard-hero-meta"></div>
@@ -3032,6 +3032,7 @@
   </div>
 </div>
 
+<script src="/effects/dist/effects.js"></script>
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -3398,8 +3399,8 @@ function renderDashboard() {
     focusSecondary = '<button class="btn btn-ghost btn-sm" data-cmd="scan">Source more roles</button>';
   }
 
-  document.getElementById('dashboard-hero-title').textContent = heroTitle;
   document.getElementById('dashboard-hero-copy').textContent = heroCopy;
+  setDashboardHeroTitle(heroTitle);
   document.getElementById('dashboard-hero-meta').innerHTML = [
     `<span class="dashboard-hero-chip"><strong>${apps.length}</strong> tracked applications</span>`,
     `<span class="dashboard-hero-chip"><strong>${activeCount}</strong> active in funnel</span>`,
@@ -3677,6 +3678,7 @@ function renderApplicationScanQueue() {
           const company = item.company || '';
           const source = getPipelineSource(item.url || '');
           const dateMeta = getPipelineDateMeta(item);
+          const jevMeta = getPipelineJevMeta(item);
           const note = item.display_note || item.displayNote || item.note || '';
           return `
             <div class="pipeline-item app-scan-item">
@@ -3686,6 +3688,7 @@ function renderApplicationScanQueue() {
                   ${company ? `<span class="pipeline-company">${escapeHtml(company)}</span>` : ''}
                   ${source ? `<span class="pipeline-date">${escapeHtml(source)}</span>` : ''}
                   ${dateMeta ? `<span class="pipeline-date">${escapeHtml(dateMeta)}</span>` : ''}
+                  ${jevMeta ? `<span class="pipeline-date">${escapeHtml(jevMeta)}</span>` : ''}
                 </div>
                 <span class="pipeline-url" title="${escapeHtml(item.url || '')}">${escapeHtml(item.url || '')}</span>
                 ${note ? `<span class="pipeline-note">${escapeHtml(note)}</span>` : ''}
@@ -4119,6 +4122,7 @@ const AUTO_APPLY_STATE_LABELS = {
   filling: { label: 'Remplissage…', color: '#60a5fa', spin: true },
   needs_human: { label: 'Intervention requise', color: '#fbbf24', spin: false },
   ready_to_review: { label: 'Prêt — vérifie puis confirme', color: '#34d399', spin: false },
+  extension_open: { label: 'Ouvert dans Chrome (plugin)', color: '#34d399', spin: false },
   submitting: { label: 'Envoi…', color: '#60a5fa', spin: true },
   submitted: { label: 'Candidature envoyée', color: '#34d399', spin: false },
   aborted: { label: 'Annulée', color: '#9ca3af', spin: false },
@@ -4170,7 +4174,7 @@ function openAutoApplyModal(app) {
           <span id="aa-meta" style="color:var(--text-3,#9ca3af);font-size:11px"></span>
         </div>
         <div id="aa-message" style="margin-top:10px;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:10px;line-height:1.5"></div>
-        <div id="aa-stale" style="display:none;margin-top:10px;padding:10px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);border-radius:10px;line-height:1.5;color:#fca5a5;font-size:13px">⚠️ Le processus d'auto-candidature semble arrêté (aucune mise à jour récente). Les boutons ci-dessous n'auront aucun effet — relance la candidature.</div>
+        <div id="aa-stale" style="display:none;margin-top:10px;padding:10px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);border-radius:10px;line-height:1.5;color:#fca5a5;font-size:13px">Le processus d'auto-candidature semble arrêté. « Confirmer l'envoi » et « Re-scanner » ne répondent plus. « J'ai envoyé » marque quand même la candidature comme envoyée.</div>
         <div id="aa-pending-box" style="display:none;margin-top:10px">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#fbbf24;margin-bottom:6px">Champs à compléter dans Chrome</div>
           <ul id="aa-pending" style="margin:0;padding-left:18px;color:var(--text-2,#d1d5db);line-height:1.6"></ul>
@@ -4184,7 +4188,8 @@ function openAutoApplyModal(app) {
           <pre id="aa-log" style="margin:6px 0 0;max-height:160px;overflow:auto;background:rgba(0,0,0,0.25);border-radius:8px;padding:10px;font-size:11px;line-height:1.5;white-space:pre-wrap"></pre>
         </details>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <button id="aa-submit" class="btn btn-primary" style="display:none">✓ Confirmer l'envoi</button>
+          <button id="aa-manual-sent" class="btn btn-primary" style="display:none" title="À utiliser après avoir cliqué sur envoyer dans Chrome">J'ai envoyé</button>
+          <button id="aa-submit" class="btn btn-ghost" style="display:none" title="Demande à Chrome de cliquer sur le bouton d'envoi">Confirmer l'envoi</button>
           <button id="aa-rescan" class="btn btn-ghost" style="display:none">↻ Re-scanner le formulaire</button>
           <button id="aa-abort" class="btn btn-danger">Abandonner</button>
         </div>
@@ -4237,6 +4242,41 @@ function openAutoApplyModal(app) {
   }
   let submitDebounceUntil = 0;
   $('aa-submit').addEventListener('click', () => { $('aa-submit').disabled = true; submitDebounceUntil = Date.now() + 4000; sendCommand('submit'); });
+  $('aa-manual-sent').addEventListener('click', async () => {
+    const btn = $('aa-manual-sent');
+    btn.disabled = true;
+    try {
+      await api(`/api/apply/runs/${runId}/command`, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'manual_sent' }),
+      });
+      if (!appliedMarked && app.num) {
+        appliedMarked = true;
+        await api(`/api/applications/${encodeURIComponent(app.num)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'Applied' }),
+        });
+        await reloadApplications();
+      }
+      finished = true;
+      stopPolling();
+      const meta = AUTO_APPLY_STATE_LABELS.submitted;
+      $('aa-chip').style.color = meta.color;
+      $('aa-chip').style.background = meta.color + '20';
+      $('aa-chip').textContent = meta.label;
+      $('aa-message').textContent = 'Envoi confirmé manuellement.';
+      $('aa-submit').style.display = 'none';
+      $('aa-rescan').style.display = 'none';
+      btn.style.display = 'none';
+      $('aa-abort').textContent = 'Fermer';
+      toast(app.num
+        ? `${app.company} — envoi confirmé, statut → Applied`
+        : 'Envoi confirmé.');
+    } catch (err) {
+      toast(`Erreur: ${err.message}`, true);
+      btn.disabled = false;
+    }
+  });
   $('aa-rescan').addEventListener('click', () => sendCommand('rescan'));
   $('aa-abort').addEventListener('click', () => {
     if (finished) return close();
@@ -4244,11 +4284,11 @@ function openAutoApplyModal(app) {
   });
 
   async function poll() {
-    if (!runId) return;
+    if (!runId || finished) return;
     let s;
     try { s = await api(`/api/apply/runs/${runId}`); }
     catch { return; } // state.json pas encore écrit
-    if (s.error) return;
+    if (finished || s.error) return;
 
     const meta = AUTO_APPLY_STATE_LABELS[s.state] || { label: s.state, color: '#9ca3af', spin: false };
     $('aa-chip').style.color = meta.color;
@@ -4266,20 +4306,21 @@ function openAutoApplyModal(app) {
     $('aa-log').textContent = (s.steps || []).map(st => st.text).join('\n');
 
     const waiting = s.state === 'needs_human' || s.state === 'ready_to_review';
+    $('aa-manual-sent').style.display = waiting ? 'inline-flex' : 'none';
     $('aa-submit').style.display = waiting ? 'inline-flex' : 'none';
     $('aa-rescan').style.display = waiting ? 'inline-flex' : 'none';
 
     // Staleness watchdog: in a waiting state the runner rewrites state.json every
-    // ~1.5s (waitForCommand). If updatedAt is old, the process died — a command
-    // would be written to command.json but never consumed, so the buttons would
-    // silently do nothing. Warn and disable them.
+    // ~1.5s (waitForCommand). If updatedAt is old, the process died — submit and
+    // rescan would be written to command.json but never consumed. "J'ai envoyé"
+    // still marks the tracker, so that button stays enabled.
     const ageMs = s.updatedAt ? (Date.now() - new Date(s.updatedAt).getTime()) : 0;
     const stale = waiting && ageMs > 20000;
     $('aa-stale').style.display = stale ? 'block' : 'none';
     $('aa-submit').disabled = stale || Date.now() < submitDebounceUntil;
     $('aa-rescan').disabled = stale;
 
-    if (['submitted', 'aborted', 'error'].includes(s.state)) {
+    if (['submitted', 'aborted', 'error', 'extension_open'].includes(s.state)) {
       finished = true;
       stopPolling();
       $('aa-abort').textContent = 'Fermer';
@@ -4512,6 +4553,14 @@ function getPipelineDateMeta(item = {}) {
 }
 
 // ─── Pipeline ─────────────────────────────────────────────────────────────────
+function getPipelineJevMeta(item = {}) {
+  if (item.jev_status === 'unverified') return 'Jev non qualifié';
+  if (item.jev_keep == null || item.jev_keep === '') return '';
+  const score = Number(item.jev_keep);
+  if (!Number.isFinite(score)) return '';
+  return `Jev ${score.toFixed(2)}`;
+}
+
 function getPipelineSource(url = '') {
   try {
     const host = new URL(url).hostname.replace(/^www\./, '');
@@ -4705,6 +4754,7 @@ function renderPipeline() {
         const company = item.company || '';
         const note = item.display_note || item.displayNote || item.note || '';
         const dateMeta = getPipelineDateMeta(item);
+        const jevMeta = getPipelineJevMeta(item);
         const source = getPipelineSource(item.url);
         const selected = state.selectedPipelineUrls.has(item.url);
         return `
@@ -4713,12 +4763,13 @@ function renderPipeline() {
             <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M3 7.5l3 3L12 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
           <div class="pipeline-main">
-            ${(title || company || dateMeta || source) ? `
+            ${(title || company || dateMeta || source || jevMeta) ? `
               <div class="pipeline-heading">
                 ${title   ? `<span class="pipeline-title">${escapeHtml(title)}</span>` : ''}
                 ${company ? `<span class="pipeline-company">${escapeHtml(company)}</span>` : ''}
                 ${source  ? `<span class="pipeline-date">${escapeHtml(source)}</span>` : ''}
                 ${dateMeta ? `<span class="pipeline-date">${escapeHtml(dateMeta)}</span>` : ''}
+                ${jevMeta ? `<span class="pipeline-date">${escapeHtml(jevMeta)}</span>` : ''}
               </div>
             ` : ''}
             <span class="pipeline-url" title="${escapeHtml(item.url)}">${escapeHtml(item.url)}</span>
@@ -5888,6 +5939,54 @@ let activeCmdKey = null;
 let activeCmdMarkdown = '';
 let activeCmdMeta = {};
 
+function orbStateForCmd(cmdKey) {
+  if (cmdKey === 'scan') return 'searching';
+  if (cmdKey === 'question' || cmdKey === 'coverletter' || cmdKey === 'pdf') return 'composing';
+  if (cmdKey === 'deep') return 'weaving';
+  return 'working';
+}
+
+function setCmdStatus(label, { active = false, state } = {}) {
+  const fx = window.JobYouGoEffects;
+  const plain = String(label || '').replace(/<[^>]+>/g, '').trim();
+  if (fx?.setCmdBusy) {
+    fx.setCmdBusy({
+      active: Boolean(active),
+      state: state || orbStateForCmd(activeCmdKey),
+      label: plain,
+    });
+    return;
+  }
+  const el = document.getElementById('cmd-status');
+  if (el) el.textContent = plain;
+}
+
+function setDashboardHeroTitle(text) {
+  const fx = window.JobYouGoEffects;
+  if (fx?.setMetalHeroText) {
+    fx.setMetalHeroText(text);
+    return;
+  }
+  const el = document.getElementById('dashboard-hero-title');
+  if (el) el.textContent = text;
+}
+
+function mountLibrariesEffects() {
+  const fx = window.JobYouGoEffects;
+  if (!fx) return;
+  const status = document.getElementById('cmd-status');
+  if (status && fx.mountCmdStatus) fx.mountCmdStatus(status);
+  const title = document.getElementById('dashboard-hero-title');
+  if (title && fx.mountMetalHero) {
+    const color = getComputedStyle(title).color || '#f3f4f6';
+    fx.mountMetalHero(title, {
+      text: title.textContent.trim(),
+      font: '640 36px/1.05 Inter, system-ui, sans-serif',
+      color,
+    });
+  }
+}
+
 // Sequential bulk processing of multiple selected pipeline offers.
 let pipelineQueue = [];      // URLs not yet started
 let pipelineQueueTotal = 0;  // total in the current batch (0 = no batch running)
@@ -5944,8 +6043,10 @@ function onPipelineStreamSettled(ok) {
   const modal = document.getElementById('cmd-modal');
   if (pipelineQueue.length) {
     const next = pipelineQueueIndex + 1;
-    document.getElementById('cmd-status').innerHTML =
-      `<span style="color:var(--brand)">✓ ${pipelineQueueIndex}/${pipelineQueueTotal} done. Next offer (${next}/${pipelineQueueTotal}) in 2s…</span>`;
+    setCmdStatus(`${pipelineQueueIndex}/${pipelineQueueTotal} done. Next offer (${next}/${pipelineQueueTotal}) in 2s…`, {
+      active: true,
+      state: 'connecting',
+    });
     setTimeout(() => {
       if (modal.classList.contains('open')) advancePipelineQueue();
       else resetPipelineQueue();
@@ -5990,7 +6091,6 @@ function openCmdModal(cmdKey, params = {}) {
   const def = CLAUDE_CMDS[cmdKey];
   if (!def) return;
   const out  = document.getElementById('cmd-stream-output');
-  const status = document.getElementById('cmd-status');
   const modal = document.getElementById('cmd-modal');
   const toggleBtn = document.getElementById('cmd-modal-toggle');
   const cvPdfBtn = document.getElementById('cmd-cv-pdf-btn');
@@ -6011,7 +6111,7 @@ function openCmdModal(cmdKey, params = {}) {
       ? `${def.label} — ${pipelineQueueIndex}/${pipelineQueueTotal}`
       : def.label;
   out.innerHTML = '';
-  status.innerHTML = '<span class="spin">↻</span> Running…';
+  setCmdStatus('Running…', { active: true, state: orbStateForCmd(cmdKey) });
   modal.classList.add('open');
   modal.classList.remove('collapsed');
   toggleBtn.title = 'Collapse';
@@ -6043,7 +6143,7 @@ function openCmdModal(cmdKey, params = {}) {
   activeStream = es;
 
   es.addEventListener('start', () => {
-    status.innerHTML = '<span class="spin">↻</span> Claude is generating…';
+    setCmdStatus('Claude is generating…', { active: true, state: orbStateForCmd(cmdKey) });
   });
   es.addEventListener('chunk', e => {
     mdBuffer += JSON.parse(e.data).text;
@@ -6051,8 +6151,14 @@ function openCmdModal(cmdKey, params = {}) {
     out.innerHTML = renderMd(mdBuffer);
     out.scrollTop = out.scrollHeight;
   });
+  es.addEventListener('replace', e => {
+    mdBuffer = JSON.parse(e.data).text || '';
+    activeCmdMarkdown = mdBuffer;
+    out.innerHTML = renderMd(mdBuffer);
+    out.scrollTop = out.scrollHeight;
+  });
   es.addEventListener('status', e => {
-    status.innerHTML = `<span class="spin">↻</span> ${JSON.parse(e.data).text}`;
+    setCmdStatus(JSON.parse(e.data).text, { active: true, state: orbStateForCmd(cmdKey) });
   });
   es.addEventListener('warning', e => {
     const { text = 'Warning' } = JSON.parse(e.data);
@@ -6067,7 +6173,7 @@ function openCmdModal(cmdKey, params = {}) {
         : 'background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:#34d399';
       out.innerHTML += `\n<div style="margin-top:16px;padding:10px 14px;${saveTone};border-radius:6px;font-size:12px">${saves.map(s => `${blocked ? '!' : '✓'} ${s}`).join('<br>')}</div>`;
     }
-    status.textContent = blocked ? '! Blocked' : '✓ Done';
+    setCmdStatus(blocked ? '! Blocked' : '✓ Done', { active: false });
     if (canGenerateCvFromResponse) {
       cvPdfBtn.disabled = false;
     }
@@ -6081,7 +6187,7 @@ function openCmdModal(cmdKey, params = {}) {
 
     // AUTO-CONTINUE LOGIC
     if (isAuto && getVisiblePipeline().length > 0) {
-      status.innerHTML = '<span style="color:var(--brand)">✓ Done. Waiting for next offer (3s)...</span>';
+      setCmdStatus('Done. Waiting for next offer (3s)…', { active: true, state: 'connecting' });
       setTimeout(() => {
         if (modal.classList.contains('open')) openCmdModal('pipeline');
       }, 3000);
@@ -6093,7 +6199,7 @@ function openCmdModal(cmdKey, params = {}) {
   es.addEventListener('error', async e => {
     if (activeStream !== es) return;
     const msg = e.data ? JSON.parse(e.data).message : 'Connection lost';
-    status.innerHTML = `<span style="color:var(--red)">✗ ${msg}</span>`;
+    setCmdStatus(`✗ ${msg}`, { active: false });
     es.close(); activeStream = null;
     // The report/tracker write can succeed before a later step throws (e.g.
     // pipeline removal), so refresh state here too — otherwise a partially
@@ -6635,6 +6741,7 @@ if (!session && !isViewOnly) {
   }
 
   // ── Lancer l'app ─────────────────────────────────────────────────────────
+  mountLibrariesEffects();
   window.loadAll()
     .then(() => navigate(viewFromPath() || 'dashboard', { push: false }))
     .catch(err => {

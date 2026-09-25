@@ -237,9 +237,10 @@ const BARE = companyRoleDedupKey(CO, ROLE);
 // `posted:` segment lands there when the offer had no location and no comp —
 // keying on either would invent a city and resurface a processed role.
 //
-// Which cells count as labeled is an ALLOW-LIST of the four labels the two
-// writers actually emit (`posted:`/`trust:`/`note:` from formatPipelineOffer,
-// `rank:` from rank-pipeline.mjs's appendRankAnnotation), not the shape
+// Which cells count as labeled is an ALLOW-LIST of the labels the writers
+// actually emit (`posted:`/`trust:`/`note:` from formatPipelineOffer,
+// `rank:` from rank-pipeline.mjs, `source:`/`jev:`/`remote_verdict:` from the UI
+// record). `Remote: EMEA` stays a location. Not the shape
 // "any word, then a colon" (#3751 review). Locations are free text and
 // routinely take that shape — the `Remote: …` rows below are copied from live
 // Neo4j postings in the reporter's own data/pipeline.md, where the broad
@@ -266,6 +267,12 @@ const BARE = companyRoleDedupKey(CO, ROLE);
       null, 'labeled `note:` segment in the 4th cell is not a location'],
     ['- [ ] https://ex.com/p/8 | Acme Corp | ML Engineer | rank: 4.2/5 — Strong match',
       null, 'labeled `rank:` segment (rank-pipeline.mjs) in the 4th cell is not a location'],
+    ['- [ ] https://ex.com/p/8b | Acme Corp | ML Engineer | source: Ashby',
+      null, 'labeled `source:` segment in the 4th cell is not a location'],
+    ['- [ ] https://ex.com/p/8c | Acme Corp | ML Engineer | jev: 0.72 kept',
+      null, 'labeled `jev:` segment in the 4th cell is not a location'],
+    ['- [ ] https://ex.com/p/8d | Acme Corp | ML Engineer | remote_verdict: compatible — opened',
+      null, 'labeled `remote_verdict:` segment in the 4th cell is not a location'],
     // …and the live shapes the broad pattern swallowed. These ARE locations.
     ['- [ ] https://ex.com/p/9 | Acme Corp | Graph Data Scientist | Remote: EMEA',
       'Remote: EMEA', 'a `Remote: EMEA` cell is a location, not metadata'],

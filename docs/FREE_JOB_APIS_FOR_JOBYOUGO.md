@@ -43,6 +43,7 @@ These are configured under `job_boards:` in `portals.yml` and resolve through
 | Sweden | JobTech / Arbetsformedlingen | `jobtech` | none | Official search API with free-text, remote, limit, and offset. |
 | Norway | NAV Arbeidsplassen | `nav` | rotating public token | Official vacancy feed; supports If-Modified-Since and detail entries. |
 | Belgium / Flanders | VDAB | `vdab` | public frontend key | Public search/detail endpoints with bounded detail enrichment. |
+| France | France Travail | `francetravail` | none | Public candidate search HTML at candidat.francetravail.fr. The partner OAuth API stays unused. |
 | Southeast Asia | Glints SG/ID/VN | `glints` | none | Public GraphQL job-search endpoint. |
 | Southeast Asia | JobStreet SG/MY/ID | `jobstreet` | none | Public SEEK/JobStreet v5 search API. |
 | Taiwan | Taiwan Jobs Open Data | `taiwanjobs` | none | Official open-data datastore, filtered locally. |
@@ -55,7 +56,6 @@ core provider layer is intended for zero-auth/public endpoints.
 
 | Region | Source | Why not enabled by default |
 | --- | --- | --- |
-| France | France Travail API Offres d'emploi | Free/open access, but calls require OAuth client credentials from France Travail. |
 | South Korea | Work24 / work.go.kr Open API | Free public employment API, but requires an issued service key/account approval. |
 | Finland | Job Market Finland / KEHA interfaces | Free interfaces exist, but credentials are issued after verification/testing. |
 | Global | Adzuna, Jooble, Careerjet | Free or partner tiers may exist, but they require API keys and are already disabled under `api_aggregators`. |

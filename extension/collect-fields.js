@@ -1,0 +1,497 @@
+// collect-fields.js — POC content script.
+//
+// This is the EXACT field-collection logic from lib/apply-collect-fields.mjs
+// (COLLECT_FIELDS), copied here as a plain global function instead of an ES
+// module export — chrome.scripting.executeScript({ files }) loads classic
+// scripts, not modules, so `export` isn't usable here. Keep this in sync by
+// hand with lib/apply-collect-fields.mjs until the two are unified behind a
+// single build step; the apply-runner test suite (tests/apply-collect-fields.test.mjs)
+// is the source of truth for what this logic must do.
+//
+// Injected into the tab's isolated world; defines `collectFields` as a global
+// so a later executeScript({ func: () => collectFields() }) call can read its
+// return value directly.
+
+function collectFields() {
+  document.querySelectorAll('[data-co-i]').forEach(e => e.removeAttribute('data-co-i'));
+  document.querySelectorAll('[data-co-opt]').forEach(e => e.removeAttribute('data-co-opt'));
+  document.querySelectorAll('[data-co-rg]').forEach(e => e.removeAttribute('data-co-rg'));
+
+  // SmartRecruiters (and similar) put real <input>s inside open shadow roots
+  // on custom elements (SPL-INPUT). Light-DOM-only querySelectorAll misses them.
+  const deepQueryAll = (root, selector) => {
+    const out = [];
+    const visit = (node) => {
+      if (!node?.querySelectorAll) return;
+      out.push(...node.querySelectorAll(selector));
+      for (const el of node.querySelectorAll('*')) {
+        if (el.shadowRoot) visit(el.shadowRoot);
+      }
+    };
+    visit(root);
+    return out;
+  };
+  const shadowHost = (el) => {
+    const root = el.getRootNode?.();
+    return root && root !== document && root.host ? root.host : null;
+  };
+
+  const visible = (el) => {
+    if (!el || el.closest('[hidden], [aria-hidden="true"], [inert]')) return false;
+    const r = el.getBoundingClientRect();
+    const st = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'
+      && st.opacity !== '0' && el.getAttribute('aria-hidden') !== 'true';
+  };
+  const inViewport = (el) => {
+    const r = el.getBoundingClientRect();
+    const st = getComputedStyle(el);
+    const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    return r.width >= 8 && r.height >= 8
+      && r.bottom > 0 && r.right > 0 && r.top < vh && r.left < vw
+      && st.visibility !== 'hidden' && st.display !== 'none' && st.opacity !== '0';
+  };
+  const inClosedTab = (el) => {
+    const panel = el.closest('[role="tabpanel"]');
+    if (!panel) return false;
+    if (panel.hidden || panel.getAttribute('hidden') != null) return true;
+    if (panel.getAttribute('aria-hidden') === 'true') return true;
+    const tabId = panel.getAttribute('aria-labelledby');
+    if (tabId) {
+      const tab = document.getElementById(tabId);
+      if (tab && tab.getAttribute('aria-selected') === 'false') return true;
+    }
+    return false;
+  };
+  const looksLikeDropzone = (t) =>
+    /click or drag|drag (and|&) drop|choose a file|drop (it|file) here|upload (a |your )?(file|resume|cv)|parcourir|attach (a |your )?(file|resume|cv)|browse files?/.test(t)
+    || (/\bupload\b/.test(t) && t.length < 80)
+    || /\bresume\b|\bcv\b|curriculum|autofill from/.test(t);
+  const fileNameToken = (t) => {
+    const tokens = String(t || '').split(/\s+/);
+    let best = '';
+    for (let i = 0; i < tokens.length; i++) {
+      for (let n = 1; n <= 4 && i + n <= tokens.length; n++) {
+        const name = tokens.slice(i, i + n).join(' ').replace(/[),.;:]+$/g, '');
+        if (!/^[A-Za-z0-9][A-Za-z0-9 ._()'-]{0,70}\.(pdf|docx?|rtf)$/i.test(name)) continue;
+        if (!best || name.length < best.length) best = name;
+      }
+    }
+    return best;
+  };
+  const fileChipOf = (el) => {
+    if (el.files && el.files.length > 0) return el.files[0].name || 'file';
+    let node = el.parentElement;
+    for (let d = 0; d < 4 && node && !/^(BODY|HTML|FORM|MAIN)$/.test(node.tagName); d++, node = node.parentElement) {
+      const t = (node.innerText || '').replace(/\s+/g, ' ').trim();
+      if (!t || t.length > 160) continue;
+      const name = fileNameToken(t);
+      if (!name) continue;
+      const prompt = /choose a file|drop it here|drag (and|&) drop|no file chosen|aucun fichier/i.test(t);
+      const chip = /\b(remove|delete|supprimer|uploaded|ajouté)\b/i.test(t);
+      if (prompt && !chip) continue;
+      const leftover = t.replace(name, '').replace(/[^A-Za-z0-9]+/g, '');
+      if (!chip && leftover.length > 12) continue;
+      return name;
+    }
+    return '';
+  };
+  const labelByFor = (el) => el.id
+    ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
+    : null;
+  const proxyOf = (el) => {
+    const labelled = labelByFor(el);
+    if (labelled) return labelled;
+    const wrap = el.closest('label');
+    if (wrap) return wrap;
+    const parent = el.parentElement;
+    if (!parent || /^(FORM|BODY|HTML|MAIN|SECTION)$/.test(parent.tagName)) return null;
+    if (parent.children.length <= 4) return parent;
+    return null;
+  };
+  const controlVisible = (el) => {
+    if (el.closest('[hidden], [inert]')) return false;
+    if (visible(el)) return true;
+    const proxy = proxyOf(el);
+    if (proxy && visible(proxy)) return true;
+    const host = shadowHost(el);
+    return !!host && visible(host);
+  };
+  const isCheckEl = (el) => el.type === 'checkbox'
+    || el.getAttribute('role') === 'checkbox'
+    || el.getAttribute('role') === 'switch';
+  const isChecked = (el) => !!(el.checked || el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-pressed') === 'true');
+  const fieldSelector = 'input, select, textarea, [role="checkbox"], [role="radio"], [role="switch"]';
+
+  const optionTextFor = (el) => {
+    const labelled = labelByFor(el);
+    const fromFor = (labelled?.innerText || '').trim();
+    if (fromFor) return fromFor;
+    const wrap = el.closest('label');
+    if (wrap && wrap.innerText.trim()) return wrap.innerText.trim();
+    const own = (el.innerText || '').replace(/\s+/g, ' ').trim();
+    if (own && own.length < 120 && !el.querySelector(fieldSelector)) return own;
+    // Ashby Yes/No buttons often expose the choice only via data-option.
+    const dataOpt = (el.getAttribute?.('data-option') || '').trim();
+    if (/^(yes|no|oui|non)$/i.test(dataOpt)) {
+      return dataOpt.charAt(0).toUpperCase() + dataOpt.slice(1).toLowerCase();
+    }
+    if (dataOpt) return dataOpt;
+    let node = el.parentElement;
+    for (let d = 0; d < 3 && node; d++, node = node.parentElement) {
+      const t = (node.innerText || '').trim();
+      if (t && t.length < 120) return t;
+    }
+    const v = (el.value || '').trim();
+    return v.toLowerCase() === 'on' ? '' : v;
+  };
+
+  const labelFor = (el) => {
+    const parts = [];
+    const nonempty = () => parts.some(p => p && String(p).trim());
+    const labelled = labelByFor(el);
+    if (labelled) parts.push(labelled.innerText);
+    const wrap = el.closest('label');
+    if (wrap) parts.push(wrap.innerText);
+    if (el.getAttribute('aria-label')) parts.push(el.getAttribute('aria-label'));
+    const lblBy = el.getAttribute('aria-labelledby');
+    if (lblBy) {
+      lblBy.split(/\s+/).forEach(id => {
+        const n = document.getElementById(id);
+        if (n) parts.push(n.innerText);
+      });
+    }
+    // Shadow-hosted inputs (SPL-INPUT): the accessible name lives on the host.
+    if (!nonempty()) {
+      let host = shadowHost(el);
+      for (let d = 0; d < 4 && host; d++, host = shadowHost(host) || host.parentElement) {
+        if (host.getAttribute?.('aria-label')) { parts.push(host.getAttribute('aria-label')); break; }
+        if (host.id) {
+          const lab = document.querySelector(`label[for="${CSS.escape(host.id)}"]`);
+          if (lab) { parts.push(lab.innerText); break; }
+        }
+        const t = (host.innerText || '').replace(/\s+/g, ' ').trim();
+        if (t && t.length < 80) { parts.push(t); break; }
+        if (!host.shadowRoot) break;
+      }
+    }
+    if (!nonempty()) {
+      let node = el.parentElement;
+      for (let d = 0; d < 3 && node; d++, node = node.parentElement) {
+        const lab = node.querySelector('label, legend, [class*="label" i]');
+        if (lab && !lab.contains(el)) { parts.push(lab.innerText); break; }
+        const txt = (node.innerText || '').trim();
+        if (txt && txt.length < 220) { parts.push(txt); break; }
+      }
+    }
+    if (!nonempty()) {
+      let prev = el.previousElementSibling;
+      for (let d = 0; d < 3 && prev; d++, prev = prev.previousElementSibling) {
+        const t = (prev.innerText || '').trim();
+        if (t && t.length < 160 && !prev.querySelector('input, textarea, select, [contenteditable="true"]')) {
+          parts.push(t);
+          break;
+        }
+      }
+    }
+    if (!nonempty() && el.placeholder) parts.push(el.placeholder);
+    let out = [...new Set(parts.filter(Boolean).map(p => p.replace(/\s+/g, ' ').trim()))].join(' ').slice(0, 300);
+    const firstQ = out.indexOf('?');
+    if (firstQ > 10 && out.indexOf('?', firstQ + 1) > firstQ) out = out.slice(0, firstQ + 1);
+    return out;
+  };
+
+  const isRequiredNode = (node, text) =>
+    /(^|[^a-z])required/i.test((node?.className || '').toString()) || /[*✱]/.test(text || '');
+
+  const groupMeta = (members) => {
+    const none = { question: '', required: false };
+    if (!members.length) return none;
+    let container = members[0].parentElement;
+    while (container) {
+      if (members.every(m => container.contains(m))) break;
+      container = container.parentElement;
+    }
+    if (!container) return none;
+    const optionTexts = members.map(optionTextFor).filter(Boolean);
+    const isJustOptions = (t) => optionTexts.includes(t) || optionTexts.join(' ') === t;
+    const isOwnLabel = (node) => members.some(m => m.id && node.getAttribute?.('for') === m.id);
+    const holdsOtherFields = (node) =>
+      [...node.querySelectorAll(fieldSelector)].some(c => !members.includes(c));
+    const chain = [];
+    for (let d = 0, node = container; d < 4 && node; d++, node = node.parentElement) {
+      if (d > 0 && holdsOtherFields(node)) break;
+      chain.push(node);
+    }
+    const usable = (node, t) => t && t.length < 300 && !isJustOptions(t) && !members.some(m => node.contains(m));
+    for (const node of chain) {
+      for (const heading of node.querySelectorAll(':scope > legend, :scope > [class*="question" i], :scope > label')) {
+        if (isOwnLabel(heading)) continue;
+        const t = (heading.innerText || '').trim();
+        if (usable(heading, t)) return { question: t, required: isRequiredNode(heading, t) };
+      }
+    }
+    for (const node of chain) {
+      const prev = node.previousElementSibling;
+      const t = (prev?.innerText || '').trim();
+      if (prev && usable(prev, t)) return { question: t, required: isRequiredNode(prev, t) };
+    }
+    if (holdsOtherFields(container)) return none;
+    const full = (container.innerText || '').replace(/\s+/g, ' ').trim();
+    for (const opt of optionTexts) {
+      const idx = full.indexOf(opt);
+      if (idx > 8) {
+        const q = full.slice(0, idx).trim();
+        return { question: q, required: isRequiredNode(container, q) };
+      }
+    }
+    return none;
+  };
+
+  const radiosByKey = new Map();
+  const radioKeyByEl = new Map();
+  let anonRg = 0;
+  const radioKeyOf = (el) => {
+    if (el.name) return `n:${el.name}`;
+    const g = el.closest('[role="radiogroup"], fieldset');
+    if (g) {
+      if (!g.hasAttribute('data-co-rg')) g.setAttribute('data-co-rg', String(++anonRg));
+      return `g:${g.getAttribute('data-co-rg')}`;
+    }
+    return `solo:${radioKeyByEl.size}`;
+  };
+  for (const el of deepQueryAll(document, 'input[type="radio"], [role="radio"]')) {
+    if (el.matches(':disabled') || el.closest('[aria-disabled="true"]')) continue;
+    if (!controlVisible(el)) continue;
+    const k = radioKeyOf(el);
+    radioKeyByEl.set(el, k);
+    if (!radiosByKey.has(k)) radiosByKey.set(k, []);
+    radiosByKey.get(k).push(el);
+  }
+  const radioGroupMeta = new Map();
+  for (const [key, members] of radiosByKey) radioGroupMeta.set(key, groupMeta(members));
+
+  const checkboxGroupOf = (el) => {
+    let node = el.parentElement;
+    for (let d = 0; d < 4 && node; d++, node = node.parentElement) {
+      const fields = [...node.querySelectorAll(fieldSelector)];
+      if (fields.some(f => f !== el && !isCheckEl(f))) return null;
+      const mates = fields.filter(c => c !== el && isCheckEl(c) && controlVisible(c));
+      if (mates.length) return [el, ...mates];
+    }
+    return null;
+  };
+
+  const YES_NO_CHECKBOX_QUIRKS = [
+    { wrapperSelector: '.ashby-application-form-input-yesno', optionSelector: 'button[data-option][aria-pressed]', yesValue: 'yes', noValue: 'no' },
+  ];
+  const yesNoButtonsFor = (el, type) => {
+    if (type !== 'checkbox') return [];
+    for (const q of YES_NO_CHECKBOX_QUIRKS) {
+      const wrapper = el.closest(q.wrapperSelector);
+      if (!wrapper) continue;
+      const buttons = [...wrapper.querySelectorAll(q.optionSelector)].filter(visible);
+      if (buttons.length === 2 && buttons.some(b => b.dataset.option === q.yesValue) && buttons.some(b => b.dataset.option === q.noValue)) {
+        return buttons;
+      }
+    }
+    return [];
+  };
+
+  let i = 0;
+  const out = [];
+  for (const el of deepQueryAll(document,
+    'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"], [role="checkbox"], [role="radio"], [role="switch"]',
+  )) {
+    const tag = el.tagName.toLowerCase();
+    if (el.matches(':disabled') || el.readOnly || el.closest('[aria-disabled="true"], [inert], [hidden]')) continue;
+    const role = (el.getAttribute('role') || '').toLowerCase();
+    if (role === 'combobox' && tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+      const inner = el.querySelector('input:not([type="hidden"]):not([type="file"]), textarea, select');
+      if (inner && visible(inner)) continue;
+    }
+    let isCE = (tag !== 'input' && tag !== 'textarea' && tag !== 'select')
+      && (el.getAttribute('contenteditable') === 'true' || role === 'textbox');
+    if (isCE) {
+      const cls = (el.className || '').toString();
+      const r = el.getBoundingClientRect();
+      if (/clipboard/i.test(cls) || r.left < -1000 || r.top < -5000) continue;
+      if (el.querySelector('input, textarea, [contenteditable="true"], [role="textbox"]')) continue;
+    }
+    let type;
+    if (role === 'checkbox' || role === 'switch') type = 'checkbox';
+    else if (role === 'radio') type = 'radio';
+    else if (role === 'combobox') type = 'text';
+    else type = isCE ? 'textarea' : (el.type || tag).toLowerCase();
+    if (role !== 'combobox' && role !== 'checkbox' && role !== 'radio' && role !== 'switch'
+      && ['hidden', 'submit', 'button', 'image', 'reset'].includes(type)) continue;
+    const nameId = `${el.name || ''} ${el.id || ''}`.toLowerCase();
+    if (/g-recaptcha-response|h-captcha-response|cf-turnstile-response|frc-captcha-response/.test(nameId)) continue;
+    const isFile = type === 'file';
+    const yesNoButtons = yesNoButtonsFor(el, type);
+    if (yesNoButtons.length === 2) type = 'radio';
+    const isChoice = type === 'radio' || type === 'checkbox';
+    const fileProxyVisible = () => {
+      // Closed Overview/Application tabs must stay excluded (collect-fields tests).
+      if (inClosedTab(el)) return false;
+      const buriedInDisplayNone = () => {
+        for (let n = el.parentElement, d = 0; n && d < 12; d++, n = n.parentElement) {
+          if (/^(BODY|HTML)$/.test(n.tagName)) break;
+          const st = getComputedStyle(n);
+          if (st.display === 'none' || st.visibility === 'hidden') return true;
+        }
+        return false;
+      };
+      // Named resume slots: keep even when the ATS hides the raw <input>
+      // (Ashby / Greenhouse opacity:0). Still exclude display:none dead panels.
+      const idBlob = `${el.name || ''} ${el.id || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
+      if (/resume|\bcv\b|curriculum|autofill|_systemfield_resume|resumeurl/.test(idBlob) && !buriedInDisplayNone()) {
+        return true;
+      }
+      if (el.closest('[hidden], [aria-hidden="true"], [inert]')) {
+        const entry = el.closest('[class*="ashby-application-form-field"], [class*="file-upload" i], [class*="FileUpload"], [class*="dropzone" i], [class*="Dropzone"]');
+        if (!entry) return false;
+        const t = (entry.innerText || entry.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (!looksLikeDropzone(t) && !/\bresume\b|\bcv\b/.test(t)) return false;
+      }
+      if (visible(el) || inViewport(el)) return true;
+      const labelled = labelByFor(el);
+      if (labelled && (visible(labelled) || inViewport(labelled))) return true;
+      const wrap = el.closest('label');
+      if (wrap && (visible(wrap) || inViewport(wrap))) return true;
+      // Light parents + shadow hosts (SPL-DROPZONE / SPL-INPUT on SmartRecruiters).
+      const chain = [];
+      let node = el.parentElement;
+      for (let d = 0; d < 8 && node; d++, node = node.parentElement) chain.push(node);
+      let host = shadowHost(el);
+      for (let d = 0; d < 6 && host; d++) {
+        chain.push(host);
+        const next = shadowHost(host);
+        host = next || host.parentElement;
+        if (!next && host === chain[chain.length - 1]) break;
+      }
+      for (const n of chain) {
+        if (n.closest?.('[inert]') || inClosedTab(n)) continue;
+        const st = getComputedStyle(n);
+        // Do not bail on opacity:0 wrappers — Ashby nests the input there.
+        if (st.display === 'none' || st.visibility === 'hidden') continue;
+        if (!(visible(n) || inViewport(n))) {
+          const tHidden = (n.innerText || n.getAttribute?.('aria-label') || '').replace(/\s+/g, ' ').trim().toLowerCase();
+          if (looksLikeDropzone(tHidden) || /DROPZONE|FILE-UPLOAD|UPLOAD|ashby-application-form-field/i.test(n.tagName || n.className || '')) {
+            // parent may be zero-size; keep going
+          } else {
+            continue;
+          }
+        }
+        if (/DROPZONE|FILE-UPLOAD|UPLOAD/i.test(n.tagName || '')) return true;
+        if (/ashby-application-form-field|file-upload|FileUpload|dropzone/i.test(String(n.className || ''))) {
+          const t = (n.innerText || n.getAttribute?.('aria-label') || '').replace(/\s+/g, ' ').trim().toLowerCase();
+          if (!t || looksLikeDropzone(t) || /\bresume\b|\bcv\b|upload/.test(t)) return true;
+        }
+        const t = (n.innerText || n.getAttribute?.('aria-label') || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (!t || t.length > 280) continue;
+        if (looksLikeDropzone(t)) return true;
+      }
+      return false;
+    };
+    if (isFile ? !fileProxyVisible() : !(isChoice ? controlVisible(el) : (visible(el) || (!!shadowHost(el) && visible(shadowHost(el)))))) continue;
+    el.setAttribute('data-co-i', String(i));
+    let label = labelFor(el);
+    let choiceRequired = false;
+    let groupChecked = isChecked(el);
+    let radioKey = '';
+    if (type === 'radio') {
+      radioKey = yesNoButtons.length === 2 ? `yesno:${i}` : radioKeyByEl.get(el) || radioKeyOf(el);
+      if (yesNoButtons.length === 2) {
+        radiosByKey.set(radioKey, yesNoButtons);
+        radioGroupMeta.set(radioKey, groupMeta([el]));
+      }
+      const meta = radioGroupMeta.get(radioKey) || { question: '', required: false };
+      if (meta.question) label = meta.question;
+      choiceRequired = meta.required;
+    } else if (type === 'checkbox') {
+      const mates = checkboxGroupOf(el) || [el];
+      const meta = groupMeta(mates);
+      if (meta.question && meta.question !== label) label = `${meta.question} — ${label}`.trim();
+      choiceRequired = meta.required;
+      groupChecked = mates.some(isChecked);
+    }
+    const requiredAttr = (el.getAttribute('aria-required') || '').toLowerCase() === 'true'
+      || ['true', 'required', '1'].includes((el.getAttribute('data-required') || '').toLowerCase());
+    let wrapperRequired = false;
+    {
+      let node = el.parentElement;
+      for (let d = 0; d < 4 && node && !/^(FORM|BODY|HTML|MAIN)$/.test(node.tagName); d++, node = node.parentElement) {
+        const cls = (node.className || '').toString();
+        if (/(^|[\s_-])required([\s_-]|$)/i.test(cls)) { wrapperRequired = true; break; }
+        if ((node.getAttribute('aria-required') || '').toLowerCase() === 'true') { wrapperRequired = true; break; }
+        if (['true', 'required', '1'].includes((node.getAttribute('data-required') || '').toLowerCase())) { wrapperRequired = true; break; }
+      }
+    }
+    const required = el.required || requiredAttr || /[*✱]/.test(label) || /\brequired\b/i.test(label)
+      || choiceRequired || wrapperRequired;
+    const selectWrapper = el.closest('[class*="select__container"], [class*="select-shell"], [class*="Select-container" i], [class*="react-select" i], [class*="Select-control"], spl-select, oc-select, [class*="oneclick" i], [class*="ant-select"], [class*="el-select"], [class*="MuiSelect"], [class*="MuiAutocomplete"], .select2-container, [class*="choices" i], [data-automation-id*="select" i], [data-automation-id*="dropdown" i]');
+    let shadowRequired = null;
+    if (selectWrapper) {
+      let node = el.parentElement;
+      for (let d = 0; d < 6 && node; d++, node = node.parentElement) {
+        shadowRequired = node.querySelector('input[aria-hidden="true"][required], [class*="requiredInput" i]');
+        if (shadowRequired) break;
+      }
+    }
+    let value = type === 'checkbox' || type === 'radio' ? '' : (isCE ? (el.innerText || '').trim() : (el.value || ''));
+    if (shadowRequired) value = shadowRequired.value || '';
+    else if (selectWrapper && !value) {
+      const shown = selectWrapper.querySelector('[class*="singleValue" i], [class*="single-value" i]');
+      if (shown && shown.textContent.trim()) value = shown.textContent.trim();
+    }
+    out.push({
+      i, type, tag, contentEditable: isCE, label,
+      name: el.name || '',
+      idAttr: el.id || '',
+      autocomplete: el.getAttribute('autocomplete') || '',
+      required, value,
+      fileCount: isFile ? (el.files?.length || 0) : 0,
+      fileChip: isFile ? fileChipOf(el) : '',
+      ariaInvalid: el.getAttribute('aria-invalid') === 'true',
+      invalid: el.getAttribute('aria-invalid') === 'true' || (!!el.willValidate && !el.validity.valid),
+      validationMessage: el.validationMessage || '',
+      maxLength: el.maxLength >= 0 ? el.maxLength : null,
+      description: (el.getAttribute('aria-describedby') || '').split(/\s+/)
+        .map(id => document.getElementById(id)?.textContent?.trim() || '').filter(Boolean).join(' ').slice(0, 600),
+      nearSelectWrapper: !!selectWrapper,
+      checked: isChecked(el),
+      groupChecked,
+      radioKey,
+      role: el.getAttribute('role') || '',
+      ariaAutocomplete: el.getAttribute('aria-autocomplete') || '',
+      ariaHaspopup: el.getAttribute('aria-haspopup') || '',
+      multiple: !!el.multiple || el.getAttribute('aria-multiselectable') === 'true'
+        || !!el.closest('[class*="multi-value"],[class*="is-multi"],[class*="multiselect" i]'),
+      options: el.tagName === 'SELECT'
+        ? [...el.options].map(o => ({ value: o.value, text: o.innerText.trim() }))
+        : null,
+    });
+    i++;
+  }
+
+  const seenRadioKeys = new Set();
+  const deduped = [];
+  for (const entry of out) {
+    if (entry.type !== 'radio') { deduped.push(entry); continue; }
+    const key = entry.radioKey || (entry.name ? `n:${entry.name}` : `solo:${entry.i}`);
+    if (seenRadioKeys.has(key)) continue;
+    seenRadioKeys.add(key);
+    const members = radiosByKey.get(key) || [];
+    entry.options = members.map((m, k) => {
+      const optKey = `${entry.i}:${k}`;
+      m.setAttribute('data-co-opt', optKey);
+      return { value: m.value || '', text: optionTextFor(m) || m.value || '', key: optKey };
+    });
+    entry.required = entry.required || members.some(m => m.required || m.getAttribute('aria-required') === 'true');
+    entry.groupChecked = members.some(isChecked);
+    deduped.push(entry);
+  }
+  return deduped;
+}
