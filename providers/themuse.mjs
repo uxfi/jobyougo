@@ -8,6 +8,8 @@
 //
 // Wire in via a `job_boards:` entry with `provider: themuse`.
 
+import { sleep } from './_http.mjs';
+
 const FEED_BASE = 'https://www.themuse.com/api/public/jobs';
 const TRUSTED_HOST = 'www.themuse.com';
 
@@ -27,12 +29,7 @@ const RETRY_MAX_DELAY_MS = 8_000;
 
 // Delay between successive pages so a 100-page walk doesn't fire as a burst
 // against the same host (mirrors workday.mjs / oraclecloud.mjs).
-const INTER_PAGE_DELAY_MS = 150;
-
-function sleep(ms, ctx) {
-  if (typeof ctx?.sleep === 'function') return ctx.sleep(ms);
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const INTER_PAGE_DELAY_MS = 250;
 
 /** Parses a `Retry-After` header value (seconds, or an HTTP-date) to ms, or null. */
 function parseRetryAfterMs(value) {
@@ -94,13 +91,6 @@ function assertMuseUrl(url) {
   return url;
 }
 
-/** Resolve optional per-entry page cap while keeping the historical hard bound. */
-function resolveMaxPages(entry) {
-  const value = entry?.max_pages;
-  if (Number.isInteger(value) && value > 0) return Math.min(value, MAX_PAGES);
-  return MAX_PAGES;
-}
-
 /**
  * Normalize a single result from the Muse API response. Exported for unit tests.
  *
@@ -136,7 +126,7 @@ export function normalizeMuseJob(j) {
 export default {
   id: 'themuse',
 
-  async fetch(entry, ctx) {
+  async fetch(_entry, ctx) {
     assertMuseUrl(FEED_BASE);
 
     // Page 0 is fetched outside the tolerant loop below and its failure is
@@ -156,9 +146,8 @@ export default {
       );
     }
     const allResults = [...first.results];
-    const maxPages = resolveMaxPages(entry);
     const pageCount = Number.isInteger(first.page_count) && first.page_count > 1
-      ? Math.min(first.page_count, maxPages)
+      ? Math.min(first.page_count, MAX_PAGES)
       : 1;
 
     // Pages 1+ stay tolerant: a page that exhausts retries, OR comes back
