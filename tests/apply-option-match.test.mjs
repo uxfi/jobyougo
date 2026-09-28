@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { choiceKind, optionMatchScore, pickMatchingOption, selectionLooksCommitted } from '../lib/apply-option-match.mjs';
+import { choiceKind, listFilterText, optionMatchScore, pickMatchingOption, selectionLooksCommitted } from '../lib/apply-option-match.mjs';
+
+test('list filter types the short query and only the first word of a long one', () => {
+  assert.equal(listFilterText('Bangkok'), 'Bangkok');
+  assert.equal(listFilterText('Yes'), '');
+  assert.equal(listFilterText('No'), '');
+  assert.equal(listFilterText('I have led design systems across several product teams'), 'have');
+});
 
 test('choiceKind recognizes yes/no literals only', () => {
   assert.equal(choiceKind('Yes'), 'yes');
@@ -43,6 +50,9 @@ test('country aliases: France ↔ French Republic, Thailand ↔ Thaïlande', () 
 test('short country codes do not substring-match unrelated options', () => {
   assert.equal(pickMatchingOption(['Let us know', 'United States'], 'US')?.text, 'United States');
   assert.equal(pickMatchingOption(['From our team', 'France'], 'FR')?.text, 'France');
+  assert.equal(pickMatchingOption(['Australia', 'USA'], 'United States')?.text, 'USA');
+  assert.equal(pickMatchingOption(['Australia', 'Infrastructure'], 'United States'), null);
+  assert.equal(pickMatchingOption(['Australia', 'Infrastructure'], 'France'), null);
 });
 
 test('Male does not pick Female via substring', () => {

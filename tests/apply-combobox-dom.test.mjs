@@ -224,6 +224,33 @@ test('match mode resolves France country aliases', async () => {
   assert.equal(result.matched, 'France');
 });
 
+test('an open portaled listbox is read even when it sits far from the field', async () => {
+  await withContent(`
+    <input data-co-i="0" aria-expanded="true" style="position:absolute;top:0;left:0;width:180px;height:32px">
+    <div role="listbox" style="position:absolute;top:1800px;left:0">
+      <div role="option" style="width:220px;height:32px">Bangkok, Thailand</div>
+      <div role="option" style="width:220px;height:32px">Bangalore, India</div>
+    </div>
+  `);
+  const result = await q({ mode: 'match', i: 0, want: 'Bangkok', allowGlobal: false });
+  assert.equal(result.matched, 'Bangkok, Thailand');
+});
+
+test('country codes do not substring-match a different country', async () => {
+  await withContent(`
+    <input data-co-i="0">
+    <div role="listbox">
+      <div role="option">Australia</div>
+      <div role="option">USA</div>
+      <div role="option">Infrastructure</div>
+    </div>
+  `);
+  const us = await q({ mode: 'match', i: 0, want: 'United States', allowGlobal: false });
+  assert.equal(us.matched, 'USA');
+  const fr = await q({ mode: 'match', i: 0, want: 'France', allowGlobal: false });
+  assert.equal(fr.matched, null);
+});
+
 test('COMBOBOX_OPTION_SEL includes Workday and Select2 tokens', () => {
   assert.match(COMBOBOX_OPTION_SEL, /select2-results__option/);
   assert.match(COMBOBOX_OPTION_SEL, /promptOption/i);

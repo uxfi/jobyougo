@@ -6,6 +6,8 @@
  * snapshotIdentityFields runs in the page (no module scope).
  */
 
+import { isCandidateFullNameField } from '../lib/apply-fill-guards.mjs';
+
 export const AUTOFILL_WAIT_MS = 4500;
 
 export function snapshotIdentityFields() {
@@ -39,8 +41,16 @@ export function identityFieldKind(f) {
   }
   if (/first[\s_-]*name|given[\s_-]*name|pr[ée]nom|\bfname\b/.test(s)) return 'firstName';
   if (/last[\s_-]*name|family[\s_-]*name|surname|nom de famille|\blname\b/.test(s)) return 'lastName';
-  if (/full[\s_-]*name|legal[\s_-]*name|\byour name\b/.test(s)) return 'fullName';
-  if (/(^|[^a-z])name([^a-z]|$)/.test(s)) return 'fullName';
+  // Same rule as classifyField / isCoreApplicationIdentity — do not treat
+  // "attached to your name" essay prompts as a full-name identity field.
+  const field = {
+    label: f?.label || '',
+    name: f?.name || '',
+    idAttr: f?.idAttr || f?.id || '',
+    autocomplete: f?.autocomplete || '',
+    type: f?.type || '',
+  };
+  if (isCandidateFullNameField(field)) return 'fullName';
   return null;
 }
 

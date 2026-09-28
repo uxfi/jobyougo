@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fieldCompletionIssue, looksReadyToSubmit } from '../lib/apply-completion.mjs';
+import {
+  fieldCompletionIssue,
+  looksReadyToSubmit,
+  shouldUploadFileField,
+  fileSlotOccupied,
+  alreadyUploadedFile,
+} from '../lib/apply-completion.mjs';
 
 test('an explicit ATS error on a selected choice remains pending', () => {
   assert.equal(fieldCompletionIssue({
@@ -20,6 +26,24 @@ test('already-uploaded resume is not pending just because the ATS cloned the inp
   const f = { type: 'file', required: true, fileCount: 0, label: 'Resume', name: 'resume' };
   assert.equal(fieldCompletionIssue(f), 'fichier requis manquant');
   assert.equal(fieldCompletionIssue(f, { uploadedLabels: ['Resume'] }), null);
+});
+
+test('shouldUploadFileField skips occupied slots and a second resume after one CV', () => {
+  const empty = { type: 'file', label: 'Resume', name: 'resume', fileCount: 0, fileChip: '' };
+  const occupied = { type: 'file', label: 'Resume', name: 'resume', fileCount: 1, fileChip: 'cv.pdf' };
+  const chipOnly = { type: 'file', label: 'Resume', name: 'resume', fileCount: 0, fileChip: 'cv.pdf' };
+  const otherLabel = { type: 'file', label: 'Choose a file or drop it here', name: '', fileCount: 0, fileChip: '' };
+  assert.equal(fileSlotOccupied(occupied), true);
+  assert.equal(fileSlotOccupied(chipOnly), true);
+  assert.equal(fileSlotOccupied(empty), false);
+  assert.equal(shouldUploadFileField(empty), true);
+  assert.equal(shouldUploadFileField(occupied), false);
+  assert.equal(shouldUploadFileField(chipOnly), false);
+  assert.equal(shouldUploadFileField(empty, { uploadedLabels: ['Resume'] }), false);
+  assert.equal(alreadyUploadedFile(otherLabel, ['Resume']), false);
+  // Ashby re-exposes a second resume-like input with a different label — do not upload again.
+  assert.equal(shouldUploadFileField(otherLabel, { resumeAlreadyUploaded: true }), false);
+  assert.equal(shouldUploadFileField(otherLabel, { resumeAlreadyUploaded: false }), true);
 });
 
 test('resume dropzone without HTML required still blocks until a CV is attached', () => {

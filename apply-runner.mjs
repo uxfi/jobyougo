@@ -22,11 +22,11 @@ import { pickDeclineOption, pickSelectOption, llmKind } from './lib/apply-select
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice } from './lib/application-writing.mjs';
 import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isResumeFileField, shouldReplaceFilledValue, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
-import { fieldCompletionIssue, fieldMatchesAnswer, looksReadyToSubmit } from './lib/apply-completion.mjs';
+import { fieldCompletionIssue, fieldMatchesAnswer, looksReadyToSubmit, shouldUploadFileField } from './lib/apply-completion.mjs';
 import { COLLECT_FIELDS } from './lib/apply-collect-fields.mjs';
 import { watchApplicationTransition, exploreApplicationInterface } from './lib/apply-navigation.mjs';
 import { ACTIVATE_MATCHED_OPTION, COMBOBOX_OPTION_QUERY, COMBOBOX_OPTION_SEL, LIST_SELECTION_STATE } from './lib/apply-combobox-dom.mjs';
-import { pickMatchingOption, choiceKind, selectionLooksCommitted } from './lib/apply-option-match.mjs';
+import { pickMatchingOption, choiceKind, listFilterText, selectionLooksCommitted } from './lib/apply-option-match.mjs';
 import {
   PINCHTAB_URL,
   pinchtabClose,
@@ -1385,7 +1385,7 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
     // City / country widgets hide the menu until a few letters are typed.
     // The prefix is cleared again if no option is clicked.
     if (!hadOptionsOnOpen && looksLikeTypeahead(f) && q.length >= 2 && !binary) {
-      filterTyped = q.slice(0, Math.min(3, q.length));
+      filterTyped = listFilterText(q);
       await loc.fill('').catch(() => {});
       await loc.pressSequentially(filterTyped, { delay: rand(55, 130) }).catch(() => {});
       hadOptionsOnOpen = await pollUntil(menuOpened, 4, 70, 130);
@@ -1428,7 +1428,7 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
 
     // Filter the open menu with a short prefix. Never type the whole answer.
     if (!binary && !filterTyped && q.length >= 2) {
-      filterTyped = q.slice(0, Math.min(3, q.length));
+      filterTyped = listFilterText(q);
       await loc.fill('').catch(() => {});
       await loc.pressSequentially(filterTyped, { delay: rand(55, 130) }).catch(() => {});
       await pollUntil(menuOpened, 3, 70, 130);
@@ -1742,11 +1742,12 @@ async function fillFields(frame, spec) {
   const doneFiles = new Set();
   let uploaded = false;
   let sawResumeSlot = false;
+  let resumeAlreadyUploaded = false;
   for (let pass = 0; pass < 4; pass++) {
     let fileFields = (await collectFields(frame)).filter(f => f.type === 'file');
     // Plugin parity: Ashby sometimes hides the resume input so hard that
     // collect misses it — probe raw file inputs and synthesize a slot.
-    if (!fileFields.length && pass === 0 && spec.cvPath) {
+    if (!fileFields.length && pass === 0 && spec.cvPath && !resumeAlreadyUploaded) {
       const probe = await frame.evaluate(() => {
         const deep = (root, sel) => {
           const out = [];
@@ -1780,6 +1781,7 @@ async function fillFields(frame, spec) {
           name: el.name || '_systemfield_resume',
           required: true,
           fileCount: el.files?.length || 0,
+          fileChip: el.files?.[0]?.name || '',
         };
       }).catch(() => null);
       if (probe?.type === 'file') {
@@ -1787,7 +1789,12 @@ async function fillFields(frame, spec) {
         log(`CV slot forcé (input caché): ${probe.label || probe.name}`);
       }
     }
-    const todo = fileFields.find(f => !doneFiles.has((f.label || f.name || 'file').slice(0, 80)));
+    const uploadedLabels = filled.filter(x => String(x.value || '').includes('📎')).map(x => x.label);
+    const todo = fileFields.find(f => {
+      const key = (f.label || f.name || 'file').slice(0, 80);
+      if (doneFiles.has(key)) return false;
+      return shouldUploadFileField(f, { uploadedLabels, resumeAlreadyUploaded });
+    });
     if (!todo) break;
     const labelShort = (todo.label || todo.name || 'file').slice(0, 80);
     doneFiles.add(labelShort);
@@ -1819,6 +1826,7 @@ async function fillFields(frame, spec) {
       if (upload.ok) {
         filled.push({ label: labelShort, value: `📎 ${basenamePath(plan.upload)}` });
         uploaded = true;
+        if (isResumeFileField(todo) || plan.upload === spec.cvPath) resumeAlreadyUploaded = true;
         await waitForFormResettle(frame, UPLOAD_SETTLE_MS);
       } else {
         pending.push({ label: labelShort, reason: `upload échoué: ${upload.reason || 'aucun signal'}` });

@@ -215,5 +215,16 @@ test('l’autofill s’arrête sur une valeur fausse et continue si rien n’est
   assert.equal(autofillShouldKeepWaiting(partial.status), true);
 
   assert.equal(identityFieldKind({ name: 'company_name', value: 'Acme' }), null);
+  assert.equal(
+    identityFieldKind({
+      label: "If you were to leave your next role after three years, what is the one 'impossible' or 'legendary' achievement you want to have attached to your name?",
+      name: 'custom_question',
+      value: '',
+    }),
+    null,
+  );
+  assert.equal(identityFieldKind({ label: 'Full name', name: 'full_name', value: '' }), 'fullName');
+  assert.equal(identityFieldKind({ label: 'Name', name: 'name', value: '' }), 'fullName');
+  assert.equal(identityFieldKind({ label: 'First name', name: 'first_name', value: '' }), 'firstName');
   assert.equal(judgeAutofillSnapshot([], identity).status, 'absent');
 });

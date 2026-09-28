@@ -69,6 +69,44 @@ const cases = [
     <input type="text" name="name" placeholder="Your name">
     <button>Sign up</button>`, 'auth_wall'],
 
+  ['Connexion par lien magique (titre Log in, sans password)', `
+    <h1>Log in to continue</h1>
+    <input type="email" name="email" placeholder="Email">
+    <button>Send me a login link</button>`, 'auth_wall'],
+
+  ['Offre de job board avec Log in / Sign up dans le header (JustJoin.it)', `
+    <header>
+      <input type="text" name="location" placeholder="Location">
+      <button>Log in</button><button>Sign up</button>
+    </header>
+    <h1>Senior Product Designer</h1>
+    <p>Synerise is looking for a designer.</p>
+    <button>Apply</button>`, 'none'],
+
+  ['Offre Teamtailor : turbo-frame #application_form vide + Candidate Connect', `
+    <turbo-frame id="application_form"></turbo-frame>
+    <h1>Senior Product Designer</h1>
+    <p>AssessFirst is looking for a designer.</p>
+    <a href="#apply">Apply</a>
+    <section>
+      <h3>Candidate Connect</h3>
+      <input type="email" name="full_email" placeholder="Email">
+      <button>Candidate Connect login</button>
+    </section>`, 'none'],
+
+  ['Offre de designer : « designing » n est pas « sign in »', `
+    <h1>Senior Product Designer</h1>
+    <h2>What you will be designing</h2>
+    <p>Intelligent products for business users.</p>
+    <button>Apply</button>`, 'none'],
+
+  ['Titre caché d une bannière cookies (…_registered_properties)', `
+    <div style="display:none">
+      <strong role="heading">ph_phc_session_registered_properties</strong>
+    </div>
+    <h1>Senior Product Designer - Platform Design</h1>
+    <button>Apply</button>`, 'none'],
+
   ['Newsletter en pied de page', `
     <h1>Senior Product Designer</h1><p>Job description.</p>
     <footer>

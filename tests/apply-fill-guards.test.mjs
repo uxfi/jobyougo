@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint } from '../lib/apply-fill-guards.mjs';
+import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, isCandidateFullNameField, isCoreApplicationIdentity } from '../lib/apply-fill-guards.mjs';
 
 const field = (label, extra = {}) => ({ label, type: 'text', name: '', idAttr: '', ...extra });
 
@@ -65,6 +65,9 @@ test('isComboboxField uses role, aria, and select wrappers', () => {
   assert.equal(isComboboxField({ ariaHaspopup: 'listbox' }), true);
   assert.equal(isComboboxField({ nearSelectWrapper: true }), true);
   assert.equal(isComboboxField({ role: '', type: 'text' }), false);
+  // eRecruiter's Popover picker: a labelled <button aria-haspopup="dialog">.
+  assert.equal(isComboboxField({ tag: 'button', ariaHaspopup: 'dialog', label: 'When can you start working? *' }), true);
+  assert.equal(isComboboxField({ tag: 'input', ariaHaspopup: 'dialog', label: 'Date of birth' }), false);
 });
 
 test('shouldSpeculativeProbe skips identity and long-text fields', () => {
@@ -183,6 +186,26 @@ test('shouldFillField: profile links / cover / location fill even when optional;
   assert.equal(fieldLooksRequired(field('Location (City)*')), true);
   assert.equal(fieldLooksRequired(field('LinkedIn Profile')), false);
   assert.equal(fieldLooksRequired(field('Email (required)')), true);
+});
+
+test('isCandidateFullNameField: real name slots yes; "attached to your name" essay no', () => {
+  for (const label of ['Full name', 'Name', 'Your name', 'Legal name', 'What is your name?', 'Nom']) {
+    assert.equal(isCandidateFullNameField(field(label)), true, label);
+    assert.equal(isCoreApplicationIdentity(field(label)), true, label);
+  }
+  assert.equal(isCandidateFullNameField(field('First name')), false);
+  assert.equal(isCandidateFullNameField(field('Prénom')), false);
+  assert.equal(isCoreApplicationIdentity(field('First name')), true);
+  assert.equal(isCoreApplicationIdentity(field('Prénom')), true);
+  assert.equal(isCoreApplicationIdentity(field('Last name')), true);
+  assert.equal(isCoreApplicationIdentity(field('Email', { type: 'email' })), true);
+  assert.equal(isCoreApplicationIdentity(field('Phone', { type: 'tel' })), true);
+  assert.equal(isCandidateFullNameField(field('', { name: '_systemfield_name' })), true);
+  const legendary = field(
+    "If you were to leave your next role after three years, what is the one 'impossible' or 'legendary' achievement you want to have attached to your name?",
+  );
+  assert.equal(isCandidateFullNameField(legendary), false);
+  assert.equal(isCoreApplicationIdentity(legendary), false);
 });
 
 test('portfolio that mentions a password is still a URL field, not a credential', () => {

@@ -6,7 +6,9 @@
 //   detect-fields         → open URL + collect fields (legacy / one-shot)
 //   detect-fields-in-tab  → re-collect fields in an existing tab (no new tab)
 //   fill-fields           → write {i, value} into data-co-i markers
-//   probe-form            → run APPLICATION_FORM_PROBE source in the tab
+//   page-helper           → run a named in-page helper (page-helper-registry.mjs)
+//   probe-form            → APPLICATION_FORM_PROBE via page-helper (kept for old bridges)
+//   scrape-options        → open a dropdown and list its option texts
 //   click-progression     → mark + click Apply/Next/Guest controls
 //   navigate-tab          → chrome.tabs.update to a URL (ATS normalize)
 //   get-tab               → url / status of a tab
@@ -18,6 +20,7 @@
 // or when the UI sends action=submit.
 
 import { collectUploadSignals, judgeUploadSignals, mergeUploadSignals } from './apply-upload-signals.mjs';
+import { PAGE_HELPERS, mergeFrameResults } from './page-helper-registry.mjs';
 
 // Dashboard only. Port 8934 is the optional standalone dev-bridge; probing it
 // while it is down makes Chrome log ERR_CONNECTION_REFUSED on every retry.
@@ -50,7 +53,13 @@ function connect() {
   }
   ws.addEventListener('open', () => {
     console.log('[jobyougo-bridge] connected to', BRIDGE_URL);
-    send({ type: 'hello', extension: 'jobyougo-apply-bridge-poc' });
+    send({
+      type: 'hello',
+      extension: 'jobyougo-apply-bridge-poc',
+      version: chrome.runtime.getManifest().version,
+      // Lets the bridge skip messages an older build would never answer.
+      capabilities: ['page-helper', 'scrape-options'],
+    });
   });
   ws.addEventListener('close', scheduleReconnect);
   // Connection refused is reported by Chrome on the WebSocket constructor
@@ -128,14 +137,29 @@ async function onMessage(event) {
       return;
     }
 
-    if (msg.type === 'eval-in-tab' && msg.tabId && msg.src) {
-      const result = await evalSrcInTab(msg.tabId, msg.src);
-      reply(rid, 'eval-result', true, { tabId: msg.tabId, result });
+    if (msg.type === 'page-helper' && msg.tabId && msg.name) {
+      const result = await runPageHelper(msg.tabId, msg.name, msg.args);
+      reply(rid, 'helper-result', true, { tabId: msg.tabId, result });
       return;
     }
 
-    if (msg.type === 'probe-form' && msg.tabId && msg.probeSrc) {
-      const probe = await runSrcInTab(msg.tabId, msg.probeSrc);
+    // String evaluation cannot run in an MV3 isolated world (CSP forbids
+    // 'unsafe-eval'). Answer at once so an older bridge does not wait out its
+    // request timeout; page-helper replaced every caller.
+    if (msg.type === 'eval-in-tab') {
+      reply(rid, 'eval-result', true, { tabId: msg.tabId, result: null, unsupported: true });
+      return;
+    }
+
+    if (msg.type === 'scrape-options' && msg.tabId && msg.i != null) {
+      const options = await scrapeOptionsInTab(msg.tabId, msg.i, msg.frameId);
+      reply(rid, 'options-result', true, { tabId: msg.tabId, options });
+      return;
+    }
+
+    // An older bridge still sends probeSrc: ignored, the shipped probe runs.
+    if (msg.type === 'probe-form' && msg.tabId) {
+      const probe = await runPageHelper(msg.tabId, 'APPLICATION_FORM_PROBE');
       reply(rid, 'probe-result', true, { tabId: msg.tabId, probe });
       return;
     }
@@ -221,6 +245,8 @@ async function onMessage(event) {
       .replace('fill-fields', 'fill-result')
       .replace('upload-file', 'upload-result')
       .replace('eval-in-tab', 'eval-result')
+      .replace('page-helper', 'helper-result')
+      .replace('scrape-options', 'options-result')
       .replace('probe-form', 'probe-result')
       .replace('click-progression', 'click-result')
       .replace('click-submit', 'click-result')
@@ -321,65 +347,78 @@ async function detectFieldsInNewTab(url) {
   return { tabId: tab.id, fields };
 }
 
-async function runSrcInTab(tabId, src) {
-  // Probe every frame; prefer the first application_form hit.
+// Run a registered in-page helper and merge its per-frame results. Only names
+// in PAGE_HELPERS exist: the bridge picks a helper, it never sends code (the
+// old source-string path needed new Function, which this world forbids).
+async function runPageHelper(tabId, name, args = []) {
+  const spec = Object.hasOwn(PAGE_HELPERS, name) ? PAGE_HELPERS[name] : null;
+  if (!spec) throw new Error(`unknown page helper "${name}"`);
   const injected = await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    func: (source) => {
-      try {
-        // eslint-disable-next-line no-new-func
-        const fn = new Function(`return (${source});`)();
-        return typeof fn === 'function' ? fn() : fn;
-      } catch {
-        return { verdict: 'none', score: 0, signals: [], blockers: ['probe_error'] };
-      }
-    },
-    args: [src],
+    target: spec.frames === 'main' ? { tabId, frameIds: [0] } : { tabId, allFrames: true },
+    func: spec.func,
+    args: Array.isArray(args) ? args : [],
   });
-  let best = { verdict: 'none', score: 0, signals: [], blockers: [] };
-  for (const entry of injected) {
-    const probe = entry.result;
-    if (!probe) continue;
-    if (probe.verdict === 'application_form') return probe;
-    if (probe.verdict === 'auth_wall' && best.verdict === 'none') best = probe;
-    if ((probe.score || 0) > (best.score || 0)) best = probe;
-  }
-  return best;
+  return mergeFrameResults(spec, injected);
 }
 
-/** Generic evaluate (boolean OR across frames, else last object). */
-async function evalSrcInTab(tabId, src) {
-  const injected = await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    func: (source) => {
-      try {
-        // eslint-disable-next-line no-new-func
-        const fn = new Function(`return (${source});`)();
-        return typeof fn === 'function' ? fn() : fn;
-      } catch {
-        return null;
-      }
-    },
-    args: [src],
-  });
-  let sawBool = false;
-  let boolAcc = false;
-  let lastObj = null;
-  for (const entry of injected || []) {
-    const r = entry.result;
-    if (typeof r === 'boolean') {
-      sawBool = true;
-      boolAcc = boolAcc || r;
-    } else if (r != null) {
-      if (Array.isArray(r.labels) && Array.isArray(lastObj?.labels)) {
-        const labels = [...new Set([...lastObj.labels, ...r.labels])].slice(0, 40);
-        lastObj = { ...lastObj, ...r, labels };
-      } else {
-        lastObj = r;
-      }
-    }
+// Open the collected dropdown `i`, list its option texts, close it again.
+// A real function, not eval-in-tab: the isolated world's CSP forbids
+// new Function, so the string-eval scrape always came back empty. Async and
+// polled because React 18/19 commits the opened list after the click
+// handler returns. Returns null in frames that do not hold the field.
+async function scrapeOptionsInPage(i) {
+  const deep = (root, sel) => {
+    const out = [];
+    const walk = (n) => {
+      if (!n?.querySelectorAll) return;
+      try { out.push(...n.querySelectorAll(sel)); } catch { /* ignore */ }
+      for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+    };
+    walk(root);
+    return out;
+  };
+  const el = deep(document, `[data-co-i="${i}"]`)[0];
+  if (!el) return null;
+  try { el.scrollIntoView({ block: 'center' }); } catch { /* ignore */ }
+  // A failed CDP pick leaves the list open; clicking a toggle trigger then
+  // would shut it and read nothing.
+  if (el.getAttribute('aria-expanded') !== 'true') {
+    el.click();
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
   }
-  return sawBool ? boolAcc : lastObj;
+  el.focus();
+  const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [class*="select__option"], [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], .select2-results__option, [class*="-option" i], [role="listbox"] li';
+  const PLACEHOLDER = /^(select\b|choose\b|--|please\b|s[ée]lectionn|aucun|loading|searching|no options|no results|start typing|type to search)/i;
+  const read = (root) => deep(root, SEL)
+    .filter((n) => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+    .map((n) => (n.innerText || n.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim())
+    .filter((t) => t && t.length < 160 && !PLACEHOLDER.test(t));
+  // Scope to the list the control owns when it names one, so another open
+  // widget's rows never leak in; fall back to the page as before.
+  const controls = (el.getAttribute('aria-controls') || '').trim();
+  let texts = [];
+  for (let k = 0; k < 12 && !texts.length; k++) {
+    if (k) await new Promise((r) => setTimeout(r, 100));
+    const box = controls ? document.getElementById(controls) : null;
+    texts = controls ? (box ? read(box) : []) : read(document);
+  }
+  if (!texts.length && controls) texts = read(document);
+  el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
+  return [...new Set(texts)].slice(0, 40).map((t, k) => ({ value: t, text: t, key: `${i}:${k}` }));
+}
+
+// data-co-i restarts at 0 in every frame: target the field's own frame
+// (fillFieldsInTab does the same), all frames only when it is unknown.
+async function scrapeOptionsInTab(tabId, i, frameId) {
+  const injected = await chrome.scripting.executeScript({
+    target: Number.isInteger(frameId) ? { tabId, frameIds: [frameId] } : { tabId, allFrames: true },
+    func: scrapeOptionsInPage,
+    args: [i],
+  });
+  for (const entry of injected || []) {
+    if (Array.isArray(entry.result)) return entry.result;
+  }
+  return [];
 }
 
 // Mirrors lib/form-detect.mjs MARK_PROGRESSION_CONTROLS, then clicks the first
@@ -461,19 +500,24 @@ function markAndClickInPage(reSrc, skip, avoidSrc) {
   }
   // Buttons that call window.open() hit the popup blocker. Capture the URL
   // and let the service worker open that one tab when the popup is blocked.
+  // Only works in the page's MAIN world (see clickProgressionInTab).
   const origOpen = window.open;
   let captured = '';
   let popupBlocked = false;
-  window.open = function (url, ...rest) {
-    try {
-      const abs = new URL(String(url || ''), location.href).href;
-      const here = location.href.split('#')[0];
-      if (/^https?:/i.test(abs) && abs.split('#')[0] !== here) captured = abs;
-    } catch { /* ignore non-URLs */ }
-    const win = origOpen.apply(this, [url, ...rest]);
-    if (!win) popupBlocked = true;
-    return win;
-  };
+  let patched = false;
+  try {
+    window.open = function (url, ...rest) {
+      try {
+        const abs = new URL(String(url || ''), location.href).href;
+        const here = location.href.split('#')[0];
+        if (/^https?:/i.test(abs) && abs.split('#')[0] !== here) captured = abs;
+      } catch { /* ignore non-URLs */ }
+      const win = origOpen.apply(this, [url, ...rest]);
+      if (!win) popupBlocked = true;
+      return win;
+    };
+    patched = window.open !== origOpen;
+  } catch { /* page locked window.open — click without capture */ }
   try {
     try { first.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch { /* ignore */ }
     const base = { bubbles: true, cancelable: true, composed: true, view: window, button: 0, buttons: 1 };
@@ -483,7 +527,7 @@ function markAndClickInPage(reSrc, skip, avoidSrc) {
     first.dispatchEvent(new MouseEvent('mouseup', base));
     first.click();
   } finally {
-    window.open = origOpen;
+    if (patched) window.open = origOpen;
   }
   if (captured && popupBlocked) {
     return { clicked: false, openHref: captured, text: out[0].text, href: captured, target: 'window.open', marked: out };
@@ -573,8 +617,13 @@ async function clickProgressionInTab(tabId, reSrc, avoidSrc, skip, { scrollFirst
     const watch = beginChildTabWatch(tabId);
     let result;
     try {
+      // MAIN world: the window.open capture in markAndClickInPage must wrap
+      // the page's own window.open. An isolated-world override is invisible
+      // to page scripts, so JustJoin.it's Apply (window.open → eRecruiter)
+      // was popup-blocked with nothing captured and the run stalled.
       const [{ result: pageResult }] = await chrome.scripting.executeScript({
         target: { tabId },
+        world: 'MAIN',
         func: markAndClickInPage,
         args: [reSrc, skip, avoidSrc],
       });
@@ -946,8 +995,20 @@ async function fillFieldsInPage(updates) {
         .trim().split(/\s+/).filter(Boolean);
       const boxes = ids.map((id) => document.getElementById(id)).filter(Boolean);
       const owned = boxes.length ? cands.filter((n) => boxes.some((b) => b.contains(n))) : [];
+      const visibleBox = (b) => {
+        const r = b.getBoundingClientRect();
+        return r.width > 8 && r.height > 8;
+      };
+      const expanded = fieldEl.getAttribute('aria-expanded') === 'true';
+      const portals = (expanded
+        ? deepQueryAll(document, '[role="listbox"], [role="menu"], .pac-container')
+        : deepQueryAll(document, '.pac-container')
+      ).filter(visibleBox);
+      const inPortal = portals.length ? cands.filter((n) => portals.some((b) => b.contains(n))) : [];
       if (owned.length) {
         cands = owned;
+      } else if (inPortal.length) {
+        cands = inPortal;
       } else {
         const r = fieldEl.getBoundingClientRect();
         // Symmetric above/below — menus flip upward near the bottom of the form.
@@ -991,7 +1052,13 @@ async function fillFieldsInPage(updates) {
       singapore: ['singapore', 'sg'],
     };
     for (const aliases of Object.values(COUNTRY)) {
-      if (aliases.includes(wLow) && aliases.some((a) => low === a || low.includes(a))) return 85;
+      if (!aliases.includes(wLow)) continue;
+      for (const a of aliases) {
+        if (low === a) return 85;
+        if (a.length < 4) continue;
+        const boundedAlias = new RegExp(`(^|\\W)${a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\W|$)`, 'i');
+        if (boundedAlias.test(low)) return 85;
+      }
     }
     if (raw.length >= 2) {
       const bounded = new RegExp(`(^|\\W)${raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\W|$)`, 'i');
@@ -1009,20 +1076,41 @@ async function fillFieldsInPage(updates) {
       if (s > best) { best = s; hit = n; }
     }
     if (best >= 50) return hit;
-    if (nodes.length === 1 && normText(want).length >= 1) return nodes[0];
+    if (nodes.length === 1 && normText(want).length >= 2) {
+      const only = normText(nodes[0].innerText || nodes[0].getAttribute?.('aria-label')).toLowerCase();
+      const q = normText(want).toLowerCase();
+      if (only && (only.includes(q) || q.includes(only) || only.startsWith(q.slice(0, 3)))) return nodes[0];
+    }
     return null;
   };
 
-  const selectionRegistered = (fieldEl) => {
+  const committedText = (fieldEl) => {
     let node = fieldEl.parentElement;
-    for (let d = 0; d < 6 && node; d++, node = node.parentElement) {
-      const shadow = node.querySelector?.('input[aria-hidden="true"][required], [class*="requiredInput" i]');
-      if (shadow) return !!String(shadow.value || '').trim();
+    // Stay inside the field's own wrapper. Searched from the <form>, the
+    // first hidden input belongs to some other control — a Radix checkbox's
+    // bubble input reads "on" — and every eRecruiter pick was judged failed.
+    for (let d = 0; d < 6 && node && node.tagName !== 'FORM'; d++, node = node.parentElement) {
+      const shown = node.querySelector?.('[class*="singleValue" i], [class*="single-value" i]');
+      if (shown) return normText(shown.textContent);
+      const shadow = node.querySelector?.('input[aria-hidden="true"]:not([type="checkbox"]):not([type="radio"])');
+      if (shadow && String(shadow.value || '').trim()) return normText(shadow.value);
     }
-    // No react-select shadow input — trust a non-placeholder visible value.
-    const shown = normText(fieldEl.value || fieldEl.innerText || fieldEl.getAttribute?.('aria-valuetext'));
-    if (shown && !PLACEHOLDER_OPT.test(shown) && shown.toLowerCase() !== 'select...') return true;
-    return null; // unknown — caller treats click as success
+    if (fieldEl.tagName === 'BUTTON' || fieldEl.getAttribute('aria-haspopup')) {
+      return normText(fieldEl.innerText || fieldEl.textContent);
+    }
+    return normText(fieldEl.value || '');
+  };
+
+  // A typed filter ("Ban") is not a selection of "Bangkok". The visible value
+  // has to be the option, not a prefix still sitting in the box.
+  const selectionMatches = (fieldEl, pickedText) => {
+    const got = committedText(fieldEl).toLowerCase();
+    const want = normText(pickedText).toLowerCase();
+    if (!got || !want || PLACEHOLDER_OPT.test(got) || got === 'select...') return false;
+    if (got === want) return true;
+    if (want.startsWith(got) && got.length < want.length) return false;
+    if (want.length >= 4 && got.includes(want)) return true;
+    return false;
   };
 
   const typeIntoFilter = async (fieldEl, text) => {
@@ -1069,91 +1157,97 @@ async function fillFieldsInPage(updates) {
     fieldEl.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Escape', code: 'Escape' }));
   };
 
+  const filterQuery = (text) => {
+    const s = normText(text);
+    if (!s || /^(yes|oui|y|true|no|non|n|false)$/i.test(s)) return '';
+    if (s.length <= 20) return s;
+    const word = s.split(/\s+/).find((w) => w.length >= 3) || s.split(/\s+/)[0];
+    return word.slice(0, 16);
+  };
+
+  const clearFilter = (fieldEl) => {
+    pressEscape(fieldEl);
+    const tag = fieldEl.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+    if (tag === 'INPUT' && inputSetter) inputSetter.call(fieldEl, '');
+    else if (tag === 'TEXTAREA' && textareaSetter) textareaSetter.call(fieldEl, '');
+    else fieldEl.value = '';
+    fieldEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' }));
+  };
+
   const selectComboboxOption = async (el, want, { known = true, looseContains = '' } = {}) => {
     const w = normText(want);
     if (!w) return null;
     const binary = /^(yes|oui|y|true|no|non|n|false)$/i.test(w);
 
-    const tryPick = async () => {
-      const { nodes } = optionSnapshot(el, known);
-      const match = pickBestOption(nodes, w);
+    const tryPick = async (query) => {
+      const { nodes } = optionSnapshot(el, true);
+      const match = pickBestOption(nodes, query || w);
       if (!match) return null;
+      const label = normText(match.innerText || match.getAttribute?.('aria-label'));
       document.querySelectorAll('[data-co-match]').forEach((e) => e.removeAttribute('data-co-match'));
       match.setAttribute('data-co-match', '1');
       pointerClick(match);
-      await sleep(180);
-      const ok = selectionRegistered(el);
-      if (ok === false) return null;
-      return normText(match.innerText || match.getAttribute?.('aria-label'));
+      await sleep(220);
+      if (!selectionMatches(el, label)) return null;
+      return label;
+    };
+
+    const waitOptions = async (beforeSig) => {
+      for (let i = 0; i < 8; i++) {
+        await sleep(90);
+        const snap = optionSnapshot(el, true);
+        if (snap.count > 0 && snap.sig !== beforeSig) return true;
+      }
+      return false;
     };
 
     for (let attempt = 0; attempt < 2; attempt++) {
-      const before = optionSnapshot(el, known);
+      const before = optionSnapshot(el, true);
       openCombobox(el);
-      let opened = false;
-      for (let i = 0; i < 8; i++) {
-        await sleep(90);
-        const snap = optionSnapshot(el, known);
-        if (snap.count > 0 && snap.sig !== before.sig) { opened = true; break; }
-        if (snap.count > before.count) { opened = true; break; }
-      }
+      const opened = await waitOptions(before.sig);
 
       if (opened) {
-        const picked = await tryPick();
-        if (picked) {
-          pressEscape(el);
-          return picked;
-        }
+        const picked = await tryPick(w);
+        if (picked) return picked;
       }
 
-      // Filterable lists: type after open (never type Yes/No — filters "No"→"None").
-      if (!binary && (opened || known)) {
-        await typeIntoFilter(el, w);
-        for (let i = 0; i < 6; i++) {
-          await sleep(80);
-          const picked = await tryPick();
-          if (picked) {
-            pressEscape(el);
-            return picked;
-          }
-        }
-        // Single remaining filtered option → Enter.
-        const { count } = optionSnapshot(el, known);
-        if (count === 1) {
+      // Typeahead: write the query, wait for the filtered rows, then click one.
+      // Yes/No is never typed ("No" filters down to "None").
+      const typed = binary ? '' : filterQuery(w);
+      if (typed) {
+        await typeIntoFilter(el, typed);
+        await waitOptions('');
+        const picked = await tryPick(w);
+        if (picked) return picked;
+        const { nodes } = optionSnapshot(el, true);
+        if (nodes.length === 1) {
+          const only = normText(nodes[0].innerText || nodes[0].getAttribute?.('aria-label'));
           el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', code: 'Enter' }));
           el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter', code: 'Enter' }));
-          await sleep(150);
-          const ok = selectionRegistered(el);
-          if (ok !== false) {
-            pressEscape(el);
-            return w;
-          }
+          await sleep(180);
+          if (selectionMatches(el, only)) return only;
         }
       }
 
-      pressEscape(el);
-      await sleep(200);
+      clearFilter(el);
+      await sleep(160);
     }
+
     const loose = normText(looseContains);
     if (loose.length >= 3) {
-      const prefix = loose.slice(0, 3);
       openCombobox(el);
-      await typeIntoFilter(el, prefix);
-      for (let i = 0; i < 6; i++) {
-        await sleep(80);
-        const { nodes } = optionSnapshot(el, known);
-        const match = nodes.find((n) => normText(n.innerText || n.getAttribute?.('aria-label')).toLowerCase().includes(loose.toLowerCase()));
-        if (!match) continue;
-        document.querySelectorAll('[data-co-match]').forEach((e) => e.removeAttribute('data-co-match'));
-        match.setAttribute('data-co-match', '1');
+      await typeIntoFilter(el, loose.slice(0, Math.min(loose.length, 20)));
+      await waitOptions('');
+      const { nodes } = optionSnapshot(el, true);
+      const match = nodes.find((n) => normText(n.innerText || n.getAttribute?.('aria-label')).toLowerCase().includes(loose.toLowerCase()));
+      if (match) {
+        const label = normText(match.innerText || match.getAttribute?.('aria-label'));
         pointerClick(match);
-        await sleep(180);
-        if (selectionRegistered(el) !== false) {
-          pressEscape(el);
-          return normText(match.innerText || match.getAttribute?.('aria-label'));
-        }
+        await sleep(220);
+        if (selectionMatches(el, label)) return label;
       }
-      pressEscape(el);
+      clearFilter(el);
     }
     return null;
   };
@@ -1416,6 +1510,9 @@ async function fillFieldsInPage(updates) {
         || !!selectWrapper
         || el.getAttribute('aria-haspopup') === 'listbox'
         || el.getAttribute('aria-haspopup') === 'menu'
+        // Popover picker (eRecruiter): only collected when it is a labelled
+        // form control, and its text becomes the choice once one is picked.
+        || (tag === 'BUTTON' && el.getAttribute('aria-haspopup') === 'dialog')
         || (tag === 'BUTTON' && /select|choose|dropdown|country|location/i.test(el.getAttribute('aria-label') || el.innerText || ''));
       const looksCombobox = strongCombobox
         || el.getAttribute('aria-autocomplete') === 'list'

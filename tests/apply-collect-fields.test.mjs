@@ -280,6 +280,26 @@ test('button role=combobox is collected (custom ATS select)', async () => {
   assert.match(combo.label, /experience/i);
 });
 
+test('labelled aria-haspopup=dialog picker is collected, its shown choice is the value (eRecruiter)', async () => {
+  const fields = await collect(`
+    <label for="av">When can you start working? <span aria-hidden="true">*</span></label>
+    <button type="button" id="av" aria-haspopup="dialog" aria-required="true" aria-controls="pop-av"><span>Select</span></button>
+    <label for="ct">Which type of contract do you prefer? *</label>
+    <button type="button" id="ct" aria-haspopup="dialog" aria-controls="pop-ct"><span>B2B contract</span></button>
+    <button type="button" aria-haspopup="dialog">Privacy policy</button>
+  `);
+  const pickers = fields.filter(f => f.ariaHaspopup === 'dialog');
+  assert.equal(pickers.length, 2, JSON.stringify(fields.map(f => `${f.tag}:${f.ariaHaspopup}:${f.label}`)));
+  const [avail, contract] = pickers;
+  assert.match(avail.label, /start working/i);
+  assert.equal(avail.type, 'text');
+  assert.equal(avail.required, true);
+  assert.equal(avail.value, '', 'the "Select" prompt is not a choice');
+  assert.equal(fieldCompletionIssue(avail), 'requis et vide');
+  assert.equal(contract.value, 'B2B contract');
+  assert.equal(fieldCompletionIssue(contract), null);
+});
+
 test('Your answer textarea keeps the question as its label', async () => {
   const fields = await collect(`
     <div>

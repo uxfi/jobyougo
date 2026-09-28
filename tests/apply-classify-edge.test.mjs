@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyField } from '../lib/apply-classify.mjs';
-import { shouldFillField, skipComboboxProbe, screeningChoicePlan } from '../lib/apply-fill-guards.mjs';
+import {
+  shouldFillField,
+  skipComboboxProbe,
+  screeningChoicePlan,
+  isCandidateFullNameField,
+  isCoreApplicationIdentity,
+} from '../lib/apply-fill-guards.mjs';
 
 const id = {
   fullName: 'Hugo Vermot',
@@ -41,12 +47,30 @@ test('combined / full name boxes get Hugo Vermot; split names stay split', () =>
   assert.equal(classifyField(f('First Name / Last Name'), spec)?.value, 'Hugo Vermot');
   assert.equal(classifyField(f('Name'), spec)?.value, 'Hugo Vermot');
   assert.equal(classifyField(f('Name *'), spec)?.value, 'Hugo Vermot');
+  assert.equal(classifyField(f('Your name'), spec)?.value, 'Hugo Vermot');
+  assert.equal(classifyField(f('Full name'), spec)?.value, 'Hugo Vermot');
   assert.equal(classifyField(f('What is your name?'), spec)?.value, 'Hugo Vermot');
   assert.equal(classifyField(f('First name'), spec)?.value, 'Hugo');
   assert.equal(classifyField(f('Last name'), spec)?.value, 'Vermot');
   assert.equal(classifyField(f('', { name: '_systemfield_name' }), spec)?.value, 'Hugo Vermot');
   assert.equal(shouldFillField(f('First and last name')), true);
   assert.equal(skipComboboxProbe(f('First and last name')), true);
+});
+
+test('essay prompts that casually say "name" are not the identity name field', () => {
+  // Deliverect / Lever open question — `\bname\b` / "your name" used to return Hugo Vermot.
+  const deliverect = f(
+    "If you were to leave your next role after three years, what is the one 'impossible' or 'legendary' achievement you want to have attached to your name?",
+    { tag: 'textarea' },
+  );
+  assert.equal(isCandidateFullNameField(deliverect), false);
+  assert.equal(isCoreApplicationIdentity(deliverect), false);
+  assert.notEqual(classifyField(deliverect, spec)?.value, 'Hugo Vermot');
+  assert.equal(classifyField(deliverect, spec), null);
+  assert.equal(classifyField(f('Make a name for yourself — describe your goal'), spec)?.value, undefined);
+  // Short identity labels still resolve.
+  assert.equal(classifyField(f('Your name'), spec)?.value, 'Hugo Vermot');
+  assert.equal(classifyField(f('Name'), spec)?.value, 'Hugo Vermot');
 });
 
 test('third-party / company / file name slots are not the candidate name', () => {

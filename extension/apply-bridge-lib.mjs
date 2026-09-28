@@ -13,14 +13,7 @@ import { join, dirname, basename, resolve, extname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
-import {
-  APPLICATION_FORM_PROBE,
-  AUTH_AVOID_TEXT_RE,
-  GUEST_TEXT_RE,
-  PAGE_SHOWS_APPLY_ENTRY,
-  LIST_VISIBLE_NAV_BUTTONS,
-  PAGE_STEP_SNAPSHOT,
-} from '../lib/form-detect.mjs';
+import { AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE } from '../lib/form-detect.mjs';
 import { classifyField } from '../lib/apply-classify.mjs';
 import { resolveUnknownFields, polishApplicationAnswer, hasUnresolvedPlaceholder } from '../lib/apply-llm.mjs';
 import { loadApplicationVoice } from '../lib/application-writing.mjs';
@@ -34,7 +27,7 @@ import {
   isApplicationGateConsent,
 } from '../lib/apply-fill-guards.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, DECLINE_RE } from '../lib/apply-select.mjs';
-import { fieldCompletionIssue, looksReadyToSubmit } from '../lib/apply-completion.mjs';
+import { fieldCompletionIssue, looksReadyToSubmit, shouldUploadFileField } from '../lib/apply-completion.mjs';
 import { computeStartDateISO as toIsoDate } from '../lib/apply-spec.mjs';
 import { extractEmbeddedApplyUrl } from '../lib/apply-navigation.mjs';
 import {
@@ -68,7 +61,6 @@ import {
   AUTOFILL_WAIT_MS,
   autofillShouldKeepWaiting,
   judgeAutofillSnapshot,
-  snapshotIdentityFields,
 } from './apply-autofill.mjs';
 
 export { normalizeAtsUrl, identifyAts };
@@ -238,6 +230,10 @@ export class ApplyBridge {
     this.pending = new Map();
     this.reqCounter = 0;
     this.onLog = () => {};
+    // From the extension's hello: messages this build answers.
+    this.capabilities = new Set();
+    this.extensionVersion = null;
+    this._warnedNoPageHelper = false;
   }
 
   get connected() {
@@ -254,6 +250,9 @@ export class ApplyBridge {
       this._rejectAllPending(new Error('apply-bridge socket replaced'));
     }
     this.socket = socket;
+    // Until this socket's hello arrives, assume nothing (it may be a reload).
+    this.capabilities = new Set();
+    this.extensionVersion = null;
     for (const waiter of this._connectWaiters ?? []) waiter();
     this._connectWaiters = [];
     socket.on('message', (raw) => this._onMessage(raw));
@@ -289,7 +288,14 @@ export class ApplyBridge {
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return; }
     if (msg.type === 'hello') {
-      // Identity only — connect is already logged in attachApplyBridge.
+      // Connect is already logged in attachApplyBridge; only a build too old
+      // for page-helper is worth a line, once.
+      this.extensionVersion = msg.version || null;
+      this.capabilities = new Set(Array.isArray(msg.capabilities) ? msg.capabilities : []);
+      if (!this.capabilities.has('page-helper') && !this._warnedNoPageHelper) {
+        this._warnedNoPageHelper = true;
+        this.onLog(`extension ${msg.version || '(pre-0.0.27)'} lacks page-helper: form probe, autofill wait and nav buttons stay empty — reload it in chrome://extensions`);
+      }
       return;
     }
     const waiter = this.pending.get(msg.requestId);
@@ -365,11 +371,20 @@ export class ApplyBridge {
     return this._request('click-submit', { tabId, reSrc: SUBMIT_TEXT_RE.source });
   }
 
-  pageShowsApplyEntry(tabId) {
-    return this._request('eval-in-tab', {
-      tabId,
-      src: PAGE_SHOWS_APPLY_ENTRY.toString(),
-    });
+  /**
+   * Run a named in-page helper (extension/page-helper-registry.mjs) and get
+   * its merged result. Resolves null when the extension build predates
+   * page-helper — its string-eval path never ran either. Request errors
+   * ("No tab with id…") still reject: callers recover lost tabs from them.
+   */
+  async _pageHelper(tabId, name, args = []) {
+    if (!this.capabilities.has('page-helper')) return null;
+    const res = await this._request('page-helper', { tabId, name, args });
+    return res?.result ?? null;
+  }
+
+  async pageShowsApplyEntry(tabId) {
+    return (await this._pageHelper(tabId, 'PAGE_SHOWS_APPLY_ENTRY')) === true;
   }
 
   /**
@@ -380,11 +395,8 @@ export class ApplyBridge {
   async waitResumeAutofill(tabId, identity = {}, timeoutMs = AUTOFILL_WAIT_MS) {
     const read = async () => {
       try {
-        const res = await this._request('eval-in-tab', {
-          tabId,
-          src: `(${snapshotIdentityFields.toString()})()`,
-        });
-        return Array.isArray(res?.result) ? res.result : [];
+        const fields = await this._pageHelper(tabId, 'IDENTITY_SNAPSHOT');
+        return Array.isArray(fields) ? fields : [];
       } catch {
         return [];
       }
@@ -408,51 +420,25 @@ export class ApplyBridge {
     };
   }
 
-  /** Open a combobox and list visible option texts (for LLM / selectPrefer). */
+  /**
+   * Open a combobox and list visible option texts (for LLM / selectPrefer).
+   * Dedicated extension message: the old eval-in-tab string source always
+   * failed (isolated-world CSP forbids new Function), so the LLM never saw
+   * the real options. Short timeout — an extension build that predates
+   * scrape-options never replies.
+   */
   async scrapeComboboxOptions(tabId, f) {
     try {
-      const res = await this._request('eval-in-tab', {
-        tabId,
-        src: `(() => {
-          const i = ${JSON.stringify(f.i)};
-          const deep = (root, sel) => {
-            const out = [];
-            const walk = (n) => {
-              if (!n?.querySelectorAll) return;
-              try { out.push(...n.querySelectorAll(sel)); } catch {}
-              for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
-            };
-            walk(root);
-            return out;
-          };
-          const el = deep(document, '[data-co-i="' + i + '"]')[0]
-            || document.querySelector('[data-co-i="' + i + '"]');
-          if (!el) return [];
-          try { el.scrollIntoView({ block: 'center' }); } catch {}
-          el.click();
-          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-          el.focus();
-          const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [class*="select__option"], [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], .select2-results__option, [class*="-option" i], [role="listbox"] li';
-          const PLACEHOLDER = /^(select\\b|choose\\b|--|please\\b|s[ée]lectionn|aucun|loading|searching|no options|no results|start typing|type to search)/i;
-          const texts = deep(document, SEL)
-            .filter((n) => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
-            .map((n) => (n.innerText || n.getAttribute('aria-label') || '').replace(/\\s+/g, ' ').trim())
-            .filter((t) => t && t.length < 160 && !PLACEHOLDER.test(t));
-          el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
-          return [...new Set(texts)].slice(0, 40).map((t, k) => ({ value: t, text: t, key: i + ':' + k }));
-        })()`,
-      });
-      return Array.isArray(res?.result) ? res.result : [];
+      const res = await this._request('scrape-options', { tabId, i: f.i, frameId: f.frameId ?? 0 }, 8000);
+      return Array.isArray(res?.options) ? res.options : [];
     } catch {
       return [];
     }
   }
 
-  probeForm(tabId) {
-    return this._request('probe-form', {
-      tabId,
-      probeSrc: APPLICATION_FORM_PROBE.toString(),
-    });
+  async probeForm(tabId) {
+    const probe = await this._pageHelper(tabId, 'APPLICATION_FORM_PROBE');
+    return { probe: probe || { verdict: 'none', score: 0, signals: [], blockers: [] } };
   }
 
   clickProgression(tabId, textRe, skip = [], { scrollFirst = true } = {}) {
@@ -498,14 +484,11 @@ export class ApplyBridge {
 
     let listed = [];
     try {
-      const res = await this._request('eval-in-tab', {
-        tabId,
-        src: `(${LIST_VISIBLE_NAV_BUTTONS.toString()})(${JSON.stringify({
-          avoidSrc: AUTH_AVOID_TEXT_RE.source,
-          skip: skipTexts || [],
-        })})`,
-      });
-      listed = Array.isArray(res?.result) ? res.result : [];
+      const res = await this._pageHelper(tabId, 'LIST_VISIBLE_NAV_BUTTONS', [{
+        avoidSrc: AUTH_AVOID_TEXT_RE.source,
+        skip: skipTexts || [],
+      }]);
+      listed = Array.isArray(res) ? res : [];
     } catch { listed = []; }
 
     const buttons = filterNavButtons(listed, skipTexts);
@@ -563,37 +546,7 @@ export class ApplyBridge {
 
   /** Visible button labels (disabled controls excluded). Empty when none are found. */
   async listVisibleActionLabels(tabId) {
-    const res = await this._request('eval-in-tab', {
-      tabId,
-      src: `(() => {
-        const deep = (root, sel) => {
-          const out = [];
-          const walk = (n) => {
-            if (!n || !n.querySelectorAll) return;
-            try { out.push(...n.querySelectorAll(sel)); } catch (e) {}
-            for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
-          };
-          walk(root);
-          return out;
-        };
-        const disabled = (el) => !!(el.disabled || el.getAttribute('aria-disabled') === 'true' || (el.closest && el.closest('[disabled],[aria-disabled="true"],[inert]')));
-        const visible = (el) => {
-          const r = el.getBoundingClientRect();
-          return r.width > 5 && r.height > 5;
-        };
-        const label = (el) => String(el.innerText || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '').replace(/\\s+/g, ' ').trim();
-        const labels = [];
-        for (const el of deep(document, 'a, button, [role="button"], input[type="submit"], input[type="button"]')) {
-          if (disabled(el) || !visible(el)) continue;
-          const t = label(el);
-          if (!t || t.length > 80) continue;
-          labels.push(t);
-        }
-        const uniq = [...new Set(labels)].slice(0, 40);
-        return uniq.length ? { labels: uniq } : null;
-      })()`,
-    });
-    const labels = res?.result?.labels;
+    const labels = await this._pageHelper(tabId, 'ACTION_LABELS');
     return Array.isArray(labels) ? labels : [];
   }
 
@@ -602,12 +555,9 @@ export class ApplyBridge {
     let heading = '';
     let bodySnippet = '';
     try {
-      const res = await this._request('eval-in-tab', {
-        tabId,
-        src: `(${PAGE_STEP_SNAPSHOT.toString()})()`,
-      });
-      heading = res?.result?.heading || '';
-      bodySnippet = res?.result?.bodySnippet || '';
+      const snap = await this._pageHelper(tabId, 'PAGE_STEP_SNAPSHOT');
+      heading = snap?.heading || '';
+      bodySnippet = snap?.bodySnippet || '';
     } catch { /* heuristic can still run on field counts */ }
     const fieldCount = (fields || []).length;
     const editableCount = countEditableApplyFields(fields);
@@ -631,16 +581,26 @@ export class ApplyBridge {
     return fieldsFingerprint(fields, { url, heading });
   }
 
-  /** Rewrite fields the ATS marked invalid. Returns true when at least one was flagged. */
-  async _refillInvalid(tabId, spec, { push }) {
+  /** Rewrite fields the ATS marked invalid. Returns falsy when nothing to fix. */
+  async _refillInvalid(tabId, spec, { push, uploadedLabels = [] }) {
     let fields = [];
-    try { fields = (await this.detectFieldsInTab(tabId)).fields || []; } catch { return false; }
-    const bad = fields.filter((f) => fieldCompletionIssue(f));
-    if (!bad.length) return false;
+    try { fields = (await this.detectFieldsInTab(tabId)).fields || []; } catch { return null; }
+    const bad = fields.filter((f) => fieldCompletionIssue(f, { uploadedLabels }));
+    if (!bad.length) return null;
     await push(`Erreurs ATS (${bad.length}) — correction des champs invalides…`);
-    await this._fillOnce(tabId, spec, fields, { push });
+    // Only broken fields (+ empty file slots that still need a CV). Passing the
+    // whole form used to re-upload the resume and retype already-valid inputs.
+    const resumeDone = uploadedLabels.some((l) =>
+      /resume|\bcv\b|curriculum|autofill|_systemfield_resume|choose a file|drop (it|file) here|attach/i.test(String(l))
+    );
+    const targets = fields.filter((f) => {
+      if (bad.some((b) => b.i === f.i && (b.frameId ?? 0) === (f.frameId ?? 0))) return true;
+      if (f.type === 'file') return shouldUploadFileField(f, { uploadedLabels, resumeAlreadyUploaded: resumeDone });
+      return false;
+    });
+    const result = await this._fillOnce(tabId, spec, targets.length ? targets : bad, { push, uploadedLabels });
     try { await this.tickGateConsents(tabId, { push }); } catch { /* ignore */ }
-    return true;
+    return { uploaded: result?.uploaded || [] };
   }
 
   /**
@@ -696,9 +656,10 @@ export class ApplyBridge {
    * modal. Returns that off-site URL, or null.
    */
   async findEmbeddedApplyUrl(tabId) {
-    const src = `(${extractEmbeddedApplyUrl.toString()})(document.documentElement.innerHTML, location.href)`;
-    const res = await this._request('eval-in-tab', { tabId, src });
-    const url = res?.result;
+    // The page hands over its HTML; the lib parser runs here, not in the tab.
+    const page = await this._pageHelper(tabId, 'PAGE_HTML');
+    if (!page?.html) return null;
+    const url = extractEmbeddedApplyUrl(page.html, page.url || '');
     return typeof url === 'string' && /^https?:\/\//i.test(url) ? url : null;
   }
 
@@ -1192,7 +1153,7 @@ export class ApplyBridge {
       const fields = detected.fields || [];
       await push(`Detect: ${fields.length} champ(s) (page ${page + 1}, frames incluses)`);
 
-      const { filled, pending, uploaded } = await this._fillOnce(tabId, spec, fields, { push });
+      const { filled, pending, uploaded } = await this._fillOnce(tabId, spec, fields, { push, uploadedLabels });
       allFilled = mergeFilled(allFilled, filled);
       allPending = mergePending(allPending, pending, allFilled);
       uploadedLabels = [...new Set([...uploadedLabels, ...uploaded])];
@@ -1209,7 +1170,7 @@ export class ApplyBridge {
         await push(`Relance auto: ${retryable.length || 1} échec(s) de remplissage…`);
         await sleep(700);
         const fields2 = (await this.detectFieldsInTab(tabId)).fields || fields;
-        const second = await this._fillOnce(tabId, spec, fields2, { push });
+        const second = await this._fillOnce(tabId, spec, fields2, { push, uploadedLabels });
         allFilled = mergeFilled(allFilled, second.filled);
         allPending = mergePending(
           allPending.filter((p) => !RETRYABLE_PENDING_RE.test(String(p.reason || ''))),
@@ -1232,8 +1193,7 @@ export class ApplyBridge {
 
       let applyEntryVisible = false;
       try {
-        const ev = await this.pageShowsApplyEntry(tabId);
-        applyEntryVisible = ev?.result === true;
+        applyEntryVisible = await this.pageShowsApplyEntry(tabId);
       } catch { /* ignore */ }
 
       const ready = looksReadyToSubmit({
@@ -1372,8 +1332,11 @@ export class ApplyBridge {
           }
           if (!healUsed) {
             healUsed = true;
-            const healed = await this._refillInvalid(tabId, spec, { push });
+            const healed = await this._refillInvalid(tabId, spec, { push, uploadedLabels });
             if (healed) {
+              if (healed.uploaded?.length) {
+                uploadedLabels = [...new Set([...uploadedLabels, ...healed.uploaded])];
+              }
               const next2 = await this.clickProgression(tabId, PROGRESS_TEXT_RE, [], { scrollFirst: true });
               if (next2?.clicked && !SUBMIT_TEXT_RE.test(String(next2.text || ''))) {
                 await push(`Nouvel essai après correction: « ${next2.text || 'Next'} »`);
@@ -1514,7 +1477,10 @@ export class ApplyBridge {
           });
           if (stale.length) {
             await push(`Avant envoi: ${stale.length} champ(s) invalide(s) — correction…`);
-            await this._refillInvalid(tabId, spec, { push });
+            const healedPre = await this._refillInvalid(tabId, spec, { push, uploadedLabels });
+            if (healedPre?.uploaded?.length) {
+              uploadedLabels = [...new Set([...uploadedLabels, ...healedPre.uploaded])];
+            }
             const pre2 = await this.detectFieldsInTab(tabId);
             const stale2 = (pre2.fields || []).flatMap((f) => {
               const reason = fieldCompletionIssue(f, { uploadedLabels });
@@ -1559,7 +1525,7 @@ export class ApplyBridge {
           // One targeted refill of aria-invalid fields, then Privacy, then one resend.
           let recovered = false;
           try {
-            await this._refillInvalid(tabId, spec, { push });
+            await this._refillInvalid(tabId, spec, { push, uploadedLabels });
             const { count, filled: consentFilled } = await this.tickGateConsents(tabId, { push });
             if (count) allFilled = mergeFilled(allFilled, consentFilled);
             await sleep(500);
@@ -1641,12 +1607,15 @@ export class ApplyBridge {
     return { filled: allFilled, pending: allPending, submitted: false, tabId };
   }
 
-  async _fillOnce(tabId, spec, fields, { push }) {
+  async _fillOnce(tabId, spec, fields, { push, uploadedLabels = [] }) {
     const usedAnswers = new Set();
     const filled = [];
     const pending = [];
     const unresolved = [];
     const uploaded = [];
+    let resumeAlreadyUploaded = uploadedLabels.some((l) =>
+      /resume|\bcv\b|curriculum|autofill|_systemfield_resume|choose a file|drop (it|file) here|attach/i.test(String(l))
+    );
 
     // Phase A — file uploads first (Ashby autofill from resume). Re-collect
     // after each upload: ATS re-render invalidates data-co-i markers.
@@ -1660,57 +1629,27 @@ export class ApplyBridge {
       }
       // Ashby sometimes hides the resume input so hard that collect misses it.
       // Probe raw file inputs and synthesize a resume field when needed.
-      if (!fileFields.length && pass === 0 && spec.cvPath) {
+      if (!fileFields.length && pass === 0 && spec.cvPath && !resumeAlreadyUploaded) {
         try {
-          const probe = await this._request('eval-in-tab', {
-            tabId,
-            src: `(() => {
-              const deep = (root, sel) => {
-                const out = [];
-                const walk = (n) => {
-                  if (!n?.querySelectorAll) return;
-                  try { out.push(...n.querySelectorAll(sel)); } catch {}
-                  for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
-                };
-                walk(root);
-                return out;
-              };
-              const files = deep(document, 'input[type="file"]');
-              const score = (el) => {
-                const blob = ((el.name||'')+' '+(el.id||'')+' '+(el.accept||'')+' '+(el.getAttribute('aria-label')||'')).toLowerCase();
-                let s = 0;
-                if (/resume|\\bcv\\b|curriculum|autofill|_systemfield_resume/.test(blob)) s += 50;
-                if (/pdf|msword|officedocument/.test(el.accept||'')) s += 20;
-                if (/cover|lettre|reference|diploma|other/.test(blob) && !/resume|\\bcv\\b/.test(blob)) s -= 80;
-                return s;
-              };
-              files.sort((a,b) => score(b)-score(a));
-              const el = files.find((f) => score(f) > 0) || files[0];
-              if (!el) return null;
-              el.setAttribute('data-co-i', '9901');
-              el.setAttribute('data-co-upload', '1');
-              return {
-                i: 9901,
-                type: 'file',
-                tag: 'input',
-                label: el.getAttribute('aria-label') || el.name || 'Resume/CV',
-                name: el.name || '_systemfield_resume',
-                required: true,
-                frameId: 0,
-                fileCount: el.files?.length || 0,
-              };
-            })()`,
-          });
-          if (probe?.result?.type === 'file') {
-            fileFields = [probe.result];
+          const slot = await this._pageHelper(tabId, 'FORCE_RESUME_SLOT');
+          if (slot?.type === 'file') {
+            fileFields = [slot];
             await push(`CV slot forcé (input caché): ${fileFields[0].label || fileFields[0].name}`);
           }
         } catch { /* keep empty */ }
       }
-      if (!fileFields.length && pass === 0) {
+      if (!fileFields.length && pass === 0 && !resumeAlreadyUploaded) {
         await push('Aucun champ fichier détecté — CV non tenté sur cette page.');
       }
-      const todo = fileFields.find((f) => !doneFiles.has((f.label || f.name || 'file').slice(0, 80)));
+      const knownUploaded = [...uploadedLabels, ...uploaded];
+      const todo = fileFields.find((f) => {
+        const key = (f.label || f.name || 'file').slice(0, 80);
+        if (doneFiles.has(key)) return false;
+        return shouldUploadFileField(f, {
+          uploadedLabels: knownUploaded,
+          resumeAlreadyUploaded,
+        });
+      });
       if (!todo) break;
       const labelShort = (todo.label || todo.name || 'file').slice(0, 80);
       doneFiles.add(labelShort);
@@ -1740,6 +1679,7 @@ export class ApplyBridge {
         if (result?.uploadOk) {
           filled.push({ label: labelShort, value: `📎 ${basename(plan.upload)}` });
           uploaded.push(labelShort);
+          if (isResumeFileField(todo) || plan.upload === spec.cvPath) resumeAlreadyUploaded = true;
           await push(`CV attaché: ${basename(plan.upload)}`);
           await sleep(900);
           const auto = await this.waitResumeAutofill(tabId, spec?.identity || {});
@@ -2109,7 +2049,7 @@ export class ApplyBridge {
         }
         if (clicked?.rejected) {
           try {
-            await this._refillInvalid(tabId, spec, { push });
+            await this._refillInvalid(tabId, spec, { push, uploadedLabels: [] });
             await this.tickGateConsents(tabId, { push });
             await sleep(500);
             const retry = await this.clickSubmit(tabId).catch(() => null);
