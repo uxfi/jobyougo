@@ -1,4 +1,4 @@
-import { createElement, useEffect, useState, type ReactNode } from 'react';
+import { createElement, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ThinkingOrb } from 'thinking-orbs';
 import { BorderBeam } from 'border-beam';
@@ -162,7 +162,7 @@ function HrhvInputBeam({ children, active }: BeamProps) {
   );
 }
 
-function DomSlot({ element }: { element: HTMLElement }) {
+function DomSlot({ element, style }: { element: HTMLElement; style?: CSSProperties }) {
   return createElement('div', {
     ref: (node: HTMLDivElement | null) => {
       if (!node || node.contains(element)) return;
@@ -172,6 +172,7 @@ function DomSlot({ element }: { element: HTMLElement }) {
       width: '100%',
       borderRadius: 10,
       background: '#f8f7f4',
+      ...style,
     },
   });
 }
@@ -241,4 +242,53 @@ export function mountMetalHero(
 export function setMetalHeroText(text: string) {
   const prev = metalText.get();
   metalText.set({ ...prev, text });
+}
+
+/* ─── Command CTA border beams (dashboard) ─────────────────────────── */
+
+const cmdBeamKey = createStore<string | null>(null);
+const beamHosts = new Map<string, HTMLElement>();
+
+function CmdBeamIsland({
+  host,
+  cmdKey,
+}: {
+  host: HTMLElement;
+  cmdKey: string;
+}) {
+  const activeKey = useStore(cmdBeamKey);
+  return createElement(
+    BorderBeam,
+    {
+      size: 'pulse-inner',
+      colorVariant: 'ocean',
+      theme: 'dark',
+      active: activeKey === cmdKey,
+      style: {
+        display: 'inline-flex',
+        borderRadius: 10,
+        width: '100%',
+      },
+    },
+    createElement(DomSlot, {
+      element: host,
+      style: { width: 'auto', background: 'transparent', display: 'inline-flex' },
+    }),
+  );
+}
+
+export function mountCmdBeams(host: Element, cmdKey: string | null) {
+  if (!(host instanceof HTMLElement) || !cmdKey) return;
+  const button = host.querySelector('button');
+  if (!(button instanceof HTMLElement)) return;
+  beamHosts.set(cmdKey, button);
+  const mount = document.createElement('div');
+  mount.className = 'cmd-beam-mount';
+  mount.style.cssText = 'display:inline-flex;border-radius:10px;';
+  host.replaceChildren(mount);
+  renderInto(mount, createElement(CmdBeamIsland, { host: button, cmdKey }));
+}
+
+export function setCmdBeam(cmdKey: string | null) {
+  cmdBeamKey.set(cmdKey || null);
 }
