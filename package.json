@@ -11,6 +11,7 @@
     "build:effects": "npm --prefix ui/effects run build",
     "test:writing": "node --test tests/application-writing.test.mjs",
     "test:apply": "node --test tests/apply-completion.test.mjs tests/apply-blocker-probe.test.mjs tests/apply-collect-fields.test.mjs tests/apply-combobox-dom.test.mjs tests/apply-fill-guards.test.mjs tests/apply-navigation.test.mjs tests/apply-option-match.test.mjs tests/apply-runtime.test.mjs tests/apply-salary.test.mjs tests/form-detect.test.mjs tests/himalayas-apply.test.mjs tests/pinchtab-config.test.mjs tests/extension-page-helpers.test.mjs",
+    "test:monetization": "node --test lib/monetization.test.mjs",
     "sync:extension": "node scripts/sync-extension-page-helpers.mjs",
     "doctor": "node doctor.mjs",
     "or": "node openrouter-runner.mjs",

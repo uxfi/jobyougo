@@ -1,0 +1,98 @@
+# JobYouGo — monetization channels (read by ui/server.mjs via lib/monetization.mjs)
+#
+# Every channel is OFF. To turn one on: sign up with the network, paste the ID
+# or link below and set `enabled: true`. The server picks up this file within
+# 30 seconds. API keys never go in this file — they go in .env, which is only
+# read at startup, so restart the server after adding one.
+#
+# Impressions (card visible for 1 s) and clicks are counted per day in
+# data/monetization-stats.json. Nothing about the viewer is stored.
+
+# ── 1. Sponsored jobs — Careerjet / Jooble publisher programs (paid per click) ──
+# Sign up: https://www.careerjet.com/partners/publishers  → .env CAREERJET_API_KEY=...
+#          https://jooble.org/affiliate/                  → .env JOOBLE_API_KEY=...
+# Shown as "Sponsored" cards on the dashboard and above the pipeline. Their
+# links are display-only: they are never added to the queue, link-checked,
+# fetched or opened by the apply runner, because automated requests count as
+# invalid clicks. For the same reason, do not also enable the Careerjet/Jooble
+# scan aggregators in portals.yml once you use a publisher account.
+sponsored_jobs:
+  enabled: false
+  providers: [careerjet, jooble]   # providers without their .env key are skipped
+  keywords: []                     # empty = first target role in config/profile.yml
+  location: ""                     # empty = country-wide (Careerjet) / "Remote" (Jooble)
+  remote_only: true                # adds "remote" to the Careerjet query
+  careerjet_locale: en_GB          # Careerjet market, e.g. fr_FR, de_DE, en_SG
+  limit: 4                         # cards shown (1-10)
+  cache_minutes: 60                # one API call per provider per hour per viewer
+  # Careerjet requires the viewer's public IP. When the app runs on localhost,
+  # the server asks this service for it once an hour. Set to "" to disable
+  # (Careerjet is then skipped locally; Jooble still works).
+  public_ip_lookup_url: https://api.ipify.org?format=json
+
+# ── 2. Affiliate links — matched to the gaps a report flags ──────────────────
+# Shown under an evaluation report, labelled "Affiliate". An offer appears when
+# one of its keywords is found in the report's gap lines ("écart", "missing",
+# "ne mentionne pas"…), or anywhere in the report with `match_on: report`.
+# A trailing * is a prefix match (prototyp* → prototypage, prototyping).
+# Offers with an empty url are ignored: join the program, paste your link.
+affiliates:
+  enabled: false
+  max_per_report: 2
+  disclosure: "Affiliate links: JobYouGo may earn a commission, at no extra cost to you."
+  offers:
+    - id: courses
+      label: Courses for the skills this role asks for
+      description: Short online courses to close a skill gap
+      url: ""                      # e.g. your Coursera or Udemy affiliate link
+      match_on: gaps
+      keywords: [design system*, design de systemes, user research, ux research, accessibility, accessibilite,
+                 prototyp*, motion design, sql, python, data analys*, machine learning, product management, agile, scrum]
+    - id: english
+      label: English lessons with a tutor
+      description: Build interview-ready English
+      url: ""                      # e.g. your Preply or italki affiliate link
+      match_on: gaps
+      keywords: [english, anglais, ielts, toefl]
+    - id: nomad-insurance
+      label: Health insurance for remote workers abroad
+      description: Coverage while you work from another country
+      url: ""                      # e.g. your SafetyWing affiliate link
+      match_on: report
+      keywords: [digital nomad, nomade, relocation, relocalisation, visa, work permit, permis de travail]
+    - id: international-payments
+      label: Get paid by foreign clients
+      description: Multi-currency account for contractors
+      url: ""                      # e.g. your Wise affiliate link
+      match_on: report
+      keywords: [contractor, freelance, b2b, invoice, facture, deel, employer of record]
+
+# ── 3. Direct sponsors — placements you sell yourself ────────────────────────
+# One card per item on the dashboard, labelled "Sponsored", within the
+# optional start/end dates (YYYY-MM-DD). Links get utm_source=jobyougo so the
+# sponsor sees the clicks in their own analytics. `logo` must be a local file
+# under ui/assets/ or images/ (a remote logo would leak viewers' IPs).
+sponsors:
+  enabled: false
+  items: []
+  # items:
+  #   - id: acme-bootcamp
+  #     title: ACME UX Bootcamp
+  #     text: 12-week remote program for senior designers moving into AI products.
+  #     cta: See the program
+  #     url: https://example.com/bootcamp
+  #     logo: /assets/sponsors/acme.png
+  #     start: 2026-10-01
+  #     end: 2026-10-31
+
+# ── 4. Google AdSense — public landing page only ─────────────────────────────
+# AdSense forbids ads inside software and Chrome extensions, so the dashboard
+# never loads it. Sign up at https://adsense.google.com with the public
+# domain, then paste the publisher ID. With only `client`, AdSense places
+# Auto ads; add `landing_slot` (an ad-unit ID) for a fixed unit above the
+# footer. The server also answers /ads.txt. In the EEA/UK, turn on the
+# consent message in AdSense → Privacy & messaging.
+adsense:
+  enabled: false
+  client: ""                       # ca-pub-0000000000000000
+  landing_slot: ""                 # e.g. 1234567890

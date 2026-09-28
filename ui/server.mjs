@@ -77,6 +77,20 @@ import {
   extractZohoRecruitJob,
   isUnusableJobDescriptionText,
 } from '../lib/ats-jd.mjs';
+import {
+  adsTxt,
+  adsenseHeadHtml,
+  adsenseSlotHtml,
+  clientIpFromRequest,
+  configuredProviders,
+  fetchSponsoredJobs,
+  loadMonetizationConfig,
+  matchAffiliateOffers,
+  monetizationEventKeys,
+  publicMonetizationConfig,
+  recordMonetizationEvent,
+  resolveViewerIp,
+} from '../lib/monetization.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -257,6 +271,22 @@ async function getAdminUserId() {
   const { data } = await supabase.from('applications').select('user_id').not('user_id', 'is', null).limit(1).single().catch(() => ({ data: null }));
   if (data?.user_id) { _adminUserId = data.user_id; return _adminUserId; }
   return null;
+}
+
+// ─── Monetization config (config/monetization.yml) ───────────────────────────
+// Re-read at most every 30 s, so turning a channel on needs no restart.
+let _monetizationCache = null;
+let _monetizationWarnings = '';
+async function getMonetization() {
+  if (_monetizationCache && Date.now() - _monetizationCache.at < 30_000) return _monetizationCache.config;
+  const { config, warnings } = await loadMonetizationConfig(ROOT);
+  // Log config problems once, not on every re-read.
+  if (warnings.join('\n') !== _monetizationWarnings) {
+    _monetizationWarnings = warnings.join('\n');
+    for (const warning of warnings) console.warn(`[monetization] ${warning}`);
+  }
+  _monetizationCache = { at: Date.now(), config };
+  return config;
 }
 
 function buildPlaywrightResult(company = {}, overrides = {}) {
@@ -6408,10 +6438,22 @@ const server = createServer(async (req, res) => {
     // Public landing page (homepage)
     if (LANDING_ROUTES.has(path)) {
       let html = await readFile(join(__dirname, 'landing.html'), 'utf-8');
+      // AdSense lives on this public page only (never in the app or extension).
+      const { adsense } = await getMonetization();
       html = html.replace('__SUPABASE_URL__', SUPABASE_URL_VALUE)
-                 .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE);
+                 .replace('__SUPABASE_ANON_KEY__', SUPABASE_ANON_VALUE)
+                 .replace('<!--MZ:ADSENSE_HEAD-->', adsenseHeadHtml(adsense))
+                 .replace('<!--MZ:ADSENSE_SLOT-->', adsenseSlotHtml(adsense));
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       sendText(req, res, html);
+      return;
+    }
+
+    if (path === '/ads.txt') {
+      const body = adsTxt((await getMonetization()).adsense);
+      if (!body) { res.writeHead(404); res.end('Not found'); return; }
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      sendText(req, res, body);
       return;
     }
 
@@ -6468,9 +6510,15 @@ const server = createServer(async (req, res) => {
       return json(res, await getAiUsageToday({ force }));
     }
 
+    // Which paid placements are on, plus the active sponsor cards. Public: it
+    // carries no user data and no keys.
+    if (path === '/api/monetization' && method === 'GET') {
+      return json(res, publicMonetizationConfig(await getMonetization()));
+    }
+
     // ── Auth guard (toutes les routes /api/* sauf /api/hrhv) ─────────────────
     // Read-only GET routes are accessible without auth (view-only mode)
-    const VIEW_ONLY_PATHS = ['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs', '/api/portals', '/api/queries', '/api/profile', '/api/scan-state', '/api/scan-sources'];
+    const VIEW_ONLY_PATHS = ['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs', '/api/portals', '/api/queries', '/api/profile', '/api/scan-state', '/api/scan-sources', '/api/monetization/affiliates'];
     const AUTH_REQUIRED_PROFILE_PATHS = new Set(['/api/profile/status', '/api/profile/cv-parse']);
     const isViewOnlyGet = method === 'GET'
       && !AUTH_REQUIRED_PROFILE_PATHS.has(path)
@@ -6484,6 +6532,49 @@ const server = createServer(async (req, res) => {
       }
       req.userId = user.id;
       req.userEmail = user.email;
+    }
+
+    // ── Monetization ─────────────────────────────────────────────────────────
+    // Sponsored jobs are fetched for the viewer (their IP and browser, as the
+    // publisher programs require) and only ever displayed: their links are
+    // never queued, link-checked or fetched, which would count as fake clicks.
+    if (path === '/api/monetization/sponsored-jobs' && method === 'GET') {
+      const { sponsoredJobs } = await getMonetization();
+      if (!sponsoredJobs.enabled || !configuredProviders(sponsoredJobs).length) return json(res, { items: [] });
+      const needsIp = configuredProviders(sponsoredJobs).includes('careerjet');
+      const userIp = needsIp
+        ? await resolveViewerIp(req, { lookupUrl: sponsoredJobs.publicIpLookupUrl })
+        : clientIpFromRequest(req);
+      const profile = await getProfile(req.userId).catch(() => ({}));
+      const { items, errors } = await fetchSponsoredJobs({
+        sponsoredJobs,
+        profile,
+        userIp,
+        userAgent: String(req.headers['user-agent'] || ''),
+      });
+      for (const error of errors) console.warn(`[monetization] sponsored jobs — ${error}`);
+      return json(res, { items });
+    }
+
+    if (path === '/api/monetization/affiliates' && method === 'GET') {
+      const { affiliates } = await getMonetization();
+      const report = urlObj.searchParams.get('report') || '';
+      if (!affiliates.enabled || !affiliates.offers.length || !report) return json(res, { offers: [] });
+      const markdown = await getReport(report, req.userId).catch(() => '');
+      const offers = matchAffiliateOffers(affiliates.offers, markdown, { max: affiliates.maxPerReport })
+        .map(({ id, label, description, url, matched }) => ({ id, label, description, url, matched }));
+      return json(res, { offers, disclosure: affiliates.disclosure });
+    }
+
+    if (path === '/api/monetization/event' && method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const allowedKeys = monetizationEventKeys(await getMonetization());
+      try {
+        await recordMonetizationEvent(join(WRITE_ROOT, 'data', 'monetization-stats.json'), body, { allowedKeys });
+        return json(res, { ok: true });
+      } catch (err) {
+        return json(res, { error: err.message }, err.message === 'invalid monetization event' ? 400 : 500);
+      }
     }
 
     // ── /api/me ───────────────────────────────────────────────────────────────

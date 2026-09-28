@@ -811,6 +811,20 @@
     gap: 10px;
   }
 
+  /* ── Ad slot (AdSense, injected by the server when config/monetization.yml enables it) ── */
+  .ad-slot {
+    max-width: 970px;
+    margin: 0 auto 40px;
+    padding: 0 24px;
+  }
+  .ad-slot-label {
+    margin-bottom: 6px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+  }
+
   /* ── Footer ───────────────────────────────────────────────────────── */
   footer {
     padding: 36px 0 56px;
@@ -906,6 +920,7 @@
     .pa-side li span:not(.icon) { display: none; }
   }
 </style>
+<!--MZ:ADSENSE_HEAD-->
 </head>
 <body>
 
@@ -1231,6 +1246,8 @@
     </div>
   </div>
 </section>
+
+<!--MZ:ADSENSE_SLOT-->
 
 <!-- ─── FOOTER ──────────────────────────────────────────────────────── -->
 <footer>

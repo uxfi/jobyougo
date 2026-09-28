@@ -2538,6 +2538,73 @@
   .watch-side .badge { height: 20px; font-size: 11px; }
   .watch-date { font-size: 11.5px; color: var(--text-4); white-space: nowrap; }
 
+  /* ─── Paid placements (sponsors, sponsored jobs, affiliate links) ──
+     Neutral on purpose: an ad must never look like one of the app's own
+     recommendations, so no accent color and a visible label on every block. */
+  .mz-panel { margin-top: 16px; }
+  .mz-label {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 5px;
+    box-shadow: inset 0 0 0 1px var(--border);
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .mz-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+  .mz-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 11px 13px;
+    border: 1px solid var(--border-s);
+    border-radius: var(--radius);
+    background: rgba(255,255,255,0.015);
+    color: inherit;
+    text-decoration: none;
+    transition: background 120ms var(--ease-out), border-color 120ms var(--ease-out);
+  }
+  .mz-card:hover { background: var(--surface-2); border-color: var(--border); }
+  .mz-card:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+  .mz-card-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .mz-logo { width: 28px; height: 28px; flex-shrink: 0; border-radius: 6px; object-fit: contain; background: rgba(255,255,255,0.06); }
+  .mz-card-title {
+    min-width: 0;
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--text-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mz-card-meta {
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .mz-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; font-size: 11.5px; color: var(--text-4); }
+  .mz-card-foot svg { color: var(--text-4); }
+  .mz-strip { margin-bottom: 18px; }
+  .mz-strip .section-header { margin-bottom: 10px; }
+  .mz-sub { font-size: 12.5px; color: var(--text-4); }
+  .mz-block { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-s); }
+  .mz-block .mz-head { margin-bottom: 10px; }
+  .mz-block-title { font-size: 14px; font-weight: 600; color: var(--text-1); }
+  .mz-disclosure { margin-top: 10px; font-size: 12px; color: var(--text-4); }
+
   /* Fit distribution (score bands, same colors as the score meters) */
   .fit-dist {
     margin-top: 16px;
@@ -3246,6 +3313,8 @@
 
           <section class="dashboard-panel dashboard-panel-stack" id="dashboard-watch-panel" aria-label="Top matches"></section>
         </div>
+
+        <section class="dashboard-panel mz-panel" id="dashboard-sponsored-panel" aria-label="Sponsored" hidden></section>
       </div>
     </div>
 
@@ -3298,6 +3367,7 @@
           Add
         </button>
       </div>
+      <section class="mz-strip" id="pipeline-sponsored" aria-label="Sponsored jobs" hidden></section>
       <div class="section-header">
         <span class="section-title">Pending URLs</span>
       </div>
@@ -3706,6 +3776,7 @@
     </div>
     <div class="modal-body">
       <div class="md-content" id="modal-content"></div>
+      <div id="modal-extra"></div>
     </div>
   </div>
 </div>
@@ -3979,6 +4050,9 @@ const state = {
   queriesState: 'all',
   queriesSearch: '',
   portalsTab: 'companies',
+  // Paid placements (config/monetization.yml). Null until /api/monetization answers.
+  monetization: null,
+  sponsoredJobs: [],
 };
 
 // Dashboard hero headline (see setDashboardHeroTitle). Declared up front because
@@ -4189,9 +4263,173 @@ async function api(path, opts = {}) {
   return payload;
 }
 
+// ─── Paid placements (config/monetization.yml) ────────────────────────────────
+// Sponsor cards, sponsored jobs and affiliate links render as plain labelled
+// links. Sponsored jobs never enter the pipeline: their links pay per real
+// click, and the pipeline fetches every URL it holds.
+const MZ_PROVIDER_LABEL = { careerjet: 'Careerjet', jooble: 'Jooble' };
+const mzSeen = new Set();
+let mzObserver = null;
+let mzJobsLoadedAt = 0;
+let mzReportToken = 0;
+
+// Fire-and-forget counter. Plain fetch, not api(): a stale session must not
+// bounce the user to /login because an ad was seen.
+function mzEvent(type, key) {
+  const [channel, ...rest] = String(key || '').split(':');
+  const id = rest.join(':');
+  if (!channel || !id) return;
+  const headers = { 'Content-Type': 'application/json' };
+  if (window.__authToken) headers.Authorization = `Bearer ${window.__authToken}`;
+  fetch('/api/monetization/event', { method: 'POST', headers, body: JSON.stringify({ type, channel, id }), keepalive: true }).catch(() => {});
+}
+
+// One impression per card per page load, once the card has been at least half
+// visible for a full second (the usual viewability rule). Cards in a hidden
+// view never intersect, so they are not counted.
+function observeMzImpressions(root) {
+  if (!('IntersectionObserver' in window)) return;
+  if (!mzObserver) {
+    const timers = new WeakMap();
+    mzObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const el = entry.target;
+        clearTimeout(timers.get(el));
+        if (!entry.isIntersecting) continue;
+        timers.set(el, setTimeout(() => {
+          const uid = el.dataset.mzUid;
+          mzObserver.unobserve(el);
+          if (!el.isConnected || mzSeen.has(uid)) return;
+          mzSeen.add(uid);
+          mzEvent('impression', el.dataset.mzKey);
+        }, 1000));
+      }
+    }, { threshold: 0.5 });
+  }
+  root.querySelectorAll('[data-mz-uid]').forEach(el => {
+    if (!mzSeen.has(el.dataset.mzUid)) mzObserver.observe(el);
+  });
+}
+
+document.addEventListener('click', e => {
+  const card = e.target.closest?.('[data-mz-key]');
+  if (card) mzEvent('click', card.dataset.mzKey);
+});
+document.addEventListener('auxclick', e => {
+  const card = e.button === 1 && e.target.closest?.('[data-mz-key]');
+  if (card) mzEvent('click', card.dataset.mzKey);
+});
+
+function mzCardHtml({ url, key, uid, title, meta = '', logo = '', foot }) {
+  return `<a class="mz-card" href="${escapeHtml(url)}" target="_blank" rel="sponsored noopener" data-mz-key="${escapeHtml(key)}" data-mz-uid="${escapeHtml(uid)}" title="${escapeHtml(title)}">
+    <span class="mz-card-top">${logo ? `<img class="mz-logo" src="${escapeHtml(logo)}" alt="" loading="lazy">` : ''}<span class="mz-card-title">${escapeHtml(title)}</span></span>
+    ${meta ? `<span class="mz-card-meta">${escapeHtml(meta)}</span>` : ''}
+    <span class="mz-card-foot">${foot}</span>
+  </a>`;
+}
+
+function sponsorCardHtml(item) {
+  return mzCardHtml({
+    url: item.url,
+    key: `sponsor:${item.id}`,
+    uid: `sponsor:${item.id}`,
+    title: item.title,
+    meta: item.text,
+    logo: item.logo,
+    foot: `<span class="mz-label">Sponsored</span><span>${escapeHtml(item.cta || 'Learn more')} ${ICON_ARROW_UP_RIGHT}</span>`,
+  });
+}
+
+function sponsoredJobCardHtml(job) {
+  return mzCardHtml({
+    url: job.url,
+    key: `sponsored_job:${job.provider}`,
+    uid: `job:${job.url}`,
+    title: job.title,
+    meta: [job.company, job.location, job.salary].filter(Boolean).join(' · '),
+    foot: `<span class="mz-label">Sponsored</span><span>via ${escapeHtml(MZ_PROVIDER_LABEL[job.provider] || job.provider)} ${ICON_ARROW_UP_RIGHT}</span>`,
+  });
+}
+
+function renderMonetization() {
+  const mz = state.monetization;
+  const sponsors = mz?.sponsors?.enabled ? (mz.sponsors.items || []) : [];
+  const jobs = mz?.sponsoredJobs?.enabled ? (state.sponsoredJobs || []) : [];
+
+  const panel = document.getElementById('dashboard-sponsored-panel');
+  if (panel) {
+    const cards = [...sponsors.map(sponsorCardHtml), ...jobs.map(sponsoredJobCardHtml)];
+    panel.hidden = !cards.length;
+    panel.innerHTML = cards.length ? `
+      <div class="dashboard-panel-head">
+        <div>
+          <div class="dashboard-panel-title">Sponsored</div>
+          <div class="dashboard-panel-sub">Paid placements. Opening one never adds it to your queue.</div>
+        </div>
+      </div>
+      <div class="mz-grid">${cards.join('')}</div>` : '';
+    if (cards.length) observeMzImpressions(panel);
+  }
+
+  const strip = document.getElementById('pipeline-sponsored');
+  if (strip) {
+    const top = jobs.slice(0, 3);
+    strip.hidden = !top.length;
+    strip.innerHTML = top.length ? `
+      <div class="section-header">
+        <span class="section-title">Sponsored jobs</span>
+        <span class="mz-sub">Paid listings, not in your queue</span>
+      </div>
+      <div class="mz-grid">${top.map(sponsoredJobCardHtml).join('')}</div>` : '';
+    if (top.length) observeMzImpressions(strip);
+  }
+}
+
+async function loadSponsoredJobs() {
+  if (!state.monetization?.sponsoredJobs?.enabled || window.__viewOnly) return;
+  // The server caches results for an hour; this only spares a request on
+  // every Refresh.
+  if (Date.now() - mzJobsLoadedAt < 10 * 60_000) return;
+  mzJobsLoadedAt = Date.now();
+  try {
+    const { items } = await api('/api/monetization/sponsored-jobs');
+    state.sponsoredJobs = Array.isArray(items) ? items : [];
+  } catch {
+    state.sponsoredJobs = [];
+  }
+  renderMonetization();
+}
+
+// Affiliate links matched to the gaps this report flags (matching runs on the
+// server, from config/monetization.yml).
+async function renderReportAffiliates(filename) {
+  const box = document.getElementById('modal-extra');
+  if (!box) return;
+  const token = ++mzReportToken;
+  box.innerHTML = '';
+  if (!state.monetization?.affiliates?.enabled) return;
+  try {
+    const { offers = [], disclosure = '' } = await api(`/api/monetization/affiliates?report=${encodeURIComponent(filename)}`);
+    if (token !== mzReportToken || !offers.length) return;
+    box.innerHTML = `<aside class="mz-block" aria-label="Affiliate links">
+      <div class="mz-head"><span class="mz-block-title">Close the gaps</span><span class="mz-label">Affiliate</span></div>
+      <div class="mz-grid">${offers.map(offer => mzCardHtml({
+        url: offer.url,
+        key: `affiliate:${offer.id}`,
+        uid: `affiliate:${offer.id}:${filename}`,
+        title: offer.label,
+        meta: offer.description,
+        foot: `<span>For: ${escapeHtml((offer.matched || []).join(', '))}</span>${ICON_ARROW_UP_RIGHT}`,
+      })).join('')}</div>
+      <p class="mz-disclosure">${escapeHtml(disclosure)}</p>
+    </aside>`;
+    observeMzImpressions(box);
+  } catch { /* no affiliate block */ }
+}
+
 // ─── Load data ────────────────────────────────────────────────────────────────
 window.loadAll = async function loadAll() {
-  const [apps, pipe, reports, portals, queries, cvs, scanState] = await Promise.all([
+  const [apps, pipe, reports, portals, queries, cvs, scanState, monetization] = await Promise.all([
     api('/api/applications').catch(() => []),
     api('/api/pipeline').catch(() => []),
     api('/api/reports').catch(() => []),
@@ -4199,6 +4437,7 @@ window.loadAll = async function loadAll() {
     api('/api/queries').catch(() => []),
     api('/api/cvs').catch(() => []),
     api('/api/scan-state').catch(() => ({})),
+    api('/api/monetization').catch(() => null),
   ]);
   state.applications = normalizeApplications(apps);
   state.pipeline     = pipe;
@@ -4207,7 +4446,9 @@ window.loadAll = async function loadAll() {
   state.portals      = portals;
   state.queries      = queries;
   state.scanState    = scanState;
+  state.monetization = monetization;
   renderAll();
+  loadSponsoredJobs();
   const sync = document.getElementById('topbar-sync');
   if (sync) {
     sync.textContent = `Synced ${new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date())}`;
@@ -4245,6 +4486,7 @@ function renderAll() {
   renderCVs();
   renderPortals();
   renderQueries();
+  renderMonetization();
 }
 
 function getVisiblePipeline() {
@@ -6363,9 +6605,11 @@ async function openReport(filename) {
     : filename.replace('.md', '').replace(/-/g, ' ');
   document.getElementById('modal-content').innerHTML = '<p style="color:var(--text-4)">Loading…</p>';
   document.getElementById('modal').classList.add('open');
+  document.getElementById('modal-extra').innerHTML = '';
   try {
     const content = await api(`/api/reports/${encodeURIComponent(filename)}`);
     document.getElementById('modal-content').innerHTML = renderMd(content);
+    renderReportAffiliates(filename);
   } catch (e) {
     document.getElementById('modal-content').innerHTML = `<p style="color:var(--red)">Error: ${e.message}</p>`;
   }

@@ -11,7 +11,8 @@
           "data/**",
           "images/**",
           "modes/**",
-          "fonts/**"
+          "fonts/**",
+          "config/monetization.yml"
         ]
       }
     }
