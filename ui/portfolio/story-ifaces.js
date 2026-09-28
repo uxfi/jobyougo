@@ -220,8 +220,8 @@ const INTERFACES = [
   },
   {
     id: 'accounting-dashboard',
-    name: 'LedgerStack — Comptabilité IT',
-    tag: 'SaaS · Comptabilité · Light',
+    name: 'LedgerStack — IT Accounting',
+    tag: 'SaaS · Accounting · Light',
     type: 'desktop',
     url: 'ledgerstack.io/dashboard',
     src: 'interfaces/accounting-dashboard.html'
@@ -512,12 +512,13 @@ function updateIfaceGridHeight() {
     const padding = 60; // Total vertical padding (30px top + 30px bottom)
     const h = Math.ceil((cardHeight * IFACE_COLLAPSED_ROWS) + (gap * (IFACE_COLLAPSED_ROWS - 1)) - (overlap * (IFACE_COLLAPSED_ROWS - 1)) + padding);
     limiter.style.maxHeight = h + 'px';
-    label.textContent = 'Show all interfaces';
   } else {
     limiter.style.maxHeight = grid.scrollHeight + 'px';
-    label.textContent = 'Show fewer interfaces';
   }
-  
+  const labelKey = isCollapsed ? 'show_all' : 'show_fewer';
+  label.textContent = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][labelKey])
+    || (isCollapsed ? 'Show all interfaces' : 'Show fewer interfaces');
+
   const columns = Math.max(1, getIfaceColumnCount(grid));
   const shouldCollapse = INTERFACES.length > columns * IFACE_COLLAPSED_ROWS;
   button.hidden = !shouldCollapse;
@@ -574,6 +575,13 @@ function getAbsolutePreviewUrl(src) {
   }
 }
 
+function copyUrlLabel(state) {
+  const fr = typeof currentLang === 'undefined' || currentLang !== 'en';
+  if (state === 'copied') return fr ? 'Copié' : 'Copied';
+  if (state === 'failed') return fr ? 'Échec' : 'Copy failed';
+  return fr ? 'Copier l’URL' : 'Copy URL';
+}
+
 function setModalUrl(raw) {
   const bar = document.getElementById('iface-modal-url');
   const copyBtn = document.getElementById('iface-modal-copy');
@@ -584,7 +592,7 @@ function setModalUrl(raw) {
     bar.classList.remove('is-link');
     bar.title = '';
     copyBtn.onclick = null;
-    copyBtn.textContent = 'Copy URL';
+    copyBtn.textContent = copyUrlLabel();
     copyBtn.disabled = true;
     return;
   }
@@ -615,15 +623,15 @@ function setModalUrl(raw) {
   bar.classList.add('is-link');
   bar.title = href;
   copyBtn.disabled = false;
-  copyBtn.textContent = 'Copy URL';
+  copyBtn.textContent = copyUrlLabel();
   copyBtn.onclick = async () => {
     try {
       await navigator.clipboard.writeText(href);
-      copyBtn.textContent = 'Copied';
-      window.setTimeout(() => { copyBtn.textContent = 'Copy URL'; }, 1200);
+      copyBtn.textContent = copyUrlLabel('copied');
+      window.setTimeout(() => { copyBtn.textContent = copyUrlLabel(); }, 1200);
     } catch {
-      copyBtn.textContent = 'Copy failed';
-      window.setTimeout(() => { copyBtn.textContent = 'Copy URL'; }, 1200);
+      copyBtn.textContent = copyUrlLabel('failed');
+      window.setTimeout(() => { copyBtn.textContent = copyUrlLabel(); }, 1200);
     }
   };
 }

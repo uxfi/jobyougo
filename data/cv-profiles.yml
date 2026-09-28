@@ -102,7 +102,7 @@ ai_builder:
         status: In progress
   highlights_title: Proof Points
   highlights:
-    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset's internal tool.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset''s internal tool.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -119,8 +119,8 @@ ai_builder:
           GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
-      logo: creads_logo_final.png
-      screenshot: screenshot_creads.png
+      logo: creads-logo.webp
+      screenshot: screenshot_creads.webp
       url: https://creads.io
       desc: AI advertising SaaS, from brand context to checked creative outputs
       tag: 1,200 registered users
@@ -132,7 +132,7 @@ ai_builder:
           acquisition.
     - name: LVMH Group
       logo: lvmh.png
-      screenshot: lvmh-screenshot.png
+      screenshot: lvmh-screenshot.webp
       desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
@@ -172,7 +172,7 @@ ai_builder:
           fractional purchase selector, and asset-class-dependent reporting flows.
     - company: Independent AI Product Builder
       url: https://creads.io
-      logo: creads_logo_final.png
+      logo: creads-logo.webp
       role: Founder / AI Product Builder
       period: 2022 – Present
       bullets:
@@ -292,7 +292,7 @@ product_designer:
         - name: MVP prototypes
   highlights_title: Design Impact
   highlights:
-    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset's internal tool.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset''s internal tool.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -309,8 +309,8 @@ product_designer:
           GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
-      logo: creads_logo_final.png
-      screenshot: screenshot_creads.png
+      logo: creads-logo.webp
+      screenshot: screenshot_creads.webp
       url: https://creads.io
       desc: AI advertising SaaS, from brand context to checked creative outputs
       tag: 1,200 registered users
@@ -322,7 +322,7 @@ product_designer:
           acquisition.
     - name: LVMH Group
       logo: lvmh.png
-      screenshot: lvmh-screenshot.png
+      screenshot: lvmh-screenshot.webp
       desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
@@ -496,8 +496,8 @@ complete_paris:
           GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
-      logo: creads_logo_final.png
-      screenshot: screenshot_creads.png
+      logo: creads-logo.webp
+      screenshot: screenshot_creads.webp
       url: https://creads.io
       desc: AI advertising SaaS, from brand context to checked creative outputs
       tag: 1,200 registered users
@@ -509,7 +509,7 @@ complete_paris:
           acquisition.
     - name: LVMH Group
       logo: lvmh.png
-      screenshot: lvmh-screenshot.png
+      screenshot: lvmh-screenshot.webp
       desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
@@ -648,8 +648,8 @@ complete_bangkok:
           GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
-      logo: creads_logo_final.png
-      screenshot: screenshot_creads.png
+      logo: creads-logo.webp
+      screenshot: screenshot_creads.webp
       url: https://creads.io
       desc: AI advertising SaaS, from brand context to checked creative outputs
       tag: 1,200 registered users
@@ -661,7 +661,7 @@ complete_bangkok:
           acquisition.
     - name: LVMH Group
       logo: lvmh.png
-      screenshot: lvmh-screenshot.png
+      screenshot: lvmh-screenshot.webp
       desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
@@ -810,7 +810,7 @@ product_manager:
         status: ''
   highlights_title: Product Leadership Signals
   highlights:
-    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset's internal tool.'
+    - 'OneAsset: in 6 months, full product with one PO (investor app, admin, marketing) plus OTC; Git hand-off. Figmol is OneAsset''s internal tool.'
     - 'Creads.io: founded and built an AI advertising SaaS with 1,200 registered users.'
     - 'LVMH: stakeholder interviews and shared data-marketing workflows across 15+ maisons.'
   projects_title: Selected work
@@ -827,8 +827,8 @@ product_manager:
           GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
-      logo: creads_logo_final.png
-      screenshot: screenshot_creads.png
+      logo: creads-logo.webp
+      screenshot: screenshot_creads.webp
       url: https://creads.io
       desc: AI advertising SaaS, from brand context to checked creative outputs
       tag: 1,200 registered users
@@ -840,7 +840,7 @@ product_manager:
           acquisition.
     - name: LVMH Group
       logo: lvmh.png
-      screenshot: lvmh-screenshot.png
+      screenshot: lvmh-screenshot.webp
       desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
       bullets:
@@ -882,7 +882,7 @@ product_manager:
           into a trust-first product structure and roadmap.
     - company: Independent AI Product Builder
       url: https://creads.io
-      logo: creads_logo_final.png
+      logo: creads-logo.webp
       role: Founder / AI Product Manager
       period: 2022 – Present
       bullets:

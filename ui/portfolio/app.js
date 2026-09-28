@@ -460,7 +460,7 @@ function mountProjectMethodIcons(p, mountToken) {
           stage,
           variants: [{
             id: meta.id,
-            label: meta.label.en,
+            label: methodLangText(meta.label),
             src: meta.src,
             exposure: 2.5,
             ambient: 1.3,
@@ -1822,13 +1822,35 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         <div class="proj-n-outcome">
           ${b.stat ? `<div class="proj-n-outcome-stat">${b.stat}</div>` : ''}
           <div>
-            <div class="proj-outcome-label">Key outcome</div>
+            <div class="proj-outcome-label" data-i18n="key_outcome">${uiLabel('key_outcome')}</div>
             <div class="proj-n-outcome-text"><strong>${b.text}</strong></div>
           </div>
         </div>
       </div>`;
     default: return '';
   }
+}
+
+function uiLabel(key) {
+  const pack = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[currentLang]) || null;
+  if (pack && pack[key]) return pack[key];
+  const fr = {
+    key_outcome: 'Résultat clé',
+    challenge_label: 'Défi',
+    goals_label: 'Objectifs',
+    solution_label: 'Ma solution',
+    process_label: 'Processus',
+    process_title: 'Comment je l’ai abordé',
+  };
+  const en = {
+    key_outcome: 'Key outcome',
+    challenge_label: 'Challenge',
+    goals_label: 'Specific goals',
+    solution_label: 'My solution',
+    process_label: 'Process',
+    process_title: 'How I approached it',
+  };
+  return (currentLang === 'fr' ? fr : en)[key] || en[key] || key;
 }
 
 function methodLangText(dict) {
@@ -2219,8 +2241,8 @@ function renderProject(p) {
 
   const outcomeHTML = p.outcomeStat
     ? `<div class="proj-outcome-stat">${p.outcomeStat}</div>
-       <div><div class="proj-outcome-label">Key outcome</div><div class="proj-outcome-text"><strong>${p.outcome}</strong></div></div>`
-    : `<div style="grid-column:1/-1"><div class="proj-outcome-label">Key outcome</div><div class="proj-outcome-text"><strong>${p.outcome}</strong></div></div>`;
+       <div><div class="proj-outcome-label" data-i18n="key_outcome">${uiLabel('key_outcome')}</div><div class="proj-outcome-text"><strong>${p.outcome}</strong></div></div>`
+    : `<div style="grid-column:1/-1"><div class="proj-outcome-label" data-i18n="key_outcome">${uiLabel('key_outcome')}</div><div class="proj-outcome-text"><strong>${p.outcome}</strong></div></div>`;
 
   // Before/after — rendered early (after goals/solution, before process)
   const galleryBeforeAfterHTML = p.gallery && p.gallery.beforeAfter ? `
@@ -2263,7 +2285,7 @@ function renderProject(p) {
 
   const urlBtn = p.url
     ? `<a class="proj-url-btn" href="${p.url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:8px;">
-        View result 
+        ${currentLang === 'en' ? 'View result' : 'Voir le résultat'} 
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       </a>`
     : '';
@@ -2308,10 +2330,10 @@ function renderProject(p) {
         <div class="proj-hero-desc" style="max-width:800px;">${p.desc}</div>
         <div class="proj-hero-footer" style="display:flex; justify-content:space-between; align-items:flex-end; gap:32px; margin-top:32px; flex-wrap:wrap; width:100%;">
           <div class="proj-meta-row" style="margin-top:0;">
-            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M5 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Role</div><div class="proj-meta-val">${p.role}</div></div>
-            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12M5 2v2M11 2v2"/></svg>Duration</div><div class="proj-meta-val">${p.duration}</div></div>
-            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 14v-1a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v1"/><circle cx="8" cy="5" r="3"/></svg>Team</div><div class="proj-meta-val">${p.team}</div></div>
-            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13h4M8 11v2"/></svg>Platform</div><div class="proj-meta-val">${platformStr}</div></div>
+            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M5 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>${currentLang === 'en' ? 'Role' : 'Rôle'}</div><div class="proj-meta-val">${p.role}</div></div>
+            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12M5 2v2M11 2v2"/></svg>${currentLang === 'en' ? 'Duration' : 'Durée'}</div><div class="proj-meta-val">${p.duration}</div></div>
+            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 14v-1a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v1"/><circle cx="8" cy="5" r="3"/></svg>${currentLang === 'en' ? 'Team' : 'Équipe'}</div><div class="proj-meta-val">${p.team}</div></div>
+            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13h4M8 11v2"/></svg>${currentLang === 'en' ? 'Platform' : 'Plateforme'}</div><div class="proj-meta-val">${platformStr}</div></div>
           </div>
           ${(urlBtn || landingBtn) ? `<div class="proj-hero-actions" style="margin-top:0;">${urlBtn}${landingBtn}</div>` : ''}
         </div>
@@ -2331,17 +2353,17 @@ function renderProject(p) {
       </div>
       ` : `
       <div class="proj-challenge-block">
-        <div class="proj-block-label">Challenge</div>
+        <div class="proj-block-label" data-i18n="challenge_label">${uiLabel('challenge_label')}</div>
         <div class="proj-challenge-text">${p.challenge}</div>
       </div>
 
       <div class="proj-2col">
         <div>
-          <div class="proj-col-label">Specific goals</div>
+          <div class="proj-col-label" data-i18n="goals_label">${uiLabel('goals_label')}</div>
           <div class="proj-col-text">${p.goals}</div>
         </div>
         <div>
-          <div class="proj-col-label">My solution</div>
+          <div class="proj-col-label" data-i18n="solution_label">${uiLabel('solution_label')}</div>
           <div class="proj-col-text">${p.solution}</div>
         </div>
       </div>
@@ -2349,8 +2371,8 @@ function renderProject(p) {
       ${galleryBeforeAfterHTML}
 
       <div class="proj-process">
-        <div class="proj-block-label">Process</div>
-        <div class="proj-process-title">How I approached it</div>
+        <div class="proj-block-label" data-i18n="process_label">${uiLabel('process_label')}</div>
+        <div class="proj-process-title" data-i18n="process_title">${uiLabel('process_title')}</div>
         <div class="proj-steps">${stepsHTML}</div>
       </div>
 
@@ -2368,7 +2390,7 @@ function renderProject(p) {
       ${prevBtn}
       <div class="proj-nav-all" onclick="goHome()">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12h12M2 8h12M2 4h12"/></svg>
-        All work
+        ${currentLang === 'en' ? 'All work' : 'Tous les projets'}
       </div>
       ${nextBtn}
     </div>
@@ -2526,7 +2548,7 @@ function renderAiBento() {
       <div class="ai-wide-content">
         <div class="ai-bento-name">${p.company}</div>
         <div class="ai-bento-desc">${p.subtitle || p.desc}</div>
-        <div class="ai-bento-cta" style="color:${w.accent}">View case study →</div>
+        <div class="ai-bento-cta" style="color:${w.accent}">${currentLang === 'en' ? 'View case study →' : 'Voir l’étude de cas →'}</div>
       </div>
       <div class="ai-wide-visual${p.heroCover ? ' ai-wide-visual--cover' : ''}"${p.heroCover ? ` style="background-image:url('${p.heroCover}')"` : ''}>
         ${p.heroCover ? '' : (p.logo ? `<img src="${p.logo}" alt="${p.company}" loading="lazy" decoding="async">` : '')}
@@ -2573,14 +2595,24 @@ if ('requestIdleCallback' in window) {
 
 // Nav typing — after Selected work is ready
 (function() {
-  const phrases = [
-    "I can do more than what you see here",
-    "This is just an overview of my work",
-    "I actively follow the latest AI trends",
-    "I ship faster than you'd expect...",
-    "Last month I worked with 8 different LLMs",
-    "4.5B tokens used on average per month"
-  ];
+  const phrasesByLang = {
+    en: [
+      "I can do more than what you see here",
+      "This is just an overview of my work",
+      "I actively follow the latest AI trends",
+      "I ship faster than you'd expect...",
+      "Last month I worked with 8 different LLMs",
+      "4.5B tokens used on average per month"
+    ],
+    fr: [
+      "Je peux faire plus que ce que vous voyez ici",
+      "Ceci n’est qu’un aperçu de mon travail",
+      "Je suis de près les dernières tendances IA",
+      "Je livre plus vite que vous ne le pensez…",
+      "Le mois dernier, j’ai travaillé avec 8 LLM différents",
+      "4,5 milliards de tokens en moyenne par mois"
+    ]
+  };
   const el = document.getElementById('nav-typing-text');
   if (!el) return;
 
@@ -2588,9 +2620,21 @@ if ('requestIdleCallback' in window) {
   let charIdx = 0;
   let isDeleting = false;
   let typingSpeed = 60;
+  let activeLang = currentLang === 'fr' ? 'fr' : 'en';
+
+  function phrases() {
+    return phrasesByLang[currentLang === 'fr' ? 'fr' : 'en'];
+  }
 
   function type() {
-    const current = phrases[phraseIdx];
+    const list = phrases();
+    if (activeLang !== (currentLang === 'fr' ? 'fr' : 'en')) {
+      activeLang = currentLang === 'fr' ? 'fr' : 'en';
+      phraseIdx = 0;
+      charIdx = 0;
+      isDeleting = false;
+    }
+    const current = list[phraseIdx % list.length];
     
     if (isDeleting) {
       el.textContent = current.substring(0, charIdx - 1);
@@ -2607,7 +2651,7 @@ if ('requestIdleCallback' in window) {
       typingSpeed = 2500; // Pause at end
     } else if (isDeleting && charIdx === 0) {
       isDeleting = false;
-      phraseIdx = (phraseIdx + 1) % phrases.length;
+      phraseIdx = (phraseIdx + 1) % phrases().length;
       typingSpeed = 500; // Pause at start
     }
 
@@ -2769,16 +2813,16 @@ window.addEventListener('popstate', function() {
       outputEl.textContent = estimatedUsage ? compactNumber(estimatedUsage.output) + ' est.' : compactNumber(totals.output_tokens);
       requestsEl.textContent = estimatedUsage ? compactNumber(estimatedUsage.calls) + ' est.' : compactNumber(totals.requests);
       costEl.textContent = spendSummary ? spendSummary.value : compactUsd(totals.cost_usd);
-      dateEl.textContent = spendSummary ? spendSummary.label + ' · ' + spendSummary.date : 'Last 30 days';
+      dateEl.textContent = spendSummary ? spendSummary.label + ' · ' + spendSummary.date : (currentLang === 'en' ? 'Last 30 days' : '30 derniers jours');
       renderProviders(providers, total);
     } catch (err) {
       totalEl.textContent = '--';
-      panelTotalEl.textContent = 'Not connected';
+      panelTotalEl.textContent = currentLang === 'en' ? 'Not connected' : 'Non connecté';
       inputEl.textContent = '--';
       outputEl.textContent = '--';
       requestsEl.textContent = '--';
       costEl.textContent = '--';
-      providersEl.innerHTML = '<div class="usage-provider-note">Connect an OpenAI admin key to show live monthly usage.</div>';
+      providersEl.innerHTML = `<div class="usage-provider-note">${currentLang === 'en' ? 'Connect an OpenAI admin key to show live monthly usage.' : 'Connectez une clé admin OpenAI pour afficher l’usage mensuel.'}</div>`;
     }
   }
 
@@ -2831,6 +2875,11 @@ function setLang(lang) {
     if (t[key] !== undefined) el.innerHTML = t[key];
   });
 
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (t[key] !== undefined) el.setAttribute('placeholder', t[key]);
+  });
+
   const contactBtn = document.getElementById('nav-contact-btn');
   if (contactBtn && t.nav_contact !== undefined) {
     contactBtn.setAttribute('aria-label', t.nav_contact);
@@ -2861,6 +2910,8 @@ function setLang(lang) {
   });
 
   if (typeof renderStoryModalContent === 'function') renderStoryModalContent();
+  if (typeof updateIfaceGridHeight === 'function') updateIfaceGridHeight();
+  document.documentElement.lang = lang;
 }
 
 function initRippleButton() {
