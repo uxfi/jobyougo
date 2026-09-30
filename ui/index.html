@@ -1659,6 +1659,17 @@
     box-shadow: inset 0 0 0 1px rgba(239,107,107,0.24);
     flex-shrink: 0;
   }
+  /* Non-destructive confirms (danger: false) trade the red chrome for the accent */
+  .confirm-backdrop.is-neutral {
+    background:
+      radial-gradient(circle at 50% 44%, var(--accent-soft), transparent 34%),
+      rgba(3,5,6,0.7);
+  }
+  .confirm-backdrop.is-neutral .confirm-icon {
+    color: var(--accent-h);
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+  }
   .confirm-copy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .confirm-title { font-size: 15px; font-weight: 600; color: var(--text-1); letter-spacing: -0.012em; }
   .confirm-message { margin: 0; color: var(--text-3); font-size: 13px; line-height: 1.5; }
@@ -6660,6 +6671,64 @@ document.querySelectorAll('.portals-tab').forEach(tab => {
   });
 });
 
+// ─── Bulk on/off (Companies + Job boards) ─────────────────────────────────────
+// Acts on the rows on screen: every row without a filter ("all"), only the
+// matches with one ("shown"). Rows are recorded at render, read at click time.
+const BULK_ENABLE = {
+  portals: { endpoint: '/api/portals', one: 'company', many: 'companies' },
+  queries: { endpoint: '/api/queries', one: 'job board', many: 'job boards' },
+};
+const bulkEnableView = { portals: [], queries: [] };
+let bulkEnableRunning = false;
+
+function bulkEnableHtml(scope, rows, filtered) {
+  bulkEnableView[scope] = rows;
+  if (!rows.length) return '';
+  const on = rows.filter(r => r.enabled).length;
+  const which = filtered ? 'shown' : 'all';
+  const busy = bulkEnableRunning ? 'disabled' : '';
+  return `<span class="filter-spacer"></span>
+    <button type="button" class="btn btn-ghost btn-sm" data-bulk-enable="${scope}" data-enabled="true" ${on === rows.length ? 'disabled' : busy}>Enable ${which}</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-bulk-enable="${scope}" data-enabled="false" ${on === 0 ? 'disabled' : busy}>Disable ${which}</button>`;
+}
+
+document.addEventListener('click', async event => {
+  const button = event.target.closest('[data-bulk-enable]');
+  if (!button || bulkEnableRunning) return;
+  const scope = button.dataset.bulkEnable;
+  const { endpoint, one, many } = BULK_ENABLE[scope];
+  const enabled = button.dataset.enabled === 'true';
+  const names = bulkEnableView[scope].filter(r => r.enabled !== enabled).map(r => r.name);
+  if (!names.length) return;
+  const verb = enabled ? 'Enable' : 'Disable';
+  const noun = names.length === 1 ? one : many;
+  const confirmed = await confirmAction({
+    title: `${verb} ${formatNumber(names.length)} ${noun}?`,
+    message: enabled ? 'The next scans will include them.' : 'Scans will skip them until you turn them back on.',
+    confirmLabel: `${verb} ${noun}`,
+    danger: !enabled,
+  });
+  if (!confirmed) return;
+  bulkEnableRunning = true;
+  document.querySelectorAll('[data-bulk-enable]').forEach(el => { el.disabled = true; });
+  try {
+    const result = await api(endpoint, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled, names }),
+    });
+    const updated = Number(result?.updated || 0);
+    toast(`${formatNumber(updated)} ${updated === 1 ? one : many} ${enabled ? 'enabled' : 'disabled'}`);
+  } catch (e) { toast(`Error: ${e.message}`, true); }
+  bulkEnableRunning = false;
+  try {
+    if (scope === 'portals') state.portals = await api('/api/portals');
+    else state.queries = await api('/api/queries');
+  } catch { /* keep the list on screen; the next refresh reloads it */ }
+  if (scope === 'portals') renderPortals(); else renderQueries();
+  renderDashboard(); // its "ready to scan" line counts enabled sources
+});
+
 // ─── Portals (companies) ──────────────────────────────────────────────────────
 function renderPortals({ keepToolbar = false } = {}) {
   const allPortals = state.portals || [];
@@ -6681,7 +6750,7 @@ function renderPortals({ keepToolbar = false } = {}) {
   const filtersActive = Boolean(query) || state.portalsFilter !== 'all';
   const summary = filterSummaryHtml({ shown: portals.length, total: allPortals.length, noun: 'companies', active: filtersActive, scope: 'portals' });
   const toolbar = document.getElementById('portals-filters');
-  document.getElementById('portals-list-bar').innerHTML = `<span class="filter-summary">${summary}</span>`;
+  document.getElementById('portals-list-bar').innerHTML = `<span class="filter-summary">${summary}</span>${bulkEnableHtml('portals', portals, filtersActive)}`;
   if (!keepToolbar || !toolbar.querySelector('#portals-search')) {
     const enabled = allPortals.filter(p => p.enabled).length;
     renderToolbar(toolbar, `
@@ -6879,7 +6948,7 @@ function renderQueries({ keepToolbar = false } = {}) {
   const filtersActive = Boolean(query) || state.queriesSection !== 'all' || state.queriesState !== 'all';
   const summary = filterSummaryHtml({ shown: queries.length, total: allQueries.length, noun: 'boards', active: filtersActive, scope: 'queries' });
   const toolbar = document.getElementById('queries-filters');
-  document.getElementById('queries-list-bar').innerHTML = `<span class="filter-summary">${summary}</span>`;
+  document.getElementById('queries-list-bar').innerHTML = `<span class="filter-summary">${summary}</span>${bulkEnableHtml('queries', queries, filtersActive)}`;
   if (!keepToolbar || !toolbar.querySelector('#queries-search')) {
     const enabled = allQueries.filter(p => p.enabled).length;
     const general = allQueries.filter(p => p.section === 'search_queries').length;
@@ -7649,6 +7718,7 @@ function confirmAction({
   document.getElementById('confirm-message').textContent = message;
   acceptBtn.textContent = confirmLabel;
   acceptBtn.className = `btn ${danger ? 'btn-danger' : 'btn-primary'}`;
+  modal.classList.toggle('is-neutral', !danger);
   cancelBtn.textContent = cancelLabel;
   modal.classList.add('open');
   setTimeout(() => acceptBtn.focus(), 50);
@@ -8492,7 +8562,7 @@ if (!session && !isViewOnly) {
       '.btn-action, .btn-primary, [data-cmd], [data-run], ' +
       '#add-pipeline-btn, #quick-add-btn, .pipeline-run-btn, ' +
       '.apply-row-btn, .auto-apply-row-btn, .cover-letter-row-btn, .question-row-btn, ' +
-      '.mark-applied-btn, .delete-application-btn, #btn-signout'
+      '.mark-applied-btn, .delete-application-btn, [data-bulk-enable], #btn-signout'
     ).forEach(el => {
       if (el.id === 'btn-signout') return; // keep sign-in button
       el.disabled = true;

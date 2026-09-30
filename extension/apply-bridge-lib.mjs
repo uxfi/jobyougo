@@ -21,6 +21,7 @@ import {
   shouldFillField,
   isResumeFileField,
   isComboboxField,
+  listTypeQuery,
   fieldIsMulti,
   shouldReplaceFilledValue,
   fieldLooksRequired,
@@ -101,11 +102,46 @@ export function serializePrefer(re) {
   return { source: String(re), flags: 'i' };
 }
 
+/** A custom dropdown (react-select, Ashby, SmartRecruiters…), not a native select or radio group. */
+function isCustomList(f) {
+  const tag = String(f?.tag || '').toLowerCase();
+  const type = String(f?.type || '').toLowerCase();
+  return tag !== 'select' && type !== 'radio' && isComboboxField(f);
+}
+
+/**
+ * List fields in an update carry `list: true` and `typeQuery`: the only text
+ * the extension may type into the widget's search box ('' = pick-only). An
+ * exact option text is a safe query; otherwise only search lists (city,
+ * country, employer, school, dial code) get one.
+ */
+function listPayload(f, { optionText = '', plan = {}, identity = {} } = {}) {
+  if (!isCustomList(f)) return {};
+  const text = String(optionText || '').trim();
+  return { list: true, typeQuery: text ? (text.length <= 40 ? text : '') : listTypeQuery(f, plan, identity) };
+}
+
+/**
+ * Time one fill-fields call may take. The extension runs the updates back to
+ * back inside the tab: a list can need ~13 s (open, search, trusted-click
+ * retry) and long answers are typed in small chunks. A flat 45 s cut the N26
+ * form off halfway — the run ended in error while the tab kept typing.
+ */
+export function fillTimeoutMs(updates = []) {
+  let ms = 20000;
+  for (const u of updates || []) {
+    if (u.list) ms += 15000 + (u.selectMany?.length || 0) * 1500;
+    else if (u.check || u.choice || u.selectText != null || u.selectPrefer) ms += 2500;
+    else ms += 1500 + Math.min(20000, String(u.value || '').length * 15);
+  }
+  return Math.min(ms, 300000);
+}
+
 /**
  * Turn a classifyField plan into a fill-fields update payload for the extension.
  * Returns null when the field should be left blank / unresolved / skipped.
  */
-export function planToUpdate(f, plan) {
+export function planToUpdate(f, plan, identity = {}) {
   if (!plan || plan.skip) return null;
   if (plan.upload) {
     return {
@@ -158,13 +194,15 @@ export function planToUpdate(f, plan) {
         label,
         options: Array.isArray(f.options) ? f.options : undefined,
         choice: true,
+        ...(isCustomList(f) ? { list: true, typeQuery: '' } : {}),
       };
     }
     if (!text) return null;
-    const looseWord = String(text).trim().split(/[\s,/]+/).find((w) => w.length >= 3) || '';
-    const looseContains = looseWord && /\b(city|ville|country|pays|location|timezone|fuseau)\b/i.test(`${label} ${f.name || ''}`)
-      ? looseWord
-      : '';
+    // Other spellings of the same answer to look for in the open list
+    // ("Bangkok, Thailand" → "Bangkok"). Matched only, never typed.
+    const alternates = [plan.selectMatch, plan.selectText, plan.value]
+      .map((v) => String(v ?? '').trim())
+      .filter((v, k, all) => v && v !== text && v.length <= 60 && all.indexOf(v) === k);
     return {
       i: f.i,
       frameId: f.frameId ?? 0,
@@ -175,7 +213,8 @@ export function planToUpdate(f, plan) {
       options: Array.isArray(f.options) ? f.options : undefined,
       choice: type === 'radio' || !!plan.yesNo,
       selectPrefer: plan.selectPrefer ? serializePrefer(plan.selectPrefer) : undefined,
-      looseContains: looseContains || undefined,
+      alternates: alternates.length ? alternates : undefined,
+      ...listPayload(f, { optionText: opt?.text, plan, identity }),
     };
   }
 
@@ -204,7 +243,12 @@ export function planToUpdate(f, plan) {
   };
 }
 
-const RETRYABLE_PENDING_RE = /upload échoué|échec fill|option introuvable|no matching option|radio option not found|FileList|valeur non retenue|element not found/i;
+// A list that showed its options and none matched fails the same way on a
+// second pass — retrying it only typed into the dropdown again. A list that
+// never opened, or a click that did not stick, is worth another try.
+const RETRYABLE_PENDING_RE = /upload échoué|échec fill|radio option not found|FileList|valeur non retenue|element not found|liste non ouverte|cliquée mais non retenue/i;
+
+const fieldKey = (f) => `${f?.frameId ?? 0}:${String(f?.label || f?.name || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 80)}`;
 
 function mergeFilled(a, b) {
   const byLabel = new Map();
@@ -338,7 +382,7 @@ export class ApplyBridge {
   }
 
   fillFields(tabId, updates) {
-    return this._request('fill-fields', { tabId, updates });
+    return this._request('fill-fields', { tabId, updates }, fillTimeoutMs(updates));
   }
 
   uploadFile(tabId, { i, frameId = 0, path }) {
@@ -1747,6 +1791,7 @@ export class ApplyBridge {
               label: labelShort,
               declined: true,
               choice: f.type === 'radio',
+              ...listPayload(f, { optionText: decline.text }),
             });
             continue;
           }
@@ -1761,6 +1806,7 @@ export class ApplyBridge {
             label: labelShort,
             declined: true,
             choice: f.type === 'radio' || isComboboxField(f),
+            ...(isCustomList(f) ? { list: true, typeQuery: '' } : {}),
           });
           continue;
         }
@@ -1773,13 +1819,17 @@ export class ApplyBridge {
         continue;
       }
 
-      const update = planToUpdate(f, plan);
+      const update = planToUpdate(f, plan, spec.identity || {});
       if (!update) {
         if (f.required) unresolved.push(f);
         continue;
       }
       updates.push(update);
     }
+
+    // Options a failed list pick saw once it was open: the resolver gets the
+    // real list without opening the dropdown a second time.
+    const seenOptions = new Map();
 
     if (updates.length) {
       await push(`Fill: envoi de ${updates.length} valeur(s)…`);
@@ -1796,6 +1846,9 @@ export class ApplyBridge {
           ? /^(yes|no|oui|non)\b/i.test(landed) || !!landed
           : false;
         const choiceOk = update?.check || (field?.type === 'checkbox' && /checked/i.test(landed)) || choiceLanded;
+        if (!o.ok && Array.isArray(o.options) && o.options.length && field) {
+          seenOptions.set(fieldKey(field), o.options);
+        }
         if (o.ok && (landed || choiceOk) && !(field?.type === 'radio' && /^(unchecked)?$/i.test(landed))) {
           filled.push({ label: lab, value: o.actualValue || '' });
         } else if (fieldLooksRequired(field) || field?.required) {
@@ -1846,7 +1899,10 @@ export class ApplyBridge {
       // a real list entry instead of paraphrasing into a miss.
       for (const f of llmTargets) {
         if ((!f.options || !f.options.length) && (isComboboxField(f) || f.tag === 'select')) {
-          const scraped = await this.scrapeComboboxOptions(tabId, f);
+          const seenTexts = seenOptions.get(fieldKey(f));
+          const scraped = seenTexts?.length
+            ? seenTexts.map((t, k) => ({ value: t, text: t, key: `${f.i}:${k}` }))
+            : await this.scrapeComboboxOptions(tabId, f);
           if (scraped.length) f.options = scraped;
         }
       }
@@ -1870,6 +1926,7 @@ export class ApplyBridge {
           declined: true,
           options: f.options,
           choice: f.type === 'radio',
+          ...listPayload(f, { optionText: opt.text }),
         });
       }
       let answers = {};
@@ -1904,19 +1961,29 @@ export class ApplyBridge {
         }
         // Prefer a listed option text when the LLM paraphrases Yes/No.
         let selectText = polishApplicationAnswer(text);
+        let optionText = '';
         if (Array.isArray(f.options) && f.options.length) {
           const picked = pickSelectOption(f.options, { yesNo: /^(yes|oui)\b/i.test(selectText) ? 'yes' : /^(no|non)\b/i.test(selectText) ? 'no' : null, selectText, value: selectText }, f.label);
-          if (picked?.text) selectText = picked.text;
+          if (picked?.text) selectText = optionText = picked.text;
         }
+        // A multi-select answer is several option texts: tick them all, not
+        // only the first one.
+        const many = Array.isArray(ans) && fieldIsMulti(f)
+          ? [...new Set(ans.map((a) => String(a || '').trim()).filter(Boolean))]
+          : [];
         llmUpdates.push({
           i: f.i,
           frameId: f.frameId ?? 0,
           value: selectText,
           selectText,
+          selectMany: many.length > 1 ? many : undefined,
           label: labelShort,
           llm: true,
           options: f.options,
           choice: f.type === 'radio',
+          // No real option: the model's words are only matched. A search list
+          // (city, country…) still gets its profile query, never the answer.
+          ...listPayload(f, { optionText, identity: spec.identity || {} }),
         });
       }
       if (llmUpdates.length) {
@@ -1941,6 +2008,10 @@ export class ApplyBridge {
       for (const f of fresh) {
         if (f.type === 'file' || f.type === 'checkbox' || f.type === 'radio') continue;
         if (!shouldFillField(f)) continue;
+        // An empty list already had its pick above (or went to the resolver):
+        // sending the profile text again only typed it into the dropdown.
+        const isList = f.tag === 'select' || isComboboxField(f);
+        if (isList && !String(f.value || '').trim()) continue;
         const plan = classifyField(f, spec);
         if (!plan || plan.skip || plan.check || plan.resume) continue;
         const want = polishApplicationAnswer(plan.value || plan.selectText || (plan.yesNo === 'yes' ? 'Yes' : plan.yesNo === 'no' ? 'No' : ''));
@@ -1951,6 +2022,7 @@ export class ApplyBridge {
           value: want,
           selectText: want,
           label: (f.label || f.name || f.type).slice(0, 80),
+          ...(isCustomList(f) ? { list: true, typeQuery: '' } : {}),
         });
       }
       if (recon.length) {

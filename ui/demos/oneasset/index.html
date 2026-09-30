@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PM - dashboard</title>
+    <meta name="description" content="Streamline property management with an intuitive dashboard that consolidates tenant information, maintenance requests, and financial tracking for efficient operations." />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" />
+    <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }
+    /* Portfolio embed: hide the internal design/dev switchers */
+    .project-settings-trigger:not(.currency-switcher-trigger), .dash-header-admin-switch, .header-menu-trigger.is-admin { display: none !important; }
+    /* Prefer white shell before React hydrates (CSS default .shell is dark). */
+    html[data-oa-theme="light"] { color-scheme: light; background: #fafaf7; }
+    html[data-oa-theme="dark"] { color-scheme: dark; background: #05070a; }
+    </style>
+    <script>
+    /* Force theme from ?theme= before the app boots. Default: light/white. */
+    (function () {
+      try {
+        var q = new URLSearchParams(window.location.search);
+        var t = q.get('theme');
+        if (t !== 'dark' && t !== 'light') t = 'light';
+        document.documentElement.dataset.oaTheme = t;
+        document.documentElement.style.colorScheme = t;
+        try { localStorage.setItem('oneasset-theme', t); } catch (e) {}
+        if (t === 'light') {
+          var keepLight = function () {
+            var shell = document.querySelector('.shell');
+            if (!shell) return;
+            if (document.documentElement.dataset.oaTheme !== 'light') return;
+            if (!shell.classList.contains('light')) shell.classList.add('light');
+          };
+          var mo = new MutationObserver(keepLight);
+          mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-oa-theme'] });
+          document.addEventListener('DOMContentLoaded', keepLight);
+          setTimeout(function () { try { mo.disconnect(); } catch (e) {} }, 8000);
+        }
+      } catch (e) {}
+    })();
+    </script>
+    <script type="module" crossorigin src="/demos/oneasset/assets/main-CkwmdojU.js"></script>
+    <link rel="modulepreload" crossorigin href="/demos/oneasset/assets/workspace-navigation-CnubU-Pg.js">
+    <link rel="modulepreload" crossorigin href="/demos/oneasset/assets/vendor-react-DUX7-3KW.js">
+    <link rel="modulepreload" crossorigin href="/demos/oneasset/assets/vendor-radix-D5bgM0J6.js">
+    <link rel="modulepreload" crossorigin href="/demos/oneasset/assets/vendor-charts-DV5HzagS.js">
+    <link rel="modulepreload" crossorigin href="/demos/oneasset/assets/vendor-icons-BDFm4FbF.js">
+    <link rel="stylesheet" crossorigin href="/demos/oneasset/assets/main-icie1ROI.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

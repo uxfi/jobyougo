@@ -1,0 +1,1 @@
+import{j as a}from"./vendor-react-DUX7-3KW.js";import{bg as r}from"./main-CkwmdojU.js";import{aU as o}from"./vendor-icons-BDFm4FbF.js";function n({className:e}){return a.jsx(r,{className:e,children:a.jsx(o,{className:"oa-page-header-icon",size:22,strokeWidth:1.75,"aria-hidden":!0})})}export{n as O};

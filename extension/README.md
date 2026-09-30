@@ -14,12 +14,16 @@ Même moteur de décision côté serveur :
 - Multi-étapes Next / Continue + retry auto + `selectPrefer` live
 - Frappe humaine (textarea / longs textes), vérif email/tel, scrape options avant LLM
 - Combobox CDP (clics trusted) — au-delà du runner Playwright
+- Listes : seule une option réelle est cliquée. Du texte n’est tapé dans la
+  recherche d’une liste que pour ville / pays / école / employeur / indicatif
+  (`typeQuery` envoyé par le serveur), jamais la réponse elle-même, et il est
+  effacé si aucune option n’est retenue
 - Submit si `autoSubmit` (dashboard) ou action UI « Envoyer » (re-check avant clic)
 
 ## Installation
 
 1. `chrome://extensions` → Mode développeur → Charger non empaquetée → ce dossier
-2. Recharger l’extension après chaque changement (`manifest` **0.0.27**)
+2. Recharger l’extension après chaque changement (`manifest` **0.0.29**)
 3. Lancer le dashboard (`npm run dev`) — le pont WS est sur `ws://127.0.0.1:3210/apply-bridge`
 4. Le pont standalone `node extension/dev-bridge.mjs` (port 8934) n’est plus contacté par l’extension
 

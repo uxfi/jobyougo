@@ -5520,6 +5520,30 @@ async function togglePortal(name, enabled) {
   await writeFile(PORTALS_FILE, yamlDump(parsed, { lineWidth: 120, quotingType: '"' }), 'utf-8');
 }
 
+// Bulk on/off from the Portals page: one read and one write of portals.yml, so
+// flipping dozens of entries can't clobber itself the way parallel single
+// toggles would. Returns how many entries actually changed.
+async function setPortalsEnabled(sections, names, enabled) {
+  const { parsed } = await readPortalsYaml();
+  const wanted = new Set(names);
+  let updated = 0;
+  for (const section of sections) {
+    for (const entry of parsed[section] || []) {
+      if (!entry || !wanted.has(entry.name) || (entry.enabled !== false) === enabled) continue;
+      entry.enabled = enabled;
+      updated += 1;
+    }
+  }
+  if (updated) await writeFile(PORTALS_FILE, yamlDump(parsed, { lineWidth: 120, quotingType: '"' }), 'utf-8');
+  return updated;
+}
+
+function readBulkEnabledBody(body) {
+  const { enabled, names } = body || {};
+  if (typeof enabled !== 'boolean' || !Array.isArray(names) || !names.every(n => typeof n === 'string')) return null;
+  return { enabled, names };
+}
+
 // Atomic batch remove: one Supabase update + one read+write of pipeline.md +
 // one appendScanHistoryEntries call. Replaces parallel removeFromPipeline calls
 // that clobbered each other on pipeline.md.
@@ -6505,6 +6529,38 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Built product prototypes embedded as iframes in portfolio case studies
+    // (e.g. /demos/oneasset/?actor=investor&screen=dashboard → ui/demos/oneasset/index.html).
+    if (path.startsWith('/demos/')) {
+      const rel = decodeURIComponent(path.slice('/demos/'.length));
+      const file = safeJoin(join(__dirname, 'demos'), rel.endsWith('/') || !rel.includes('.') ? join(rel, 'index.html') : rel);
+      if (!file) { res.writeHead(403); res.end('Forbidden'); return; }
+      try {
+        const content = await readFile(file);
+        const ext = file.split('.').pop().toLowerCase();
+        const types = {
+          html: 'text/html; charset=utf-8', js: 'application/javascript; charset=utf-8', css: 'text/css; charset=utf-8',
+          json: 'application/json; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+          webp: 'image/webp', gif: 'image/gif', avif: 'image/avif', woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf',
+          glb: 'model/gltf-binary', mp4: 'video/mp4', webm: 'video/webm', pdf: 'application/pdf', csv: 'text/csv; charset=utf-8',
+        };
+        res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
+        res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+        if (ext === 'html') {
+          res.setHeader('Cache-Control', 'no-cache');
+          sendText(req, res, content.toString('utf-8'));
+        } else {
+          // Vite hashes every asset filename — safe to cache forever
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          if (ext === 'js' || ext === 'css' || ext === 'json' || ext === 'svg') sendText(req, res, content.toString('utf-8'));
+          else { res.writeHead(200); res.end(content); }
+        }
+      } catch {
+        res.writeHead(404); res.end('Not found');
+      }
+      return;
+    }
+
     if (path === '/api/ai-usage/today' && method === 'GET') {
       const force = urlObj.searchParams.get('refresh') === '1';
       return json(res, await getAiUsageToday({ force }));
@@ -6847,6 +6903,12 @@ const server = createServer(async (req, res) => {
         await addPortal(body);
         return json(res, { ok: true });
       }
+      if (method === 'PATCH') {
+        const bulk = readBulkEnabledBody(await readBody(req));
+        if (!bulk) return json(res, { error: 'Expected { enabled: boolean, names: string[] }' }, 400);
+        const updated = await setPortalsEnabled(['tracked_companies'], bulk.names, bulk.enabled);
+        return json(res, { ok: true, updated });
+      }
     }
 
     if (path.startsWith('/api/portals/')) {
@@ -6878,6 +6940,12 @@ const server = createServer(async (req, res) => {
         if (!body.query?.trim()) return json(res, { error: 'Query is required' }, 400);
         await addQuery(body);
         return json(res, { ok: true });
+      }
+      if (method === 'PATCH') {
+        const bulk = readBulkEnabledBody(await readBody(req));
+        if (!bulk) return json(res, { error: 'Expected { enabled: boolean, names: string[] }' }, 400);
+        const updated = await setPortalsEnabled(['search_queries', 'eu_job_boards'], bulk.names, bulk.enabled);
+        return json(res, { ok: true, updated });
       }
     }
 

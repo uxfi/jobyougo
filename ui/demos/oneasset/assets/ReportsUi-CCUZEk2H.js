@@ -1,0 +1,1 @@
+import{j as a}from"./vendor-react-DUX7-3KW.js";function s({versionNumber:r}){return a.jsxs("span",{className:"badge b-grey reports-table-version-tag","aria-label":`Version ${r}`,children:["v",r]})}export{s as R};

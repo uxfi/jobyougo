@@ -387,7 +387,7 @@ async function scrapeOptionsInPage(i) {
     el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
   }
   el.focus();
-  const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [class*="select__option"], [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], .select2-results__option, [class*="-option" i], [role="listbox"] li';
+  const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [class*="select__option"], [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], .select2-results__option, [class*="-option" i], [role="listbox"] li';
   const PLACEHOLDER = /^(select\b|choose\b|--|please\b|s[ée]lectionn|aucun|loading|searching|no options|no results|start typing|type to search)/i;
   const read = (root) => deep(root, SEL)
     .filter((n) => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
@@ -910,6 +910,7 @@ async function fillFieldsInPage(updates) {
     '[role="option"]',
     '[role="menuitem"]',
     '[role="menuitemradio"]',
+    '[role="menuitemcheckbox"]',
     '[role="treeitem"]',
     '[id*="-option-"]',
     'li[id*="option"]',
@@ -1104,8 +1105,12 @@ async function fillFieldsInPage(updates) {
   // A typed filter ("Ban") is not a selection of "Bangkok". The visible value
   // has to be the option, not a prefix still sitting in the box.
   const selectionMatches = (fieldEl, pickedText) => {
-    const got = committedText(fieldEl).toLowerCase();
     const want = normText(pickedText).toLowerCase();
+    // Multi-select lists show each pick as a chip beside the input, not as one value.
+    const valueBox = fieldEl.closest?.('[class*="value-container" i], [class*="valueContainer" i]');
+    const chips = valueBox ? [...valueBox.querySelectorAll('[class*="multi-value" i], [class*="multiValue" i]')] : [];
+    if (chips.length) return chips.some((c) => normText(c.textContent).toLowerCase() === want);
+    const got = committedText(fieldEl).toLowerCase();
     if (!got || !want || PLACEHOLDER_OPT.test(got) || got === 'select...') return false;
     if (got === want) return true;
     if (want.startsWith(got) && got.length < want.length) return false;
@@ -1165,91 +1170,183 @@ async function fillFieldsInPage(updates) {
     return word.slice(0, 16);
   };
 
+  // Empty the search box, then close the list the empty input may reopen
+  // (react-select opens its menu on any input change).
   const clearFilter = (fieldEl) => {
-    pressEscape(fieldEl);
     const tag = fieldEl.tagName;
-    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
-    if (tag === 'INPUT' && inputSetter) inputSetter.call(fieldEl, '');
-    else if (tag === 'TEXTAREA' && textareaSetter) textareaSetter.call(fieldEl, '');
-    else fieldEl.value = '';
-    fieldEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' }));
+    if (tag === 'INPUT' || tag === 'TEXTAREA') {
+      if (tag === 'INPUT' && inputSetter) inputSetter.call(fieldEl, '');
+      else if (tag === 'TEXTAREA' && textareaSetter) textareaSetter.call(fieldEl, '');
+      else fieldEl.value = '';
+      fieldEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' }));
+    } else if (fieldEl.isContentEditable) {
+      fieldEl.textContent = '';
+      fieldEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' }));
+    }
+    pressEscape(fieldEl);
   };
 
-  const selectComboboxOption = async (el, want, { known = true, looseContains = '' } = {}) => {
-    const w = normText(want);
-    if (!w) return null;
-    const binary = /^(yes|oui|y|true|no|non|n|false)$/i.test(w);
+  const labelOfNode = (n) => normText(n.innerText || n.getAttribute?.('aria-label') || n.getAttribute?.('title'));
 
-    const tryPick = async (query) => {
-      const { nodes } = optionSnapshot(el, true);
-      const match = pickBestOption(nodes, query || w);
-      if (!match) return null;
-      const label = normText(match.innerText || match.getAttribute?.('aria-label'));
+  // Every option is on screen and the box does not scroll: typing to filter
+  // cannot reveal anything new.
+  const listIsComplete = (nodes) => {
+    if (!nodes.length || nodes.length > 15) return false;
+    let node = nodes[0].parentElement;
+    for (let d = 0; d < 6 && node && node !== document.body; d++, node = node.parentElement) {
+      const st = getComputedStyle(node);
+      if (/(auto|scroll)/.test(st.overflowY) && node.scrollHeight > node.clientHeight + 4) return false;
+    }
+    return true;
+  };
+
+  // Lists: open, click one of the widget's own options, check that it stuck.
+  // Text goes into the search box only as `typeQuery` — the server sends one
+  // for search lists (city, country, school, employer, dial code) — and not
+  // when the open list already shows every option. The answer itself is never
+  // typed ("Available upon request" in a Yes/No dropdown was the bug), and a
+  // query that commits nothing is cleared again.
+  const selectComboboxOption = async (el, want, {
+    alternates = [], typeQuery = '', prefer = null, budgetMs = 9000, many = [],
+  } = {}) => {
+    const wants = [want, ...alternates].map(normText).filter((x, k, all) => x && all.indexOf(x) === k);
+    const out = { picked: null, listOpened: false, clicked: '', options: [], typed: false };
+    if (!wants.length && !prefer) return out;
+    const deadline = Date.now() + budgetMs;
+    // Yes/No is never typed ("No" filters down to "None").
+    const binary = /^(yes|oui|y|true|no|non|n|false)$/i.test(wants[0] || '');
+
+    const matchIn = (nodes) => {
+      for (const q of wants) {
+        const hit = pickBestOption(nodes, q);
+        if (hit) return hit;
+      }
+      return prefer ? nodes.find((n) => prefer.test(labelOfNode(n))) || null : null;
+    };
+
+    // Checkbox-style rows (menuitemcheckbox) say themselves whether they are
+    // ticked. aria-selected is not used: some libraries set it on the row
+    // under the pointer.
+    const ticked = (node) => node.isConnected && node.getAttribute('aria-checked') === 'true';
+
+    const clickAndCheck = async (node) => {
+      const label = labelOfNode(node);
+      out.clicked = label;
+      // Already ticked in a multi-choice menu: a click would untick it.
+      if (ticked(node)) return label;
       document.querySelectorAll('[data-co-match]').forEach((e) => e.removeAttribute('data-co-match'));
-      match.setAttribute('data-co-match', '1');
-      pointerClick(match);
-      await sleep(220);
-      if (!selectionMatches(el, label)) return null;
-      return label;
+      node.setAttribute('data-co-match', '1');
+      pointerClick(node);
+      // React commits the pick after the click handler returns.
+      for (let k = 0; k < 4; k++) {
+        await sleep(k ? 150 : 220);
+        if (ticked(node) || selectionMatches(el, label)) return label;
+      }
+      return null;
     };
 
     const waitOptions = async (beforeSig) => {
-      for (let i = 0; i < 8; i++) {
+      for (let k = 0; k < 8; k++) {
         await sleep(90);
         const snap = optionSnapshot(el, true);
-        if (snap.count > 0 && snap.sig !== beforeSig) return true;
+        if (snap.count > 0 && (snap.sig !== beforeSig || el.getAttribute('aria-expanded') === 'true')) return snap;
       }
-      return false;
+      return null;
     };
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    // 1) Open the list and look for the answer among its options. A list
+    // already open is read as is: clicking a toggle trigger would shut it.
+    let shown = null;
+    if (el.getAttribute('aria-expanded') === 'true') {
+      const snap = optionSnapshot(el, true);
+      if (snap.count > 0) shown = snap;
+    }
+    for (let attempt = 0; attempt < 2 && !shown && Date.now() < deadline; attempt++) {
+      if (attempt) {
+        pressEscape(el);
+        await sleep(160);
+      }
       const before = optionSnapshot(el, true);
       openCombobox(el);
-      const opened = await waitOptions(before.sig);
+      shown = await waitOptions(before.sig);
+    }
+    if (shown) {
+      out.listOpened = true;
+      out.options = [...new Set(shown.nodes.map(labelOfNode).filter(Boolean))].slice(0, 40);
+    }
 
-      if (opened) {
-        const picked = await tryPick(w);
-        if (picked) return picked;
+    // Multi-select: tick every chosen option, reopening if a pick closed it.
+    if (shown && many.length > 1) {
+      const picked = [];
+      for (const target of many) {
+        if (Date.now() >= deadline) break;
+        let nodes = optionSnapshot(el, true).nodes;
+        if (!nodes.length) {
+          openCombobox(el);
+          nodes = (await waitOptions(''))?.nodes || [];
+          if (!nodes.length) break;
+        }
+        const node = pickBestOption(nodes, target);
+        if (!node) continue;
+        const got = await clickAndCheck(node);
+        if (got) picked.push(got);
       }
+      pressEscape(el);
+      await sleep(120);
+      if (picked.length) out.picked = picked.join(', ');
+      return out;
+    }
 
-      // Typeahead: write the query, wait for the filtered rows, then click one.
-      // Yes/No is never typed ("No" filters down to "None").
-      const typed = binary ? '' : filterQuery(w);
-      if (typed) {
-        await typeIntoFilter(el, typed);
-        await waitOptions('');
-        const picked = await tryPick(w);
-        if (picked) return picked;
-        const { nodes } = optionSnapshot(el, true);
-        if (nodes.length === 1) {
-          const only = normText(nodes[0].innerText || nodes[0].getAttribute?.('aria-label'));
-          el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', code: 'Enter' }));
-          el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter', code: 'Enter' }));
-          await sleep(180);
-          if (selectionMatches(el, only)) return only;
+    if (shown) {
+      const hit = matchIn(shown.nodes);
+      if (hit) {
+        const got = await clickAndCheck(hit);
+        if (got) {
+          out.picked = got;
+          return out;
         }
       }
-
-      clearFilter(el);
-      await sleep(160);
     }
 
-    const loose = normText(looseContains);
-    if (loose.length >= 3) {
-      openCombobox(el);
-      await typeIntoFilter(el, loose.slice(0, Math.min(loose.length, 20)));
-      await waitOptions('');
-      const { nodes } = optionSnapshot(el, true);
-      const match = nodes.find((n) => normText(n.innerText || n.getAttribute?.('aria-label')).toLowerCase().includes(loose.toLowerCase()));
-      if (match) {
-        const label = normText(match.innerText || match.getAttribute?.('aria-label'));
-        pointerClick(match);
-        await sleep(220);
-        if (selectionMatches(el, label)) return label;
+    // 2) Search lists: type the query, pick among the results.
+    const query = normText(typeQuery).slice(0, 40);
+    const typable = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+    if (!out.clicked && query.length >= 2 && !binary && typable && Date.now() < deadline
+        && !(shown && listIsComplete(shown.nodes))) {
+      await typeIntoFilter(el, query);
+      out.typed = true;
+      // Async lists (Greenhouse location) answer after a network round trip:
+      // wait for results, stop once they hold still (not before the search
+      // had time to replace what was on screen).
+      let hit = null;
+      let lastSig = '';
+      const typedAt = Date.now();
+      const until = Math.min(deadline, typedAt + 3200);
+      while (Date.now() < until) {
+        await sleep(160);
+        const snap = optionSnapshot(el, true);
+        if (!snap.count) continue;
+        hit = matchIn(snap.nodes);
+        if (!hit && snap.nodes.length === 1 && labelOfNode(snap.nodes[0]).toLowerCase().includes(query.toLowerCase())) {
+          hit = snap.nodes[0];
+        }
+        if (hit || (snap.sig === lastSig && Date.now() - typedAt > 900)) break;
+        lastSig = snap.sig;
       }
-      clearFilter(el);
+      if (hit) {
+        const got = await clickAndCheck(hit);
+        if (got) {
+          out.picked = got;
+          return out;
+        }
+      }
     }
-    return null;
+
+    // 3) Nothing committed: leave the box as it was found.
+    if (out.typed) clearFilter(el);
+    else pressEscape(el);
+    await sleep(120);
+    return out;
   };
 
   const fire = (el, value) => {
@@ -1340,6 +1437,10 @@ async function fillFieldsInPage(updates) {
     });
     cands = cands.filter((n) => !cands.some((o) => o !== n && n.contains(o)));
     const hit = cands.find((n) => re.test(normText(n.innerText || n.getAttribute?.('aria-label') || '')));
+    // Close it again: the pick below opens the list itself, and a toggle
+    // trigger clicked while open would shut it.
+    pressEscape(el);
+    await sleep(120);
     return hit ? normText(hit.innerText || hit.getAttribute?.('aria-label') || '') : '';
   };
 
@@ -1455,7 +1556,9 @@ async function fillFieldsInPage(updates) {
               i,
               frameId,
               ok: true,
-              actualValue: (hit.innerText || hit.getAttribute?.('data-option') || hit.value || want).trim(),
+              // The option's label, not its value ("3" on Teamtailor radios).
+              actualValue: (hit.labels?.[0]?.innerText || hit.innerText || hit.getAttribute?.('aria-label')
+                || hit.getAttribute?.('data-option') || hit.value || want).replace(/\s+/g, ' ').trim(),
             });
             continue;
           }
@@ -1482,17 +1585,26 @@ async function fillFieldsInPage(updates) {
           const hit = re && [...el.options].find((o) => re.test(o.text || ''));
           if (hit) want = hit.text;
         }
-        const match = pickOption([...el.options].map((o) => ({ value: o.value, text: o.text })), want);
-        if (match) {
-          const optEl = [...el.options].find((o) => o.value === match.value);
-          if (optEl) optEl.selected = true;
-          el.value = match.value;
-        } else if (want) {
-          el.value = value;
-        } else {
-          results.push({ i, frameId, ok: false, reason: 'no matching select option' });
+        const opts = [...el.options].map((o) => ({ value: o.value, text: o.text }));
+        const prefer = preferRe(u);
+        const match = pickOption(opts, want)
+          || (Array.isArray(u.alternates) ? u.alternates.map((a) => pickOption(opts, a)).find(Boolean) : null)
+          || (prefer ? opts.find((o) => prefer.test(o.text || '')) : null);
+        if (!match) {
+          // Leave the select alone: assigning a value it does not offer only
+          // blanks it (selectedIndex -1).
+          results.push({
+            i,
+            frameId,
+            ok: false,
+            reason: `option introuvable pour « ${want || ''} »`,
+            options: opts.map((o) => normText(o.text)).filter((t) => t && !PLACEHOLDER_OPT.test(t)).slice(0, 40),
+          });
           continue;
         }
+        const optEl = [...el.options].find((o) => o.value === match.value);
+        if (optEl) optEl.selected = true;
+        el.value = match.value;
         fire(el, el.value);
         // React-controlled <select> often ignores value= without input+change.
         el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1519,18 +1631,42 @@ async function fillFieldsInPage(updates) {
         || el.getAttribute('aria-autocomplete') === 'both';
       if (looksCombobox) {
         const want = String(selectText || value || '');
-        const picked = await selectComboboxOption(el, want, {
-          known: strongCombobox || role === 'combobox',
-          looseContains: u.looseContains || '',
+        // An older bridge sends no typeQuery: then only place / organisation
+        // lists may be searched.
+        const typeQuery = u.typeQuery !== undefined
+          ? String(u.typeQuery || '')
+          : (/\b(city|ville|country|pays|location|localisation|school|universit\w*|college|company|employer)\b/i.test(u.label || '') ? filterQuery(want) : '');
+        const res = await selectComboboxOption(el, want, {
+          alternates: Array.isArray(u.alternates) ? u.alternates : [],
+          typeQuery,
+          prefer: preferRe(u),
+          many: Array.isArray(u.selectMany) ? u.selectMany : [],
+          budgetMs: 9000 + (Array.isArray(u.selectMany) ? u.selectMany.length * 1200 : 0),
         });
-        if (picked) {
-          results.push({ i, frameId, ok: true, actualValue: picked });
+        if (res.picked) {
+          results.push({ i, frameId, ok: true, actualValue: res.picked });
           continue;
         }
         if (strongCombobox) {
-          // Closed-option widget with no matching rendered option — do NOT
-          // report typed text as filled (false positive the ATS rejects).
-          results.push({ i, frameId, ok: false, reason: `no matching option for "${want}"` });
+          // Closed-option widget: typed text is never a value. The trusted
+          // CDP retry only helps when the list stayed shut or the click did
+          // not stick — options that were on screen and did not match will
+          // not match any better.
+          const seen = res.options.slice(0, 12).join(' | ');
+          let reason = `option introuvable — liste non ouverte pour « ${want} »`;
+          if (res.clicked) reason = `option introuvable — « ${res.clicked} » cliquée mais non retenue`;
+          else if (res.listOpened) reason = `option introuvable pour « ${want} »${seen ? ` (liste : ${seen})` : ''}`;
+          else if (res.typed) reason = `option introuvable — aucun résultat pour « ${typeQuery} »`;
+          results.push({
+            i,
+            frameId,
+            ok: false,
+            reason,
+            cdpRetry: !!res.clicked || !res.listOpened,
+            want,
+            typeQuery,
+            options: res.options.length ? res.options : undefined,
+          });
           continue;
         }
         // Mild signal only (plain autocomplete-attributed text input) — free
@@ -1990,20 +2126,23 @@ async function fillFieldsInTab(tabId, updates) {
   }
 
   // Synthetic MouseEvents are often ignored (event.isTrusted === false) by
-  // react-select / Radix / SmartRecruiters. Retry failed combobox picks with
-  // CDP Input.dispatchMouseEvent (trusted hardware-like clicks).
+  // react-select / Radix / SmartRecruiters. Retry with CDP
+  // Input.dispatchMouseEvent (trusted hardware-like clicks) — only where that
+  // can help: the list stayed shut, or the clicked option did not stick.
   for (let idx = 0; idx < outcomes.length; idx++) {
     const o = outcomes[idx];
-    if (o.ok || !/no matching option/i.test(String(o.reason || ''))) continue;
+    if (o.ok || !o.cdpRetry) continue;
     const u = updates.find((x) => x.i === o.i && (x.frameId ?? 0) === (o.frameId ?? 0));
     if (!u) continue;
-    const want = String(u.selectText || u.value || '').trim();
+    const want = String(o.want || u.selectText || u.value || '').trim();
     if (!want) continue;
     try {
       const cdp = await fillComboboxViaCdp(tabId, {
         i: u.i,
         frameId: u.frameId ?? 0,
         want,
+        alternates: Array.isArray(u.alternates) ? u.alternates : [],
+        typeQuery: String(o.typeQuery || ''),
       });
       if (cdp?.ok) {
         outcomes[idx] = { i: o.i, frameId: o.frameId ?? 0, ok: true, actualValue: cdp.actualValue || want };
@@ -2035,8 +2174,12 @@ async function cdpMouseClick(session, x, y) {
 /**
  * Open a combobox, find the best matching option, click both via CDP so
  * widgets that ignore untrusted synthetic events still register the choice.
+ * Same rules as the in-page pick: only `typeQuery` is ever typed, a click
+ * counts once the widget shows the option, and whatever was typed is cleared
+ * when nothing got committed — this path used to type the whole answer and
+ * leave it in the box.
  */
-async function fillComboboxViaCdp(tabId, { i, frameId = 0, want }) {
+async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = [], typeQuery = '' }) {
   const target = { tabId };
   let attached = false;
   const iframeSessions = [];
@@ -2058,6 +2201,77 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want }) {
     }
     return res?.result?.value ?? null;
   };
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const pressKey = async (session, key, keyCode) => {
+    await chrome.debugger.sendCommand(session, 'Input.dispatchKeyEvent', {
+      type: 'rawKeyDown', key, code: key, windowsVirtualKeyCode: keyCode,
+    }).catch(() => {});
+    await chrome.debugger.sendCommand(session, 'Input.dispatchKeyEvent', {
+      type: 'keyUp', key, code: key, windowsVirtualKeyCode: keyCode,
+    }).catch(() => {});
+  };
+
+  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  const wants = [want, ...alternates].map(norm).filter((s, k, all) => s && all.indexOf(s) === k);
+  const query = /^(yes|oui|y|true|no|non|n|false)$/i.test(norm(want)) ? '' : norm(typeQuery).slice(0, 40);
+  const FIND_FIELD = `const visit = (node, sel) => {
+      if (!node?.querySelectorAll) return null;
+      const hit = node.querySelector(sel);
+      if (hit) return hit;
+      for (const el of node.querySelectorAll('*')) {
+        if (el.shadowRoot) {
+          const nested = visit(el.shadowRoot, sel);
+          if (nested) return nested;
+        }
+      }
+      return null;
+    };
+    const field = visit(document, '[data-co-i="${String(i).replace(/"/g, '')}"]');`;
+
+  // Focus the box and select its text (a trusted Backspace then deletes it).
+  const SELECT_TEXT_FN = `(() => {
+    ${FIND_FIELD}
+    if (!field) return '';
+    try { field.focus(); if (field.select) field.select(); } catch {}
+    return String(field.value || '');
+  })()`;
+  const FIELD_VALUE_FN = `(() => {
+    ${FIND_FIELD}
+    return field ? String(field.value || '') : '';
+  })()`;
+  const FORCE_CLEAR_FN = `(() => {
+    ${FIND_FIELD}
+    if (!field || (field.tagName !== 'INPUT' && field.tagName !== 'TEXTAREA')) return '';
+    const proto = field.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    if (setter) setter.call(field, ''); else field.value = '';
+    field.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' }));
+    return String(field.value || '');
+  })()`;
+  // Did the widget take the option? Same reading as the in-page check.
+  const committedFn = (picked) => `(() => {
+    ${FIND_FIELD}
+    if (!field) return false;
+    const low = (s) => String(s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+    const want = low(${JSON.stringify(String(picked || ''))});
+    if (!want) return false;
+    const same = (t) => !!t && (t === want || (want.length >= 4 && t.includes(want)));
+    const valueBox = field.closest('[class*="value-container" i], [class*="valueContainer" i]');
+    const chips = valueBox ? [...valueBox.querySelectorAll('[class*="multi-value" i], [class*="multiValue" i]')] : [];
+    if (chips.length) return chips.some((c) => low(c.textContent) === want);
+    let node = field.parentElement;
+    for (let d = 0; d < 6 && node && node.tagName !== 'FORM'; d++, node = node.parentElement) {
+      const shown = node.querySelector('[class*="singleValue" i], [class*="single-value" i]');
+      if (shown) return same(low(shown.textContent));
+      const shadow = node.querySelector('input[aria-hidden="true"]:not([type="checkbox"]):not([type="radio"])');
+      if (shadow && String(shadow.value || '').trim()) return same(low(shadow.value));
+    }
+    const own = field.tagName === 'BUTTON' || field.getAttribute('aria-haspopup')
+      ? (field.innerText || field.textContent)
+      : field.value;
+    return same(low(own));
+  })()`;
 
   const FIELD_RECT_FN = `(() => {
     const visit = (node, sel) => {
@@ -2081,12 +2295,13 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want }) {
     return { x: r.x, y: r.y, width: r.width, height: r.height };
   })()`;
 
-  const OPTION_RECT_FN = `(() => {
-    const want = ${JSON.stringify(String(want || ''))};
-    const wLow = want.toLowerCase();
+  // `typed`: after a search query, a lone result holding the query counts.
+  const optionRectFn = (typed) => `(() => {
+    const wants = ${JSON.stringify(wants)};
+    const typedQuery = ${JSON.stringify(typed ? query.toLowerCase() : '')};
     const norm = (s) => String(s || '').replace(/\\s+/g, ' ').trim();
     const PLACEHOLDER = /^(select\\b|choose\\b|--|please\\b|s[ée]lectionn|aucun|loading|searching|chargement|recherche|no options|no results|aucun r[ée]sultat|start typing|type to search)/i;
-    const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="treeitem"], [id*="-option-"], [part="option"], [class*="select__option"], [class*="SelectOption"], [class*="Select-option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *, [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], mat-option, .ng-option, [cmdk-item], [data-radix-collection-item], [data-highlighted], [class*="dropdown-item" i], [class*="DropdownMenuItem" i], .select2-results__option, [class*="select2-results__option"], .choices__item--choice, .vs__dropdown-option, .el-select-dropdown__item, [class*="el-select-dropdown__item"], [data-automation-id*="promptOption" i], [data-automation-id*="option" i], spl-option, oc-option, [class*="spl-option" i], [class*="v-list-item" i], [role="listbox"] li, .pac-item, [class*="-option" i], [class*="menu-item" i]';
+    const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="treeitem"], [id*="-option-"], [part="option"], [class*="select__option"], [class*="SelectOption"], [class*="Select-option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *, [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], mat-option, .ng-option, [cmdk-item], [data-radix-collection-item], [data-highlighted], [class*="dropdown-item" i], [class*="DropdownMenuItem" i], .select2-results__option, [class*="select2-results__option"], .choices__item--choice, .vs__dropdown-option, .el-select-dropdown__item, [class*="el-select-dropdown__item"], [data-automation-id*="promptOption" i], [data-automation-id*="option" i], spl-option, oc-option, [class*="spl-option" i], [class*="v-list-item" i], [role="listbox"] li, .pac-item, [class*="-option" i], [class*="menu-item" i]';
     const deepAll = (root, sel) => {
       const out = [];
       const visit = (node) => {
@@ -2116,30 +2331,48 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want }) {
     });
     cands = cands.filter((n) => !cands.some((o) => o !== n && n.contains(o)));
     if (field) {
-      const fr = field.getBoundingClientRect();
-      const near = cands.filter((n) => {
-        const b = n.getBoundingClientRect();
-        return b.top >= fr.top - 420 && b.top <= fr.bottom + 420
-          && b.left < fr.right + 80 && b.right > fr.left - 80;
-      });
-      if (near.length) cands = near;
+      // The list the control names, when it names one; else rows near it.
+      const ids = ((field.getAttribute('aria-controls') || '') + ' ' + (field.getAttribute('aria-owns') || '')).trim().split(/\\s+/).filter(Boolean);
+      const boxes = ids.map((id) => document.getElementById(id)).filter(Boolean);
+      const owned = boxes.length ? cands.filter((n) => boxes.some((b) => b.contains(n))) : [];
+      if (owned.length) {
+        cands = owned;
+      } else {
+        const fr = field.getBoundingClientRect();
+        const near = cands.filter((n) => {
+          const b = n.getBoundingClientRect();
+          return b.top >= fr.top - 420 && b.top <= fr.bottom + 420
+            && b.left < fr.right + 80 && b.right > fr.left - 80;
+        });
+        if (near.length) cands = near;
+      }
     }
     cands = cands.filter((n) => !PLACEHOLDER.test(norm(n.innerText || (n.getAttribute && n.getAttribute('aria-label')))));
-    const score = (n) => {
-      const t = norm(n.innerText || (n.getAttribute && n.getAttribute('aria-label')));
+    const score = (t, want) => {
       const low = t.toLowerCase();
+      const wLow = want.toLowerCase();
       if (low === wLow) return 100;
       const kind = /^(yes|oui|y|true)$/i.test(want) ? 'yes' : /^(no|non|n|false)$/i.test(want) ? 'no' : null;
       if (kind === 'yes' && /^(yes|oui)\\b/i.test(t) && !/^(no|non)\\b/i.test(t)) return 90;
       if (kind === 'no' && /^(no|non)\\b/i.test(t) && !/^non-?binary\\b/i.test(t) && !/^none\\b/i.test(t)) return 90;
       if (kind) return 0;
       if (wLow.length >= 4 && (low.includes(wLow) || (low.length >= 4 && wLow.includes(low)))) return 55;
-      if (wLow.length >= 2 && low.includes(wLow)) return 40;
       return 0;
     };
     let best = 0; let hit = null;
-    for (const n of cands) { const s = score(n); if (s > best) { best = s; hit = n; } }
-    if (!hit || best < 40) return { ok: false, count: cands.length, seen: cands.slice(0, 8).map((n) => norm(n.innerText).slice(0, 40)) };
+    for (const n of cands) {
+      const t = norm(n.innerText || (n.getAttribute && n.getAttribute('aria-label')));
+      for (const w of wants) {
+        const s = score(t, w);
+        if (s > best) { best = s; hit = n; }
+      }
+    }
+    if ((!hit || best < 50) && typedQuery && cands.length === 1
+        && norm(cands[0].innerText).toLowerCase().includes(typedQuery)) {
+      hit = cands[0];
+      best = 50;
+    }
+    if (!hit || best < 50) return { ok: false, count: cands.length, seen: cands.slice(0, 8).map((n) => norm(n.innerText).slice(0, 40)) };
     const r = hit.getBoundingClientRect();
     return { ok: true, text: norm(hit.innerText || (hit.getAttribute && hit.getAttribute('aria-label'))), x: r.x, y: r.y, width: r.width, height: r.height, count: cands.length };
   })()`;
@@ -2187,33 +2420,54 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want }) {
     }).catch(() => {});
     await new Promise((r) => setTimeout(r, 350));
 
+    let typed = false;
+    // Leave the box as it was: empty what was typed (trusted Backspace on the
+    // selected text, then the value setter) and close the list.
+    const cleanup = async () => {
+      if (typed) {
+        const left = await evalInSession(fieldSession, SELECT_TEXT_FN);
+        if (typeof left === 'string' && left) {
+          await pressKey(fieldSession, 'Backspace', 8);
+          await sleep(150);
+          const still = await evalInSession(fieldSession, FIELD_VALUE_FN);
+          if (typeof still === 'string' && still) await evalInSession(fieldSession, FORCE_CLEAR_FN);
+        }
+      }
+      await pressKey(fieldSession, 'Escape', 27);
+    };
+
     let option = null;
     for (let attempt = 0; attempt < 6; attempt++) {
       for (const session of [fieldSession, ...sessions.filter((s) => s !== fieldSession)]) {
-        const found = await evalInSession(session, OPTION_RECT_FN);
+        const found = await evalInSession(session, optionRectFn(typed));
         if (found?.ok && found.width > 0) {
           option = { session, ...found };
           break;
         }
       }
       if (option) break;
-      // Type a filter prefix for long answers (not Yes/No)
-      if (attempt === 1 && want.length >= 2 && !/^(yes|oui|y|true|no|non|n|false)$/i.test(want)) {
-        for (const ch of want.slice(0, 24)) {
+      // Search lists only: the server's query, never the answer.
+      if (attempt === 1 && query.length >= 2 && !typed) {
+        await evalInSession(fieldSession, `(() => { ${FIND_FIELD} if (field) field.focus(); return !!field; })()`);
+        for (const ch of query) {
           await chrome.debugger.sendCommand(fieldSession, 'Input.dispatchKeyEvent', {
             type: 'keyDown', text: ch, key: ch,
           }).catch(() => {});
           await chrome.debugger.sendCommand(fieldSession, 'Input.dispatchKeyEvent', {
-            type: 'keyUp', text: ch, key: ch,
+            type: 'keyUp', key: ch,
           }).catch(() => {});
-          await new Promise((r) => setTimeout(r, 30));
+          await sleep(35);
         }
+        typed = true;
+        await sleep(500);
+        continue;
       }
-      await new Promise((r) => setTimeout(r, 200));
+      await sleep(typed ? 400 : 200);
     }
 
     if (!option) {
-      return { ok: false, error: `no CDP option for "${want}"` };
+      await cleanup();
+      return { ok: false, error: `aucune option pour « ${want} »` };
     }
 
     await cdpMouseClick(
@@ -2221,7 +2475,15 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want }) {
       option.x + option.width / 2,
       option.y + option.height / 2,
     );
-    await new Promise((r) => setTimeout(r, 200));
+    let committed = false;
+    for (let k = 0; k < 4 && !committed; k++) {
+      await sleep(k ? 150 : 250);
+      committed = (await evalInSession(fieldSession, committedFn(option.text))) === true;
+    }
+    if (!committed) {
+      await cleanup();
+      return { ok: false, error: `« ${option.text} » cliquée mais non retenue` };
+    }
     return { ok: true, actualValue: option.text || want };
   } catch (err) {
     return { ok: false, error: String(err?.message || err) };

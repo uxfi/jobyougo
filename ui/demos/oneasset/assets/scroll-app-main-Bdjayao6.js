@@ -1,0 +1,1 @@
+import{e}from"./vendor-react-DUX7-3KW.js";function s(){const o=()=>{var r;(r=document.querySelector(".shell .main"))==null||r.scrollTo(0,0)};o(),requestAnimationFrame(o)}function n(o){e.useLayoutEffect(()=>{o&&s()},[o])}export{s,n as u};

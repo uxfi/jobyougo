@@ -37,17 +37,23 @@ test('planToUpdate: yes/no radio still sends Yes/No', () => {
   assert.equal(u.choice, true);
 });
 
-test('planToUpdate: city typeahead is loose; relocation is not', () => {
+test('planToUpdate: a city list may be searched; relocation and prose lists are pick-only', () => {
   const city = planToUpdate(
     { i: 4, type: 'text', tag: 'input', label: 'City', role: 'combobox', ariaHaspopup: 'listbox' },
     { value: 'Paris' },
   );
-  assert.equal(city.looseContains, 'Paris');
+  assert.equal(city.list, true);
+  assert.equal(city.typeQuery, 'Paris');
   const reloc = planToUpdate(
     { i: 5, type: 'text', tag: 'input', label: 'Willing to relocation?', role: 'combobox', ariaHaspopup: 'listbox' },
     { value: 'Yes' },
   );
-  assert.equal(reloc.looseContains, undefined);
+  assert.equal(reloc.typeQuery, '');
+  const refs = planToUpdate(
+    { i: 6, type: 'text', tag: 'input', label: 'Are you able to provide professional references?', role: 'combobox' },
+    { value: 'Available upon request' },
+  );
+  assert.equal(refs.typeQuery, '');
 });
 
 test('planToUpdate: long text marks humanType', () => {

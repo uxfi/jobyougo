@@ -1,0 +1,1 @@
+import{j as s}from"./vendor-react-DUX7-3KW.js";import{aZ as m,dz as r}from"./main-CkwmdojU.js";function i({children:a,pagination:t,className:e}){return s.jsx(m,{className:r("team-data-table",e),pagination:t,children:a})}export{i as T};

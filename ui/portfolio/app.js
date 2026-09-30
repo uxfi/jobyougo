@@ -488,6 +488,9 @@ function mountProjectMethodIcons(p, mountToken) {
 
 function goHome() {
   window.disconnectLazyVideos?.(document.getElementById('proj-page-content'));
+  oaLiveTeardownAll();
+  oaLiveIo?.disconnect();
+  oaLiveIo = null;
   currentProjectId = null;
   projStage3DToken += 1;
   disposeProjStages();
@@ -502,6 +505,7 @@ function goHome() {
 function openProject(id) {
   const p = publicProjects().find(x => x.id === id);
   if (!p) return;
+  oaLiveTeardownAll();
   currentProjectId = id;
   projStage3DToken += 1;
   const mountToken = projStage3DToken;
@@ -541,6 +545,7 @@ function openProject(id) {
   }
   mountProjectMethodIcons(p, mountToken);
   window.observeLazyVideos?.(document.getElementById('proj-page-content'));
+  oaLiveObserve();
 }
 
 function scrollToSection(anchor) {
@@ -596,6 +601,231 @@ function renderNarrativeItems(narrative, stepsHTML, p) {
     return renderNarrativeBlock(item.block, stepsHTML, p);
   }).join('');
 }
+
+/* ── OneAsset case study — live prototype (iframe) + interactive modules ──
+   The built prototype lives in ui/demos/oneasset/ (served at /demos/oneasset/);
+   screens are picked with the app's own query params (actor, screen, theme). */
+const OA_DEMO_BASE = '/demos/oneasset/';
+const OA_LIVE_PERSONAS = [
+  { id:'investor',   label:'Investor',          q:'actor=investor&screen=dashboard',               light:'../images/oneasset-v2-inv-dashboard.webp' },
+  { id:'pm',         label:'Property Manager',  q:'actor=pmMain&screen=dashboard',                 light:'../images/oneasset-v2-pm-dashboard.webp' },
+  { id:'pmgr',       label:'Portfolio Manager', q:'actor=portfolioManager&screen=pmgr-portfolio',  light:'../images/oneasset-v2-pmgr-portfolio.webp' },
+  { id:'listing',    label:'Listing ops',       q:'actor=opsListing&screen=listing-listings',      light:'../images/oneasset-v2-ops-listings.webp' },
+  { id:'compliance', label:'Compliance',        q:'actor=compliance&screen=compliance-dashboard',  light:'../images/oneasset-v2-comp-dashboard.webp' },
+  { id:'admin',      label:'Distribution admin', q:'actor=admin&screen=admin-payouts',       light:'../images/oneasset-v2-admin-payouts.webp', hidden:true },
+  { id:'partner',    label:'Distribution partner', q:'actor=partnerOpen&screen=dashboard',   light:'../images/oneasset-v2-partner-dashboard.webp', hidden:true },
+  { id:'site',       label:'Marketing site',    q:'site=site-vitrine',                             light:'../images/oneasset-v2-mkt-prelicence-full.webp', noTheme:true },
+];
+const OA_LIFECYCLE = [
+  { id:'preraise',  name:'Pre-raise', market:'Not on the Market', badge:'Coming soon', metricLabel:'Raise opens',             metric:'Launch date', progress:null, cta:'No purchase yet', ctaOff:true },
+  { id:'fundraise', name:'Fundraise', market:'On the Market',     badge:'Raising',     metricLabel:'Target yield · not guaranteed', metric:'9.4%', progress:24, cta:'Buy shares' },
+  { id:'settle',    name:'Settle',    market:'Not on the Market', badge:'Settling',    metricLabel:'Raise closed',            metric:'Moving to the vault', progress:100, cta:'No trading', ctaOff:true },
+  { id:'yield',     name:'Yield',     market:'On the Market',     badge:'Yielding',    metricLabel:'Live yield',              metric:'Accrues every block', progress:null, cta:'Claim yield' },
+  { id:'redeem',    name:'Redeem',    market:'Archived',          badge:'Redeemed',    metricLabel:'Final return',            metric:'Capital distributed', progress:null, cta:'Claim remaining' },
+];
+// "Follow one share": the four steps an investor's money takes, each with a small recreated visual.
+const OA_OWN_STEPS = [
+  { name:'Buy', hint:'Pick a ticket', title:'Pick a ticket, not a token.',
+    body:'Investors choose an amount in USDC from a 10,000 USDC minimum, with allocation presets. The target yield sits next to the raise progress and the time left, and it is always labelled as a target.',
+    decision:'Presets turn an empty amount field into three clear choices.',
+    visual:`<div class="oa-v-buy">
+      <div class="oa-v-row"><span class="oa-v-coin">$</span><b>USDC</b><em>Min ticket 10,000 USDC</em></div>
+      <div class="oa-v-amount">$10,000</div>
+      <div class="oa-v-presets"><span class="is-on">Starter</span><span>Balanced</span><span>Conviction</span></div>
+      <div class="oa-v-btn">Buy shares</div>
+      <small>Target yield · not guaranteed</small>
+    </div>` },
+  { name:'Hold', hint:'Your wallet', title:'The share lands in your wallet.',
+    body:'The purchase delivers a permissioned token (ERC-3643) on Base. Only verified wallets can hold or receive it, so KYC is part of owning the share, not a form before it.',
+    decision:'The token is always shown with its property, standard and chain, never as an abstract balance.',
+    visual:`<div class="oa-v-wallet">
+      <div class="oa-v-wallet-top"><span>Your wallet</span><em>On chain</em></div>
+      <div class="oa-v-token"><i></i><div><b>Yas Business Hub</b><small>Property token · ERC-3643 · Base</small></div><strong>1</strong></div>
+      <div class="oa-v-lock">Transfers only between verified wallets</div>
+    </div>` },
+  { name:'Own', hint:'The legal chain', title:'You own the shares that own the building.',
+    body:'The token is a claim on the shares of one verified company. A regulated custodian holds 100% of those shares, and the company holds the registered title deed.',
+    decision:'Three nested layers, so ownership reads from the outside in, the way the law does.',
+    visual:`<div class="oa-v-nest">
+      <div class="oa-v-layer l1"><span>Your token</span>
+        <div class="oa-v-layer l2"><span>One verified company</span>
+          <div class="oa-v-layer l3"><span>Title deed</span><div class="oa-v-bld"></div></div>
+        </div>
+      </div>
+    </div>` },
+  { name:'Earn', hint:'Rent to USDC', title:'Rent comes back as USDC.',
+    body:'Tenants pay rent in fiat to the company. After running costs, reserves and tax, the net amount is converted to USDC and becomes claimable in the investor\'s wallet.',
+    decision:'Every deduction on the way is traced to a rule. The money cycle below shows each one.',
+    visual:`<div class="oa-v-flow">
+      <div class="oa-v-node"><b>Tenants</b><small>Rent in fiat</small></div>
+      <div class="oa-v-arrow"><i></i></div>
+      <div class="oa-v-node"><b>Company</b><small>Costs · reserves · tax</small></div>
+      <div class="oa-v-arrow"><i></i></div>
+      <div class="oa-v-node is-blue"><b>Your wallet</b><small>Claimable USDC</small></div>
+    </div>` },
+];
+// Illustrative proportions only (gross rent = 100). *2 values = reserves at target.
+const OA_WATERFALL = [
+  { kind:'total', label:'Gross rent',          note:'Contracted income',        from:0,    w:100 },
+  { kind:'minus', label:'Running costs',       note:'Operating the building',   from:82,   w:18 },
+  { kind:'minus', label:'Reserve pots',        note:'Only while below target',  from:70,   w:12,  from2:82, w2:0 },
+  { kind:'minus', label:'Admin costs',         note:'Vehicle administration',   from:66,   w:4,   from2:78 },
+  { kind:'minus', label:'Tax provision',       note:'Corporate tax',            from:60,   w:6,   from2:72 },
+  { kind:'sub',   label:'Net distributable',   note:'Converted to USDC',        from:0,    w:60,  w2:72 },
+  { kind:'minus', label:'Conversion + fee',    note:'Fiat to USDC, management', from:52,   w:8,   from2:64 },
+  { kind:'total', label:'Investor USDC',       note:'Claimable in the wallet',  from:0,    w:52,  w2:64 },
+];
+const OA_PORTALS = [
+  { name:'Investor',             live:'investor',   img:'../images/oneasset-v2-inv-market.webp',        jobs:'Market, deal pages, portfolio, funds, KYC and entity KYB onboarding.' },
+  { name:'Property Manager',     live:'pm',         img:'../images/oneasset-v2-pm-properties.webp',     jobs:'KYB admission, properties, monthly reports per asset class, investor Q&A.' },
+  { name:'Portfolio Manager',    live:'pmgr',       img:'../images/oneasset-v2-pmgr-waterfall.webp',    jobs:'Vehicles, the monthly money cycle, reserves, statements and regulatory reporting.' },
+  { name:'Listing ops',          live:'listing',    img:'../images/oneasset-v2-ops-listings.webp',      jobs:'Six-stage listing wizard and the fundraising round console.' },
+  { name:'Compliance',           live:'compliance', img:'../images/oneasset-v2-comp-review.webp',       jobs:'KYC and KYB decisions, screening queue, enforcement, audit log.' },
+  { name:'Distribution admin',   live:'admin',      img:'../images/oneasset-v2-admin-payouts.webp',     jobs:'Partner programme, applications and the payout queue.' },
+  { name:'Distribution partner', live:'partner',    img:'../images/oneasset-v2-partner-dashboard.webp', jobs:'Referral links, lead funnel, commissions and payouts.' },
+];
+
+function oaPoster(p, theme) { return (theme === 'light' ? p.light || p.dark : p.dark || p.light); }
+/** Portfolio embed always resolves to light unless the user explicitly picks Dark. */
+function oaResolvedTheme(root) {
+  return root && root.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+function oaDemoUrl(p, theme) {
+  const t = theme === 'dark' ? 'dark' : 'light';
+  return `${OA_DEMO_BASE}?${p.q}${p.noTheme ? '' : `&theme=${t}`}`;
+}
+
+function renderOaLive() {
+  const p = OA_LIVE_PERSONAS[0];
+  return `<div class="oa-live" data-oa-live data-persona="${p.id}" data-theme="light">
+    <div class="oa-live-bar">
+      <div class="oa-live-tabs" role="tablist" aria-label="Choose a portal">
+        ${OA_LIVE_PERSONAS.filter(x => !x.hidden).map((x, i) => `<button type="button" role="tab" aria-selected="${i === 0}" class="${i === 0 ? 'is-active' : ''}" data-oa-persona="${x.id}">${x.label}</button>`).join('')}
+      </div>
+      <div class="oa-live-tools">
+        <div class="oa-seg" role="group" aria-label="Theme" data-oa-theme-seg>
+          <button type="button" class="is-active" data-oa-theme="light">White</button>
+          <button type="button" data-oa-theme="dark">Dark</button>
+        </div>
+        <a class="oa-live-open" href="${oaDemoUrl(p, 'light')}" target="_blank" rel="noopener" data-oa-open-tab>Full screen ↗</a>
+      </div>
+    </div>
+    <div class="oa-live-screen" data-oa-screen>
+      <img class="oa-live-poster" src="${oaPoster(p, 'light')}" alt="${p.label} portal, white theme" loading="lazy" decoding="async" data-oa-poster>
+      <button type="button" class="oa-live-launch" data-oa-launch>
+        <span class="oa-live-launch-dot"></span>Launch the live prototype
+        <small>Loads only when you ask — fixture data, nothing is saved.</small>
+      </button>
+    </div>
+  </div>`;
+}
+
+function oaLiveTeardown(root) {
+  const screen = root.querySelector('[data-oa-screen]');
+  const frame = screen && screen.querySelector('iframe');
+  if (!frame) return;
+  frame.remove();
+  screen.classList.remove('is-live');
+}
+
+function oaLiveTeardownAll() {
+  document.querySelectorAll('[data-oa-live]').forEach(oaLiveTeardown);
+}
+
+function oaLiveSync(root) {
+  const p = OA_LIVE_PERSONAS.find(x => x.id === root.dataset.persona) || OA_LIVE_PERSONAS[0];
+  if (root.dataset.theme !== 'dark') root.dataset.theme = 'light';
+  const theme = oaResolvedTheme(root);
+  const next = oaDemoUrl(p, theme);
+  root.querySelectorAll('[data-oa-persona]').forEach(btn => {
+    const on = btn.dataset.oaPersona === p.id;
+    btn.classList.toggle('is-active', on); btn.setAttribute('aria-selected', String(on));
+  });
+  root.querySelectorAll('[data-oa-theme]').forEach(btn => btn.classList.toggle('is-active', btn.dataset.oaTheme === theme));
+  root.querySelector('[data-oa-theme-seg]').hidden = !!p.noTheme;
+  root.querySelector('[data-oa-open-tab]').href = next;
+  const poster = root.querySelector('[data-oa-poster]');
+  if (poster) { poster.src = oaPoster(p, theme); poster.alt = `${p.label} portal, ${theme === 'light' ? 'white' : 'dark'} theme`; }
+  const frame = root.querySelector('iframe');
+  // Only reload the heavy app when the portal/theme actually changed.
+  if (frame && frame.dataset.oaSrc !== next) {
+    frame.dataset.oaSrc = next;
+    frame.src = next;
+  }
+}
+
+function oaLiveFit(root) {
+  const screen = root.querySelector('[data-oa-screen]');
+  const frame = screen && screen.querySelector('iframe');
+  if (frame) frame.style.transform = `scale(${screen.clientWidth / 1440})`;
+}
+
+function oaLiveLaunch(root) {
+  const screen = root.querySelector('[data-oa-screen]');
+  if (!screen || screen.querySelector('iframe')) return;
+  // Phones get the full-screen tab instead of a 1440px app scaled to a quarter.
+  if (window.matchMedia('(max-width: 700px)').matches) { window.open(root.querySelector('[data-oa-open-tab]').href, '_blank', 'noopener'); return; }
+  const p = OA_LIVE_PERSONAS.find(x => x.id === root.dataset.persona) || OA_LIVE_PERSONAS[0];
+  if (root.dataset.theme !== 'dark') root.dataset.theme = 'light';
+  const src = oaDemoUrl(p, oaResolvedTheme(root));
+  const frame = document.createElement('iframe');
+  frame.title = 'OneAsset live prototype';
+  frame.dataset.oaSrc = src;
+  frame.src = src;
+  frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+  frame.setAttribute('loading', 'lazy');
+  screen.classList.add('is-live');
+  screen.appendChild(frame);
+  oaLiveFit(root);
+}
+
+let oaLiveIo = null;
+function oaLiveObserve() {
+  oaLiveIo?.disconnect();
+  oaLiveIo = null;
+  const roots = document.querySelectorAll('[data-oa-live]');
+  if (!roots.length || !('IntersectionObserver' in window)) return;
+  // Drop the iframe when the block leaves the viewport so the case study stay light while scrolling.
+  oaLiveIo = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      const root = entry.target;
+      if (!entry.isIntersecting) { if (!root.dataset.oaPendingLaunch) oaLiveTeardown(root); return; }
+      // A portal card asked for this persona from further down the page: launch once back in view.
+      if (root.dataset.oaPendingLaunch) { delete root.dataset.oaPendingLaunch; oaLiveLaunch(root); }
+    });
+  }, { rootMargin: '120px 0px', threshold: 0 });
+  roots.forEach((root) => oaLiveIo.observe(root));
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-oa-persona],[data-oa-theme],[data-oa-launch],[data-oa-open-persona],[data-oa-own-step],[data-oa-wf-state]');
+  if (!t) return;
+  if (t.dataset.oaOwnStep !== undefined) {
+    const own = t.closest('[data-oa-own]');
+    own.querySelectorAll('[data-oa-own-step]').forEach(s => { const on = s === t; s.classList.toggle('is-active', on); s.setAttribute('aria-selected', String(on)); });
+    own.querySelectorAll('[data-oa-own-panel]').forEach(pn => pn.classList.toggle('is-active', pn.dataset.oaOwnPanel === t.dataset.oaOwnStep));
+    return;
+  }
+  if (t.dataset.oaWfState) {
+    const panel = t.closest('.x-panel');
+    panel.querySelectorAll('[data-oa-wf-state]').forEach(s => s.classList.toggle('is-active', s === t));
+    panel.querySelector('[data-oa-wf-chart]').dataset.state = t.dataset.oaWfState;
+    return;
+  }
+  const root = t.dataset.oaOpenPersona ? document.querySelector('[data-oa-live]') : t.closest('[data-oa-live]');
+  if (!root) return;
+  if (t.dataset.oaOpenPersona) {
+    root.dataset.persona = t.dataset.oaOpenPersona;
+    oaLiveSync(root);
+    const r = root.getBoundingClientRect();
+    const inView = r.bottom > 0 && r.top < window.innerHeight;
+    if (oaLiveIo && !inView) root.dataset.oaPendingLaunch = '1'; else oaLiveLaunch(root);
+    root.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else if (t.dataset.oaPersona) { root.dataset.persona = t.dataset.oaPersona; oaLiveSync(root); }
+  else if (t.dataset.oaTheme) { root.dataset.theme = t.dataset.oaTheme; oaLiveSync(root); }
+  else if (t.dataset.oaLaunch !== undefined) oaLiveLaunch(root);
+});
+window.addEventListener('resize', () => document.querySelectorAll('[data-oa-live]').forEach(oaLiveFit));
 
 function renderNarrativeBlock(b, stepsHTML, p) {
   switch (b.type) {
@@ -665,24 +895,26 @@ function renderNarrativeBlock(b, stepsHTML, p) {
     }
     case 'browser-window': {
       // A web-window chrome whose viewport scrolls through a full-length page screenshot.
-      // With b.srcAlt set, a CSS-only Dark / White switch in the chrome bar swaps the capture.
+      // With b.srcAlt set, a CSS-only switch in the chrome bar swaps the capture.
+      // b.labels = [src label, srcAlt label] (default Dark / White); srcAlt shows first unless b.startOnSrc.
       const url = b.url || '';
       if (b.srcAlt) {
         const tid = 'bw-' + b.src.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '');
+        const [srcLabel, altLabel] = b.labels || ['Dark', 'White'];
         return `<div class="proj-n-block">
           <div class="browser-window">
-            <input type="checkbox" id="${tid}" class="bw-toggle-input" checked aria-label="Switch the marketing site between its dark and white themes">
+            <input type="checkbox" id="${tid}" class="bw-toggle-input"${b.startOnSrc ? '' : ' checked'} aria-label="Switch between ${srcLabel} and ${altLabel}">
             <div class="browser-bar">
               <span class="browser-dots"><i></i><i></i><i></i></span>
               <span class="browser-url-wrap">${url ? `<span class="browser-url">${url}</span>` : ''}</span>
-              <label class="bw-seg" for="${tid}" title="Toggle the marketing site theme">
-                <span class="bw-seg-opt bw-seg-opt--dark">Dark</span>
-                <span class="bw-seg-opt bw-seg-opt--light">White</span>
+              <label class="bw-seg" for="${tid}" title="Switch between ${srcLabel} and ${altLabel}">
+                <span class="bw-seg-opt bw-seg-opt--dark">${srcLabel}</span>
+                <span class="bw-seg-opt bw-seg-opt--light">${altLabel}</span>
               </label>
             </div>
             <div class="browser-viewport">
               <img class="bw-img bw-img--dark" src="${b.src}" alt="${b.caption || ''}" loading="lazy" decoding="async">
-              <img class="bw-img bw-img--light" src="${b.srcAlt}" alt="${b.caption ? b.caption + ' (white theme)' : 'White theme'}" loading="lazy" decoding="async">
+              <img class="bw-img bw-img--light" src="${b.srcAlt}" alt="${b.caption ? `${b.caption} (${altLabel})` : altLabel}" loading="lazy" decoding="async">
             </div>
           </div>
           ${b.caption ? `<div class="proj-n-caption">${b.caption}</div>` : ''}
@@ -1322,7 +1554,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
           </div>
         </div>
       </div>`;
-    case 'oneasset-vitrine':
+    case 'oneasset-live':
       return `<div class="proj-n-block xsec xsec--oa">
         <div class="xsec-head">
           <div>
@@ -1331,13 +1563,66 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
           </div>
           <div class="xsec-kpis">
-            <div class="x-kpi"><span>Min. ticket</span><strong>$10,000</strong><em>Fractional access</em></div>
-            <div class="x-kpi"><span>Yield</span><strong>Daily</strong><em>USDC distributions</em></div>
-            <div class="x-kpi"><span>Rail</span><strong>Base</strong><em>ERC-3643</em></div>
+            <div class="x-kpi"><span>Portals</span><strong>7</strong><em>One shell, one system</em></div>
+            <div class="x-kpi"><span>Themes</span><strong>2</strong><em>Dark · Light</em></div>
+            <div class="x-kpi"><span>Data</span><strong>Fixtures</strong><em>Runs in your browser</em></div>
+          </div>
+        </div>
+        ${renderOaLive()}
+      </div>`;
+    case 'oneasset-own':
+      return `<div class="proj-n-block xsec xsec--oa">
+        <div class="xsec-head">
+          <div>
+            ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+            ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+            ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+          </div>
+          <div class="xsec-kpis">
+            <div class="x-kpi"><span>Steps</span><strong>4</strong><em>Buy · Hold · Own · Earn</em></div>
+            <div class="x-kpi"><span>Token</span><strong>ERC-3643</strong><em>Verified wallets only</em></div>
+            <div class="x-kpi"><span>Paid in</span><strong>USDC</strong><em>Settled on Base</em></div>
+          </div>
+        </div>
+        <div class="oa-own" data-oa-own>
+          <div class="oa-own-steps" role="tablist" aria-label="Follow one share">
+            ${OA_OWN_STEPS.map((s, i) => `<button type="button" role="tab" class="oa-own-step${i === 0 ? ' is-active' : ''}" data-oa-own-step="${i}" aria-selected="${i === 0}">
+              <i>${String(i + 1).padStart(2, '0')}</i><b>${s.name}</b><small>${s.hint}</small>
+            </button>`).join('')}
+          </div>
+          <div class="oa-own-body">
+            ${OA_OWN_STEPS.map((s, i) => `<div class="oa-own-panel${i === 0 ? ' is-active' : ''}" data-oa-own-panel="${i}" role="tabpanel">
+              <div class="oa-own-visual">${s.visual}</div>
+              <div class="oa-own-copy">
+                <div class="oa-own-kicker">Step ${String(i + 1).padStart(2, '0')} · ${s.name}</div>
+                <h4>${s.title}</h4>
+                <p>${s.body}</p>
+                <div class="oa-own-decision"><span>Design decision</span>${s.decision}</div>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>
+        <div class="oa-states">
+          <div class="oa-states-head">
+            <b>The same card, five states</b>
+            <span>The lifecycle only moves forward, and a property is never in two states at once. The card changes its label, its figure and its action with it.</span>
+          </div>
+          <div class="oa-states-row">
+            ${OA_LIFECYCLE.map((s, i) => `<article class="oa-state oa-state--${s.id}">
+              <div class="oa-state-img"><span class="oa-state-badge">${s.badge}</span><em>${String(i + 1).padStart(2, '0')}</em></div>
+              <div class="oa-state-body">
+                <b>Yas Business Hub</b>
+                <small>Abu Dhabi · Office</small>
+                <div class="oa-state-metric"><span>${s.metricLabel}</span><strong>${s.metric}</strong></div>
+                ${s.progress != null ? `<div class="oa-state-bar"><i style="--w:${s.progress}%"></i></div>` : '<div class="oa-state-bar is-empty"></div>'}
+                <div class="oa-state-cta${s.ctaOff ? ' is-off' : ''}">${s.cta}</div>
+              </div>
+              <div class="oa-state-name">${s.name}<small>${s.market}</small></div>
+            </article>`).join('')}
           </div>
         </div>
       </div>`;
-    case 'oneasset-shares':
+    case 'oneasset-waterfall':
       return `<div class="proj-n-block xsec xsec--oa">
         <div class="xsec-head">
           <div>
@@ -1346,42 +1631,32 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
           </div>
           <div class="xsec-kpis">
-            <div class="x-kpi"><span>Model</span><strong>Shares</strong><em>Building divided</em></div>
-            <div class="x-kpi"><span>Price / share</span><strong>$10K</strong><em>Fixed entry</em></div>
-            <div class="x-kpi"><span>Custody</span><strong>Self</strong><em>Non-custodial</em></div>
+            <div class="x-kpi"><span>Waterfall</span><strong>Rent → USDC</strong><em>Every deduction has a rule</em></div>
+            <div class="x-kpi"><span>Cycle</span><strong>6 stages</strong><em>Deposit to close</em></div>
+            <div class="x-kpi"><span>Reserves</span><strong>3 pots</strong><em>Governed, not footnotes</em></div>
           </div>
         </div>
         <div class="x-panel">
           <div class="x-panel-top">
-            <div class="x-panel-title"><span class="x-led"></span> Fractional purchase selector</div>
-            <div class="x-chip-row"><span class="x-chip acc">Lit floors = owned parts</span></div>
+            <div class="x-panel-title"><span class="x-led"></span> From rent to the investor's wallet</div>
+            <div class="oa-seg" role="group" aria-label="Vehicle state" data-oa-wf>
+              <button type="button" class="is-active" data-oa-wf-state="build">Reserves building</button>
+              <button type="button" data-oa-wf-state="target">Reserves at target</button>
+            </div>
           </div>
-          <div class="oa-shares">
-            <div class="oa-bld-stage">
-              <div class="oa-bld-3d">
-                <div class="oa-bld-box" aria-hidden="true">
-                  <div class="oa-bface oa-bface-top"></div>
-                  <div class="oa-bface oa-bface-side"></div>
-                  <div class="oa-bface oa-bface-front">
-                    ${[true,false,true,false,true,false].map(lit => `<span class="oa-bld-part${lit ? ' is-lit' : ''}">${lit ? '<span class="oa-part-node"></span>' : ''}</span>`).join('')}
-                  </div>
-                </div>
-                <span class="oa-bld-pad" aria-hidden="true"></span>
-              </div>
-            </div>
-            <div class="oa-selector">
-              <div class="oa-sel-title">Buy shares</div>
-              <div class="oa-sel-row"><span>Shares</span><span class="oa-sel-count"><i>−</i><b>3</b><i>+</i></span></div>
-              <div class="oa-sel-row"><span>Price per share</span><b>$10,000</b></div>
-              <div class="oa-sel-row"><span>Total allocation</span><b>$30,000</b></div>
-              <div class="oa-sel-row"><span>Distribution</span><b class="green">Daily · USDC</b></div>
-              <div class="oa-sel-row"><span>Standard</span><b>ERC-3643 · Base</b></div>
-              <span class="oa-cta primary" style="text-align:center; margin-top:6px;">Continue to KYC</span>
-            </div>
+          <div class="oa-wf" data-oa-wf-chart data-state="build">
+            ${OA_WATERFALL.map(r => `<div class="oa-wf-row oa-wf-row--${r.kind}">
+              <span class="oa-wf-label">${r.label}<small>${r.note}</small></span>
+              <span class="oa-wf-track"><i style="--from:${r.from}%;--w:${r.w}%;--w2:${r.w2 ?? r.w}%;--from2:${r.from2 ?? r.from}%"></i></span>
+            </div>`).join('')}
+            <p class="oa-wf-note">Illustrative proportions, not fund data. With reserves still below target, less reaches investors that month. The interface labels this as a state of the vehicle, not as underperformance.</p>
+          </div>
+          <div class="oa-cycle">
+            ${['Awaiting deposit','Reconciling','Reconciled','Computed','Funded','Closed'].map((s, i) => `<div class="oa-cycle-step${i < 4 ? ' done' : ''}${i === 4 ? ' now' : ''}"><i>${i < 4 ? '✓' : i + 1}</i><b>${s}</b></div>`).join('')}
           </div>
         </div>
       </div>`;
-    case 'oneasset-workspace':
+    case 'oneasset-portals':
       return `<div class="proj-n-block xsec xsec--oa">
         <div class="xsec-head">
           <div>
@@ -1390,53 +1665,61 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
           </div>
           <div class="xsec-kpis">
-            <div class="x-kpi"><span>Workspace</span><strong>6</strong><em>PM modules</em></div>
-            <div class="x-kpi"><span>KYB</span><strong>5 steps</strong><em>Guided onboarding</em></div>
-            <div class="x-kpi"><span>Reports</span><strong>Monthly</strong><em>Per asset class</em></div>
+            <div class="x-kpi"><span>Portals</span><strong>7</strong><em>Front and back office</em></div>
+            <div class="x-kpi"><span>Actor presets</span><strong>10</strong><em>Incl. sub-accounts</em></div>
+            <div class="x-kpi"><span>Shell</span><strong>1</strong><em>Shared tokens and nav</em></div>
           </div>
         </div>
-        <div class="x-panel">
-          <div class="x-panel-top">
-            <div class="x-panel-title"><span class="x-led"></span> Property Manager workspace</div>
-            <div class="x-chip-row"><span class="x-chip acc">Click the tabs</span></div>
+        <div class="oa-portals">
+          ${OA_PORTALS.map(pt => `<button type="button" class="oa-portal" ${pt.live ? `data-oa-open-persona="${pt.live}"` : 'disabled'}>
+            <span class="oa-portal-img"><img src="${pt.img}" alt="${pt.name} portal" loading="lazy" decoding="async"></span>
+            <span class="oa-portal-body"><b>${pt.name}</b><small>${pt.jobs}</small>${pt.live ? '<em>Open live →</em>' : ''}</span>
+          </button>`).join('')}
+        </div>
+      </div>`;
+    case 'oneasset-system':
+      return `<div class="proj-n-block xsec xsec--oa">
+        <div class="xsec-head">
+          <div>
+            ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+            ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+            ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
           </div>
-          <div class="x-tabs">
-            <input type="radio" id="oa-tab-ov" name="oa-ws-tab" checked>
-            <input type="radio" id="oa-tab-rep" name="oa-ws-tab">
-            <input type="radio" id="oa-tab-kyb" name="oa-ws-tab">
-            <div class="x-tab-labels">
-              <label for="oa-tab-ov">Overview</label>
-              <label for="oa-tab-rep">Reports</label>
-              <label for="oa-tab-kyb">KYB Admission</label>
+          <div class="xsec-kpis">
+            <div class="x-kpi"><span>Material</span><strong>Glass</strong><em>Over a soft mesh</em></div>
+            <div class="x-kpi"><span>Action colour</span><strong>1</strong><em>Shell blue #3B59FF</em></div>
+            <div class="x-kpi"><span>Type</span><strong>2</strong><em>Grotesk · Inter</em></div>
+          </div>
+        </div>
+        <div class="oa-ds">
+          <div class="oa-ds-card oa-ds-colors">
+            <div class="oa-ds-label">Palette · light shell, one action colour</div>
+            <div class="oa-ds-swatches">
+              ${[['Shell blue','#3B59FF'],['Blue light','#4F6FFF'],['Blue surface','#E7EBFF'],['Ink','#0D1124'],['Slate','#4A506A'],['Mist','#8590A8'],['Canvas','#F2F4FA'],['Cyan · data','#00C4CC'],['Midnight · dark','#1E213D']].map(([n, c]) => `<div class="oa-ds-swatch"><i style="--c:${c}"></i><b>${n}</b><small>${c}</small></div>`).join('')}
             </div>
-            <div class="x-tab-content">
-              <div class="x-tab-panel">
-                <div class="oa-ws-list">
-                  <div class="oa-ws-row"><span>Compliance status<br><small>All licenses verified</small></span><span class="oa-badge ok">Compliant</span></div>
-                  <div class="oa-ws-row"><span>Reporting due this month<br><small>Commercial · rent roll, income &amp; expense</small></span><span class="oa-badge warn">Due in 6 days</span></div>
-                  <div class="oa-ws-row"><span>Active payment locks<br><small>1 payout blocked pending documents</small></span><span class="oa-badge lock">1 lock</span></div>
-                  <div class="oa-ws-row"><span>Pending UOA requests<br><small>Additional bank statement requested</small></span><span class="oa-badge warn">1 pending</span></div>
-                  <div class="oa-ws-row"><span>Upcoming payout<br><small>Vault deposit · distribution mode: daily</small></span><span class="oa-badge ok">Eligible</span></div>
-                </div>
-              </div>
-              <div class="x-tab-panel">
-                <div class="oa-ws-list">
-                  <div class="oa-ws-row"><span>March — Monthly report<br><small>Rent roll · tenancy · occupancy · SPV statements</small></span><span class="oa-badge ok">Published</span></div>
-                  <div class="oa-ws-row"><span>April — Monthly report<br><small>Income &amp; expense flagged for detail</small></span><span class="oa-badge warn">Needs info</span></div>
-                  <div class="oa-ws-row"><span>May — Monthly report<br><small>2 sections returned for revision</small></span><span class="oa-badge lock">Corrections</span></div>
-                  <div class="oa-ws-row"><span>June — Monthly report<br><small>Hospitality asset · ADR, RevPAR, occupancy</small></span><span class="oa-badge warn">Draft</span></div>
-                </div>
-              </div>
-              <div class="x-tab-panel">
-                <div class="oa-kyb">
-                  <div class="oa-kyb-step done"><span class="oa-kyb-num">✓</span><span>Business info &amp; profile</span><span class="oa-badge ok">Complete</span></div>
-                  <div class="oa-kyb-step done"><span class="oa-kyb-num">✓</span><span>Contact authority</span><span class="oa-badge ok">Complete</span></div>
-                  <div class="oa-kyb-step"><span class="oa-kyb-num">3</span><span>Compliance licensing</span><span class="oa-badge warn">In review</span></div>
-                  <div class="oa-kyb-step todo"><span class="oa-kyb-num">4</span><span>Financial banking</span><span></span></div>
-                  <div class="oa-kyb-step todo"><span class="oa-kyb-num">5</span><span>Documents</span><span></span></div>
-                </div>
-              </div>
+          </div>
+          <div class="oa-ds-card oa-ds-type">
+            <div class="oa-ds-label">Type · figures are the argument</div>
+            <div class="oa-ds-type-row"><span class="oa-ds-display">Own the building.</span><small>Overused Grotesk · display</small></div>
+            <div class="oa-ds-type-row"><span class="oa-ds-money">10,480.50 <em>USDC</em></span><small>Inter · tabular figures · money</small></div>
+            <div class="oa-ds-type-row"><span class="oa-ds-body">Target yield, not guaranteed.</span><small>Inter · 15 body · 13 meta</small></div>
+          </div>
+          <div class="oa-ds-card oa-ds-glass">
+            <div class="oa-ds-label">Liquid glass · depth levels</div>
+            <div class="oa-ds-mesh">
+              <div class="oa-glass oa-glass--well"><span>Well</span></div>
+              <div class="oa-glass oa-glass--surface"><span>Surface</span><b>$15M</b><small>Asset value</small></div>
+              <div class="oa-glass oa-glass--pill">Invest · 10,000 USDC</div>
             </div>
+          </div>
+          <div class="oa-ds-card oa-ds-rules">
+            <div class="oa-ds-label">Rules the screens follow</div>
+            <ul>
+              <li><b>One action colour.</b> Shell blue in the light theme, cyan in dark. Colour means status; grey builds structure.</li>
+              <li><b>Targets are labelled as targets.</b> Never imply a guaranteed return.</li>
+              <li><b>Lifecycle-aware labels.</b> Target APR, live yield or final return, never a bare APR.</li>
+              <li><b>Radii scale.</b> 6 · 10 · 14 · 18 · pill.</li>
+            </ul>
           </div>
         </div>
       </div>`;

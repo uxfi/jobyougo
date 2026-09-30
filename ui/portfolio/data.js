@@ -56,10 +56,11 @@ const PROJECT_METHODS = {
     { type:'ai-vibe-code',  note:{ en:'AI signal layer on live Hyperliquid data. Built with v0.', fr:'Couche de signaux IA sur data Hyperliquid live. Construit avec v0.' } },
   ],
   oneasset: [
-    { type:'user-flows',     note:{ en:'Investor, Property Manager and admin workflows, including KYB.', fr:'Parcours investisseur, Property Manager et admin, dont le KYB.' } },
-    { type:'prototype',      note:{ en:'Interactive prototypes built with AI coding tools.', fr:'Prototypes interactifs construits avec des outils de coding IA.' } },
+    { type:'user-flows',     note:{ en:'Seven portals, each with its own onboarding (KYC, KYB) and account states.', fr:'Sept portails, chacun avec son onboarding (KYC, KYB) et ses états de compte.' } },
+    { type:'ia',             note:{ en:'Money cycle and lifecycle docs turned into interface rules.', fr:'Docs du cycle financier et du cycle de vie traduites en règles d’interface.' } },
+    { type:'prototype',      note:{ en:'The whole product as a working React prototype, light and dark.', fr:'Tout le produit en prototype React fonctionnel, clair et sombre.' } },
     { type:'ai-vibe-code',   note:{ en:'GitHub agents, product requirements, and PR reviews. Figmol is OneAsset\'s internal tool.', fr:'Agents GitHub, specs produit et revues de PR. Figmol est l\'outil interne d\'OneAsset.' } },
-    { type:'design-system',  note:{ en:'Shared system across product, admin and marketing.', fr:'Système partagé entre produit, admin et marketing.' } },
+    { type:'design-system',  note:{ en:'v2 liquid glass shared by every portal and the marketing site.', fr:'v2 liquid glass partagé par tous les portails et le site marketing.' } },
   ],
   upviral: [
     { type:'user-research',  note:{ en:'Repeated interviews with live customers.', fr:'Entretiens répétés avec des clients en production.' } },
@@ -420,7 +421,7 @@ const PROJECTS = [
     "group": "enterprise",
     "logo": "../images/oneasset-logo.png",
     "company": "OneAsset",
-    "tagline": "Regulated Real-World Asset Investment Platform",
+    "tagline": "Tokenized commercial real estate, from the investor app to the back office",
     "role": "Product Manager / Product Lead",
     "year": "Feb 2026 – Present",
     "duration": "Ongoing",
@@ -433,40 +434,40 @@ const PROJECTS = [
       "FinTech",
       "Web3"
     ],
-    "accent": "#107eff",
-    "desc": "I own the design across OneAsset, from the admin platform and investor application to the marketing website. My work includes product strategy, compliance journeys, the design system and interactive prototypes built with AI.",
-    "subtitle": "Sole design ownership across product, admin and marketing",
-    "challenge": "Keep investor, operator and admin workflows coherent across the platform and marketing website while collaborating with engineering on a changing product.",
-    "goals": "Design the investor journey, marketplace, KYB onboarding and Property Manager workspace, with reporting suited to each asset class.",
-    "solution": "Designed the product and marketing surfaces, built interactive prototypes with AI coding tools, and organized design work through AI agents on GitHub. Figmol is the internal tool I built to review the live prototype and hand design changes to engineering.",
+    "accent": "#3B59FF",
+    "desc": "I own the design of OneAsset end to end: seven portals, from the investor app to the Property Manager, Portfolio Manager, listing, compliance and distribution back offices, plus the marketing site. Everything runs as one interactive prototype on a shared liquid-glass design system.",
+    "subtitle": "Seven portals, one prototype, one design system",
+    "challenge": "Make a regulated, on-chain real estate product readable: what an investor owns, how rent becomes USDC, and what each operator must check before money moves.",
+    "goals": "Design every persona's journey in one coherent shell, explain ownership and the money cycle without implying guaranteed returns, and hand engineering a working prototype instead of static mockups.",
+    "solution": "I built the whole product as a React prototype on fixture data, with the design system (v2, liquid glass) as its single source of truth. Product docs on the money cycle and the lifecycle drive the screens, AI agents on GitHub run the design work, and Figmol, the internal review tool I built, lets the team review every screen and state.",
     "steps": [
       {
         "num": "01",
-        "title": "Design across the product",
-        "desc": "Mapped investor, Property Manager and admin workflows, including onboarding and compliance. Designed the interface and shared design system across these surfaces and the marketing website."
+        "title": "Map seven portals",
+        "desc": "Investor, Property Manager, Portfolio Manager, listing ops, compliance, distribution admin and partner. Each has its own navigation, onboarding (KYC, KYB) and account states, inside one shared shell."
       },
       {
         "num": "02",
-        "title": "Interactive prototypes",
-        "desc": "Built interactive prototypes with AI coding tools to review the product as a working experience."
+        "title": "Design the money model",
+        "desc": "Turned the property money cycle and the five-state lifecycle into interface rules: lifecycle-aware yield labels, a visible rent-to-USDC waterfall and reserves shown as governed infrastructure."
       },
       {
         "num": "03",
-        "title": "GitHub agents",
-        "desc": "Set up the design process around AI agents on GitHub, with a design repository, product requirements and PR reviews. Built Figmol to review the live prototype and prepare Cursor handoffs."
+        "title": "Ship a working prototype",
+        "desc": "Built the product as an interactive React app with light and dark themes, run the work through AI agents and pull requests on GitHub, and review every screen in Figmol before handoff."
       }
     ],
-    "outcome": "Design ownership across the admin platform, user-facing application and marketing website, with a shared design system, interactive prototypes, a GitHub agent workflow. Figmol is OneAsset's internal review tool.",
+    "outcome": "A working prototype of seven portals and the marketing site on one liquid-glass design system, reviewed screen by screen in Figmol before handoff to engineering.",
     "outcomeStat": null,
     "url": "https://oneasset.io",
-    "screenshot": "../images/oneasset-investor-portfolio.webp",
-    "heroCover": "../images/oneasset-cover.png",
+    "screenshot": "../images/oneasset-v2-inv-dashboard.webp",
+    "heroCover": "../images/oneasset-v2-cover.webp",
     "narrative": [
       {
         "type": "text",
         "label": "The context",
-        "title": "Sole designer across the product and marketing site",
-        "body": "I own the design across OneAsset, from the admin platform and investor application to the marketing website. My work includes product strategy, compliance journeys, the design system and interactive prototypes built with AI."
+        "title": "Sole designer across a regulated product",
+        "body": "OneAsset lets investors buy shares of income-producing commercial buildings in Dubai and receive rent in USDC. I design the whole product: the investor app, six operator and partner back offices, and the marketing site. My work covers product strategy, compliance journeys, the design system and the prototype itself."
       },
       {
         "type": "tools-row",
@@ -479,68 +480,104 @@ const PROJECTS = [
         ]
       },
       {
-        "type": "image-full",
-        "src": "../images/oneasset-investor-portfolio.webp",
-        "borderless": true,
-        "caption": "The real product — Investor Portfolio: total portfolio value, monthly yield, value trend, and the property marketplace with asset-class filters."
+        "type": "oneasset-live",
+        "label": "Live prototype",
+        "title": "Open the product, not a picture of it.",
+        "body": "This is the prototype the team works from, embedded as is. A static poster stays until you launch it — the live app only loads on demand, then unloads when you scroll away. Switch portal or theme, then click through; fixture data only, nothing is saved."
       },
       {
-        "type": "image-grid",
-        "label": "Key interfaces",
-        "borderless": true,
-        "images": [
-          {
-            "src": "../images/oneasset-pm-dashboard.webp",
-            "caption": "PM workspace — Dashboard: properties under management, sub-accounts, reports due, and the Investor Q&A activity stream."
-          },
-          {
-            "src": "../images/oneasset-pm-property-detail.webp",
-            "caption": "PM workspace — Property detail (Marina Tower A): asset profile, versioned operational reports, and investor count."
-          }
-        ]
+        "type": "oneasset-own",
+        "label": "The investor question",
+        "title": "Follow one share, from the buy button to the rent.",
+        "body": "Buying a token is abstract. Owning part of a building is not. I designed the journey as four plain steps, each answering one question an investor actually asks. Click a step."
       },
       {
         "type": "browser-window",
-        "src": "../images/oneasset-marketing-home.webp",
-        "srcAlt": "../images/oneasset-marketing-home-white.webp",
+        "src": "../images/oneasset-v2-inv-deal-full.webp",
+        "url": "OneAsset prototype · Market · Yas Business Hub",
+        "caption": "The deal page, scroll inside the window: raise progress and time left, the buy panel, a return simulator, the ownership chain, investor reviews, press and an FAQ. The target yield is always labelled as a target."
+      },
+      {
+        "type": "image-full",
+        "src": "../images/oneasset-v2-inv-dashboard.webp",
+        "borderless": true,
+        "caption": "Investor dashboard: portfolio value and return, allocation by property, market insights, and recent activity that explains a dip instead of hiding it."
+      },
+      {
+        "type": "image-grid",
+        "label": "Investor app",
+        "borderless": true,
+        "images": [
+          { "src": "../images/oneasset-v2-inv-market.webp", "caption": "Market: primary raises with target yield, time left and funding progress per property." },
+          { "src": "../images/oneasset-v2-inv-portfolio.webp", "caption": "Portfolio: total value, allocation by property and claimable yield." },
+          { "src": "../images/oneasset-v2-inv-funds.webp", "caption": "Funds: one USDC balance, deposits by bank, card or crypto, and a readable activity log." },
+          { "src": "../images/oneasset-v2-inv-deal.webp", "caption": "Deal page: target yield labelled as a target, raise progress, time left and the buy panel above the fold." }
+        ]
+      },
+      {
+        "type": "oneasset-waterfall",
+        "label": "The money cycle",
+        "title": "Show why money is withheld, not only the yield.",
+        "body": "Rent goes through running costs, reserves, admin and tax before it becomes investor USDC. The product should feel like a transparent ledger, not a yield marketplace, so every deduction on screen is traced to a rule. Toggle the vehicle state to see what changes."
+      },
+      {
+        "type": "image-grid",
+        "label": "Portfolio Manager",
+        "borderless": true,
+        "images": [
+          { "src": "../images/oneasset-v2-pmgr-waterfall.webp", "caption": "Monthly cycle per vehicle: each stage blocks the next until it is reconciled, so nothing is computed on unconfirmed rent." },
+          { "src": "../images/oneasset-v2-pmgr-portfolio.webp", "caption": "Portfolio of vehicles: structure, cycle status and the next action for each one." }
+        ]
+      },
+      {
+        "type": "image-grid",
+        "label": "Property Manager",
+        "borderless": true,
+        "images": [
+          { "src": "../images/oneasset-v2-pm-reports.webp", "caption": "Reports: a monthly board with the mandatory package per asset class, commercial or hospitality." },
+          { "src": "../images/oneasset-v2-pm-kyb.webp", "caption": "KYB admission in five steps: business, contact and authority, compliance, banking, documents." },
+          { "src": "../images/oneasset-v2-pm-dashboard.webp", "caption": "Dashboard: properties, sub-accounts, reports and the investor Q&A activity." },
+          { "src": "../images/oneasset-v2-pm-properties.webp", "caption": "Properties: operational report status and key figures on every card." }
+        ]
+      },
+      {
+        "type": "oneasset-portals",
+        "label": "The back office",
+        "title": "Seven portals, one shell.",
+        "body": "Every actor who touches an asset has a portal, from listing it to screening its investors and paying its partners. They share one navigation model and one set of components. Click a card to open that portal live."
+      },
+      {
+        "type": "oneasset-system",
+        "label": "Design system v2",
+        "title": "Liquid glass, one blue, and nothing else loud.",
+        "body": "The material is the only aesthetic commitment: glass surfaces that refract a coloured ground. In the light shell every action uses the same blue, cyan stays for data, and everything else stays quiet so figures, status and targets carry the screen. The system is documented in the repo and in an in-app catalogue."
+      },
+      {
+        "type": "image-full",
+        "src": "../images/oneasset-v2-design-system.webp",
+        "borderless": true,
+        "caption": "The in-app Design System catalogue: tokens, surfaces and components, kept in sync with the code that renders the screens."
+      },
+      {
+        "type": "browser-window",
+        "src": "../images/oneasset-v2-mkt-prelicence-full.webp",
+        "srcAlt": "../images/oneasset-v2-mkt-building-full.webp",
+        "labels": ["Home", "Platform"],
+        "startOnSrc": true,
         "url": "oneasset.io",
-        "caption": "The live marketing home page — scroll inside the window to walk the full landing, and use the Dark / White switch to flip between the two shipped themes: institutional positioning, the regulatory trust bar (VARA licensed, non-custodial, daily USDC yield, built on Base), the featured live asset, the self-custody explainer, how-it-works, the building-divided-into-shares purchase concept, and the $10,000 entry CTA."
-      },
-      {
-        "type": "oneasset-vitrine",
-        "label": "The method",
-        "title": "A homepage built like an investment memorandum.",
-        "body": "The homepage explains the regulatory context, presents a property and its distribution terms, then describes how ownership works. I used a clear information hierarchy to make those details easy to find."
-      },
-      {
-        "type": "oneasset-shares",
-        "label": "How it works",
-        "title": "A building, divided into ownership.",
-        "body": "Investors select shares in a property and review their allocation and distribution terms. ERC-3643 handles the transfer restrictions behind that purchase flow."
-      },
-      {
-        "type": "oneasset-workspace",
-        "label": "Operator side",
-        "title": "Inside the Property Manager workspace.",
-        "body": "Operators live in a six-module workspace: Overview, Admission, Properties, Reports, Payouts, and Payment Locks. Reporting is asset-class dependent — rent roll and occupancy for commercial, ADR and RevPAR for hospitality — with Published / Needs Info / Corrections review loops. Recreated here as a working console: click the tabs."
+        "caption": "The pre-licence marketing site: a 3D city hero, the asset lifecycle and an FAQ, with the VARA application status stated in the banner and the footer. Launch and beta versions are designed as separate releases."
       },
       {
         "type": "text",
         "label": "Internal tooling",
         "title": "An AI-agent workflow on GitHub",
-        "body": "Designed the product and marketing surfaces, built interactive prototypes with AI coding tools, and organized design work through AI agents on GitHub. Figmol is the internal tool I built to review the live prototype and hand design changes to engineering."
+        "body": "Design work runs through AI agents on GitHub: a design repository, product requirements and PR reviews. Figmol, the internal review tool I built, puts every screen and state of the live prototype on one board, with review status and comments for the team."
       },
       {
         "type": "image-full",
         "src": "../images/oneasset-figmol.webp",
         "borderless": true,
-        "caption": "Figmol — the internal design-ops whiteboard: each persona board mirrors the live app at full page height, with review status, comment pins, and device / theme / shell-version toggles."
-      },
-      {
-        "type": "text",
-        "label": "Design direction",
-        "title": "Making investment information readable",
-        "body": "The white interface uses property images, cards and data tables to explain each investment. The hierarchy keeps ownership terms and reporting easy to find."
+        "caption": "Figmol: each persona board mirrors the live app at full page height, with review status, comment pins and device, theme and version toggles."
       },
       {
         "type": "process",
@@ -548,10 +585,11 @@ const PROJECTS = [
       },
       {
         "type": "outcome",
-        "text": "Design ownership across the admin platform, user-facing application and marketing website, with a shared design system, interactive prototypes, a GitHub agent workflow. Figmol is OneAsset's internal review tool."
+        "text": "A working prototype of seven portals and the marketing site on one liquid-glass design system, reviewed screen by screen in Figmol before handoff to engineering."
       }
     ]
   },
+
 
   {
     id:'upviral', num:'04', group:'enterprise', cover:'covers/upviral.jpg', logo:'../images/upviral.png',
