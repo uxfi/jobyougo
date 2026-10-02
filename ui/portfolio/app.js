@@ -469,7 +469,7 @@ function mountProjectMethodIcons(p, mountToken) {
             fill: 1.3,
           }],
           storageKey: `methodIcon_${meta.id}`,
-          targetSize: 1.7,
+          targetSize: 1.25,
         });
       } else if (window.mountMethodIcon3D) {
         instance = await window.mountMethodIcon3D({
@@ -489,8 +489,11 @@ function mountProjectMethodIcons(p, mountToken) {
 function goHome() {
   window.disconnectLazyVideos?.(document.getElementById('proj-page-content'));
   oaLiveTeardownAll();
+  crLiveTeardownAll();
   oaLiveIo?.disconnect();
   oaLiveIo = null;
+  crLiveIo?.disconnect();
+  crLiveIo = null;
   currentProjectId = null;
   projStage3DToken += 1;
   disposeProjStages();
@@ -506,6 +509,7 @@ function openProject(id) {
   const p = publicProjects().find(x => x.id === id);
   if (!p) return;
   oaLiveTeardownAll();
+  crLiveTeardownAll();
   currentProjectId = id;
   projStage3DToken += 1;
   const mountToken = projStage3DToken;
@@ -546,6 +550,7 @@ function openProject(id) {
   mountProjectMethodIcons(p, mountToken);
   window.observeLazyVideos?.(document.getElementById('proj-page-content'));
   oaLiveObserve();
+  crLiveObserve();
 }
 
 function scrollToSection(anchor) {
@@ -825,7 +830,131 @@ document.addEventListener('click', (e) => {
   else if (t.dataset.oaTheme) { root.dataset.theme = t.dataset.oaTheme; oaLiveSync(root); }
   else if (t.dataset.oaLaunch !== undefined) oaLiveLaunch(root);
 });
-window.addEventListener('resize', () => document.querySelectorAll('[data-oa-live]').forEach(oaLiveFit));
+window.addEventListener('resize', () => {
+  document.querySelectorAll('[data-oa-live]').forEach(oaLiveFit);
+  document.querySelectorAll('[data-cr-live]').forEach(crLiveFit);
+});
+
+/* ── Creads case study — live local app (iframe) ──
+   Requires creads-main running with PORTFOLIO_DEMO=1 on :3000.
+   Query ?portfolio=1 unlocks framing + auth bypass. */
+const CR_LIVE_BASE = 'http://127.0.0.1:3000';
+const CR_LIVE_VIEWS = [
+  { id: 'home',         label: 'Marketing',    path: '/?portfolio=1',                      poster: '../images/creads-live-hero.webp' },
+  { id: 'dashboard',    label: 'Dashboard',    path: '/dashboard?portfolio=1',             poster: '../images/creads-v2-dashboard.webp' },
+  { id: 'studio',       label: 'Studio',       path: '/dashboard/studio?portfolio=1',      poster: '../images/creads-v2-studio.webp' },
+  { id: 'brand',        label: 'Brand',        path: '/dashboard/brand?portfolio=1',       poster: '../images/creads-v2-brand.webp' },
+  { id: 'products',     label: 'Products',     path: '/dashboard/products?portfolio=1',    poster: '../images/creads-admin.png' },
+  { id: 'ai',           label: 'Chat AI',      path: '/dashboard/ai?portfolio=1',          poster: '../images/creads-bot.png' },
+];
+
+function crDemoUrl(v) {
+  return `${CR_LIVE_BASE}${v.path}`;
+}
+
+function renderCrLive() {
+  const v = CR_LIVE_VIEWS[0];
+  return `<div class="cr-live" data-cr-live data-view="${v.id}">
+    <div class="cr-live-bar">
+      <div class="cr-live-tabs" role="tablist" aria-label="Choose a Creads surface">
+        ${CR_LIVE_VIEWS.map((x, i) => `<button type="button" role="tab" aria-selected="${i === 0}" class="${i === 0 ? 'is-active' : ''}" data-cr-view="${x.id}">${x.label}</button>`).join('')}
+      </div>
+      <div class="cr-live-tools">
+        <span class="cr-live-hint">Local · PORTFOLIO_DEMO</span>
+        <a class="cr-live-open" href="${crDemoUrl(v)}" target="_blank" rel="noopener" data-cr-open-tab>Full screen ↗</a>
+      </div>
+    </div>
+    <div class="cr-live-screen" data-cr-screen>
+      <img class="cr-live-poster" src="${v.poster}" alt="${v.label} — Creads live" loading="lazy" decoding="async" data-cr-poster>
+      <button type="button" class="cr-live-launch" data-cr-launch>
+        <span class="cr-live-launch-dot"></span>Launch the live product
+        <small>Loads only when you ask — needs Creads on :3000 with portfolio demo.</small>
+      </button>
+    </div>
+  </div>`;
+}
+
+function crLiveTeardown(root) {
+  const screen = root.querySelector('[data-cr-screen]');
+  const frame = screen && screen.querySelector('iframe');
+  if (!frame) return;
+  frame.remove();
+  screen.classList.remove('is-live');
+}
+
+function crLiveTeardownAll() {
+  document.querySelectorAll('[data-cr-live]').forEach(crLiveTeardown);
+}
+
+function crLiveSync(root) {
+  const v = CR_LIVE_VIEWS.find(x => x.id === root.dataset.view) || CR_LIVE_VIEWS[0];
+  const next = crDemoUrl(v);
+  root.querySelectorAll('[data-cr-view]').forEach(btn => {
+    const on = btn.dataset.crView === v.id;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-selected', String(on));
+  });
+  const open = root.querySelector('[data-cr-open-tab]');
+  if (open) open.href = next;
+  const poster = root.querySelector('[data-cr-poster]');
+  if (poster) { poster.src = v.poster; poster.alt = `${v.label} — Creads live`; }
+  const frame = root.querySelector('iframe');
+  if (frame && frame.dataset.crSrc !== next) {
+    frame.dataset.crSrc = next;
+    frame.src = next;
+  }
+}
+
+function crLiveFit(root) {
+  const screen = root.querySelector('[data-cr-screen]');
+  const frame = screen && screen.querySelector('iframe');
+  if (frame) frame.style.transform = `scale(${screen.clientWidth / 1440})`;
+}
+
+function crLiveLaunch(root) {
+  const screen = root.querySelector('[data-cr-screen]');
+  if (!screen || screen.querySelector('iframe')) return;
+  if (window.matchMedia('(max-width: 700px)').matches) {
+    window.open(root.querySelector('[data-cr-open-tab]').href, '_blank', 'noopener');
+    return;
+  }
+  const v = CR_LIVE_VIEWS.find(x => x.id === root.dataset.view) || CR_LIVE_VIEWS[0];
+  const src = crDemoUrl(v);
+  const frame = document.createElement('iframe');
+  frame.title = 'Creads live product';
+  frame.dataset.crSrc = src;
+  frame.src = src;
+  frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-modals');
+  frame.setAttribute('loading', 'lazy');
+  screen.classList.add('is-live');
+  screen.appendChild(frame);
+  crLiveFit(root);
+}
+
+let crLiveIo = null;
+function crLiveObserve() {
+  crLiveIo?.disconnect();
+  crLiveIo = null;
+  const roots = document.querySelectorAll('[data-cr-live]');
+  if (!roots.length || !('IntersectionObserver' in window)) return;
+  crLiveIo = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      const root = entry.target;
+      if (!entry.isIntersecting) { if (!root.dataset.crPendingLaunch) crLiveTeardown(root); return; }
+      if (root.dataset.crPendingLaunch) { delete root.dataset.crPendingLaunch; crLiveLaunch(root); }
+    });
+  }, { rootMargin: '120px 0px', threshold: 0 });
+  roots.forEach((root) => crLiveIo.observe(root));
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-cr-view],[data-cr-launch]');
+  if (!t) return;
+  const root = t.closest('[data-cr-live]');
+  if (!root) return;
+  if (t.dataset.crView) { root.dataset.view = t.dataset.crView; crLiveSync(root); }
+  else if (t.dataset.crLaunch !== undefined) crLiveLaunch(root);
+});
 
 function renderNarrativeBlock(b, stepsHTML, p) {
   switch (b.type) {
@@ -1147,6 +1276,22 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             </div>
           </div>
         </div>
+      </div>`;
+    case 'creads-live':
+      return `<div class="proj-n-block xsec xsec--cr">
+        <div class="xsec-head">
+          <div>
+            ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+            ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+            ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+          </div>
+          <div class="xsec-kpis">
+            <div class="x-kpi"><span>Surfaces</span><strong>6</strong><em>Marketing · app</em></div>
+            <div class="x-kpi"><span>Stack</span><strong>Next 15</strong><em>Local embed</em></div>
+            <div class="x-kpi"><span>Auth</span><strong>Bypass</strong><em>?portfolio=1</em></div>
+          </div>
+        </div>
+        ${renderCrLive()}
       </div>`;
     case 'creads-vitrine':
       return `<div class="proj-n-block creads-section">
@@ -1562,11 +1707,6 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
             ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
           </div>
-          <div class="xsec-kpis">
-            <div class="x-kpi"><span>Portals</span><strong>7</strong><em>One shell, one system</em></div>
-            <div class="x-kpi"><span>Themes</span><strong>2</strong><em>Dark · Light</em></div>
-            <div class="x-kpi"><span>Data</span><strong>Fixtures</strong><em>Runs in your browser</em></div>
-          </div>
         </div>
         ${renderOaLive()}
       </div>`;
@@ -1577,11 +1717,6 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
             ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
             ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
-          </div>
-          <div class="xsec-kpis">
-            <div class="x-kpi"><span>Steps</span><strong>4</strong><em>Buy · Hold · Own · Earn</em></div>
-            <div class="x-kpi"><span>Token</span><strong>ERC-3643</strong><em>Verified wallets only</em></div>
-            <div class="x-kpi"><span>Paid in</span><strong>USDC</strong><em>Settled on Base</em></div>
           </div>
         </div>
         <div class="oa-own" data-oa-own>
@@ -1767,6 +1902,249 @@ function renderNarrativeBlock(b, stepsHTML, p) {
               <div class="x-flow-desc">A verifier checks quality, security and completeness with execution logs and evidence, scores confidence, then the orchestrator responds.</div>
               <div class="x-bars"><span class="x-bar"><i style="--w:92%;--d:.45s"></i></span><span class="x-bar"><i style="--w:61%;--d:.55s"></i></span></div>
             </div>
+          </div>
+        </div>
+      </div>`;
+    case 'lvmh-dataflow':
+      return `<div class="proj-n-block xsec xsec--lvmh">
+        <div class="xsec-head">
+          <div>
+            ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+            ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+            ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+          </div>
+        </div>
+        <div class="x-panel lvmh-schema">
+          <div class="x-panel-top">
+            <div class="x-panel-title"><span class="x-led"></span> Maison streams → central tool → macro profiles</div>
+            <div class="x-chip-row"><span class="x-chip acc">15+ maisons</span><span class="x-chip">One profile store</span></div>
+          </div>
+          <div class="lvmh-graph" aria-label="LVMH data flow schema">
+            <svg class="lvmh-scene" viewBox="0 0 1100 640" role="img" aria-hidden="true">
+              <defs>
+                <linearGradient id="lvmh-grad-in" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#c4a574" stop-opacity=".12"/>
+                  <stop offset="50%" stop-color="#e8d5b0" stop-opacity=".9"/>
+                  <stop offset="100%" stop-color="#c4a574" stop-opacity=".25"/>
+                </linearGradient>
+                <linearGradient id="lvmh-grad-out" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e8d5b0" stop-opacity=".85"/>
+                  <stop offset="100%" stop-color="#c4a574" stop-opacity=".15"/>
+                </linearGradient>
+                <radialGradient id="lvmh-node-fill" cx="30%" cy="28%" r="70%">
+                  <stop offset="0%" stop-color="#f0e2c4"/>
+                  <stop offset="55%" stop-color="#c4a574"/>
+                  <stop offset="100%" stop-color="#8a7150"/>
+                </radialGradient>
+                <radialGradient id="lvmh-hub-fill" cx="35%" cy="30%" r="70%">
+                  <stop offset="0%" stop-color="#3a2f22"/>
+                  <stop offset="55%" stop-color="#1a1510"/>
+                  <stop offset="100%" stop-color="#0c0a08"/>
+                </radialGradient>
+                <radialGradient id="lvmh-hub-glow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#c4a574" stop-opacity=".35"/>
+                  <stop offset="55%" stop-color="#c4a574" stop-opacity=".08"/>
+                  <stop offset="100%" stop-color="#c4a574" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="lvmh-out-fill" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="rgba(196,165,116,.22)"/>
+                  <stop offset="100%" stop-color="rgba(18,14,10,.9)"/>
+                </linearGradient>
+              </defs>
+
+              <!-- constellation -->
+              <g opacity=".9">
+                <circle class="lvmh-star" cx="70" cy="90" r="1.2"/>
+                <circle class="lvmh-star--dim" cx="140" cy="40" r="1"/>
+                <circle class="lvmh-star" cx="220" cy="120" r="1.1"/>
+                <circle class="lvmh-star--dim" cx="310" cy="55" r=".8"/>
+                <circle class="lvmh-star" cx="780" cy="48" r="1.2"/>
+                <circle class="lvmh-star--dim" cx="880" cy="95" r="1"/>
+                <circle class="lvmh-star" cx="980" cy="60" r="1.1"/>
+                <circle class="lvmh-star--dim" cx="1040" cy="140" r=".9"/>
+                <circle class="lvmh-star" cx="60" cy="520" r="1"/>
+                <circle class="lvmh-star--dim" cx="160" cy="580" r=".8"/>
+                <circle class="lvmh-star" cx="980" cy="560" r="1.1"/>
+                <circle class="lvmh-star--dim" cx="1045" cy="480" r=".9"/>
+              </g>
+
+              <text class="lvmh-layer" x="550" y="28">SOURCES · MAISONS</text>
+
+              <!-- glow wires under paths -->
+              <path class="lvmh-wire-glow" d="M115 130 C 250 130, 390 250, 550 300"/>
+              <path class="lvmh-wire-glow" d="M295 118 C 360 140, 450 250, 550 300"/>
+              <path class="lvmh-wire-glow" d="M470 110 C 500 160, 530 250, 550 300"/>
+              <path class="lvmh-wire-glow" d="M630 110 C 600 160, 570 250, 550 300"/>
+              <path class="lvmh-wire-glow" d="M805 118 C 720 140, 620 250, 550 300"/>
+              <path class="lvmh-wire-glow" d="M985 130 C 830 130, 680 250, 550 300"/>
+              <path class="lvmh-wire-glow" d="M550 380 C 550 440, 300 480, 220 520"/>
+              <path class="lvmh-wire-glow" d="M550 380 C 550 430, 470 470, 420 510"/>
+              <path class="lvmh-wire-glow" d="M550 380 C 550 430, 630 470, 680 510"/>
+              <path class="lvmh-wire-glow" d="M550 380 C 550 440, 800 480, 880 520"/>
+
+              <path class="lvmh-wire" d="M115 130 C 250 130, 390 250, 550 300"/>
+              <path class="lvmh-wire" d="M295 118 C 360 140, 450 250, 550 300"/>
+              <path class="lvmh-wire" d="M470 110 C 500 160, 530 250, 550 300"/>
+              <path class="lvmh-wire" d="M630 110 C 600 160, 570 250, 550 300"/>
+              <path class="lvmh-wire" d="M805 118 C 720 140, 620 250, 550 300"/>
+              <path class="lvmh-wire" d="M985 130 C 830 130, 680 250, 550 300"/>
+              <path class="lvmh-wire lvmh-wire--out" d="M550 380 C 550 440, 300 480, 220 520"/>
+              <path class="lvmh-wire lvmh-wire--out" d="M550 380 C 550 430, 470 470, 420 510"/>
+              <path class="lvmh-wire lvmh-wire--out" d="M550 380 C 550 430, 630 470, 680 510"/>
+              <path class="lvmh-wire lvmh-wire--out" d="M550 380 C 550 440, 800 480, 880 520"/>
+
+              <!-- pulses -->
+              <circle class="lvmh-pulse" r="3.8" fill="#e8d5b0"><animateMotion dur="2.7s" repeatCount="indefinite" path="M115 130 C 250 130, 390 250, 550 300"/></circle>
+              <circle class="lvmh-pulse" r="3.2" fill="#c4a574"><animateMotion dur="3.1s" begin=".35s" repeatCount="indefinite" path="M295 118 C 360 140, 450 250, 550 300"/></circle>
+              <circle class="lvmh-pulse" r="3" fill="#e8d5b0"><animateMotion dur="2.9s" begin=".7s" repeatCount="indefinite" path="M470 110 C 500 160, 530 250, 550 300"/></circle>
+              <circle class="lvmh-pulse" r="3" fill="#c4a574"><animateMotion dur="3s" begin=".2s" repeatCount="indefinite" path="M630 110 C 600 160, 570 250, 550 300"/></circle>
+              <circle class="lvmh-pulse" r="3.2" fill="#e8d5b0"><animateMotion dur="3.2s" begin=".9s" repeatCount="indefinite" path="M805 118 C 720 140, 620 250, 550 300"/></circle>
+              <circle class="lvmh-pulse" r="3.5" fill="#c4a574"><animateMotion dur="2.8s" begin="1.1s" repeatCount="indefinite" path="M985 130 C 830 130, 680 250, 550 300"/></circle>
+              <circle class="lvmh-pulse" r="3.2" fill="#e8d5b0"><animateMotion dur="2.6s" begin=".4s" repeatCount="indefinite" path="M550 380 C 550 440, 300 480, 220 520"/></circle>
+              <circle class="lvmh-pulse" r="2.8" fill="#c4a574"><animateMotion dur="2.5s" begin=".9s" repeatCount="indefinite" path="M550 380 C 550 430, 630 470, 680 510"/></circle>
+              <circle class="lvmh-pulse" r="3" fill="#e8d5b0"><animateMotion dur="2.7s" begin="1.3s" repeatCount="indefinite" path="M550 380 C 550 440, 800 480, 880 520"/></circle>
+
+              <!-- maisons -->
+              <g transform="translate(115 95)">
+                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34"/>
+                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
+                <text class="lvmh-maison-mono" x="0" y="1">LV</text>
+                <text class="lvmh-maison-name" x="0" y="48">Louis Vuitton</text>
+                <text class="lvmh-maison-meta" x="0" y="62">CRM · retail · eCom</text>
+              </g>
+              <g transform="translate(295 82)">
+                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34" style="animation-delay:.2s"/>
+                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
+                <text class="lvmh-maison-mono" x="0" y="1">CD</text>
+                <text class="lvmh-maison-name" x="0" y="48">Dior</text>
+                <text class="lvmh-maison-meta" x="0" y="62">CRM · beauty</text>
+              </g>
+              <g transform="translate(470 74)">
+                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34" style="animation-delay:.4s"/>
+                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
+                <text class="lvmh-maison-mono" x="0" y="1">FE</text>
+                <text class="lvmh-maison-name" x="0" y="48">Fendi</text>
+                <text class="lvmh-maison-meta" x="0" y="62">CRM · boutique</text>
+              </g>
+              <g transform="translate(630 74)">
+                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34" style="animation-delay:.55s"/>
+                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
+                <text class="lvmh-maison-mono" x="0" y="1">KE</text>
+                <text class="lvmh-maison-name" x="0" y="48">Kenzo</text>
+                <text class="lvmh-maison-meta" x="0" y="62">CRM · campaigns</text>
+              </g>
+              <g transform="translate(805 82)">
+                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34" style="animation-delay:.7s"/>
+                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
+                <text class="lvmh-maison-mono" x="0" y="1">SE</text>
+                <text class="lvmh-maison-name" x="0" y="48">Sephora</text>
+                <text class="lvmh-maison-meta" x="0" y="62">Loyalty · tickets</text>
+              </g>
+              <g class="lvmh-maison-more" transform="translate(985 95)">
+                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
+                <text class="lvmh-maison-mono" x="0" y="1">+10</text>
+                <text class="lvmh-maison-name" x="0" y="48">Maisons</text>
+                <text class="lvmh-maison-meta" x="0" y="62">CSV · SQL · API</text>
+              </g>
+
+              <!-- hub -->
+              <circle class="lvmh-hub-glow" cx="550" cy="300" r="118"/>
+              <g>
+                <animateTransform attributeName="transform" type="rotate" from="0 550 300" to="360 550 300" dur="22s" repeatCount="indefinite"/>
+                <circle class="lvmh-hub-orbit" cx="550" cy="300" r="92"/>
+                <circle cx="458" cy="300" r="4" fill="#c4a574"/>
+                <circle cx="642" cy="300" r="3" fill="#e8d5b0"/>
+              </g>
+              <g>
+                <animateTransform attributeName="transform" type="rotate" from="360 550 300" to="0 550 300" dur="34s" repeatCount="indefinite"/>
+                <circle class="lvmh-hub-orbit lvmh-hub-orbit--dash" cx="550" cy="300" r="108"/>
+                <circle cx="550" cy="192" r="3.5" fill="#c4a574"/>
+                <circle cx="550" cy="408" r="2.5" fill="#e8d5b0" opacity=".75"/>
+              </g>
+              <circle class="lvmh-hub-core" cx="550" cy="300" r="64"/>
+              <text class="lvmh-hub-title" x="550" y="294">Central tool</text>
+              <text class="lvmh-hub-sub" x="550" y="312">Data marketing platform</text>
+
+              <!-- process rail -->
+              <g transform="translate(550 390)">
+                <rect class="lvmh-rail-pill" x="-198" y="-14" width="72" height="28" rx="14"/>
+                <circle class="lvmh-rail-dot" cx="-178" cy="0" r="3.5"/>
+                <text class="lvmh-rail-txt" x="-155" y="1">Ingest</text>
+                <rect class="lvmh-rail-pill" x="-112" y="-14" width="66" height="28" rx="14"/>
+                <circle class="lvmh-rail-dot" cx="-94" cy="0" r="3.5"/>
+                <text class="lvmh-rail-txt" x="-70" y="1">Map</text>
+                <rect class="lvmh-rail-pill" x="-32" y="-14" width="70" height="28" rx="14"/>
+                <circle class="lvmh-rail-dot" cx="-12" cy="0" r="3.5"/>
+                <text class="lvmh-rail-txt" x="12" y="1">Clean</text>
+                <rect class="lvmh-rail-pill" x="52" y="-14" width="72" height="28" rx="14"/>
+                <circle class="lvmh-rail-dot" cx="72" cy="0" r="3.5"/>
+                <text class="lvmh-rail-txt" x="97" y="1">Unify</text>
+              </g>
+
+              <text class="lvmh-layer" x="550" y="455">OUTPUTS · MACRO PROFILES</text>
+
+              <!-- profile card -->
+              <g transform="translate(80 470)">
+                <rect class="lvmh-out-card lvmh-out-card--accent" width="280" height="140" rx="16"/>
+                <!-- radar -->
+                <g transform="translate(70 78)">
+                  <polygon class="lvmh-radar-grid" points="0,-36 34,-11 21,30 -21,30 -34,-11"/>
+                  <polygon class="lvmh-radar-grid" points="0,-22 21,-7 13,18 -13,18 -21,-7"/>
+                  <polygon class="lvmh-radar-area" points="0,-30 28,-6 12,22 -16,18 -26,-4"/>
+                </g>
+                <text class="lvmh-out-kicker" x="130" y="32">MACRO PROFILE</text>
+                <text class="lvmh-out-title" x="130" y="54">Complete customer view</text>
+                <rect class="lvmh-tag-bg" x="130" y="68" width="52" height="18" rx="9"/>
+                <text class="lvmh-tag-txt" x="156" y="78">Identity</text>
+                <rect class="lvmh-tag-bg" x="188" y="68" width="62" height="18" rx="9"/>
+                <text class="lvmh-tag-txt" x="219" y="78">Purchases</text>
+                <rect class="lvmh-tag-bg" x="130" y="94" width="68" height="18" rx="9"/>
+                <text class="lvmh-tag-txt" x="164" y="104">Campaigns</text>
+                <rect class="lvmh-tag-bg" x="204" y="94" width="52" height="18" rx="9"/>
+                <text class="lvmh-tag-txt" x="230" y="104">Affinity</text>
+              </g>
+
+              <!-- filter -->
+              <g transform="translate(390 490)">
+                <rect class="lvmh-out-card" width="170" height="110" rx="14"/>
+                <g transform="translate(28 42)">
+                  <path class="lvmh-icon-stroke" d="M0 0 H28 L18 14 V26 L10 30 V14 Z"/>
+                </g>
+                <text class="lvmh-out-title" x="70" y="48">Filter</text>
+                <text class="lvmh-out-meta" x="70" y="68">Maison · channel · value</text>
+                <path class="lvmh-meter-track" d="M70 88 H150"/>
+                <path class="lvmh-meter-val" d="M70 88 H128"/>
+              </g>
+
+              <!-- segment -->
+              <g transform="translate(585 490)">
+                <rect class="lvmh-out-card" width="170" height="110" rx="14"/>
+                <g transform="translate(28 34)">
+                  <circle cx="14" cy="14" r="14" fill="none" stroke="#c4a574" stroke-width="1.4"/>
+                  <path class="lvmh-pie-slice" d="M14 14 L14 0 A14 14 0 0 1 26.1 7 Z" fill="#c4a574"/>
+                  <path class="lvmh-pie-slice" d="M14 14 L26.1 7 A14 14 0 0 1 18 26.5 Z" fill="#8a7150"/>
+                  <path class="lvmh-pie-slice" d="M14 14 L18 26.5 A14 14 0 0 1 3 22 Z" fill="#e8d5b0"/>
+                  <path class="lvmh-pie-slice" d="M14 14 L3 22 A14 14 0 0 1 14 0 Z" fill="#5c4a34"/>
+                </g>
+                <text class="lvmh-out-title" x="70" y="48">Segment</text>
+                <text class="lvmh-out-meta" x="70" y="68">Macro audiences</text>
+                <path class="lvmh-meter-track" d="M70 88 H150"/>
+                <path class="lvmh-meter-val" d="M70 88 H118"/>
+              </g>
+
+              <!-- export -->
+              <g transform="translate(780 490)">
+                <rect class="lvmh-out-card" width="220" height="110" rx="14"/>
+                <g transform="translate(28 36)">
+                  <rect x="0" y="4" width="18" height="22" rx="3" fill="none" stroke="#c4a574" stroke-width="1.5"/>
+                  <path class="lvmh-icon-stroke" d="M28 15 H48 M40 8 L50 15 L40 22"/>
+                </g>
+                <text class="lvmh-out-title" x="90" y="48">Export</text>
+                <text class="lvmh-out-meta" x="90" y="68">Activation ready</text>
+                <path class="lvmh-meter-track" d="M90 88 H200"/>
+                <path class="lvmh-meter-val" d="M90 88 H188"/>
+              </g>
+            </svg>
           </div>
         </div>
       </div>`;
@@ -2275,9 +2653,13 @@ function renderMethodObject(type) {
       s3dItem(30, 16, 16, 'rotateX(72deg)', cyl3d('night', 5, 14)) +
       s3dItem(4, 10, 8, 'rotateZ(90deg)', cyl3d('gold', 4, 20)),
     'data-ops':
-      s3dItem(0, 30, 0, '', cyl3d('green', 34, 14)) +
-      s3dItem(0, 10, 0, '', cyl3d('green', 40, 14)) +
-      s3dItem(0, -10, 0, '', cyl3d('mint', 44, 14)),
+      s3dItem(0, 28, -8, '', box3d('night', 96, 10, 58)) +
+      s3dItem(-30, 4, 8, '', box3d('mint', 16, 36, 12)) +
+      s3dItem(-8, -2, 8, '', box3d('green', 16, 48, 12)) +
+      s3dItem(14, 8, 8, '', box3d('teal', 16, 28, 12)) +
+      s3dItem(36, 0, 8, '', box3d('gold', 16, 44, 12)) +
+      s3dItem(-34, -28, 18, '', ball3d('mint', 6)) +
+      s3dItem(38, -30, 18, '', ball3d('gold', 5)),
     'project-mgmt':
       s3dItem(0, 16, -8, '', box3d('paper', 92, 8, 64)) +
       s3dItem(-28, 4, 4, '', box3d('ink', 22, 58, 40)) +
@@ -2289,6 +2671,30 @@ function renderMethodObject(type) {
       s3dItem(-22, 4, 12, '', box3d('green', 16, 16, 16)) +
       s3dItem(0, -2, 12, '', box3d('mint', 16, 28, 16)) +
       s3dItem(22, 0, 12, '', box3d('green', 16, 22, 16)),
+    'ai-agent':
+      s3dItem(0, -6, 0, '', box3d('purple', 36, 44, 22)) +
+      s3dItem(0, -36, 8, '', ball3d('paper', 16)) +
+      s3dItem(28, -18, 16, '', pyr3d('mint', 18, 26)) +
+      s3dItem(-30, -8, 14, '', box3d('night', 22, 16, 8)),
+    database:
+      s3dItem(0, 22, 0, '', cyl3d('blue', 46, 16)) +
+      s3dItem(0, 2, 0, '', cyl3d('ink', 52, 16)) +
+      s3dItem(0, -18, 0, '', cyl3d('teal', 40, 16)),
+    'api-connectors':
+      s3dItem(-36, 4, 0, '', box3d('blue', 28, 28, 16)) +
+      s3dItem(36, 4, 0, '', box3d('orange', 28, 28, 16)) +
+      s3dItem(0, 4, 4, 'rotateZ(90deg)', cyl3d('gold', 6, 36)) +
+      s3dItem(0, -22, 12, '', ball3d('mint', 7)),
+    communication:
+      s3dItem(-8, 6, 0, '', box3d('paper', 68, 46, 12)) +
+      s3dItem(30, 18, 10, '', ball3d('pink', 13)) +
+      s3dItem(42, 2, 16, '', box3d('orange', 16, 12, 8)) +
+      s3dItem(-38, -22, 12, '', box3d('blue', 26, 16, 8)),
+    seo:
+      s3dItem(-6, 4, 0, 'rotateX(72deg)', cyl3d('paper', 34, 10)) +
+      s3dItem(-6, 4, 0, 'rotateX(72deg)', cyl3d('night', 20, 12)) +
+      s3dItem(22, 26, 8, 'rotateZ(42deg)', box3d('ink', 8, 34, 8)) +
+      s3dItem(-34, -18, 14, '', box3d('paper', 34, 42, 8)),
     marketing:
       s3dItem(-8, 34, 0, '', box3d('orange', 72, 10, 48)) +
       s3dItem(-8, 16, 0, '', box3d('yellow', 54, 10, 40)) +
@@ -2343,129 +2749,22 @@ function renderMethodsCarousel() {
   const track = document.getElementById('methods-carousel-track');
   if (!root || !track) return;
   const types = getUsedMethodTypes();
+  const countEl = document.getElementById('methods-count');
+  if (countEl) countEl.textContent = String(types.length);
   if (!types.length) {
     track.innerHTML = '';
     return;
   }
-  const itemsHTML = types.map((type, i) => {
+  track.innerHTML = types.map((type) => {
     const meta = METHOD_STEPS[type];
     const name = methodLangText(meta.label);
     return `<div class="methods-carousel-item" data-type="${type}">
       <div class="methods-carousel-visual" aria-hidden="true">
-        <div class="method-obj" data-type="${type}" style="--d:${(i * 0.16).toFixed(2)}s">${renderMethodObject(type)}</div>
+        <div class="method-obj" data-type="${type}">${renderMethodObject(type)}</div>
       </div>
       <div class="methods-carousel-label" data-method-type-label="${type}">${name}</div>
     </div>`;
   }).join('');
-  // Duplicate for seamless infinite scroll
-  track.innerHTML = itemsHTML + itemsHTML;
-
-  if (root.dataset.carouselReady === '1') return;
-  root.dataset.carouselReady = '1';
-
-  let offset = 0;
-  let halfWidth = 0;
-  let dragging = false;
-  let pointerId = null;
-  let startX = 0;
-  let startOffset = 0;
-  let lastX = 0;
-  let lastT = 0;
-  let velocity = 0;
-  let resumeTimer = null;
-  let autoPaused = false;
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const autoSpeed = 0.45;
-
-  function measure() {
-    halfWidth = track.scrollWidth / 2;
-  }
-
-  function normalize() {
-    if (!halfWidth) return;
-    while (offset <= -halfWidth) offset += halfWidth;
-    while (offset > 0) offset -= halfWidth;
-  }
-
-  function apply() {
-    normalize();
-    track.style.transform = `translate3d(${offset}px, 0, 0)`;
-  }
-
-  function pauseAuto(ms = 1800) {
-    autoPaused = true;
-    clearTimeout(resumeTimer);
-    resumeTimer = setTimeout(() => { autoPaused = false; }, ms);
-  }
-
-  function onPointerDown(e) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    dragging = true;
-    pointerId = e.pointerId;
-    startX = e.clientX;
-    startOffset = offset;
-    lastX = e.clientX;
-    lastT = performance.now();
-    velocity = 0;
-    autoPaused = true;
-    clearTimeout(resumeTimer);
-    root.classList.add('is-dragging');
-    try { root.setPointerCapture(pointerId); } catch {}
-  }
-
-  function onPointerMove(e) {
-    if (!dragging || e.pointerId !== pointerId) return;
-    const now = performance.now();
-    const dx = e.clientX - startX;
-    offset = startOffset + dx;
-    const dt = Math.max(1, now - lastT);
-    velocity = (e.clientX - lastX) / dt;
-    lastX = e.clientX;
-    lastT = now;
-    apply();
-  }
-
-  function onPointerUp(e) {
-    if (!dragging || e.pointerId !== pointerId) return;
-    dragging = false;
-    pointerId = null;
-    root.classList.remove('is-dragging');
-    offset += velocity * 120;
-    apply();
-    pauseAuto(2200);
-  }
-
-  root.addEventListener('pointerdown', onPointerDown);
-  root.addEventListener('pointermove', onPointerMove);
-  root.addEventListener('pointerup', onPointerUp);
-  root.addEventListener('pointercancel', onPointerUp);
-  root.addEventListener('wheel', (e) => {
-    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    if (!delta) return;
-    e.preventDefault();
-    offset -= delta;
-    apply();
-    pauseAuto(1600);
-  }, { passive: false });
-
-  window.addEventListener('resize', () => {
-    measure();
-    apply();
-  }, { passive: true });
-
-  requestAnimationFrame(() => {
-    measure();
-    apply();
-  });
-
-  function tick() {
-    if (!dragging && !autoPaused && !reduceMotion && halfWidth) {
-      offset -= autoSpeed;
-      apply();
-    }
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
 }
 
 function renderMethodSchema(p) {
@@ -2762,7 +3061,6 @@ function renderProjList() {
     };
 
     const allBadgesHTML = [
-      ...(p.role ? [`<span class="proj-list-badge badge-role">${p.role}</span>`] : []),
       ...allTags.map(t => {
         const bizClass = getBusinessBadgeClass(t);
         const icon = getTagIcon(t);
@@ -2785,13 +3083,14 @@ function renderProjList() {
           ${renderMethodMinis(p.id)}
         </div>
       </div>
-      <div class="proj-list-year" style="display:flex; align-items:center; justify-content:flex-end; gap:16px;">
-        ${p.url ? `<a class="proj-list-link" href="${p.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="margin-right: 8px; display:inline-flex; align-items:center; gap:4px;">
+      <div class="proj-list-year">
+        ${p.role ? `<span class="proj-list-role">${p.role}</span>` : ''}
+        ${p.url ? `<a class="proj-list-link" href="${p.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
           Website <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </a>` : ''}
-        <div style="display:flex; align-items:center; gap:6px; opacity:0.6;">
-          <span style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Details</span>
-          <span class="proj-list-arrow" style="font-size:16px;">→</span>
+        <div class="proj-list-details">
+          <span>Details</span>
+          <span class="proj-list-arrow">→</span>
         </div>
       </div>
     </div>`;

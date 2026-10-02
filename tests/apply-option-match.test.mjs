@@ -47,6 +47,13 @@ test('country aliases: France ↔ French Republic, Thailand ↔ Thaïlande', () 
   assert.equal(pickMatchingOption(['United States of America', 'United Kingdom'], 'USA')?.text, 'United States of America');
 });
 
+test('Austria is not Australia; dial options match +33 / France', () => {
+  assert.equal(pickMatchingOption(['Australia +61', 'Austria +43', 'France +33'], 'Austria')?.text, 'Austria +43');
+  assert.equal(pickMatchingOption(['Australia +61', 'Austria +43', 'France +33'], '+33')?.text, 'France +33');
+  assert.equal(pickMatchingOption(['Australia +61', 'Austria +43', 'France +33'], 'France')?.text, 'France +33');
+  assert.notEqual(pickMatchingOption(['Australia +61', 'Austria +43'], 'Austria')?.text, 'Australia +61');
+});
+
 test('short country codes do not substring-match unrelated options', () => {
   assert.equal(pickMatchingOption(['Let us know', 'United States'], 'US')?.text, 'United States');
   assert.equal(pickMatchingOption(['From our team', 'France'], 'FR')?.text, 'France');
@@ -87,6 +94,27 @@ test('typed filter text is not a list selection', () => {
     inputValue: 'Paris, France', query: 'Paris', filterTyped: 'Par',
   }), 'Paris, France');
   assert.equal(selectionLooksCommitted({ buttonText: 'Select...', query: 'France' }), null);
+});
+
+test('input type=button listbox commits via buttonText from .value (Revolut)', () => {
+  assert.equal(
+    selectionLooksCommitted({
+      inputValue: 'France',
+      buttonText: 'France',
+      query: 'France',
+      clickedText: 'France',
+    }),
+    'France',
+  );
+  assert.equal(
+    selectionLooksCommitted({
+      inputValue: 'Immediate availability',
+      buttonText: 'Immediate availability',
+      query: 'Immediate availability',
+      clickedText: 'Immediate availability',
+    }),
+    'Immediate availability',
+  );
 });
 
 test('month aliases: February ↔ Feb ↔ 2 ↔ 02', () => {

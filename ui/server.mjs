@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { createServer } from 'http';
-import { readFile, writeFile, appendFile, readdir, stat, mkdir, mkdtemp, rm } from 'fs/promises';
+import { readFile, writeFile, appendFile, readdir, stat, mkdir, mkdtemp, rm, access, copyFile } from 'fs/promises';
 import { watch } from 'fs';
 import { join, dirname, resolve, sep, basename } from 'path';
 import { fileURLToPath } from 'url';
@@ -1078,8 +1078,48 @@ async function addToPipeline(url, note, userId) {
 }
 
 // ─── Portals (portals.yml) ────────────────────────────────────────────────────
+// Local: career-ops/portals.yml (user layer, gitignored).
+// Vercel: /var/task is read-only and portals.yml is often absent from the
+// GitHub deploy (gitignored). Prefer a writable copy under WRITE_ROOT, seeded
+// from the bundled root file (CLI uploads) or templates/portals.example.yml.
+const PORTALS_EXAMPLE = join(ROOT, 'templates', 'portals.example.yml');
+const PORTALS_FILE = IS_VERCEL ? join(WRITE_ROOT, 'portals.yml') : join(ROOT, 'portals.yml');
 
-const PORTALS_FILE = join(ROOT, 'portals.yml');
+async function ensurePortalsFile() {
+  try {
+    await access(PORTALS_FILE);
+    return PORTALS_FILE;
+  } catch {
+    /* missing — seed below */
+  }
+
+  const sources = IS_VERCEL
+    ? [join(ROOT, 'portals.yml'), PORTALS_EXAMPLE]
+    : [PORTALS_EXAMPLE];
+
+  for (const src of sources) {
+    try {
+      await access(src);
+      if (src === PORTALS_FILE) return PORTALS_FILE;
+      await mkdir(dirname(PORTALS_FILE), { recursive: true });
+      await copyFile(src, PORTALS_FILE);
+      if (src === PORTALS_EXAMPLE) {
+        console.warn('  ⚠️  portals.yml missing — seeded from templates/portals.example.yml');
+      } else {
+        console.log('  ☁️  portals.yml seeded into writable runtime dir');
+      }
+      return PORTALS_FILE;
+    } catch {
+      /* try next source */
+    }
+  }
+
+  throw new Error(
+    'portals.yml introuvable. Copie templates/portals.example.yml → portals.yml en local, ' +
+    'ou redéploie depuis une machine qui a portals.yml (ajouté à vercel includeFiles).'
+  );
+}
+
 let portalsTitleConfig = null;
 
 function usePortalsTitleFilter(titleFilter) {
@@ -1161,6 +1201,30 @@ function tripSerpApiCircuit(reason = 'unavailable') {
   }
 }
 
+// Local Chrome→Google scrape: one HTTP 429 means Google has rate-limited this IP.
+// Keep hammering it for every remaining company just burns time and worsens the ban.
+let _localGoogleCircuitOpen = false;
+function localGoogleCircuitOpen() { return _localGoogleCircuitOpen; }
+function resetLocalGoogleCircuit() { _localGoogleCircuitOpen = false; }
+function tripLocalGoogleCircuit(reason = 'unavailable') {
+  if (!_localGoogleCircuitOpen) {
+    console.warn(`[scan] [circuit-breaker] Chrome/Google ${reason} — skipping local Google for the rest of this run`);
+    _localGoogleCircuitOpen = true;
+  }
+}
+
+// DuckDuckGo HTML often flips to a challenge wall for the rest of a run once
+// triggered — stop paying the 4–7s throttle for every remaining query.
+let _localDdgCircuitOpen = false;
+function localDdgCircuitOpen() { return _localDdgCircuitOpen; }
+function resetLocalDdgCircuit() { _localDdgCircuitOpen = false; }
+function tripLocalDdgCircuit(reason = 'unavailable') {
+  if (!_localDdgCircuitOpen) {
+    console.warn(`[scan] [circuit-breaker] DuckDuckGo ${reason} — skipping DDG for the rest of this run`);
+    _localDdgCircuitOpen = true;
+  }
+}
+
 // Per-run web-search circuit breaker. When SearchAPI is rate-limited and DDG /
 // PinchTab solver are blocked by anti-bot, every webSearch query becomes a slow
 // no-op: throttled DDG fetch (timeout) → throttled PinchTab/Brave nav (challenge)
@@ -1225,6 +1289,7 @@ async function probeSearchApi() {
 }
 
 async function readPortalsYaml() {
+  await ensurePortalsFile();
   const raw = await readFile(PORTALS_FILE, 'utf-8');
   const parsed = yamlLoad(raw) || {};
   usePortalsTitleFilter(parsed.title_filter);
@@ -1233,7 +1298,9 @@ async function readPortalsYaml() {
 
 function inferGreenhouseApiUrl(company = {}) {
   const careersUrl = company.careers_url || '';
-  const match = careersUrl.match(/^https:\/\/job-boards(?:\.eu)?\.greenhouse\.io\/([^/?#]+)/i);
+  const match = careersUrl.match(
+    /^https:\/\/(?:job-boards(?:\.eu)?\.greenhouse\.io|boards(?:\.eu)?\.greenhouse\.io)\/([^/?#]+)/i
+  );
   if (!match?.[1]) return '';
   return `https://boards-api.greenhouse.io/v1/boards/${match[1]}/jobs`;
 }
@@ -2786,17 +2853,18 @@ async function fetchSourceSection(source = {}) {
     careers_url,
   };
   const fallbackToSecondarySource = async (reason) => {
+    // Dead Greenhouse/Ashby/Lever board tokens (HTTP 404/410) must not burn
+    // SearchAPI quota or Playwright crawl time — especially on API-only scans.
+    // Same-ATS careers_url would hit the same broken board anyway.
+    if (provider === 'greenhouse' || provider === 'ashby' || provider === 'lever') {
+      console.warn(`[scan] [${logType.toUpperCase()}] API failed for "${name}" (${reason}) — no websearch/careers fallback`);
+      return { ok: false, section: null, jobs: [], engine: `${logType}-api`, error: reason };
+    }
     if (fallbackSource.query) {
       console.warn(`[scan] [${logType.toUpperCase()}] Falling back to web search for "${name}" (${reason})`);
       return fetchWebSearchSection(fallbackSource);
     }
     if (fallbackSource.careers_url) {
-      const failedKind = inferApiProviderFromUrl(url);
-      const careersKind = inferApiProviderFromUrl(fallbackSource.careers_url);
-      if (failedKind && careersKind && failedKind === careersKind) {
-        console.warn(`[scan] [${logType.toUpperCase()}] Skipping careers_url crawl for "${name}" — ${failedKind} API already failed (${reason})`);
-        return { ok: false, section: null, jobs: [], engine: `${logType}-api`, error: reason };
-      }
       console.warn(`[scan] [${logType.toUpperCase()}] Falling back to careers_url pinchtab for "${name}" (${reason})`);
       return fetchCareersUrlFallback(fallbackSource);
     }
@@ -3193,6 +3261,9 @@ async function launchLocalBrowserContext({ profilePrefix = 'career-ops-browser-p
 async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = null) {
   if (!query) return { ok: false, section: null, jobs: [], engine: 'local-browser-google' };
   if (IS_VERCEL) return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'local browser unavailable on Vercel' };
+  if (localGoogleCircuitOpen()) {
+    return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'local Google circuit open' };
+  }
 
   await pinchtabSearchThrottle();
 
@@ -3205,7 +3276,10 @@ async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = n
     const searchUrl = `https://www.google.com/search?hl=en&num=10&q=${encodeURIComponent(query)}`;
     console.log(`[scan] [Chrome/Google] "${name}" → q: ${query.slice(0, 80)}...`);
     const response = await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    if (response && response.status() >= 400) throw new Error(`Google HTTP ${response.status()}`);
+    if (response && response.status() >= 400) {
+      if (response.status() === 429) tripLocalGoogleCircuit('HTTP 429');
+      throw new Error(`Google HTTP ${response.status()}`);
+    }
     await page.waitForTimeout(2200);
 
     let result = await page.evaluate(PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT).catch(() => ({}));
@@ -3226,6 +3300,7 @@ async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = n
 
     if (!jobs.length && looksLikeChallengePage(bodyText)) {
       console.warn(`[scan] [Chrome/Google] Challenge page detected for "${name}"`);
+      tripLocalGoogleCircuit('challenge / captcha');
       return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'challenge page' };
     }
 
@@ -3235,6 +3310,7 @@ async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = n
     return { ok: true, section: buildJobSection(name, jobs), jobs, engine: 'local-browser-google' };
   } catch (err) {
     console.error(`[scan] [Chrome/Google] Failed "${name}": ${err.message}`);
+    if (/429/.test(err.message || '')) tripLocalGoogleCircuit('HTTP 429');
     return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: err.message };
   } finally {
     if (ownBrowser) {
@@ -3892,6 +3968,31 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
     return result;
   };
 
+  // Company portals with a careers board: scrape that URL before a web search.
+  // Pure search_queries keep the engine path below.
+  if (source?.careers_url) {
+    console.log(`[scan] [WebSearch] Preferring careers_url for "${source.name}"`);
+    const fallback = await fetchCareersUrlFallback(source);
+    if (!isWebSearchEngineBlocked(fallback)) {
+      recordWebSearchOutcome(true);
+      return fallback;
+    }
+  }
+
+  // PinchTab replaces SearchAPI for web queries. SearchAPI stays a fallback
+  // only when the local daemon is down (quota there is monthly and already spent).
+  if (await pinchtabIsUp()) {
+    const pinchtabBraveResult = await fetchPinchtabBraveSection(source);
+    const braveTaken = takeIfLoaded(pinchtabBraveResult);
+    if (braveTaken) return braveTaken;
+
+    const pinchtabSearchResult = await fetchPinchtabSearchSection(source);
+    const googleTaken = takeIfLoaded(pinchtabSearchResult);
+    if (googleTaken) return googleTaken;
+    recordWebSearchOutcome(false);
+    return pinchtabSearchResult?.error ? pinchtabSearchResult : (pinchtabBraveResult || pinchtabSearchResult);
+  }
+
   if (!serpApiCircuitOpen() && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
     try {
       const taken = takeIfLoaded(await fetchSerpApiSection(source));
@@ -3910,45 +4011,16 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
     }
   }
 
-  if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
-  if (await pinchtabIsUp()) {
-    if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
-    const pinchtabBraveResult = await fetchPinchtabBraveSection(source);
-    const braveTaken = takeIfLoaded(pinchtabBraveResult);
-    if (braveTaken) return braveTaken;
-
-    if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
-    const pinchtabSearchResult = await fetchPinchtabSearchSection(source);
-    const googleTaken = takeIfLoaded(pinchtabSearchResult);
-    if (googleTaken) return googleTaken;
-
-    if (source?.careers_url) {
-      console.warn(`[scan] [WebSearch] Falling back to careers_url for "${source.name}"`);
-      const fallback = await fetchCareersUrlFallback(source);
-      recordWebSearchOutcome(!isWebSearchEngineBlocked(fallback));
-      return fallback;
-    }
-    recordWebSearchOutcome(false);
-    return pinchtabSearchResult;
-  }
-
   const chromeGoogleResult = await fetchLocalBrowserGoogleSection(source, sharedBrowser);
   if (!isWebSearchEngineBlocked(chromeGoogleResult)) {
     recordWebSearchOutcome(true);
-    if (!chromeGoogleResult.jobs?.length && source?.careers_url) return fetchCareersUrlFallback(source);
     return chromeGoogleResult;
   }
 
-  if (source?.careers_url) {
-    console.warn(`[scan] [WebSearch] Falling back to careers_url for "${source.name}"`);
-    const fallback = await fetchCareersUrlFallback(source);
-    recordWebSearchOutcome(!isWebSearchEngineBlocked(fallback));
-    return fallback;
-  }
-
-  if (process.env.SCAN_WEBSEARCH_DDG === '1') {
+  if (process.env.SCAN_WEBSEARCH_DDG === '1' && !localDdgCircuitOpen()) {
     if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
     const duckDuckGoResult = await fetchDuckDuckGoSection(source);
+    if (duckDuckGoResult?.error === 'challenge page') tripLocalDdgCircuit('challenge page');
     const ddgTaken = takeIfLoaded(duckDuckGoResult);
     if (ddgTaken) return ddgTaken;
     recordWebSearchOutcome(false);
@@ -4007,14 +4079,24 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
     return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
   };
   const host = window.location.hostname;
-  const navLike = /^(home|jobs|careers|open roles|open positions|learn more|view all|see all|apply now)$/i;
-  const isLikelyJobHref = href => !/\\/blog\\//i.test(href) && /\\/jobs?\\/|\\/positions?\\/|\\/open-roles?\\/|\\/projects?\\/|\\/missions?\\/|\\/job-mission\\/|jobs\\.ashbyhq\\.com|jobs\\.lever\\.co|apply\\.workable\\.com/i.test(href);
+  const navLike = /^(home|jobs|careers|open roles|open positions|learn more|view all|see all|apply now|accéder au contenu|offres d'emploi|offres d’emploi|missions en|technology|finance et comptabilité|logistique et supply chain|ressources humaines|on-site|onsite|hybrid|remote|full[- ]?time|part[- ]?time)$/i;
+  const junkTitle = /^(bangkok|singapore|pathum thani|hong kong|jakarta|tokyo|paris|london|berlin|remote|hybrid|on-site|onsite)(\\s|,|$)/i;
+  const isLikelyJobHref = href => {
+    const value = String(href || '');
+    if (!value || /\\/blog\\//i.test(value)) return false;
+    if (/jobs\\.ashbyhq\\.com|jobs\\.lever\\.co|apply\\.workable\\.com|boards(?:\\.eu)?\\.greenhouse\\.io|job-boards(?:\\.eu)?\\.greenhouse\\.io/i.test(value)) return true;
+    if (/michaelpage\\.|jobsdb\\.|jora\\.com|indeed\\.|welcometothejungle\\./i.test(value) && /\\/(job|jobs|offre|position|vacanc)/i.test(value)) return true;
+    return /\\/(jobs?|positions?|openings?|open-roles?|careers?|opportunit(?:y|ies)|vacanc(?:y|ies)|roles?)(\\/|$|\\?)/i.test(value)
+      || /\\/(job-detail|jobdetail|viewjob|job-description|jobdescription)\\b/i.test(value)
+      || /[?&](job[_-]?id|gh_jid|posting_id)=/i.test(value);
+  };
   const results = [];
   const seen = new Set();
   const pushJob = entry => {
     const title = normalizeText(entry && entry.title);
     const url = normalizeText(entry && entry.url);
-    if (!title || !url || navLike.test(title)) return;
+    if (!title || !url || navLike.test(title) || junkTitle.test(title)) return;
+    if (title.length < 4 || title.length > 180) return;
     const key = url + '::' + title.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
@@ -4025,6 +4107,34 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
       publishedAt: normalizeText(entry && entry.publishedAt),
     });
   };
+
+  // JSON-LD JobPosting — common on SPA careers boards (Stripe-like shells, agencies).
+  document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
+    try {
+      const parsed = JSON.parse(script.textContent || 'null');
+      const stack = Array.isArray(parsed) ? [...parsed] : [parsed];
+      while (stack.length) {
+        const node = stack.pop();
+        if (!node || typeof node !== 'object') continue;
+        if (Array.isArray(node['@graph'])) stack.push(...node['@graph']);
+        const types = [].concat(node['@type'] || []);
+        if (types.some(t => /jobposting/i.test(String(t)))) {
+          const title = normalizeText(node.title || node.name || '');
+          const url = normalizeText(node.url || node.sameAs || (node.identifier && node.identifier.value) || '');
+          const location = normalizeText(
+            (node.jobLocation && (node.jobLocation.name || (node.jobLocation.address && (node.jobLocation.address.addressLocality || node.jobLocation.address.name)))) ||
+            node.jobLocationType ||
+            ''
+          );
+          const publishedAt = parseDate(node.datePosted || node.datePublished || '');
+          if (title && url) pushJob({ title, url, location, publishedAt });
+        }
+        Object.values(node).forEach(value => {
+          if (value && typeof value === 'object') stack.push(value);
+        });
+      }
+    } catch {}
+  });
 
   if (host.includes('jobs.lever.co')) {
     document.querySelectorAll('a.posting, a[href*="jobs.lever.co"]').forEach(anchor => {
@@ -4132,6 +4242,43 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
       pushJob({ title, url: href, location: domLocation, publishedAt });
     });
   } else {
+    // Embedded Next/Nuxt payloads often carry the listing when the DOM is still empty.
+    const collectEmbeddedJobs = value => {
+      const stack = [value];
+      const visited = new Set();
+      while (stack.length) {
+        const current = stack.pop();
+        if (!current || typeof current !== 'object' || visited.has(current)) continue;
+        visited.add(current);
+        if (Array.isArray(current)) {
+          current.forEach(item => stack.push(item));
+          continue;
+        }
+        const title = normalizeText(current.title || current.name || current.jobTitle || current.roleTitle || '');
+        const url = normalizeText(
+          current.absolute_url || current.absoluteUrl || current.hostedUrl ||
+          current.jobUrl || current.applyUrl || current.url || current.link || ''
+        );
+        if (title && url && (/^https?:\\/\\//i.test(url) || url.startsWith('/')) && isLikelyJobHref(url)) {
+          const abs = /^https?:\\/\\//i.test(url) ? url : new URL(url, window.location.href).href;
+          pushJob({
+            title,
+            url: abs,
+            location: normalizeText(
+              current.location || current.locationName || current.city ||
+              (current.categories && current.categories.location) || ''
+            ),
+            publishedAt: parseDate(current.updated_at || current.publishedAt || current.createdAt || current.postedAt || ''),
+          });
+        }
+        Object.values(current).forEach(item => {
+          if (item && typeof item === 'object') stack.push(item);
+        });
+      }
+    };
+    try { collectEmbeddedJobs(window.__NEXT_DATA__); } catch {}
+    try { collectEmbeddedJobs(window.__APP_DATA__ || window.__appData || window.__INITIAL_STATE__); } catch {}
+
     document.querySelectorAll('a[href]').forEach(anchor => {
       const href = anchor.href || '';
       if (!isLikelyJobHref(href)) return;
@@ -4226,13 +4373,29 @@ function usableDetailTitle(title = '') {
   const value = cleanString(title);
   if (value.length < 4 || value.length > 180) return false;
   if (/^(apply|apply now|view role|learn more|jobs?|careers?|open roles?|open positions?|job details?)$/i.test(value)) return false;
+  if (/^(accéder au contenu|offres d'emploi|offres d’emploi|missions en|technology|finance et|logistique|ressources humaines)$/i.test(value)) return false;
+  if (/^(on-site|onsite|hybrid|remote|full[- ]?time|part[- ]?time)$/i.test(value)) return false;
   return true;
+}
+
+function isPlausibleListingCandidate(job = {}) {
+  if (!job?.url || !usableDetailTitle(job.title)) return false;
+  const title = cleanString(job.title);
+  // Location / work-mode chips scraped as "titles" on JobsDB-style boards.
+  if (/^(bangkok|singapore|hong kong|jakarta|tokyo|paris|london|berlin|pathum thani|wang thonglang)\b/i.test(title)) return false;
+  if (portalsTitleFilter.test(title)) return true;
+  // Missing location: only enrich if the title already looks like a role.
+  if (!cleanString(job.remoteEvidence || job.location)
+    && /\b(manager|designer|engineer|product|design|architect|lead|head|director|consultant|freelance|ux|ui|pm)\b/i.test(title)) {
+    return true;
+  }
+  return false;
 }
 
 async function enrichLocalJobsWithDetails(ctx, jobs = [], companyName = '') {
   if (!SCAN_CAREERS_DETAIL_LIMIT || !jobs.length) return jobs;
   const candidates = jobs
-    .filter(job => job?.url && (portalsTitleFilter.test(job.title) || !cleanString(job.remoteEvidence || job.location)))
+    .filter(job => job?.url && isPlausibleListingCandidate(job))
     .slice(0, SCAN_CAREERS_DETAIL_LIMIT);
   if (!candidates.length) return jobs;
 
@@ -4283,7 +4446,7 @@ async function enrichLocalJobsWithDetails(ctx, jobs = [], companyName = '') {
 async function enrichPinchtabJobsWithDetails(jobs = [], companyName = '') {
   if (!SCAN_CAREERS_DETAIL_LIMIT || !jobs.length) return jobs;
   const candidates = jobs
-    .filter(job => job?.url && (portalsTitleFilter.test(job.title) || !cleanString(job.remoteEvidence || job.location)))
+    .filter(job => job?.url && isPlausibleListingCandidate(job))
     .slice(0, SCAN_CAREERS_DETAIL_LIMIT);
   if (!candidates.length) return jobs;
 
@@ -7317,6 +7480,8 @@ const server = createServer(async (req, res) => {
         let profileGate = null;
         if (mode === 'scan') {
           resetSerpApiCircuit();
+          resetLocalGoogleCircuit();
+          resetLocalDdgCircuit();
           resetPinchtabSolveCircuit();
           resetWebSearchCircuit();
           resetPinchtabHealthCache();
@@ -7391,8 +7556,10 @@ const server = createServer(async (req, res) => {
             )),
           ]);
           const serpApiConfigured = Boolean(SERPAPI_KEY || process.env.SEARCHAPI_KEY);
-          // Pre-flight: validate API key once before dispatching all parallel web searches
-          if (serpApiConfigured) await probeSearchApi();
+          const pinchtabSearch = await pinchtabIsUp();
+          // SearchAPI is only the fallback when PinchTab is down. Skip the probe
+          // otherwise: a 429 there used to mark every web query as failed.
+          if (serpApiConfigured && !pinchtabSearch) await probeSearchApi();
           const webSearchResults = await fetchWebSearchSectionsSequential(webSearchSources);
           const playwrightResults = await fetchPlaywrightSections(playwrightCos);
           const aggregatorResults = await Promise.allSettled(runnableAggregators.map(aggregator =>
@@ -7618,7 +7785,9 @@ const server = createServer(async (req, res) => {
           const statusParts = [];
           statusParts.push(`${fetchedDirectCount}/${directTotal} source${directTotal !== 1 ? 's' : ''} API/RSS fetchée${directTotal !== 1 ? 's' : ''}`);
           if (webSearchSources.length) {
-            const fallbackLabel = serpApiConfigured
+            const fallbackLabel = pinchtabSearch
+              ? 'via PinchTab'
+              : serpApiConfigured
               ? `via ${apiLabel} (+ fallback HTML si besoin)`
               : process.env.BRAVE_API_KEY
               ? 'via Brave Search (+ fallback HTML si besoin)'
@@ -8926,8 +9095,9 @@ if (useSupabase && !IS_VERCEL) {
     if (!filename.endsWith('.md')) return;
     // Temporary occupancy sentinels from reserve-report-num — never sync them.
     if (/^\d+-RESERVED\.md$/i.test(filename)) return;
+    const filePath = join(reportsDir, filename);
     try {
-      const content = await readFile(join(reportsDir, filename), 'utf-8');
+      const content = await readFile(filePath, 'utf-8');
       const parts = filename.replace('.md', '').split('-');
       const num = parseInt(parts[0], 10);
       const date = parts.slice(-3).join('-');
@@ -8941,6 +9111,21 @@ if (useSupabase && !IS_VERCEL) {
       if (error) throw error;
       console.log(`  ☁️  Report synced → Supabase: ${filename}`);
     } catch (err) {
+      // purge-stale / manual delete removes the file first; fs.watch still fires.
+      // Mirror the delete remotely instead of logging a noisy ENOENT error.
+      if (err?.code === 'ENOENT') {
+        try {
+          const userId = await getWatcherUserId();
+          let q = supabase.from('reports').delete().eq('filename', filename);
+          if (userId) q = q.eq('user_id', userId);
+          const { error } = await q;
+          if (error) throw error;
+          console.log(`  ☁️  Report removed → Supabase (local file gone): ${filename}`);
+        } catch (delErr) {
+          console.warn(`  ⚠️  Local report gone, remote delete skipped (${filename}):`, delErr.message);
+        }
+        return;
+      }
       console.error(`  ❌  Sync report failed (${filename}):`, err.message);
     }
   }

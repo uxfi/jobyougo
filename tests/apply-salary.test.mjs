@@ -47,6 +47,17 @@ test('salary dropdown picks the bucket that contains 60000', () => {
     '€90,000 – €120,000',
   ], '60000');
   assert.equal(picked?.text, '€60,000 – €80,000');
+  // Bitpanda Greenhouse bands
+  assert.equal(
+    pickMatchingOption([
+      '€50,000 - €60,000',
+      '€61,000 - €70,000',
+      '€71,000 - €80,000',
+      '€81,000 - €90,000',
+      '€91,000 - €100,000',
+    ], '60000')?.text,
+    '€50,000 - €60,000',
+  );
 });
 
 test('LLM range string still matches the same salary bucket', () => {

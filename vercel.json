@@ -12,7 +12,10 @@
           "images/**",
           "modes/**",
           "fonts/**",
-          "config/monetization.yml"
+          "config/monetization.yml",
+          "portals.yml",
+          "cv.md",
+          "config/profile.yml"
         ]
       }
     }

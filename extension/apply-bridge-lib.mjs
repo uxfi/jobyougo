@@ -27,6 +27,7 @@ import {
   fieldLooksRequired,
   isApplicationGateConsent,
 } from '../lib/apply-fill-guards.mjs';
+import { choiceKind } from '../lib/apply-option-match.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, DECLINE_RE } from '../lib/apply-select.mjs';
 import { fieldCompletionIssue, looksReadyToSubmit, shouldUploadFileField } from '../lib/apply-completion.mjs';
 import { computeStartDateISO as toIsoDate } from '../lib/apply-spec.mjs';
@@ -117,6 +118,11 @@ function isCustomList(f) {
  */
 function listPayload(f, { optionText = '', plan = {}, identity = {} } = {}) {
   if (!isCustomList(f)) return {};
+  // Yes/No screens are pick-only — typing "Yes" into a search box is noise and
+  // "hiring location" questions used to type Paris via listTypeQuery.
+  if (plan.yesNo || choiceKind(optionText) || choiceKind(plan.selectText) || choiceKind(plan.value)) {
+    return { list: true, typeQuery: '' };
+  }
   const text = String(optionText || '').trim();
   return { list: true, typeQuery: text ? (text.length <= 40 ? text : '') : listTypeQuery(f, plan, identity) };
 }

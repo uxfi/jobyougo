@@ -1384,7 +1384,10 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
 
     // City / country widgets hide the menu until a few letters are typed.
     // The prefix is cleared again if no option is clicked.
-    if (!hadOptionsOnOpen && looksLikeTypeahead(f) && q.length >= 2 && !binary) {
+    // Skip <input type="button"> listboxes (Revolut): they are not editable
+    // filters — fill/pressSequentially never narrow the menu and can wipe value.
+    const domType = await loc.evaluate((el) => (el.type || '').toLowerCase()).catch(() => '');
+    if (!hadOptionsOnOpen && looksLikeTypeahead(f) && q.length >= 2 && !binary && domType !== 'button') {
       filterTyped = listFilterText(q);
       await loc.fill('').catch(() => {});
       await loc.pressSequentially(filterTyped, { delay: rand(55, 130) }).catch(() => {});
@@ -1427,7 +1430,7 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
     }
 
     // Filter the open menu with a short prefix. Never type the whole answer.
-    if (!binary && !filterTyped && q.length >= 2) {
+    if (!binary && !filterTyped && q.length >= 2 && domType !== 'button') {
       filterTyped = listFilterText(q);
       await loc.fill('').catch(() => {});
       await loc.pressSequentially(filterTyped, { delay: rand(55, 130) }).catch(() => {});

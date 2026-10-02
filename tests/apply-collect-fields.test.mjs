@@ -300,6 +300,50 @@ test('labelled aria-haspopup=dialog picker is collected, its shown choice is the
   assert.equal(fieldCompletionIssue(contract), null);
 });
 
+test('Revolut-style input type=button listbox uses sibling heading, not floating Select one', async () => {
+  const fields = await collect(`
+    <div class="InputGroup-rui">
+      <h4>1. Have you previously been employed by Revolut?</h4>
+      <label data-rui-input-type="button">
+        <input type="button" aria-haspopup="listbox" aria-expanded="false"
+          aria-labelledby="prompt-1" value="">
+        <div id="prompt-1">Select one</div>
+      </label>
+    </div>
+    <div class="InputGroup-rui">
+      <h4>2. Do you have experience working with Figma?</h4>
+      <label data-rui-input-type="button">
+        <input type="button" aria-haspopup="listbox" aria-expanded="false"
+          aria-labelledby="prompt-2" value="Yes">
+        <div id="prompt-2">Select one</div>
+      </label>
+    </div>
+  `);
+  const lists = fields.filter(f => f.ariaHaspopup === 'listbox');
+  assert.equal(lists.length, 2, JSON.stringify(fields.map(f => f.label)));
+  assert.match(lists[0].label, /previously been employed/i);
+  assert.equal(lists[0].value, '');
+  assert.match(lists[1].label, /Figma/i, 'filled value must not become the label');
+  assert.equal(lists[1].value, 'Yes');
+});
+
+test('Revolut listbox without h4 keeps field name and strips Select one', async () => {
+  const fields = await collect(`
+    <div class="InputGroup-rui">
+      <label>
+        <input type="button" aria-haspopup="listbox" aria-expanded="false"
+          aria-labelledby="cc" value="France">
+        <div id="cc">Current country</div>
+      </label>
+    </div>
+  `);
+  const f = fields.find(x => x.ariaHaspopup === 'listbox');
+  assert.ok(f, JSON.stringify(fields));
+  assert.match(f.label, /current country/i);
+  assert.ok(!/select one/i.test(f.label), f.label);
+  assert.equal(f.value, 'France');
+});
+
 test('Your answer textarea keeps the question as its label', async () => {
   const fields = await collect(`
     <div>

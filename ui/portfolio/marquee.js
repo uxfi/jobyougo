@@ -4,22 +4,34 @@
   if (!track) return;
 
   const items = [
-    "UpViral", "Louis Vuitton", "BMW", "EdenRed", 
-    "Shiseido", "Société Générale", "Renault", "Casino", 
-    "GALIAN", "SNCF", "Marcel / Publicis", "France Télévisions"
+    { alt: 'UpViral', src: '../images/marquee-white/upviral.png' },
+    { alt: 'LVMH', src: '../images/marquee-white/lvmh.png' },
+    { alt: 'BMW', src: '../images/marquee-white/bmw.svg' },
+    { alt: 'Edenred', src: '../images/marquee-white/edenred.png' },
+    { alt: 'Shiseido', src: '../images/marquee-white/shisideo.png' },
+    { alt: 'Société Générale', src: '../images/marquee-white/societegenerale.png' },
+    { alt: 'Renault', src: '../images/marquee-white/renault.png' },
+    { alt: 'Casino', src: '../images/marquee-white/casino.png' },
+    { alt: 'GALIAN', src: '../images/marquee-white/galian.png' },
+    { alt: 'SNCF', src: '../images/marquee-white/sncf.png' },
+    { alt: 'Publicis', src: '../images/marquee-white/publicis.png' },
+    { alt: 'France Télévisions', src: '../images/marquee-white/francetv.png' },
   ];
-  
-  const FONT_SIZE = 84;
-  const ITEM_PADDING = FONT_SIZE * 0.9;
+
+  const ITEM_PADDING = 72;
   const PIXELS_PER_FRAME = 1.2;
-  
+
   const rendered = [...items, ...items, ...items];
-  
-  rendered.forEach(text => {
+
+  rendered.forEach(item => {
     const span = document.createElement('span');
     span.className = 'marquee-item';
-    span.textContent = text;
     span.style.paddingRight = ITEM_PADDING + 'px';
+    const img = document.createElement('img');
+    img.src = item.src;
+    img.alt = item.alt;
+    img.draggable = false;
+    span.appendChild(img);
     track.appendChild(span);
   });
 
@@ -98,10 +110,26 @@
     }
   }, { rootMargin: '100px' });
 
+  function whenImagesReady(cb) {
+    const imgs = [...track.querySelectorAll('img')];
+    let pending = imgs.length;
+    if (!pending) { cb(); return; }
+    const done = () => { if (--pending === 0) cb(); };
+    imgs.forEach(img => {
+      if (img.complete) done();
+      else {
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+      }
+    });
+  }
+
   function start() {
-    calculateMetrics();
-    observer.observe(track.parentElement);
-    window.addEventListener('resize', calculateMetrics);
+    whenImagesReady(() => {
+      calculateMetrics();
+      observer.observe(track.parentElement);
+      window.addEventListener('resize', calculateMetrics);
+    });
   }
 
   if (document.readyState === 'complete') start();

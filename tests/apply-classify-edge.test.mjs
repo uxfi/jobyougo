@@ -139,9 +139,55 @@ test('twitter / password / additional portfolio stay distinct', () => {
 test('optional salary / gender stay blank; notice and years fill', () => {
   assert.equal(shouldFillField(f('Expected salary')), false);
   assert.equal(shouldFillField(f('Gender')), false);
-  assert.equal(classifyField(f('Notice period'), spec)?.value, '1 week');
+  const notice = classifyField(f('Notice period'), spec);
+  assert.equal(notice?.value, '1 week');
+  assert.equal(notice?.selectText, 'Immediate availability');
+  assert.match(String(notice?.selectPrefer), /immediate/i);
+  assert.equal(classifyField(f('How long is your notice period?'), spec)?.selectText, 'Immediate availability');
   assert.equal(classifyField(f('Years of experience'), spec)?.value, '8');
   assert.equal(classifyField(f('How many years of experience do you have?'), spec)?.value, '8');
   // Yes/No experience gates must not receive the numeric "8".
   assert.equal(classifyField(f('Do you have 5+ years of experience?', { type: 'radio' }), spec), null);
+});
+
+test('Bitpanda / Greenhouse: dial Country*, national phone, EU passport, hybrid, privacy', () => {
+  const dial = classifyField(f('Country', { idAttr: 'country', role: 'combobox' }), {
+    ...spec,
+    identity: { ...id, dialCode: '+33' },
+  });
+  assert.equal(dial?.selectMatch, '+33');
+  assert.equal(
+    classifyField(f('Phone'), { ...spec, identity: { ...id, dialCode: '+33' } })?.value,
+    '6 95 65 91 31',
+  );
+  assert.equal(
+    classifyField(f('Do you currently possess an EU passport or a valid work permit that authorises you to work in the specified hiring location?'), spec)?.yesNo,
+    'yes',
+  );
+  assert.equal(
+    classifyField(f('Are you currently based in, or willing to relocate to, Vienna?'), spec)?.yesNo,
+    'no',
+  );
+  assert.equal(
+    classifyField(f('Are you happy to make yourself available for the required hybrid model of 3 days in office per week?'), spec)?.yesNo,
+    'no',
+  );
+  assert.equal(
+    classifyField(f('At Bitpanda we do everything in our power to protect your data and give you full control over your personal data.'), spec)?.yesNo,
+    'yes',
+  );
+  assert.equal(
+    shouldFillField(f('At Bitpanda we do everything in our power to protect your data and give you full control over your personal data.')),
+    true,
+  );
+  assert.equal(
+    shouldFillField(f('Do you currently possess an EU passport or a valid work permit that authorises you to work in the specified hiring location?')),
+    true,
+  );
+  const salary = classifyField(f('What are your salary expectations?', { required: true }), {
+    ...spec,
+    identity: { ...id, salary: 'EUR70K-110K', salaryMinimum: 'EUR60K' },
+  });
+  assert.equal(salary?.value, '60000');
+  assert.equal(salary?.selectMatch, '60000');
 });

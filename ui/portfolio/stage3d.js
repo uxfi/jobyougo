@@ -575,9 +575,56 @@
         break;
       }
       case 'data-ops': {
-        mark('d1', add(g, cyl(0.36, 0.36, 0.2, C.green, 30, { metalness: 0.15, roughness: 0.38 }), 0, -0.34, 0));
-        mark('d2', add(g, cyl(0.42, 0.42, 0.2, C.green, 30, { metalness: 0.15, roughness: 0.38 }), 0, -0.06, 0));
-        mark('d3', add(g, cyl(0.48, 0.48, 0.2, C.mint, 30, glow(C.mint, 0.18)), 0, 0.22, 0));
+        add(g, box(1.16, 0.1, 0.7, C.night, { metalness: 0.25, roughness: 0.35 }), 0, -0.42, 0);
+        mark('b1', add(g, box(0.16, 0.36, 0.14, C.mint, glow(C.mint, 0.25)), -0.38, -0.16, 0.08));
+        mark('b2', add(g, box(0.16, 0.52, 0.14, C.green, glow(C.green, 0.22)), -0.12, -0.08, 0.08));
+        mark('b3', add(g, box(0.16, 0.28, 0.14, C.teal, soft), 0.14, -0.2, 0.08));
+        mark('b4', add(g, box(0.16, 0.46, 0.14, C.gold, metal), 0.4, -0.1, 0.08));
+        add(g, ball(0.06, C.mint, glow(C.mint, 0.35)), -0.42, 0.28, 0.22);
+        add(g, ball(0.05, C.gold, glow(C.gold, 0.3)), 0.44, 0.3, 0.2);
+        break;
+      }
+      case 'database': {
+        mark('d1', add(g, cyl(0.46, 0.46, 0.18, C.blue, 30, { metalness: 0.2, roughness: 0.35 }), 0, -0.34, 0));
+        mark('d2', add(g, cyl(0.52, 0.52, 0.18, C.ink, 30, { metalness: 0.25, roughness: 0.32 }), 0, -0.06, 0));
+        mark('d3', add(g, cyl(0.4, 0.4, 0.18, C.teal, 30, glow(C.teal, 0.2)), 0, 0.22, 0));
+        break;
+      }
+      case 'ai-agent': {
+        mark('body', add(g, box(0.42, 0.52, 0.28, C.purple, glow(C.purple, 0.2)), 0, -0.04, 0));
+        mark('head', add(g, ball(0.2, C.paper, soft), 0, 0.4, 0.06));
+        add(g, ball(0.045, C.night, soft), -0.07, 0.42, 0.22);
+        add(g, ball(0.045, C.night, soft), 0.07, 0.42, 0.22);
+        mark('crystal', add(g, methodMesh(THREE, new THREE.OctahedronGeometry(0.18, 0), C.mint, glow(C.mint, 0.45)), 0.34, 0.18, 0.2));
+        mark('panel', add(g, box(0.26, 0.18, 0.08, C.night, { metalness: 0.3, roughness: 0.3 }), -0.36, -0.06, 0.16));
+        add(g, box(0.14, 0.04, 0.03, C.mint, glow(C.mint, 0.35)), -0.36, -0.02, 0.22);
+        break;
+      }
+      case 'api-connectors': {
+        mark('left', add(g, box(0.34, 0.34, 0.18, C.blue, soft), -0.42, 0.02, 0));
+        mark('right', add(g, box(0.34, 0.34, 0.18, C.orange, soft), 0.42, 0.02, 0));
+        mark('pipe', add(g, cyl(0.055, 0.055, 0.42, C.gold, 10, metal), 0, 0.02, 0.06, 0, 0, 1.57));
+        mark('pulse', add(g, ball(0.08, C.mint, glow(C.mint, 0.45)), 0, 0.28, 0.14));
+        add(g, box(0.1, 0.1, 0.1, C.gold, metal), -0.18, 0.02, 0.08);
+        add(g, box(0.1, 0.1, 0.1, C.gold, metal), 0.18, 0.02, 0.08);
+        break;
+      }
+      case 'communication': {
+        add(g, box(0.88, 0.58, 0.12, C.paper, soft), -0.08, 0.02, 0);
+        mark('bubble', add(g, ball(0.16, C.pink, glow(C.pink, 0.3)), 0.4, 0.22, 0.14));
+        mark('tail', add(g, box(0.18, 0.12, 0.08, C.orange, soft), 0.5, 0.0, 0.16, 0, 0, 0.4));
+        add(g, box(0.32, 0.08, 0.05, C.blue, soft), -0.18, 0.1, 0.1);
+        add(g, box(0.24, 0.08, 0.05, C.teal, soft), -0.22, -0.06, 0.1);
+        add(g, box(0.3, 0.18, 0.08, C.blue, soft), -0.48, 0.28, 0.12);
+        break;
+      }
+      case 'seo': {
+        mark('ring', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.36, 0.06, 14, 36), C.paper, soft), -0.12, 0.04, 0, Math.PI / 2, 0, 0));
+        add(g, cyl(0.18, 0.18, 0.1, C.night, 24, { metalness: 0.3, roughness: 0.3 }), -0.12, 0.04, 0);
+        mark('needle', add(g, box(0.08, 0.42, 0.08, C.ink, metal), 0.18, 0.0, 0.1, 0, 0, -0.45));
+        mark('doc', add(g, box(0.42, 0.52, 0.08, C.paper, soft), -0.48, 0.16, -0.16, 0, 0.25, 0));
+        add(g, box(0.22, 0.05, 0.03, C.green, soft), -0.48, 0.22, -0.1, 0, 0.25, 0);
+        add(g, box(0.18, 0.05, 0.03, C.teal, soft), -0.5, 0.1, -0.1, 0, 0.25, 0);
         break;
       }
       case 'project-mgmt': {
@@ -766,9 +813,46 @@
         if (parts.gearB) parts.gearB.rotation.z = -t * 1.25 * (paused ? 0.18 : 1);
         break;
       case 'data-ops':
-        if (parts.d1) parts.d1.rotation.y = t * 0.4 * (paused ? 0.2 : 1);
-        if (parts.d2) parts.d2.rotation.y = -t * 0.55 * (paused ? 0.2 : 1);
-        if (parts.d3) parts.d3.rotation.y = t * 0.7 * (paused ? 0.2 : 1);
+        if (parts.b1) parts.b1.scale.y = 0.75 + Math.sin(t * 1.9) * 0.25 * k;
+        if (parts.b2) parts.b2.scale.y = 0.75 + Math.sin(t * 1.9 + 0.7) * 0.28 * k;
+        if (parts.b3) parts.b3.scale.y = 0.75 + Math.sin(t * 1.9 + 1.4) * 0.22 * k;
+        if (parts.b4) parts.b4.scale.y = 0.75 + Math.sin(t * 1.9 + 2.1) * 0.3 * k;
+        break;
+      case 'database':
+        if (parts.d1) parts.d1.rotation.y = t * 0.35 * (paused ? 0.2 : 1);
+        if (parts.d2) parts.d2.rotation.y = -t * 0.5 * (paused ? 0.2 : 1);
+        if (parts.d3) parts.d3.rotation.y = t * 0.65 * (paused ? 0.2 : 1);
+        break;
+      case 'ai-agent':
+        if (parts.body) parts.body.rotation.y = Math.sin(t * 0.9) * 0.12 * k;
+        if (parts.head) {
+          parts.head.rotation.y = Math.sin(t * 1.4) * 0.18 * k;
+          baseY(parts.head, 0.03, 1.6);
+        }
+        if (parts.crystal) {
+          parts.crystal.rotation.y = t * 0.9 * (paused ? 0.2 : 1);
+          parts.crystal.rotation.x = Math.sin(t * 1.1) * 0.2 * k;
+        }
+        if (parts.panel) parts.panel.rotation.z = Math.sin(t * 1.2) * 0.08 * k;
+        break;
+      case 'api-connectors':
+        if (parts.left) parts.left.position.x = (parts.left.userData.base?.x || -0.42) + Math.sin(t * 1.5) * 0.04 * k;
+        if (parts.right) parts.right.position.x = (parts.right.userData.base?.x || 0.42) - Math.sin(t * 1.5) * 0.04 * k;
+        if (parts.pipe) parts.pipe.rotation.z = 1.57 + Math.sin(t * 2.0) * 0.08 * k;
+        if (parts.pulse?.material) parts.pulse.material.emissiveIntensity = 0.3 + Math.sin(t * 2.6) * 0.25 * k;
+        break;
+      case 'communication':
+        if (parts.bubble) {
+          const s = 1 + Math.sin(t * 1.8) * 0.08 * k;
+          parts.bubble.scale.setScalar(s);
+          baseY(parts.bubble, 0.04, 1.5);
+        }
+        if (parts.tail) parts.tail.rotation.z = Math.sin(t * 1.6) * 0.1 * k;
+        break;
+      case 'seo':
+        if (parts.ring) parts.ring.rotation.z = t * 0.55 * (paused ? 0.2 : 1);
+        if (parts.needle) parts.needle.rotation.z = -0.4 + Math.sin(t * 1.7) * 0.35 * k;
+        if (parts.doc) parts.doc.rotation.y = -0.2 + Math.sin(t * 0.8) * 0.08 * k;
         break;
       case 'project-mgmt':
         baseY(parts.card, 0.05, 1.55);
@@ -831,6 +915,19 @@
     scene.add(fill);
 
     const model = buildMethodIcon(THREE, type);
+    const spinSpeed = ({
+      research: 0.28, 'user-research': 0.34, workshops: 0.3, 'user-flows': 0.4,
+      ia: 0.32, wireframe: 0.26, prototype: 0.36, 'user-tests': 0.33,
+      'ui-design': 0.35, 'design-system': 0.38, 'ai-vibe-code': 0.48, audit: 0.3,
+      handoff: 0.34, brand: 0.42, 'product-vision': 0.3, 'journey-mapping': 0.36,
+      automation: 0.22, 'data-ops': 0.3, database: 0.26, 'ai-agent': 0.44,
+      'api-connectors': 0.4, communication: 0.38, seo: 0.32, 'project-mgmt': 0.3,
+      'dev-follow': 0.36, marketing: 0.4, 'game-3d': 0.34,
+    }[type] || 0.42);
+    const bobAmp = ({
+      automation: 0.02, database: 0.025, 'data-ops': 0.04, prototype: 0.05,
+      'ai-agent': 0.055, 'game-3d': 0.05, brand: 0.045,
+    }[type] || 0.045);
     const box3 = new THREE.Box3().setFromObject(model);
     const size = box3.getSize(new THREE.Vector3());
     const center = box3.getCenter(new THREE.Vector3());
@@ -866,10 +963,10 @@
       const t = clock.getElapsedTime();
       if (!reduceMotion) {
         if (paused) {
-          model.rotation.y += ((-0.5 + t * 0.12) - model.rotation.y) * 0.06;
+          model.rotation.y += ((-0.5 + t * spinSpeed * 0.28) - model.rotation.y) * 0.06;
         } else {
-          model.rotation.y = -0.5 + t * 0.42;
-          model.position.y = model.userData.baseY + Math.sin(t * 1.35) * 0.045;
+          model.rotation.y = -0.5 + t * spinSpeed;
+          model.position.y = model.userData.baseY + Math.sin(t * 1.35) * bobAmp;
         }
         animateMethodParts(model, t, paused);
       }

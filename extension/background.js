@@ -1097,7 +1097,9 @@ async function fillFieldsInPage(updates) {
       if (shadow && String(shadow.value || '').trim()) return normText(shadow.value);
     }
     if (fieldEl.tagName === 'BUTTON' || fieldEl.getAttribute('aria-haspopup')) {
-      return normText(fieldEl.innerText || fieldEl.textContent);
+      // <input type="button" aria-haspopup="listbox"> (Revolut) keeps the pick
+      // in .value; native <button> pickers use innerText.
+      return normText(fieldEl.innerText || fieldEl.textContent || fieldEl.value || '');
     }
     return normText(fieldEl.value || '');
   };
@@ -1122,6 +1124,10 @@ async function fillFieldsInPage(updates) {
     if (!text) return;
     const tag = fieldEl.tagName;
     if (tag !== 'INPUT' && tag !== 'TEXTAREA' && !fieldEl.isContentEditable) return;
+    // Revolut listboxes are <input type="button"> — they are not editable
+    // filters. Clearing/typing here wiped the committed value and never
+    // narrowed the menu.
+    if (tag === 'INPUT' && (fieldEl.type || '').toLowerCase() === 'button') return;
     fieldEl.focus();
     if (tag === 'INPUT' || tag === 'TEXTAREA') {
       if (inputSetter && tag === 'INPUT') inputSetter.call(fieldEl, '');
@@ -1174,6 +1180,10 @@ async function fillFieldsInPage(updates) {
   // (react-select opens its menu on any input change).
   const clearFilter = (fieldEl) => {
     const tag = fieldEl.tagName;
+    if (tag === 'INPUT' && (fieldEl.type || '').toLowerCase() === 'button') {
+      pressEscape(fieldEl);
+      return;
+    }
     if (tag === 'INPUT' || tag === 'TEXTAREA') {
       if (tag === 'INPUT' && inputSetter) inputSetter.call(fieldEl, '');
       else if (tag === 'TEXTAREA' && textareaSetter) textareaSetter.call(fieldEl, '');
@@ -2243,6 +2253,10 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
   const FORCE_CLEAR_FN = `(() => {
     ${FIND_FIELD}
     if (!field || (field.tagName !== 'INPUT' && field.tagName !== 'TEXTAREA')) return '';
+    // Never blank a Revolut-style listbox trigger — its .value IS the pick.
+    if (field.tagName === 'INPUT' && (field.type || '').toLowerCase() === 'button') {
+      return String(field.value || '');
+    }
     const proto = field.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
     if (setter) setter.call(field, ''); else field.value = '';
@@ -2268,7 +2282,7 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
       if (shadow && String(shadow.value || '').trim()) return same(low(shadow.value));
     }
     const own = field.tagName === 'BUTTON' || field.getAttribute('aria-haspopup')
-      ? (field.innerText || field.textContent)
+      ? (field.innerText || field.textContent || field.value)
       : field.value;
     return same(low(own));
   })()`;

@@ -28,6 +28,11 @@ const METHOD_STEPS = {
   'project-mgmt':  { id:'project-mgmt',    label:{ en:'Project management', fr:'Gestion de projet' },    src:null },
   'dev-follow':    { id:'dev-follow',      label:{ en:'Dev follow-up',     fr:'Suivi dev' },             src:null },
   marketing:       { id:'marketing',       label:{ en:'Marketing',         fr:'Marketing' },             src:null },
+  communication:   { id:'communication',   label:{ en:'Communication',     fr:'Communication' },         src:null },
+  seo:             { id:'seo',             label:{ en:'SEO',               fr:'SEO' },                   src:null },
+  'ai-agent':      { id:'ai-agent',        label:{ en:'AI agent',          fr:'Agent IA' },              src:null },
+  database:        { id:'database',        label:{ en:'Database',          fr:'Base de données' },       src:null },
+  'api-connectors':{ id:'api-connectors',  label:{ en:'API connectors',    fr:'Connecteurs API' },       src:null },
   'game-3d':       { id:'game-3d',         label:{ en:'3D game',           fr:'Jeu 3D' },                src:null },
 };
 
@@ -37,8 +42,15 @@ let currentLang = 'en';
 const PROJECT_METHODS = {
   creads: [
     { type:'product-vision', note:{ en:'Brand context kept as JSON through the brief and generation.', fr:'Contexte de marque structuré en JSON, du brief à la génération.' } },
-    { type:'ai-vibe-code',   note:{ en:'SaaS built solo: Firecrawl, Mem0, Cloud Run, Supabase, Vercel.', fr:'SaaS construit en solo : Firecrawl, Mem0, Cloud Run, Supabase, Vercel.' } },
+    { type:'brand',          note:{ en:'Product identity built from scratch, as the only founder.', fr:'Identité du produit construite from scratch, en solo.' } },
     { type:'ui-design',      note:{ en:'Landing, admin dashboard and AI bot interface.', fr:'Landing, dashboard admin et interface du bot IA.' } },
+    { type:'ai-vibe-code',   note:{ en:'SaaS built solo: Firecrawl, Mem0, Cloud Run, Supabase, Vercel.', fr:'SaaS construit en solo : Firecrawl, Mem0, Cloud Run, Supabase, Vercel.' } },
+    { type:'ai-agent',       note:{ en:'Brand Agent reads a site and writes brand context as JSON.', fr:'Le Brand Agent lit un site et écrit le contexte de marque en JSON.' } },
+    { type:'database',       note:{ en:'Supabase stores the product data.', fr:'Supabase stocke les données du produit.' } },
+    { type:'api-connectors', note:{ en:'Firecrawl brings brand sites into the product.', fr:'Firecrawl fait entrer les sites de marque dans le produit.' } },
+    { type:'marketing',      note:{ en:'Go-to-market run solo, with no paid acquisition.', fr:'Mise sur le marché en solo, sans acquisition payante.' } },
+    { type:'communication',  note:{ en:'Product communication written and published alone.', fr:'Communication produit écrite et publiée en solo.' } },
+    { type:'seo',            note:{ en:'SEO on the product site, run alongside the launch.', fr:'SEO du site produit, mené en parallèle du lancement.' } },
   ],
   'challenge-live-ops': [
     { type:'user-flows',  note:{ en:'Opt-in landing designed as a data contract.', fr:'Landing d’opt-in conçue comme un contrat de data.' } },
@@ -59,6 +71,7 @@ const PROJECT_METHODS = {
     { type:'user-flows',     note:{ en:'Seven portals, each with its own onboarding (KYC, KYB) and account states.', fr:'Sept portails, chacun avec son onboarding (KYC, KYB) et ses états de compte.' } },
     { type:'ia',             note:{ en:'Money cycle and lifecycle docs turned into interface rules.', fr:'Docs du cycle financier et du cycle de vie traduites en règles d’interface.' } },
     { type:'prototype',      note:{ en:'The whole product as a working React prototype, light and dark.', fr:'Tout le produit en prototype React fonctionnel, clair et sombre.' } },
+    { type:'ai-agent',       note:{ en:'Design work runs through AI agents on GitHub.', fr:'Le travail de design passe par des agents IA sur GitHub.' } },
     { type:'ai-vibe-code',   note:{ en:'GitHub agents, product requirements, and PR reviews. Figmol is OneAsset\'s internal tool.', fr:'Agents GitHub, specs produit et revues de PR. Figmol est l\'outil interne d\'OneAsset.' } },
     { type:'design-system',  note:{ en:'v2 liquid glass shared by every portal and the marketing site.', fr:'v2 liquid glass partagé par tous les portails et le site marketing.' } },
   ],
@@ -82,9 +95,13 @@ const PROJECT_METHODS = {
   ],
   lvmh: [
     { type:'user-research',    note:{ en:'CRM interviews mixing maisons, sectors and seniority.', fr:'Entretiens CRM mélangeant maisons, secteurs et séniorité.' } },
-    { type:'user-tests',       note:{ en:'User tests on the shared CRM platform.', fr:'Tests utilisateurs sur la plateforme CRM partagée.' } },
     { type:'journey-mapping',  note:{ en:'Customer journey from social discovery to post-purchase sharing.', fr:'Parcours client, de la découverte sociale au partage post-achat.' } },
-    { type:'ui-design',        note:{ en:'Shared onboarding, field mapping, import and cleaning flow.', fr:'Onboarding partagé, mapping de champs, import et nettoyage.' } },
+    { type:'ia',               note:{ en:'One shared data model under maison-specific CRM practices.', fr:'Un modèle de data partagé sous des pratiques CRM propres à chaque maison.' } },
+    { type:'wireframe',        note:{ en:'Onboarding, field mapping, import and cleaning flows.', fr:'Parcours d’onboarding, mapping de champs, import et nettoyage.' } },
+    { type:'database',         note:{ en:'Customer events from each maison unified into one profile store.', fr:'Événements clients de chaque maison unifiés dans un store de profils.' } },
+    { type:'data-ops',         note:{ en:'Macro profiles: filter, segment and export complete customer views.', fr:'Profils macro : filtrer, segmenter et exporter des vues client complètes.' } },
+    { type:'ui-design',        note:{ en:'Shared platform UI the maisons operate day to day.', fr:'UI de la plateforme partagée, utilisée au quotidien par les maisons.' } },
+    { type:'user-tests',       note:{ en:'User tests on the shared CRM platform.', fr:'Tests utilisateurs sur la plateforme CRM partagée.' } },
   ],
   arlequin: [
     { type:'brand',           note:{ en:'Visual identity from scratch for a regulated trading product.', fr:'Identité visuelle from scratch pour un produit de trading régulé.' } },
@@ -126,16 +143,27 @@ const PROJECT_METHODS = {
   ],
   flemme: [
     { type:'product-vision', note:{ en:'Social Monitor, DeepFlow, DM Prospection and Ad Library.', fr:'Social Monitor, DeepFlow, DM Prospection et Ad Library.' } },
+    { type:'ai-agent',       note:{ en:'Social Monitor, outreach and reply agents on one dashboard.', fr:'Social Monitor, agent d’outreach et agent de réponse, sur un seul dashboard.' } },
     { type:'ai-vibe-code',   note:{ en:'Modular agentic system coordinated from one dashboard.', fr:'Système agentique modulaire, coordonné depuis un dashboard.' } },
   ],
   jarvos: [
     { type:'product-vision', note:{ en:'Semantic dispatch: the model proposes, the backend decides.', fr:'Dispatch sémantique : le modèle propose, le backend décide.' } },
-    { type:'ai-vibe-code',   note:{ en:'Plan / execute / verify loop with tool resolution and approvals.', fr:'Boucle plan / execute / verify, résolution d’outils et approvals.' } },
-    { type:'ui-design',      note:{ en:'Next.js cockpit: chat, system health, schema view.', fr:'Cockpit Next.js : chat, system health, vue schéma.' } },
+    { type:'brand',          note:{ en:'Jarvos identity and cockpit language for an Agent OS.', fr:'Identité Jarvos et langage du cockpit pour un Agent OS.' } },
+    { type:'research',       note:{ en:'Capability retrieval replaces keyword routing before tools run.', fr:'La récupération de capabilities remplace le routage par mots-clés.' } },
+    { type:'ai-agent',       note:{ en:'Planner, executor and verifier agents with subagent lanes.', fr:'Agents planner, executor et verifier, avec sous-agents spécialisés.' } },
+    { type:'automation',     note:{ en:'Plan / execute / verify loop with risk classes and approvals.', fr:'Boucle plan / execute / verify, classes de risque et approvals.' } },
+    { type:'database',       note:{ en:'Supabase Postgres and pgvector keep tasks, steps and approvals.', fr:'Supabase Postgres et pgvector gardent tâches, étapes et approvals.' } },
+    { type:'api-connectors', note:{ en:'Tools, Telegram, Composio and Playwright resolved by the orchestrator.', fr:'Outils, Telegram, Composio et Playwright résolus par l’orchestrateur.' } },
+    { type:'data-ops',       note:{ en:'System Health: lifecycle, model router, probes and telemetry.', fr:'System Health : lifecycle, model router, probes et télémétrie.' } },
+    { type:'prototype',      note:{ en:'Next.js cockpit: chat, approvals, schema, voice and local control.', fr:'Cockpit Next.js : chat, approvals, schéma, voice et contrôle local.' } },
+    { type:'ui-design',      note:{ en:'Multi-conversation workspace, health board and architecture map.', fr:'Workspace multi-conversations, board health et carte d’architecture.' } },
+    { type:'ai-vibe-code',   note:{ en:'Monorepo: TypeScript orchestrator, Python DeerFlow, Cloudflare edge.', fr:'Monorepo : orchestrateur TypeScript, DeerFlow Python, edge Cloudflare.' } },
+    { type:'communication',  note:{ en:'Telegram bot as a first-class input into the same orchestrator.', fr:'Bot Telegram comme entrée de premier niveau dans le même orchestrateur.' } },
   ],
   'ancient-world': [
     { type:'product-vision', note:{ en:'Three classes, two factions, seasonal Pyramidion PvPvE.', fr:'Trois classes, deux factions, Pyramidion PvPvE saisonnier.' } },
     { type:'game-3d',        note:{ en:'3D game production.', fr:'Production 3D du jeu.' } },
+    { type:'database',       note:{ en:'Supabase holds combat, inventory and progression.', fr:'Supabase porte le combat, l’inventaire et la progression.' } },
     { type:'prototype',      note:{ en:'Local multiplayer loop on Unreal 5.7, OWS and Supabase.', fr:'Boucle multijoueur locale sur Unreal 5.7, OWS et Supabase.' } },
   ],
   bmw: [
@@ -228,16 +256,16 @@ const PROJECTS = [
         ]
       },
       {
+        "type": "creads-live",
+        "label": "Live product",
+        "title": "Open Creads, not a recreation of it.",
+        "body": "This embeds the local Creads app (creads-main on :3000 with portfolio demo). A static poster stays until you launch it — the live app only loads on demand, then unloads when you scroll away. Switch surface and click through."
+      },
+      {
         "type": "text",
         "label": "The product problem",
         "title": "Keep brand context through creative production",
         "body": "Carry a brand’s identity, audience and positioning through the brief and generated creative, while keeping the workflow manageable as a solo founder."
-      },
-      {
-        "type": "creads-vitrine",
-        "label": "The product",
-        "title": "The Creads website",
-        "body": "The website introduces the product and its brand-to-creative workflow. The module below recreates the landing page."
       },
       {
         "type": "image-grid",
@@ -246,24 +274,27 @@ const PROJECTS = [
         "images": [
           {
             "src": "../images/creads-live-hero.webp",
-            "caption": "creads.io live — landing hero: rotating value proposition and the generated-ads wall"
+            "caption": "Marketing site — landing hero and product entry"
           },
           {
-            "src": "../images/creads-live-feature.webp",
-            "caption": "Creative Director and product interface"
-          }
-        ]
-      },
-      {
-        "type": "image-grid",
-        "images": [
+            "src": "../images/creads-v2-dashboard.webp",
+            "caption": "Dashboard — product URL to ads entry"
+          },
           {
-            "src": "../images/creads-admin.png",
-            "caption": "Admin dashboard: campaign management and creative scoring"
+            "src": "../images/creads-v2-studio.webp",
+            "caption": "Studio — creative production, brand setup gate"
           },
           {
             "src": "../images/creads-bot.png",
-            "caption": "AI bot interface: brief generation and creative intelligence"
+            "caption": "Chat AI — Brandon Agent for brief and generation"
+          },
+          {
+            "src": "../images/creads-admin.png",
+            "caption": "Products — catalogue linked to generation"
+          },
+          {
+            "src": "../images/creads-v2-brand.webp",
+            "caption": "Brand — identity setup before analysis and creative"
           }
         ]
       },
@@ -894,11 +925,11 @@ const PROJECTS = [
     ],
     "tag": "Enterprise · Data · Luxury",
     "accent": "#8a7150",
-    "desc": "Designed a group-wide data marketing platform unifying customer data and campaign performance across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo.",
-    "subtitle": "One shared data platform, 15+ maisons with different needs",
-    "challenge": "Each maison runs its own CRM and customer data practice. Build one shared data marketing platform without flattening what makes Dior's, Louis Vuitton's or Kenzo's customer relationship different.",
-    "goals": "Reconcile conflicting brand-level needs into a single data model and onboarding flow, then translate real customer journeys into monitoring tools the maisons' own teams could use day to day.",
-    "solution": "Ran structured interviews across maisons to surface where needs converged and where they didn't, built a customer journey map to ground the data model in real behaviour, then designed the platform's onboarding, field-mapping, import and cleaning flow as the shared backbone underneath maison-specific views.",
+    "desc": "Designed a group-wide data marketing platform that pulls customer signals from the main LVMH maisons into one central tool, then lets teams filter and export complete macro customer profiles.",
+    "subtitle": "Maisons feed the centre. Profiles come back out.",
+    "challenge": "Each maison runs its own CRM and customer data practice. Build one shared data marketing platform that can ingest those streams without flattening what makes Dior's, Louis Vuitton's or Kenzo's customer relationship different — then turn the unified store into complete, sortable macro profiles.",
+    "goals": "Map how data leaves each maison, design the central ingest / map / clean backbone, and give CRM teams a way to build, filter and export full customer profiles across the group.",
+    "solution": "Ran structured interviews across maisons to surface where needs converged and where they didn't, built a customer journey map to ground the data model in real behaviour, then designed the platform around a clear flow: maison sources → central tool → macro profiles.",
     "steps": [
       {
         "num": "01",
@@ -912,26 +943,45 @@ const PROJECTS = [
       },
       {
         "num": "03",
-        "title": "Shared data platform",
-        "desc": "Designed the platform's onboarding: define a data kind, create fields manually or from a template, import via CSV, SQL query or API, then clean and export. Built as one shared backbone that individual maisons could operate without needing every field to mean the same thing everywhere."
+        "title": "Maison → centre → profiles",
+        "desc": "Designed the data path: each maison pushes CRM and campaign events into a shared backbone (define kind, map fields, import via CSV / SQL / API, clean), then operators build and filter complete macro profiles for activation."
+      },
+      {
+        "num": "04",
+        "title": "Shared platform UI",
+        "desc": "Designed onboarding and day-to-day screens so maisons keep their own field meanings where needed, while the centre remains the single place to unify, sort and export profiles."
       }
     ],
-    "outcome": "A shared data marketing platform live across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo, built from interviews that reconciled conflicting maison-level needs into one data model and onboarding flow.",
+    "outcome": "A shared data marketing platform live across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo: maison streams land in one tool, and teams can filter and export complete macro customer profiles.",
     "outcomeStat": "15+ maisons",
     "url": "https://www.lvmh.com",
     "video": "../images/lvmh-video.mp4",
+    "screenshot": "../images/lvmh-screenshot.webp",
+    "heroCover": "../images/lvmh-cover.webp",
     "narrative": [
+      {
+        "type": "image-bg",
+        "src": "../images/lvmh-cover.webp",
+        "label": "LVMH Group",
+        "title": "15+ maisons. One shared data centre."
+      },
       {
         "type": "text",
         "label": "Challenge",
         "title": "One platform, 15+ maisons that don't work the same way",
-        "body": "LVMH wanted a shared data marketing platform spanning Dior, Louis Vuitton, Fendi, Kenzo and other maisons. Each maison runs its own CRM and customer relationship practice, so the platform had to work for all of them without flattening what makes each one different."
+        "body": "LVMH wanted a shared data marketing platform spanning Dior, Louis Vuitton, Fendi, Kenzo and other maisons. Each maison runs its own CRM and customer relationship practice. The product had to ingest those streams into one place, then let teams pull out complete macro profiles — without forcing every maison to mean the same thing by every field."
+      },
+      {
+        "type": "lvmh-dataflow",
+        "label": "Data architecture",
+        "title": "From maison streams to macro customer profiles",
+        "body": "Each main maison feeds its own CRM and campaign signals into a central tool. There the data is mapped, cleaned and unified. From that store, operators filter, segment and export complete macro profiles for activation across the group."
       },
       {
         "type": "text",
         "label": "Research",
         "title": "Interviews built to surface where maisons actually disagree",
-        "body": "Each session mixed 1-3 CRM team participants from 3+ different maisons, covering different business sectors and seniority levels, with a UX designer facilitating and a Product Owner observing. The goal was never a generic wishlist: it was finding exactly where one maison's need conflicted with another's."
+        "body": "Each session mixed 1-3 CRM team participants from 3+ different maisons, covering different business sectors and seniority levels, with a UX designer facilitating and a Product Owner observing. The goal was never a generic wishlist: it was finding exactly where one maison's need conflicted with another's — and which fields could still live in a shared model."
       },
       {
         "type": "image-grid",
@@ -950,21 +1000,27 @@ const PROJECTS = [
       },
       {
         "type": "text",
-        "label": "Platform",
-        "title": "One onboarding flow underneath maison-specific views",
-        "body": "The platform's backbone is how it takes in data: define a data kind, create fields manually or from a template, import via CSV, SQL query or API, then clean and export. That flow had to work identically for every maison, so that what differs between Dior and Kenzo lives in the data, not in a different tool."
+        "label": "Central tool",
+        "title": "Ingest, map, clean — then build profiles",
+        "body": "The backbone is how data enters: define a data kind, create fields manually or from a template, import via CSV, SQL query or API, then clean. Once unified, the same tool lets teams compose macro profiles — identity, maison history, campaigns, spend signals — and sort or export them without leaving the platform."
       },
       {
         "type": "image-full",
         "src": "../images/lvmh-userflow.png",
         "bleed": true,
-        "caption": "Platform flow: onboarding, kind creation, field definition, data import and cleaning, from raw source to exported entities"
+        "caption": "Platform flow: onboarding, kind creation, field definition, data import and cleaning, from raw maison source to exported entities"
       },
       {
-        "type": "image-bg",
-        "src": "../images/lvmh-cover.webp",
-        "label": "LVMH Group",
-        "title": "15+ maisons. One shared data platform."
+        "type": "image-full",
+        "src": "../images/lvmh-screenshot.webp",
+        "borderless": true,
+        "caption": "Shared platform in use: maison data lands in one workspace where CRM teams can operate a common model day to day"
+      },
+      {
+        "type": "text",
+        "label": "Macro profiles",
+        "title": "Complete customer views, not siloed maison rows",
+        "body": "The output the maisons asked for was not another raw table. It was a complete customer view: who they are across maisons, what they bought or engaged with, which campaigns touched them, and filters that let teams slice the group for activation — while respecting that Dior and Kenzo never store every attribute the same way."
       },
       {
         "type": "process",
@@ -973,7 +1029,7 @@ const PROJECTS = [
       {
         "type": "outcome",
         "stat": "15+ maisons",
-        "text": "A shared data marketing platform live across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo, built from interviews that reconciled conflicting maison-level needs into one data model and onboarding flow."
+        "text": "A shared data marketing platform live across 15+ LVMH maisons: maison streams converge in one central tool, and teams can filter and export complete macro customer profiles."
       }
     ]
   },
@@ -1284,19 +1340,26 @@ const PROJECTS = [
     platforms:['Desktop'], tag:'AI Agent OS · Side project', accent:'#7c3aed',
     desc:'A personal AI Agent OS: semantic orchestrator that infers intent, resolves tools, plans, executes, and verifies — with the backend as the source of truth for tools, permissions, and execution.',
     subtitle:'An agent workspace with tool checks and approvals',
-    challenge:"Let the model propose a plan while the backend checks tools, permissions and execution state.",
-    goals:"Build a workspace for agent tasks, memory and integrations, with approval gates and execution logs.",
+    challenge:"Let the model propose a plan while the backend checks tools, permissions and execution state — without keyword routing, and without trusting hallucinated tools.",
+    goals:"Build a workspace for agent tasks, memory and integrations, with approval gates, execution logs, voice input, local PC control and a Telegram surface on the same orchestrator.",
     solution:'A monorepo with a Next.js cockpit, a TypeScript orchestrator, a Python DeerFlow coding runtime, Supabase Postgres + pgvector, Cloudflare R2 and edge workers, a Telegram bot, and a local Playwright worker. Semantic dispatch replaces keyword routing: infer goal, retrieve capabilities, resolve tools, plan, execute, verify.',
     steps:[
-      {num:'01', title:'Semantic Dispatch & Tool Resolution', desc:'Requests flow through goal inference, capability retrieval, and a tool resolver that classifies model-proposed tools as resolved, hallucinated, unavailable, or suggested — protecting the system from fake tool claims.'},
-      {num:'02', title:'Plan / Execute / Verify Loop', desc:'Tasks persist in Supabase (tasks, steps, attempts, approvals, execution logs, model-routing decisions). A planner decomposes goals, executor drivers run steps, and a verifier scores results before responding.'},
-      {num:'03', title:'Voice vs PC Control', desc:'Two independent modules connected through the orchestrator: a realtime voice layer (STT, voice gateway) and a local control layer (Playwright browser automation, local worker with residential IP, file and OS actions) — with approval gates and risk classes.'},
+      {num:'01', title:'Semantic Dispatch', desc:'Requests flow through goal inference and capability retrieval. "Post this on X", "publish as a tweet" and "share on my profile" resolve to the same capability — never string matching.'},
+      {num:'02', title:'Tool Resolution', desc:'Model-proposed tools are classified against the catalog: resolved, hallucinated, unavailable, or suggested. Fake tool claims stop before execution.'},
+      {num:'03', title:'Plan / Execute / Verify', desc:'Tasks persist in Supabase (tasks, steps, attempts, approvals, execution logs, model-routing decisions). A planner builds a DAG, executor drivers run steps, a verifier scores confidence before the response.'},
+      {num:'04', title:'Voice & Local Control', desc:'Two independent modules connected only through the orchestrator: realtime voice (STT, voice gateway) and a local Playwright worker (browser, files, OS actions) with residential IP, approval gates and risk classes.'},
+      {num:'05', title:'Cockpit & Observability', desc:'Next.js surfaces for chat, tasks, agents, tools, integrations, memory, approvals, files, voice and local control — plus System Health over lifecycle, model-router decisions, runtime probes and Supabase telemetry.'},
     ],
-    outcome:"A side project in progress with semantic task routing, persistent task state, tool resolution and approval gates.",
+    outcome:"A side project in progress with semantic task routing, persistent task state, tool resolution, approval gates, voice and local control on one orchestrator.",
     outcomeStat:null,
+    screenshot:'../images/jarvos-chat.webp',
+    heroCover:'../images/jarvos-cover.jpg',
     narrative: [
-      { type:'text', label:'The principle', title:'The model proposes. The backend decides.',
-        body:"Jarvos routes requests by their meaning. The backend then checks each proposed tool against the tool catalogue and its permissions before execution." },
+      { type:'image-bg', src:'../images/jarvos-cover.jpg', label:'Jarvos Agent', title:'The model proposes. The backend decides.' },
+      { type:'text', label:'The principle', title:'Semantic orchestration, not keyword routing',
+        body:"Jarvos routes requests by their meaning. The backend then checks each proposed tool against the tool catalogue and its permissions before execution. The LLM never owns the final call on what runs." },
+      { type:'text', label:'The problem', title:'Agents that invent tools you do not have',
+        body:"Most agent demos trust the model’s tool list. Jarvos assumes the opposite: the model can hallucinate APIs, miss integrations the user never connected, or ask for machine control that needs a human gate. The product problem is making that check feel invisible in the chat while remaining absolute in the backend." },
       { type:'tools-row', label:'Stack', tools:[
         { name:'Next.js', icon:'../images/nextdotjs-logo.svg' },
         { name:'TypeScript', icon:'../images/typescript-logo.svg' },
@@ -1307,19 +1370,27 @@ const PROJECTS = [
         { name:'Playwright', icon:'../images/playwright-logo.svg' },
       ]},
       { type:'jarvos-pipeline', label:'System design', title:'From a sentence to a verified result.',
-        body:"A task moves through planning, tool resolution, execution and verification. Supabase stores the steps, attempts and approvals so the system can track what actually happened." },
+        body:"A task moves through dispatch, tool resolution, planning, execution and verification. Supabase stores the steps, attempts and approvals so the system can track what actually happened — not what the model claimed." },
+      { type:'text', label:'Dispatch', title:'One intent, many phrasings',
+        body:"Semantic dispatch maps natural language to capabilities before tools are chosen. Required capabilities are retrieved from the catalog, then resolved. Keyword routers are deliberately out of the path: they break as soon as the user rephrases." },
       { type:'jarvos-console', label:'Interactive module', title:'Inside the cockpit: stream, resolver, gates.',
-        body:"This interactive demo shows the chat stream, tool resolver and approval gate. Use the tabs to explore each stage." },
+        body:"This interactive demo shows the chat stream (SSE tokens and tool events), the tool resolver classes, and an approval gate for high-risk local actions. Use the tabs to explore each stage." },
+      { type:'text', label:'Approvals', title:'Risk classes before the machine moves',
+        body:"Low-risk tools can run after resolution. High-risk ones — local PC exec, outbound mail, destructive file actions — pause for an approval that shows action, agent lane, scope and evidence from the plan step. Approve once or deny; the execution log keeps the decision." },
       { type:'image-grid', label:'The real cockpit', borderless:true, images:[
-        { src:'../images/jarvos-chat.webp', caption:'Cockpit — Chat: a multi-conversation workspace with subagents and economical / auto model routing, streaming responses straight from the orchestrator.' },
-        { src:'../images/jarvos-system-health.webp', caption:'Cockpit — System Health: a stabilization view over task lifecycle, approvals, model-router decisions, runtime probes and Supabase telemetry, surfaced as OK / Watch regression signals.' },
+        { src:'../images/jarvos-chat.webp', caption:'Cockpit — Chat: multi-conversation workspace with subagents and economical / auto model routing, streaming from the orchestrator.' },
+        { src:'../images/jarvos-system-health.webp', caption:'Cockpit — System Health: task lifecycle, approvals, model-router decisions, runtime probes and Supabase telemetry as OK / Watch signals.' },
       ]},
+      { type:'text', label:'Voice & PC', title:'Two modules, one orchestrator',
+        body:"Voice (STT + voice gateway) and local PC control (Playwright worker, residential IP, files and OS) stay independent on purpose. They only meet in the orchestrator: same tool resolution, same approvals, same verifier. That keeps a voice request from silently jumping to shell access." },
+      { type:'text', label:'Surfaces', title:'Web cockpit and Telegram on the same loop',
+        body:"The Next.js cockpit covers chat, tasks, agents, tools, integrations, memory, approvals, files, voice and local control. Telegram is a first-class input into the same dispatch → resolve → plan → execute → verify path — not a separate bot with its own rules." },
       { type:'text', label:'Architecture', title:'A monorepo built like an operating system',
-        body:'Next.js cockpit with routes for chat, tasks, agents, tools, integrations, memory, approvals, files, voice, and local control. A TypeScript orchestrator (planner, executor, verifier), a Python DeerFlow coding runtime, Supabase Postgres + pgvector as the source of truth, Cloudflare R2 and edge workers, a Telegram bot, and a local Playwright worker. Voice and PC control are deliberately independent modules, connected only through the orchestrator.' },
+        body:'TypeScript orchestrator (planner, executor, verifier, Model Router v2), Python DeerFlow coding runtime, Supabase Postgres + pgvector as source of truth, Cloudflare R2 and edge workers, Mem0 for memory, a Telegram bot, and a local Playwright worker. Agent lanes include coding, browser, research, file, API, memory and local PC.' },
       { type:'browser-window', src:'../images/jarvos-schema.webp', url:'localhost:3000/schema',
-        caption:'The architecture, mapped inside the product — scroll the live Schema view: Inputs / Cockpit (web, Telegram, local worker, STT) into Orchestration (dispatch, planner to DAG, executor, tool permissions, verifier, Model Router v2, approvals) into agent execution lanes (coding, browser, research, file, api, memory, local PC) into Data & storage (Supabase Postgres + pgvector, Cloudflare R2, edge gateway, Mem0).' },
+        caption:'Schema view inside the product — Inputs / Cockpit (web, Telegram, local worker, STT) → Orchestration (dispatch, planner DAG, executor, tool permissions, verifier, Model Router v2, approvals) → agent lanes → Data & storage (Supabase + pgvector, Cloudflare R2, edge gateway, Mem0).' },
       { type:'process', title:'How it works' },
-      { type:'outcome', text:"A side project in progress with semantic task routing, persistent task state, tool resolution and approval gates." },
+      { type:'outcome', text:"A side project in progress: semantic task routing, persistent task state, tool resolution, approval gates, voice and local control — with the backend as the source of truth." },
     ],
   },
   {

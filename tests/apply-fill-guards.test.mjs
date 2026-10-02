@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, isCandidateFullNameField, isCoreApplicationIdentity } from '../lib/apply-fill-guards.mjs';
+import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, nationalPhoneNumber, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, isCandidateFullNameField, isCoreApplicationIdentity } from '../lib/apply-fill-guards.mjs';
 
 const field = (label, extra = {}) => ({ label, type: 'text', name: '', idAttr: '', ...extra });
 
@@ -131,6 +131,15 @@ test('dial code is +33 from a French number, not the full phone', () => {
   assert.equal(looksLikeDialCodeField(field('Dial code *')), true);
   assert.equal(looksLikeDialCodeField(field('Phone number *')), false);
   assert.equal(looksLikeDialCodeField({ label: 'Dial code', type: 'text', name: 'phoneCountryCode', idAttr: '' }), true);
+  // Greenhouse intl-tel country combobox (Bitpanda / job-boards.eu)
+  assert.equal(looksLikeDialCodeField({ label: 'Country', type: 'text', name: '', idAttr: 'country', role: 'combobox' }), true);
+  assert.equal(looksLikeDialCodeField(field('Country of residence')), false);
+});
+
+test('nationalPhoneNumber strips the dial code for intl-tel Phone inputs', () => {
+  assert.equal(nationalPhoneNumber('+33 6 95 65 91 31', '+33'), '6 95 65 91 31');
+  assert.equal(nationalPhoneNumber('+66 62 784 2137', '+66'), '62 784 2137');
+  assert.equal(nationalPhoneNumber('6 95 65 91 31', '+33'), '6 95 65 91 31');
 });
 
 test('fileUploadPlan never dumps the CV into employment-reference / other', () => {
@@ -219,6 +228,8 @@ test('required monthly travel / relocation answers No, not availability prose', 
   assert.equal(trips?.yesNo, 'no');
   assert.equal(trips?.value, 'No');
   assert.equal(travelOrRelocatePlan(field('Are you open to relocating to Doha?'))?.yesNo, 'no');
+  assert.equal(travelOrRelocatePlan(field('Are you currently based in, or willing to relocate to, Vienna?'))?.yesNo, 'no');
+  assert.equal(travelOrRelocatePlan(field('Are you happy to make yourself available for the required hybrid model of 3 days in office per week?'))?.yesNo, 'no');
   assert.equal(travelOrRelocatePlan(field('First name')), null);
 });
 
@@ -283,4 +294,6 @@ test('required third-party names get N/A; location typeahead uses the first word
   assert.equal(hint.prefix, 'Par');
   assert.equal(hint.contains, 'Paris');
   assert.equal(locationTypeaheadHint(field('Country'), { country: 'France' }).contains, 'France');
+  // Greenhouse dial Country* (id=country) is not a residence typeahead
+  assert.equal(locationTypeaheadHint({ label: 'Country', type: 'text', name: '', idAttr: 'country', role: 'combobox' }, { country: 'France' }), null);
 });

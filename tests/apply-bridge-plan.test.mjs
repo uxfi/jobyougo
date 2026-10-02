@@ -49,6 +49,21 @@ test('planToUpdate: a city list may be searched; relocation and prose lists are 
     { value: 'Yes' },
   );
   assert.equal(reloc.typeQuery, '');
+  // Bitpanda EU passport mentions "hiring location" — must stay pick-only
+  const eu = planToUpdate(
+    {
+      i: 7,
+      type: 'text',
+      tag: 'input',
+      label: 'Do you currently possess an EU passport or a valid work permit that authorises you to work in the specified hiring location?',
+      role: 'combobox',
+      ariaHaspopup: 'listbox',
+    },
+    { yesNo: 'yes', selectText: 'Yes', value: 'Yes' },
+    { city: 'Paris', country: 'France' },
+  );
+  assert.equal(eu.typeQuery, '');
+  assert.equal(eu.selectText, 'Yes');
   const refs = planToUpdate(
     { i: 6, type: 'text', tag: 'input', label: 'Are you able to provide professional references?', role: 'combobox' },
     { value: 'Available upon request' },

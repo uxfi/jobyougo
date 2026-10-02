@@ -12,18 +12,28 @@ try {
     process: { env: {} }, SERPAPI_KEY: '', console: { log() {}, warn() {}, error() {} },
     webSearchCircuitOpen: () => false, serpApiCircuitOpen: () => false, isWebSearchEngineBlocked: r => !!r.error,
     recordWebSearchOutcome() {}, pinchtabIsUp: async () => true,
+    localGoogleCircuitOpen: () => false, tripLocalGoogleCircuit() {},
+    localDdgCircuitOpen: () => false, tripLocalDdgCircuit() {},
+    fetchCareersUrlFallback: async () => { calls.push('careers'); return { ok: true, jobs: [{}] }; },
     fetchPinchtabBraveSection: async () => { calls.push('pinchtab'); return { ok: true, jobs: [{}] }; },
+    fetchSerpApiSection: async () => { calls.push('searchapi'); return { ok: true, jobs: [{}] }; },
     fetchLocalBrowserGoogleSection: async () => { calls.push('playwright'); return { ok: true, jobs: [{}] }; },
   });
   vm.runInContext(extract('async function fetchWebSearchSection(', '\nasync function fetchWebSearchSectionsSequential('), context);
+  context.SERPAPI_KEY = 'present';
   await context.fetchWebSearchSection({ name: 'test', query: 'jobs' });
   assert.deepEqual(calls, ['pinchtab']);
-  pass('Web search uses PinchTab without launching Playwright when available');
+  pass('Web search uses PinchTab instead of SearchAPI when the daemon is up');
+  context.SERPAPI_KEY = '';
   calls.length = 0;
   context.pinchtabIsUp = async () => false;
   await context.fetchWebSearchSection({ name: 'test', query: 'jobs' });
   assert.deepEqual(calls, ['playwright']);
   pass('Web search retains Playwright fallback when PinchTab is unavailable');
+  calls.length = 0;
+  await context.fetchWebSearchSection({ name: 'Stripe', query: 'site:stripe.com', careers_url: 'https://stripe.com/jobs' });
+  assert.deepEqual(calls, ['careers']);
+  pass('Web search prefers careers_url scrape before Google/DDG for company portals');
 
   let closed = false;
   const browser = { ctx: { pages: () => [{ goto: async () => ({ status: () => 502 }) }], close: async () => { closed = true; } } };
