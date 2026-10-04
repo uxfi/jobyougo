@@ -9040,7 +9040,7 @@ async function startServer() {
   }
 
   const mode = useSupabase ? 'Supabase' : 'markdown files';
-  console.log(`\n  Career Ops UI  →  http://localhost:${PORT}  [${mode}]\n`);
+  console.log(`\n  JobYouGo UI  →  http://localhost:${PORT}  [${mode}]\n`);
 
   // Startup maintenance (local only): drop dead offers >20d, then heal apps sync.
   if (!IS_VERCEL) {
