@@ -191,7 +191,6 @@ const SYSTEM_PATHS = [
   'modes/intake.md',
   'documents/.gitkeep',
   'documents/README.md',
-  'modes/update.md',
   'modes/agent-inbox.md',
   'modes/reply-watch.md',
   'modes/outcome.md',
@@ -233,9 +232,6 @@ const SYSTEM_PATHS = [
   'build-dashboard.mjs',
   'clean-markers.mjs',
   'generate-pdf.mjs',
-  'hired-share.mjs',
-  'hired-wall-build.mjs',
-  'HIRED.md',
   'theme-style.mjs',
   'generate-latex.mjs',
   'extract-latex-content.mjs',
@@ -294,6 +290,7 @@ const SYSTEM_PATHS = [
   'verify-cv-facts.mjs',
   'verify-ats.mjs',
   'update-system.mjs',
+  'scaffolder/bin/skill-entrypoints.mjs',
   'path-resolver.mjs',
 
   'reserve-report-num.mjs',
@@ -371,7 +368,6 @@ const SYSTEM_PATHS = [
   'verify-portals.mjs',
   'audit-portals.mjs',
   'fix-slugs.mjs',
-  'updater-migration-tests.mjs',
   'validate-system-paths-coverage.mjs',
   'validate-untrusted-content-coverage.mjs',
   'reply-matcher.mjs',
@@ -409,8 +405,6 @@ const SYSTEM_PATHS = [
   'writing-samples/README.md',
   'VERSION',
   'DATA_CONTRACT.md',
-  'MANIFESTO.md',
-  'manifesto.mjs',
   // SIGNATURES.md cannot join SYSTEM_PATHS: unlike every other system file it
   // is a pure append-only ledger of who signed the manifesto, and it churns
   // far faster than the code it would ship beside (49 commits in the 30 days
@@ -434,38 +428,11 @@ const SYSTEM_PATHS = [
   // Keep this comment free of straight quotes: updater-migration-tests.mjs
   // parses this array with a comment-blind regex, so an apostrophe here
   // becomes a phantom manifest entry.
-  'CONTRIBUTING.md',
-  'MAINTAINERS.md',
   'ARCHITECTURE.md',
   'README.md',
-  'README.ar.md',
-  'README.cn.md',
-  'README.da.md',
-  'README.de.md',
-  'README.es.md',
-  'README.fr.md',
-  'README.hi.md',
-  'README.ja.md',
-  'README.ko-KR.md',
-  'README.pl.md',
-  'README.pt-BR.md',
-  'README.ru.md',
-  'README.ta.md',
-  'README.ua.md',
-  'README.zh-TW.md',
-  'README.tr.md',
-  'CHANGELOG.md',
-  'CODE_OF_CONDUCT.md',
-  'CONTRIBUTORS.md',
   '.all-contributorsrc',
-  'GOVERNANCE.md',
   'LEGAL_DISCLAIMER.md',
-  'SECURITY.md',
-  'SUPPORT.md',
-  'TRADEMARK.md',
   'LICENSE',
-  'CITATION.cff',
-  'funding.json',
   '.editorconfig',
   '.github/',
   'package.json',
@@ -474,7 +441,6 @@ const SYSTEM_PATHS = [
   'cv-sections-core.mjs',
   'cv-templates.mjs',
   'playwright.cv.config.mjs',
-  'scaffolder/',
   'Dockerfile',
   'docker-compose.yml',
   '.dockerignore',
@@ -490,7 +456,6 @@ const SYSTEM_PATHS = [
   'opencode.example.json',
   'seed-fixture.mjs',
   'test-fixtures/',
-  'upgrade-tests.mjs',
 ];
 
 const BOOTSTRAP_PATHS = [
@@ -507,9 +472,7 @@ const BOOTSTRAP_PATHS = [
   'tracker-utils.mjs',
   'tracker-parse.mjs',
   'tracker-aliases.json',
-  'scaffolder/',
   'reserve-report-num.mjs',
-  'updater-migration-tests.mjs',
   'validate-portals.mjs',
   'tracker-columns-tests.mjs',
   'plugins/',
@@ -1244,9 +1207,9 @@ export function systemTreeDiffers(systemPaths, upstreamRef = 'FETCH_HEAD', ctx =
  * Pathspecs for systemTreeDiffers()'s drift diff, with the CLI skill
  * entrypoints excluded (#3149, second cause).
  *
- * Upstream ships those entrypoints (`.claude/skills/career-ops/SKILL.md` and
+ * Upstream ships those entrypoints (`.claude/skills/jobyougo/SKILL.md` and
  * its siblings) as symlinks (git mode 120000) pointing at
- * `.agents/skills/career-ops/SKILL.md`. On a filesystem without symlink
+ * `.agents/skills/jobyougo/SKILL.md`. On a filesystem without symlink
  * support (core.symlinks=false — mostly Windows), apply() materializes a
  * REAL copy of that file's content in their place and commits it (logged as
  * "Materialized N skill entrypoint(s)..."), because the install genuinely
@@ -1258,7 +1221,7 @@ export function systemTreeDiffers(systemPaths, upstreamRef = 'FETCH_HEAD', ctx =
  * clears, unlike ordinary drift which a re-`apply()` resolves.
  *
  * Excluding these paths from the comparison hides nothing: the materialized
- * content is a byte-for-byte copy of `.agents/skills/career-ops/SKILL.md`,
+ * content is a byte-for-byte copy of `.agents/skills/jobyougo/SKILL.md`,
  * which SYSTEM_PATHS already covers via the `.agents/` entry, so a genuine
  * upstream change to the skill document still surfaces there. A change to
  * the entrypoint MECHANISM itself (the pointer paths in
@@ -3357,6 +3320,18 @@ if (process.argv[1] && !isCli) {
 
 if (isCli) {
   const cmd = process.argv[2] || 'check';
+
+  // JobYouGo is maintained in this repository and no longer tracks career-ops
+  // releases. `check` stays callable (the test harness runs it) and answers
+  // "disabled"; apply / rollback / dismiss refuse unless explicitly re-enabled.
+  if (process.env.JOBYOUGO_ALLOW_UPSTREAM_UPDATE !== '1') {
+    if (cmd === 'check') {
+      console.log(JSON.stringify({ status: 'disabled', reason: 'JobYouGo does not auto-update from career-ops' }));
+      process.exit(0);
+    }
+    console.error('Auto-update from career-ops is disabled in JobYouGo (set JOBYOUGO_ALLOW_UPSTREAM_UPDATE=1 to override).');
+    process.exit(1);
+  }
 
   try {
     switch (cmd) {

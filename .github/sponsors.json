@@ -4,7 +4,7 @@
     {
       "id": "serpapi",
       "name": "SerpApi",
-      "url": "https://serpapi.com/career-ops-org",
+      "url": "https://serpapi.com/jobyougo-org",
       "logo": "docs/sponsors/serpapi.svg",
       "description": "Build a portfolio project with live search data. SerpApi gives developers structured JSON/Markdown from Google Search, Maps, Shopping, and other engines through a simple API call.",
       "order": 1,

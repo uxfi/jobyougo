@@ -159,6 +159,6 @@ The archetype → "lead with" → proof-point mapping lives in `modes/_profile.m
 ## Post-generation
 
 After outputting the three versions:
-- Remind the user to use `/career-ops apply` if the form has additional questions
-- Suggest `/career-ops pdf` if a PDF cover letter attachment is needed (generates a styled PDF matching the CV design)
+- Remind the user to use `/jobyougo apply` if the form has additional questions
+- Suggest `/jobyougo pdf` if a PDF cover letter attachment is needed (generates a styled PDF matching the CV design)
 - If the offer status in the tracker is still `Evaluated`, offer to move it to `Applied` once sent

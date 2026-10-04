@@ -88,7 +88,7 @@ const PATHS = {
   shared:      join(CODE_ROOT, 'modes', '_shared.md'),
   oferta:      join(CODE_ROOT, 'modes', 'oferta.md'),
   // Canonical skill path referenced in Issue #344
-  evaluate:    join(CODE_ROOT, '.claude', 'skills', 'career-ops', 'SKILL.md'),
+  evaluate:    join(CODE_ROOT, '.claude', 'skills', 'jobyougo', 'SKILL.md'),
   cv:          join(DATA_ROOT, 'cv.md'),
   profile:     join(DATA_ROOT, 'modes', '_profile.md'),
   profileYml:  join(DATA_ROOT, 'config', 'profile.yml'),

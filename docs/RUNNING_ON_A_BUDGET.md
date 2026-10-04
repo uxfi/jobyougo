@@ -1,14 +1,14 @@
-# Running Career-Ops on a Budget
+# Running JobYouGo on a Budget
 
-Token usage costs and rate limits are the most common bottlenecks when setting up a high-volume job search pipeline. Since Career-Ops processes full job descriptions, evaluates them against your CV across five weighted dimensions, and tailors resumes/cover letters, the context size can grow quickly.
+Token usage costs and rate limits are the most common bottlenecks when setting up a high-volume job search pipeline. Since JobYouGo processes full job descriptions, evaluates them against your CV across five weighted dimensions, and tailors resumes/cover letters, the context size can grow quickly.
 
-Fortunately, **Career-Ops is completely AI-agnostic.** The pipeline relies on the AI coding CLI (or standalone scripts) to process prompt files under `modes/`. This means you can point your CLI to cheaper API providers or local models with **zero code changes** in Career-Ops.
+Fortunately, **JobYouGo is completely AI-agnostic.** The pipeline relies on the AI coding CLI (or standalone scripts) to process prompt files under `modes/`. This means you can point your CLI to cheaper API providers or local models with **zero code changes** in JobYouGo.
 
 ---
 
 ## 1. The Core Concept: Model Agnosticism
 
-Career-Ops is composed of local templates, Markdown prompts, and Node/Playwright scripts. The AI logic is driven entirely by whichever AI coding CLI you run it in (e.g., Claude Code, OpenCode, Qwen CLI, Codex, Antigravity CLI, or Grok Build CLI).
+JobYouGo is composed of local templates, Markdown prompts, and Node/Playwright scripts. The AI logic is driven entirely by whichever AI coding CLI you run it in (e.g., Claude Code, OpenCode, Qwen CLI, Codex, Antigravity CLI, or Grok Build CLI).
 
 By choosing a CLI that supports custom model configurations and routing it to a cheaper API provider or local LLM, you can drastically reduce your pipeline running costs without losing any functionality.
 
@@ -16,7 +16,7 @@ By choosing a CLI that supports custom model configurations and routing it to a 
 
 ## 2. Pick Your Spend Tier
 
-Before diving into CLI configuration, know that career-ops has a built-in knob for controlling evaluation cost: the `spend_tier` setting in [`config/profile.yml`](../config/profile.example.yml). It controls which model tier your CLI uses to evaluate offers — no provider setup required.
+Before diving into CLI configuration, know that JobYouGo has a built-in knob for controlling evaluation cost: the `spend_tier` setting in [`config/profile.yml`](../config/profile.example.yml). It controls which model tier your CLI uses to evaluate offers — no provider setup required.
 
 | Tier | Behaviour |
 |------|-----------|
@@ -92,7 +92,7 @@ Then export the value it prints as `CLAUDE_CODE_OAUTH_TOKEN` in the environment 
 ### Two things worth expecting
 
 - **Plan limits are windows, not balances.** On a subscription you get rolling usage windows rather than a credit balance, so a heavy scan can pause you until the window resets. `spend_tier: economy` and the pre-screen gate above exist precisely to make high-volume days cheaper.
-- **Details change.** Auth precedence and command names come from the CLI, not from career-ops. If something here does not match what you see, the vendor's own docs are the source of truth: [Claude Code authentication](https://code.claude.com/docs/en/authentication) and [managing costs](https://code.claude.com/docs/en/costs).
+- **Details change.** Auth precedence and command names come from the CLI, not from JobYouGo. If something here does not match what you see, the vendor's own docs are the source of truth: [Claude Code authentication](https://code.claude.com/docs/en/authentication) and [managing costs](https://code.claude.com/docs/en/costs).
 
 ---
 
@@ -107,7 +107,7 @@ To configure OpenCode with a custom provider:
 
 1. Create `opencode.json` in the project root. OpenCode looks for it in the
    current directory and then walks up to the nearest git root, so the
-   career-ops checkout is the right place for it. A custom endpoint goes in
+   JobYouGo checkout is the right place for it. A custom endpoint goes in
    `provider.<name>.options.baseURL`, and credentials come in through `{env:VAR}`
    substitution rather than being pasted in:
 
@@ -153,7 +153,7 @@ To configure OpenCode with a custom provider:
 > above. Exporting it and nothing else leaves OpenCode with no provider
 > configured — which fails in a confusing way, especially in headless
 > `opencode run` usage where there is no `/models` picker to fall back on.
-> (`OPENAI_BASE_URL` *is* read by career-ops' own direct-API scripts —
+> (`OPENAI_BASE_URL` *is* read by JobYouGo' own direct-API scripts —
 > `openai-eval.mjs`, `openai-tailor.mjs` — see `.env.example`. That is a
 > separate path from running a CLI as your engine.)
 
@@ -172,14 +172,14 @@ curl -s https://openrouter.ai/api/v1/models \
   | sort -rn
 ```
 
-Prefer a large context window for career-ops: the batch paths send many rows in
+Prefer a large context window for JobYouGo: the batch paths send many rows in
 a single prompt and parse strict JSON back, so a small context or a chatty small
 model both fail the parse.
 ### Kimi K2.5 via OpenCode (Verified)
 
 > **Kimi the model, not Kimi the CLI.** This recipe runs the Kimi K2.5 *model* through the **OpenCode** CLI. That is a different thing from using the standalone **Kimi CLI** as your host (see [Supported CLIs](SUPPORTED_CLIS.md)). The names collide; the setups don't. Follow the steps below inside OpenCode.
 
-The following configuration was verified with Career-Ops using OpenCode and Moonshot AI's OpenAI-compatible API.
+The following configuration was verified with JobYouGo using OpenCode and Moonshot AI's OpenAI-compatible API.
 
 #### opencode.json
 
@@ -227,7 +227,7 @@ set MOONSHOT_API_KEY=your_api_key
 
 #### Verification
 
-This configuration was verified locally by running a complete Career-Ops evaluation.
+This configuration was verified locally by running a complete JobYouGo evaluation.
 
 Observed during verification:
 
@@ -239,7 +239,7 @@ Observed during verification:
 
 #### Notes
 
-- The measured runtime reflects the complete Career-Ops pipeline (job retrieval, prompt loading, report generation, and tracker updates), not raw model inference latency.
+- The measured runtime reflects the complete JobYouGo pipeline (job retrieval, prompt loading, report generation, and tracker updates), not raw model inference latency.
 - Kimi K2.5 worked correctly with the Moonshot OpenAI-compatible endpoint during verification.
 
 #### Comparison
@@ -279,7 +279,7 @@ When choosing a budget-friendly model, you need strong reasoning capabilities to
 | **Qwen-2.5-Coder (32B / 72B)** | OpenRouter / DeepInfra | ~$0.07 - ~$0.30 | Strong coding and structured reasoning, highly cost-effective. |
 | **GLM-4-Air / GLM-4** | Zhipu AI / OpenRouter | Very Cheap | Reliable multi-turn reasoning and JSON/Markdown generation. |
 | **Gemini 2.5 Flash** | Google AI Studio | Free Tier (15 RPM) | Available via the standalone script `node gemini-eval.mjs`. Excellent for zero-cost low-volume runs, but subject to rate limits. |
-| **Kimi K2.5** | Moonshot AI | API pricing applies | Verified with OpenCode using the Moonshot OpenAI-compatible endpoint. Produces structured Markdown suitable for Career-Ops evaluations. See the verified OpenCode recipe below. |
+| **Kimi K2.5** | Moonshot AI | API pricing applies | Verified with OpenCode using the Moonshot OpenAI-compatible endpoint. Produces structured Markdown suitable for JobYouGo evaluations. See the verified OpenCode recipe below. |
 
 
 > **Standalone evaluator (no CLI config needed):** every OpenAI-compatible provider above (DeepSeek, Qwen, GLM, Together, Groq, OpenRouter, Requesty, …) works directly through `node openai-eval.mjs` — just set a base URL, model, and key:
@@ -306,7 +306,7 @@ When choosing a budget-friendly model, you need strong reasoning capabilities to
 Running a model 100% locally via Ollama is completely free, but it comes with significant tradeoffs:
 
 ### The Size vs. Quality Tradeoff
-- **Avoid Small Models (e.g., 8B parameters)**: Models like Llama 3 8B or Qwen-2.5-Coder 7B are generally **too weak** for Career-Ops. They frequently fail to follow the complex evaluation schemas (A-G blocks), fail to output valid Markdown/JSON structures, or generate low-quality, generic resume customizations.
+- **Avoid Small Models (e.g., 8B parameters)**: Models like Llama 3 8B or Qwen-2.5-Coder 7B are generally **too weak** for JobYouGo. They frequently fail to follow the complex evaluation schemas (A-G blocks), fail to output valid Markdown/JSON structures, or generate low-quality, generic resume customizations.
 - **Minimum Recommended Size**: Use at least a **32B+ or 70B+ model** (such as Qwen 2.5 Coder 32B/72B or Llama 3.1 70B) for reliable scoring and high-quality resume tailoring.
 
 ### Hardware & VRAM Requirements
@@ -336,7 +336,7 @@ The following setup was verified on an Apple Silicon Mac with 16 GB unified memo
     ```bash
     ollama launch opencode --model command-r7b
     ```
-5. From OpenCode, point the agent at your Career-Ops checkout and run a simple repository task to confirm that the model can interact with the repository.
+5. From OpenCode, point the agent at your JobYouGo checkout and run a simple repository task to confirm that the model can interact with the repository.
 
 - **Verified hardware:** Apple M4, 16 GB unified memory
 - **Model:** `command-r7b` (7B parameters)
@@ -346,7 +346,7 @@ The following setup was verified on an Apple Silicon Mac with 16 GB unified memo
 
 Observed result: OpenCode launched successfully with `command-r7b`. A simple prompt completed in approximately 57 seconds. The model produced a reasonable high-level README summary, but it did not reliably read repository files through OpenCode during testing. For complex repository tasks, larger models may provide better accuracy.
 
-> **Performance and quality note:** Smaller local models can be useful on memory-constrained hardware, but they may be less reliable than larger hosted models for complex Career-Ops evaluations, repository analysis, and resume tailoring. Use this setup when local execution and zero API cost are more important than maximum output quality.
+> **Performance and quality note:** Smaller local models can be useful on memory-constrained hardware, but they may be less reliable than larger hosted models for complex JobYouGo evaluations, repository analysis, and resume tailoring. Use this setup when local execution and zero API cost are more important than maximum output quality.
 ---
 
 ## 6. Token-Saving Best Practices
@@ -381,7 +381,7 @@ Evaluating many roles in one interactive session degrades the output well before
 
 The real limit is tokens of accumulated job text, not a hard role count. When descriptions are long, cut the batch roughly in half.
 
-To evaluate more than that in one go, use `batch/batch-runner.sh`. It reuses one worker instead of letting context pile up across interactive turns. Source: [discussion #1089](https://github.com/career-ops-hq/career-ops/discussions/1089).
+To evaluate more than that in one go, use `batch/batch-runner.sh`. It reuses one worker instead of letting context pile up across interactive turns. Source: [discussion #1089](https://github.com/uxfi/jobyougo/discussions/1089).
 
 ---
 

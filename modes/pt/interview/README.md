@@ -18,7 +18,7 @@ Um conjunto de competências reutilizáveis para preparar uma entrevista de pont
 
 ## Convenções de arquivos
 
-Estas competências pressupõem que os arquivos abaixo existam (padrões do career-ops):
+Estas competências pressupõem que os arquivos abaixo existam (padrões do JobYouGo):
 
 | Arquivo | Finalidade |
 |---|---|

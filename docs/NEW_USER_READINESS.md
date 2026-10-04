@@ -1,6 +1,6 @@
 # JobYouGo — préparation à l'accueil de nouveaux utilisateurs
 
-Audit du 2026-09-30 sur le code de `career-ops/` (fork uxfi/jobyougo) et sur le site live
+Audit du 2026-09-30 sur le code de `JobYouGo/` (fork uxfi/jobyougo) et sur le site live
 https://jobyougo.xyz (Vercel). Périmètre : création de compte, import CV + génération de profil
 par IA, onboarding, isolation des données entre utilisateurs, exécution hébergée.
 
@@ -10,7 +10,7 @@ par IA, onboarding, isolation des données entre utilisateurs, exécution héber
 |---|---|---|
 | Création de compte (email + mot de passe) | Fonctionne | Pas de reset de mot de passe, pas d'OAuth, pas de CGU, SMTP Supabase à vérifier |
 | Import CV → profil par IA | Fonctionne de bout en bout | Le profil sauvegardé n'alimente que partiellement les évaluations (bug de forme) |
-| Onboarding 8 étapes + redirection | Fonctionne | Ancien branding "Career Ops" violet, aucune suite guidée après |
+| Onboarding 8 étapes + redirection | Fonctionne | Ancien branding "JobYouGo" violet, aucune suite guidée après |
 | Isolation multi-utilisateur | **Non prêt** | Fuites publiques, collisions de numéros, données du propriétaire codées en dur |
 | Exécution hébergée (scan, éval, CV PDF, apply) | **Non prêt** | Sur Vercel : navigateur absent, disque éphémère, pas de `maxDuration`, apply refusé |
 
@@ -124,8 +124,8 @@ isoler les données (phase 1) avant une alpha fermée.
 
 ### E. Finitions onboarding
 
-19. `login.html` et `onboarding.html` gardent le thème violet "Career Ops", le logo "C" et le
-    titre "Career Ops — Sign in".
+19. `login.html` et `onboarding.html` gardent le thème violet "JobYouGo", le logo "C" et le
+    titre "JobYouGo — Sign in".
 20. PDF scanné (image) → texte vide sans message explicite ; pas de gabarit de CV markdown si
     l'utilisateur saute l'import ; LinkedIn réclamé par la bannière du dashboard mais absent de
     l'étape Identité ; la soumission envoie `context_markdown: ''` et efface le contexte

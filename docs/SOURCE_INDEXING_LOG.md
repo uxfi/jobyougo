@@ -6,7 +6,7 @@ Two things this log deliberately is not: a ranking, and a promise. Rule 4 says i
 
 **How to read an entry.** "Verified" means someone ran a command and reported the output, not that a claim was accepted. Where a check could only be done against a live endpoint, the entry says what was sampled and when, because live checks expire: a source that passed in August can drift in November, and re-verification is normal rather than an accusation.
 
-**Adding an entry.** A source is logged when its provider merges. Anyone can open a [source proposal](https://github.com/santifer/career-ops/issues/new?template=source-proposal.yml); the discussion happens in the issue and the PR, and this file is the durable summary with links back to both.
+**Adding an entry.** A source is logged when its provider merges. Anyone can open a [source proposal](https://github.com/uxfi/jobyougo/issues/new?template=source-proposal.yml); the discussion happens in the issue and the PR, and this file is the durable summary with links back to both.
 
 ---
 
@@ -16,7 +16,7 @@ Two things this log deliberately is not: a ranking, and a promise. Rule 4 says i
 |---|---|
 | **Proposed by** | @eliador90, **who operates the source** (declared in the proposal) |
 | **Provider** | `providers/remotli.mjs` |
-| **PR** | [#2465](https://github.com/santifer/career-ops/pull/2465) · issue [#2464](https://github.com/santifer/career-ops/issues/2464) |
+| **PR** | [#2465](https://github.com/uxfi/jobyougo/pull/2465) · issue [#2464](https://github.com/uxfi/jobyougo/issues/2464) |
 | **Merged** | 2026-08-07 |
 | **Status** | Listed |
 
@@ -42,13 +42,13 @@ First source reviewed under the written policy. The operator proposing their own
 |---|---|
 | **Proposed by** | @justma16ze (community contributor, not affiliated with the source) |
 | **Provider** | `providers/a16z-speedrun.mjs` |
-| **PR** | [#2231](https://github.com/santifer/career-ops/pull/2231) |
+| **PR** | [#2231](https://github.com/uxfi/jobyougo/pull/2231) |
 | **Merged** | 2026-07-29 |
 | **Status** | Listed |
 
 Merged before the policy was written, and logged here because it is the case that prompted writing it: a large, well-connected talent network is exactly where "does indexing imply endorsement?" stops being theoretical.
 
-**Rule 3, retroactively.** Two coverage defects were found and fixed after listing, both by contributors reading the live feed rather than the code: the page size was set to 100 while the feed serves 50, so the fetch stopped silently after one page ([#2419](https://github.com/santifer/career-ops/pull/2419)), and a single transient upstream failure aborted the whole board fetch ([#2506](https://github.com/santifer/career-ops/issues/2506)). Both are the failure mode rule 3 targets: partial coverage that reads as complete.
+**Rule 3, retroactively.** Two coverage defects were found and fixed after listing, both by contributors reading the live feed rather than the code: the page size was set to 100 while the feed serves 50, so the fetch stopped silently after one page ([#2419](https://github.com/uxfi/jobyougo/pull/2419)), and a single transient upstream failure aborted the whole board fetch ([#2506](https://github.com/uxfi/jobyougo/issues/2506)). Both are the failure mode rule 3 targets: partial coverage that reads as complete.
 
 **Rule 4.** Listed with its operator declared. Rule 4's 40% ceiling exists so no single source, however large, dominates the registry.
 
@@ -56,13 +56,13 @@ Merged before the policy was written, and logged here because it is the case tha
 
 | | |
 |---|---|
-| **Proposed by** | @d-ulker (registration issue [#1697](https://github.com/career-ops-hq/career-ops/issues/1697)); plugin published by @uelkerd |
+| **Proposed by** | @d-ulker (registration issue [#1697](https://github.com/uxfi/jobyougo/issues/1697)); plugin published by @uelkerd |
 | **Plugin** | `career-ops-plugin-theirstack` (community plugin, `provider` hook, `THEIRSTACK_API_KEY`) |
 | **Listed** | 2026-07-07, before this policy existed (2026-08-04) |
 | **Retired** | 2026-09-05 |
 | **Status** | Not listed. The plugin remains published in its own repository; the registry is only what the project lists. |
 
-Re-read against the written policy after a second source of the same shape asked to be listed (JobsPipe, [#3841](https://github.com/career-ops-hq/career-ops/pull/3841)), so that the two answers match.
+Re-read against the written policy after a second source of the same shape asked to be listed (JobsPipe, [#3841](https://github.com/uxfi/jobyougo/pull/3841)), so that the two answers match.
 
 **Rule 1 (real listings, identifiable employer, free for candidates).** Not met as a listed source: access to the listings goes through a metered, paid API on the job seeker's side, and a free tier does not change that. Manifesto right 4 (*"You never pay"*) applied to sources is the whole of this rule; it has no free-tier exception.
 
@@ -78,7 +78,7 @@ Re-read against the written policy after a second source of the same shape asked
 |---|---|
 | **Proposed by** | @nikitacometa, who operates none of the channels measured |
 | **Provider** | `providers/telegram-channel.mjs` |
-| **PR** | [#3668](https://github.com/career-ops-hq/career-ops/pull/3668) · issue [#3701](https://github.com/career-ops-hq/career-ops/issues/3701) |
+| **PR** | [#3668](https://github.com/uxfi/jobyougo/pull/3668) · issue [#3701](https://github.com/uxfi/jobyougo/issues/3701) |
 | **Merged** | 2026-09-05 |
 | **Status** | Provider listed; no channel is listed. The shipped `job_boards:` entry is a disabled template, and a channel added to the registry gets its operator declared per channel. |
 

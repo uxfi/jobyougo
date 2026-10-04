@@ -1,5 +1,5 @@
 # Portal Scanner Configuration
-# Used by /career-ops scan to discover new offers automatically.
+# Used by /jobyougo scan to discover new offers automatically.
 #
 # Strategy (4 levels):
 #   0. Local parser → per-company `parser:` script for SSR/static career pages (zero-token)
@@ -2470,7 +2470,7 @@ tracked_companies:
   # so `scan.mjs` will filter them out automatically (it requires a
   # detectable ATS). They are listed here as discovery aids — paste
   # the URL of any specific role into `data/pipeline.md` and run
-  # `/career-ops pipeline`, which uses Playwright/WebFetch instead.
+  # `/jobyougo pipeline`, which uses Playwright/WebFetch instead.
   # Only Getir (jobs.lever.co/getir) is currently scannable.
   #
   # Key Turkish market notes:
@@ -2653,53 +2653,53 @@ job_boards:
     notes: "Junior/entry RU tech roles, posts carry 'Компания:' + a geekjob.ru/ATS link; 21 jobs emitted at this 14-day window (35% of 60 posts read), measured live 2026-09-05. title_filter runs on the derived job title, skipping tags, the matched employer name, recognized employer metadata and bare links for hashtag-first posts; content_filter only narrows that set."
 
   # ── SolidJobs (Polish market) ──────────────────────────────────────
-  # Public API — no auth needed. Division in URL path, campaign=career-ops for tracking.
+  # Public API — no auth needed. Division in URL path, campaign=JobYouGo for tracking.
   # Available divisions: it, engineering, marketing, sales, hr, logistics, finances, other
 
   - name: SolidJobs IT
-    careers_url: https://solid.jobs/public-api/offers/it?campaign=career-ops
+    careers_url: https://solid.jobs/public-api/offers/it?campaign=JobYouGo
     provider: solidjobs
     enabled: true
     notes: "Polish IT job board — IT division"
 
   - name: SolidJobs Engineering
-    careers_url: https://solid.jobs/public-api/offers/engineering?campaign=career-ops
+    careers_url: https://solid.jobs/public-api/offers/engineering?campaign=JobYouGo
     provider: solidjobs
     enabled: false
     notes: "Polish job board — Engineering & Production division"
 
   - name: SolidJobs Marketing
-    careers_url: https://solid.jobs/public-api/offers/marketing?campaign=career-ops
+    careers_url: https://solid.jobs/public-api/offers/marketing?campaign=JobYouGo
     provider: solidjobs
     enabled: false
     notes: "Polish job board — Marketing division"
 
   - name: SolidJobs Sales
-    careers_url: https://solid.jobs/public-api/offers/sales?campaign=career-ops
+    careers_url: https://solid.jobs/public-api/offers/sales?campaign=JobYouGo
     provider: solidjobs
     enabled: false
     notes: "Polish job board — Sales division"
 
   - name: SolidJobs HR
-    careers_url: https://solid.jobs/public-api/offers/hr?campaign=career-ops
+    careers_url: https://solid.jobs/public-api/offers/hr?campaign=JobYouGo
     provider: solidjobs
     enabled: false
     notes: "Polish job board — HR division"
 
   - name: SolidJobs Logistics
-    careers_url: https://solid.jobs/public-api/offers/logistics?campaign=career-ops
+    careers_url: https://solid.jobs/public-api/offers/logistics?campaign=JobYouGo
     provider: solidjobs
     enabled: false
     notes: "Polish job board — Logistics division"
 
   - name: SolidJobs Finances
-    careers_url: https://solid.jobs/public-api/offers/finances?campaign=career-ops
+    careers_url: https://solid.jobs/public-api/offers/finances?campaign=JobYouGo
     provider: solidjobs
     enabled: false
     notes: "Polish job board — Finances division"
 
   - name: SolidJobs Other
-    careers_url: https://solid.jobs/public-api/offers/other?campaign=career-ops
+    careers_url: https://solid.jobs/public-api/offers/other?campaign=JobYouGo
     provider: solidjobs
     enabled: false
     notes: "Polish job board — Other specialists division"
