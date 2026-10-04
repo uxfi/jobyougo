@@ -24,4 +24,4 @@ Run the deterministic calibration report and present it. This mode closes the le
 ## What this mode must never do
 
 - Suggest editing `modes/_shared.md` or any scoring rule. If the user asks "so should we change the scoring?", the honest answer is that the global scoring stays as is — what the evidence supports is adjusting *their own* apply threshold and portfolio of targets, which is their call.
-- Feed the calibration back into evaluations automatically. There is no auto-tuning anywhere in career-ops, and this mode does not introduce it.
+- Feed the calibration back into evaluations automatically. There is no auto-tuning anywhere in JobYouGo, and this mode does not introduce it.

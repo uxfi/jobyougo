@@ -102,7 +102,7 @@ This check adds one bullet to a report in progress. It changes nothing else abou
 
 ## Non-scoring note
 
-This bullet is evidentiary only. It does not shift the Block G legitimacy tier (High Confidence / Proceed with Caution / Suspicious), and it does not shift the 1-5 global score. Block G is non-scoring by design in career-ops; the shared evaluation rules state that outright. The bullet exists to put the sponsorship fact into the report so the user has it when making the call.
+This bullet is evidentiary only. It does not shift the Block G legitimacy tier (High Confidence / Proceed with Caution / Suspicious), and it does not shift the 1-5 global score. Block G is non-scoring by design in JobYouGo; the shared evaluation rules state that outright. The bullet exists to put the sponsorship fact into the report so the user has it when making the call.
 
 ## Honesty rule
 

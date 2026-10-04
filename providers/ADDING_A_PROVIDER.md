@@ -33,7 +33,7 @@ In short:
   applications disqualifies it.
 - **One source per provider (rule 5).** A provider reads its own source.
   A meta-aggregator that republishes other boards' postings is not a source
-  career-ops indexes — cross-source aggregation lives in core.
+  JobYouGo indexes — cross-source aggregation lives in core.
 - **Complete inventory, no paid placement (rule 3).** The provider must
   traverse the source's full inventory, not a promoted or default-filtered
   view.
@@ -44,7 +44,7 @@ In short:
   — `/api`, `/data`, a subscribe form — is not (ITviec, CareerViet route
   around theirs). A rule that only names an AI/agent crawler (`ClaudeBot`,
   `anthropic-ai`) doesn't name the scanner — a distinct, bounded
-  `career-ops` fetcher — but a scan can still feed a later model-driven
+  `JobYouGo` fetcher — but a scan can still feed a later model-driven
   `pipeline` step, so honouring it is a maintainer call on a source
   proposal, not an automatic no.
 

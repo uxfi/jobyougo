@@ -1,6 +1,6 @@
 # Automation: recurring scans, a zero-token triage, and a follow-up sweep
 
-`career-ops` offers to scan for you on a schedule ("just say *scan every 3 days*"),
+`JobYouGo` offers to scan for you on a schedule ("just say *scan every 3 days*"),
 but the actual scheduling is left to your operating system. This page ships the
 recipes: how to run the scanner unattended, a cheap zero-token **triage** pass
 that turns a pile of freshly-scanned URLs into a short "worth a look" list —
@@ -26,7 +26,7 @@ Three independent pieces, smallest first. You can use any of them on their own.
 > machine — none of your data is uploaded. The scan does reach out to *public*
 > job-board APIs to read listings (the same zero-key reads the manual scan makes),
 > but it sends none of your personal data with them, and the triage only reads your
-> local files. Evaluating a shortlisted role later (`/career-ops pipeline`) is the
+> local files. Evaluating a shortlisted role later (`/jobyougo pipeline`) is the
 > only step that spends tokens.
 
 ---
@@ -36,7 +36,7 @@ Three independent pieces, smallest first. You can use any of them on their own.
 `node scan.mjs` is safe to run unattended — it's idempotent (already-seen URLs are
 deduped) and costs nothing. Pick your platform.
 
-Replace `/path/to/career-ops` with your checkout path, and make sure `node` is on
+Replace `/path/to/jobyougo` with your checkout path, and make sure `node` is on
 the `PATH` the scheduler uses (schedulers often run with a minimal environment — use
 an absolute path to `node` if in doubt, e.g. `which node`).
 
@@ -48,14 +48,14 @@ day-of-month field resets at each month boundary, so the gap across month-end ca
 be 1–3 days rather than a strict rolling 72 hours:
 
 ```cron
-0 9 */3 * * cd /path/to/career-ops && /usr/local/bin/node scan.mjs >> data/scan.log 2>&1
+0 9 */3 * * cd /path/to/jobyougo && /usr/local/bin/node scan.mjs >> data/scan.log 2>&1
 ```
 
 For a simpler, exactly-even cadence, run it **daily** and let the scanner's dedup
 absorb the days you don't need — `0 9 * * *` — or on weekdays only, at 8am:
 
 ```cron
-0 8 * * 1-5 cd /path/to/career-ops && /usr/local/bin/node scan.mjs >> data/scan.log 2>&1
+0 8 * * 1-5 cd /path/to/jobyougo && /usr/local/bin/node scan.mjs >> data/scan.log 2>&1
 ```
 
 ### macOS — launchd (survives sleep better than cron)
@@ -74,14 +74,14 @@ Save as `~/Library/LaunchAgents/io.career-ops.scan.plist`, then
     <string>/usr/local/bin/node</string>
     <string>scan.mjs</string>
   </array>
-  <key>WorkingDirectory</key> <string>/path/to/career-ops</string>
+  <key>WorkingDirectory</key> <string>/path/to/jobyougo</string>
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key>    <integer>9</integer>
     <key>Minute</key>  <integer>0</integer>
   </dict>
-  <key>StandardOutPath</key>   <string>/path/to/career-ops/data/scan.log</string>
-  <key>StandardErrorPath</key> <string>/path/to/career-ops/data/scan.log</string>
+  <key>StandardOutPath</key>   <string>/path/to/jobyougo/data/scan.log</string>
+  <key>StandardErrorPath</key> <string>/path/to/jobyougo/data/scan.log</string>
 </dict>
 </plist>
 ```
@@ -101,9 +101,9 @@ replace the `StartCalendarInterval` block with an interval in seconds:
 ### Windows — Task Scheduler
 
 ```powershell
-$action  = New-ScheduledTaskAction -Execute "node.exe" -Argument "scan.mjs" -WorkingDirectory "C:\path\to\career-ops"
+$action  = New-ScheduledTaskAction -Execute "node.exe" -Argument "scan.mjs" -WorkingDirectory "C:\path\to\JobYouGo"
 $trigger = New-ScheduledTaskTrigger -Daily -At 9am
-Register-ScheduledTask -TaskName "career-ops scan" -Action $action -Trigger $trigger -Description "Recurring career-ops job scan"
+Register-ScheduledTask -TaskName "JobYouGo scan" -Action $action -Trigger $trigger -Description "Recurring JobYouGo job scan"
 ```
 
 After any of these, new postings land in `data/pipeline.md` under `## Pending` on
@@ -155,7 +155,7 @@ Leave data/pipeline.md unchanged — this only reads it and writes data/shortlis
 Open `data/shortlist.md`, then run a real evaluation only on the "Worth a look" rows:
 
 ```text
-/career-ops pipeline
+/jobyougo pipeline
 ```
 
 That keeps the expensive step — token-spending evaluation — pointed only at postings
@@ -203,9 +203,9 @@ Save as `~/Library/LaunchAgents/io.career-ops.followup.plist`, then
   <array>
     <string>/bin/zsh</string>
     <string>-l</string>
-    <string>/path/to/career-ops/scripts/followup-sweep.sh</string>
+    <string>/path/to/jobyougo/scripts/followup-sweep.sh</string>
   </array>
-  <key>WorkingDirectory</key> <string>/path/to/career-ops</string>
+  <key>WorkingDirectory</key> <string>/path/to/jobyougo</string>
   <key>StartCalendarInterval</key>
   <array>
     <dict>
@@ -219,8 +219,8 @@ Save as `~/Library/LaunchAgents/io.career-ops.followup.plist`, then
       <key>Minute</key>  <integer>0</integer>
     </dict>
   </array>
-  <key>StandardOutPath</key>   <string>/path/to/career-ops/data/followup-sweep.launchd.log</string>
-  <key>StandardErrorPath</key> <string>/path/to/career-ops/data/followup-sweep.launchd.log</string>
+  <key>StandardOutPath</key>   <string>/path/to/jobyougo/data/followup-sweep.launchd.log</string>
+  <key>StandardErrorPath</key> <string>/path/to/jobyougo/data/followup-sweep.launchd.log</string>
 </dict>
 </plist>
 ```
@@ -235,7 +235,7 @@ catching up whenever you next open it.
 ### cron (same idea, simpler, no wake-catch-up)
 
 ```cron
-0 9 * * 1,4 /path/to/career-ops/scripts/followup-sweep.sh
+0 9 * * 1,4 /path/to/jobyougo/scripts/followup-sweep.sh
 ```
 
 ### Why launchd/cron here, and not the CLI's own scheduler
@@ -264,7 +264,7 @@ silently discarding the evaluation itself.
 
 ---
 
-## How this fits the rest of career-ops
+## How this fits the rest of JobYouGo
 
 - **Zero-token by default.** Scheduling and triage cost nothing; only the eval you
   choose to run spends tokens.

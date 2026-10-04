@@ -2,7 +2,7 @@
 
 ## Purpose
 
-career-ops already *generates* ATS-optimized CVs (see `modes/pdf.md`) and guards *what* they claim (`verify-cv-facts.mjs`). This mode answers the other half of the question users keep asking: **"is my CV actually ATS-friendly?"** — i.e. will an Applicant Tracking System's parser read it correctly at all.
+JobYouGo already *generates* ATS-optimized CVs (see `modes/pdf.md`) and guards *what* they claim (`verify-cv-facts.mjs`). This mode answers the other half of the question users keep asking: **"is my CV actually ATS-friendly?"** — i.e. will an Applicant Tracking System's parser read it correctly at all.
 
 `verify-ats.mjs` is a **deterministic, read-only** checker (no LLM, no network, no writes). It reads a generated CV's HTML — the output of `pdf` mode, before PDF rendering — and reports an **ATS-friendliness score (0-100 + letter grade)** plus a list of concrete, fixable issues. Think `verify-cv-facts.mjs`, but for structure and parseability instead of facts. It is **advisory**: it is not wired into the `pdf` pipeline and never blocks CV generation.
 

@@ -1,6 +1,6 @@
-# career-ops -- Modes francophones (`modes/fr/`)
+# JobYouGo -- Modes francophones (`modes/fr/`)
 
-Ce dossier contient les traductions francaises des principaux modes career-ops pour les candidats qui ciblent le marche francophone (France, Belgique, Suisse romande, Luxembourg, Quebec).
+Ce dossier contient les traductions francaises des principaux modes JobYouGo pour les candidats qui ciblent le marche francophone (France, Belgique, Suisse romande, Luxembourg, Quebec).
 
 ## Quand utiliser ces modes ?
 

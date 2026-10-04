@@ -264,3 +264,6 @@ node_modules
 !documents/.gitkeep
 !documents/README.md
 data/agent-inbox.md
+
+# JobYouGo: the local-paths declaration is committed so CI can read it (see config/local-paths.example.txt)
+!config/local-paths.txt

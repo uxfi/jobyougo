@@ -36,7 +36,7 @@ Límites duros para los Bloques D y G combinados:
 - No lanzar subagentes ni delegar investigación a otro agente.
 - No continuar investigando tras alcanzar el tope; resumir la evidencia y marcar datos faltantes como no disponibles.
 
-Si se necesita investigación más profunda, recomendar `/career-ops deep` por separado después de la evaluación.
+Si se necesita investigación más profunda, recomendar `/jobyougo deep` por separado después de la evaluación.
 
 ## Paso 0 — Detección de arquetipo
 
@@ -328,7 +328,7 @@ Reflejar en `## Machine Summary` como mapa `risk_summary:` (claves y valores enu
 
 ## Cover Letter Draft (auto-generado después del Bloque G)
 
-Después de guardar el report y registrar en el tracker, añadir borrador de carta de presentación bajo `## Cover Letter Draft`. Punto de partida; el usuario completa vía `/career-ops cover {slug}`.
+Después de guardar el report y registrar en el tracker, añadir borrador de carta de presentación bajo `## Cover Letter Draft`. Punto de partida; el usuario completa vía `/jobyougo cover {slug}`.
 
 **Cómo generar:** 1) Leer `cv.md` — seleccionar 4 logros relevantes (formulación exacta, métricas reales). 2) Leer `config/profile.yml` — nombre, puesto actual, experiencia. 3) Apertura de 2 frases basada en título y misión de la JD. 4) 1 párrafo de perfil desde cv.md adaptado al dominio. 5) Sección "Problemas / Por qué esta empresa" como placeholder. 6) Detectar y marcar gaps.
 

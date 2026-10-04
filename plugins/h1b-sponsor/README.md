@@ -27,7 +27,7 @@ An HTTP backend still exists and is described further down. It runs when you hav
 
 ## Install and enable
 
-The plugin ships bundled with career-ops. Enable it once per repo:
+The plugin ships bundled with JobYouGo. Enable it once per repo:
 
 ```bash
 node plugins.mjs enable h1b-sponsor --confirm
@@ -153,7 +153,7 @@ Notes on configuring an endpoint:
 - `H1B_API_BASE` wins over an installed index. Setting it is a deliberate act, so it is honoured: an index on disk no longer overrides it silently. Unset the variable to go back to the local index; leave it unset and the index is what answers.
 - `manifest.json` lists `allowedHosts`, but that field is advisory: the engine applies it only to plugins that call through its own fetch, and these CLIs call `fetch` directly, so editing it changes nothing about where requests go. Leave it alone. Editing a bundled plugin's manifest also trips the engine's tamper check and makes it ask for consent again.
 - A bad value fails the command that needed it rather than quietly falling back to anything, because silently sending these queries somewhere the user did not choose is the whole outcome worth avoiding. Setting the variable to an empty string counts as a bad value, since that is what a typo'd shell expansion or a blank `.env` line produces.
-- The endpoint is read from the environment only. career-ops has per-plugin settings in `config/plugins.yml`, but these CLIs run standalone and do not read them, so a `base` key there would be ignored.
+- The endpoint is read from the environment only. JobYouGo has per-plugin settings in `config/plugins.yml`, but these CLIs run standalone and do not read them, so a `base` key there would be ignored.
 - A key is issued by one instance and means nothing to another. Unset `H1B_API_TOKEN` when you switch, and mint a new one against the endpoint you moved to.
 - Cached answers record what produced them, an endpoint or an index build, so switching between them never serves you the other's numbers.
 
