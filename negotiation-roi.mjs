@@ -64,11 +64,11 @@ import { spawnSync } from 'child_process';
 import { parseStories } from './match-star.mjs';
 import { flagValue, hasFlag } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const STORY_BANK_PATH = join(CAREER_OPS, 'interview-prep', 'story-bank.md');
-const DATA_ROOT = getCareerOpsRoot();
+const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+const STORY_BANK_PATH = join(JOBYOUGO, 'interview-prep', 'story-bank.md');
+const DATA_ROOT = getJobYouGoRoot();
 const CV_PATH = join(DATA_ROOT, 'cv.md');
 
 // ── Frequency vocabulary ─────────────────────────────────────────────
@@ -664,7 +664,7 @@ function main() {
 
   if (!existsSync(STORY_BANK_PATH)) {
     console.error(`Error: ${STORY_BANK_PATH} not found.`);
-    console.error('Run /career-ops interview-prep on a role first to populate your story bank.');
+    console.error('Run /jobyougo interview-prep on a role first to populate your story bank.');
     process.exit(1);
   }
   if (!existsSync(CV_PATH)) {

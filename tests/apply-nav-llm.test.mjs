@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  askNavDecision,
   filterNavButtons,
+  newNavAiBudget,
   parseNavDecision,
   resolveNavAction,
   navDecisionLog,
@@ -70,4 +72,32 @@ test('resolveNavAction returns human when the model is down', async () => {
   });
   assert.equal(d.action, 'human');
   assert.match(d.reason, /indisponible/);
+});
+
+test('askNavDecision spends one call per decision and stops at the run budget', async () => {
+  const budget = newNavAiBudget();
+  let calls = 0;
+  const ask = () => askNavDecision(budget, {
+    phase: 'navigate',
+    listButtons: async () => [{ text: 'Apply now' }],
+    chat: async () => { calls += 1; return '{"action":"click","index":0,"reason":"cta"}'; },
+  });
+  assert.equal((await ask()).text, 'Apply now');
+  await ask();
+  const capped = await ask();
+  assert.equal(calls, 2);
+  assert.equal(capped.skipped, true);
+  assert.equal(capped.reason, 'plafond');
+});
+
+test('askNavDecision never lists buttons or spends budget once capped, and skips pages without buttons', async () => {
+  const budget = { nav: 0, review: 3 };
+  let listed = false;
+  const capped = await askNavDecision(budget, { phase: 'review', listButtons: async () => { listed = true; return []; } });
+  assert.equal(capped.skipped, true);
+  assert.equal(listed, false);
+
+  const empty = await askNavDecision(budget, { phase: 'navigate', listButtons: async () => [{ text: 'Log in' }] });
+  assert.equal(empty.reason, 'aucun bouton');
+  assert.equal(budget.nav, 0);
 });

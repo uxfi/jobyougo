@@ -1,5 +1,5 @@
 // tests/tracker-db-path-late-env.test.mjs — openDb() must honor
-// CAREER_OPS_TRACKER_DB set AFTER tracker.mjs is already in the module cache
+// JOBYOUGO_TRACKER_DB set AFTER tracker.mjs is already in the module cache
 // (#3506).
 //
 // tracker.mjs resolved DB_PATH at module scope. That is correct for a CLI — one
@@ -24,10 +24,10 @@ import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync } from 'fs';
 import { createHash } from 'crypto';
 import { tmpdir } from 'os';
 
-console.log('\ntracker.mjs — CAREER_OPS_TRACKER_DB honored after import (#3506)');
+console.log('\ntracker.mjs — JOBYOUGO_TRACKER_DB honored after import (#3506)');
 
 const work = mkdtempSync(join(tmpdir(), 'cops-db-late-'));
-const before = process.env.CAREER_OPS_TRACKER_DB;
+const before = process.env.JOBYOUGO_TRACKER_DB;
 
 // The path a frozen DB_PATH would have used — computed the way tracker.mjs
 // computes it, from the ambient env, before this suite changes anything. That is
@@ -36,8 +36,8 @@ const before = process.env.CAREER_OPS_TRACKER_DB;
 // something did. Otherwise a FAILING run of this test leaves behind exactly the
 // stray database the change is meant to prevent — and only ever removes what it
 // created itself, never a real index that was already on disk.
-const { getCareerOpsRoot, resolveTrackerPath } = await import('../path-resolver.mjs');
-const mdPath = resolveTrackerPath(getCareerOpsRoot());
+const { getJobYouGoRoot, resolveTrackerPath } = await import('../path-resolver.mjs');
+const mdPath = resolveTrackerPath(getJobYouGoRoot());
 const fallbackDb = mdPath.endsWith('.md') ? mdPath.slice(0, -3) + '.db' : mdPath + '.db';
 const fallbackExisted = existsSync(fallbackDb);
 // Content, not just existence. On a machine where a real index already sits at
@@ -63,18 +63,18 @@ try {
 
   // 1. Import with the override ABSENT, the way an unrelated consumer would.
   //    Any module-scope resolution happens here, at the wrong path.
-  delete process.env.CAREER_OPS_TRACKER_DB;
+  delete process.env.JOBYOUGO_TRACKER_DB;
   const { openDb } = await import(new URL('../tracker.mjs', import.meta.url).href);
 
   // 2. Only now pin it. A module-scope const cannot see this.
   const pinned = join(work, 'applications.db');
-  process.env.CAREER_OPS_TRACKER_DB = pinned;
+  process.env.JOBYOUGO_TRACKER_DB = pinned;
 
   const db = openDb(DatabaseSync);
   try {
     existsSync(pinned)
       ? pass('openDb() opened the pinned path set after import')
-      : fail(`openDb() ignored a CAREER_OPS_TRACKER_DB set after import — nothing at ${pinned} (#3506)`);
+      : fail(`openDb() ignored a JOBYOUGO_TRACKER_DB set after import — nothing at ${pinned} (#3506)`);
 
     // The index is only useful if it is a real one: prove the schema landed in
     // the pinned file rather than the file merely being touched.
@@ -122,8 +122,8 @@ try {
 } catch (e) {
   fail(`tracker db-path late-env test crashed: ${e.message}`);
 } finally {
-  if (before === undefined) delete process.env.CAREER_OPS_TRACKER_DB;
-  else process.env.CAREER_OPS_TRACKER_DB = before;
+  if (before === undefined) delete process.env.JOBYOUGO_TRACKER_DB;
+  else process.env.JOBYOUGO_TRACKER_DB = before;
   // Only when this run created it. A pre-existing index belongs to whoever owns
   // the workspace — a test that tidies away real data is worse than the leak.
   if (!fallbackExisted && existsSync(fallbackDb)) {

@@ -8,8 +8,8 @@
 // correct; the backfill was returning such rows unchanged, so they stayed
 // permanently unreadable to every reader built on tracker-parse.mjs.
 //
-// Driven as a CLI integration test through the CAREER_OPS_TRACKER /
-// CAREER_OPS_ADDITIONS overrides, matching tests/merge-tracker.test.mjs:
+// Driven as a CLI integration test through the JOBYOUGO_TRACKER /
+// JOBYOUGO_ADDITIONS overrides, matching tests/merge-tracker.test.mjs:
 // importing merge-tracker.mjs runs the CLI at import time.
 import { pass, fail, NODE, ROOT } from './helpers.mjs';
 import { join } from 'path';
@@ -40,7 +40,7 @@ function runBackfill({ rows, reports }) {
     const out = execFileSync(NODE, [join(ROOT, 'merge-tracker.mjs'), '--backfill-urls'], {
       cwd: dir,
       encoding: 'utf-8',
-      env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_ADDITIONS: join(dir, 'none') },
+      env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_ADDITIONS: join(dir, 'none') },
     });
     return { tracker: readFileSync(tracker, 'utf-8'), output: out, dir };
   } finally {
@@ -166,7 +166,7 @@ const urlCell = (text, n) => {
     ].join('\n'));
     const out = execFileSync(NODE, [join(ROOT, 'merge-tracker.mjs'), '--backfill-urls'], {
       cwd: dir, encoding: 'utf-8',
-      env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_ADDITIONS: join(dir, 'none') },
+      env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_ADDITIONS: join(dir, 'none') },
     });
     const text = readFileSync(tracker, 'utf-8');
     const parsed = readable(text, 7);

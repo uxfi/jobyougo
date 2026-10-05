@@ -40,7 +40,7 @@ function runSync() {
     execFileSync(NODE, [join(ROOT, 'sync-pdf-flags.mjs')], {
       encoding: 'utf-8',
       timeout: 30000,
-      env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_PDF_INDEX: pdfIndex },
+      env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_PDF_INDEX: pdfIndex },
     });
     
     return readFileSync(tracker, 'utf-8');
@@ -99,7 +99,7 @@ try {
     const result = spawnSync(NODE, [join(ROOT, 'sync-pdf-flags.mjs'), '--dry-rn', '--json'], {
       encoding: 'utf-8',
       timeout: 30000,
-      env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_PDF_INDEX: pdfIndex },
+      env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_PDF_INDEX: pdfIndex },
     });
     const unchanged = readFileSync(tracker, 'utf-8') === TRACKER_HEADER;
 
@@ -124,7 +124,7 @@ try {
     const result = spawnSync(NODE, [join(ROOT, 'sync-pdf-flags.mjs'), '--json'], {
       encoding: 'utf-8',
       timeout: 30000,
-      env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_PDF_INDEX: pdfIndexDir },
+      env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_PDF_INDEX: pdfIndexDir },
     });
 
     if (result.status === 2 && /manifest-read-error/i.test(result.stdout)) {

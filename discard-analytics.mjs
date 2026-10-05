@@ -21,7 +21,7 @@
 
 import { readFileSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
 /**
@@ -162,7 +162,7 @@ if (isMainModule(import.meta.url)) {
   const sinceDate = argValue('--since');
   const customLog = argValue('--log');
 
-  const logFile = customLog || join(getCareerOpsRoot(), 'data/discard.log');
+  const logFile = customLog || join(getJobYouGoRoot(), 'data/discard.log');
   let logStat = null;
   try {
     logStat = existsSync(logFile) ? statSync(logFile) : null;

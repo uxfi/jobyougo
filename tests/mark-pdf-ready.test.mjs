@@ -3,8 +3,8 @@
 // mark-pdf-ready.mjs is the canonical write path for the tracker's PDF column
 // (❌→✅), used by the web dashboard's "pdf" mode after the backend confirms a
 // successful render. Same sandboxing pattern as set-status-tests.mjs /
-// tracker-columns-tests.mjs: a throwaway tracker via the CAREER_OPS_TRACKER /
-// CAREER_OPS_TRACKER_LOCK env overrides tracker-utils.mjs already respects.
+// tracker-columns-tests.mjs: a throwaway tracker via the JOBYOUGO_TRACKER /
+// JOBYOUGO_TRACKER_LOCK env overrides tracker-utils.mjs already respects.
 //
 // Auto-discovered by test-all.mjs (tests/**/*.test.mjs, #1440) — imported
 // in-process alongside every other discovered suite, so this file must NEVER
@@ -22,9 +22,9 @@ function makeSandbox(trackerContent) {
   const dir = mkdtempSync(join(tmpdir(), 'co-markpdf-'));
   const tracker = join(dir, 'applications.md');
   writeFileSync(tracker, trackerContent);
-  // Must live under tmpdir and use the career-ops lock-name prefix (see
+  // Must live under tmpdir and use the jobyougo lock-name prefix (see
   // trackerLockDirFor) or it's ignored — still safe, just a shared-lock risk.
-  const lock = join(dir, 'career-ops-merge-tracker-test.lock');
+  const lock = join(dir, 'jobyougo-merge-tracker-test.lock');
   return { dir, tracker, lock };
 }
 
@@ -36,8 +36,8 @@ function readTracker(sandbox) {
 function runMarkPdfReady(args, sandbox, extraEnv = {}) {
   const env = {
     ...process.env,
-    CAREER_OPS_TRACKER: sandbox.tracker,
-    CAREER_OPS_TRACKER_LOCK: sandbox.lock,
+    JOBYOUGO_TRACKER: sandbox.tracker,
+    JOBYOUGO_TRACKER_LOCK: sandbox.lock,
     ...extraEnv,
   };
   try {
@@ -301,9 +301,9 @@ const TRACKER_DUP_REPORT = `# Applications Tracker
 
 // ── 10. Missing tracker file -> exit 2 ──
 {
-  // Given CAREER_OPS_TRACKER points at a path with no tracker
+  // Given JOBYOUGO_TRACKER points at a path with no tracker
   const dir = mkdtempSync(join(tmpdir(), 'co-markpdf-missing-'));
-  const sandbox = { tracker: join(dir, 'does-not-exist.md'), lock: join(dir, 'career-ops-merge-tracker-test.lock') };
+  const sandbox = { tracker: join(dir, 'does-not-exist.md'), lock: join(dir, 'jobyougo-merge-tracker-test.lock') };
   try {
     // When mark-pdf-ready is run for any report number
     const r = runMarkPdfReady(['1', '--json'], sandbox);
@@ -359,7 +359,7 @@ const TRACKER_DUP_REPORT = `# Applications Tracker
   writeFileSync(join(sb.lock, 'owner.json'), JSON.stringify({ pid: process.pid, token: 'test', tracker: sb.tracker }));
   try {
     // When mark-pdf-ready is run against that locked tracker with a short timeout
-    const r = runMarkPdfReady(['1', '--json'], sb, { CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS: '300' });
+    const r = runMarkPdfReady(['1', '--json'], sb, { JOBYOUGO_TRACKER_LOCK_TIMEOUT_MS: '300' });
     let parsed = null;
     try { parsed = JSON.parse(r.stdout); } catch { /* asserted below */ }
 
@@ -381,9 +381,9 @@ const TRACKER_DUP_REPORT = `# Applications Tracker
   const dir = mkdtempSync(join(tmpdir(), 'co-markpdf-lockerr-'));
   const tracker = join(dir, 'applications.md');
   writeFileSync(tracker, TRACKER_9);
-  const blocker = join(dir, 'career-ops-merge-tracker-blocker');
+  const blocker = join(dir, 'jobyougo-merge-tracker-blocker');
   writeFileSync(blocker, 'not a directory');
-  const badLock = join(blocker, 'career-ops-merge-tracker-bad.lock');
+  const badLock = join(blocker, 'jobyougo-merge-tracker-bad.lock');
   try {
     // When mark-pdf-ready is run against that unusable lock path
     const r = runMarkPdfReady(['1', '--json'], { tracker, lock: badLock });
@@ -416,7 +416,7 @@ const TRACKER_DUP_REPORT = `# Applications Tracker
     mkdirSync(roDir);
     const tracker = join(roDir, 'applications.md');
     writeFileSync(tracker, TRACKER_9);
-    const lock = join(dir, 'career-ops-merge-tracker-wf.lock');
+    const lock = join(dir, 'jobyougo-merge-tracker-wf.lock');
     // On Windows, directory read-only bits don't block file creation — deny
     // write-data/append-data for Everyone (*S-1-1-0) via icacls instead
     // (mirrors set-status-tests.mjs's write-failure test).

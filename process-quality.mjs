@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * process-quality.mjs — Recruiting-Process Friction Aggregator for career-ops
+ * process-quality.mjs — Recruiting-Process Friction Aggregator for jobyougo
  *
  * Parses data/active-interviews.md, extracts inline `[process-friction]` tags
  * from the Notes column, and aggregates them per company into a friction
@@ -36,15 +36,15 @@
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { flagValue, validateFlags, safeIntFlag } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 import { isPlaceholderCompany } from './lib/placeholder-cell.mjs';
 
-const CAREER_OPS = getCareerOpsRoot();
-const DEFAULT_ACTIVE_INTERVIEWS_PATH = existsSync(join(CAREER_OPS, 'data/active-interviews.md'))
-  ? join(CAREER_OPS, 'data/active-interviews.md')
-  : join(CAREER_OPS, 'active-interviews.md');
+const JOBYOUGO = getJobYouGoRoot();
+const DEFAULT_ACTIVE_INTERVIEWS_PATH = existsSync(join(JOBYOUGO, 'data/active-interviews.md'))
+  ? join(JOBYOUGO, 'data/active-interviews.md')
+  : join(JOBYOUGO, 'active-interviews.md');
 
 const FRICTION_TAG = /\[process-friction(?::\s*([^\]]+))?\]/i;
 
@@ -244,7 +244,7 @@ function loadActiveInterviews(path = ACTIVE_INTERVIEWS_PATH) {
 // --- Summary mode ---
 function printSummary(signals) {
   console.log(`\n${'='.repeat(78)}`);
-  console.log('  Process Quality Signal — career-ops');
+  console.log('  Process Quality Signal — jobyougo');
   console.log(`  min threshold: ${MIN_THRESHOLD} interview(s) | companies: ${signals.length}`);
   console.log(`${'='.repeat(78)}\n`);
 

@@ -100,7 +100,7 @@ if (failures.length === 0) {
   fail(failures.join(' | '));
 }
 
-const fixtureRoot = mkdtempSync(join(tmpdir(), 'career-ops-materialized-symlink-'));
+const fixtureRoot = mkdtempSync(join(tmpdir(), 'jobyougo-materialized-symlink-'));
 const fixtureTarget = join(fixtureRoot, '.agents', 'skills', 'jobyougo', 'SKILL.md');
 const fixturePointer = join(fixtureRoot, '.claude', 'skills', 'jobyougo', 'SKILL.md');
 const fixtureTargetRelative = '.agents/skills/jobyougo/SKILL.md';

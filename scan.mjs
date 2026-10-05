@@ -89,12 +89,12 @@ try {
 const parseYaml = yaml.load;
 
 // ── Config ──────────────────────────────────────────────────────────
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 const CODE_ROOT = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
-export const PORTALS_PATH = process.env.CAREER_OPS_PORTALS || path.join(DATA_ROOT, 'portals.yml');
-const PROFILE_PATH = process.env.CAREER_OPS_PROFILE || path.join(DATA_ROOT, 'config/profile.yml');
+export const PORTALS_PATH = process.env.JOBYOUGO_PORTALS || path.join(DATA_ROOT, 'portals.yml');
+const PROFILE_PATH = process.env.JOBYOUGO_PROFILE || path.join(DATA_ROOT, 'config/profile.yml');
 // Overridable for the same reason the two inputs above are (#2271). A second
 // search lane - a bridge/income track, a career-change track, a partner sharing
 // the checkout - already gets its own portals.yml and profile, but without these
@@ -106,9 +106,9 @@ const PROFILE_PATH = process.env.CAREER_OPS_PROFILE || path.join(DATA_ROOT, 'con
 // to carry their own bare-relative copy, so a sibling could check existence and
 // create data/pipeline.md in the cwd, then append the actual results to the
 // anchored one (#3510). One resolution, imported, cannot drift.
-export const SCAN_HISTORY_PATH = process.env.CAREER_OPS_SCAN_HISTORY || path.join(DATA_ROOT, 'data/scan-history.tsv');
-export const PIPELINE_PATH = process.env.CAREER_OPS_PIPELINE || path.join(DATA_ROOT, 'data/pipeline.md');
-const SCAN_DECISIONS_PATH = process.env.CAREER_OPS_SCAN_DECISIONS || path.join(DATA_ROOT, 'data/scan-decisions.jsonl');
+export const SCAN_HISTORY_PATH = process.env.JOBYOUGO_SCAN_HISTORY || path.join(DATA_ROOT, 'data/scan-history.tsv');
+export const PIPELINE_PATH = process.env.JOBYOUGO_PIPELINE || path.join(DATA_ROOT, 'data/pipeline.md');
+const SCAN_DECISIONS_PATH = process.env.JOBYOUGO_SCAN_DECISIONS || path.join(DATA_ROOT, 'data/scan-decisions.jsonl');
 
 const APPLICATIONS_PATH = path.join(DATA_ROOT, 'data/applications.md');
 const PROVIDERS_DIR = path.resolve(CODE_ROOT, 'providers');
@@ -1638,8 +1638,8 @@ export function collectSeenUrls(sources = {}, policy = {}, { extraTokensFor } = 
 }
 
 // Path options mirror mergeIntoPipeline's seam below: the defaults are the
-// CAREER_OPS_ROOT-anchored module constants, and a caller with its own lane
-// (or a test with a fixture) passes explicit paths. Before CAREER_OPS_ROOT the
+// JOBYOUGO_ROOT-anchored module constants, and a caller with its own lane
+// (or a test with a fixture) passes explicit paths. Before JOBYOUGO_ROOT the
 // defaults were cwd-relative strings, so callers could retarget them by
 // chdir'ing; an anchored default needs a real parameter instead.
 export function loadSeenUrls(policy = {}, {
@@ -2397,10 +2397,10 @@ export function loadDedupSnapshot(policy = {}, canonicalize = defaultCompanyNorm
 }
 
 // Standard skeleton created on fresh install — matches the format documented
-// in modes/pipeline.md and expected by /career-ops pipeline.
+// in modes/pipeline.md and expected by /jobyougo pipeline.
 const PIPELINE_SKELETON = `# Pipeline — Pending URLs
 
-Paste job URLs below as \`- [ ] {url}\` then run \`/career-ops pipeline\`.
+Paste job URLs below as \`- [ ] {url}\` then run \`/jobyougo pipeline\`.
 
 ## Pending
 
@@ -2415,7 +2415,7 @@ const PROCESSED_MARKERS = ['## Processed', '## Procesadas'];
 // Locked (pipeline-lock.mjs) so scan.mjs, scan-ats-full.mjs, and plugins.mjs
 // (pipeline mode) — the three current callers — can never interleave their
 // read-modify-write and silently drop each other's offers.
-// Same seam as loadSeenUrls above: the default is the CAREER_OPS_ROOT-anchored
+// Same seam as loadSeenUrls above: the default is the JOBYOUGO_ROOT-anchored
 // module constant; a caller with its own lane (or a fixture) passes the path.
 export async function appendToPipeline(offers, { pipelinePath = PIPELINE_PATH } = {}) {
   if (offers.length === 0) return;
@@ -2634,7 +2634,7 @@ export function appendScanRunSummary(c, filePath = SCAN_RUNS_PATH) {
 // sandboxed run was writing fixture rows into the live data/portal-health.tsv of
 // whatever checkout owned scan.mjs. That problem was real; the mechanism traded
 // one unanchored path for another, and left this file with two different rules
-// for where user data lives. Isolation now comes from CAREER_OPS_ROOT, which is
+// for where user data lives. Isolation now comes from JOBYOUGO_ROOT, which is
 // how the rest of the suite already sandboxes writes — see
 // tests/portal-health-path.test.mjs, which still asserts the checkout's own data
 // directory is never touched.
@@ -3677,7 +3677,7 @@ async function main() {
   // The run completed (or was a dry run) — disarm the failure row.
   registerRunFailureSnapshot(null);
 
-  console.log(`\n→ Run /career-ops pipeline to evaluate new offers.`);
+  console.log(`\n→ Run /jobyougo pipeline to evaluate new offers.`);
   console.log('→ Share results and get help: https://discord.gg/8pRpHETxa4');
 
   if (jsonMode) {
@@ -3686,7 +3686,7 @@ async function main() {
       + totalFilteredContent + totalFilteredCountryEligibility + totalFilteredBlacklist
       + totalFilteredVisa + totalFilteredCooldown;
     emitJsonReceipt({
-      version: 'careerops.scan.receipt@1',
+      version: 'jobyougo.scan.receipt@1',
       date,
       scanned: targets.length,
       skipped: skippedCount,
@@ -3711,8 +3711,8 @@ async function main() {
       || !!process.env.WT_SESSION || !!process.env.KITTY_WINDOW_ID
       || parseInt(process.env.VTE_VERSION || '0', 10) >= 5000;
     const link = osc8
-      ? '\x1b]8;;https://career-ops.org/manifesto?utm_source=cli\x1b\\career-ops.org/manifesto\x1b]8;;\x1b\\'
-      : 'career-ops.org/manifesto?utm_source=cli';
+      ? '\x1b]8;;https://jobyougo.org/manifesto?utm_source=cli\x1b\\jobyougo.org/manifesto\x1b]8;;\x1b\\'
+      : 'jobyougo.org/manifesto?utm_source=cli';
     console.log(`\nthe practice behind this tool has a name and a manifesto: ${link}`);
     try { writeFileSync('.manifesto-noted', new Date().toISOString() + '\n'); } catch { /* best-effort */ }
   }

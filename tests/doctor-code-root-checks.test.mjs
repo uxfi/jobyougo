@@ -1,10 +1,10 @@
 // tests/doctor-code-root-checks.test.mjs — checkDependencies() and
 // checkTrackedBakFiles() must read the CODE checkout, not the resolved data
-// root (career-ops#3867 finding 6).
+// root (jobyougo#3867 finding 6).
 //
 // node_modules and .git belong to wherever doctor.mjs itself lives. Under a
-// split checkout (CAREER_OPS_ROOT/CAREER_OPS_DATA_DIR, or the .career-ops-data
-// marker) getCareerOpsRoot() resolves to a separate data-only directory that
+// split checkout (JOBYOUGO_ROOT/JOBYOUGO_DATA_DIR, or the .jobyougo-data
+// marker) getJobYouGoRoot() resolves to a separate data-only directory that
 // never holds either — jday013/maxmilian's proof on #3867: an empty
 // node_modules/ created inside the data root flips "Dependencies not
 // installed" to "installed" even though the real code checkout's own
@@ -17,7 +17,7 @@
 // This does not use --target: that flag means "diagnose this whole other
 // checkout" (code layer included) and tests/doctor-tracked-bak-files.test.mjs
 // already pins that it keeps checking the targeted directory. Here the split
-// is the ambient one a real installation hits — CAREER_OPS_ROOT set, no
+// is the ambient one a real installation hits — JOBYOUGO_ROOT set, no
 // --target — so codeRoot must fall back to doctor.mjs's own directory.
 import { pass, fail, NODE, ROOT } from './helpers.mjs';
 import { execFileSync } from 'child_process';
@@ -39,7 +39,7 @@ function runDoctor(dataRoot, extraArgs = []) {
       cwd: ROOT,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, CAREER_OPS_ROOT: dataRoot },
+      env: { ...process.env, JOBYOUGO_ROOT: dataRoot },
     });
     return { out, code: 0 };
   } catch (e) {
@@ -67,7 +67,7 @@ try {
   //    checkTrackedBakFiles(codeRoot).
   const plain = runDoctor(dataRoot);
   if (plain.stderr) {
-    fail(`doctor crashed under a split CAREER_OPS_ROOT (plain mode): ${plain.stderr}`);
+    fail(`doctor crashed under a split JOBYOUGO_ROOT (plain mode): ${plain.stderr}`);
   } else {
     if (!/Dependencies not installed/.test(plain.out)) {
       pass("checkDependencies() reads the code checkout's own node_modules, not the split data root");
@@ -94,7 +94,7 @@ try {
       fail(`onboardingState()'s checkTrackedBakFiles() leaked the data root's tracked .bak file: ${JSON.stringify(state.warnings)}`);
     }
   } catch {
-    fail(`doctor --json did not produce parseable JSON under a split CAREER_OPS_ROOT: ${jsonRun.out}\n${jsonRun.stderr || ''}`);
+    fail(`doctor --json did not produce parseable JSON under a split JOBYOUGO_ROOT: ${jsonRun.out}\n${jsonRun.stderr || ''}`);
   }
 } finally {
   rmSync(dataRoot, { recursive: true, force: true });

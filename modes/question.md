@@ -63,9 +63,9 @@ If a question touches a topic in those files, cite the documented fact. NEVER sa
 - AI tools and levels → `cv.md` → **Skills** (AI & Technical)
 - Products / projects → `cv.md` Independent products + Professional Experience, and `_profile.md` Evidence order
 - Management / leadership → `article-digest.md` **Management, agents, and 1-to-100**, then `cv.md` Agence V0 and OneAsset (one PO)
-- Agents / AI flows → employer methods first (OneAsset Git/Cursor hand-off, GitHub). Do not use Jarvos, Creads, or Flemme as the reference. Figmol is OneAsset's internal tool, not a tool to name beside GitHub or Cursor.
+- Agents / AI flows → employer methods first (OneAsset Git/Cursor hand-off, GitHub). Do not use Jarvos, Creads, or Flemme as the reference. Figmol is the candidate's own internal review tool, not a tool to name beside GitHub or Cursor.
 - 1-to-100 / startup product → Agence V0, Vloggy, OneAsset (+ OTC). Creads.io is not the reference. Arlequin is help only: no dates or metrics.
-- Strategy / UX method / AI facilitation → `article-digest.md` **Strategy, UX method, AI facilitation, collaboration**. Prototypes in Cursor/Claude Code. GitHub flow. Figmol is OneAsset's internal review tool, not a tool in that list. Marcel Sprint Design / Lean UX. UpViral interviews.
+- Strategy / UX method / AI facilitation → `article-digest.md` **Strategy, UX method, AI facilitation, collaboration**. Prototypes in Cursor/Claude Code. GitHub flow. Figmol is the candidate's own internal review tool, not a tool in that list. Marcel Sprint Design / Lean UX. UpViral interviews.
 - Collaboration → OneAsset (PO + engineering PRs), UpViral (CPO + developers), LVMH (15+ maisons), Renault (workshops)
 - Compliance → OneAsset (VARA, KYB/KYC, reporting, OTC). Société Générale MIF2 is adjacent.
 - Engineering pairing → OneAsset (Cursor/Claude Code + GitHub) and UpViral (implementation with developers). Not every production backend line.
@@ -85,10 +85,10 @@ If a tool, project, or metric is asked about and you cannot find it, say so. Do 
 | **Motivation** | "Why us?", "Pourquoi ce rôle ?" | Report A (JD detail) + one proof from B / digest / cv |
 | **Experience / project** | "Describe a project", "Parlez d'une réalisation" | One employer or client. Prefer brand weight (LVMH, Renault, Société Générale) and tenure (multi-year over a 6-month role). Not a personal project. |
 | **Leadership / management** | "Have you managed people?", "How do you lead a team?" | Agence V0 (up to 7 designers, 2020–2024) then OneAsset with one PO. No engineering line-management claim |
-| **Agents / AI flow** | "Experience with agents?", "AI workflows", "LLMs" | Employer workflow only (OneAsset Cursor/Claude, GitHub). Figmol is internal to OneAsset, not part of this tool list. Personal tools are not the reference. |
+| **Agents / AI flow** | "Experience with agents?", "AI workflows", "LLMs" | Employer workflow only (OneAsset Cursor/Claude, GitHub). Figmol is the candidate's own internal tool, not part of this tool list. Personal tools are not the reference. |
 | **1-to-100 / startup** | "0-to-1", "scale a product", "startup experience" | Agence V0, Vloggy, OneAsset (+ OTC). Not Creads as the credential. Arlequin as product/design help only |
 | **Strategy / UX method** | "How do you work?", "product strategy", "UX process" | OneAsset strategy + UpViral interviews + Marcel Sprint Design / Lean UX. Users and journeys first |
-| **AI facilitation / new process** | "How do you use AI in design?", "prototyping", "GitHub" | Prototypes in Cursor and Claude Code. GitHub PRs with engineering. If the question is about OneAsset, Figmol is the internal review tool, not a peer of GitHub or Cursor. |
+| **AI facilitation / new process** | "How do you use AI in design?", "prototyping", "GitHub" | Prototypes in Cursor and Claude Code. GitHub PRs with engineering. If the question is about OneAsset, Figmol is the candidate's own internal review tool, not a peer of GitHub or Cursor. |
 | **Collaboration** | "How do you work with PMs / engineers / stakeholders?" | OneAsset PO + GitHub; UpViral CPO + developers; LVMH maisons; Renault workshops |
 | **Compliance** | "regulated", "KYC", "fintech compliance" | OneAsset first (VARA, KYB/KYC, reporting). Société Générale MIF2 adjacent |
 | **Business / data** | "business analysis", "data", "insights" | LVMH data marketing platform. Do not claim a BA/DA job title |
@@ -130,7 +130,7 @@ Then read `modes/_profile.md` → **Writing Style** and `modes/_custom.md` → *
 13. Banned unless they are a product name: delve, leverage, utilize, robust, seamless, cutting-edge, passionate, thrilled, unique blend, meaningful impact, game-changer.
 14. Yes / No / URL: the short value only. Do not dress them up.
 15. Factual (salary, notice, visa, remote): `profile.yml`, one sentence. No persuasive closing. Dates and numbers belong here, not in motivation/experience prose.
-16. AI / LLM tools: the reference is an employer workflow (OneAsset Cursor/Claude Code, GitHub), with concrete practices (API calls, prompt design, validation, structured JSON). Figmol is OneAsset's internal tool. Do not list it with Cursor, Claude, GitHub, or Figma. Do not cite a personal product as the credential. Do not dump buzzwords.
+16. AI / LLM tools: the reference is an employer workflow (OneAsset Cursor/Claude Code, GitHub), with concrete practices (API calls, prompt design, validation, structured JSON). Figmol is the candidate's own internal review tool. Do not list it with Cursor, Claude, GitHub, or Figma. Do not cite a personal product as the credential. Do not dump buzzwords.
 17. If the facts cannot answer honestly, leave the field empty. Do not pad.
 18. Optional form fields: skip unless the user asked to fill them anyway.
 19. Contractions are fine ("I've", "I'm") when they match Writing Style. Do not add slang or fake typos.

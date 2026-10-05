@@ -84,10 +84,10 @@ const MINIMAL_TRACKER =
     mkdirSync(join(codeRoot, 'config'), { recursive: true });
     writeFileSync(join(codeRoot, 'config', 'plugins.yml'), 'plugins:\n  apify: { enabled: true }\n');
 
-    // verify-pipeline.mjs resolves CAREER_OPS via getCareerOpsRoot() and, past
+    // verify-pipeline.mjs resolves JOBYOUGO via getJobYouGoRoot() and, past
     // the tracker, mkdir's/reads real-looking data/reports paths under it
-    // (line 54 `mkdirSync(join(CAREER_OPS, 'data'), ...)`). The spawn below
-    // inherits the full process.env, so a developer's own CAREER_OPS_ROOT
+    // (line 54 `mkdirSync(join(JOBYOUGO, 'data'), ...)`). The spawn below
+    // inherits the full process.env, so a developer's own JOBYOUGO_ROOT
     // would otherwise leak in and the check would touch their real checkout.
     const dataRoot = join(tmp, 'data-root');
     mkdirSync(dataRoot, { recursive: true });
@@ -108,17 +108,17 @@ const MINIMAL_TRACKER =
             cwd: codeRoot, encoding: 'utf8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'],
             env: {
               ...process.env,
-              CAREER_OPS_ROOT: dataRoot,
+              JOBYOUGO_ROOT: dataRoot,
               // Explicitly undefined (not omitted): a bare ...process.env
               // spread would otherwise leak the developer's own
-              // CAREER_OPS_REPORTS in unchanged, and verify-pipeline.mjs
-              // resolves it as an absolute-or-relative-to-CAREER_OPS override
+              // JOBYOUGO_REPORTS in unchanged, and verify-pipeline.mjs
+              // resolves it as an absolute-or-relative-to-JOBYOUGO override
               // that wins over dataRoot entirely (CodeRabbit, #4046). An
               // undefined value drops the key from the child's env, so
               // verify-pipeline.mjs falls back to its default, dataRoot/reports.
-              CAREER_OPS_REPORTS: undefined,
-              CAREER_OPS_PORTALS: portals,
-              CAREER_OPS_TRACKER: tracker,
+              JOBYOUGO_REPORTS: undefined,
+              JOBYOUGO_PORTALS: portals,
+              JOBYOUGO_TRACKER: tracker,
               APIFY_TOKEN: '',
             },
           }),

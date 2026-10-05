@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const trackerLockPrefix = "career-ops-merge-tracker-"
+const trackerLockPrefix = "jobyougo-merge-tracker-"
 
 type trackerLockOptions struct {
 	timeout time.Duration
@@ -49,19 +49,32 @@ const (
 	processAlive
 )
 
-func envMilliseconds(name string, fallback time.Duration) time.Duration {
-	value, err := strconv.Atoi(os.Getenv(name))
-	if err != nil || value <= 0 {
-		return fallback
+// FirstEnv returns the first non-empty environment variable. JobYouGo names
+// win; the previous CAREER_OPS_* names still work for an existing setup.
+func FirstEnv(names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+			return value
+		}
 	}
-	return time.Duration(value) * time.Millisecond
+	return ""
+}
+
+func envMilliseconds(primary, legacy string, fallback time.Duration) time.Duration {
+	for _, name := range []string{primary, legacy} {
+		value, err := strconv.Atoi(os.Getenv(name))
+		if err == nil && value > 0 {
+			return time.Duration(value) * time.Millisecond
+		}
+	}
+	return fallback
 }
 
 func defaultTrackerLockOptions() trackerLockOptions {
 	return trackerLockOptions{
-		timeout: envMilliseconds("CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS", 60*time.Second),
-		retry:   envMilliseconds("CAREER_OPS_TRACKER_LOCK_RETRY_MS", 75*time.Millisecond),
-		stale:   envMilliseconds("CAREER_OPS_TRACKER_LOCK_STALE_MS", 10*time.Minute),
+		timeout: envMilliseconds("JOBYOUGO_TRACKER_LOCK_TIMEOUT_MS", "CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS", 60*time.Second),
+		retry:   envMilliseconds("JOBYOUGO_TRACKER_LOCK_RETRY_MS", "CAREER_OPS_TRACKER_LOCK_RETRY_MS", 75*time.Millisecond),
+		stale:   envMilliseconds("JOBYOUGO_TRACKER_LOCK_STALE_MS", "CAREER_OPS_TRACKER_LOCK_STALE_MS", 10*time.Minute),
 	}
 }
 
@@ -98,7 +111,7 @@ func trackerLockDirFor(trackerPath string) (string, error) {
 	sum := sha256.Sum256([]byte(canonicalTracker))
 	fallback := filepath.Join(canonicalTemp, fmt.Sprintf("%s%x.lock", trackerLockPrefix, sum[:8]))
 
-	override := os.Getenv("CAREER_OPS_TRACKER_LOCK")
+	override := FirstEnv("JOBYOUGO_TRACKER_LOCK", "CAREER_OPS_TRACKER_LOCK")
 	if override == "" || !filepath.IsAbs(override) {
 		return fallback, nil
 	}

@@ -41,7 +41,7 @@ reusable tool that feeds the scanner.
   ```
 
 - `portals.yml` — dedupe target and write destination (user layer). Honors the
-  `CAREER_OPS_PORTALS` env override for scratch/testing.
+  `JOBYOUGO_PORTALS` env override for scratch/testing.
 
 ### Generating the input list from scan history
 

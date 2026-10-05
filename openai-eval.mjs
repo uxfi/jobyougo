@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * openai-eval.mjs — OpenAI-compatible Job Offer Evaluator for career-ops
+ * openai-eval.mjs — OpenAI-compatible Job Offer Evaluator for jobyougo
  *
  * Evaluate job offers with ANY OpenAI-compatible chat endpoint instead of Claude.
  * Works with OpenAI, OpenRouter, Requesty, Together, Groq, DeepSeek, Zhipu GLM, MiniMax,
@@ -30,7 +30,7 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { TSV_ADDITION_HEADER } from './tracker-parse.mjs';
 import { outputLanguageInstruction, parseOutputLanguage } from './profile-language.mjs';
@@ -53,7 +53,7 @@ try {
 } catch { /* dotenv optional */ }
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -64,11 +64,11 @@ const PATHS = {
   cv:        join(DATA_ROOT, 'cv.md'),
   profileYml: join(DATA_ROOT, 'config', 'profile.yml'),
   reports:    join(DATA_ROOT, 'reports'),
-  // CAREER_OPS_ADDITIONS mirrors merge-tracker.mjs:43. Writing under DATA_ROOT
+  // JOBYOUGO_ADDITIONS mirrors merge-tracker.mjs:43. Writing under DATA_ROOT
   // regardless would drop the addition somewhere the merge it instructs never
   // looks, so the evaluation would sit there unread.
-  trackerAdditions: process.env.CAREER_OPS_ADDITIONS
-    ? process.env.CAREER_OPS_ADDITIONS
+  trackerAdditions: process.env.JOBYOUGO_ADDITIONS
+    ? process.env.JOBYOUGO_ADDITIONS
     : join(DATA_ROOT, 'batch', 'tracker-additions'),
 };
 
@@ -80,7 +80,7 @@ const args = process.argv.slice(2);
 if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
   console.log(`
 ╔══════════════════════════════════════════════════════════════════╗
-║       career-ops — OpenAI-compatible Evaluator (any endpoint)     ║
+║       jobyougo — OpenAI-compatible Evaluator (any endpoint)     ║
 ╚══════════════════════════════════════════════════════════════════╝
 
   Evaluate a job offer with any OpenAI-compatible chat API instead of Claude.
@@ -276,7 +276,7 @@ if (budgetReport.compressed) {
   console.log(`📊  Token budget: ${budgetReport.totalTokens} tokens (within ${budgetReport.budget} limit)`);
 }
 
-const systemPrompt = `You are career-ops, an AI-powered job search assistant.
+const systemPrompt = `You are jobyougo, an AI-powered job search assistant.
 You evaluate job offers against the user's CV using a structured A-G scoring system.
 
 Your evaluation methodology is defined below. Follow it exactly.

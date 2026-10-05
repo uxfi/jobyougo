@@ -2,7 +2,7 @@
 //
 // `validateStatus` is not exported and importing merge-tracker.mjs runs the CLI
 // (top-level lock + merge), so this exercises the real merge path as a CLI
-// integration test via the CAREER_OPS_TRACKER / CAREER_OPS_ADDITIONS env
+// integration test via the JOBYOUGO_TRACKER / JOBYOUGO_ADDITIONS env
 // overrides the script already supports for test isolation.
 import { pass, fail, NODE, ROOT } from './helpers.mjs';
 import { join } from 'path';
@@ -65,7 +65,7 @@ function runMergeDetailed(additions, opts = {}) {
         // separator-row fixture below deliberately triggers a loud failure,
         // and its error text would otherwise land in the suite's own log.
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_ADDITIONS: addsDir },
+        env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_ADDITIONS: addsDir },
       });
     } catch (e) {
       output = String(e.stdout ?? '') + String(e.stderr ?? '');
@@ -724,7 +724,7 @@ try {
     // Normal run should trigger sync and flip the PDF flag
     const result = execFileSync(NODE, [join(ROOT, 'merge-tracker.mjs')], {
       encoding: 'utf-8',
-      env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_ADDITIONS: addsDir, CAREER_OPS_PDF_INDEX: pdfIndex },
+      env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_ADDITIONS: addsDir, JOBYOUGO_PDF_INDEX: pdfIndex },
     });
     
     const trackerContent = readFileSync(tracker, 'utf-8');
@@ -753,7 +753,7 @@ try {
     
     execFileSync(NODE, [join(ROOT, 'merge-tracker.mjs'), '--dry-run'], {
       encoding: 'utf-8',
-      env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_ADDITIONS: addsDir, CAREER_OPS_PDF_INDEX: pdfIndex },
+      env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_ADDITIONS: addsDir, JOBYOUGO_PDF_INDEX: pdfIndex },
     });
     
     const trackerContent = readFileSync(tracker, 'utf-8');

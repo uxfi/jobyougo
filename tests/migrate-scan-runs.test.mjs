@@ -211,7 +211,7 @@ console.log('\n🧪 Testing migrate-scan-runs (#4423)...');
 
 // ------------------------------------------- the write refuses a stale swap
 {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-msr-cas-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-msr-cas-'));
   try {
     const file = join(dir, 'scan-runs.tsv');
     const snapshot = [GEN14.join('\t'), rowFor(GEN14, 1)].join('\n') + '\n';
@@ -251,7 +251,7 @@ console.log('\n🧪 Testing migrate-scan-runs (#4423)...');
 
 // ---------------------------------------------------------------- CLI contract
 {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-msr-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-msr-'));
   try {
     const file = join(dir, 'scan-runs.tsv');
     const before = [GEN14.join('\t'), rowFor(GEN14, 1)].join('\n') + '\n';
@@ -295,7 +295,7 @@ console.log('\n🧪 Testing migrate-scan-runs (#4423)...');
 // No mkfifo and no timing race, so this runs the same on Windows CI.
 {
   const { acquirePipelineLock } = await load('pipeline-lock.mjs');
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-msr-lock-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-msr-lock-'));
   try {
     const file = join(dir, 'scan-runs.tsv');
     const snapshot = [GEN14.join('\t'), rowFor(GEN14, 1)].join('\n') + '\n';

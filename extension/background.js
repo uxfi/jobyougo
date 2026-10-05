@@ -5,15 +5,21 @@
 //   open-tab              → create tab, wait for load, return tabId + url
 //   detect-fields         → open URL + collect fields (legacy / one-shot)
 //   detect-fields-in-tab  → re-collect fields in an existing tab (no new tab)
-//   fill-fields           → write {i, value} into data-co-i markers
+//   fill-fields           → write {i, value} into data-co-i markers; an update
+//                           with readOptions only opens the list and returns
+//                           its option texts
+//   upload-file           → CV upload through chrome.debugger
 //   page-helper           → run a named in-page helper (page-helper-registry.mjs)
-//   probe-form            → APPLICATION_FORM_PROBE via page-helper (kept for old bridges)
-//   scrape-options        → open a dropdown and list its option texts
 //   click-progression     → mark + click Apply/Next/Guest controls
+//   click-submit          → click the send button, report ATS rejections
 //   navigate-tab          → chrome.tabs.update to a URL (ATS normalize)
 //   get-tab               → url / status of a tab
+//   list-window-tabs      → HTTP tabs of the focused window (lost-tab recovery)
 //   scroll-tab            → human-like scroll before looking for CTAs
 //   dismiss-cookies       → best-effort cookie banner click
+//
+// Any other message type is answered with ok:false at once, so the bridge
+// never waits out its timeout on a request this build does not know.
 //
 // File upload uses chrome.debugger DOM.setFileInputFiles (shows a brief
 // "debugging" banner). Submit is driven by the bridge when autoSubmit is on
@@ -58,7 +64,7 @@ function connect() {
       extension: 'jobyougo-apply-bridge-poc',
       version: chrome.runtime.getManifest().version,
       // Lets the bridge skip messages an older build would never answer.
-      capabilities: ['page-helper', 'scrape-options'],
+      capabilities: ['page-helper', 'read-options'],
     });
   });
   ws.addEventListener('close', scheduleReconnect);
@@ -143,27 +149,6 @@ async function onMessage(event) {
       return;
     }
 
-    // String evaluation cannot run in an MV3 isolated world (CSP forbids
-    // 'unsafe-eval'). Answer at once so an older bridge does not wait out its
-    // request timeout; page-helper replaced every caller.
-    if (msg.type === 'eval-in-tab') {
-      reply(rid, 'eval-result', true, { tabId: msg.tabId, result: null, unsupported: true });
-      return;
-    }
-
-    if (msg.type === 'scrape-options' && msg.tabId && msg.i != null) {
-      const options = await scrapeOptionsInTab(msg.tabId, msg.i, msg.frameId);
-      reply(rid, 'options-result', true, { tabId: msg.tabId, options });
-      return;
-    }
-
-    // An older bridge still sends probeSrc: ignored, the shipped probe runs.
-    if (msg.type === 'probe-form' && msg.tabId) {
-      const probe = await runPageHelper(msg.tabId, 'APPLICATION_FORM_PROBE');
-      reply(rid, 'probe-result', true, { tabId: msg.tabId, probe });
-      return;
-    }
-
     if (msg.type === 'click-progression' && msg.tabId && msg.reSrc && msg.avoidSrc) {
       const result = await clickProgressionInTab(
         msg.tabId,
@@ -194,31 +179,8 @@ async function onMessage(event) {
       return;
     }
 
-    if (msg.type === 'get-active-tab') {
-      const query = msg.windowId ? { active: true, windowId: msg.windowId } : { active: true, lastFocusedWindow: true };
-      const [tab] = await chrome.tabs.query(query);
-      if (!tab) {
-        reply(rid, 'tab-result', false, { error: 'no active tab' });
-        return;
-      }
-      reply(rid, 'tab-result', true, { tabId: tab.id, url: tab.url || '', status: tab.status, windowId: tab.windowId });
-      return;
-    }
-
     if (msg.type === 'list-window-tabs') {
-      const query = msg.windowId ? { windowId: msg.windowId } : { lastFocusedWindow: true };
-      const tabs = await chrome.tabs.query(query);
-      reply(rid, 'tabs-result', true, {
-        tabs: tabs
-          .filter((t) => /^https?:\/\//i.test(t.url || t.pendingUrl || ''))
-          .map((t) => ({
-            tabId: t.id,
-            url: t.url || t.pendingUrl || '',
-            title: t.title || '',
-            active: !!t.active,
-            openerTabId: t.openerTabId ?? null,
-          })),
-      });
+      reply(rid, 'tabs-result', true, { tabs: await listHttpTabs(msg.windowId) });
       return;
     }
 
@@ -237,26 +199,11 @@ async function onMessage(event) {
       reply(rid, 'click-result', true, { tabId: msg.tabId, clicked, text: clicked || null });
       return;
     }
+
+    // The bridge matches replies by requestId only; the type is informative.
+    reply(rid, `${msg.type || 'request'}-result`, false, { error: `unsupported message: ${msg.type}` });
   } catch (err) {
-    const type = `${(msg.type || 'request').replace(/-fields$/, '-fields')}-result`
-      .replace('open-tab', 'tab-result')
-      .replace('detect-fields-in-tab', 'fields-result')
-      .replace('detect-fields', 'fields-result')
-      .replace('fill-fields', 'fill-result')
-      .replace('upload-file', 'upload-result')
-      .replace('eval-in-tab', 'eval-result')
-      .replace('page-helper', 'helper-result')
-      .replace('scrape-options', 'options-result')
-      .replace('probe-form', 'probe-result')
-      .replace('click-progression', 'click-result')
-      .replace('click-submit', 'click-result')
-      .replace('navigate-tab', 'tab-result')
-      .replace('get-tab', 'tab-result')
-      .replace('get-active-tab', 'tab-result')
-      .replace('list-window-tabs', 'tabs-result')
-      .replace('scroll-tab', 'scroll-result')
-      .replace('dismiss-cookies', 'click-result');
-    reply(rid, type, false, { error: String(err?.message || err) });
+    reply(rid, `${msg.type || 'request'}-result`, false, { error: String(err?.message || err) });
   }
 }
 
@@ -359,66 +306,6 @@ async function runPageHelper(tabId, name, args = []) {
     args: Array.isArray(args) ? args : [],
   });
   return mergeFrameResults(spec, injected);
-}
-
-// Open the collected dropdown `i`, list its option texts, close it again.
-// A real function, not eval-in-tab: the isolated world's CSP forbids
-// new Function, so the string-eval scrape always came back empty. Async and
-// polled because React 18/19 commits the opened list after the click
-// handler returns. Returns null in frames that do not hold the field.
-async function scrapeOptionsInPage(i) {
-  const deep = (root, sel) => {
-    const out = [];
-    const walk = (n) => {
-      if (!n?.querySelectorAll) return;
-      try { out.push(...n.querySelectorAll(sel)); } catch { /* ignore */ }
-      for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
-    };
-    walk(root);
-    return out;
-  };
-  const el = deep(document, `[data-co-i="${i}"]`)[0];
-  if (!el) return null;
-  try { el.scrollIntoView({ block: 'center' }); } catch { /* ignore */ }
-  // A failed CDP pick leaves the list open; clicking a toggle trigger then
-  // would shut it and read nothing.
-  if (el.getAttribute('aria-expanded') !== 'true') {
-    el.click();
-    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-  }
-  el.focus();
-  const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [class*="select__option"], [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], .select2-results__option, [class*="-option" i], [role="listbox"] li';
-  const PLACEHOLDER = /^(select\b|choose\b|--|please\b|s[ée]lectionn|aucun|loading|searching|no options|no results|start typing|type to search)/i;
-  const read = (root) => deep(root, SEL)
-    .filter((n) => { const r = n.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
-    .map((n) => (n.innerText || n.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim())
-    .filter((t) => t && t.length < 160 && !PLACEHOLDER.test(t));
-  // Scope to the list the control owns when it names one, so another open
-  // widget's rows never leak in; fall back to the page as before.
-  const controls = (el.getAttribute('aria-controls') || '').trim();
-  let texts = [];
-  for (let k = 0; k < 12 && !texts.length; k++) {
-    if (k) await new Promise((r) => setTimeout(r, 100));
-    const box = controls ? document.getElementById(controls) : null;
-    texts = controls ? (box ? read(box) : []) : read(document);
-  }
-  if (!texts.length && controls) texts = read(document);
-  el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
-  return [...new Set(texts)].slice(0, 40).map((t, k) => ({ value: t, text: t, key: `${i}:${k}` }));
-}
-
-// data-co-i restarts at 0 in every frame: target the field's own frame
-// (fillFieldsInTab does the same), all frames only when it is unknown.
-async function scrapeOptionsInTab(tabId, i, frameId) {
-  const injected = await chrome.scripting.executeScript({
-    target: Number.isInteger(frameId) ? { tabId, frameIds: [frameId] } : { tabId, allFrames: true },
-    func: scrapeOptionsInPage,
-    args: [i],
-  });
-  for (const entry of injected || []) {
-    if (Array.isArray(entry.result)) return entry.result;
-  }
-  return [];
 }
 
 // Mirrors lib/form-detect.mjs MARK_PROGRESSION_CONTROLS, then clicks the first
@@ -1021,7 +908,21 @@ async function fillFieldsInPage(updates) {
         cands = near.length || !allowGlobal ? near : all;
       }
     }
-    return cands.filter((n) => !PLACEHOLDER_OPT.test(normText(n.innerText || n.getAttribute?.('aria-label') || n.getAttribute?.('title'))));
+    // Always-visible Yes/No toggles are not the open list of a Location
+    // typeahead. Keep Yes/No rows that live inside a real listbox.
+    const isForeignYesNo = (n) => {
+      const host = n.closest?.('.ashby-application-form-input-yesno, [class*="yesno" i], [class*="YesNo"]');
+      if (host) return !(fieldEl && host.contains(fieldEl));
+      if (n.closest?.('[role="listbox"], [role="menu"], .pac-container')) return false;
+      const role = (n.getAttribute?.('role') || '').toLowerCase();
+      if (role === 'option' || role === 'menuitem' || role === 'menuitemradio') return false;
+      const dataOpt = (n.getAttribute?.('data-option') || '').toLowerCase();
+      const text = normText(n.innerText || n.getAttribute?.('aria-label') || n.getAttribute?.('title'));
+      const binary = /^(yes|no|oui|non)$/i.test(text) || /^(yes|no|oui|non)$/.test(dataOpt);
+      if (!binary) return false;
+      return n.tagName === 'BUTTON' || role === 'radio' || role === 'checkbox' || n.hasAttribute?.('data-radix-collection-item');
+    };
+    return cands.filter((n) => !isForeignYesNo(n) && !PLACEHOLDER_OPT.test(normText(n.innerText || n.getAttribute?.('aria-label') || n.getAttribute?.('title'))));
   };
 
   const optionSnapshot = (fieldEl, allowGlobal) => {
@@ -1217,11 +1118,11 @@ async function fillFieldsInPage(updates) {
   // typed ("Available upon request" in a Yes/No dropdown was the bug), and a
   // query that commits nothing is cleared again.
   const selectComboboxOption = async (el, want, {
-    alternates = [], typeQuery = '', prefer = null, budgetMs = 9000, many = [],
+    alternates = [], typeQuery = '', prefer = null, rank = [], label = '', budgetMs = 9000, many = [],
   } = {}) => {
     const wants = [want, ...alternates].map(normText).filter((x, k, all) => x && all.indexOf(x) === k);
     const out = { picked: null, listOpened: false, clicked: '', options: [], typed: false };
-    if (!wants.length && !prefer) return out;
+    if (!wants.length && !prefer && !rank.length) return out;
     const deadline = Date.now() + budgetMs;
     // Yes/No is never typed ("No" filters down to "None").
     const binary = /^(yes|oui|y|true|no|non|n|false)$/i.test(wants[0] || '');
@@ -1231,7 +1132,23 @@ async function fillFieldsInPage(updates) {
         const hit = pickBestOption(nodes, q);
         if (hit) return hit;
       }
+      for (const re of rank) {
+        const hit = nodes.find((n) => re.test(labelOfNode(n)));
+        if (hit) return hit;
+      }
       return prefer ? nodes.find((n) => prefer.test(labelOfNode(n))) || null : null;
+    };
+    const yesNoOnly = (nodes) => {
+      const texts = nodes.map(labelOfNode).filter(Boolean);
+      if (texts.length < 2 || texts.length > 4) return false;
+      let yes = false;
+      let no = false;
+      for (const t of texts) {
+        if (/^(yes|oui)\b/i.test(t)) yes = true;
+        else if (/^(no|non)\b/i.test(t) && !/^non-?binary/i.test(t) && !/^none\b/i.test(t)) no = true;
+        else return false;
+      }
+      return yes && no;
     };
 
     // Checkbox-style rows (menuitemcheckbox) say themselves whether they are
@@ -1307,7 +1224,22 @@ async function fillFieldsInPage(updates) {
       return out;
     }
 
-    if (shown) {
+    // A Location control whose real list is Yes | No is not a city search.
+    // "Paris, France" matches nothing there and the field stays empty.
+    if (shown && yesNoOnly(shown.nodes) && !binary
+        && /\blocation\b|\bcity\b|\bville\b|\bbased in\b|\blocated\b/i.test(label)
+        && !/relocat|hear|sponsor|visa|travel/i.test(label)) {
+      const yesNode = shown.nodes.find((n) => /^(yes|oui)\b/i.test(labelOfNode(n)));
+      if (yesNode) {
+        const got = await clickAndCheck(yesNode);
+        if (got) {
+          out.picked = got;
+          return out;
+        }
+      }
+    }
+
+    if (shown && !(yesNoOnly(shown.nodes) && !binary)) {
       const hit = matchIn(shown.nodes);
       if (hit) {
         const got = await clickAndCheck(hit);
@@ -1428,6 +1360,10 @@ async function fillFieldsInPage(updates) {
     if (!u?.selectPrefer?.source) return null;
     try { return new RegExp(u.selectPrefer.source, u.selectPrefer.flags || 'i'); } catch { return null; }
   };
+  const rankRes = (u) => (Array.isArray(u?.selectRank) ? u.selectRank : []).flatMap((r) => {
+    if (!r?.source) return [];
+    try { return [new RegExp(r.source, r.flags || 'i')]; } catch { return []; }
+  });
 
   const resolvePreferWant = async (el, u) => {
     const re = preferRe(u);
@@ -1470,6 +1406,18 @@ async function fillFieldsInPage(updates) {
     const el = deepQuery(`[data-co-i="${i}"]`) || document.querySelector(`[data-co-i="${i}"]`);
     if (!el) {
       results.push({ i, frameId: u.frameId ?? 0, ok: false, reason: 'element not found (page re-rendered since detect?)' });
+      continue;
+    }
+    // Read-only: open the list the way a pick does and return its options,
+    // so the bridge can ask for an answer among the real texts.
+    if (u.readOptions) {
+      let options = [];
+      if (el.tagName === 'SELECT') {
+        options = [...el.options].map((o) => normText(o.text)).filter((t) => t && !PLACEHOLDER_OPT.test(t));
+      } else {
+        options = (await selectComboboxOption(el, '', { prefer: /(?!)/, budgetMs: 4000 })).options;
+      }
+      results.push({ i, frameId: u.frameId ?? 0, ok: false, readOnly: true, options: options.slice(0, 40) });
       continue;
     }
     // selectPrefer-only plans: resolve against live <select>/combobox options.
@@ -1524,21 +1472,27 @@ async function fillFieldsInPage(updates) {
           || type === 'radio'
           || role === 'radio';
         if (isChoiceWidget && pool.length >= 1) {
+          // A native radio's text lives in its <label> ("Yes"), its value is
+          // often "true" / "1" / a UUID — without the label "no" never matched.
           const labelOf = (o) => (
-            `${o.getAttribute?.('data-option') || ''} ${o.innerText || ''} ${o.getAttribute?.('aria-label') || ''} ${o.value || ''}`
+            `${o.labels?.[0]?.innerText || ''} ${o.getAttribute?.('data-option') || ''} ${o.innerText || ''} ${o.getAttribute?.('aria-label') || ''} ${o.value || ''}`
           ).replace(/\s+/g, ' ').trim().toLowerCase();
+          const textOf = (o) => normText(o.labels?.[0]?.innerText || o.innerText || o.getAttribute?.('aria-label')
+            || o.getAttribute?.('data-option') || o.value || '');
           const wantYes = /^(yes|oui|y|true|1)$/i.test(want);
           const wantNo = /^(no|non|n|false|0)$/i.test(want);
-          let hit = pool.find((o) => {
-            const t = labelOf(o);
-            return t === want || (want.length >= 2 && t.includes(want)) || (o.value || '').toLowerCase() === want;
-          });
+          let hit = pool.find((o) => textOf(o).toLowerCase() === want || (o.value || '').toLowerCase() === want);
           if (!hit && wantYes) {
             hit = pool.find((o) => /^(yes|oui)\b/i.test(labelOf(o)) || o.getAttribute?.('data-option') === 'yes');
           }
           if (!hit && wantNo) {
             hit = pool.find((o) => (/^(no|non)\b/i.test(labelOf(o)) && !/^non-?binary/i.test(labelOf(o)) && !/^none\b/i.test(labelOf(o)))
               || o.getAttribute?.('data-option') === 'no');
+          }
+          // Whole words only: "no" must not pick "Yes, I know".
+          if (!hit && want.length >= 2) {
+            const word = new RegExp(`(^|\\W)${want.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\W|$)`, 'i');
+            hit = pool.find((o) => word.test(labelOf(o)));
           }
           // Option key from update payload (survives re-render better than text alone).
           if (!hit && Array.isArray(u.options)) {
@@ -1548,40 +1502,83 @@ async function fillFieldsInPage(updates) {
             });
             if (opt?.key) hit = document.querySelector(`[data-co-opt="${opt.key}"]`) || deepQueryAll(document, `[data-co-opt="${opt.key}"]`)[0];
           }
-          if (hit) {
-            const pressed = hit.getAttribute?.('aria-pressed') === 'true'
-              || hit.getAttribute?.('aria-checked') === 'true'
-              || !!hit.checked;
-            if (!pressed) {
-              hit.click();
-              // Ashby toggle buttons need a real pointer sequence sometimes.
-              if (hit.getAttribute?.('aria-pressed') === 'false' || hit.getAttribute?.('aria-pressed') == null) {
-                try {
-                  hit.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, composed: true }));
-                  hit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
-                } catch { /* ignore */ }
-              }
+          // "How did you hear" often has no row named exactly "LinkedIn" /
+          // "Other". Ranked patterns pick a real source before we give up.
+          if (!hit) {
+            for (const re of rankRes(u)) {
+              hit = pool.find((o) => re.test(labelOf(o)) || re.test(textOf(o)));
+              if (hit) break;
             }
+          }
+          if (!hit) {
+            const prefer = preferRe(u);
+            if (prefer) hit = pool.find((o) => prefer.test(labelOf(o)) || prefer.test(textOf(o)));
+          }
+          if (hit) {
+            const on = (node) => node?.getAttribute?.('aria-pressed') === 'true'
+              || node?.getAttribute?.('aria-checked') === 'true'
+              || !!node?.checked;
+            const activate = (node) => {
+              if (!node || on(node)) return;
+              const forLabel = node.id ? document.querySelector(`label[for="${CSS.escape(node.id)}"]`) : null;
+              const wrap = node.closest?.('label');
+              const target = forLabel || wrap || node;
+              pointerClick(target);
+              if (target !== node) node.click?.();
+            };
+            if (!on(hit)) activate(hit);
+            let stuck = pool.some(on) || on(hit);
+            if (!stuck) {
+              await sleep(180);
+              stuck = pool.some(on) || on(hit);
+            }
+            // A click that did not stick used to be reported as filled. The
+            // next scan then said "choix requis" on a still-empty radio.
+            if (!stuck) {
+              results.push({
+                i,
+                frameId,
+                ok: false,
+                reason: `radio option not found for "${textOf(hit) || want}"`,
+                options: pool.map(textOf).filter(Boolean).slice(0, 40),
+              });
+              continue;
+            }
+            const chosen = pool.find(on) || hit;
             results.push({
               i,
               frameId,
               ok: true,
-              // The option's label, not its value ("3" on Teamtailor radios).
-              actualValue: (hit.labels?.[0]?.innerText || hit.innerText || hit.getAttribute?.('aria-label')
-                || hit.getAttribute?.('data-option') || hit.value || want).replace(/\s+/g, ' ').trim(),
+              actualValue: textOf(chosen) || want,
             });
             continue;
           }
           if (type === 'radio' || role === 'radio' || el.closest?.('.ashby-application-form-input-yesno')) {
-            results.push({ i, frameId, ok: false, reason: `radio option not found for "${want}"` });
+            results.push({
+              i,
+              frameId,
+              ok: false,
+              reason: `radio option not found for "${want}"`,
+              options: pool.map(textOf).filter(Boolean).slice(0, 40),
+            });
             continue;
           }
         }
         // Plain checkbox (not Ashby Yes/No)
         if (type === 'checkbox' || role === 'checkbox' || role === 'switch') {
-          const wantOn = /^(1|true|yes|oui|on|checked)$/i.test(String(value));
+          const val = String(value || '').trim();
+          const own = String(u.label || '').split(/[—–]/).pop().trim();
+          const same = own.length > 2 && val.length > 2 && own.toLowerCase() === val.toLowerCase();
+          const wantOn = /^(1|true|yes|oui|on|checked)$/i.test(val) || same;
           if (el.checked !== wantOn) el.click();
-          results.push({ i, frameId, ok: true, actualValue: el.checked ? 'checked' : 'unchecked' });
+          const on = !!el.checked;
+          results.push({
+            i,
+            frameId,
+            ok: wantOn ? on : true,
+            actualValue: on ? 'checked' : 'unchecked',
+            reason: wantOn && !on ? 'checkbox non cochée' : undefined,
+          });
           continue;
         }
         results.push({ i, frameId, ok: false, reason: `radio option not found for "${want}"` });
@@ -1597,9 +1594,22 @@ async function fillFieldsInPage(updates) {
         }
         const opts = [...el.options].map((o) => ({ value: o.value, text: o.text }));
         const prefer = preferRe(u);
-        const match = pickOption(opts, want)
+        const ranks = rankRes(u);
+        let match = pickOption(opts, want)
           || (Array.isArray(u.alternates) ? u.alternates.map((a) => pickOption(opts, a)).find(Boolean) : null)
+          || ranks.map((re) => opts.find((o) => re.test(o.text || ''))).find(Boolean)
           || (prefer ? opts.find((o) => prefer.test(o.text || '')) : null);
+        if (!match) {
+          const texts = opts.map((o) => normText(o.text)).filter((t) => t && !PLACEHOLDER_OPT.test(t));
+          const yesNo = texts.length >= 2 && texts.length <= 4
+            && texts.every((t) => /^(yes|oui|no|non)\b/i.test(t))
+            && texts.some((t) => /^(yes|oui)\b/i.test(t))
+            && texts.some((t) => /^(no|non)\b/i.test(t) && !/^non-?binary/i.test(t));
+          const lab = String(u.label || '');
+          if (yesNo && /\blocation\b|\bcity\b|\bville\b/i.test(lab) && !/relocat|hear|sponsor|visa|travel/i.test(lab)) {
+            match = opts.find((o) => /^(yes|oui)\b/i.test(o.text || ''));
+          }
+        }
         if (!match) {
           // Leave the select alone: assigning a value it does not offer only
           // blanks it (selectedIndex -1).
@@ -1650,6 +1660,8 @@ async function fillFieldsInPage(updates) {
           alternates: Array.isArray(u.alternates) ? u.alternates : [],
           typeQuery,
           prefer: preferRe(u),
+          rank: rankRes(u),
+          label: u.label || '',
           many: Array.isArray(u.selectMany) ? u.selectMany : [],
           budgetMs: 9000 + (Array.isArray(u.selectMany) ? u.selectMany.length * 1200 : 0),
         });

@@ -17,10 +17,10 @@ const DOCTOR = join(ROOT, 'doctor.mjs');
 function runDoctor(cwd, args, env) {
   const baseEnv = { ...process.env };
   // Hermetic env: in-process imports earlier in the suite load the repo .env
-  // (scan.mjs, …), which sets CAREER_OPS_CLI and would silently override the
+  // (scan.mjs, …), which sets JOBYOUGO_CLI and would silently override the
   // precedence scenarios below. Delete it so each scenario controls the CLI
   // explicitly (default → claude, or the --cli/env/.env value it supplies).
-  delete baseEnv.CAREER_OPS_CLI;
+  delete baseEnv.JOBYOUGO_CLI;
   try {
     const out = execFileSync(NODE, [DOCTOR, '--json', '--target', cwd, ...args], {
       cwd,
@@ -40,33 +40,33 @@ function expectOk(state, msg) {
 }
 
 try {
-  // 1. --cli flag beats process.env.CAREER_OPS_CLI. Pin precedence at the
+  // 1. --cli flag beats process.env.JOBYOUGO_CLI. Pin precedence at the
   //    flag/env boundary so a future reorder of resolveActiveCli fails loudly.
   {
     const dir = mkdtempSync(join(tmpdir(), 'co-resolve-1-'));
     try {
-      const state = runDoctor(dir, ['--cli', 'opencode'], { CAREER_OPS_CLI: 'claude' });
+      const state = runDoctor(dir, ['--cli', 'opencode'], { JOBYOUGO_CLI: 'claude' });
       if (expectOk(state, '#1 flag beats env')
           && state.active_cli === 'opencode'
           && state.cli_source === 'flag') {
-        pass('--cli flag beats CAREER_OPS_CLI env (active_cli=opencode, cli_source=flag)');
+        pass('--cli flag beats JOBYOUGO_CLI env (active_cli=opencode, cli_source=flag)');
       } else {
         fail(`#1 unexpected state: ${JSON.stringify(state)}`);
       }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 
-  // 2. process.env.CAREER_OPS_CLI beats CAREER_OPS_CLI in .env. Pin
+  // 2. process.env.JOBYOUGO_CLI beats JOBYOUGO_CLI in .env. Pin
   //    precedence at the env/.env boundary.
   {
     const dir = mkdtempSync(join(tmpdir(), 'co-resolve-2-'));
     try {
-      writeFileSync(join(dir, '.env'), 'CAREER_OPS_CLI=claude\n');
-      const state = runDoctor(dir, [], { CAREER_OPS_CLI: 'opencode' });
+      writeFileSync(join(dir, '.env'), 'JOBYOUGO_CLI=claude\n');
+      const state = runDoctor(dir, [], { JOBYOUGO_CLI: 'opencode' });
       if (expectOk(state, '#2 env beats .env')
           && state.active_cli === 'opencode'
           && state.cli_source === 'env') {
-        pass('process.env CAREER_OPS_CLI beats .env file (active_cli=opencode, cli_source=env)');
+        pass('process.env JOBYOUGO_CLI beats .env file (active_cli=opencode, cli_source=env)');
       } else {
         fail(`#2 unexpected state: ${JSON.stringify(state)}`);
       }

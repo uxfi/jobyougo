@@ -99,20 +99,20 @@ import {
   rebuildRow, resolveTrackerPath, writeFileAtomic, loadCanonicalStates, resolveCanonicalState,
   normalizeCompany, cell, CLI_EXIT, makeCliFailWith, acquireTrackerLockForCli,
 } from './tracker-utils.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 // Two roots. CODE_ROOT holds templates/states.yml, which ships with the code;
-// DATA_ROOT is the user's, and getCareerOpsRoot() is the only thing that honours
-// CAREER_OPS_ROOT / CAREER_OPS_DATA_DIR / the .career-ops-data marker.
+// DATA_ROOT is the user's, and getJobYouGoRoot() is the only thing that honours
+// JOBYOUGO_ROOT / JOBYOUGO_DATA_DIR / the .jobyougo-data marker.
 //
-// One constant named CAREER_OPS did both, so resolveTrackerPath() looked inside
+// One constant named JOBYOUGO did both, so resolveTrackerPath() looked inside
 // the checkout. AGENTS.md calls this script "the canonical (locked, validated,
 // atomic) write path" and #2901 converged the web layer's /api/status onto it —
 // so on any configured data root the one supported way to change a status
 // answered "No tracker found at <CHECKOUT>/applications.md", naming a file the
 // user never configured. Same defect #3715 fixed in the analysis scripts.
 const CODE_ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const STATES_FILE = join(CODE_ROOT, 'templates/states.yml');
 
 // LOCK_TIMEOUT is not destructured here — that exit path is raised inside
@@ -615,7 +615,7 @@ if (changed && !flags.dryRun) {
 // Observation trail only: the tracker stays the source of truth for STATE,
 // the ledger records WHEN transitions happened. A failed append is a warning,
 // never a failure — the status write above already succeeded. Sibling of the
-// tracker file so CAREER_OPS_TRACKER redirects (tests, custom layouts) keep
+// tracker file so JOBYOUGO_TRACKER redirects (tests, custom layouts) keep
 // the ledger next to the tracker it describes. Inside the lock window, so
 // concurrent writers can't interleave lines.
 let statusLogged = false;
@@ -665,7 +665,7 @@ if (statusChanged && newStatus === 'Applied') {
     const { seedFollowup } = await import('./followup-seed.mjs');
     // followupsPath is derived from the tracker's own directory, not left to
     // followup-seed's default. Its default is the REPO's data/follow-ups.md,
-    // so with CAREER_OPS_TRACKER pointing elsewhere — tests, and any install
+    // so with JOBYOUGO_TRACKER pointing elsewhere — tests, and any install
     // whose data lives outside the checkout — the status would be written to
     // one tracker and the follow-up seeded next to a different one. The
     // status-log append above derives its path the same way.

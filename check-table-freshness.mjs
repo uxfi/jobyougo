@@ -57,11 +57,11 @@ import * as yaml from 'js-yaml';
 import { flagValue, validateFlags } from './lib/cli-flags.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
-const TEMPLATES_DIR = join(CAREER_OPS, 'templates');
+const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
+const TEMPLATES_DIR = join(JOBYOUGO, 'templates');
 const DEFAULT_MAX_AGE_MONTHS = 12;
 
 // --- CLI args ---
@@ -317,7 +317,7 @@ function loadConfigMaxAge() {
 function printSummary(result, todayStr, maxAgeMonths) {
   const { tablesScanned, rowsChecked, findings, warnings } = result;
   console.log(`\n${'='.repeat(78)}`);
-  console.log('  Table Freshness — career-ops');
+  console.log('  Table Freshness — jobyougo');
   console.log(`  today: ${todayStr} | review threshold: ${maxAgeMonths} months | tables: ${tablesScanned} | rows: ${rowsChecked}`);
   console.log(`${'='.repeat(78)}\n`);
 

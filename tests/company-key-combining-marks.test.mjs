@@ -15,7 +15,7 @@
 // differently from itself, so its rounds never join and the latency signal is
 // never computed for it.
 //
-// career-ops ships modes/hi and modes/ar as supported markets.
+// jobyougo ships modes/hi and modes/ar as supported markets.
 //
 // Run:  node --test tests/company-key-combining-marks.test.mjs
 

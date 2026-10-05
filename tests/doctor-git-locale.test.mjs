@@ -37,7 +37,7 @@ require('node:module').syncBuiltinESMExports();
 `);
   const result = spawnSync(process.execPath, ['--require', preload, doctor, '--json', '--target', dir], {
     cwd: dir, encoding: 'utf8', timeout: 30_000,
-    env: { ...process.env, LC_ALL: 'zh_CN.UTF-8', LANGUAGE: 'zh_CN', CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+    env: { ...process.env, LC_ALL: 'zh_CN.UTF-8', LANGUAGE: 'zh_CN', JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
   });
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr);

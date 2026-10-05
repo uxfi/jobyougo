@@ -1,13 +1,39 @@
 # Titles the shared title gate must accept or reject.
 # Used by `node lib/scan-decision.mjs --dry-run` and tests/scan-decision.test.mjs.
+# AI is a qualifier, not a role family: an AI title passes only through a
+# product/design keyword, and a design title passes with or without AI.
 accepted:
   - AI Agent Product Manager
   - Conversational Agent Designer
-  - Principal AI & Agent Systems Engineer
   - Senior Product Manager, AI and Endpoint
   - UX Researcher
-  - Forward Deployed Engineer
+  - AI Product Designer
+  - Senior Product Designer
+  - Lead Product Designer, Payments
+  - Interaction Designer
+  - User Experience Designer
+  - AI Experience Designer, France - BCG X
+  - Design Manager
+  - Founding Designer
+  - Senior Product Builder - Consumer AI
+  - Head of AI
+  - UX Design Consultant
+  - Consultant Confirmé Ux H/F
+  - Freelance Product Designer
+  - Staff Product Designer – Dropbox – Permanent contract – Fully-remote
 rejected:
+  - Principal AI & Agent Systems Engineer
+  - Forward Deployed Engineer
+  - Software Engineer, Agent
+  - QA Automation Engineer
+  - Strategic Solutions Engineer, East
+  - Senior Product Engineer (TS/NodeJS/Vue)
+  # Contract type is a qualifier too: no design/product word, no pass.
+  - Forward Deployed Engineer (Agentic Workflows) – Cohere – Permanent contract – Fully-remote
+  - Associate (AI) Solution Consultant (Benelux) - Orbit Program
+  - Commercial Legal Counsel (3-Month Contract)
+  - Trade-In Frontliner (Part-time/Freelance)
+  - Freelance Writer
   - L1 Hosting Tech Support Agent
   - Helpdesk Support Agent 6-Month Fixed-Term Contract
   - Luxury Goods Consultant - Fully Remote

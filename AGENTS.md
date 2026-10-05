@@ -2,7 +2,7 @@
 
 ## Origin
 
-JobYouGo is Hugo Vermot's job-search command center (https://jobyougo.xyz): scan the career pages you care about, score every offer against the CV out of 5, tailor the application, and let the user hit Submit. Portions of the pipeline engine are MIT-licensed from JobYouGo (see `LICENSE`); JobYouGo is maintained here independently.
+JobYouGo is Hugo Vermot's job-search command center (https://jobyougo.xyz): scan the career pages you care about, score every offer against the CV out of 5, tailor the application, and let the user hit Submit. Portions of the pipeline engine are MIT-licensed (see `LICENSE`); JobYouGo is maintained here independently.
 
 **It works out of the box, but it's designed to be made yours.** You (AI Agent) can edit the user's files: they say "change the archetypes to data engineering roles" and you do it. That's the whole point.
 
@@ -17,14 +17,14 @@ Two layers — full list in `DATA_CONTRACT.md`:
 
 **Path Resolution Override & Precedence:**
 The User Layer location (Data Root) is resolved dynamically using the following precedence order:
-1. **Environment Variables:** `CAREER_OPS_ROOT` or `CAREER_OPS_DATA_DIR` overrides the root path (resolved relative to the repository root if it is a relative path).
-2. **Marker File:** If no environment variable is set, a `.career-ops-data` file in the repository root containing an absolute or relative path to the user data directory is used.
+1. **Environment Variables:** `JOBYOUGO_ROOT` or `JOBYOUGO_DATA_DIR` overrides the root path (resolved relative to the repository root if it is a relative path).
+2. **Marker File:** If no environment variable is set, a `.jobyougo-data` file in the repository root containing an absolute or relative path to the user data directory is used.
 3. **Repository Default:** If neither is present, the repository root directory itself is used.
 
 **Tracker Path & Canonical Writes:**
-- **Explicit override:** `CAREER_OPS_TRACKER` environment variable overrides the applications tracker file path. Relative paths are resolved relative to the repository root directory.
+- **Explicit override:** `JOBYOUGO_TRACKER` environment variable overrides the applications tracker file path. Relative paths are resolved relative to the repository root directory.
 - **Reading:** If no override is set, reading resolves to `{DATA_ROOT}/data/applications.md` if it exists; otherwise falls back to `{DATA_ROOT}/applications.md`.
-- **Writing:** All write operations (first-run creation or merge operations) target the canonical location `{DATA_ROOT}/data/applications.md` (or the explicit `CAREER_OPS_TRACKER` override).
+- **Writing:** All write operations (first-run creation or merge operations) target the canonical location `{DATA_ROOT}/data/applications.md` (or the explicit `JOBYOUGO_TRACKER` override).
 
 ## Source-of-Truth Boundary (CRITICAL)
 

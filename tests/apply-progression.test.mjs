@@ -113,6 +113,14 @@ test('APPLY_TEXT_RE still matches Apply CTAs', () => {
   assert.equal(APPLY_TEXT_RE.test('Postuler'), true);
 });
 
+test('APPLY_TEXT_RE never matches a final send label', () => {
+  // Clicked on a filled form whose Apply entry is still visible: a send
+  // label there would submit without the auto-submit check.
+  assert.equal(APPLY_TEXT_RE.test('Submit application'), false);
+  assert.equal(APPLY_TEXT_RE.test('Soumettre'), false);
+  assert.equal(SUBMIT_TEXT_RE.test('Submit application'), true);
+});
+
 test('isBlockingApplyPending catches CV / required / combobox misses', () => {
   assert.equal(isBlockingApplyPending('CV manquant'), true);
   assert.equal(isBlockingApplyPending('fichier requis manquant'), true);

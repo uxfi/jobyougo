@@ -1,7 +1,7 @@
 // tests/template-packs.test.mjs — a template pack is discoverable, resolvable,
 // and can never be ambiguous (#3202).
 //
-// career-ops ships seven CV templates that all lay out with flex or grid,
+// jobyougo ships seven CV templates that all lay out with flex or grid,
 // because they exist to look right as a PDF a human reads. An ATS parser walks
 // the DOM instead: hand Workday a two-column flex row holding a job title on
 // the left and a date range on the right and the autofill comes back with the
@@ -169,7 +169,7 @@ function throws(label, fn, ...patterns) {
 }
 
 {
-  // A pack kept outside the repo and linked in is a supported setup: career-ops
+  // A pack kept outside the repo and linked in is a supported setup: jobyougo
   // sanctions a symlinked user layer (#524), and refusing the link would drop
   // the template from the registry silently. Skipping buys no protection
   // either — whoever can create the link can create a real directory instead.

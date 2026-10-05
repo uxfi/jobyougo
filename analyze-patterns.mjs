@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * analyze-patterns.mjs — Rejection Pattern Detector for career-ops
+ * analyze-patterns.mjs — Rejection Pattern Detector for jobyougo
  *
  * Parses applications.md + all linked reports, extracts dimensions
  * (archetype, seniority, remote, gaps, scores), classifies outcomes,
@@ -19,14 +19,14 @@ import { fileURLToPath } from 'url';
 import { isMainModule } from './lib/is-main-module.mjs';
 import { load as yamlLoad } from 'js-yaml';
 import { resolveColumns, parseTrackerRow, normalizeVia } from './tracker-parse.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { flagValue, hasFlag, validateFlags } from './lib/cli-flags.mjs';
 
-const CAREER_OPS = getCareerOpsRoot();
-const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
-  ? join(CAREER_OPS, 'data/applications.md')
-  : join(CAREER_OPS, 'applications.md');
-const REPORTS_DIR = join(CAREER_OPS, 'reports');
+const JOBYOUGO = getJobYouGoRoot();
+const APPS_FILE = existsSync(join(JOBYOUGO, 'data/applications.md'))
+  ? join(JOBYOUGO, 'data/applications.md')
+  : join(JOBYOUGO, 'applications.md');
+const REPORTS_DIR = join(JOBYOUGO, 'reports');
 
 const MACHINE_SUMMARY_FIELDS = new Set([
   'company',
@@ -761,11 +761,11 @@ requirement_importance:
   // traversal link escapes root and must be rejected before parseReport. join()
   // collapses '..' at the call site, so the candidate is already absolute here.
   {
-    const legit = join(CAREER_OPS, 'reports', '042-acme-2026-01-01.md');
+    const legit = join(JOBYOUGO, 'reports', '042-acme-2026-01-01.md');
     if (!withinReports(legit)) failures.push('containment: legit reports/ path wrongly rejected');
-    const escape = join(CAREER_OPS, 'reports/../../../etc/passwd');
+    const escape = join(JOBYOUGO, 'reports/../../../etc/passwd');
     if (withinReports(escape)) failures.push('containment: traversal path escaped reports/ (path-traversal guard broken)');
-    const sibling = join(CAREER_OPS, 'reports-evil', 'x.md');
+    const sibling = join(JOBYOUGO, 'reports-evil', 'x.md');
     if (withinReports(sibling)) failures.push('containment: reports-prefixed sibling dir wrongly accepted');
   }
 
@@ -775,7 +775,7 @@ requirement_importance:
   // reports/ still passes and a missing candidate degrades gracefully (the
   // downstream read returns null) rather than throwing.
   {
-    const reportsDir = join(CAREER_OPS, 'reports');
+    const reportsDir = join(JOBYOUGO, 'reports');
     if (existsSync(reportsDir)) {
       const tag = `__co2655-${process.pid}-${Date.now()}`;
       const realReport = join(reportsDir, `${tag}-real.md`);
@@ -852,11 +852,11 @@ function parseTracker() {
 // errors rethrow, matching readTextIfExists. Identical to the guard in
 // upskill.mjs so both sites behave the same.
 function withinReports(candidate) {
-  const repoRelative = relative(CAREER_OPS, candidate).split(sep).join('/');
+  const repoRelative = relative(JOBYOUGO, candidate).split(sep).join('/');
   if (!repoRelative.startsWith('reports/') || repoRelative.includes('..')) return false;
   let realRoot;
   try {
-    realRoot = realpathSync(join(CAREER_OPS, 'reports'));
+    realRoot = realpathSync(join(JOBYOUGO, 'reports'));
   } catch (err) {
     if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return false;
     throw err;
@@ -1302,7 +1302,7 @@ function analyze() {
     if (reportMatch) {
       const candidates = new Set([
         join(dirname(APPS_FILE), reportMatch[1]),
-        join(CAREER_OPS, reportMatch[1]),
+        join(JOBYOUGO, reportMatch[1]),
       ]);
       for (const candidate of candidates) {
         if (!withinReports(candidate)) continue;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * verify-pipeline.mjs — Health check for career-ops pipeline integrity
+ * verify-pipeline.mjs — Health check for jobyougo pipeline integrity
  *
  * Checks:
  * 1. All statuses are canonical (per states.yml)
@@ -20,13 +20,13 @@
  * 15. portals.yml entries no provider claims (see #3251)
  * 16. No invisible control characters in tracker cells (error — see #3892)
  *
- * Run: node career-ops/verify-pipeline.mjs
+ * Run: node jobyougo/verify-pipeline.mjs
  */
 
 import { readFileSync, readdirSync, existsSync, mkdirSync, unlinkSync, statSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 import {
   looksLikeScoreCell, isSeparatorRow, isHeaderRow, resolveColumns,
   normalizeTextKey, normalizeVia,
@@ -37,22 +37,22 @@ import { normalizeStatus } from './followup-cadence.mjs';
 import { checkFollowupsSchema } from './stats.mjs';
 
 const CODE_ROOT = dirname(fileURLToPath(import.meta.url));
-const CAREER_OPS = getCareerOpsRoot();
+const JOBYOUGO = getJobYouGoRoot();
 // Support both layouts: data/applications.md (boilerplate) and applications.md (original).
-// CAREER_OPS_TRACKER overrides the path (used by tests and non-standard layouts).
-const APPS_FILE = resolveTrackerPath(CAREER_OPS);
+// JOBYOUGO_TRACKER overrides the path (used by tests and non-standard layouts).
+const APPS_FILE = resolveTrackerPath(JOBYOUGO);
 
-const ADDITIONS_DIR = join(CAREER_OPS, 'batch/tracker-additions');
-// CAREER_OPS_REPORTS overrides the reports dir (used by tests, mirrors CAREER_OPS_TRACKER).
-const REPORTS_DIR = process.env.CAREER_OPS_REPORTS
-  ? resolve(CAREER_OPS, process.env.CAREER_OPS_REPORTS)
-  : join(CAREER_OPS, 'reports');
+const ADDITIONS_DIR = join(JOBYOUGO, 'batch/tracker-additions');
+// JOBYOUGO_REPORTS overrides the reports dir (used by tests, mirrors JOBYOUGO_TRACKER).
+const REPORTS_DIR = process.env.JOBYOUGO_REPORTS
+  ? resolve(JOBYOUGO, process.env.JOBYOUGO_REPORTS)
+  : join(JOBYOUGO, 'reports');
 const STATES_FILE = existsSync(join(CODE_ROOT, 'templates/states.yml'))
   ? join(CODE_ROOT, 'templates/states.yml')
   : join(CODE_ROOT, 'states.yml');
 
 // Ensure required directories exist (fresh setup)
-mkdirSync(join(CAREER_OPS, 'data'), { recursive: true });
+mkdirSync(join(JOBYOUGO, 'data'), { recursive: true });
 mkdirSync(REPORTS_DIR, { recursive: true });
 
 const CANONICAL_STATUSES = [
@@ -182,7 +182,7 @@ for (const e of entries) {
   const match = e.report.match(/\]\(([^)]+)\)/);
   if (!match) continue;
   const link = match[1];
-  if (!existsSync(join(TRACKER_DIR, link)) && !existsSync(join(CAREER_OPS, link))) {
+  if (!existsSync(join(TRACKER_DIR, link)) && !existsSync(join(JOBYOUGO, link))) {
     error(`#${e.num}: Report not found: ${link}`);
     brokenReports++;
   }
@@ -508,10 +508,10 @@ if (syncResult) {
 // their follow-ups are working, so a silent zero is actively misleading. This is
 // the only place that difference is visible.
 //
-// Path resolution deliberately matches the two consumers (CAREER_OPS/data/...)
+// Path resolution deliberately matches the two consumers (JOBYOUGO/data/...)
 // rather than APPS_FILE's directory: the check exists to predict what they will
 // do, so it has to read the same file they read.
-const FOLLOWUPS_FILE = join(CAREER_OPS, 'data', 'follow-ups.md');
+const FOLLOWUPS_FILE = join(JOBYOUGO, 'data', 'follow-ups.md');
 const FOLLOWUPS_COLUMNS = '| num | appNum | date | company | role | channel | contact | notes |';
 if (!existsSync(FOLLOWUPS_FILE)) {
   ok('No follow-ups.md yet — nothing to schema-check');
@@ -545,7 +545,7 @@ if (!existsSync(FOLLOWUPS_FILE)) {
 // jobs?) needs 170 fetches and stays a separate command: `node audit-portals.mjs`.
 //
 // portals.yml is user-layer and gitignored, so its absence is not a finding.
-const PORTALS_FILE = process.env.CAREER_OPS_PORTALS || join(CAREER_OPS, 'portals.yml');
+const PORTALS_FILE = process.env.JOBYOUGO_PORTALS || join(JOBYOUGO, 'portals.yml');
 if (!existsSync(PORTALS_FILE)) {
   ok('No portals.yml yet — nothing to coverage-check');
 } else {

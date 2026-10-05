@@ -36,7 +36,7 @@ import {
   resolveTrackerPath,
   resolveWorkspaceRoot,
 } from './tracker-utils.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { resolveOutcomeDir } from './lib/outcome-dir.mjs';
 import { parsePdfIndex } from './find.mjs';
@@ -44,12 +44,12 @@ import { findCaptureForReport } from './jd-capture.mjs';
 
 // Two roots. CODE_ROOT locates the sibling scripts this file shells out to and
 // is the cwd it runs them from; DATA_ROOT is where the user's tracker and
-// outcome journals live. One constant named CAREER_OPS did both, so
+// outcome journals live. One constant named JOBYOUGO did both, so
 // resolveTrackerPath() looked inside the checkout and `outcome.mjs 1 rejected`
 // answered "Tracker not found at <CHECKOUT>/applications.md" — a path the user
 // never configured.
 const CODE_ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const NODE = process.execPath;
 const SET_STATUS_SCRIPT = join(CODE_ROOT, 'set-status.mjs');
 const ARCHIVE_POSTING_SCRIPT = join(CODE_ROOT, 'archive-posting.mjs');

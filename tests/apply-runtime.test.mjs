@@ -40,8 +40,8 @@ test('isTargetClosedError matches Playwright closed-target messages', () => {
 });
 
 test('basenamePath handles Windows and POSIX CV paths', () => {
-  assert.equal(basenamePath('C:\\Users\\PC\\Desktop\\jobyougo-main\\career-ops\\output\\Hugo_Vermot_CV_Complete_Paris.pdf'), 'Hugo_Vermot_CV_Complete_Paris.pdf');
-  assert.equal(basenamePath('/tmp/career-ops/output/cv.pdf'), 'cv.pdf');
+  assert.equal(basenamePath('C:\\Users\\PC\\Desktop\\jobyougo-main\\jobyougo\\output\\Hugo_Vermot_CV_Complete_Paris.pdf'), 'Hugo_Vermot_CV_Complete_Paris.pdf');
+  assert.equal(basenamePath('/tmp/jobyougo/output/cv.pdf'), 'cv.pdf');
 });
 
 test('postApplyMessage mentions email when the ATS asks to verify it', () => {

@@ -22,7 +22,7 @@
 | Agence V0 team | up to 7 junior freelance designers managed | 2020–2024, founder / Head of Product Design |
 | Agence V0 delivery | 20+ client projects | |
 | GALIAN | +40% SaaS efficiency | via Agence V0 |
-| Shiseido | +16% loyalty enrollment (Q1 post-launch) | Feb–Jun 2024 |
+| Shiseido | +20% loyalty enrollment (Q1 post-launch) | Feb–Jun 2024 |
 | Société Générale | +12% investment activity | MIF2 regulated flows, Feb 2023–Oct 2024 |
 | BMW | +12% user engagement | 2021–2022 |
 | Renault | −20% dev time via design system · 23,900+ vehicle listings (Renew, Europe) | 2020–2021 |

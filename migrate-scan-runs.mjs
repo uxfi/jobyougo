@@ -42,7 +42,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { SCAN_RUNS_HEADER, atomicWriteFile } from './scan.mjs';
 import { withPipelineLock } from './pipeline-lock.mjs';
 
@@ -178,13 +178,13 @@ if (isMainModule(import.meta.url)) {
   const apply = argv.includes('--apply');
   const asJson = argv.includes('--json');
   const fileArg = argv.indexOf('--file');
-  // getCareerOpsRoot, not CAREER_OPS_ROOT directly: the data root also honours
-  // CAREER_OPS_DATA_DIR and a .career-ops-data marker file, and falls back to
+  // getJobYouGoRoot, not JOBYOUGO_ROOT directly: the data root also honours
+  // JOBYOUGO_DATA_DIR and a .jobyougo-data marker file, and falls back to
   // the REPO root rather than the cwd. Resolving it by hand here would miss the
   // marker and would target the wrong file when run from a subdirectory.
   const target = fileArg !== -1 && argv[fileArg + 1]
     ? path.resolve(argv[fileArg + 1])
-    : path.join(getCareerOpsRoot(), 'data/scan-runs.tsv');
+    : path.join(getJobYouGoRoot(), 'data/scan-runs.tsv');
 
   if (!existsSync(target)) {
     console.error(`No scan-runs file at ${target} — nothing to migrate.`);

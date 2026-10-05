@@ -58,7 +58,7 @@ function mergeOne(shape, num) {
     try {
       out = execFileSync(NODE, [join(ROOT, 'merge-tracker.mjs')], {
         encoding: 'utf-8', timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_ADDITIONS: adds },
+        env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_ADDITIONS: adds },
       });
     } catch (e) { out = String(e.stdout ?? '') + String(e.stderr ?? ''); }
     const row = readFileSync(tracker, 'utf-8').split('\n').find((l) => /^\|\s*\d/.test(l));

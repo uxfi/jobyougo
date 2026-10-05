@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * career-ops OpenRouter Runner
+ * jobyougo OpenRouter Runner
  * No Claude Code CLI required — uses OpenRouter free models with automatic fallback.
  *
  * Usage:
@@ -34,7 +34,7 @@ import { DEFAULT_USER_AGENT } from './user-agent.mjs';
 import { buildTitleFilter } from './title-keywords.mjs';
 import { appendToPipeline, appendToScanHistory } from './scan.mjs';
 import { localToday } from './lib/local-today.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -47,7 +47,7 @@ let activeModel = null;
 // Lazy: only runs when this file is the CLI entry point (`node
 // openrouter-runner.mjs ...`). Importing the module (e.g. for buildSystemPrompt
 // in test-all.mjs) must NOT mutate process.env — a module-level loader here
-// leaked every .env key (including CAREER_OPS_CLI) into the importing process
+// leaked every .env key (including JOBYOUGO_CLI) into the importing process
 // and broke later CLI-resolution tests.
 function loadEnvFile() {
   const envPath = path.join(__dirname, '.env');
@@ -171,14 +171,14 @@ async function cmdModels() {
 // ---------------------------------------------------------------------------
 // File helpers
 // ---------------------------------------------------------------------------
-// Anchored to the career-ops data root, not to __dirname. scan.mjs resolves
-// every path it touches through getCareerOpsRoot(), so with CAREER_OPS_DATA_DIR
+// Anchored to the jobyougo data root, not to __dirname. scan.mjs resolves
+// every path it touches through getJobYouGoRoot(), so with JOBYOUGO_DATA_DIR
 // set this module was reading a DIFFERENT data/scan-history.tsv than the shared
 // writers it now delegates to — dedup would clear a URL the writer then found
 // present, or skip one it had never seen. The default is unchanged: with no
-// env and no .career-ops-data marker, getCareerOpsRoot() returns the same
+// env and no .jobyougo-data marker, getJobYouGoRoot() returns the same
 // directory __dirname did.
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
 function readFile(relPath) {
   try { return fs.readFileSync(path.join(DATA_ROOT, relPath), 'utf-8'); }
@@ -193,7 +193,7 @@ function writeFile(relPath, content) {
 
 function fileExists(relPath) {
   // Same root as readFile() above: a fileExists that disagrees with the reader
-  // is a split-brain waiting to happen under CAREER_OPS_DATA_DIR.
+  // is a split-brain waiting to happen under JOBYOUGO_DATA_DIR.
   return fs.existsSync(path.join(DATA_ROOT, relPath));
 }
 
@@ -229,7 +229,7 @@ async function callOpenRouter(systemPrompt, userMessage) {
     );
   }
 
-  const pinnedModel = process.env.CAREER_OPS_MODEL;
+  const pinnedModel = process.env.JOBYOUGO_MODEL;
   if (pinnedModel) {
     activeModel = pinnedModel;
     process.stdout.write(`[model] ${pinnedModel} (pinned) ... `);
@@ -465,7 +465,7 @@ async function fetchJobPage(url) {
 // field names as scan.mjs: `title_filter.positive/negative` + `tracked_companies`),
 // so it never drifts from the main scanner. The runner's no-CLI scan path covers
 // companies that expose a direct JSON `api:`; careers_url-only / Playwright /
-// search-query companies are handled by the full /career-ops scan pipeline.
+// search-query companies are handled by the full /jobyougo scan pipeline.
 // `rawOverride` lets tests feed YAML text directly (see test-all.mjs drift guard).
 // ---------------------------------------------------------------------------
 export function parsePortals(rawOverride) {
@@ -543,7 +543,7 @@ function markPipelineDone(url) {
 // the defect #3240/#3241 fixed in the other scanners, which this module escaped
 // because that census finds scanners by looking for appendToScanHistory calls).
 //
-// It also picks up CAREER_OPS_DATA_DIR support for free: the shared paths are
+// It also picks up JOBYOUGO_DATA_DIR support for free: the shared paths are
 // DATA_ROOT-anchored, while the __dirname-relative paths here ignored it.
 async function addToPipeline(entries) {
   const history = readFile('data/scan-history.tsv') ?? 'url\tfirst_seen\tportal\ttitle\tcompany\tstatus\tlocation\n';
@@ -864,7 +864,7 @@ if (invokedDirectly) loadEnvFile();
 const ctx = invokedDirectly ? loadContext() : null;
 
 // Load free models list before running any AI command (skip when a model is pinned)
-if (invokedDirectly && ['evaluate', 'eval', 'pipeline', 'apply', 'models'].includes(command) && !process.env.CAREER_OPS_MODEL) {
+if (invokedDirectly && ['evaluate', 'eval', 'pipeline', 'apply', 'models'].includes(command) && !process.env.JOBYOUGO_MODEL) {
   await loadFreeModels();
 }
 
@@ -893,7 +893,7 @@ if (invokedDirectly) switch (command) {
 
   default:
     console.log(`
-career-ops OpenRouter Runner
+jobyougo OpenRouter Runner
 Auto-fetches free models from OpenRouter API and rotates through them with fallback.
 
 COMMANDS:
@@ -912,11 +912,11 @@ SETUP:
 MODEL SELECTION:
   - Free models are fetched automatically via the OpenRouter API at runtime.
   - They are tried in sequence; if one fails the next is used automatically.
-  - Pin a model:  CAREER_OPS_MODEL=deepseek/deepseek-r1:free node openrouter-runner.mjs eval <url>
+  - Pin a model:  JOBYOUGO_MODEL=deepseek/deepseek-r1:free node openrouter-runner.mjs eval <url>
 `);
 }
 
 if (invokedDirectly && ['scan', 'evaluate', 'eval', 'pipeline', 'apply'].includes(command)) {
-  const modelName = process.env.CAREER_OPS_MODEL || activeModel || 'free-rotation';
+  const modelName = process.env.JOBYOUGO_MODEL || activeModel || 'free-rotation';
   console.log('\n' + formatBreakdown(tracker, modelName, 'openrouter'));
 }

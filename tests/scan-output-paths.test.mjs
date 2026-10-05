@@ -1,7 +1,7 @@
 // tests/scan-output-paths.test.mjs - scan.mjs's two outputs must be
 // env-overridable, the same way its two inputs already are (#2271).
 //
-// `CAREER_OPS_PORTALS` and `CAREER_OPS_PROFILE` already let a second search lane
+// `JOBYOUGO_PORTALS` and `JOBYOUGO_PROFILE` already let a second search lane
 // bring its own targeting, but data/pipeline.md and data/scan-history.tsv were
 // hardcoded, so every lane landed in one inbox. The quiet half is dedup:
 // scan-history.tsv is the dedup source, so a posting surfaced by lane A is
@@ -54,33 +54,33 @@ function makeLane() {
 // This matters more here than in a typical suite, because the audience for
 // these variables is precisely the person running the suite with them set: the
 // docs added alongside this feature tell a second-lane user to export
-// CAREER_OPS_PIPELINE and CAREER_OPS_SCAN_HISTORY. With the parent environment
+// JOBYOUGO_PIPELINE and JOBYOUGO_SCAN_HISTORY. With the parent environment
 // inherited wholesale, check 1 below - the one asserting DEFAULT behavior -
 // would follow that user's override and append fixture postings to their real
 // inbox, and the corresponding scan-history write would poison their dedup
 // source. A test suite must not be able to write into the data it is testing
 // the handling of (CodeRabbit, reviewing #2568).
 const SCANNER_PATH_VARS = [
-  'CAREER_OPS_PORTALS',
-  'CAREER_OPS_PROFILE',
-  'CAREER_OPS_PIPELINE',
-  'CAREER_OPS_SCAN_HISTORY',
-  // The data-root pair joined this list with CAREER_OPS_ROOT itself: they are
+  'JOBYOUGO_PORTALS',
+  'JOBYOUGO_PROFILE',
+  'JOBYOUGO_PIPELINE',
+  'JOBYOUGO_SCAN_HISTORY',
+  // The data-root pair joined this list with JOBYOUGO_ROOT itself: they are
   // now the FIRST variables scan resolves paths from, so an ambient value
   // would redirect every "default" assertion below at once.
-  'CAREER_OPS_ROOT',
-  'CAREER_OPS_DATA_DIR',
+  'JOBYOUGO_ROOT',
+  'JOBYOUGO_DATA_DIR',
 ];
 
 const runScan = (dir, env) => {
   const childEnv = { ...process.env };
   for (const name of SCANNER_PATH_VARS) delete childEnv[name];
   // The sandbox IS the lane's data root. scan's defaults are anchored to
-  // CAREER_OPS_ROOT (no longer to the child's cwd), so "default behavior"
+  // JOBYOUGO_ROOT (no longer to the child's cwd), so "default behavior"
   // here means: root pinned to the fixture, no per-file overrides.
   return execFileSync(NODE, [join(ROOT, 'scan.mjs')], {
     cwd: dir,
-    env: { ...childEnv, CAREER_OPS_ROOT: dir, ...env },
+    env: { ...childEnv, JOBYOUGO_ROOT: dir, ...env },
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -99,7 +99,7 @@ function entries(pipelinePath) {
 {
   const { dir, portals } = makeLane();
   try {
-    runScan(dir, { CAREER_OPS_PORTALS: portals });
+    runScan(dir, { JOBYOUGO_PORTALS: portals });
     const defaultEntries = entries(join(dir, 'data', 'pipeline.md')).length;
     const defaultHistory = existsSync(join(dir, 'data', 'scan-history.tsv'));
     if (defaultEntries > 0 && defaultHistory) {
@@ -123,9 +123,9 @@ function entries(pipelinePath) {
     const lanePipeline = join(dir, 'data', 'pipeline.bridge.md');
     const laneHistory = join(dir, 'data', 'scan-history.bridge.tsv');
     runScan(dir, {
-      CAREER_OPS_PORTALS: portals,
-      CAREER_OPS_PIPELINE: lanePipeline,
-      CAREER_OPS_SCAN_HISTORY: laneHistory,
+      JOBYOUGO_PORTALS: portals,
+      JOBYOUGO_PIPELINE: lanePipeline,
+      JOBYOUGO_SCAN_HISTORY: laneHistory,
     });
 
     const laneEntries = entries(lanePipeline).length;
@@ -133,7 +133,7 @@ function entries(pipelinePath) {
       || existsSync(join(dir, 'data', 'scan-history.tsv'));
 
     if (laneEntries > 0 && existsSync(laneHistory) && !defaultTouched) {
-      pass('CAREER_OPS_PIPELINE / CAREER_OPS_SCAN_HISTORY redirect both outputs, leaving the defaults untouched');
+      pass('JOBYOUGO_PIPELINE / JOBYOUGO_SCAN_HISTORY redirect both outputs, leaving the defaults untouched');
     } else {
       fail(`override did not fully redirect: ${laneEntries} lane entr(y/ies), lane history ${existsSync(laneHistory) ? 'present' : 'MISSING'}, default files ${defaultTouched ? 'WRITTEN' : 'untouched'}`);
     }
@@ -155,15 +155,15 @@ function entries(pipelinePath) {
     const laneA = { pipeline: join(dir, 'data', 'pipeline.a.md'), history: join(dir, 'data', 'scan-history.a.tsv') };
     const laneB = { pipeline: join(dir, 'data', 'pipeline.b.md'), history: join(dir, 'data', 'scan-history.b.tsv') };
 
-    runScan(dir, { CAREER_OPS_PORTALS: portals, CAREER_OPS_PIPELINE: laneA.pipeline, CAREER_OPS_SCAN_HISTORY: laneA.history });
-    runScan(dir, { CAREER_OPS_PORTALS: portals, CAREER_OPS_PIPELINE: laneB.pipeline, CAREER_OPS_SCAN_HISTORY: laneB.history });
+    runScan(dir, { JOBYOUGO_PORTALS: portals, JOBYOUGO_PIPELINE: laneA.pipeline, JOBYOUGO_SCAN_HISTORY: laneA.history });
+    runScan(dir, { JOBYOUGO_PORTALS: portals, JOBYOUGO_PIPELINE: laneB.pipeline, JOBYOUGO_SCAN_HISTORY: laneB.history });
 
     const aCount = entries(laneA.pipeline).length;
     const bCount = entries(laneB.pipeline).length;
 
     // Control: lane B pointed at lane A's history is the pre-fix behavior.
     const shared = join(dir, 'data', 'pipeline.shared.md');
-    runScan(dir, { CAREER_OPS_PORTALS: portals, CAREER_OPS_PIPELINE: shared, CAREER_OPS_SCAN_HISTORY: laneA.history });
+    runScan(dir, { JOBYOUGO_PORTALS: portals, JOBYOUGO_PIPELINE: shared, JOBYOUGO_SCAN_HISTORY: laneA.history });
     const sharedCount = entries(shared).length;
 
     if (aCount > 0 && bCount === aCount && sharedCount === 0) {
@@ -190,9 +190,9 @@ function entries(pipelinePath) {
     const lanePipeline = join(dir, 'lanes', 'bridge', 'pipeline.md');
     const laneHistory = join(dir, 'lanes', 'bridge', 'scan-history.tsv');
     runScan(dir, {
-      CAREER_OPS_PORTALS: portals,
-      CAREER_OPS_PIPELINE: lanePipeline,
-      CAREER_OPS_SCAN_HISTORY: laneHistory,
+      JOBYOUGO_PORTALS: portals,
+      JOBYOUGO_PIPELINE: lanePipeline,
+      JOBYOUGO_SCAN_HISTORY: laneHistory,
     });
     if (entries(lanePipeline).length > 0 && existsSync(laneHistory)) {
       pass('an override into a not-yet-existing directory creates it instead of failing');
@@ -224,13 +224,13 @@ function entries(pipelinePath) {
   const ambientHistory = join(ambientRoot, 'scan-history.tsv');
   const saved = SCANNER_PATH_VARS.map((name) => [name, process.env[name]]);
   try {
-    process.env.CAREER_OPS_PIPELINE = ambientPipeline;
-    process.env.CAREER_OPS_SCAN_HISTORY = ambientHistory;
-    runScan(dir, { CAREER_OPS_PORTALS: portals });
+    process.env.JOBYOUGO_PIPELINE = ambientPipeline;
+    process.env.JOBYOUGO_SCAN_HISTORY = ambientHistory;
+    runScan(dir, { JOBYOUGO_PORTALS: portals });
     const laneEntries = entries(join(dir, 'data', 'pipeline.md')).length;
     const leaked = existsSync(ambientPipeline) || existsSync(ambientHistory);
     if (laneEntries > 0 && !leaked) {
-      pass('an ambient CAREER_OPS_PIPELINE / CAREER_OPS_SCAN_HISTORY cannot redirect this suite (#2568)');
+      pass('an ambient JOBYOUGO_PIPELINE / JOBYOUGO_SCAN_HISTORY cannot redirect this suite (#2568)');
     } else {
       fail(`suite is not isolated from the ambient environment: ${laneEntries} lane entr(y/ies), ambient files ${leaked ? 'WRITTEN' : 'untouched'} (#2568)`);
     }
@@ -251,8 +251,8 @@ function entries(pipelinePath) {
 //    write-time paths (pipeline, scan-history, scan-runs) and none of them
 //    should fire before a caller actually asks for a write (#3159).
 //
-//    CAREER_OPS_ROOT is pinned to the temp dir, and that pin is the whole test.
-//    scan.mjs anchors its paths to getCareerOpsRoot(), NOT to the cwd, so with
+//    JOBYOUGO_ROOT is pinned to the temp dir, and that pin is the whole test.
+//    scan.mjs anchors its paths to getJobYouGoRoot(), NOT to the cwd, so with
 //    the variable unset an import-time mkdir lands in the REPO's own data/ --
 //    a directory that already exists on every developer machine and in CI. The
 //    assertion below would look at the empty temp dir, see no data/, and pass
@@ -264,9 +264,9 @@ function entries(pipelinePath) {
     const scanUrl = pathToFileURL(join(ROOT, 'scan.mjs')).href;
     // The two overrides are cleared so an ambient value in the developer's own
     // shell cannot redirect scan-history/pipeline out of the directory watched.
-    const env = { ...process.env, CAREER_OPS_ROOT: dir };
-    delete env.CAREER_OPS_SCAN_HISTORY;
-    delete env.CAREER_OPS_PIPELINE;
+    const env = { ...process.env, JOBYOUGO_ROOT: dir };
+    delete env.JOBYOUGO_SCAN_HISTORY;
+    delete env.JOBYOUGO_PIPELINE;
     execFileSync(NODE, ['--input-type=module', '-e', `import(${JSON.stringify(scanUrl)})`], {
       cwd: dir,
       env,

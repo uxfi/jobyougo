@@ -27,8 +27,8 @@ const RULE = '━'.repeat(45);
 // SCAN_SUMMARY_MARKER would otherwise leave every assertion green while every
 // consumer downstream breaks.
 test('the marker token is exactly this string', () => {
-  assert.equal(SCAN_SUMMARY_MARKER, '::career-ops:scan-summary::');
-  assert.equal(scanSummaryHeaderLines('Portal Scan', '2026-09-03')[1], '::career-ops:scan-summary::');
+  assert.equal(SCAN_SUMMARY_MARKER, '::jobyougo:scan-summary::');
+  assert.equal(scanSummaryHeaderLines('Portal Scan', '2026-09-03')[1], '::jobyougo:scan-summary::');
 });
 
 test('the marker is a whole line of its own, immediately above the banner', () => {

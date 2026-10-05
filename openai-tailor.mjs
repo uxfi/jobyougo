@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * openai-tailor.mjs — OpenAI-compatible CV Tailoring for career-ops
+ * openai-tailor.mjs — OpenAI-compatible CV Tailoring for jobyougo
  *
  * Tailor your CV (HTML) with ANY OpenAI-compatible chat endpoint instead of Claude.
  * This is the headless companion to openai-eval.mjs. It takes an evaluation report
@@ -19,7 +19,7 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import * as yaml from 'js-yaml';
 
 try {
@@ -28,7 +28,7 @@ try {
 } catch { /* dotenv optional */ }
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -51,7 +51,7 @@ const args = process.argv.slice(2);
 if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
   console.log(`
 ╔══════════════════════════════════════════════════════════════════╗
-║      career-ops — OpenAI-compatible CV Tailoring (Headless)      ║
+║      jobyougo — OpenAI-compatible CV Tailoring (Headless)      ║
 ╚══════════════════════════════════════════════════════════════════╝
 
   Tailor your CV with any OpenAI-compatible API to output a filled HTML file.
@@ -197,7 +197,7 @@ const templateHtml   = readFile(PATHS.template, 'templates/cv-template.html', tr
 // ---------------------------------------------------------------------------
 // Build system prompt
 // ---------------------------------------------------------------------------
-const systemPrompt = `You are career-ops, an AI-powered CV tailoring engine.
+const systemPrompt = `You are jobyougo, an AI-powered CV tailoring engine.
 You read a candidate's base CV, profile, an evaluation report, and a Job Description.
 Your job is to apply strict anti-fabrication tailoring rules to fill in an HTML template.
 

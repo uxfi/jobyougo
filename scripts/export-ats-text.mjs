@@ -214,7 +214,7 @@ export function normalizeProfile(raw = {}, cvData = {}) {
  */
 export function loadProfile(customProfilePath = null, customCvPath = null) {
   let profileRaw = null;
-  const profileSource = customProfilePath || process.env.CAREER_OPS_PROFILE || 'config/profile.yml';
+  const profileSource = customProfilePath || process.env.JOBYOUGO_PROFILE || 'config/profile.yml';
 
   if (customProfilePath) {
     if (!existsSync(customProfilePath)) {
@@ -245,7 +245,7 @@ export function loadProfile(customProfilePath = null, customCvPath = null) {
   }
 
   let cvData = {};
-  const cvSource = customCvPath || process.env.CAREER_OPS_CV || 'cv.md';
+  const cvSource = customCvPath || process.env.JOBYOUGO_CV || 'cv.md';
   if (customCvPath) {
     if (!existsSync(customCvPath)) {
       throw new Error(`CV file not found at: ${customCvPath}`);

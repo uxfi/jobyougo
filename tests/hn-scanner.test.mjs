@@ -61,7 +61,7 @@ test('Hacker News AI Extraction Logic', async (t) => {
 // too. Every Gemini call fails the way an invalid key does; HN is served from a
 // fixture, and any other request is refused.
 test('scan-hn reports AI errors and exits non-zero when every Gemini call fails', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-scanhn-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-scanhn-'));
   try {
     mkdirSync(join(dir, 'data'), { recursive: true });
     const unexpected = join(dir, 'unexpected-requests');
@@ -90,8 +90,8 @@ test('scan-hn reports AI errors and exits non-zero when every Gemini call fails'
       };
     `);
 
-    const env = { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '', GEMINI_API_KEY: 'invalid-test-key' };
-    delete env.CAREER_OPS_PORTALS;
+    const env = { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '', GEMINI_API_KEY: 'invalid-test-key' };
+    delete env.JOBYOUGO_PORTALS;
     delete env.GEMINI_MODEL;
     const r = spawnSync(process.execPath, [
       '--require', preload,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * tracker-sync-check.mjs — applications.md <-> active-interviews.md status
- * sync checker for career-ops
+ * sync checker for jobyougo
  *
  * The project's own rule ("any interview status change must touch both
  * data/applications.md and data/active-interviews.md") is enforced only by
@@ -40,7 +40,7 @@
  * does not write to applications.md — it reports the mismatch and the
  * suggested fix. Auto-write is a reasonable fast-follow once the reporting
  * mode has been used and trusted; unattended status writes on a script's very
- * first run is unnecessary risk (career-ops's `merge-tracker.mjs` gate on
+ * first run is unnecessary risk (jobyougo's `merge-tracker.mjs` gate on
  * tracker additions follows the same caution).
  *
  * Run: node tracker-sync-check.mjs              (JSON to stdout)
@@ -62,10 +62,10 @@ import { resolveColumns, parseTrackerRow } from './tracker-parse.mjs';
 import { roleFuzzyMatch } from './role-matcher.mjs';
 import { normalizeCompanyName, companySimilarity } from './invite-match.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
 const DEFAULT_APPS_FILE = resolveTrackerPath(DATA_ROOT);
 const DEFAULT_INTERVIEWS_FILE = existsSync(join(DATA_ROOT, 'data/active-interviews.md'))
   ? join(DATA_ROOT, 'data/active-interviews.md')
@@ -100,7 +100,7 @@ const INTERVIEWS_FILE = interviewsFileIdx !== -1 && args[interviewsFileIdx + 1] 
 // terminal set and the id -> display-label map are read directly off each
 // state's `terminal` and `label` fields. See the comment above `states:` in
 // templates/states.yml for the contract.
-const STATES_FILE = join(CAREER_OPS, 'templates/states.yml');
+const STATES_FILE = join(JOBYOUGO, 'templates/states.yml');
 
 /**
  * Load the canonical lifecycle order, terminal-status set, and id -> label
@@ -323,7 +323,7 @@ function findColumn(row, name) {
  * @param {string} [cwd] - Working directory for the git invocation.
  * @returns {string|null}
  */
-export function gitBlameTimestamp(filePath, lineNum, cwd = CAREER_OPS) {
+export function gitBlameTimestamp(filePath, lineNum, cwd = JOBYOUGO) {
   if (!Number.isInteger(lineNum) || lineNum < 1) return null;
   try {
     const out = execFileSync(
@@ -526,7 +526,7 @@ export function checkTrackerSync(opts = {}) {
 // --- Summary mode ---
 function printSummary(result) {
   console.log(`\n${'='.repeat(90)}`);
-  console.log('  Tracker Sync Check — career-ops');
+  console.log('  Tracker Sync Check — jobyougo');
   console.log(`  applications.md <-> active-interviews.md | rows checked: ${result.summary.total}`);
   console.log(`${'='.repeat(90)}\n`);
 

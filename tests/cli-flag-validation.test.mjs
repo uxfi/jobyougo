@@ -124,7 +124,7 @@ test('clean-markers.mjs still exits 2 with usage when given no files', () => {
 });
 
 test('clean-markers.mjs still accepts --ascii as a known flag', () => {
-  const r = runScript('clean-markers.mjs', 'clean', '--ascii', join(tmpdir(), 'career-ops-no-such-file.md'));
+  const r = runScript('clean-markers.mjs', 'clean', '--ascii', join(tmpdir(), 'jobyougo-no-such-file.md'));
   assert.doesNotMatch(r.all, /unrecognized flag/i, '--ascii must not be rejected as unrecognized');
 });
 
@@ -132,7 +132,7 @@ test('clean-markers.mjs still accepts --ascii as a known flag', () => {
 // runs inside the fixture dir and gets the bare relative name. An absolute path
 // would begin with a slash and never reach the flag check.
 test('clean-markers.mjs audits a dash-leading path after --', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-clean-markers-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-clean-markers-'));
   try {
     writeFileSync(join(dir, '-draft.md'), 'plain text\n');
     const r = spawnSync(process.execPath, [join(ROOT, 'clean-markers.mjs'), 'audit', '--', '-draft.md'], {
@@ -161,7 +161,7 @@ test('fix-slugs rejects unknown flags before checking or reading portals file', 
 });
 
 test('fix-slugs honours both --file <path> and --file=<path> syntax', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-fixslugs-flag-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-fixslugs-flag-'));
   try {
     const customPortals = join(dir, 'custom.yml');
     const r1 = runScript('fix-slugs.mjs', '--file', customPortals);

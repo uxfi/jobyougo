@@ -266,7 +266,7 @@ function CmdBeamIsland({
       active: activeKey === cmdKey,
       style: {
         display: 'inline-flex',
-        borderRadius: 10,
+        borderRadius: 999,
         width: '100%',
       },
     },
@@ -284,11 +284,27 @@ export function mountCmdBeams(host: Element, cmdKey: string | null) {
   beamHosts.set(cmdKey, button);
   const mount = document.createElement('div');
   mount.className = 'cmd-beam-mount';
-  mount.style.cssText = 'display:inline-flex;border-radius:10px;';
+  mount.style.cssText = 'display:inline-flex;border-radius:999px;';
   host.replaceChildren(mount);
   renderInto(mount, createElement(CmdBeamIsland, { host: button, cmdKey }));
 }
 
 export function setCmdBeam(cmdKey: string | null) {
   cmdBeamKey.set(cmdKey || null);
+}
+
+/* ─── LVMH schema hub (portfolio) ──────────────────────────────────── */
+
+export function mountConnectingOrb(
+  el: Element,
+  opts: { theme?: 'dark' | 'light'; size?: number } = {},
+) {
+  renderInto(
+    el,
+    createElement(ThinkingOrb, {
+      state: 'connecting',
+      size: opts.size ?? 20,
+      theme: opts.theme ?? 'dark',
+    }),
+  );
 }

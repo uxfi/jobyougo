@@ -58,6 +58,9 @@ function renderStoryModalContent() {
             <path d="M6 4h6v6"></path>
           </svg>
         </a>
+        <a class="story-contact-btn story-contact-btn--ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer">
+          <span>${currentLang === 'fr' ? 'Réserver 30 min' : 'Book 30 min'}</span>
+        </a>
       </div>
     </div>
   `;

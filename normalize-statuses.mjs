@@ -8,13 +8,13 @@
  * Also strips markdown bold (**) and dates from the status field,
  * moving DUPLICADO info to the notes column.
  *
- * Run: node career-ops/normalize-statuses.mjs [--dry-run]
+ * Run: node jobyougo/normalize-statuses.mjs [--dry-run]
  */
 
 import { readFileSync, copyFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 import {
   openTrackerTransaction, rebuildRow,
   loadCanonicalStates, resolveCanonicalState,
@@ -24,16 +24,16 @@ import { isMainModule } from './lib/is-main-module.mjs';
 
 // System Layer files (templates/, modes/, scripts) live in the codebase and are
 // resolved from this module's own directory; only User Layer data follows the
-// configurable data root. Binding both to getCareerOpsRoot() made states.yml
-// unreadable under CAREER_OPS_ROOT / .career-ops-data, and the catch below
+// configurable data root. Binding both to getJobYouGoRoot() made states.yml
+// unreadable under JOBYOUGO_ROOT / .jobyougo-data, and the catch below
 // turned that into a silent "everything is unknown" (#3500).
 const CODEBASE_ROOT = dirname(fileURLToPath(import.meta.url));
-const CAREER_OPS = getCareerOpsRoot();
-const APPS_FILE = resolveTrackerPath(CAREER_OPS);
+const JOBYOUGO = getJobYouGoRoot();
+const APPS_FILE = resolveTrackerPath(JOBYOUGO);
 const DRY_RUN = process.argv.includes('--dry-run');
 
 // Ensure required directories exist (fresh setup)
-mkdirSync(join(CAREER_OPS, 'data'), { recursive: true });
+mkdirSync(join(JOBYOUGO, 'data'), { recursive: true });
 
 // Canonical status mapping
 let statesCache = null;

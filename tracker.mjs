@@ -39,7 +39,7 @@ import { readFileSync, copyFileSync, existsSync, mkdirSync, statSync } from 'fs'
 import { createHash } from 'crypto';
 import { dirname, resolve, join, basename } from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 import { localToday } from './lib/local-today.mjs';
 import * as yaml from 'js-yaml';
 import {
@@ -50,8 +50,8 @@ import {
 } from './tracker-utils.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
-const CAREER_OPS = getCareerOpsRoot();
-const MD_PATH = resolveTrackerPath(CAREER_OPS);
+const JOBYOUGO = getJobYouGoRoot();
+const MD_PATH = resolveTrackerPath(JOBYOUGO);
 
 /**
  * Where the derived SQLite index lives, resolved at call time.
@@ -60,7 +60,7 @@ const MD_PATH = resolveTrackerPath(CAREER_OPS);
  * one process, one invocation, env fixed before node starts — and the wrong one
  * the moment the module is IMPORTED rather than executed. The first importer in
  * a process froze the path for every later one, so a subsequent
- * `process.env.CAREER_OPS_TRACKER_DB = ...` was silently ignored: no error, no
+ * `process.env.JOBYOUGO_TRACKER_DB = ...` was silently ignored: no error, no
  * warning, and an assignment that reads as though it took effect.
  *
  * That is how the test suite came to create an applications.db outside its own
@@ -82,10 +82,10 @@ const MD_PATH = resolveTrackerPath(CAREER_OPS);
  * @returns {string} Absolute or relative path to the derived index.
  */
 function dbPath() {
-  const path = process.env.CAREER_OPS_TRACKER_DB
+  const path = process.env.JOBYOUGO_TRACKER_DB
     || (MD_PATH.endsWith('.md') ? MD_PATH.slice(0, -3) + '.db' : MD_PATH + '.db');
   // SQLite must never open the source of truth itself (an explicit
-  // CAREER_OPS_TRACKER_DB could point both names at the same file). Checked here
+  // JOBYOUGO_TRACKER_DB could point both names at the same file). Checked here
   // rather than at import: a module that exits the process as a side effect of
   // being imported takes its importer down with it, and the check is only
   // meaningful at the moment the path is actually used.
@@ -202,9 +202,9 @@ export function openDb(DatabaseSync) {
 
 function loadStates() {
   if (!existsSync(STATES_PATH)) {
-    // No longer "run from the career-ops root" advice: the path is anchored to
+    // No longer "run from the jobyougo root" advice: the path is anchored to
     // the module, so a miss here is a broken install, not a wrong cwd.
-    console.error(`Error: ${STATES_PATH} not found — cannot validate statuses (broken install: templates/states.yml ships with career-ops).`);
+    console.error(`Error: ${STATES_PATH} not found — cannot validate statuses (broken install: templates/states.yml ships with jobyougo).`);
     process.exit(1);
   }
   const doc = yaml.load(readFileSync(STATES_PATH, 'utf-8'));
@@ -261,7 +261,7 @@ function repairPlaceholder(cell) {
  * vanished on export — silently, over the user's own tracker with `--out`.
  *
  * TWO detection passes, and the second one matters. `isHeaderRow` only fires
- * when the alias table resolves the FULL schema, so a header career-ops cannot
+ * when the alias table resolves the FULL schema, so a header jobyougo cannot
  * name — a Spanish `| # | Fecha | Empresa | Puesto | Puntuación | Estado | … |`,
  * where `puntuación` and `estado` are absent from tracker-aliases.json — records
  * no layout at all and exports as the English default (PR #3794 review). Falling
@@ -749,7 +749,7 @@ function parseExtras(raw) {
  *   empty header means the source had no header row (legacy positional table).
  * @returns {{header: string, separator: string, body: string[], dropped: string[]}}
  *   `dropped` names every column carrying content this export cannot place —
- *   empty for every layout career-ops can reproduce.
+ *   empty for every layout jobyougo can reproduce.
  */
 /**
  * The recorded source layout, decoded from `meta` with safe defaults.
@@ -874,7 +874,7 @@ async function exportMd(args) {
       ...secondary.map(r => `row #${r.id} (${r.company} — ${r.role}) belongs to a later table; the rebuilt one has no place for it`),
     ];
     // Never lose anything quietly. Worth reporting even though the rebuild above
-    // leaves `losses` empty for every file career-ops itself produces: it is
+    // leaves `losses` empty for every file jobyougo itself produces: it is
     // what turns data loss into a decision the user makes.
     if (losses.length) {
       console.error(`Warning: ${losses.length} item(s) in ${MD_PATH} cannot be reproduced by export and will be dropped:`);

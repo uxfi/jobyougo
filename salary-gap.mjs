@@ -30,13 +30,13 @@
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import * as yaml from 'js-yaml';
 import { isMainModule } from './lib/is-main-module.mjs';
 
-const CAREER_OPS = getCareerOpsRoot();
-const OBS_PATH = join(CAREER_OPS, 'data/salary-observations.tsv');
-const REPORTS_DIR = join(CAREER_OPS, 'reports');
+const JOBYOUGO = getJobYouGoRoot();
+const OBS_PATH = join(JOBYOUGO, 'data/salary-observations.tsv');
+const REPORTS_DIR = join(JOBYOUGO, 'reports');
 
 const args = process.argv.slice(2);
 const summaryMode = args.includes('--summary');
@@ -639,7 +639,7 @@ function collectSources() {
 }
 
 function loadProfileDesired() {
-  const profilePath = join(CAREER_OPS, 'config/profile.yml');
+  const profilePath = join(JOBYOUGO, 'config/profile.yml');
   if (!existsSync(profilePath)) return null;
   try {
     const profile = yaml.load(readFileSync(profilePath, 'utf-8'));

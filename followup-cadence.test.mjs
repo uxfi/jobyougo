@@ -15,7 +15,7 @@ const DEFAULT_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-default
 const CUSTOM_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-custom-cadence.yml');
 
 // Pin the cadence source BEFORE followup-cadence.mjs is evaluated. Its
-// module-level `CADENCE = resolveCadenceConfig()` reads CAREER_OPS_PROFILE at
+// module-level `CADENCE = resolveCadenceConfig()` reads JOBYOUGO_PROFILE at
 // import time and otherwise falls back to the USER's config/profile.yml — so
 // on a machine where the user customized followup_cadence, assertions written
 // against DEFAULT_CADENCE failed on a perfectly healthy install (#2268).
@@ -23,7 +23,7 @@ const CUSTOM_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-custom-c
 // The import below must stay DYNAMIC: ESM hoists static imports above every
 // statement in this file, so a static import would run the module before this
 // assignment and the pin would do nothing.
-process.env.CAREER_OPS_PROFILE = DEFAULT_CADENCE_PROFILE;
+process.env.JOBYOUGO_PROFILE = DEFAULT_CADENCE_PROFILE;
 
 const {
   computeNextFollowupDate,

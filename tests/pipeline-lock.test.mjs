@@ -60,7 +60,7 @@ function churnLock(lockDir, everyMs) {
 }
 
 function fixtureRoot() {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-pipeline-lock-'));
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-pipeline-lock-'));
   mkdirSync(join(root, 'data'), { recursive: true });
   return root;
 }
@@ -127,7 +127,7 @@ test('acquirePipelineLock: configurable timing — the contention timeout is not
 });
 
 test('acquirePipelineLock: creates a missing parent data/ directory instead of throwing ENOENT (fresh install)', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-pipeline-lock-fresh-'));
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-pipeline-lock-fresh-'));
   try {
     // No data/ directory at all — the plugins.mjs cmdRun path.
     const p = join(root, 'data', 'pipeline.md');
@@ -505,7 +505,7 @@ test('acquirePipelineLock: a lock freed after maxWaitMs is refused, not acquired
 test('acquirePipelineLock: a maxWaitMs of 0 means no waiting, not the default ceiling', async () => {
   const root = fixtureRoot();
   const churn = churnLock(`${root}/data/pipeline.md.lock`, 20);
-  const previous = process.env.CAREER_OPS_PIPELINE_LOCK_MAX_WAIT_MS;
+  const previous = process.env.JOBYOUGO_PIPELINE_LOCK_MAX_WAIT_MS;
   try {
     const p = join(root, 'data', 'pipeline.md');
     // 0 is a MEANINGFUL setting here — "never wait past now" — so it must not go
@@ -513,15 +513,15 @@ test('acquirePipelineLock: a maxWaitMs of 0 means no waiting, not the default ce
     // caller who asked for no waiting into one who waits 10x timeoutMs, the exact
     // opposite of the request. Asserted through the env var, which is where the
     // idiom lived, and against a churning lock so only the ceiling can end it.
-    process.env.CAREER_OPS_PIPELINE_LOCK_MAX_WAIT_MS = '0';
+    process.env.JOBYOUGO_PIPELINE_LOCK_MAX_WAIT_MS = '0';
     const startedAt = Date.now();
     const outcome = await settleOrGiveUp(acquirePipelineLock(p, { timeoutMs: 400, retryMs: 20 }), 3000);
     const elapsed = Date.now() - startedAt;
     assert.ok(outcome instanceof LockTimeoutError, `expected an immediate ceiling, got: ${outcome}`);
     assert.ok(elapsed < 300, `waited ${elapsed}ms for a zero ceiling — the 0 was read as "unset"`);
   } finally {
-    if (previous === undefined) delete process.env.CAREER_OPS_PIPELINE_LOCK_MAX_WAIT_MS;
-    else process.env.CAREER_OPS_PIPELINE_LOCK_MAX_WAIT_MS = previous;
+    if (previous === undefined) delete process.env.JOBYOUGO_PIPELINE_LOCK_MAX_WAIT_MS;
+    else process.env.JOBYOUGO_PIPELINE_LOCK_MAX_WAIT_MS = previous;
     churn.stop();
     rmSync(root, { recursive: true, force: true });
   }

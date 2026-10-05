@@ -11,7 +11,7 @@ const SCRIPT = join(dirname(dirname(fileURLToPath(import.meta.url))), 'reconcile
 const URL = 'https://jobs.example.test/4521';
 
 function fixture(t, { report, stateScore = '-', stateStatus = 'completed', language = 'en' }) {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-reconcile-score-'));
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-reconcile-score-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ['data', 'batch', 'reports']) mkdirSync(join(root, dir));
   const pipeline = join(root, 'data', 'pipeline.md');
@@ -25,7 +25,7 @@ function fixture(t, { report, stateScore = '-', stateStatus = 'completed', langu
   const run = (...args) => {
     const result = spawnSync(process.execPath, [SCRIPT, '--pipeline', pipeline, '--state', join(root, 'batch', 'batch-state.tsv'), ...args], {
       cwd: root,
-      env: { ...process.env, CAREER_OPS_ROOT: root, CAREER_OPS_DATA_DIR: root, CAREER_OPS_TRACKER: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: root, JOBYOUGO_DATA_DIR: root, JOBYOUGO_TRACKER: '' },
       encoding: 'utf8',
       timeout: 15_000,
     });

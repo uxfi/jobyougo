@@ -92,13 +92,13 @@ test('a malformed or non-mapping profile is reported as such', () => {
 test('doctor surfaces it as a warning, and does not fail the run', () => {
   // WARN not FAIL: an unknown key is a typo, not a broken install. Refusing to
   // run would be a worse answer than naming it.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-profile-shape-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-profile-shape-'));
   try {
     mkdirSync(join(dir, 'config'), { recursive: true });
     writeFileSync(join(dir, 'config', 'profile.yml'), 'langauge:\n  output: ja\n');
     const r = spawnSync(process.execPath, [join(ROOT, 'doctor.mjs'), '--target', dir], {
       cwd: dir, encoding: 'utf-8', timeout: 60_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
     });
     const all = `${r.stdout}${r.stderr}`;
     assert.match(all, /config\/profile\.yml: 1 issue/, `doctor did not report the typo:\n${all.slice(0, 600)}`);
@@ -109,13 +109,13 @@ test('doctor surfaces it as a warning, and does not fail the run', () => {
 });
 
 test('a clean profile adds no doctor noise', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-profile-clean-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-profile-clean-'));
   try {
     mkdirSync(join(dir, 'config'), { recursive: true });
     writeFileSync(join(dir, 'config', 'profile.yml'), 'language:\n  output: ja\n');
     const r = spawnSync(process.execPath, [join(ROOT, 'doctor.mjs'), '--target', dir], {
       cwd: dir, encoding: 'utf-8', timeout: 60_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
     });
     assert.doesNotMatch(`${r.stdout}${r.stderr}`, /profile\.yml: \d+ issue/, 'a correct profile was warned about');
   } finally {

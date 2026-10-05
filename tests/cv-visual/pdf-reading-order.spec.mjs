@@ -16,7 +16,7 @@ async function rawPdfText(page, html) {
   await page.setContent(html);
   await page.emulateMedia({ media: 'print' });
   await page.evaluate(() => document.fonts.ready);
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-pdf-order-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-pdf-order-'));
   try {
     const pdfPath = join(dir, 'output.pdf');
     writeFileSync(pdfPath, await page.pdf({ format: 'Letter' }));

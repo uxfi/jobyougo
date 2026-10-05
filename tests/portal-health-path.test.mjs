@@ -17,7 +17,7 @@
 // at join(DATA_ROOT, 'data', 'portal-health.tsv'). A user with a data root
 // configured got rows written somewhere their own reader never looked.
 //
-// So isolation now comes from CAREER_OPS_ROOT, the mechanism the rest of the
+// So isolation now comes from JOBYOUGO_ROOT, the mechanism the rest of the
 // suite already uses, rather than from the cwd. This spawns a real child with a
 // data root pinned to a temp dir AND a cwd pinned to a second temp dir, so the
 // two are provably distinguishable, then calls appendPortalHealth() with no
@@ -36,8 +36,8 @@ import { applyScriptDirGuard } from './portal-health-guard.mjs';
 console.log('\nscan.mjs — portal-health.tsv resolves against the data root, never the checkout');
 
 const scanUrl = JSON.stringify(pathToFileURL(join(ROOT, 'scan.mjs')).href);
-const sandboxCwd = mkdtempSync(join(tmpdir(), 'career-ops-portal-health-cwd-'));
-const sandboxRoot = mkdtempSync(join(tmpdir(), 'career-ops-portal-health-root-'));
+const sandboxCwd = mkdtempSync(join(tmpdir(), 'jobyougo-portal-health-cwd-'));
+const sandboxRoot = mkdtempSync(join(tmpdir(), 'jobyougo-portal-health-root-'));
 
 // The script's own directory is ROOT in this checkout -- the same directory
 // the pre-fix bug always resolved to regardless of the cwd it was given.
@@ -66,7 +66,7 @@ try {
     cwd: sandboxCwd,
     encoding: 'utf-8',
     timeout: 30000,
-    env: { ...process.env, CAREER_OPS_ROOT: sandboxRoot, CAREER_OPS_DATA_DIR: '' },
+    env: { ...process.env, JOBYOUGO_ROOT: sandboxRoot, JOBYOUGO_DATA_DIR: '' },
   });
 
   if (res.error || res.status !== 0) {

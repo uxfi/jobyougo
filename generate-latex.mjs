@@ -7,7 +7,7 @@
  *   node generate-latex.mjs <input.tex> [output.pdf]
  *   node generate-latex.mjs <input.tex> [output.pdf] --compile-only
  *
- * Default: validates career-ops template structure (from templates/cv-template.tex).
+ * Default: validates jobyougo template structure (from templates/cv-template.tex).
  * --compile-only: skip template validation; compile any user-owned .tex (latex-tex mode).
  *
  * Requires: tectonic (preferred) or pdflatex on PATH.
@@ -259,7 +259,7 @@ export async function compileLatexFile(absPath, content, outputPath, compileOnly
 const KNOWN_FLAGS = ['--compile-only', '--help', '-h'];
 
 const USAGE = `Usage:
-  node generate-latex.mjs <input.tex> [output.pdf]                 # validate career-ops template structure, then compile
+  node generate-latex.mjs <input.tex> [output.pdf]                 # validate jobyougo template structure, then compile
   node generate-latex.mjs <input.tex> [output.pdf] --compile-only  # skip template validation; compile any user-owned .tex (latex-tex mode)
   node generate-latex.mjs --help|-h                                # print this usage block and exit
 

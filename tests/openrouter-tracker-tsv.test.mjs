@@ -83,7 +83,7 @@ try {
   try {
     output = execFileSync(NODE, [join(ROOT, 'merge-tracker.mjs')], {
       encoding: 'utf-8', timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_ADDITIONS: addsDir },
+      env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_ADDITIONS: addsDir },
     });
   } catch (e) {
     output = String(e.stdout ?? '') + String(e.stderr ?? '');
@@ -110,7 +110,7 @@ try {
     try {
       out2 = execFileSync(NODE, [join(ROOT, 'merge-tracker.mjs')], {
         encoding: 'utf-8', timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, CAREER_OPS_TRACKER: t2, CAREER_OPS_ADDITIONS: a2 },
+        env: { ...process.env, JOBYOUGO_TRACKER: t2, JOBYOUGO_ADDITIONS: a2 },
       });
     } catch (e) { out2 = String(e.stdout ?? '') + String(e.stderr ?? ''); }
     const { row: row2, cells: cells2 } = mergedRow(readFileSync(t2, 'utf-8'));

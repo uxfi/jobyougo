@@ -45,7 +45,7 @@
  *
  * SECOND DEGREE. The export carries first-degree contacts only; second-degree
  * edges live inside the platform UI and are not exportable. Every target
- * therefore also carries a prefilled people-search URL that career-ops builds
+ * therefore also carries a prefilled people-search URL that jobyougo builds
  * and never fetches, so the user opens it themselves in their own browser.
  *
  * Run: node linkedin-join.mjs                  (JSON: targets + quality + totals)
@@ -78,10 +78,10 @@ import { resolveColumns, parseTrackerRow, normalizeTextKey } from './tracker-par
 import { asciiFold } from './lib/ascii-fold.mjs';
 import { flagValue, hasFlag, validateFlags } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
 const DEFAULT_CSV = join(DATA_ROOT, 'data/Connections.csv');
 const TRACKER_PATH = join(DATA_ROOT, 'data/applications.md');
 const PORTALS_PATH = join(DATA_ROOT, 'portals.yml');
@@ -487,7 +487,7 @@ export function parseKnownContacts(content) {
  *
  * The connections export carries first-degree contacts only. Second-degree
  * edges exist solely inside the platform UI and are not exportable, so the
- * honest answer is a link the USER opens in their own browser. career-ops
+ * honest answer is a link the USER opens in their own browser. jobyougo
  * constructs the string and never fetches it, which keeps the feature clear of
  * any automated-access prohibition (#2679 acceptance criterion 3).
  *

@@ -21,7 +21,7 @@ const DEFAULT_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-default
 const CUSTOM_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-custom-cadence.yml');
 
 // Pin the cadence source BEFORE followup-cadence.mjs is evaluated. Its
-// module-level `CADENCE = resolveCadenceConfig()` reads CAREER_OPS_PROFILE at
+// module-level `CADENCE = resolveCadenceConfig()` reads JOBYOUGO_PROFILE at
 // import time and otherwise falls back to the USER's config/profile.yml — so
 // on a machine where the user customized followup_cadence, assertions written
 // against DEFAULT_CADENCE failed on a perfectly healthy install (#2268).
@@ -33,7 +33,7 @@ const CUSTOM_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-custom-c
 // The pin is scoped to the import and restored in a finally, so it is live for
 // exactly the statement that needs it. As a standalone script it died with the
 // process; discovered suites share ONE process, so leaving it set leaked this
-// fixture forward — providers/_profile-keywords.mjs reads CAREER_OPS_PROFILE at
+// fixture forward — providers/_profile-keywords.mjs reads JOBYOUGO_PROFILE at
 // module scope, and three provider suites then read this cadence fixture
 // instead of the profile their own tmpdir had just written (#3306).
 //
@@ -43,15 +43,15 @@ const CUSTOM_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-custom-c
 // leak would come back on precisely the run that was already going wrong.
 // Nothing below needs the variable: every later call passes profilePath
 // explicitly.
-const PRIOR_PROFILE_ENV = process.env.CAREER_OPS_PROFILE;
-process.env.CAREER_OPS_PROFILE = DEFAULT_CADENCE_PROFILE;
+const PRIOR_PROFILE_ENV = process.env.JOBYOUGO_PROFILE;
+process.env.JOBYOUGO_PROFILE = DEFAULT_CADENCE_PROFILE;
 
 let cadence;
 try {
   cadence = await import('../followup-cadence.mjs');
 } finally {
-  if (PRIOR_PROFILE_ENV === undefined) delete process.env.CAREER_OPS_PROFILE;
-  else process.env.CAREER_OPS_PROFILE = PRIOR_PROFILE_ENV;
+  if (PRIOR_PROFILE_ENV === undefined) delete process.env.JOBYOUGO_PROFILE;
+  else process.env.JOBYOUGO_PROFILE = PRIOR_PROFILE_ENV;
 }
 
 const {

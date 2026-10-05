@@ -1,7 +1,7 @@
 // invite-match regression coverage for split code/data roots (#3867, finding 4).
 //
 // applyRejectionStatus() spawns set-status.mjs, a sibling in the *code*
-// checkout. It used to resolve that path off CAREER_OPS — the *data* root —
+// checkout. It used to resolve that path off JOBYOUGO — the *data* root —
 // so with an external data root the child died with
 // `Cannot find module <data-root>/set-status.mjs`.
 //
@@ -27,7 +27,7 @@ const TRACKER_HEADER = [
 
 /** Seed a disposable data root outside the code checkout and return its tracker path. */
 function seedDataRoot() {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-invite-root-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-invite-root-'));
   const tracker = join(dataRoot, 'data', 'applications.md');
   mkdirSync(dirname(tracker), { recursive: true });
   writeFileSync(
@@ -39,8 +39,8 @@ function seedDataRoot() {
 
 /** Run invite-match.mjs with the data root detached from the code checkout. */
 function runInviteMatchApply(dataRoot, tracker, stdin) {
-  const env = { ...process.env, CAREER_OPS_ROOT: dataRoot, CAREER_OPS_TRACKER: tracker };
-  delete env.CAREER_OPS_DATA_DIR;
+  const env = { ...process.env, JOBYOUGO_ROOT: dataRoot, JOBYOUGO_TRACKER: tracker };
+  delete env.JOBYOUGO_DATA_DIR;
   const result = spawnSync(process.execPath, [join(CODE_ROOT, 'invite-match.mjs'), '--apply', '--id', '1'], {
     cwd: CODE_ROOT,
     env,

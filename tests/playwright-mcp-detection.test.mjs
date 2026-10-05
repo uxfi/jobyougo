@@ -188,11 +188,11 @@ try {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 
-  // 5. CAREER_OPS_CLI=opencode via env (no flag, no .env), no opencode.json.
+  // 5. JOBYOUGO_CLI=opencode via env (no flag, no .env), no opencode.json.
   {
     const dir = mkdtempSync(join(tmpdir(), 'co-mcp-5-'));
     try {
-      const state = runDoctor(dir, [], { CAREER_OPS_CLI: 'opencode' });
+      const state = runDoctor(dir, [], { JOBYOUGO_CLI: 'opencode' });
       if (!expectWarn(state, '#5 env=opencode')) {
         // already failed
       } else if (state.active_cli === 'opencode'
@@ -200,18 +200,18 @@ try {
           && state.playwright_mcp?.opencode === false
           && Array.isArray(state.warnings)
           && state.warnings.some((w) => PLAYWRIGHT_RE.test(w) && /active cli: opencode/i.test(w))) {
-        pass('CAREER_OPS_CLI env + no config → warning, cli_source=env');
+        pass('JOBYOUGO_CLI env + no config → warning, cli_source=env');
       } else {
         fail(`#5 unexpected state: ${JSON.stringify(state)}`);
       }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 
-  // 6. .env in --target has CAREER_OPS_CLI=opencode, process.env unset.
+  // 6. .env in --target has JOBYOUGO_CLI=opencode, process.env unset.
   {
     const dir = mkdtempSync(join(tmpdir(), 'co-mcp-6-'));
     try {
-      writeFileSync(join(dir, '.env'), 'CAREER_OPS_CLI=opencode\n');
+      writeFileSync(join(dir, '.env'), 'JOBYOUGO_CLI=opencode\n');
       const state = runDoctor(dir, [], {});  // no env override
       if (!expectWarn(state, '#6 .env=opencode')) {
         // already failed
@@ -220,7 +220,7 @@ try {
           && state.playwright_mcp?.opencode === false
           && Array.isArray(state.warnings)
           && state.warnings.some((w) => PLAYWRIGHT_RE.test(w))) {
-        pass('.env file with CAREER_OPS_CLI → cli_source=.env, warning fires');
+        pass('.env file with JOBYOUGO_CLI → cli_source=.env, warning fires');
       } else {
         fail(`#6 unexpected state: ${JSON.stringify(state)}`);
       }
@@ -318,20 +318,20 @@ try {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 
-  // 11. CAREER_OPS_CLI=vim (invalid env) → same as #10 but via env path.
+  // 11. JOBYOUGO_CLI=vim (invalid env) → same as #10 but via env path.
   //     active_cli='unknown', cli_source='env', one warning with the env path.
   {
     const dir = mkdtempSync(join(tmpdir(), 'co-mcp-11-'));
     try {
-      const state = runDoctor(dir, [], { CAREER_OPS_CLI: 'vim' });
+      const state = runDoctor(dir, [], { JOBYOUGO_CLI: 'vim' });
       if (state._error) { fail(`#11 doctor crashed: ${state._error}`); }
       else if (state.active_cli === 'unknown'
           && state.cli_source === 'env'
           && Object.keys(state.playwright_mcp || {}).length === 0
           && Array.isArray(state.warnings)
           && state.warnings.length === 1
-          && /CAREER_OPS_CLI="vim"/.test(state.warnings[0])) {
-        pass('CAREER_OPS_CLI="vim" (invalid) → unknown sentinel, one warning via env path');
+          && /JOBYOUGO_CLI="vim"/.test(state.warnings[0])) {
+        pass('JOBYOUGO_CLI="vim" (invalid) → unknown sentinel, one warning via env path');
       } else {
         fail(`#11 unexpected state: ${JSON.stringify(state)}`);
       }
@@ -671,7 +671,7 @@ try {
   //     a half-written install can leave it behind, so doctor has to survive
   //     it. Destructuring the entry threw a TypeError - `= {}` defaults only
   //     for `undefined`, never for `null` - which killed the run before the
-  //     report printed, turning one unconfigured plugin into "career-ops is
+  //     report printed, turning one unconfigured plugin into "jobyougo is
   //     broken here". The assertion is that doctor still WARNS: a crash and a
   //     clean miss both leave playwright_mcp false, so only checking the flag
   //     would pass on the bug.

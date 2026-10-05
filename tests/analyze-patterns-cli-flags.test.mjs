@@ -20,7 +20,7 @@ const VALID_FLAGS = [
 ];
 
 function runAnalyze(...args) {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-analyze-flags-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-analyze-flags-'));
   try {
     // Analysis requires a nonempty tracker even when the minimum is zero.
     // One fictional submitted application stays below the default floor of 5
@@ -39,7 +39,7 @@ function runAnalyze(...args) {
       cwd: ROOT,
       encoding: 'utf-8',
       timeout: 30_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dataRoot },
+      env: { ...process.env, JOBYOUGO_ROOT: dataRoot },
     });
     assert.equal(result.error, undefined, `analyze-patterns.mjs failed to spawn: ${result.error?.message}`);
     assert.equal(result.signal, null, `analyze-patterns.mjs was killed by ${result.signal} (timeout?)`);

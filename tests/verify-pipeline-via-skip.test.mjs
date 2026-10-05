@@ -20,7 +20,7 @@
 //   4. discarded  — deliberately still a channel: "Discarded by candidate or
 //                   offer closed" can follow a real application
 //
-// Only the tracker and reports dir are fixtures; CAREER_OPS_ROOT stays the
+// Only the tracker and reports dir are fixtures; JOBYOUGO_ROOT stays the
 // checkout so the other checks resolve, exactly as verify-pipeline-check15 does.
 import { execFileSync } from 'child_process';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'fs';
@@ -55,7 +55,7 @@ try {
   // non-zero exit fails the fixture loudly instead of being read as a result.
   const runVp = (table) => {
     writeFileSync(tracker, table, 'utf-8');
-    const env = { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_REPORTS: reports };
+    const env = { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_REPORTS: reports };
     try {
       const stdout = execFileSync(NODE, [join(ROOT, 'verify-pipeline.mjs')], { cwd: ROOT, env, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 60_000 });
       return { status: 0, stdout, stderr: '' };

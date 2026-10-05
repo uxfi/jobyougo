@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
 function sandbox(status = 'Evaluated') {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-seed-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-seed-'));
   mkdirSync(join(dir, 'data'), { recursive: true });
   writeFileSync(join(dir, 'data', 'applications.md'), [
     '# Applications Tracker',
@@ -43,7 +43,7 @@ function setStatus(dir, args) {
     cwd: ROOT,
     encoding: 'utf-8',
     timeout: 30_000,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(dir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(dir, 'data', 'applications.md') },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
   return { ...r, all: `${r.stdout ?? ''}${r.stderr ?? ''}` };
@@ -69,7 +69,7 @@ test('a transition into Applied seeds the first follow-up', () => {
 test('it seeds beside the tracker it just wrote, not beside the repo', () => {
   // followup-seed's own default is the REPO's data/follow-ups.md. Left to it,
   // an install whose data lives outside the checkout — which is the whole point
-  // of CAREER_OPS_TRACKER, and how the web configures its root — would get the
+  // of JOBYOUGO_TRACKER, and how the web configures its root — would get the
   // status written to one tracker and the follow-up seeded next to another.
   const dir = sandbox();
   const repoFollowups = join(ROOT, 'data', 'follow-ups.md');

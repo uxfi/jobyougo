@@ -45,7 +45,7 @@ const URL_BASE = 'https://example.test/';
 /** The url column of each row — column 0, exact, never a substring test. */
 const urlColumn = (rows) => rows.map(l => l.split('\t')[0]);
 
-const root = mkdtempSync(join(tmpdir(), 'career-ops-scan-history-'));
+const root = mkdtempSync(join(tmpdir(), 'jobyougo-scan-history-'));
 const historyPath = join(root, 'data', 'scan-history.tsv');
 
 // argv is read from the end: node's arg layout after -e differs from a script
@@ -63,16 +63,16 @@ const writerSource = `
 `;
 
 // cwd is the scratch root, not the repo: scan.mjs resolves its data paths
-// relative to cwd, so a writer that ignored CAREER_OPS_SCAN_HISTORY still
+// relative to cwd, so a writer that ignored JOBYOUGO_SCAN_HISTORY still
 // lands in the temp dir rather than the developer's real data/.
 const runWriter = (writer) =>
   execFileAsync(NODE, ['--input-type=module', '-e', writerSource, '--', new URL('../scan.mjs', import.meta.url).href, writer], {
     cwd: root,
     env: {
       ...process.env,
-      CAREER_OPS_SCAN_HISTORY: historyPath,
-      CAREER_OPS_PIPELINE_LOCK_TIMEOUT_MS: String(LOCK_TIMEOUT_MS),
-      CAREER_OPS_PIPELINE_LOCK_RETRY_MS: '20',
+      JOBYOUGO_SCAN_HISTORY: historyPath,
+      JOBYOUGO_PIPELINE_LOCK_TIMEOUT_MS: String(LOCK_TIMEOUT_MS),
+      JOBYOUGO_PIPELINE_LOCK_RETRY_MS: '20',
     },
   });
 

@@ -42,8 +42,8 @@ const COUNTERS = {
 // cwd is deliberately NOT the data root, matching #3511's arrangement — a check
 // that runs from the data root cannot tell the two resolutions apart.
 function roundTrip() {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-runsroot-'));
-  const decoyCwd = mkdtempSync(join(tmpdir(), 'career-ops-runsdecoy-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-runsroot-'));
+  const decoyCwd = mkdtempSync(join(tmpdir(), 'jobyougo-runsdecoy-'));
   mkdirSync(join(dataRoot, 'data'), { recursive: true });
   mkdirSync(join(decoyCwd, 'data'), { recursive: true });
   try {
@@ -56,7 +56,7 @@ function roundTrip() {
     `;
     const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
       cwd: decoyCwd, encoding: 'utf-8', timeout: 60_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dataRoot, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dataRoot, JOBYOUGO_DATA_DIR: '' },
     });
     assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
     assert.equal(r.status, 0, `child exited ${r.status}: ${r.stderr}`);

@@ -31,7 +31,7 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 function doctor(cwd, target) {
   const r = spawnSync(process.execPath, [join(ROOT, 'doctor.mjs'), '--json', '--target', target], {
     cwd, encoding: 'utf-8', timeout: 60_000,
-    env: { ...process.env, CAREER_OPS_ROOT: target, CAREER_OPS_DATA_DIR: '' },
+    env: { ...process.env, JOBYOUGO_ROOT: target, JOBYOUGO_DATA_DIR: '' },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
   return r;
@@ -41,7 +41,7 @@ test('--json writes nothing to stderr outside a git checkout', () => {
   // A temp dir is not a checkout and has no checkout above it — the arrangement
   // that produced the leak, and the one a user with a data root outside the
   // repo is in every time.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-doctor-stderr-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-doctor-stderr-'));
   try {
     const r = doctor(dir, dir);
     assert.equal(
@@ -57,7 +57,7 @@ test('--json writes nothing to stderr outside a git checkout', () => {
 test('and still produces the JSON it is asked for', () => {
   // Guard: the fix must not buy a clean stderr by suppressing the check or the
   // output. stdout has to remain a complete, parseable envelope.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-doctor-stderr-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-doctor-stderr-'));
   try {
     const r = doctor(dir, dir);
     const j = JSON.parse(r.stdout.slice(r.stdout.indexOf('{')));

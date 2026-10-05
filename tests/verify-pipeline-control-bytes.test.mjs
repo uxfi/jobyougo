@@ -35,7 +35,7 @@ try {
   // verify-pipeline exits 1 on errors, so the output has to be read off the
   // thrown error too — otherwise the non-zero exit hides the assertion.
   const runVp = () => {
-    const env = { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_REPORTS: reports, CAREER_OPS_PORTALS: join(tmp, 'no-portals.yml') };
+    const env = { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_REPORTS: reports, JOBYOUGO_PORTALS: join(tmp, 'no-portals.yml') };
     try {
       const stdout = execFileSync(NODE, [join(ROOT, 'verify-pipeline.mjs')], { cwd: ROOT, env, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 60_000 });
       return { stdout, status: 0 };

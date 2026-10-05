@@ -40,7 +40,7 @@ const ANALYSIS_SCRIPTS = [
 ];
 
 function emptyButValid() {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-emptytracker-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-emptytracker-'));
   mkdirSync(join(dir, 'data'), { recursive: true });
   // A real header and separator with no rows — a tracker that parses and holds
   // nothing, which is exactly what a new user has.
@@ -59,7 +59,7 @@ function exitCodes(dir) {
   for (const script of ANALYSIS_SCRIPTS) {
     const r = spawnSync(process.execPath, [join(ROOT, script), '--summary'], {
       cwd: dir, encoding: 'utf-8', timeout: 60_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
     });
     assert.equal(r.error, undefined, `${script} failed to spawn: ${r.error?.message}`);
     out[script] = r.status;
@@ -103,14 +103,14 @@ test('a real failure still exits non-zero', () => {
   // The guard on the fix: analyze-patterns now checks the KIND of error, so
   // only the no-data case is excused. An unreadable tracker must still fail, or
   // this change would have bought consistency by never reporting anything.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-badtracker-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-badtracker-'));
   try {
     mkdirSync(join(dir, 'data'), { recursive: true });
     // A directory where the tracker file belongs: unreadable, not empty.
     mkdirSync(join(dir, 'data', 'applications.md'), { recursive: true });
     const r = spawnSync(process.execPath, [join(ROOT, 'analyze-patterns.mjs'), '--summary'], {
       cwd: dir, encoding: 'utf-8', timeout: 60_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
     });
     assert.notEqual(r.status, 0, 'an unreadable tracker was reported as success');
   } finally {

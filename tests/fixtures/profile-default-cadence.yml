@@ -1,7 +1,7 @@
 # Fixture profile for the follow-up suites (#2268).
 #
 # followup-cadence.mjs resolves its cadence at module load from
-# CAREER_OPS_PROFILE, falling back to the user's own config/profile.yml. The
+# JOBYOUGO_PROFILE, falling back to the user's own config/profile.yml. The
 # suites assert against DEFAULT_CADENCE, so on a machine where the user
 # customized followup_cadence they went red on a healthy install.
 #

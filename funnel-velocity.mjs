@@ -43,7 +43,7 @@ import * as yaml from 'js-yaml';
 import { computeFunnel, computeFunnelWithHistory, parseStatusLogStages, trackerStatusByNum, computeTrackerStats } from './stats.mjs';
 import { resolveColumns, parseTrackerRow } from './tracker-parse.mjs';
 import { resolveTrackerPath, loadCanonicalStates, resolveCanonicalState } from './tracker-utils.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { parseAppliedDate, normalizeStatus } from './followup-cadence.mjs';
 import { flagValue, validateFlags } from './lib/cli-flags.mjs';
 import { localToday } from './lib/local-today.mjs';
@@ -51,16 +51,16 @@ import { isMainModule } from './lib/is-main-module.mjs';
 
 // Two roots, because this file reads both layers and they are not the same
 // directory. CODE_ROOT is where the shipped templates live; DATA_ROOT is where
-// the USER's tracker and overrides live, and getCareerOpsRoot() is what honours
-// CAREER_OPS_ROOT / CAREER_OPS_DATA_DIR / the .career-ops-data marker.
+// the USER's tracker and overrides live, and getJobYouGoRoot() is what honours
+// JOBYOUGO_ROOT / JOBYOUGO_DATA_DIR / the .jobyougo-data marker.
 //
-// One name for both is how this went wrong: the constant was called CAREER_OPS
+// One name for both is how this went wrong: the constant was called JOBYOUGO
 // and held __dirname, so it read correctly for templates and silently pointed
 // the tracker lookup at the checkout. A user with a data root configured got
 // "No tracker found ... nothing to calibrate yet" — indistinguishable from
 // having no data.
 const CODE_ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const STATES_FILE = join(CODE_ROOT, 'templates/states.yml');
 
 const KNOWN_FLAGS = ['--summary', '--self-test', '--benchmarks', '--help', '-h'];

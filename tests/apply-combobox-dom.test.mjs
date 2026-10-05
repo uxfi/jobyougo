@@ -251,6 +251,30 @@ test('country codes do not substring-match a different country', async () => {
   assert.equal(fr.matched, null);
 });
 
+test('a Location typeahead does not treat nearby Yes/No toggles as its list', async () => {
+  await withContent(`
+    <label>Location <input data-co-i="0" role="combobox" aria-expanded="true"></label>
+    <div class="ashby-application-form-input-yesno">
+      <button class="choice-option" data-option="yes">Yes</button>
+      <button class="choice-option" data-option="no">No</button>
+    </div>
+  `);
+  const stolen = await q({ mode: 'list', i: 0, allowGlobal: false });
+  assert.deepEqual(stolen.texts, []);
+});
+
+test('Yes/No rows inside the field listbox are still options', async () => {
+  await withContent(`
+    <input data-co-i="0" role="combobox" aria-expanded="true" aria-controls="lb">
+    <div id="lb" role="listbox">
+      <div role="option">Yes</div>
+      <div role="option">No</div>
+    </div>
+  `);
+  const real = await q({ mode: 'list', i: 0, allowGlobal: false });
+  assert.deepEqual(real.texts, ['Yes', 'No']);
+});
+
 test('COMBOBOX_OPTION_SEL includes Workday and Select2 tokens', () => {
   assert.match(COMBOBOX_OPTION_SEL, /select2-results__option/);
   assert.match(COMBOBOX_OPTION_SEL, /promptOption/i);

@@ -37,7 +37,7 @@
  * treated as the body and the subject is left blank.
  *
  * Env:
- *   CAREER_OPS_REPLY_CANDIDATES  override the output JSON path (used by tests;
+ *   JOBYOUGO_REPLY_CANDIDATES  override the output JSON path (used by tests;
  *                                 defaults to data/reply-candidates.json next to
  *                                 this script, matching reply-watch.mjs's default)
  */
@@ -50,7 +50,7 @@ import { renameSyncWithRetry } from './tracker-utils.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CANDIDATES_PATH = process.env.CAREER_OPS_REPLY_CANDIDATES
+const CANDIDATES_PATH = process.env.JOBYOUGO_REPLY_CANDIDATES
   || path.join(__dirname, 'data', 'reply-candidates.json');
 
 

@@ -21,11 +21,11 @@ const TRACKER_HEADER = [
 
 /** Run merge-tracker against a disposable external data root. */
 function runMergeTrackerCli(dataRoot, ...args) {
-  const env = { ...process.env, CAREER_OPS_ROOT: dataRoot };
-  delete env.CAREER_OPS_DATA_DIR;
-  delete env.CAREER_OPS_TRACKER;
-  delete env.CAREER_OPS_ADDITIONS;
-  delete env.CAREER_OPS_BATCH_STATE;
+  const env = { ...process.env, JOBYOUGO_ROOT: dataRoot };
+  delete env.JOBYOUGO_DATA_DIR;
+  delete env.JOBYOUGO_TRACKER;
+  delete env.JOBYOUGO_ADDITIONS;
+  delete env.JOBYOUGO_BATCH_STATE;
   const result = spawnSync(process.execPath, [join(CODE_ROOT, 'merge-tracker.mjs'), ...args], {
     cwd: CODE_ROOT,
     env,
@@ -38,7 +38,7 @@ function runMergeTrackerCli(dataRoot, ...args) {
 }
 
 test('merge-tracker --help exits before mutating tracker or additions', () => {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-merge-help-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-merge-help-'));
   try {
     const tracker = join(dataRoot, 'data', 'applications.md');
     const additionsDir = join(dataRoot, 'batch', 'tracker-additions');
@@ -63,7 +63,7 @@ test('merge-tracker --help exits before mutating tracker or additions', () => {
 });
 
 test('merge-tracker resolves executable post-hook from code root and PDF data from external DATA_ROOT', () => {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-merge-external-root-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-merge-external-root-'));
   try {
     const tracker = join(dataRoot, 'data', 'applications.md');
     mkdirSync(dirname(tracker), { recursive: true });

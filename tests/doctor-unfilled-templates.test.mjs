@@ -72,7 +72,7 @@ try {
   }
 
   // 2. Non-blocking: an unedited personalization file is a warning, never a
-  //    gate. career-ops is documented as working out of the box.
+  //    gate. jobyougo is documented as working out of the box.
   //
   //    Every prerequisite is present here, so `onboardingNeeded` has exactly
   //    one thing left it could be reacting to. That is the whole assertion:

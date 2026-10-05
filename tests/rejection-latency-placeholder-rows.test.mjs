@@ -80,7 +80,7 @@ test('an empty or malformed tracker returns nothing rather than throwing', () =>
 test('the CLI states the gap in its warnings and metadata', () => {
   // End to end, because the value of this fix is entirely in the user being
   // told. A count that never reaches the report is the same silence.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-rejlat-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-rejlat-'));
   try {
     mkdirSync(join(dir, 'data'), { recursive: true });
     writeFileSync(join(dir, 'data', 'applications.md'), TRACKER);
@@ -92,7 +92,7 @@ test('the CLI states the gap in its warnings and metadata', () => {
     ].join('\n'));
     const r = spawnSync(process.execPath, [join(ROOT, 'rejection-latency.mjs'), '--today', '2026-06-01'], {
       cwd: ROOT, encoding: 'utf-8', timeout: 30_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
     });
     assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
     const out = JSON.parse(r.stdout.slice(r.stdout.indexOf('{')));
@@ -173,7 +173,7 @@ test('an unattributable round in active-interviews.md is reported too', () => {
   // The flags come from active-interviews.md, not the tracker. The first
   // version counted only tracker rows, so a `?` round there was still dropped
   // silently — a named tracker row plus one `?` round gave zero of everything.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-rejlat-rounds-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-rejlat-rounds-'));
   try {
     mkdirSync(join(dir, 'data'), { recursive: true });
     writeFileSync(join(dir, 'data', 'applications.md'), [
@@ -189,7 +189,7 @@ test('an unattributable round in active-interviews.md is reported too', () => {
     ].join('\n'));
     const r = spawnSync(process.execPath, [join(ROOT, 'rejection-latency.mjs'), '--today', '2026-06-01'], {
       cwd: ROOT, encoding: 'utf-8', timeout: 30_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
     });
     const out = JSON.parse(r.stdout.slice(r.stdout.indexOf('{')));
     assert.ok(
@@ -205,7 +205,7 @@ test('--summary does not print an all-clear over rows it could not assess', () =
   // "No post-interview silence exceeded the configured thresholds" printed above
   // a warning about unassessed rows is a claim about a subset, presented as
   // covering the whole file — the same silence, one line higher.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-rejlat-allclear-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-rejlat-allclear-'));
   try {
     mkdirSync(join(dir, 'data'), { recursive: true });
     writeFileSync(join(dir, 'data', 'applications.md'), [
@@ -217,7 +217,7 @@ test('--summary does not print an all-clear over rows it could not assess', () =
     writeFileSync(join(dir, 'data', 'active-interviews.md'), '| Company | Role | Date | Round | Notes |\n|---|---|---|---|---|\n');
     const r = spawnSync(process.execPath, [join(ROOT, 'rejection-latency.mjs'), '--summary', '--today', '2026-06-01'], {
       cwd: ROOT, encoding: 'utf-8', timeout: 30_000,
-      env: { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
     });
     const all = `${r.stdout}${r.stderr}`;
     assert.doesNotMatch(

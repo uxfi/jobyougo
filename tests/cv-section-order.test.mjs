@@ -135,7 +135,7 @@ try {
     fail('cvSectionOrderFrom should return [] unless `sections` is a list');
   }
 
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-sections-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-sections-'));
   try {
     const profile = join(dir, 'profile.yml');
     writeFileSync(profile, 'candidate:\n  full_name: X\ncv:\n  output_format: html\n  sections: [skills, education]\n');
@@ -1005,7 +1005,7 @@ ${sections.join('\n')}</div>
       copyFileSync(join(ROOT, f), join(sandbox, f));
     }
     // generate-pdf.mjs resolves user-layer paths via path-resolver.mjs
-    // (CAREER_OPS_ROOT), so the fixture carries that too.
+    // (JOBYOUGO_ROOT), so the fixture carries that too.
     copyFileSync(join(ROOT, 'path-resolver.mjs'), join(sandbox, 'path-resolver.mjs'));
     // generate-pdf.mjs's main-guard now lives in lib/is-main-module.mjs (#3170),
     // so the copy needs it beside itself or it dies with ERR_MODULE_NOT_FOUND
@@ -1121,7 +1121,7 @@ export const chromium = {
 
 // ── cv.sections is read from the WORKSPACE profile, like every other setting ──
 //    readStyleTokens() resolves config/profile.yml against workspaceRoot. This
-//    read was anchored to __dirname instead, so with CAREER_OPS_TRACKER pointing
+//    read was anchored to __dirname instead, so with JOBYOUGO_TRACKER pointing
 //    at a workspace outside the checkout the two settings came from two
 //    DIFFERENT files of the same name: style tokens from the workspace, section
 //    order from the repo. cv.md is read from workspaceRoot too, so the guard was
@@ -1146,7 +1146,7 @@ export const chromium = {
       copyFileSync(join(ROOT, f), join(sandbox, f));
     }
     // generate-pdf.mjs resolves user-layer paths via path-resolver.mjs
-    // (CAREER_OPS_ROOT), so the fixture carries that too.
+    // (JOBYOUGO_ROOT), so the fixture carries that too.
     copyFileSync(join(ROOT, 'path-resolver.mjs'), join(sandbox, 'path-resolver.mjs'));
     // generate-pdf.mjs's main-guard now lives in lib/is-main-module.mjs (#3170),
     // so the copy needs it beside itself or it dies with ERR_MODULE_NOT_FOUND
@@ -1164,7 +1164,7 @@ export const chromium = {
     linkRepoPackage(sandbox, 'js-yaml');
 
     // The external workspace: tracker, profile, CV and documents all live here,
-    // and NOT beside the script. This is the shape CAREER_OPS_TRACKER creates.
+    // and NOT beside the script. This is the shape JOBYOUGO_TRACKER creates.
     const ws = join(sandbox, 'ws');
     mkdirSync(join(ws, 'data'), { recursive: true });
     mkdirSync(join(ws, 'config'), { recursive: true });
@@ -1230,7 +1230,7 @@ export const chromium = {
       cwd: sandbox,
       encoding: 'utf-8',
       timeout: 60_000,
-      env: { ...process.env, CAREER_OPS_TRACKER: join(ws, 'data', 'applications.md') },
+      env: { ...process.env, JOBYOUGO_TRACKER: join(ws, 'data', 'applications.md') },
     });
     const outPdf = join(ws, 'out', 'in.pdf');
 
@@ -1248,7 +1248,7 @@ export const chromium = {
       } else if (iEdu === -1 || iExp === -1) {
         fail(`could not read both section titles back out (got ${titles.join(' -> ') || 'nothing'})`);
       } else if (iEdu < iExp) {
-        pass('cv.sections is read from the workspace profile when CAREER_OPS_TRACKER moves the workspace off __dirname');
+        pass('cv.sections is read from the workspace profile when JOBYOUGO_TRACKER moves the workspace off __dirname');
       } else {
         fail(`the workspace profile was ignored: printed order was ${titles.join(' -> ')}`);
       }

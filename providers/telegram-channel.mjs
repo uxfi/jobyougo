@@ -18,7 +18,7 @@
 // hide the employer ("название скрыто", "our client"), or bundle several
 // vacancies are not emitted. Measured 2026-09-03 over 809 posts from 17
 // public channels, before hashtag-template support: 137 pass (25% of the
-// RU/CIS corpus, none of the EN one, whose channels mirror boards career-ops
+// RU/CIS corpus, none of the EN one, whose channels mirror boards jobyougo
 // already scans or link through
 // shorteners); every rejection is a post the policy could not attribute, not
 // a parser failure.

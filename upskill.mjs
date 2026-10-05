@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * upskill.mjs — Aggregate skill-gap analyzer for career-ops (#1520, phase 1)
+ * upskill.mjs — Aggregate skill-gap analyzer for jobyougo (#1520, phase 1)
  *
  * Reads the tracker + every linked evaluation report, extracts skill tokens
  * from each report's gaps (Machine Summary hard_stops/soft_gaps + Gap table),
@@ -29,13 +29,13 @@ import { load as yamlLoad } from 'js-yaml';
 import { resolveColumns, parseTrackerRow } from './tracker-parse.mjs';
 import { validateFlags } from './lib/cli-flags.mjs';
 
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const CAREER_OPS = getCareerOpsRoot();
-const APPS_FILE = resolveTrackerPath(CAREER_OPS);
-const CV_FILE = join(CAREER_OPS, 'cv.md');
-const PROFILE_FILE = join(CAREER_OPS, 'config/profile.yml');
+const JOBYOUGO = getJobYouGoRoot();
+const APPS_FILE = resolveTrackerPath(JOBYOUGO);
+const CV_FILE = join(JOBYOUGO, 'cv.md');
+const PROFILE_FILE = join(JOBYOUGO, 'config/profile.yml');
 
 // Canonical reports-root containment. A tracker link resolves to a candidate
 // path; accept it only if it stays inside the repo's reports/ directory. Two
@@ -50,11 +50,11 @@ const PROFILE_FILE = join(CAREER_OPS, 'config/profile.yml');
 // errors rethrow, matching readTextIfExists. Identical to the guard in
 // analyze-patterns.mjs so both sites behave the same.
 function withinReports(candidate) {
-  const repoRelative = relative(CAREER_OPS, candidate).split(sep).join('/');
+  const repoRelative = relative(JOBYOUGO, candidate).split(sep).join('/');
   if (!repoRelative.startsWith('reports/') || repoRelative.includes('..')) return false;
   let realRoot;
   try {
-    realRoot = realpathSync(join(CAREER_OPS, 'reports'));
+    realRoot = realpathSync(join(JOBYOUGO, 'reports'));
   } catch (err) {
     if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return false;
     throw err;
@@ -461,7 +461,7 @@ function analyze(minReports) {
     // (see merge-tracker.mjs); resolve against it, with a root-relative fallback.
     // The read is attempted directly instead of probing with existsSync first,
     // which costs a full stat per report and races with the read (#2385).
-    const candidates = new Set([join(dirname(APPS_FILE), linkMatch[1]), join(CAREER_OPS, linkMatch[1])]);
+    const candidates = new Set([join(dirname(APPS_FILE), linkMatch[1]), join(JOBYOUGO, linkMatch[1])]);
     let content = null;
     for (const p of candidates) {
       if (!withinReports(p)) continue;
@@ -675,11 +675,11 @@ soft_gaps:
   // traversal link escapes root and must be rejected before any read. join()
   // collapses '..' at the call site, so the candidate is already absolute here.
   {
-    const legit = join(CAREER_OPS, 'reports', '042-acme-2026-01-01.md');
+    const legit = join(JOBYOUGO, 'reports', '042-acme-2026-01-01.md');
     if (!withinReports(legit)) failures.push('containment: legit reports/ path wrongly rejected');
-    const escape = join(CAREER_OPS, 'reports/../../../etc/passwd');
+    const escape = join(JOBYOUGO, 'reports/../../../etc/passwd');
     if (withinReports(escape)) failures.push('containment: traversal path escaped reports/ (path-traversal guard broken)');
-    const sibling = join(CAREER_OPS, 'reports-evil', 'x.md');
+    const sibling = join(JOBYOUGO, 'reports-evil', 'x.md');
     if (withinReports(sibling)) failures.push('containment: reports-prefixed sibling dir wrongly accepted');
   }
 
@@ -689,7 +689,7 @@ soft_gaps:
   // reports/ still passes and a missing candidate degrades gracefully (the
   // downstream read returns null) rather than throwing.
   {
-    const reportsDir = join(CAREER_OPS, 'reports');
+    const reportsDir = join(JOBYOUGO, 'reports');
     if (existsSync(reportsDir)) {
       const tag = `__co2655-${process.pid}-${Date.now()}`;
       const realReport = join(reportsDir, `${tag}-real.md`);
@@ -831,10 +831,10 @@ soft_gaps:
     }
 
     // Optional files: missing, unreadable, and not-a-file must all read as ''.
-    if (readOptionalText(join(CAREER_OPS, 'no-such-file-xyz.md')) !== '') {
+    if (readOptionalText(join(JOBYOUGO, 'no-such-file-xyz.md')) !== '') {
       failures.push('readOptionalText: a missing file should read as empty');
     }
-    if (readOptionalText(CAREER_OPS) !== '') {
+    if (readOptionalText(JOBYOUGO) !== '') {
       failures.push('readOptionalText: a DIRECTORY should read as empty, not throw EISDIR');
     }
   }
@@ -1039,7 +1039,7 @@ if (isMain) {
       // fresh checkout still produces a meaningful comparison. Keyed on the read
       // result rather than existsSync: a cv.md that exists but cannot be read is,
       // for this purpose, the same as one that is not there.
-      if (!cvRaw) cvRaw = readOptionalText(join(CAREER_OPS, 'cv-example.md'));
+      if (!cvRaw) cvRaw = readOptionalText(join(JOBYOUGO, 'cv-example.md'));
 
       const { gaps: gapList, excludedAsKnown, knownSkills } =
         computeTargetedGaps(

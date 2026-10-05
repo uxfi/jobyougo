@@ -10,7 +10,7 @@
 // user runs it and asserts the two visible outcomes: the warning names the
 // entry, and the success line is withheld.
 //
-// Only the portals file is pointed at a fixture. CAREER_OPS_ROOT stays the
+// Only the portals file is pointed at a fixture. JOBYOUGO_ROOT stays the
 // checkout so providers/ resolves; tracker and reports go to a temp dir the
 // same way test-all.mjs's own verify-pipeline fixtures do, so the other checks
 // never read a user's real data. Provider resolution is config matching — no
@@ -49,7 +49,7 @@ try {
   // way the report is on stdout, so read it from the error object too rather
   // than letting a non-zero exit hide the assertion.
   const runVp = (portalsFile) => {
-    const env = { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_REPORTS: reports, CAREER_OPS_PORTALS: portalsFile };
+    const env = { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_REPORTS: reports, JOBYOUGO_PORTALS: portalsFile };
     try {
       return execFileSync(NODE, [join(ROOT, 'verify-pipeline.mjs')], { cwd: ROOT, env, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 60_000 });
     } catch (err) {

@@ -203,7 +203,7 @@ try {
   // same pattern as tests/providers/jobbankca.test.mjs. ──
   {
     const withTmpCwd = async (setup, run) => {
-      const tmp = mkdtempSync(join(tmpdir(), 'career-ops-mycareersfuture-fallback-'));
+      const tmp = mkdtempSync(join(tmpdir(), 'jobyougo-mycareersfuture-fallback-'));
       const cwdBefore = process.cwd();
       try {
         setup(tmp);

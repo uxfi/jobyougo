@@ -41,7 +41,7 @@ function addTsv(env, name, cols) {
 function runMerge(env, args = []) {
   return execFileSync('node', [MERGE, ...args], {
     encoding: 'utf-8',
-    env: { ...process.env, CAREER_OPS_TRACKER: env.tracker, CAREER_OPS_ADDITIONS: env.addDir },
+    env: { ...process.env, JOBYOUGO_TRACKER: env.tracker, JOBYOUGO_ADDITIONS: env.addDir },
   });
 }
 function trackerRows(env) {

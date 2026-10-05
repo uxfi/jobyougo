@@ -12,7 +12,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCAN = join(ROOT, 'scan.mjs');
 
 function workspace(portals) {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-scan-receipt-'));
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-scan-receipt-'));
   mkdirSync(join(root, 'data'), { recursive: true });
   mkdirSync(join(root, 'config'), { recursive: true });
   writeFileSync(join(root, 'portals.yml'), portals);
@@ -25,11 +25,11 @@ function runJson(root) {
     cwd: root,
     env: {
       ...process.env,
-      CAREER_OPS_ROOT: root,
-      CAREER_OPS_PORTALS: join(root, 'portals.yml'),
-      CAREER_OPS_PROFILE: join(root, 'config', 'profile.yml'),
-      CAREER_OPS_PIPELINE: join(root, 'data', 'pipeline.md'),
-      CAREER_OPS_SCAN_HISTORY: join(root, 'data', 'scan-history.tsv'),
+      JOBYOUGO_ROOT: root,
+      JOBYOUGO_PORTALS: join(root, 'portals.yml'),
+      JOBYOUGO_PROFILE: join(root, 'config', 'profile.yml'),
+      JOBYOUGO_PIPELINE: join(root, 'data', 'pipeline.md'),
+      JOBYOUGO_SCAN_HISTORY: join(root, 'data', 'scan-history.tsv'),
     },
     encoding: 'utf-8',
     maxBuffer: 8 * 1024 * 1024,
@@ -37,7 +37,7 @@ function runJson(root) {
 }
 
 test('atomicWriteFile replaces content without leaving a temporary file', () => {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-atomic-'));
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-atomic-'));
   try {
     const target = join(root, 'pipeline.md');
     writeFileSync(target, 'before\n');
@@ -50,7 +50,7 @@ test('atomicWriteFile replaces content without leaving a temporary file', () => 
 });
 
 test('atomicWriteFile preserves restrictive destination permissions', { skip: process.platform === 'win32' }, () => {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-atomic-mode-'));
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-atomic-mode-'));
   try {
     const target = join(root, 'pipeline.md');
     writeFileSync(target, 'before\n');
@@ -63,7 +63,7 @@ test('atomicWriteFile preserves restrictive destination permissions', { skip: pr
 });
 
 test('atomicWriteFile preserves a destination symlink and replaces its target', { skip: process.platform === 'win32' }, () => {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-atomic-symlink-'));
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-atomic-symlink-'));
   try {
     const target = join(root, 'pipeline-target.md');
     const link = join(root, 'pipeline.md');
@@ -78,7 +78,7 @@ test('atomicWriteFile preserves a destination symlink and replaces its target', 
 });
 
 test('atomicWriteFile cannot be redirected through the old predictable temporary path', { skip: process.platform === 'win32' }, () => {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-atomic-temp-link-'));
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-atomic-temp-link-'));
   try {
     const target = join(root, 'pipeline.md');
     const victim = join(root, 'victim.md');
@@ -110,7 +110,7 @@ test('--json emits exactly one clean successful receipt', () => {
     const receipt = JSON.parse(result.stdout);
     assert.match(receipt.date, /^\d{4}-\d{2}-\d{2}$/);
     assert.deepEqual(receipt, {
-      version: 'careerops.scan.receipt@1',
+      version: 'jobyougo.scan.receipt@1',
       date: receipt.date,
       scanned: 0,
       skipped: 0,
@@ -141,7 +141,7 @@ test('--json returns exit 2 and structured errors for a partial failure', () => 
     const result = runJson(root);
     assert.equal(result.status, 2, result.stderr);
     const receipt = JSON.parse(result.stdout);
-    assert.equal(receipt.version, 'careerops.scan.receipt@1');
+    assert.equal(receipt.version, 'jobyougo.scan.receipt@1');
     assert.equal(receipt.dry_run, true);
     assert.deepEqual(receipt.errors, [{
       company: 'Broken Co',
@@ -156,7 +156,7 @@ test('a receipt larger than the pipe buffer drains completely', () => {
   const script = [
     `import { emitJsonReceipt } from ${JSON.stringify(new URL('../scan.mjs', import.meta.url).href)};`,
     "const added_urls = Array.from({ length: 20000 }, (_, i) => `https://example.invalid/very/long/job/posting/path/number/${i}`);",
-    "emitJsonReceipt({ version: 'careerops.scan.receipt@1', added_urls }, 0);",
+    "emitJsonReceipt({ version: 'jobyougo.scan.receipt@1', added_urls }, 0);",
   ].join('\n');
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
     encoding: 'utf-8',

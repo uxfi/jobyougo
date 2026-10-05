@@ -5,13 +5,13 @@
 // Those covered readers. These two write, and each had its own spelling of the
 // bug:
 //
-//   set-status.mjs    `const CAREER_OPS = dirname(fileURLToPath(...))` then
-//                     `resolveTrackerPath(CAREER_OPS)` — the exact constant the
+//   set-status.mjs    `const JOBYOUGO = dirname(fileURLToPath(...))` then
+//                     `resolveTrackerPath(JOBYOUGO)` — the exact constant the
 //                     sibling suite's header calls out, still present in a writer.
 //                     Failed with "No tracker found at <CHECKOUT>/applications.md".
 //
 //   generate-pdf.mjs  disagreed with ITSELF: line 49 derived the tracker from
-//                     getCareerOpsRoot(), while refreshRootCache() derived the
+//                     getJobYouGoRoot(), while refreshRootCache() derived the
 //                     containment boundary from __dirname. Every path under the
 //                     real data root then read as an escape and the PDF was
 //                     refused outright.
@@ -38,8 +38,8 @@ function fixture() {
   // symlink (/tmp -> /private/tmp), so a lexical fixture path would be reported
   // as outside its own workspace and the test would fail for a reason that has
   // nothing to do with which root was used.
-  const dataRoot = realpathSync(mkdtempSync(join(tmpdir(), 'career-ops-writerroot-')));
-  const decoyCwd = realpathSync(mkdtempSync(join(tmpdir(), 'career-ops-writercwd-')));
+  const dataRoot = realpathSync(mkdtempSync(join(tmpdir(), 'jobyougo-writerroot-')));
+  const decoyCwd = realpathSync(mkdtempSync(join(tmpdir(), 'jobyougo-writercwd-')));
   mkdirSync(join(dataRoot, 'data'), { recursive: true });
   mkdirSync(join(dataRoot, 'output'), { recursive: true });
   writeFileSync(join(dataRoot, 'data', 'applications.md'), [
@@ -65,7 +65,7 @@ function run(script, args, { dataRoot, decoyCwd }) {
     cwd: decoyCwd,
     encoding: 'utf-8',
     timeout: 120_000,
-    env: { ...process.env, CAREER_OPS_ROOT: dataRoot, CAREER_OPS_DATA_DIR: '', CAREER_OPS_TRACKER: '' },
+    env: { ...process.env, JOBYOUGO_ROOT: dataRoot, JOBYOUGO_DATA_DIR: '', JOBYOUGO_TRACKER: '' },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
   return { ...r, all: `${r.stdout ?? ''}${r.stderr ?? ''}` };
@@ -133,15 +133,15 @@ test('generate-pdf does not treat the data root as outside its workspace', () =>
   } finally { cleanup(f); }
 });
 
-// ── the .career-ops-data marker ─────────────────────────────────────────────
+// ── the .jobyougo-data marker ─────────────────────────────────────────────
 //
-// The cases above drive CAREER_OPS_ROOT, which is precedence rule 1. #4389 was
+// The cases above drive JOBYOUGO_ROOT, which is precedence rule 1. #4389 was
 // reported against the MARKER, which is rule 3, and no existing suite exercises
-// it for either of these scripts. Both rules end at the same getCareerOpsRoot()
+// it for either of these scripts. Both rules end at the same getJobYouGoRoot()
 // call, but only a marker case proves that path end to end.
 //
 // The marker has to live beside the script, so the script is run from a COPIED
-// code root rather than the checkout -- writing .career-ops-data into the repo
+// code root rather than the checkout -- writing .jobyougo-data into the repo
 // would leak into other tests and survive a crash. Same shape as
 // tests/story-provenance-data-root.test.mjs.
 
@@ -165,7 +165,7 @@ const CLOSURE = {
 };
 
 function markerFixture(script) {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'career-ops-marker-')));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'jobyougo-marker-')));
   const codeRoot = join(dir, 'code');
   const dataRoot = join(dir, 'data');
   for (const sub of ['lib', 'templates']) mkdirSync(join(codeRoot, sub), { recursive: true });
@@ -177,8 +177,8 @@ function markerFixture(script) {
   // child dies before it can print anything and the assertions say nothing.
   try { symlinkSync(join(ROOT, 'node_modules'), join(codeRoot, 'node_modules'), 'dir'); } catch { /* already there */ }
 
-  // The marker: rule 3. No CAREER_OPS_* variable is set when this is used.
-  writeFileSync(join(codeRoot, '.career-ops-data'), `${dataRoot}\n`);
+  // The marker: rule 3. No JOBYOUGO_* variable is set when this is used.
+  writeFileSync(join(codeRoot, '.jobyougo-data'), `${dataRoot}\n`);
 
   writeFileSync(join(dataRoot, 'data', 'applications.md'), [
     '# Applications Tracker',
@@ -204,7 +204,7 @@ function runFromCodeRoot(f, script, args) {
     encoding: 'utf-8',
     timeout: 120_000,
     // Every override blank on purpose: the marker must be what is doing the work.
-    env: { ...process.env, CAREER_OPS_ROOT: '', CAREER_OPS_DATA_DIR: '', CAREER_OPS_TRACKER: '' },
+    env: { ...process.env, JOBYOUGO_ROOT: '', JOBYOUGO_DATA_DIR: '', JOBYOUGO_TRACKER: '' },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
   return { ...r, all: `${r.stdout ?? ''}${r.stderr ?? ''}` };
@@ -212,7 +212,7 @@ function runFromCodeRoot(f, script, args) {
 
 const markerCleanup = (f) => rmSync(f.dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 
-test('set-status honours a .career-ops-data marker, not just CAREER_OPS_ROOT', () => {
+test('set-status honours a .jobyougo-data marker, not just JOBYOUGO_ROOT', () => {
   const f = markerFixture('set-status.mjs');
   try {
     const r = runFromCodeRoot(f, 'set-status.mjs', ['1', 'Interview', '--note', 'marker check']);
@@ -227,7 +227,7 @@ test('set-status honours a .career-ops-data marker, not just CAREER_OPS_ROOT', (
   } finally { markerCleanup(f); }
 });
 
-test('generate-pdf honours a .career-ops-data marker for its workspace boundary', () => {
+test('generate-pdf honours a .jobyougo-data marker for its workspace boundary', () => {
   const f = markerFixture('generate-pdf.mjs');
   try {
     const r = runFromCodeRoot(f, 'generate-pdf.mjs',

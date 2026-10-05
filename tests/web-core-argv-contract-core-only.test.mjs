@@ -23,7 +23,7 @@ const probe = [
 ].join('\n');
 
 const out = run(NODE, ['--input-type=module', '--eval', probe], {
-  env: { ...process.env, CAREER_OPS_WEB_ARGV_CONTRACT_STATIC_ONLY: '1' },
+  env: { ...process.env, JOBYOUGO_WEB_ARGV_CONTRACT_STATIC_ONLY: '1' },
 });
 if (out?.includes('core-only static check skipped cleanly')) {
   pass('web argv static contract skips cleanly when the updater omits web/ (#4165)');

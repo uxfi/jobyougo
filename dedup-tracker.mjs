@@ -7,13 +7,13 @@
  * score. If discarded entry had more advanced status, preserves that status.
  * Merges notes.
  *
- * Run: node career-ops/dedup-tracker.mjs [--dry-run]
+ * Run: node jobyougo/dedup-tracker.mjs [--dry-run]
  */
 
 import { readFileSync, copyFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 import { roleFuzzyMatch } from './role-matcher.mjs';
 import {
   openTrackerTransaction, rebuildRow, normalizeCompany,
@@ -21,11 +21,11 @@ import {
 import { resolveColumns, parseTrackerRow, normalizeVia } from './tracker-parse.mjs';
 import { validateFlags } from './lib/cli-flags.mjs';
 
-const CAREER_OPS = getCareerOpsRoot();
+const JOBYOUGO = getJobYouGoRoot();
 // Support both layouts: data/applications.md (boilerplate) and applications.md
-// (original). CAREER_OPS_TRACKER lets tests point the script at an isolated
+// (original). JOBYOUGO_TRACKER lets tests point the script at an isolated
 // fixture so the real user tracker is never touched.
-const APPS_FILE = resolveTrackerPath(CAREER_OPS);
+const APPS_FILE = resolveTrackerPath(JOBYOUGO);
 
 // ── CLI args ────────────────────────────────────────────────────────
 // Same shape as scan-ats-full.mjs (#1633/PR #1635) and reply-watch.mjs

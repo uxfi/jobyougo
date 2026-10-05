@@ -143,10 +143,10 @@ try {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
-        CAREER_OPS_ROOT: work,
-        CAREER_OPS_TRACKER: tracker,
-        CAREER_OPS_ADDITIONS: additions,
-        CAREER_OPS_BATCH_STATE: join(work, 'batch-state.tsv'),
+        JOBYOUGO_ROOT: work,
+        JOBYOUGO_TRACKER: tracker,
+        JOBYOUGO_ADDITIONS: additions,
+        JOBYOUGO_BATCH_STATE: join(work, 'batch-state.tsv'),
       },
     });
     const merged = readFileSync(tracker, 'utf8');

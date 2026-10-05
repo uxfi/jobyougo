@@ -69,12 +69,12 @@ test('normalizeCompany preserves meaningful non-Latin company names', () => {
 });
 
 test('tracker paths follow the workspace selected by the tracker', () => {
-  const root = mkdtempSync(join(tmpdir(), 'career-ops-tracker-utils-'));
-  const oldTracker = process.env.CAREER_OPS_TRACKER;
-  const oldPdfIndex = process.env.CAREER_OPS_PDF_INDEX;
+  const root = mkdtempSync(join(tmpdir(), 'jobyougo-tracker-utils-'));
+  const oldTracker = process.env.JOBYOUGO_TRACKER;
+  const oldPdfIndex = process.env.JOBYOUGO_PDF_INDEX;
   try {
-    delete process.env.CAREER_OPS_TRACKER;
-    delete process.env.CAREER_OPS_PDF_INDEX;
+    delete process.env.JOBYOUGO_TRACKER;
+    delete process.env.JOBYOUGO_PDF_INDEX;
     mkdirSync(join(root, 'data'));
     writeFileSync(join(root, 'data', 'applications.md'), '# tracker\n');
     const tracker = resolveTrackerPath(root);
@@ -83,13 +83,13 @@ test('tracker paths follow the workspace selected by the tracker', () => {
     assert.equal(resolvePdfIndexPath(tracker), join(canonicalRoot, 'data', 'pdf-index.tsv'));
 
     const alternate = join(root, 'custom-applications.md');
-    process.env.CAREER_OPS_TRACKER = alternate;
+    process.env.JOBYOUGO_TRACKER = alternate;
     assert.equal(resolveTrackerPath(root), alternate);
   } finally {
-    if (oldTracker === undefined) delete process.env.CAREER_OPS_TRACKER;
-    else process.env.CAREER_OPS_TRACKER = oldTracker;
-    if (oldPdfIndex === undefined) delete process.env.CAREER_OPS_PDF_INDEX;
-    else process.env.CAREER_OPS_PDF_INDEX = oldPdfIndex;
+    if (oldTracker === undefined) delete process.env.JOBYOUGO_TRACKER;
+    else process.env.JOBYOUGO_TRACKER = oldTracker;
+    if (oldPdfIndex === undefined) delete process.env.JOBYOUGO_PDF_INDEX;
+    else process.env.JOBYOUGO_PDF_INDEX = oldPdfIndex;
     rmSync(root, { recursive: true, force: true });
   }
 });

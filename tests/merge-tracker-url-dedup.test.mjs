@@ -1,7 +1,7 @@
 // tests/merge-tracker-url-dedup.test.mjs — URL-keyed deterministic dedup.
 //
 // Drives the REAL merge-tracker.mjs CLI end-to-end against a temp tracker via
-// the CAREER_OPS_TRACKER / CAREER_OPS_ADDITIONS env hooks — the merge path is
+// the JOBYOUGO_TRACKER / JOBYOUGO_ADDITIONS env hooks — the merge path is
 // where the bug lived, so asserting on the resulting tracker rows is what
 // actually proves the fix. normalizeUrl's own unit cases live in
 // tests/url-key.test.mjs.
@@ -41,7 +41,7 @@ function addTsv(env, name, cols) {
 function runMerge(env, args = []) {
   return execFileSync('node', [MERGE, ...args], {
     encoding: 'utf-8',
-    env: { ...process.env, CAREER_OPS_TRACKER: env.tracker, CAREER_OPS_ADDITIONS: env.addDir },
+    env: { ...process.env, JOBYOUGO_TRACKER: env.tracker, JOBYOUGO_ADDITIONS: env.addDir },
   });
 }
 function trackerRows(env) {

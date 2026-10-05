@@ -2,7 +2,7 @@
 
 Not public copy. Used only to capture how he actually talks when he writes to an agent: spoken French, short, factual, little ceremony.
 
-Collected 2026-09-17 from local career-ops / jobyougo chats.
+Collected 2026-09-17 from local jobyougo / jobyougo chats.
 
 ## How he writes here
 

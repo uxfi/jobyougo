@@ -42,9 +42,9 @@ import { sanitizeMarkdownField } from './scan.mjs';
 import { withPipelineLock } from './pipeline-lock.mjs';
 import { classifyLocation } from './remote-eligibility-core.mjs';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const PIPELINE_PATH = join(CAREER_OPS, 'data', 'pipeline.md');
-const PROFILE_PATH = join(CAREER_OPS, 'config', 'profile.yml');
+const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+const PIPELINE_PATH = join(JOBYOUGO, 'data', 'pipeline.md');
+const PROFILE_PATH = join(JOBYOUGO, 'config', 'profile.yml');
 
 const LABEL = '| location: ';
 const REASON_MAX = 140;

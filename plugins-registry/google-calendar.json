@@ -3,7 +3,7 @@
   "name": "career-ops-plugin-google-calendar",
   "version": "0.1.0",
   "license": "MIT",
-  "description": "Google Calendar ingest — detect upcoming interview events and surface them in the career-ops pipeline.",
+  "description": "Google Calendar ingest — detect upcoming interview events and surface them in the jobyougo pipeline.",
   "repo": "https://github.com/Schlaflied/career-ops-plugin-google-calendar",
   "sha": "d4b8cf40f5090b58510affbad9379570a23b34d2",
   "hooks": [

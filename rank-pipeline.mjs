@@ -37,10 +37,10 @@ import { flagValue, hasFlag } from './lib/cli-flags.mjs';
 import { sanitizeMarkdownField } from './scan.mjs';
 import { withPipelineLock } from './pipeline-lock.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
 const PIPELINE_PATH = join(DATA_ROOT, 'data', 'pipeline.md');
 const CV_PATH = join(DATA_ROOT, 'cv.md');
 
@@ -257,7 +257,7 @@ async function main(args) {
   const dryRun = hasFlag(args, '--dry-run');
   const limit = flagValue(args, '--limit') ?? DEFAULT_LIMIT;
   const model = flagValue(args, '--model');
-  const forced = flagValue(args, '--cli') ?? process.env.CAREER_OPS_RANK_CLI;
+  const forced = flagValue(args, '--cli') ?? process.env.JOBYOUGO_RANK_CLI;
 
   const cli = forced
     ? CLI_CANDIDATES.find(c => c.bin === forced) ?? { bin: forced, args: p => ['-p', p] }

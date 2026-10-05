@@ -22,7 +22,7 @@ try {
   const res = spawnSync(NODE, [join(ROOT, 'cv-sync-check.mjs')], {
     encoding: 'utf-8',
     timeout: 30000,
-    env: { ...process.env, CAREER_OPS_ROOT: work },
+    env: { ...process.env, JOBYOUGO_ROOT: work },
   });
 
   const stdout = res.stdout || '';
@@ -34,7 +34,7 @@ try {
     pass('no ReferenceError on startup');
   }
 
-  if (stdout.includes('=== career-ops sync check ===')) {
+  if (stdout.includes('=== jobyougo sync check ===')) {
     pass('emits its own report header (proof it ran, not just exited)');
   } else {
     fail(`expected the sync-check header in stdout, got: ${JSON.stringify(stdout.slice(0, 200))}`);

@@ -319,7 +319,7 @@ try {
   // same pattern as tests/providers/vdab.test.mjs. ──
   {
     const withTmpCwd = async (setup, run) => {
-      const tmp = mkdtempSync(join(tmpdir(), 'career-ops-jobbankca-fallback-'));
+      const tmp = mkdtempSync(join(tmpdir(), 'jobyougo-jobbankca-fallback-'));
       const cwdBefore = process.cwd();
       try {
         setup(tmp);

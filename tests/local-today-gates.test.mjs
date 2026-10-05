@@ -33,7 +33,7 @@ import { parseScanHistory, detectReposts } from '../detect-reposts.mjs';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
 // A module path embedded in a child script must be a file:// URL. On Windows a
-// bare join() yields `D:\a\career-ops\...`, which is neither a valid ESM
+// bare join() yields `D:\a\jobyougo\...`, which is neither a valid ESM
 // specifier nor safe inside a quoted JS string — the backslashes read as escape
 // sequences. POSIX absolute paths happen to work, which is why this only ever
 // reddens on the Windows leg.

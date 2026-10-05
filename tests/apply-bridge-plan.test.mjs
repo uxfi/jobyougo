@@ -71,6 +71,44 @@ test('planToUpdate: a city list may be searched; relocation and prose lists are 
   assert.equal(refs.typeQuery, '');
 });
 
+test('planToUpdate: Location Yes|No does not send the city', () => {
+  const u = planToUpdate(
+    {
+      i: 8,
+      type: 'text',
+      tag: 'input',
+      label: 'Location',
+      role: 'combobox',
+      ariaHaspopup: 'listbox',
+      options: [{ text: 'Yes' }, { text: 'No' }],
+    },
+    { value: 'Paris, France', selectText: 'Paris, France', selectMatch: 'Paris' },
+  );
+  assert.equal(u.selectText, 'Yes');
+  assert.equal(u.typeQuery, '');
+});
+
+test('planToUpdate: how did you hear sends a ranked source and the rank list', () => {
+  const plan = {
+    value: 'Found the role while researching companies matching my criteria.',
+    selectText: 'LinkedIn',
+    selectRank: [/\blinkedin\b/i, /\b(other|autre)\b/i],
+    selectPrefer: /\blinkedin\b|\bother\b/i,
+  };
+  const u = planToUpdate(
+    {
+      i: 9,
+      type: 'radio',
+      tag: 'input',
+      label: 'How did you hear about this job?',
+      options: [{ text: 'Other' }, { text: 'LinkedIn' }],
+    },
+    plan,
+  );
+  assert.equal(u.selectText, 'LinkedIn');
+  assert.equal(u.selectRank?.[0]?.source, '\\blinkedin\\b');
+});
+
 test('planToUpdate: long text marks humanType', () => {
   const f = { i: 2, type: 'textarea', tag: 'textarea', label: 'Why us?' };
   const long = 'A'.repeat(60);

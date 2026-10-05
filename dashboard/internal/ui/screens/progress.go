@@ -384,7 +384,7 @@ func (m ProgressModel) renderHelp() string {
 	keyStyle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Text)
 	descStyle := lipgloss.NewStyle().Foreground(m.theme.Subtext)
 
-	brand := lipgloss.NewStyle().Foreground(m.theme.Overlay).Render("career-ops by santifer.io")
+	brand := lipgloss.NewStyle().Foreground(m.theme.Overlay).Render("JobYouGo")
 
 	keys := keyStyle.Render("↑↓") + descStyle.Render(i18n.Current.HelpScroll) +
 		keyStyle.Render("PgUp/Dn") + descStyle.Render(i18n.Current.HelpPage) +

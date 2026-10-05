@@ -53,7 +53,7 @@ copyFileSync(join(ROOT, 'pipeline-lock.mjs'), join(sandbox, 'pipeline-lock.mjs')
 // ./cv-sections-core.mjs (#3986), another local sibling this sandbox needs.
 copyFileSync(join(ROOT, 'cv-sections-core.mjs'), join(sandbox, 'cv-sections-core.mjs'));
 // generate-pdf.mjs resolves user-layer paths via path-resolver.mjs
-// (CAREER_OPS_ROOT), so the fixture carries that too.
+// (JOBYOUGO_ROOT), so the fixture carries that too.
 copyFileSync(join(ROOT, 'path-resolver.mjs'), join(sandbox, 'path-resolver.mjs'));
 // generate-pdf.mjs's main-guard lives in lib/is-main-module.mjs (#3170). Without
 // it the copy dies with ERR_MODULE_NOT_FOUND before parsing an argument.
@@ -246,8 +246,8 @@ try {
     { input: 'single.html', output: 'out/themed-batch.pdf' },
     { input: 'single.html', output: 'out/themed-batch-second.pdf' },
   ]));
-  const themedEnv = { CAREER_OPS_TRACKER: join(sandbox, 'data', 'applications.md') };
-  writeFileSync(themedEnv.CAREER_OPS_TRACKER, '# Applications Tracker\n');
+  const themedEnv = { JOBYOUGO_TRACKER: join(sandbox, 'data', 'applications.md') };
+  writeFileSync(themedEnv.JOBYOUGO_TRACKER, '# Applications Tracker\n');
   const themedSingle = run([join(sandbox, 'single.html'), join(sandbox, 'out', 'themed-single.pdf')], { cwd: otherCwd, env: themedEnv });
   const themedBatch = run([`--batch=${themedManifest}`], { cwd: otherCwd, env: themedEnv });
   const renderedHtml = (name) => {
@@ -282,7 +282,7 @@ await renderHtmlToPdf(${JSON.stringify(htmlDoc('Solo CV'))}, outputPath, {
   for (const [label, tokens, accepts] of [
     ['default', undefined, expectedTheme],
     ['explicit', { '--accent-color': '#654321' }, (html) => html.includes('--accent-color: #654321;') && !html.includes('#123456')],
-    ['disabled', {}, (html) => !html.includes('career-ops-dynamic-theme')],
+    ['disabled', {}, (html) => !html.includes('jobyougo-dynamic-theme')],
   ]) {
     const outputName = `themed-direct-${label}.pdf`;
     const result = spawnSync(NODE, [directRunner, join(sandbox, 'out', outputName), sandbox,

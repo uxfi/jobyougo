@@ -40,7 +40,7 @@ const HISTORY = [
 const rows = parseScanHistory(HISTORY);
 
 // ── 1. The loader reads the flag, and only the flag ──────────────────
-const dir = mkdtempSync(join(tmpdir(), 'career-ops-aggregators-'));
+const dir = mkdtempSync(join(tmpdir(), 'jobyougo-aggregators-'));
 try {
   const portals = join(dir, 'portals.yml');
   writeFileSync(portals, [

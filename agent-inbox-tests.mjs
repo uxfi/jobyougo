@@ -26,7 +26,7 @@
  *      WHAT was lost; 9 reports whether the lock is WHY, so a red run separates
  *      "two writers got in" from "a write went missing" without a round trip.
  *
- * Provisions a throwaway queue via CAREER_OPS_INBOX and a temp CWD; never
+ * Provisions a throwaway queue via JOBYOUGO_INBOX and a temp CWD; never
  * touches real user data.
  */
 
@@ -91,7 +91,7 @@ export function causeOf(stderr) {
 function run(inbox, args, opts = {}) {
   return execFileSync(NODE, [CLI, ...args], {
     cwd: ROOT,
-    env: { ...process.env, CAREER_OPS_INBOX: inbox },
+    env: { ...process.env, JOBYOUGO_INBOX: inbox },
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
     ...opts,
@@ -157,7 +157,7 @@ console.log('4b. resolve waits for the queue lock before rewriting');
   writeFileSync(inbox, '# Agent Inbox\n\n- [ ] 2026-01-01 00:00 — alpha\n- [ ] 2026-01-01 00:01 — beta\n');
   const held = await acquirePipelineLock(inbox, { timeoutMs: 10_000 });
   const child = spawn(NODE, [CLI, 'resolve', '1', '--result', 'done alpha'], {
-    cwd: ROOT, env: { ...process.env, CAREER_OPS_INBOX: inbox }, stdio: ['pipe', 'pipe', 'pipe'],
+    cwd: ROOT, env: { ...process.env, JOBYOUGO_INBOX: inbox }, stdio: ['pipe', 'pipe', 'pipe'],
   });
   let stdout = '';
   let stderr = '';
@@ -196,7 +196,7 @@ console.log('6. first add on the default path self-heals .gitignore (idempotent)
   const repo = tmp('inbox-repo-');
   writeFileSync(join(repo, '.gitignore'), 'node_modules\noutput/*\n');
   const addOnce = () => execFileSync(NODE, [CLI, 'add', 'queue a scan'], {
-    cwd: repo, env: { ...process.env, CAREER_OPS_INBOX: '' }, stdio: ['pipe', 'pipe', 'pipe'],
+    cwd: repo, env: { ...process.env, JOBYOUGO_INBOX: '' }, stdio: ['pipe', 'pipe', 'pipe'],
   });
   addOnce(); addOnce();
   const gi = readFileSync(join(repo, '.gitignore'), 'utf8');
@@ -230,7 +230,7 @@ console.log('7. concurrent adds do not lose items (append, not rewrite)');
   const results = await Promise.all(
     Array.from({ length: N }, (_, i) => new Promise((res) => {
       const p = spawn(NODE, [CLI, 'add', `item-${i}`], {
-        cwd: dir, env: { ...process.env, CAREER_OPS_INBOX: inbox }, stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: dir, env: { ...process.env, JOBYOUGO_INBOX: inbox }, stdio: ['pipe', 'pipe', 'pipe'],
       });
       let err = '';
       p.stderr.on('data', (chunk) => { err += chunk; });
@@ -361,7 +361,7 @@ console.log('8. the queue file is seeded under the lock, not before it');
   const held = await acquirePipelineLock(inbox, { timeoutMs: 10_000 });
 
   const child = spawn(NODE, [CLI, 'add', 'seeded under the lock'], {
-    cwd: ROOT, env: { ...process.env, CAREER_OPS_INBOX: inbox }, stdio: ['pipe', 'pipe', 'pipe'],
+    cwd: ROOT, env: { ...process.env, JOBYOUGO_INBOX: inbox }, stdio: ['pipe', 'pipe', 'pipe'],
   });
   let childErr = '';
   child.stderr.on('data', (c) => { childErr += c; });

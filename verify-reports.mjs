@@ -17,8 +17,8 @@ import { readFileSync, readdirSync, existsSync, unlinkSync, appendFileSync } fro
 import { join, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const REPORTS_DIR = join(CAREER_OPS, 'reports');
+const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+const REPORTS_DIR = join(JOBYOUGO, 'reports');
 const FIX_MODE = process.argv.includes('--fix');
 
 let errors = 0;
@@ -129,7 +129,7 @@ for (const file of files) {
     unlinkSync(filePath);
     console.log(`   🗑️  Deleted invalid report: ${file}`);
     const logEntry = `${new Date().toISOString()}\t${file}\tINVALID\tDeleted for re-processing\n`;
-    appendFileSync(join(CAREER_OPS, 'batch/logs/corrupted-reports.log'), logEntry);
+    appendFileSync(join(JOBYOUGO, 'batch/logs/corrupted-reports.log'), logEntry);
     fixed++;
   }
 }

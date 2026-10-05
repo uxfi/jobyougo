@@ -44,7 +44,7 @@ function render(inputPayload, { preview = false } = {}) {
   if (preview) {
     previewRoot = join(dir, 'data-root');
     mkdirSync(join(previewRoot, 'output'), { recursive: true });
-    env.CAREER_OPS_ROOT = previewRoot;
+    env.JOBYOUGO_ROOT = previewRoot;
   }
 
   const stdout = execFileSync(process.execPath, args, { cwd: ROOT, encoding: 'utf8', env });

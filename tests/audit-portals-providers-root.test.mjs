@@ -2,9 +2,9 @@
 // provider registry from the CHECKOUT, not from the user's data root (#4171).
 //
 // `providers/` is system layer: it ships with the code and never travels to a
-// data root. Anchoring it to getCareerOpsRoot() worked only while the data root
+// data root. Anchoring it to getJobYouGoRoot() worked only while the data root
 // and the checkout were the same directory. Under the external-data-root layout
-// (CAREER_OPS_ROOT / CAREER_OPS_DATA_DIR, or a `.career-ops-data` marker),
+// (JOBYOUGO_ROOT / JOBYOUGO_DATA_DIR, or a `.jobyougo-data` marker),
 // loadProviders() read a directory that does not exist and returned an EMPTY
 // registry — so audit-portals.mjs, the script whose whole job is catching the
 // silent "enabled but nothing scans it" state, reported `0 audited` and exited
@@ -34,21 +34,21 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
  */
 async function importUnderDataRoot(dataRoot) {
   const previous = {
-    root: process.env.CAREER_OPS_ROOT,
-    dataDir: process.env.CAREER_OPS_DATA_DIR,
-    portals: process.env.CAREER_OPS_PORTALS,
+    root: process.env.JOBYOUGO_ROOT,
+    dataDir: process.env.JOBYOUGO_DATA_DIR,
+    portals: process.env.JOBYOUGO_PORTALS,
   };
-  process.env.CAREER_OPS_ROOT = dataRoot;
-  delete process.env.CAREER_OPS_DATA_DIR;
-  delete process.env.CAREER_OPS_PORTALS;
+  process.env.JOBYOUGO_ROOT = dataRoot;
+  delete process.env.JOBYOUGO_DATA_DIR;
+  delete process.env.JOBYOUGO_PORTALS;
   try {
     const url = `${pathToFileURL(join(ROOT, 'audit-portals.mjs')).href}?data-root=${encodeURIComponent(dataRoot)}`;
     return await import(url);
   } finally {
     for (const [name, value] of [
-      ['CAREER_OPS_ROOT', previous.root],
-      ['CAREER_OPS_DATA_DIR', previous.dataDir],
-      ['CAREER_OPS_PORTALS', previous.portals],
+      ['JOBYOUGO_ROOT', previous.root],
+      ['JOBYOUGO_DATA_DIR', previous.dataDir],
+      ['JOBYOUGO_PORTALS', previous.portals],
     ]) {
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
@@ -57,7 +57,7 @@ async function importUnderDataRoot(dataRoot) {
 }
 
 function fixture() {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-auditproviders-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-auditproviders-'));
   mkdirSync(join(dataRoot, 'data'), { recursive: true });
   writeFileSync(
     join(dataRoot, 'portals.yml'),

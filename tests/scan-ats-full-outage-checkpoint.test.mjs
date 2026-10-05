@@ -11,7 +11,7 @@
 // the bug is not in any single function but in the interaction between the
 // breaker, the checkpoint writer, and the exit path, and only a whole run
 // exercises all three. The child runs against a sandbox data root — pointed at
-// by CAREER_OPS_ROOT, since scan-ats-full.mjs's paths follow the data root
+// by JOBYOUGO_ROOT, since scan-ats-full.mjs's paths follow the data root
 // rather than the cwd (#3510) — with a stubbed `dns.lookup`, so no network is
 // involved and the resolver's behaviour is exact:
 //
@@ -45,7 +45,7 @@ const CHECKPOINT_REL = join('data', 'cache', 'ats-full-checkpoint.json');
 function makeSandbox() {
   // Laid out exactly like a real data root — portals.yml at the top,
   // data/cache/ beneath it — because that is what it is handed to the child as.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-outage-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-outage-'));
   // Minimal portals.yml: main() exits early without one. The filters never
   // matter here — no board is reachable, so no posting reaches them.
   writeFileSync(join(dir, 'portals.yml'), 'title_filter:\n  positive:\n    - director\n', 'utf-8');
@@ -95,16 +95,16 @@ function sweep(dir, dnsCode, extraArgs = []) {
   return run(NODE, [join(dir, 'launch.mjs'), '--ats', 'greenhouse', '--json', ...extraArgs], {
     cwd: dir,
     // Pacing would only add wall-clock time to a run whose every lookup fails.
-    // CAREER_OPS_ROOT is what actually isolates this sweep: cwd stays pinned too,
+    // JOBYOUGO_ROOT is what actually isolates this sweep: cwd stays pinned too,
     // so a path that quietly went back to following the shell would still be
     // caught by tests/scan-data-paths-under-data-root.test.mjs rather than
     // silently reading this fixture through the other route.
     env: {
       ...process.env,
-      CAREER_OPS_ROOT: dir,
-      CAREER_OPS_DATA_DIR: '',
+      JOBYOUGO_ROOT: dir,
+      JOBYOUGO_DATA_DIR: '',
       STUB_DNS_CODE: dnsCode,
-      CAREER_OPS_DNS_LOOKUPS_PER_MIN: '0',
+      JOBYOUGO_DNS_LOOKUPS_PER_MIN: '0',
     },
     timeout: 120_000,
   });

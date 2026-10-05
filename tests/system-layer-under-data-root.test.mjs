@@ -5,7 +5,7 @@
 // codebase/repository root, keeping code and personal data completely separate."
 //
 // normalize-statuses.mjs broke that for templates/states.yml: one variable served
-// both roles, so `join(getCareerOpsRoot(), 'templates', 'states.yml')` looked for a
+// both roles, so `join(getJobYouGoRoot(), 'templates', 'states.yml')` looked for a
 // System Layer file inside the user's data directory. A data root that legitimately
 // has no templates/ is indistinguishable from the broken checkout the surrounding
 // `catch` was written for, so every status silently normalized to unknown — the
@@ -24,23 +24,23 @@ import { tmpdir } from 'os';
 
 console.log('\nSystem Layer resolution under a configured data root (#3500)');
 
-const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-dataroot-'));
+const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-dataroot-'));
 mkdirSync(join(dataRoot, 'data'), { recursive: true });
 
 /** Run a snippet in the repo with a data root configured; return trimmed stdout. */
-function runWithDataRoot(snippet, envVar = 'CAREER_OPS_ROOT') {
+function runWithDataRoot(snippet, envVar = 'JOBYOUGO_ROOT') {
   return execFileSync(NODE, ['-e', snippet], {
     cwd: ROOT,
     encoding: 'utf-8',
     timeout: 30000,
-    env: { ...process.env, CAREER_OPS_ROOT: '', CAREER_OPS_DATA_DIR: '', [envVar]: dataRoot },
+    env: { ...process.env, JOBYOUGO_ROOT: '', JOBYOUGO_DATA_DIR: '', [envVar]: dataRoot },
   }).trim();
 }
 
 try {
   // 1. normalize-statuses still canonicalizes with a data root set — English,
   //    Spanish, and a localized alias, i.e. exactly the table in the bug report.
-  for (const envVar of ['CAREER_OPS_ROOT', 'CAREER_OPS_DATA_DIR']) {
+  for (const envVar of ['JOBYOUGO_ROOT', 'JOBYOUGO_DATA_DIR']) {
     const out = runWithDataRoot(
       `import('./normalize-statuses.mjs').then(m => console.log(` +
       `['Accepted','Contratado','Evaluada','Rechazado'].map(v => v + '=' + (m.normalizeStatus(v).status ?? 'unknown')).join(' ')))`,
@@ -63,7 +63,7 @@ try {
     ? pass(`followup-cadence resolves states.yml aliases under a data root (${cadenceExpected})`)
     : fail(`followup-cadence under a data root produced "${cadence}", expected "${cadenceExpected}"`);
 
-  // 3. Source-level guard against the class: a variable bound to getCareerOpsRoot()
+  // 3. Source-level guard against the class: a variable bound to getJobYouGoRoot()
   //    must not be joined onto a System Layer directory. modes/_profile.md,
   //    _custom.md and _brief.md are the documented exceptions — those specific
   //    files ARE user data that happens to live under modes/.
@@ -71,7 +71,7 @@ try {
   const offenders = [];
   for (const file of readdirSync(ROOT).filter(f => f.endsWith('.mjs'))) {
     const src = readFileSync(join(ROOT, file), 'utf-8');
-    const dataVars = [...src.matchAll(/const\s+(\w+)\s*=\s*getCareerOpsRoot\(\)/g)].map(m => m[1]);
+    const dataVars = [...src.matchAll(/const\s+(\w+)\s*=\s*getJobYouGoRoot\(\)/g)].map(m => m[1]);
     if (!dataVars.length) continue;
     for (const v of dataVars) {
       const re = new RegExp(`join\\(\\s*${v}\\s*,\\s*['"\`](templates|modes)\\b([^)]*)\\)`, 'g');

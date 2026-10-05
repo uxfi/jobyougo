@@ -201,7 +201,7 @@ try {
   const run = (...flags) => execFileSync(NODE, [join(ROOT, 'analyze-patterns.mjs'), ...flags], {
     encoding: 'utf-8',
     timeout: 60000,
-    env: { ...process.env, CAREER_OPS_ROOT: work },
+    env: { ...process.env, JOBYOUGO_ROOT: work },
   });
   result = JSON.parse(run('--min-threshold', '1'));
   summary = run('--min-threshold', '1', '--summary');

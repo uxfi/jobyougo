@@ -8,7 +8,7 @@
 // with an error that documented the constraint instead of fixing it:
 //
 //   Error: templates/states.yml not found — cannot validate statuses.
-//   Run from the career-ops root.
+//   Run from the jobyougo root.
 //
 // That is the shape the data-root mechanism invites: cd to your data directory,
 // run the tool out of the checkout. It also breaks any cron entry, launchd job or
@@ -44,10 +44,10 @@ writeFileSync(md, [
 // left set by an earlier suite would quietly redirect this one's index and turn a
 // pass into a confusing failure here. Only the tracker is pinned; everything else
 // this test reasons about must come from the module's own location.
-const childEnv = { ...process.env, CAREER_OPS_TRACKER: md };
-delete childEnv.CAREER_OPS_TRACKER_DB;
-delete childEnv.CAREER_OPS_ROOT;
-delete childEnv.CAREER_OPS_DATA_DIR;
+const childEnv = { ...process.env, JOBYOUGO_TRACKER: md };
+delete childEnv.JOBYOUGO_TRACKER_DB;
+delete childEnv.JOBYOUGO_ROOT;
+delete childEnv.JOBYOUGO_DATA_DIR;
 
 /** Run tracker.mjs from `work`, never from the repo root. Returns {ok, out}. */
 function trackerFromElsewhere(...args) {

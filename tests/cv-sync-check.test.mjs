@@ -33,7 +33,7 @@ function runAgainst(dataRoot) {
     cwd: ROOT,
     encoding: 'utf-8',
     timeout: 30_000,
-    env: { ...process.env, CAREER_OPS_ROOT: dataRoot },
+    env: { ...process.env, JOBYOUGO_ROOT: dataRoot },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
   return { ...r, all: `${r.stdout ?? ''}${r.stderr ?? ''}` };
@@ -47,11 +47,11 @@ function looksLikeCrash(text) {
 test('it reaches its checks instead of throwing at module scope', () => {
   // The regression itself. Nothing here is about WHAT it reports — only that it
   // got far enough to report anything.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-sync-check-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-sync-check-'));
   try {
     const r = runAgainst(dir);
     assert.ok(!looksLikeCrash(r.all), `crashed instead of running:\n${r.all.slice(0, 400)}`);
-    assert.match(r.stdout, /career-ops sync check/, 'no report header — the run never reached its checks');
+    assert.match(r.stdout, /jobyougo sync check/, 'no report header — the run never reached its checks');
   } finally {
     rmSync(dir, { recursive: true, force: true, maxRetries: 10 });
   }
@@ -60,7 +60,7 @@ test('it reaches its checks instead of throwing at module scope', () => {
 test('a missing cv.md is reported as an error, not a crash', () => {
   // The legitimate non-zero exit, which is what makes the crash invisible: both
   // leave status 1. The difference is that this one says something useful.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-sync-check-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-sync-check-'));
   try {
     const r = runAgainst(dir);
     assert.equal(r.status, 1);
@@ -73,7 +73,7 @@ test('a missing cv.md is reported as an error, not a crash', () => {
 
 test('a complete setup passes', () => {
   // The other side, so "always errors" cannot satisfy the tests above.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-sync-check-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-sync-check-'));
   try {
     mkdirSync(join(dir, 'config'), { recursive: true });
     writeFileSync(join(dir, 'cv.md'), `# Jane Roe\n\n## Experience\n\n${'Backend engineer. '.repeat(12)}\n`);
@@ -89,10 +89,10 @@ test('a complete setup passes', () => {
 
 test('the prompt-file checks read the CODE root, not the data root', () => {
   // What the three broken call sites were for. modes/ and batch/ ship with the
-  // code, so an externalized data root (the whole point of CAREER_OPS_ROOT)
+  // code, so an externalized data root (the whole point of JOBYOUGO_ROOT)
   // must not make them unreadable — pointing DATA_ROOT at an empty directory
   // must not produce "file not found" warnings for them.
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-sync-check-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-sync-check-'));
   try {
     const r = runAgainst(dir);
     for (const name of ['_shared.md', '_writing.md', 'batch-prompt.md']) {

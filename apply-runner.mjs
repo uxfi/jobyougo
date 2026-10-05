@@ -9,7 +9,8 @@
 // The run dir must contain spec.json (built by lib/apply-spec.mjs).
 // Protocol (file-based, survives server restarts):
 //   - state.json   ← runner writes status after every step (server polls it)
-//   - command.json ← server writes {action: submit|rescan|abort|manual_sent|close}, runner consumes it
+//   - command.json ← server writes {action: submit|rescan|abort|manual_sent}, runner consumes it
+// A run that gets no command for COMMAND_IDLE_MS stops and closes its window.
 
 import 'dotenv/config';
 import { readFileSync, writeFileSync, renameSync, existsSync, unlinkSync, mkdirSync } from 'fs';
@@ -18,11 +19,20 @@ import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { resolveUnknownFields } from './lib/apply-llm.mjs';
 import { classifyField } from './lib/apply-classify.mjs';
-import { pickDeclineOption, pickSelectOption, llmKind } from './lib/apply-select.mjs';
-import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice } from './lib/application-writing.mjs';
-import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isResumeFileField, shouldReplaceFilledValue, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
+import { pickDeclineOption, pickSelectOption, llmKind, yesNoText } from './lib/apply-select.mjs';
+import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice, loadCvSummary } from './lib/application-writing.mjs';
+import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isSubstantiveOptionalQuestion, isResumeFileField, shouldReplaceFilledValue, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
-import { fieldCompletionIssue, fieldMatchesAnswer, looksReadyToSubmit, shouldUploadFileField } from './lib/apply-completion.mjs';
+import {
+  attachedLabels,
+  completionIssues,
+  fieldLabel,
+  fieldMatchesAnswer,
+  looksReadyToSubmit,
+  mergeFilled,
+  mergePending,
+  shouldUploadFileField,
+} from './lib/apply-completion.mjs';
 import { COLLECT_FIELDS } from './lib/apply-collect-fields.mjs';
 import { watchApplicationTransition, exploreApplicationInterface } from './lib/apply-navigation.mjs';
 import { ACTIVATE_MATCHED_OPTION, COMBOBOX_OPTION_QUERY, COMBOBOX_OPTION_SEL, LIST_SELECTION_STATE } from './lib/apply-combobox-dom.mjs';
@@ -38,15 +48,23 @@ import {
 } from './lib/pinchtab.mjs';
 import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, LIST_VISIBLE_NAV_BUTTONS, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY, PAGE_STEP_SNAPSHOT } from './lib/form-detect.mjs';
 import { normalizeAtsUrl } from './extension/apply-ats.mjs';
-import {
-  AUTOFILL_WAIT_MS,
-  autofillShouldKeepWaiting,
-  judgeAutofillSnapshot,
-  snapshotIdentityFields,
-} from './extension/apply-autofill.mjs';
+import { autofillLogLine, snapshotIdentityFields, waitForAutofill } from './extension/apply-autofill.mjs';
+import { forceResumeSlotInPage } from './extension/page-helper-registry.mjs';
 import { collectUploadSignals, judgeUploadSignals } from './extension/apply-upload-signals.mjs';
-import { APPLY_TEXT_RE, PROGRESS_TEXT_RE, SUBMIT_TEXT_RE, countEditableApplyFields, fieldsFingerprint, isBlockingApplyPending, pageLooksLikeReviewStep, reviewStepNeedsAi } from './lib/apply-progression.mjs';
-import { exactControlPattern, filterNavButtons, navDecisionLog, resolveNavAction } from './lib/apply-nav-llm.mjs';
+import {
+  APPLY_TEXT_RE,
+  PROGRESS_TEXT_RE,
+  SUBMIT_TEXT_RE,
+  classifyActionLabel,
+  countEditableApplyFields,
+  fieldsFingerprint,
+  isBlockingApplyPending,
+  isRequiredEmptyReason,
+  reviewStepConfidence,
+  reviewStepNeedsAi,
+  shouldAttemptSubmitAfterNoopNext,
+} from './lib/apply-progression.mjs';
+import { askNavDecision, exactControlPattern, newNavAiBudget } from './lib/apply-nav-llm.mjs';
 import {
   isHimalayasHost,
   isHimalayasLoginPath,
@@ -60,28 +78,15 @@ import { computeStartDateISO as toIsoDate } from './lib/apply-spec.mjs';
 import {
   basenamePath,
   chromeClosedMessage,
+  COMMAND_IDLE_MS,
   isTargetClosedError,
   looksLikePostApplyPath,
   POST_APPLY_PATH_RE_SOURCE,
   postApplyMessage,
+  UI_BUTTONS,
 } from './lib/apply-runtime.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Compact CV digest fed to the LLM field resolver (read once, lazily).
-let _cvSummary = null;
-function cvSummary() {
-  if (_cvSummary !== null) return _cvSummary;
-  try { _cvSummary = readFileSync(join(__dirname, 'cv.md'), 'utf-8').replace(/\s+\n/g, '\n').slice(0, 3000); }
-  catch { _cvSummary = ''; }
-  return _cvSummary;
-}
-
-function profileVoice() {
-  return loadApplicationVoice(__dirname);
-}
-
-const ROOT = __dirname;
+const ROOT = dirname(fileURLToPath(import.meta.url));
 
 const runDirArg = process.argv.indexOf('--run-dir');
 if (runDirArg === -1 || !process.argv[runDirArg + 1]) {
@@ -234,11 +239,6 @@ async function humanClick(loc, opts = {}) {
   await loc.click(opts);
 }
 
-// toIsoDate = lib/apply-spec.mjs's computeStartDateISO (imported above,
-// aliased): same DD/MM/YYYY-vs-ISO parsing this file used to duplicate, now
-// used here for LLM/plan date answers instead of only the spec's own
-// availability.start_date.
-
 // Answers "is there DEFINITELY still a value here"
 // — an unreadable field reports false so callers keep the human-typing path
 // rather than falling back to fill() on every exotic widget.
@@ -277,7 +277,7 @@ async function humanType(loc, text, f) {
     // pressSequentially() appends, so typing into a field that still holds a
     // value (Ashby/Greenhouse "autofill from resume" populates the form in
     // Phase A, browser autofill, or an earlier fillFields pass after a
-    // "Re-scanner") writes the answer twice. clearField is best-effort: on
+    // rescan) writes the answer twice. clearField is best-effort: on
     // the controlled React inputs / rich-text editors (Quill/Slate) it exists
     // to catch, it can fail to confirm empty even after both its techniques —
     // type anyway, since pressSequentially below is the one technique
@@ -347,23 +347,6 @@ async function waitForFormResettle(frame, timeoutMs = UPLOAD_SETTLE_MS) {
     }
     await sleep(200);
   }
-}
-
-async function waitForResumeAutofill(frame, identity = {}, timeoutMs = AUTOFILL_WAIT_MS) {
-  const read = () => frame.evaluate(snapshotIdentityFields).catch(() => []);
-  const deadline = Date.now() + timeoutMs;
-  let last = judgeAutofillSnapshot([], identity);
-  while (Date.now() < deadline) {
-    last = judgeAutofillSnapshot(await read(), identity);
-    if (!autofillShouldKeepWaiting(last.status)) break;
-    await sleep(200);
-  }
-  if (autofillShouldKeepWaiting(last.status)) {
-    last = judgeAutofillSnapshot(await read(), identity);
-  }
-  const timedOut = autofillShouldKeepWaiting(last.status);
-  if (last.status === 'matched') await sleep(400);
-  return { ...last, timedOut, manualFill: last.status !== 'matched' };
 }
 
 async function confirmFrameUpload(frame, expectedName) {
@@ -558,13 +541,18 @@ async function detectBlocker(page) {
   return null;
 }
 
-function blockerLabel(blocker) {
-  if (blocker === 'captcha') return 'captcha';
-  if (blocker === 'cloudflare') return 'page de vérification';
-  if (blocker === 'login') return 'connexion';
-  if (blocker === 'auth_wall') return 'création de compte requise';
-  return 'vérification';
-}
+// Each blocker kind: its short name in the log, and what the human must do.
+const BLOCKERS = {
+  captcha: { label: 'captcha', help: '🤖 Captcha détecté — résous-le dans la fenêtre Chrome.' },
+  cloudflare: { label: 'page de vérification', help: '🛡️ Protection anti-bot — passe la vérification dans la fenêtre Chrome.' },
+  login: { label: 'connexion', help: `🔐 Connexion requise — connecte-toi dans la fenêtre Chrome, puis ${UI_BUTTONS.rescan}.` },
+  auth_wall: {
+    label: 'création de compte requise',
+    help: `👤 Ce site exige un compte et ne propose pas d'accès invité — crée le compte ou connecte-toi dans Chrome, puis ${UI_BUTTONS.rescan}.`,
+  },
+};
+const blockerLabel = (blocker) => BLOCKERS[blocker]?.label || 'vérification';
+const blockerHelp = (blocker) => BLOCKERS[blocker]?.help || BLOCKERS.cloudflare.help;
 
 function normalizePinchtabCookieList(raw) {
   if (Array.isArray(raw)) return raw;
@@ -853,7 +841,7 @@ async function ensureHimalayasSession(context, page) {
     if (looksLikeHimalayasLoginError(bodyText)) {
       log('Login Himalayas refusé (identifiants invalides) — corrige .env ou connecte-toi à la main.');
     } else {
-      log('Auto-login Himalayas échoué (toujours sur /login) — connecte-toi dans Chrome, puis Re-scanner.');
+      log(`Auto-login Himalayas échoué (toujours sur /login) — connecte-toi dans Chrome, puis ${UI_BUTTONS.rescan}.`);
     }
     return false;
   }
@@ -897,16 +885,6 @@ async function tryAutoSolveBlocker(context, page, blocker, phase = 'navigation')
 
 // ── Apply navigation: follow links/redirects until a real form is reached ─────
 
-// APPLY_TEXT_RE / PROGRESS_TEXT_RE → lib/apply-progression.mjs (shared with bridge)
-
-// Interstitial modals between the job page and the real form (e.g. Jobicy's
-// "Sign Up and Apply / Continue as Guest") — always pick the no-account path.
-// GUEST_TEXT_RE lives in lib/form-detect.mjs alongside AUTH_AVOID_TEXT_RE, so
-// the "take this path" and "never take that path" vocabularies stay in sync.
-const CONTINUE_TEXT_RE = GUEST_TEXT_RE;
-
-// normalizeAtsUrl lives in extension/apply-ats.mjs (query string stays on the URL).
-
 // A frame "has a form" when it shows fillable application fields.
 // Scored verdict from lib/form-detect.mjs. The old inline predicate
 // ((hasIdentity && inputs>=2) || (files>0 && inputs>=1)) returned TRUE for a
@@ -921,8 +899,12 @@ async function probeFrameForm(frame) {
   }
 }
 
-async function frameHasApplicationForm(frame) {
-  return (await probeFrameForm(frame)).verdict === 'application_form';
+// Labels already clicked on `url` (attempted holds "url::text" keys), so a
+// hop never re-clicks a control that did nothing.
+function triedOn(attempted, url) {
+  if (!attempted) return [];
+  const prefix = `${url}::`;
+  return [...attempted].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
 }
 
 /**
@@ -963,29 +945,11 @@ async function clickApplyAndFollow(context, page, textRe = APPLY_TEXT_RE, attemp
     if (isTargetClosedError(err)) return null;
     throw err;
   }
-  const skip = attempted ? [...attempted].filter(k => k.startsWith(url + '::')).map(k => k.slice((url + '::').length)) : [];
-  // Let sticky headers, lazy CTAs and client-side route data settle before
-  // concluding that the page has no progression control. Many ATS pages only
-  // reveal the real Apply button after a human-like scroll.
-  await page.mouse.wheel(0, 650).catch(() => {});
-  await sleep(900);
-  let marked;
-  try {
-    marked = await page.evaluate(MARK_PROGRESSION_CONTROLS, {
-      reSrc: textRe.source,
-      skip,
-      avoidSrc: AUTH_AVOID_TEXT_RE.source,
-    });
-  } catch (err) {
-    if (isTargetClosedError(err)) return null;
-    throw err;
-  }
-  if (!marked.length) {
-    await page.mouse.wheel(0, -500).catch(() => {});
-    await sleep(700);
-    let retry;
+  const skip = triedOn(attempted, url);
+  // Tag the matching controls in the page; null once the page is gone.
+  const mark = async () => {
     try {
-      retry = await page.evaluate(MARK_PROGRESSION_CONTROLS, {
+      return await page.evaluate(MARK_PROGRESSION_CONTROLS, {
         reSrc: textRe.source,
         skip,
         avoidSrc: AUTH_AVOID_TEXT_RE.source,
@@ -994,9 +958,19 @@ async function clickApplyAndFollow(context, page, textRe = APPLY_TEXT_RE, attemp
       if (isTargetClosedError(err)) return null;
       throw err;
     }
-    if (!retry.length) return null;
-    marked.push(...retry);
+  };
+  // Let sticky headers, lazy CTAs and client-side route data settle before
+  // concluding that the page has no progression control. Many ATS pages only
+  // reveal the real Apply button after a human-like scroll.
+  await page.mouse.wheel(0, 650).catch(() => {});
+  await sleep(900);
+  let marked = await mark();
+  if (marked && !marked.length) {
+    await page.mouse.wheel(0, -500).catch(() => {});
+    await sleep(700);
+    marked = await mark();
   }
+  if (!marked?.length) return null;
 
   const transition = watchApplicationTransition(page, { findForm: findFormFrame });
   let clicked = false;
@@ -1034,38 +1008,17 @@ async function dismissCookieBanner(page) {
   } catch { /* no banner */ }
 }
 
-const navAiBudget = { nav: 0, review: 0 };
+// One AI budget per run (this process runs one application).
+const navAiBudget = newNavAiBudget();
 
-async function askPageNavAi(page, {
-  phase = 'navigate',
-  skipTexts = [],
-  fields = [],
-  heading = '',
-  bodySnippet = '',
-} = {}) {
-  const bucket = phase === 'review' ? 'review' : 'nav';
-  const max = phase === 'review' ? 3 : 2;
-  if (navAiBudget[bucket] >= max) return { action: 'human', reason: 'plafond', skipped: true };
-  let listed = [];
-  try {
-    listed = await page.evaluate(LIST_VISIBLE_NAV_BUTTONS, {
-      avoidSrc: AUTH_AVOID_TEXT_RE.source,
-      skip: skipTexts,
-    });
-  } catch { listed = []; }
-  const buttons = filterNavButtons(listed || [], skipTexts);
-  if (phase !== 'review' && !buttons.length) return { action: 'human', reason: 'aucun bouton', skipped: true };
-  navAiBudget[bucket] += 1;
-  const decision = await resolveNavAction({
-    phase,
+async function askPageNavAi(page, { skipTexts = [], ...opts } = {}) {
+  const decision = await askNavDecision(navAiBudget, {
+    ...opts,
     url: currentPageUrl(page),
-    heading,
-    bodySnippet,
-    buttons,
-    fieldsSummary: `${(fields || []).length} champs, ${countEditableApplyFields(fields || [])} éditables`,
+    skipTexts,
+    listButtons: () => page.evaluate(LIST_VISIBLE_NAV_BUTTONS, { avoidSrc: AUTH_AVOID_TEXT_RE.source, skip: skipTexts }),
   });
-  const line = navDecisionLog(decision);
-  if (line) log(line);
+  if (decision.log) log(decision.log);
   return decision;
 }
 
@@ -1102,13 +1055,23 @@ async function clickExactLabelOnPage(page, text) {
   }
 }
 
+// URLs already explored through PinchTab in this run. Per run, not per call:
+// every rescan and blocker recovery calls reachApplicationForm again, and the
+// same dead end used to be explored each time.
+const exploredUrls = new Set();
+
 async function reachApplicationForm(context, page) {
   // Walk through any number of intermediate pages (aggregator redirect → job
   // page → "apply" → guest modal → wizard "next/start" → form). Each hop:
   // detect blocker, look for the real form, else normalize the ATS URL, else
   // click the highest-priority progression control we haven't tried yet.
   const attempted = new Set();
-  const inspectedUrls = new Set();
+  // A control the AI picked: click it, then wait for the form or a new page.
+  const followAiClick = async (decision, url) => {
+    if (decision?.action !== 'click' || !(await clickListedNav(page, decision))) return null;
+    attempted.add(`${url}::${decision.text}`);
+    return watchApplicationTransition(page, { findForm: findFormFrame });
+  };
 
   // A board with a session handler: establish it BEFORE trying Apply (login →
   // captcha → job). Only while still on that board's own domain — never after
@@ -1163,15 +1126,10 @@ async function reachApplicationForm(context, page) {
       const guest = await clickApplyAndFollow(context, page, GUEST_TEXT_RE, attempted);
       if (guest) { page = guest; continue; }
       const guestUrl = currentPageUrl(page);
-      const guestAi = await askPageNavAi(page, {
-        phase: 'navigate',
-        skipTexts: [...attempted].filter((k) => k.startsWith(`${guestUrl}::`)).map((k) => k.slice(guestUrl.length + 2)),
-      });
-      if (guestAi?.action === 'click' && await clickListedNav(page, guestAi)) {
-        attempted.add(`${guestUrl}::${guestAi.text}`);
-        const observed = await watchApplicationTransition(page, { findForm: findFormFrame });
-        page = observed.page;
+      const observed = await followAiClick(await askPageNavAi(page, { phase: 'navigate', skipTexts: triedOn(attempted, guestUrl) }), guestUrl);
+      if (observed) {
         if (observed.frame) return { ...observed, blocker: null };
+        page = observed.page;
         continue;
       }
       log('Aucun accès invité proposé — connexion manuelle requise.');
@@ -1187,31 +1145,29 @@ async function reachApplicationForm(context, page) {
       continue;
     }
 
-    // No form yet → advance one step. Priority: guest/no-account modal, then an
-    // apply button, then a generic wizard "next/start/continue" (only safe here
-    // because the page has no form). `attempted` blocks re-clicking a no-op.
-    const next = await clickApplyAndFollow(context, page, CONTINUE_TEXT_RE, attempted)
+    // No form yet → advance one step. Priority: guest/no-account modal (e.g.
+    // Jobicy's "Sign Up and Apply / Continue as Guest"), then an apply button,
+    // then a generic wizard "next/start/continue" (only safe here because the
+    // page has no form). `attempted` blocks re-clicking a no-op.
+    const next = await clickApplyAndFollow(context, page, GUEST_TEXT_RE, attempted)
       || await clickApplyAndFollow(context, page, APPLY_TEXT_RE, attempted)
       || await clickApplyAndFollow(context, page, PROGRESS_TEXT_RE, attempted);
     if (!next) {
-      let hopUrl = '';
-      try { hopUrl = page.url(); } catch { hopUrl = ''; }
-      const skipTexts = [...attempted].filter((k) => k.startsWith(`${hopUrl}::`)).map((k) => k.slice(hopUrl.length + 2));
-      const navAi = await askPageNavAi(page, { phase: 'navigate', skipTexts });
+      const hopUrl = currentPageUrl(page);
+      const navAi = await askPageNavAi(page, { phase: 'navigate', skipTexts: triedOn(attempted, hopUrl) });
       if (navAi?.action === 'fill') {
         const again = await findFormFrame(page);
         if (again.frame) return { page, frame: again.frame, blocker: null };
       }
-      if (navAi?.action === 'click' && await clickListedNav(page, navAi)) {
-        attempted.add(`${hopUrl}::${navAi.text}`);
-        const observed = await watchApplicationTransition(page, { findForm: findFormFrame });
+      const observed = await followAiClick(navAi, hopUrl);
+      if (observed) {
         if (observed.frame) return { ...observed, blocker: null };
         page = observed.page;
         continue;
       }
-      const currentUrl = page.url();
-      if (!inspectedUrls.has(currentUrl)) {
-        inspectedUrls.add(currentUrl);
+      const currentUrl = currentPageUrl(page);
+      if (!exploredUrls.has(currentUrl)) {
+        exploredUrls.add(currentUrl);
         log('Navigation directe bloquée — inspection interactive PinchTab.');
         try {
           const discovered = await exploreApplicationInterface(currentUrl, { log });
@@ -1235,7 +1191,7 @@ async function reachApplicationForm(context, page) {
   return { page, frame: null, blocker: null };
 }
 
-// Rescan (user clicked "Re-scanner"): the user is already ON the form, possibly
+// Rescan (the user clicked "Rescan the form"): the user is already ON the form, possibly
 // after fixing fields by hand. Re-detect the form on the current page and any
 // open tab WITHOUT clicking apply/next buttons (which would navigate away from
 // the form they just fixed). Only if nothing is found do we fall back to full
@@ -1259,21 +1215,7 @@ async function collectFields(frame) {
   return await frame.evaluate(COLLECT_FIELDS);
 }
 
-// classifyField / bestAnswerFor → lib/apply-classify.mjs
-
 // ── Fill engine ───────────────────────────────────────────────────────────────
-
-// Every ATS demographic dropdown (gender, race/ethnicity, veteran, disability,
-// LGBTQIA+…) offers some non-disclosure option, but the exact wording is never
-// standardized ("Prefer not to say", "I don't wish to answer", "Decline to
-// self-identify", "Rather not disclose"…). An LLM asked to pick one tends to
-// paraphrase a generic-sounding version of that option instead of copying the
-// real string verbatim, which then fails exact/substring matching against the
-// actual DOM text (found in live testing on Agoda/Greenhouse: LLM said "Prefer
-// not to disclose", the real option read "I don't wish to answer" — zero
-// substring overlap, so the field was reported unfillable). Matching against
-// this pattern directly, deterministically, skips the paraphrase risk entirely.
-// pickSelectOption / pickDeclineOption → lib/apply-select.mjs
 
 // Open a custom dropdown and scrape its rendered options (react-select, Ashby…)
 // so the LLM resolver can pick a valid one. Best-effort; restores closed state.
@@ -1471,13 +1413,16 @@ async function comboboxSelectionRegistered(frame, f, extra = {}) {
   return probe();
 }
 
-// Deterministic decline selection for a required demographic dropdown, tried
-// BEFORE handing the field to the LLM. Two wins over the LLM route: (1) no
-// paraphrase-mismatch risk — see DECLINE_RE's comment — because the option
-// text clicked is read directly off the real DOM, never guessed; (2) no API
-// round-trip for what is, across Greenhouse/Ashby/Lever, the single most
-// common category of required-but-sensitive field on any application form.
-async function fillDeclineDropdown(frame, f) {
+// Pick the field's own "prefer not to say" option, read off the real DOM and
+// never guessed (see DECLINE_RE), in a select, a radio group or a custom list.
+// Tried BEFORE the model for sensitive required questions — the most common
+// required-but-sensitive field on Greenhouse/Ashby/Lever. Returns the option
+// text now shown, or null.
+async function applyDeclineOption(frame, f) {
+  if (f.type === 'radio') {
+    const opt = pickDeclineOption(f.options || []);
+    return opt && await clickRadioOption(frame, f, opt.text) ? opt.text : null;
+  }
   if (f.tag === 'select') {
     const opt = pickDeclineOption(f.options || []);
     if (!opt) return null;
@@ -1487,15 +1432,10 @@ async function fillDeclineDropdown(frame, f) {
     } catch { return null; }
   }
   if (!isComboboxField(f)) return null;
-  const scraped = (f.options && f.options.length) ? f.options : await scrapeComboboxOptions(frame, f);
-  const opt = pickDeclineOption(scraped);
+  const opt = pickDeclineOption(f.options?.length ? f.options : await scrapeComboboxOptions(frame, f));
   if (!opt) return null;
-  // Query with the option's OWN text (not a guess) so selectComboboxOption's
-  // exact-match branch always succeeds — the field is opened once more here,
-  // but that's the only reliable way to actually click a real DOM option via
-  // react-select's mouse-event-driven selection.
-  const { matched } = await selectComboboxOption(frame, f, opt.text);
-  return matched;
+  // The option's OWN text as the query, so the pick is an exact match.
+  return (await selectComboboxOption(frame, f, opt.text)).matched;
 }
 
 // Select one option of a radio group. Playwright's own check()/click() can't be
@@ -1733,10 +1673,25 @@ async function fillValueIntoField(frame, f, answer) {
   return text.length > 70 ? text.slice(0, 70) + '…' : text;
 }
 
+// Pending reasons for a required field the profile has no data for: the
+// human answers it, the model is never asked.
+const MANUAL_REASON = {
+  noData: 'requis — pas de donnée profil (à remplir manuellement)',
+  noOption: 'requis — option hors profil introuvable (à remplir manuellement)',
+  noChoice: 'requis — choix hors profil introuvable (à remplir manuellement)',
+};
+
 async function fillFields(frame, spec) {
   const filled = [];
   const pending = [];
   const unresolved = []; // required fields the deterministic pass couldn't fill → LLM
+  // A required field this pass could not answer goes to the model, or to the
+  // human when the plan says the profile has nothing for it (leaveBlank).
+  const giveUp = (f, plan, manualReason) => {
+    if (!f.required) return;
+    if (plan?.leaveBlank) pending.push({ label: fieldLabel(f), reason: manualReason });
+    else unresolved.push(f);
+  };
 
   // Phase A — file uploads first: ATS like Ashby ("Autofill from resume")
   // re-render the whole form after parsing the CV, which invalidates the
@@ -1748,58 +1703,19 @@ async function fillFields(frame, spec) {
   let resumeAlreadyUploaded = false;
   for (let pass = 0; pass < 4; pass++) {
     let fileFields = (await collectFields(frame)).filter(f => f.type === 'file');
-    // Plugin parity: Ashby sometimes hides the resume input so hard that
-    // collect misses it — probe raw file inputs and synthesize a slot.
+    // Ashby sometimes hides the resume input so hard that collect misses it:
+    // stamp the likeliest raw file input (the plugin's own helper).
     if (!fileFields.length && pass === 0 && spec.cvPath && !resumeAlreadyUploaded) {
-      const probe = await frame.evaluate(() => {
-        const deep = (root, sel) => {
-          const out = [];
-          const walk = (n) => {
-            if (!n?.querySelectorAll) return;
-            try { out.push(...n.querySelectorAll(sel)); } catch { /* */ }
-            for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
-          };
-          walk(root);
-          return out;
-        };
-        const files = deep(document, 'input[type="file"]');
-        const score = (el) => {
-          const blob = `${el.name || ''} ${el.id || ''} ${el.accept || ''} ${el.getAttribute('aria-label') || ''}`.toLowerCase();
-          let s = 0;
-          if (/resume|\bcv\b|curriculum|autofill|_systemfield_resume/.test(blob)) s += 50;
-          if (/pdf|msword|officedocument/.test(el.accept || '')) s += 20;
-          if (/cover|lettre|reference|diploma|other/.test(blob) && !/resume|\bcv\b/.test(blob)) s -= 80;
-          return s;
-        };
-        files.sort((a, b) => score(b) - score(a));
-        const el = files.find((f) => score(f) > 0) || files[0];
-        if (!el) return null;
-        el.setAttribute('data-co-i', '9901');
-        el.setAttribute('data-co-upload', '1');
-        return {
-          i: 9901,
-          type: 'file',
-          tag: 'input',
-          label: el.getAttribute('aria-label') || el.name || 'Resume/CV',
-          name: el.name || '_systemfield_resume',
-          required: true,
-          fileCount: el.files?.length || 0,
-          fileChip: el.files?.[0]?.name || '',
-        };
-      }).catch(() => null);
-      if (probe?.type === 'file') {
-        fileFields = [probe];
-        log(`CV slot forcé (input caché): ${probe.label || probe.name}`);
+      const slot = await frame.evaluate(forceResumeSlotInPage).catch(() => null);
+      if (slot?.type === 'file') {
+        fileFields = [slot];
+        log(`CV slot forcé (input caché): ${slot.label || slot.name}`);
       }
     }
-    const uploadedLabels = filled.filter(x => String(x.value || '').includes('📎')).map(x => x.label);
-    const todo = fileFields.find(f => {
-      const key = (f.label || f.name || 'file').slice(0, 80);
-      if (doneFiles.has(key)) return false;
-      return shouldUploadFileField(f, { uploadedLabels, resumeAlreadyUploaded });
-    });
+    const todo = fileFields.find(f => !doneFiles.has(fieldLabel(f))
+      && shouldUploadFileField(f, { uploadedLabels: attachedLabels(filled), resumeAlreadyUploaded }));
     if (!todo) break;
-    const labelShort = (todo.label || todo.name || 'file').slice(0, 80);
+    const labelShort = fieldLabel(todo);
     doneFiles.add(labelShort);
     if (todo.required || isResumeFileField(todo)) sawResumeSlot = true;
     const plan = classifyField(todo, spec);
@@ -1840,13 +1756,9 @@ async function fillFields(frame, spec) {
   }
   if (uploaded) {
     await waitForFormResettle(frame, UPLOAD_SETTLE_MS);
-    const auto = await waitForResumeAutofill(frame, spec?.identity || {});
-    if (auto.status === 'matched') log('Autofill ATS: nom ou email recopié.');
-    else if (auto.status === 'mismatch') {
-      const detail = (auto.mismatches || []).map((m) => m.kind).join(', ') || 'identité';
-      log(`Autofill ATS incorrect (${detail}) — correction avec le profil.`);
-    } else if (auto.status === 'partial') log('Autofill ATS partiel — les champs vides seront remplis.');
-    else if (auto.manualFill) log('Autofill ATS absent après le délai — remplissage manuel des champs identité.');
+    const autofill = await waitForAutofill(() => frame.evaluate(snapshotIdentityFields), spec?.identity || {});
+    const autofillLine = autofillLogLine(autofill);
+    if (autofillLine) log(autofillLine);
   }
 
   // Phase B — re-collect (fresh markers after any re-render) and fill the rest
@@ -1860,79 +1772,50 @@ async function fillFields(frame, spec) {
     // because shouldFillField returns false for optional marketing ticks —
     // same exception as the Chrome plugin bridge.
     if (!shouldFillField(f) && !(f.type === 'checkbox' && f.required)) continue;
-    // Skip already-answered choice widgets (plugin parity).
+    // Skip answered fields (plugin parity) unless the ATS flags the value:
+    // retyping those is what the heal pass after a refused Next or send is for.
     if (f.type === 'checkbox' && f.checked) continue;
     if (f.type === 'radio' && f.groupChecked) continue;
     const alreadyFilled = f.value && f.type !== 'radio' && f.type !== 'checkbox';
-    if (alreadyFilled) {
-      // Still allow identity overwrite via reconcile later; skip first pass.
-      continue;
-    }
-    const sel = `[data-co-i="${f.i}"]`;
-    const loc = frame.locator(sel);
+    if (alreadyFilled && !(f.ariaInvalid || f.invalid)) continue;
+    const loc = frame.locator(`[data-co-i="${f.i}"]`);
     const plan = classifyField(f, spec, usedAnswers);
     if (plan?.fromQuestion) usedAnswers.add(plan.fromQuestion);
     // brief pause between fields so the form isn't completed in one instant
     if (plan && !plan.skip && actedCount > 0) await jitter(rand(280, 950));
     if (plan && !plan.skip) actedCount++;
-    const labelShort = (f.label || f.name || f.type).slice(0, 80);
+    const labelShort = fieldLabel(f);
 
     try {
       if (!plan) {
-        if (f.required && !f.value) unresolved.push(f);
+        if ((f.required || isSubstantiveOptionalQuestion(f)) && !f.value) unresolved.push(f);
         continue;
       }
       if (plan.skip) {
-        // Explicit demographic match (label/name/id literally said "gender",
-        // "race", etc.) — the field's own decline option, when it has one, is
-        // known-good here since classifyField already recognized the question
-        // as sensitive. Only ONE extra open/close cycle, and only for fields
-        // we already know are demographic — never for the many unrelated
-        // unclassified dropdowns on a typical form (was tried broadly before,
-        // but that added a disruptive extra click to every one of them, which
-        // is almost certainly what made an unrelated Yes/No field on this
-        // same Agoda form flaky in live testing).
-        if (plan.declinePreferred && f.required && (f.tag === 'select' || isComboboxField(f))) {
-          const declined = await fillDeclineDropdown(frame, f);
+        if (plan.answeredBlank) continue;
+        // A sensitive question classifyField recognized (gender, race…): the
+        // field's own decline option is known-good. One extra open/close, and
+        // only for these fields — probing every unclassified dropdown made an
+        // unrelated Yes/No field flaky on Agoda.
+        if (plan.declinePreferred && f.required) {
+          const declined = await applyDeclineOption(frame, f);
           if (declined) { filled.push({ label: labelShort, value: declined, declined: true }); continue; }
-        }
-        // Same reasoning for a required radio group (Ashby renders gender as
-        // radios, not a dropdown): its options are already scraped, so the
-        // non-disclosure choice can be picked deterministically instead of
-        // burning an LLM call on a question we deliberately don't answer.
-        if (plan.declinePreferred && f.required && f.type === 'radio' && f.options?.length) {
-          const decline = pickDeclineOption(f.options);
-          if (decline && await clickRadioOption(frame, f, decline.text)) {
-            filled.push({ label: labelShort, value: decline.text, declined: true });
-            continue;
-          }
         }
         // End date while "current role" is checked: leave blank on purpose
         // (ATS usually clears required once the checkbox is ticked).
         if (plan.currentRoleEnd) continue;
-        // No inventable profile data (postal / US state without Outside-US option):
-        // surface as manual for REQUIRED fields; do not send to the LLM.
-        if (plan.leaveBlank) {
-          if (f.required) {
-            pending.push({
-              label: labelShort,
-              reason: plan.skip || 'requis — pas de donnée profil (à remplir manuellement)',
-            });
-          }
-          continue;
-        }
-        if (f.required) unresolved.push(f);
-
+        // No profile data (postal code, US state without an Outside-US
+        // option): a required field goes to the human, never to the model.
+        giveUp(f, plan, plan.skip || MANUAL_REASON.noData);
         continue;
       }
       if (plan.check) {
         if (await checkBox(frame, f)) filled.push({ label: labelShort, value: '☑' });
         else if (f.required) unresolved.push(f);
-
         continue;
       }
       if (plan.resume) {
-        const cv = cvSummary();
+        const cv = loadCvSummary(ROOT);
         if (cv) { await loc.fill(cv, { timeout: 5000 }); filled.push({ label: labelShort, value: '📄 CV (texte)' }); }
         else if (f.required) unresolved.push(f);
         continue;
@@ -1942,110 +1825,65 @@ async function fillFields(frame, spec) {
         if (opt) {
           await loc.selectOption(opt.value, { timeout: 4000 });
           filled.push({ label: labelShort, value: opt.text });
-        } else if (f.required && plan.leaveBlank) {
-          pending.push({ label: labelShort, reason: 'requis — option hors profil introuvable (à remplir manuellement)' });
-        } else if (f.required) {
-          unresolved.push(f);
+        } else {
+          giveUp(f, plan, MANUAL_REASON.noOption);
         }
         continue;
       }
       if (f.type === 'radio') {
-        // Radios now carry an `options` list (like <select>) since collectFields
-        // dedupes each yes/no or multi-choice group to one entry — so a 3+
-        // option group (work-authorization status, EEOC categories) can match
-        // via the same pickSelectOption logic as selects/comboboxes, not just
-        // a plain yes/no.
-        const opt = (f.options && f.options.length) ? pickSelectOption(f.options, plan, f.label) : null;
+        // collectFields dedupes each radio group to one entry with `options`,
+        // so a 3+ option group (work authorization, EEOC) matches like a select.
+        const opt = f.options?.length ? pickSelectOption(f.options, plan, f.label) : null;
         const isYesNo = !opt && !!plan.yesNo;
-        const want = opt ? opt.text : (isYesNo ? plan.yesNo : null);
-        if (want) {
-          const ok = await clickRadioOption(frame, f, want, isYesNo);
-          if (ok) filled.push({ label: labelShort, value: want });
-          else if (f.required && plan.leaveBlank) {
-            pending.push({ label: labelShort, reason: 'requis — choix hors profil introuvable (à remplir manuellement)' });
-          } else if (f.required) unresolved.push(f);
-        } else if (f.required && plan.leaveBlank) {
-          pending.push({ label: labelShort, reason: 'requis — choix hors profil introuvable (à remplir manuellement)' });
-        } else if (f.required) {
-          unresolved.push(f);
-        }
+        const want = opt?.text || (isYesNo ? plan.yesNo : null) || plan.selectText || null;
+        if (want && await clickRadioOption(frame, f, want, isYesNo)) filled.push({ label: labelShort, value: want });
+        else giveUp(f, plan, MANUAL_REASON.noChoice);
         continue;
       }
       if (f.type === 'date') {
         // Native date picker: fill() writes the ISO value straight into the
-        // input's value property, which is how Chromium expects date inputs to
-        // be set regardless of the page's display locale — typing digits via
-        // pressSequentially() is unreliable across locales/formats here.
+        // input, whatever the page's display locale — typing digits with
+        // pressSequentially() is unreliable across locales and formats.
         const iso = toIsoDate(plan.dateISO || plan.value || '');
         try {
           await loc.fill(iso, { timeout: 4000 });
           filled.push({ label: labelShort, value: iso });
-        } catch (err) {
+        } catch {
           if (f.required) unresolved.push(f);
         }
         continue;
       }
-      // text-like inputs, textareas, and custom react-select comboboxes.
-      // Comboboxes are handled BEFORE the empty-value guard: a yes/no or
+      // Text-like inputs, textareas, and custom react-select comboboxes.
+      // Comboboxes come BEFORE the empty-value guard: a yes/no or
       // selectText-only plan (e.g. non-compete → No) has no free-text `value`
       // but must still drive the dropdown.
       const value = plan.value || '';
       if (isComboboxField(f) && !skipComboboxProbe(f)) {
-        // searchable dropdown (Ashby, Greenhouse new UI): type the query, then
-        // CLICK the matching option. selectText = the short query that filters
-        // to the right option; fall back to the yes/no literal, then free text.
-        let query = plan.selectText
-          || (plan.yesNo ? (plan.yesNo === 'yes' ? 'Yes' : 'No') : value.slice(0, 60));
-        // selectPrefer-only plans (e.g. US state → Outside US): scrape options
-        // and pick before typing a free-text guess.
+        // Searchable dropdown (Ashby, Greenhouse new UI): open it and CLICK the
+        // matching option. selectText is the short query that finds it, then
+        // the yes/no literal, then the free-text value.
+        let query = plan.selectText || yesNoText(plan) || value.slice(0, 60);
+        // selectPrefer-only plans (e.g. US state → Outside US): pick among
+        // the real options rather than typing a free-text guess.
         if (!query && plan.selectPrefer) {
-          const opts = (f.options && f.options.length) ? f.options : await scrapeComboboxOptions(frame, f);
-          const opt = pickSelectOption(opts, plan, f.label);
-          if (opt) query = opt.text;
-          else if (plan.leaveBlank) {
-            if (f.required) {
-              pending.push({ label: labelShort, reason: 'requis — option hors profil introuvable (à remplir manuellement)' });
-            }
-            continue;
-          } else if (f.required) { unresolved.push(f); continue; }
+          const opts = f.options?.length ? f.options : await scrapeComboboxOptions(frame, f);
+          query = pickSelectOption(opts, plan, f.label)?.text || '';
         }
         if (!query) {
-          if (f.required && plan.leaveBlank) {
-            pending.push({ label: labelShort, reason: 'requis — pas de donnée profil (à remplir manuellement)' });
-          } else if (f.required && !plan.leaveBlank) unresolved.push(f);
+          giveUp(f, plan, plan.selectPrefer ? MANUAL_REASON.noOption : MANUAL_REASON.noData);
           continue;
         }
         const { matched } = await selectComboboxOption(frame, f, query);
-        if (matched) {
-          filled.push({ label: labelShort, value: matched });
-          continue;
-        }
-        const hint = locationTypeaheadHint(f, spec.identity || {});
-        if (hint) {
-          const loose = await selectComboboxOptionOnce(frame, f, hint.prefix, hint.contains);
-          if (loose.matched) {
-            filled.push({ label: labelShort, value: loose.matched });
-            continue;
-          }
-        }
-        if (f.required && plan.leaveBlank) {
-          pending.push({ label: labelShort, reason: 'requis — option hors profil introuvable (à remplir manuellement)' });
-        } else if (f.required && !plan.leaveBlank) unresolved.push(f);
+        const hint = matched ? null : locationTypeaheadHint(f, spec.identity || {});
+        const shown = matched || (hint ? (await selectComboboxOptionOnce(frame, f, hint.prefix, hint.contains)).matched : null);
+        if (shown) filled.push({ label: labelShort, value: shown });
+        else giveUp(f, plan, MANUAL_REASON.noOption);
         continue;
       }
       if (!value) {
-        if (f.required && plan.leaveBlank) {
-          pending.push({ label: labelShort, reason: plan.skip || 'requis — pas de donnée profil (à remplir manuellement)' });
-        } else if (f.required && !plan.optionalEmpty && !plan.leaveBlank) unresolved.push(f);
+        if (plan.leaveBlank || !plan.optionalEmpty) giveUp(f, plan, plan.skip || MANUAL_REASON.noData);
         continue;
       }
-      // Already filled? Compare against the polished text too — that is what
-      // actually gets typed, so comparing only the raw plan value let a second
-      // pass (re-scan, blocker resolved) re-type a field it had just filled.
-      const textValue = polishApplicationAnswer(value);
-      const current = (f.value || '').trim();
-      if (current && !f.ariaInvalid && !shouldReplaceFilledValue(f, current, textValue)) continue;
-
       // Last-resort: click and see if a list opens. Must not type unless it did.
       if (shouldSpeculativeProbe(f)) {
         const probe = await selectComboboxOption(frame, f, value.slice(0, 60));
@@ -2055,10 +1893,10 @@ async function fillFields(frame, spec) {
           continue;
         }
       }
-
       // An unsubstituted template ("[Company]", "{{role}}") in a Section F
       // draft answer is a real error, not a style nit — never type it, send
       // the field to the LLM/human fallback instead.
+      const textValue = polishApplicationAnswer(value);
       if (hasUnresolvedPlaceholder(textValue)) {
         if (f.required) unresolved.push(f);
         continue;
@@ -2080,79 +1918,49 @@ async function fillFields(frame, spec) {
     // which invalidates the data-co-i markers captured earlier. Re-match each
     // unresolved field to its FRESH marker by (label, type, name) so we never
     // act on a stale/renumbered element.
-    const fresh = await collectFields(frame);
     const freshByKey = new Map();
-    for (const ff of fresh) {
+    for (const ff of await collectFields(frame)) {
       const key = `${ff.label}|${ff.type}|${ff.name}`;
       if (!freshByKey.has(key)) freshByKey.set(key, []);
       freshByKey.get(key).push(ff);
     }
     const targets = [];
     for (const f of unresolved) {
-      const bucket = freshByKey.get(`${f.label}|${f.type}|${f.name}`);
-      const ff = bucket && bucket.shift(); // consume so duplicate labels map 1:1
+      const ff = freshByKey.get(`${f.label}|${f.type}|${f.name}`)?.shift(); // consumed, so duplicate labels map 1:1
       if (ff) { targets.push(ff); continue; }
-      // No fresh match: either a conditional hid the field, or its label
-      // changed on re-render. Harmless for an optional field, but a REQUIRED
-      // one must not vanish from both lists — that is exactly how a blank
-      // mandatory consent reached "0 en attente" on a live run.
-      if (f.required) {
-        pending.push({ label: (f.label || f.name || f.type).slice(0, 80), reason: 'champ introuvable après re-rendu — à vérifier dans Chrome' });
-      }
+      // No fresh match: a conditional hid the field, or its label changed on
+      // re-render. Harmless for an optional field, but a REQUIRED one must
+      // not vanish from both lists — that is exactly how a blank mandatory
+      // consent reached "0 en attente" on a live run.
+      if (f.required) pending.push({ label: fieldLabel(f), reason: 'champ introuvable après re-rendu — à vérifier dans Chrome' });
     }
     // enumerate options for custom dropdowns so the model picks a valid one
     for (const f of targets) {
-      if ((!f.options || !f.options.length) && isComboboxField(f)) {
-        f.options = await scrapeComboboxOptions(frame, f);
-      }
+      if (!f.options?.length && isComboboxField(f)) f.options = await scrapeComboboxOptions(frame, f);
     }
-    // A required dropdown whose own option list already offers a decline/
-    // opt-out choice ("Prefer not to say", "I don't wish to answer"…) gets
-    // that option directly, without asking the LLM — cheaper, and skips the
-    // paraphrase-mismatch failure mode entirely (see DECLINE_RE's comment).
-    // This is what catches a demographic-style question the label regex
-    // didn't recognize (e.g. "How do you identify?" carries no "gender" /
-    // "race" keyword, yet its options are the same self-ID choices as fields
-    // that DO get caught). Reuses the scrape just above — no extra open/close
-    // cycle added beyond what already happened for every other combobox
-    // target, unlike an earlier version of this fix that probed every
-    // unclassified dropdown up front and made an unrelated Yes/No field on
-    // this same Agoda form flaky in live testing.
-    const declineTargets = [];
+    // A dropdown whose own options offer a decline choice gets it without the
+    // model. This catches sensitive questions the label regex missed ("How
+    // do you identify?" says neither "gender" nor "race"), reusing the
+    // scrape just above.
     const llmTargets = [];
     for (const f of targets) {
-      const opt = pickDeclineOption(f.options || []);
-      if (opt) declineTargets.push({ f, opt }); else llmTargets.push(f);
-    }
-    for (const { f, opt } of declineTargets) {
-      const labelShort = (f.label || f.name || f.type).slice(0, 80);
-      try {
-        let shown;
-        if (f.tag === 'select') {
-          await frame.locator(`[data-co-i="${f.i}"]`).selectOption(opt.value, { timeout: 4000 });
-          shown = opt.text;
-        } else if (f.type === 'radio') {
-          shown = (await clickRadioOption(frame, f, opt.text)) ? opt.text : null;
-        } else {
-          shown = (await selectComboboxOption(frame, f, opt.text)).matched;
-        }
-        if (shown) { filled.push({ label: labelShort, value: shown, declined: true }); continue; }
-      } catch { /* fall through to LLM below */ }
-      llmTargets.push(f);
+      const declined = pickDeclineOption(f.options || []) ? await applyDeclineOption(frame, f).catch(() => null) : null;
+      if (declined) filled.push({ label: fieldLabel(f), value: declined, declined: true });
+      else llmTargets.push(f);
     }
     let answers = {};
     try {
       answers = await resolveUnknownFields({
         fields: llmTargets.map(f => ({ i: f.i, label: f.label, kind: llmKind(f), required: f.required, multiple: fieldIsMulti(f), options: f.options })),
         spec,
-        cvSummary: cvSummary(),
-        styleGuide: profileVoice(),
+        cvSummary: loadCvSummary(ROOT),
+        styleGuide: loadApplicationVoice(ROOT),
       });
     } catch (err) {
       log(`LLM indisponible (${String(err.message || err).slice(0, 70)}) — champs laissés au humain.`);
     }
     for (const f of llmTargets) {
-      const labelShort = (f.label || f.name || f.type).slice(0, 80);
+      const labelShort = fieldLabel(f);
       const ans = answers[String(f.i)];
       if (!ans) { if (f.required) pending.push({ label: labelShort, reason: 'sans réponse — à remplir manuellement' }); continue; }
       try {
@@ -2178,7 +1986,7 @@ async function fillFields(frame, spec) {
   return {
     filled,
     pending: pending.filter(p => !filledLabels.has(p.label)),
-    sawResumeSlot: sawResumeSlot || filled.some(x => String(x.value || '').includes('📎')),
+    sawResumeSlot: sawResumeSlot || attachedLabels(filled).length > 0,
   };
 }
 
@@ -2191,14 +1999,13 @@ async function reconcileProfileFields(frame, spec, filled) {
     if (!shouldFillField(f)) continue;
     const plan = classifyField(f, spec);
     if (!plan || plan.skip || plan.check || plan.resume) continue;
-    const want = polishApplicationAnswer(plan.value || plan.selectText || (plan.yesNo === 'yes' ? 'Yes' : plan.yesNo === 'no' ? 'No' : ''));
+    const want = polishApplicationAnswer(plan.value || plan.selectText || yesNoText(plan));
     if (!want || !shouldReplaceFilledValue(f, f.value, want)) continue;
     try {
       const shown = await fillValueIntoField(frame, f, want);
       if (!shown) continue;
-      const labelShort = (f.label || f.name || f.type).slice(0, 80);
-      const rec = { label: labelShort, value: String(shown), reconciled: true };
-      const idx = filled.findIndex(x => x.label === labelShort);
+      const rec = { label: fieldLabel(f), value: String(shown), reconciled: true };
+      const idx = filled.findIndex(x => x.label === rec.label);
       if (idx >= 0) filled[idx] = rec;
       else filled.push(rec);
     } catch { /* remainingCompletionIssues will surface it */ }
@@ -2209,11 +2016,7 @@ async function reconcileProfileFields(frame, spec, filled) {
 async function remainingCompletionIssues(frame, uploadedLabels = []) {
   if (!frameAlive(frame)) return null;
   try {
-    const fields = await collectFields(frame);
-    return fields.flatMap(f => {
-      const reason = fieldCompletionIssue(f, { uploadedLabels });
-      return reason ? [{ label: (f.label || f.name || f.type).slice(0, 80), reason }] : [];
-    });
+    return completionIssues(await collectFields(frame), uploadedLabels);
   } catch (err) {
     if (isTargetClosedError(err)) return null;
     // Never fail silently: an exception here used to return "nothing missing",
@@ -2223,56 +2026,35 @@ async function remainingCompletionIssues(frame, uploadedLabels = []) {
   }
 }
 
-function mergeFillResults(first, second) {
-  const byLabel = new Map();
-  for (const row of [...(first.filled || []), ...(second.filled || [])]) {
-    byLabel.set(row.label, row);
-  }
-  const filled = [...byLabel.values()];
-  const filledLabels = new Set(filled.map(f => f.label));
-  const pending = [];
-  const seen = new Set();
-  for (const row of [...(first.pending || []), ...(second.pending || [])]) {
-    if (filledLabels.has(row.label) || seen.has(row.label)) continue;
-    seen.add(row.label);
-    pending.push(row);
-  }
-  return {
-    filled,
-    pending,
-    sawResumeSlot: !!(first.sawResumeSlot || second.sawResumeSlot
-      || filled.some(x => String(x.value || '').includes('📎'))),
-  };
-}
-
 // One automatic refill only on real fill failures (upload/exception/option
 // click missed). Empty leaveBlank / manual gaps do not trigger a full 2nd pass.
 const RETRYABLE_PENDING_RE = /upload échoué|^échec:|option introuvable dans la liste|champ introuvable après re-rendu/i;
 
 async function fillFieldsWithRequiredRetry(frame, spec) {
-  let result = await fillFields(frame, spec);
-  const uploadedLabels = result.filled.filter(x => String(x.value || '').includes('📎')).map(x => x.label);
-  let issues = await remainingCompletionIssues(frame, uploadedLabels);
-  if (issues === null) return { ...result, completionIssues: null };
+  const first = await fillFields(frame, spec);
+  let issues = await remainingCompletionIssues(frame, attachedLabels(first.filled));
+  if (issues === null) return { ...first, completionIssues: null };
 
-  const failed = (result.pending || []).filter(p => RETRYABLE_PENDING_RE.test(p.reason));
-  // Also retry when a required file still looks missing after we thought we uploaded it.
-  const fileStillMissing = (issues || []).some(i => /fichier requis/i.test(i.reason));
-  if (!failed.length && !fileStillMissing) return { ...result, completionIssues: issues };
+  const failed = first.pending.filter(p => RETRYABLE_PENDING_RE.test(p.reason));
+  // Also retry when a required file or the CV still looks missing after the
+  // upload (same check as the plugin).
+  const fileStillMissing = issues.some(i => /fichier requis|CV manquant/i.test(i.reason));
+  if (!failed.length && !fileStillMissing) return { ...first, completionIssues: issues };
 
-  const n = failed.length + (fileStillMissing ? 1 : 0);
-  log(`Relance automatique: ${n} échec(s) de remplissage…`);
+  log(`Relance automatique: ${failed.length + (fileStillMissing ? 1 : 0)} échec(s) de remplissage…`);
   await sleep(rand(150, 350));
   const second = await fillFields(frame, spec);
-  result = mergeFillResults(result, second);
-  const uploaded2 = result.filled.filter(x => String(x.value || '').includes('📎')).map(x => x.label);
-  issues = await remainingCompletionIssues(frame, uploaded2);
-  return { ...result, completionIssues: issues };
+  const filled = mergeFilled(first.filled, second.filled);
+  issues = await remainingCompletionIssues(frame, attachedLabels(filled));
+  return {
+    filled,
+    pending: mergePending(first.pending, second.pending, filled),
+    sawResumeSlot: first.sawResumeSlot || second.sawResumeSlot,
+    completionIssues: issues,
+  };
 }
 
 // ── Submit ────────────────────────────────────────────────────────────────────
-
-// SUBMIT_TEXT_RE → lib/apply-progression.mjs (shared with bridge)
 
 async function clickSubmit(frame, page) {
   if (!frameAlive(frame)) return false;
@@ -2432,17 +2214,36 @@ async function recoverPostApply(page, preUrl = spec.jobUrl) {
   return '';
 }
 
-async function waitForCommand(page, frame, { allowAutoResume = false } = {}) {
-  // Poll command.json; if a blocker disappears, signal auto-resume.
+// Commands that end the run wherever they arrive. 'browser_closed' and
+// 'expired' come from waitForCommand itself.
+const STOP_COMMANDS = new Set(['abort', 'manual_sent', 'browser_closed', 'expired']);
+
+// Chrome closed under the run: on a post-apply URL, the send went through.
+function finishBrowserClosed() {
+  const url = state.currentUrl || '';
+  if (state.filled.length && looksLikePostApplyPath(url)) return setState('submitted', postApplyMessage(url));
+  return setState('aborted', chromeClosedMessage());
+}
+
+function stopFromCommand(cmd) {
+  if (cmd === 'manual_sent') return setState('submitted', '📨 Envoi confirmé manuellement.');
+  if (cmd === 'abort') return setState('aborted', 'Annulé par l\'utilisateur.');
+  if (cmd === 'expired') return setState('aborted', 'Suivi arrêté après 6 h sans action — la fenêtre Chrome se ferme.');
+  return finishBrowserClosed();
+}
+
+// Poll command.json. With allowAutoResume, a blocker that clears by itself
+// reads as a rescan. No command for COMMAND_IDLE_MS reads as 'expired', so a
+// forgotten run does not keep its window and its poll alive forever.
+async function waitForCommand(page, { allowAutoResume = false } = {}) {
+  const since = Date.now();
   for (;;) {
     const cmd = readCommand();
     if (cmd) return cmd;
     if (pageIsGone(page)) return 'browser_closed';
+    if (Date.now() - since > COMMAND_IDLE_MS) return 'expired';
     try {
-      if (allowAutoResume) {
-        const blocker = await detectBlocker(page);
-        if (!blocker) return 'rescan';
-      }
+      if (allowAutoResume && !(await detectBlocker(page))) return 'rescan';
       state.currentUrl = page.url();
     } catch (err) {
       if (isTargetClosedError(err)) return 'browser_closed';
@@ -2474,22 +2275,34 @@ async function waitForStepChange(page, previousFp, timeoutMs = 8000) {
   return null;
 }
 
-async function main() {
-  function finish(s, msg) {
-    setState(s, msg);
+// Refill what the ATS flagged (invalid values, empty required fields, a CV
+// that did not stick) and keep what landed.
+async function healForm(frame) {
+  try {
+    const healed = await fillFieldsWithRequiredRetry(frame, spec);
+    state.filled = mergeFilled(state.filled, healed.filled);
+  } catch (err) {
+    if (!isTargetClosedError(err)) log(String(err?.message || err).slice(0, 120));
   }
-  function stopFromCommand(cmd) {
-    if (cmd === 'manual_sent') return finish('submitted', '📨 Envoi confirmé manuellement.');
-    if (cmd === 'abort') return finish('aborted', 'Annulé par l\'utilisateur.');
-    if (cmd === 'browser_closed') {
-      const url = state.currentUrl || '';
-      if (state.filled.length && looksLikePostApplyPath(url)) {
-        return finish('submitted', postApplyMessage(url));
-      }
-      return finish('aborted', chromeClosedMessage());
-    }
-  }
+}
 
+// fillFields' pending + the live required check. The browser wins on
+// emptiness; the more specific manual reason is kept when both exist.
+function mergeLiveIssues(pending, issues, filled) {
+  const byLabel = new Map(pending.map((p) => [p.label, p]));
+  for (const issue of issues) if (!byLabel.has(issue.label)) byLabel.set(issue.label, issue);
+  const stillBroken = new Set(issues.map((i) => i.label));
+  return [...byLabel.values()].filter((p) => {
+    if (stillBroken.has(p.label)) return true;
+    // Filled and no longer flagged (e.g. "Current role" cleared the end date).
+    if (filled.some((f) => f.label === p.label)) return false;
+    // A manual gap the DOM does not mark required (no asterisk yet): keep it
+    // so the dashboard still asks the human.
+    return /manuellement|profil|hors profil/.test(p.reason || '');
+  });
+}
+
+async function main() {
   await writeState();
   log(`Candidature: ${spec.company} — ${spec.role} [région: ${spec.region === 'asia' ? 'Asie → Bangkok' : 'Europe → Paris'}]`);
   log(`CV: ${basenamePath(spec.cvPath)} · ${spec.answers.length} réponse(s) pré-écrites`);
@@ -2503,315 +2316,254 @@ async function main() {
     await page.goto(spec.jobUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await sleep(3000);
 
-    const sessionHandler = findSiteSessionHandler(currentPageUrl(page));
-    if (sessionHandler) {
-      log('Préambule de connexion requis avant Apply.');
-      if (!(await sessionHandler.ensureSession(context, page))) {
-        setState('needs_human', '🔐 Connexion requise — connecte-toi dans Chrome, puis Re-scanner.');
-        const cmd = await waitForCommand(page, null, { allowAutoResume: true });
-        if (cmd === 'abort' || cmd === 'browser_closed' || cmd === 'manual_sent') return stopFromCommand(cmd);
-        if (!(await sessionHandler.ensureSession(context, page))) {
-          return finish('needs_human', 'Connexion non établie.');
-        }
-      }
-    }
-
+    // reachApplicationForm runs a board's login preamble itself (Himalayas)
+    // and reports a failed one as a 'login' blocker, handled in the loop: the
+    // run waits for the human instead of ending on "needs_human".
     setState('finding_form', 'Recherche du formulaire de candidature…');
-    let { page: formPage, frame, blocker } = await reachApplicationForm(context, page);
-    await screenshot(formPage, 'landing');
+    let { page: activePage, frame, blocker } = await reachApplicationForm(context, page);
+    await screenshot(activePage, 'landing');
 
-    let activePage = formPage;
-    // Circuit breaker for a specific runaway pattern seen live (#tether-ops,
-    // 3 days / 476k log lines / 103MB state.json): a permanently-stuck
-    // preamble (e.g. Himalayas' login-attempt cap reached) makes
-    // reachApplicationForm set a synthetic blocker every time, but
-    // waitForCommand's allowAutoResume checks detectBlocker() — a DOM probe
-    // that never produced this synthetic blocker in the first place, so it
-    // can't see it clear either, and kept returning 'rescan' instantly (no
-    // sleep on that path) forever. After a few consecutive repeats of the
-    // SAME blocker, stop auto-resuming and genuinely wait on a human command
-    // (waitForCommand's normal 1.5s poll) instead of re-looping blind.
+    // Circuit breaker for a runaway seen live (#tether-ops, 3 days / 476k log
+    // lines / 103MB state.json): a permanently stuck preamble (e.g. the
+    // Himalayas login-attempt cap) returns the same synthetic blocker on every
+    // reachApplicationForm, which waitForCommand's DOM probe never sees clear,
+    // so auto-resume answered 'rescan' instantly forever. After a few repeats
+    // of the SAME blocker, wait for a real human command instead.
     let lastBlockerType = null;
     let sameBlockerStreak = 0;
-    // Consecutive-streak alone isn't enough: a blocker that momentarily
-    // clears (reachApplicationForm sees none, fillFields resumes) and then
-    // re-triggers the SAME wall a cycle later resets the streak every time
-    // without ever tripping the >=3 check — observed live as a captcha that
-    // kept "clearing" into a fill pass and reappearing right after, cycling
-    // for 24+ minutes and re-spending an LLM call each lap. This total is a
-    // per-type count that never resets, as a hard ceiling under the streak.
+    // The streak resets whenever a blocker briefly clears: a captcha that kept
+    // "clearing" into a fill pass and coming back cycled for 24+ minutes and
+    // re-spent a model call each lap. This per-type total never resets, and
+    // caps automatic solving as well as auto-resume.
     const blockerTotals = new Map();
     const MAX_BLOCKER_TOTAL = 5;
-    let aiSubmitText = '';
-    navAiBudget.nav = 0;
-    navAiBudget.review = 0;
+    // An Apply button that stays on screen next to the open form (Greenhouse's
+    // header) re-opened and refilled the form on every lap: capped too.
+    let applyEntryReopens = 0;
 
     for (;;) {
       if (blocker) {
         if (blocker === lastBlockerType) sameBlockerStreak++;
         else { lastBlockerType = blocker; sameBlockerStreak = 1; }
-        blockerTotals.set(blocker, (blockerTotals.get(blocker) || 0) + 1);
+        const totalForType = (blockerTotals.get(blocker) || 0) + 1;
+        blockerTotals.set(blocker, totalForType);
 
-        if (await tryAutoSolveBlocker(context, activePage, blocker, 'main-loop')) {
-          blocker = null;
+        if (totalForType <= MAX_BLOCKER_TOTAL && await tryAutoSolveBlocker(context, activePage, blocker, 'main-loop')) {
           lastBlockerType = null;
           sameBlockerStreak = 0;
           ({ page: activePage, frame, blocker } = await reachApplicationForm(context, activePage));
           continue;
         }
-        setState('needs_human', blocker === 'captcha' ? '🤖 Captcha détecté — résous-le dans la fenêtre Chrome.'
-          : blocker === 'login' ? '🔐 Connexion requise — connecte-toi dans la fenêtre Chrome.'
-          : blocker === 'auth_wall' ? '👤 Ce site exige un compte et ne propose pas d\'accès invité — crée le compte ou connecte-toi dans Chrome, puis clique "Re-scanner".'
-          : '🛡️ Protection anti-bot — passe la vérification dans la fenêtre Chrome.');
-        const totalForType = blockerTotals.get(blocker) || 0;
+        setState('needs_human', blockerHelp(blocker));
         const autoResume = sameBlockerStreak < 3 && totalForType < MAX_BLOCKER_TOTAL;
         if (!autoResume) {
-          log(`⚠️ Blocker "${blocker}" toujours présent (${sameBlockerStreak} d'affilée, ${totalForType} au total) — reprise automatique désactivée, clique "Re-scanner" une fois résolu.`);
+          log(`⚠️ Blocker "${blocker}" toujours présent (${sameBlockerStreak} d'affilée, ${totalForType} au total) — reprise automatique désactivée, clique ${UI_BUTTONS.rescan} une fois résolu.`);
         }
-        const cmd = await waitForCommand(activePage, frame, { allowAutoResume: autoResume });
-        if (cmd === 'abort' || cmd === 'browser_closed' || cmd === 'manual_sent') return stopFromCommand(cmd);
-        blocker = null;
+        const cmd = await waitForCommand(activePage, { allowAutoResume: autoResume });
+        if (STOP_COMMANDS.has(cmd)) return stopFromCommand(cmd);
         ({ page: activePage, frame, blocker } = await reachApplicationForm(context, activePage));
-        // Genuine resolution (auto-detected by waitForCommand or fixed by hand)
-        // resets the streak too, not just a tryAutoSolveBlocker success above —
-        // otherwise the SAME blocker type recurring 3 separate times across a
-        // run, each one legitimately solved in seconds, permanently disables
-        // auto-resume for that type even though nothing was ever actually stuck.
-        // blockerTotals deliberately does NOT reset here — see comment above.
+        // A real resolution (auto-detected, or fixed by hand) resets the streak
+        // too: the same blocker type solved 3 separate times in seconds must
+        // not disable auto-resume. blockerTotals deliberately keeps counting.
         if (!blocker) { lastBlockerType = null; sameBlockerStreak = 0; }
         continue;
       }
 
       if (!frameAlive(frame)) {
         const outcomeUrl = await recoverPostApply(activePage);
-        if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
+        if (outcomeUrl) return setState('submitted', postApplyMessage(outcomeUrl));
         await screenshot(activePage, 'no-form');
-        setState('needs_human', '❓ Formulaire introuvable automatiquement — navigue manuellement jusqu\'au formulaire dans Chrome, puis clique "Re-scanner".');
-        const cmd = await waitForCommand(activePage, frame);
-        if (cmd === 'abort' || cmd === 'browser_closed' || cmd === 'manual_sent') return stopFromCommand(cmd);
-        // after manual navigation, the form may be in any open tab
-        for (const p of context.pages()) {
-          const { frame: fr } = await findFormFrame(p);
-          if (fr) { activePage = p; frame = fr; break; }
-        }
-        if (!frameAlive(frame)) continue;
+        setState('needs_human', `❓ Formulaire introuvable automatiquement — navigue jusqu'au formulaire dans Chrome, puis ${UI_BUTTONS.rescan}.`);
+        const cmd = await waitForCommand(activePage);
+        if (STOP_COMMANDS.has(cmd)) return stopFromCommand(cmd);
+        // After manual navigation the form may be in any open tab.
+        ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
+        continue;
       }
 
       setState('filling', 'Remplissage du formulaire…');
-      let filled;
-      let pending;
-      let completionIssues;
-      let sawResumeSlot = false;
+      let result;
       try {
-        ({ filled, pending, completionIssues, sawResumeSlot } = await fillFieldsWithRequiredRetry(frame, spec));
+        result = await fillFieldsWithRequiredRetry(frame, spec);
       } catch (err) {
         if (!isTargetClosedError(err)) throw err;
+        result = { completionIssues: null };
+      }
+      if (result.completionIssues === null) {
         const outcomeUrl = await recoverPostApply(activePage);
-        if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
-        log('Formulaire fermé pendant le remplissage — nouvelle détection.');
+        if (outcomeUrl) return setState('submitted', postApplyMessage(outcomeUrl));
+        log('Formulaire fermé ou disparu pendant le remplissage — nouvelle détection.');
         ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
         continue;
       }
-      state.filled = filled;
-      if (completionIssues === null) {
-        const outcomeUrl = await recoverPostApply(activePage);
-        if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
-        log('Formulaire disparu après remplissage — nouvelle détection.');
-        ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
-        continue;
-      }
-      // Merge fillFields pending + live browser required check. Browser wins on
-      // emptiness; keep the more specific manual reason when both exist.
-      {
-        const byLabel = new Map();
-        for (const p of pending) byLabel.set(p.label, p);
-        for (const r of completionIssues) {
-          if (!byLabel.has(r.label)) byLabel.set(r.label, r);
-        }
-        const stillBroken = new Set(completionIssues.map(i => i.label));
-        pending = [...byLabel.values()].filter(p => {
-          if (stillBroken.has(p.label)) return true;
-          // Filled successfully and the form no longer flags it (e.g. Current
-          // role cleared end-date required) → drop.
-          if (filled.some(f => f.label === p.label)) return false;
-          // leaveBlank / manual gap that collectFields did not mark required
-          // (no asterisk in DOM yet) — keep so the UI still asks the human.
-          return /manuellement|profil|hors profil/.test(p.reason || '');
-        });
-      }
+      // Wizard steps add up, as in the plugin: identity typed on step 1 still
+      // counts on step 3 (the ready check used to see the last step only).
+      state.filled = mergeFilled(state.filled, result.filled);
+      let pending = mergeLiveIssues(result.pending, result.completionIssues, state.filled);
       state.pending = pending;
-      log(`${filled.length} champ(s) rempli(s), ${pending.length} requis en attente`);
+      log(`${state.filled.length} champ(s) rempli(s), ${pending.length} requis en attente`);
       await screenshot(activePage, 'filled');
 
       const newBlocker = await detectBlocker(activePage);
       if (newBlocker) { blocker = newBlocker; continue; }
 
-      const applyEntryVisible = await activePage.evaluate(PAGE_SHOWS_APPLY_ENTRY).catch(() => false);
-      let ready = looksReadyToSubmit({ filled, pending, applyEntryVisible });
-      // Plugin parity: never auto-submit when a resume slot was seen but 📎 never landed.
-      const hasCvAttached = filled.some((f) => /📎/.test(String(f.value || '')));
-      let cvBlocksSubmit = !!sawResumeSlot && !hasCvAttached;
+      let stepFields = [];
+      try { stepFields = await collectFields(frame); } catch { stepFields = []; }
+      // A filename chip proves the CV is attached even when no upload was recorded.
+      const chip = stepFields.find((f) => f.type === 'file' && String(f.fileChip || '').trim());
+      if (chip && !attachedLabels(state.filled).length) {
+        state.filled = mergeFilled(state.filled, [{ label: fieldLabel(chip), value: `📎 ${chip.fileChip}` }]);
+        pending = pending.filter((p) => !/CV manquant|fichier requis|upload non confirmé/i.test(String(p.reason || '')));
+      }
+      // Plugin parity: never send when a resume slot was seen but no file landed.
+      const cvBlocksSubmit = !!result.sawResumeSlot && !attachedLabels(state.filled).length;
       if (cvBlocksSubmit) {
-        const already = pending.some((p) => /resume|\bcv\b|upload|fichier|CV /i.test(`${p.reason || ''} ${p.label || ''}`));
-        if (!already) {
+        if (!pending.some((p) => /resume|\bcv\b|upload|fichier|CV /i.test(`${p.reason || ''} ${p.label || ''}`))) {
           pending = [...pending, { label: 'Resume/CV', reason: 'CV manquant — upload non confirmé' }];
-          state.pending = pending;
         }
         log('CV manquant — envoi bloqué jusqu’à upload réussi.');
       }
+      const applyEntryVisible = await activePage.evaluate(PAGE_SHOWS_APPLY_ENTRY).catch(() => false);
 
-      aiSubmitText = '';
-      let stepFields = [];
-      try { stepFields = await collectFields(frame); } catch { stepFields = []; }
-      const chip = stepFields.find((f) => f.type === 'file' && String(f.fileChip || '').trim());
-      if (chip && !filled.some((f) => /📎/.test(String(f.value || '')))) {
-        filled = [...filled, {
-          label: String(chip.label || chip.name || 'Resume/CV').slice(0, 80),
-          value: `📎 ${chip.fileChip}`,
-        }];
-        state.filled = filled;
-        pending = pending.filter((p) => !/CV manquant|fichier requis|upload non confirmé/i.test(String(p.reason || '')));
-        state.pending = pending;
-        cvBlocksSubmit = false;
-      }
       let snap = { heading: '', bodySnippet: '' };
       try { snap = await activePage.evaluate(PAGE_STEP_SNAPSHOT) || snap; } catch { /* page gone */ }
-      const editableCount = countEditableApplyFields(stepFields);
-      let isReviewStep = pageLooksLikeReviewStep({
+      const step = {
         heading: snap.heading || '',
         bodySnippet: snap.bodySnippet || '',
         fieldCount: stepFields.length,
-        editableCount,
-      });
-      if (!isReviewStep && reviewStepNeedsAi({
-        heading: snap.heading || '',
-        bodySnippet: snap.bodySnippet || '',
-        fieldCount: stepFields.length,
-        editableCount,
-      })) {
+        editableCount: countEditableApplyFields(stepFields),
+      };
+      const stepFp = fieldsFingerprint(stepFields, { url: currentPageUrl(activePage), heading: step.heading });
+      // Same rule as the plugin: only a high-confidence review heading makes
+      // this the final step; a form that merely mentions "review" is not one.
+      let isReviewStep = reviewStepConfidence(step) === 'high';
+      let aiSubmitText = '';
+      if (!isReviewStep && reviewStepNeedsAi(step)) {
         const d = await askPageNavAi(activePage, {
           phase: 'review',
           fields: stepFields,
-          heading: snap.heading || '',
-          bodySnippet: snap.bodySnippet || '',
+          heading: step.heading,
+          bodySnippet: step.bodySnippet,
         });
-        if (d?.action === 'review' || (d?.action === 'click' && SUBMIT_TEXT_RE.test(d.text || ''))) {
+        const cls = d?.action === 'click' && d.text ? classifyActionLabel(d.text) : null;
+        if (d?.action === 'review' || (cls?.kind === 'submit' && cls.autoSubmit && cls.confidence === 'high')) {
           isReviewStep = true;
-          if (d.action === 'click') aiSubmitText = d.text;
-        } else if (d?.action === 'click' && d.text && await clickListedNav(activePage, d)) {
-          await sleep(1000);
-          const again = await findFormFrame(activePage);
-          const afterFp = again.frame ? fieldsFingerprint(await collectFields(again.frame).catch(() => [])) : '';
-          if (afterFp && afterFp !== fieldsFingerprint(stepFields)) {
-            frame = again.frame;
+          if (cls) aiSubmitText = d.text;
+        } else if (cls?.kind === 'submit' || cls?.kind === 'ambiguous') {
+          // A send label is never clicked as navigation (plugin parity).
+          log(`Libellé ambigu « ${d.text} » — pas d’envoi automatique.`);
+        } else if (cls && await clickListedNav(activePage, d)) {
+          const changed = await waitForStepChange(activePage, stepFp, 8000);
+          if (changed?.frame) {
+            frame = changed.frame;
             continue;
           }
         }
       }
       if (isReviewStep) {
         log('Étape de vérification / récapitulatif détectée');
+        // Optional blanks on a review screen must not block the send.
         pending = pending.filter((p) => isBlockingApplyPending(p.reason));
-        state.pending = pending;
       }
+      state.pending = pending;
 
       const hardBlock = pending.some((p) => isBlockingApplyPending(p.reason));
-      const stepFp = fieldsFingerprint(stepFields, {
-        url: currentPageUrl(activePage),
-        heading: snap.heading || '',
-      });
-      if (!isReviewStep && !hardBlock && !cvBlocksSubmit && !applyEntryVisible && filled.length >= 1) {
+      let nextHadNoEffect = false;
+      if (!isReviewStep && !hardBlock && !cvBlocksSubmit && !applyEntryVisible && state.filled.length >= 1) {
         const nxt = await clickApplyAndFollow(context, activePage, PROGRESS_TEXT_RE);
         if (nxt) {
           const changed = await waitForStepChange(nxt, stepFp, 8000);
           if (changed?.frame) {
             activePage = nxt;
             frame = changed.frame;
-            blocker = null;
             continue;
           }
           log('Next sans changement — correction des champs invalides puis second Next…');
-          try { await fillFieldsWithRequiredRetry(frame, spec); } catch (err) {
-            if (!isTargetClosedError(err)) log(String(err?.message || err).slice(0, 120));
-          }
-          const nxt2 = await clickApplyAndFollow(context, activePage, PROGRESS_TEXT_RE);
-          const page2 = nxt2 || activePage;
+          await healForm(frame);
+          const page2 = await clickApplyAndFollow(context, activePage, PROGRESS_TEXT_RE) || activePage;
           const changed2 = await waitForStepChange(page2, stepFp, 8000);
           if (changed2?.frame) {
             activePage = page2;
             frame = changed2.frame;
-            blocker = null;
             continue;
           }
-          log('Next sans changement d’étape — tentative d’envoi une fois.');
+          nextHadNoEffect = true;
+          log('Next sans changement d’étape — envoi automatique évité.');
         }
       }
 
-      ready = looksReadyToSubmit({ filled, pending, applyEntryVisible });
+      const ready = looksReadyToSubmit({ filled: state.filled, pending, applyEntryVisible });
+      // Plugin parity: a Next that changed nothing must not turn into a send.
+      // Next is still on screen, so only a high-confidence review step may.
+      const autoSubmit = !!spec.autoSubmit && ready && !cvBlocksSubmit && (!nextHadNoEffect || shouldAttemptSubmitAfterNoopNext({
+        submitButtonVisible: false,
+        reviewConfidence: isReviewStep ? 'high' : 'none',
+        requiredEmpty: pending.some((p) => isRequiredEmptyReason(p.reason)),
+        hardBlock: hardBlock || cvBlocksSubmit,
+        progressStillVisible: true,
+      }));
 
       if (pending.length) {
         setState('needs_human', cvBlocksSubmit
-          ? `✋ CV manquant (${pending.length} champ(s) à compléter). Attache le CV dans Chrome puis Re-scanner.`
-          : `✋ ${pending.length} champ(s) à compléter manuellement dans Chrome, puis "Re-scanner" ou "Envoyer".`);
+          ? `✋ CV manquant (${pending.length} champ(s) à compléter). Attache le CV dans Chrome puis ${UI_BUTTONS.rescan}.`
+          : `✋ ${pending.length} champ(s) à compléter manuellement dans Chrome, puis ${UI_BUTTONS.rescan} ou ${UI_BUTTONS.send}.`);
       } else if (applyEntryVisible) {
-        log('Bouton « Apply for this job » encore visible — le formulaire n’est pas ouvert, pas d’envoi.');
-        const next = await clickApplyAndFollow(context, activePage, APPLY_TEXT_RE)
-          || await clickApplyAndFollow(context, activePage, PROGRESS_TEXT_RE);
-        if (next) {
-          activePage = next;
-          ({ page: activePage, frame, blocker } = await reachApplicationForm(context, activePage));
-          continue;
+        if (applyEntryReopens < 2) {
+          applyEntryReopens += 1;
+          log('Bouton « Apply for this job » encore visible — le formulaire n’est pas ouvert, pas d’envoi.');
+          const next = await clickApplyAndFollow(context, activePage, APPLY_TEXT_RE)
+            || await clickApplyAndFollow(context, activePage, PROGRESS_TEXT_RE);
+          if (next) {
+            ({ page: activePage, frame, blocker } = await reachApplicationForm(context, next));
+            continue;
+          }
         }
-        setState('needs_human', '✋ Le formulaire n’est pas ouvert (Apply encore visible). Clique Apply dans Chrome puis « Re-scanner ».');
+        setState('needs_human', `✋ Le formulaire n’est pas ouvert (Apply encore visible). Clique Apply dans Chrome puis ${UI_BUTTONS.rescan}.`);
       } else if (!ready) {
         log('Identité absente — envoi automatique bloqué (pending=0 n’est pas une candidature complète).');
-        setState('needs_human', '✋ Formulaire incomplet (email/identité manquants). Vérifie dans Chrome puis Re-scanner ou Envoyer.');
-      } else if (spec.autoSubmit && !cvBlocksSubmit) {
+        setState('needs_human', `✋ Formulaire incomplet (email/identité manquants). Vérifie dans Chrome puis ${UI_BUTTONS.rescan} ou ${UI_BUTTONS.send}.`);
+      } else if (autoSubmit) {
         log('Aucun champ en attente — envoi automatique activé.');
       } else {
-        setState('ready_to_review', '✅ Formulaire rempli — vérifie dans Chrome puis clique "Confirmer l\'envoi", ou "J\'ai envoyé" si tu as déjà validé.');
+        setState('ready_to_review', nextHadNoEffect
+          ? `✅ Formulaire rempli, mais Next n’a rien changé — vérifie l’étape dans Chrome puis ${UI_BUTTONS.send}.`
+          : `✅ Formulaire rempli — vérifie dans Chrome puis ${UI_BUTTONS.send}, ou ${UI_BUTTONS.sent} si tu as déjà envoyé.`);
       }
 
-      let cmd;
-      if (spec.autoSubmit && ready && !cvBlocksSubmit) {
-        cmd = 'submit';
-      } else {
-        cmd = await waitForCommand(activePage, frame);
-      }
-      if (cmd === 'abort' || cmd === 'browser_closed' || cmd === 'manual_sent') return stopFromCommand(cmd);
-      if (cmd === 'rescan') {
+      const cmd = autoSubmit ? 'submit' : await waitForCommand(activePage);
+      if (STOP_COMMANDS.has(cmd)) return stopFromCommand(cmd);
+      if (cmd !== 'submit') {
+        // Rescan (or anything unexpected): re-detect the form, then refill.
+        applyEntryReopens = 0;
         ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
         continue;
       }
-      if (cmd !== 'submit') continue;
 
       // Submit retry loop — re-click only (never re-fill, so a manual fix isn't
-      // overwritten). Every iteration either returns, breaks to the outer loop
-      // (rescan/blocker), or blocks on a user command, so it can't busy-spin and
-      // never falls through to a re-fill.
+      // overwritten). Every iteration returns, breaks out to the main loop
+      // (rescan / blocker) or blocks on a user command: it cannot busy-spin.
       let outerAction = null;
       let submitHealUsed = false;
       for (;;) {
         // Re-verify right before the click, not just once after filling: a
-        // required radio/checkbox group can read as checked immediately after
-        // fillFields yet be unchecked again by the time clickSubmit finishes
-        // scrolling the page to find the button — observed live on an Ashby
-        // form where a native-only `checked` flag didn't survive the section
-        // scrolling out of and back into view. Catching that here costs one
-        // cheap DOM scan and skips a real (and then-rejected) submit attempt.
-        const staleIssues = await remainingCompletionIssues(frame, (state.filled || []).filter(x => String(x.value || '').includes('📎')).map(x => x.label));
+        // required radio/checkbox group can read as checked right after
+        // fillFields yet be unchecked again once clickSubmit has scrolled to
+        // the button (live on an Ashby form). One cheap DOM scan saves a real,
+        // then-rejected submit.
+        const staleIssues = await remainingCompletionIssues(frame, attachedLabels(state.filled));
         if (staleIssues === null) {
           const outcomeUrl = await recoverPostApply(activePage);
-          if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
+          if (outcomeUrl) return setState('submitted', postApplyMessage(outcomeUrl));
           outerAction = 'rescan';
           break;
         }
         if (staleIssues.length) {
           state.pending = staleIssues;
-          setState('needs_human', `✋ ${staleIssues.length} champ(s) à compléter manuellement dans Chrome, puis "Re-scanner" ou "Envoyer".`);
-          const c1 = await waitForCommand(activePage, frame);
-          if (c1 === 'abort' || c1 === 'browser_closed' || c1 === 'manual_sent') return stopFromCommand(c1);
-          if (c1 === 'rescan') { outerAction = 'rescan'; break; }
-          continue; // 'submit' = user fixed it manually → re-verify from the top
+          setState('needs_human', `✋ ${staleIssues.length} champ(s) à compléter manuellement dans Chrome, puis ${UI_BUTTONS.rescan} ou ${UI_BUTTONS.send}.`);
+          const c1 = await waitForCommand(activePage);
+          if (STOP_COMMANDS.has(c1)) return stopFromCommand(c1);
+          if (c1 !== 'submit') { outerAction = 'rescan'; break; }
+          continue; // the user fixed it by hand → re-verify from the top
         }
         setState('submitting', 'Envoi de la candidature…');
         const preSubmitUrl = currentPageUrl(activePage);
@@ -2819,18 +2571,23 @@ async function main() {
         if (!clicked && aiSubmitText) clicked = await clickExactLabelOnPage(activePage, aiSubmitText);
         if (!clicked) {
           const outcomeUrl = await recoverPostApply(activePage, preSubmitUrl);
-          if (outcomeUrl) return finish('submitted', postApplyMessage(outcomeUrl));
+          if (outcomeUrl) return setState('submitted', postApplyMessage(outcomeUrl));
           const d = await askPageNavAi(activePage, { phase: 'stuck' });
           if (d?.action === 'click' && d.text) {
-            clicked = await clickListedNav(activePage, d) || await clickExactLabelOnPage(activePage, d.text);
+            // Only a send label is clicked to send (plugin parity).
+            if (classifyActionLabel(d.text).kind === 'submit') {
+              clicked = await clickListedNav(activePage, d) || await clickExactLabelOnPage(activePage, d.text);
+            } else {
+              log(`« ${d.text} » n’est pas un bouton d’envoi — non cliqué.`);
+            }
           }
         }
         if (!clicked) {
-          setState('needs_human', '❓ Bouton d\'envoi introuvable — clique sur Submit dans Chrome, puis "J\'ai envoyé".');
-          const c2 = await waitForCommand(activePage, frame);
-          if (c2 === 'abort' || c2 === 'browser_closed' || c2 === 'manual_sent') return stopFromCommand(c2);
-          if (c2 === 'rescan') { outerAction = 'rescan'; break; }
-          // 'submit' = user clicked Submit manually → verify below
+          setState('needs_human', `❓ Bouton d'envoi introuvable — clique sur Submit dans Chrome, puis ${UI_BUTTONS.sent}.`);
+          const c2 = await waitForCommand(activePage);
+          if (STOP_COMMANDS.has(c2)) return stopFromCommand(c2);
+          if (c2 !== 'submit') { outerAction = 'rescan'; break; }
+          // 'submit' = the user clicked Submit by hand → verify below
         }
         await sleep(1500);
 
@@ -2843,11 +2600,11 @@ async function main() {
           if (outcomeUrl) {
             state.confirmed = true;
             await screenshot(activePage, 'after-submit');
-            return finish('submitted', postApplyMessage(outcomeUrl));
+            return setState('submitted', postApplyMessage(outcomeUrl));
           }
         }
         await screenshot(activePage, 'after-submit');
-        if (state.confirmed) return finish('submitted', postApplyMessage(currentPageUrl(activePage)));
+        if (state.confirmed) return setState('submitted', postApplyMessage(currentPageUrl(activePage)));
 
         // No confirmation → did the form reject us (validation errors shown)?
         const rejection = await detectSubmitRejection(activePage);
@@ -2855,35 +2612,25 @@ async function main() {
           if (!submitHealUsed && frameAlive(frame)) {
             submitHealUsed = true;
             log('Envoi refusé — correction des champs invalides puis second envoi…');
-            try { await fillFieldsWithRequiredRetry(frame, spec); } catch (err) {
-              if (!isTargetClosedError(err)) log(String(err?.message || err).slice(0, 120));
-            }
+            await healForm(frame);
             continue;
           }
-          setState('needs_human', `⚠️ Envoi refusé — ${rejection.errorCount} champ(s) invalide(s)${rejection.sample ? ` (« ${rejection.sample} »)` : ''}. Corrige dans Chrome puis clique "Envoyer" (ou "Re-scanner" pour me laisser recompléter).`);
-          const c3 = await waitForCommand(activePage, frame);
-          if (c3 === 'abort' || c3 === 'browser_closed' || c3 === 'manual_sent') return stopFromCommand(c3);
-          if (c3 === 'rescan') { outerAction = 'rescan'; break; }
-          if (c3 === 'submit') continue; // user fixed it → re-click submit only
+          setState('needs_human', `⚠️ Envoi refusé — ${rejection.errorCount} champ(s) invalide(s)${rejection.sample ? ` (« ${rejection.sample} »)` : ''}. Corrige dans Chrome puis ${UI_BUTTONS.send} (ou ${UI_BUTTONS.rescan} pour me laisser recompléter).`);
+          const c3 = await waitForCommand(activePage);
+          if (STOP_COMMANDS.has(c3)) return stopFromCommand(c3);
+          if (c3 !== 'submit') { outerAction = 'rescan'; break; }
+          continue; // the user fixed it → re-click submit only
         }
-        return finish('submitted', '📨 Candidature probablement envoyée — pas de message de confirmation détecté, vérifie la fenêtre Chrome.');
+        return setState('submitted', '📨 Candidature probablement envoyée — pas de message de confirmation détecté, vérifie la fenêtre Chrome.');
       }
       if (outerAction === 'rescan') {
+        applyEntryReopens = 0;
         ({ page: activePage, frame, blocker } = await rescanForm(context, activePage));
       }
-      continue;
     }
   } catch (err) {
-    if (isTargetClosedError(err)) {
-      const url = state.currentUrl || '';
-      if (state.filled.length && looksLikePostApplyPath(url)) {
-        finish('submitted', postApplyMessage(url));
-      } else {
-        finish('aborted', chromeClosedMessage());
-      }
-    } else {
-      setState('error', `Erreur: ${String(err?.message || err).slice(0, 300)}`);
-    }
+    if (isTargetClosedError(err)) finishBrowserClosed();
+    else setState('error', `Erreur: ${String(err?.message || err).slice(0, 300)}`);
   } finally {
     await writeState();
     // leave the window open briefly so the user can see the final page
@@ -2893,16 +2640,8 @@ async function main() {
 }
 
 main().catch(async (err) => {
-  if (isTargetClosedError(err)) {
-    const url = state.currentUrl || '';
-    if (state.filled.length && looksLikePostApplyPath(url)) {
-      setState('submitted', postApplyMessage(url));
-    } else {
-      setState('aborted', chromeClosedMessage());
-    }
-  } else {
-    setState('error', `Erreur fatale: ${String(err?.message || err).slice(0, 300)}`);
-  }
+  if (isTargetClosedError(err)) finishBrowserClosed();
+  else setState('error', `Erreur fatale: ${String(err?.message || err).slice(0, 300)}`);
   // setState()'s own log() call writes state fire-and-forget; wait for the
   // queue to drain before the hard exit below, or process.exit() can kill
   // the process mid-retry and the final error state never reaches disk.

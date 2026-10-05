@@ -23,7 +23,7 @@ import {
 import { randomUUID } from 'crypto';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import {
   extractTrackerReportNumbers, parseTrackerRow, resolveColumns,
 } from './tracker-parse.mjs';
@@ -32,11 +32,11 @@ import {
 } from './tracker-utils.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
-const ROOT = getCareerOpsRoot();
+const ROOT = getJobYouGoRoot();
 const MAX_SENTINEL_AGE_MS = 4 * 60 * 60 * 1000;
 const MAX_RETRIES = 50;
 const MAX_COUNT = 50;
-const RESERVATION_TOKEN = Symbol('career-ops-report-reservation-token');
+const RESERVATION_TOKEN = Symbol('jobyougo-report-reservation-token');
 
 /** Format a report ID with a minimum width of three digits. */
 export function formatReportNumber(num) {
@@ -48,7 +48,7 @@ export function formatReportNumber(num) {
 
 function reportsDirFor(options = {}) {
   return resolve(options.reportsDir
-    || process.env.CAREER_OPS_REPORTS_DIR
+    || process.env.JOBYOUGO_REPORTS_DIR
     || join(options.rootDir || ROOT, 'reports'));
 }
 
@@ -60,7 +60,7 @@ function trackerPathFor(options = {}) {
 
 function batchStateFileFor(options = {}) {
   return resolve(options.batchStateFile
-    || process.env.CAREER_OPS_BATCH_STATE
+    || process.env.JOBYOUGO_BATCH_STATE
     || join(options.rootDir || ROOT, 'batch/batch-state.tsv'));
 }
 
@@ -209,9 +209,9 @@ export async function reserveReportNumbers(count = 1, options = {}) {
   mkdirSync(reportsDir, { recursive: true });
 
   const lock = await acquireTrackerLock(trackerLockDirFor(trackerPath), {
-    timeoutMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS) || 60_000,
-    retryMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_RETRY_MS) || 75,
-    staleMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_STALE_MS) || 10 * 60_000,
+    timeoutMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_TIMEOUT_MS) || 60_000,
+    retryMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_RETRY_MS) || 75,
+    staleMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_STALE_MS) || 10 * 60_000,
     tracker: trackerPath,
     ...options.lockOptions,
   });
@@ -272,9 +272,9 @@ export async function releaseReportNumbers(numbers, options = {}) {
 
   const trackerPath = trackerPathFor(options);
   const lock = await acquireTrackerLock(trackerLockDirFor(trackerPath), {
-    timeoutMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS) || 60_000,
-    retryMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_RETRY_MS) || 75,
-    staleMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_STALE_MS) || 10 * 60_000,
+    timeoutMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_TIMEOUT_MS) || 60_000,
+    retryMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_RETRY_MS) || 75,
+    staleMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_STALE_MS) || 10 * 60_000,
     tracker: trackerPath,
     ...options.lockOptions,
   });
@@ -295,9 +295,9 @@ export async function gcStaleReportReservations(options = {}) {
 
   const trackerPath = trackerPathFor(options);
   const lock = await acquireTrackerLock(trackerLockDirFor(trackerPath), {
-    timeoutMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS) || 60_000,
-    retryMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_RETRY_MS) || 75,
-    staleMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_STALE_MS) || 10 * 60_000,
+    timeoutMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_TIMEOUT_MS) || 60_000,
+    retryMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_RETRY_MS) || 75,
+    staleMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_STALE_MS) || 10 * 60_000,
     tracker: trackerPath,
     ...options.lockOptions,
   });

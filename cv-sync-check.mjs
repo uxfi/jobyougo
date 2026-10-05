@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * cv-sync-check.mjs — Validates that the career-ops setup is consistent.
+ * cv-sync-check.mjs — Validates that the jobyougo setup is consistent.
  *
  * Checks:
  * 1. cv.md exists
@@ -14,11 +14,11 @@ import { readFileSync, existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { validateFlags } from './lib/cli-flags.mjs';
 
 const CODE_ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
 // ── CLI flags + help ────────────────────────────────────────────────
 //
@@ -103,7 +103,7 @@ if (existsSync(digestPath)) {
 }
 
 // Output results
-console.log('\n=== career-ops sync check ===\n');
+console.log('\n=== jobyougo sync check ===\n');
 
 if (errors.length === 0 && warnings.length === 0) {
   console.log('All checks passed.');
