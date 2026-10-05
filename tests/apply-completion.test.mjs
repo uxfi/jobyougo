@@ -6,6 +6,11 @@ import {
   shouldUploadFileField,
   fileSlotOccupied,
   alreadyUploadedFile,
+  attachedLabels,
+  completionIssues,
+  fieldLabel,
+  mergeFilled,
+  mergePending,
 } from '../lib/apply-completion.mjs';
 
 test('an explicit ATS error on a selected choice remains pending', () => {
@@ -117,4 +122,31 @@ test('looksReadyToSubmit blocks when required pending remain', () => {
     pending: [{ label: 'Postal Code', reason: 'requis et vide' }],
     applyEntryVisible: false,
   }), false);
+});
+
+test('mergeFilled keeps one row per label, the later one winning', () => {
+  const merged = mergeFilled(
+    [{ label: 'Email', value: 'old@example.com' }, { label: 'CV', value: '📎 cv.pdf' }],
+    [{ label: 'Email', value: 'new@example.com' }],
+  );
+  assert.deepEqual(merged.map((r) => r.value), ['new@example.com', '📎 cv.pdf']);
+  assert.deepEqual(attachedLabels(merged), ['CV']);
+});
+
+test('mergePending drops duplicates and labels already filled', () => {
+  const pending = mergePending(
+    [{ label: 'Phone', reason: 'requis et vide' }],
+    [{ label: 'Phone', reason: 'autre' }, { label: 'Email', reason: 'requis et vide' }, { label: 'City', reason: 'x' }],
+    [{ label: 'Email', value: 'a@b.c' }],
+  );
+  assert.deepEqual(pending, [{ label: 'Phone', reason: 'requis et vide' }, { label: 'City', reason: 'x' }]);
+});
+
+test('completionIssues reports live problems under the field label', () => {
+  const issues = completionIssues([
+    { type: 'text', label: 'Email', required: true, value: '' },
+    { type: 'text', name: 'city', value: 'Paris' },
+  ]);
+  assert.deepEqual(issues, [{ label: 'Email', reason: 'requis et vide' }]);
+  assert.equal(fieldLabel({ type: 'file' }), 'file');
 });

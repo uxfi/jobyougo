@@ -72,7 +72,7 @@ const PROJECT_METHODS = {
     { type:'ia',             note:{ en:'Money cycle and lifecycle docs turned into interface rules.', fr:'Docs du cycle financier et du cycle de vie traduites en règles d’interface.' } },
     { type:'prototype',      note:{ en:'The whole product as a working React prototype, light and dark.', fr:'Tout le produit en prototype React fonctionnel, clair et sombre.' } },
     { type:'ai-agent',       note:{ en:'Design work runs through AI agents on GitHub.', fr:'Le travail de design passe par des agents IA sur GitHub.' } },
-    { type:'ai-vibe-code',   note:{ en:'GitHub agents, product requirements, and PR reviews. Figmol is OneAsset\'s internal tool.', fr:'Agents GitHub, specs produit et revues de PR. Figmol est l\'outil interne d\'OneAsset.' } },
+    { type:'ai-vibe-code',   note:{ en:'GitHub agents, product requirements, and PR reviews. Figmol is the internal review tool I built.', fr:'Agents GitHub, specs produit et revues de PR. Figmol est l\'outil interne de revue que j\'ai construit.' } },
     { type:'design-system',  note:{ en:'v2 liquid glass shared by every portal and the marketing site.', fr:'v2 liquid glass partagé par tous les portails et le site marketing.' } },
   ],
   upviral: [
@@ -925,34 +925,34 @@ const PROJECTS = [
     ],
     "tag": "Enterprise · Data · Luxury",
     "accent": "#8a7150",
-    "desc": "Designed a group-wide data marketing platform that pulls customer signals from the main LVMH maisons into one central tool, then lets teams filter and export complete macro customer profiles.",
-    "subtitle": "Maisons feed the centre. Profiles come back out.",
-    "challenge": "Each maison runs its own CRM and customer data practice. Build one shared data marketing platform that can ingest those streams without flattening what makes Dior's, Louis Vuitton's or Kenzo's customer relationship different — then turn the unified store into complete, sortable macro profiles.",
-    "goals": "Map how data leaves each maison, design the central ingest / map / clean backbone, and give CRM teams a way to build, filter and export full customer profiles across the group.",
-    "solution": "Ran structured interviews across maisons to surface where needs converged and where they didn't, built a customer journey map to ground the data model in real behaviour, then designed the platform around a clear flow: maison sources → central tool → macro profiles.",
+    "desc": "Group data marketing platform: customer signals from the main LVMH maisons enter one hub; teams filter and export macro profiles.",
+    "subtitle": "Maisons feed the hub. Profiles come back out.",
+    "challenge": "Each maison runs its own CRM. Build one shared platform that ingests those streams without erasing what makes Dior, Louis Vuitton or Kenzo different, then turns the store into sortable macro profiles.",
+    "goals": "Map how data leaves each maison, design the ingest / map / clean backbone, and give CRM teams a way to build, filter and export full customer profiles across the group.",
+    "solution": "Ran interviews across maisons to find where needs converge and where they diverge, built a journey map to ground the data model, then designed maison sources → central tool → macro profiles.",
     "steps": [
       {
         "num": "01",
         "title": "Stakeholder interviews across Maisons",
-        "desc": "Recruited 1-3 CRM team participants per session from 3+ different maisons at a time, mixing business sectors and seniority, with a UX designer facilitating and a Product Owner observing. Every session tested the same question: what does this maison actually need from a shared platform."
+        "desc": "1–3 CRM people per session from 3+ maisons, mixed sectors and seniority. UX designer facilitated; Product Owner observed. Same question every time: what does this maison need from a shared platform."
       },
       {
         "num": "02",
         "title": "Customer journey mapping",
-        "desc": "Mapped a full customer journey, from social discovery through in-store trial to purchase and post-purchase sharing, with touchpoints, data collected and pain points at each stage. Used to ground the platform's data model in real customer behaviour rather than an internal org chart."
+        "desc": "Mapped the journey from social discovery through in-store trial, purchase and post-purchase sharing: touchpoints, data collected, pain points. Grounded the data model in customer behaviour, not the org chart."
       },
       {
         "num": "03",
         "title": "Maison → centre → profiles",
-        "desc": "Designed the data path: each maison pushes CRM and campaign events into a shared backbone (define kind, map fields, import via CSV / SQL / API, clean), then operators build and filter complete macro profiles for activation."
+        "desc": "Designed the path: maisons push CRM and campaign events into a shared backbone (define kind, map fields, import via CSV / SQL / API, clean). Operators then build and filter macro profiles for activation."
       },
       {
         "num": "04",
         "title": "Shared platform UI",
-        "desc": "Designed onboarding and day-to-day screens so maisons keep their own field meanings where needed, while the centre remains the single place to unify, sort and export profiles."
+        "desc": "Designed onboarding and day-to-day screens so maisons keep their own field meanings where needed, while the hub stays the place to unify, sort and export profiles."
       }
     ],
-    "outcome": "A shared data marketing platform live across 15+ LVMH maisons, including Dior, Louis Vuitton, Fendi and Kenzo: maison streams land in one tool, and teams can filter and export complete macro customer profiles.",
+    "outcome": "Shared data marketing platform live across 15+ LVMH maisons (Dior, Louis Vuitton, Fendi, Kenzo and more). Maison streams land in one tool; teams filter and export macro customer profiles.",
     "outcomeStat": "15+ maisons",
     "url": "https://www.lvmh.com",
     "video": "../images/lvmh-video.mp4",
@@ -963,25 +963,25 @@ const PROJECTS = [
         "type": "image-bg",
         "src": "../images/lvmh-cover.webp",
         "label": "LVMH Group",
-        "title": "15+ maisons. One shared data centre."
+        "title": "15+ maisons, one shared data platform"
       },
       {
         "type": "text",
         "label": "Challenge",
-        "title": "One platform, 15+ maisons that don't work the same way",
-        "body": "LVMH wanted a shared data marketing platform spanning Dior, Louis Vuitton, Fendi, Kenzo and other maisons. Each maison runs its own CRM and customer relationship practice. The product had to ingest those streams into one place, then let teams pull out complete macro profiles — without forcing every maison to mean the same thing by every field."
+        "title": "One platform for maisons that keep their own CRM habits",
+        "body": "LVMH needed a data marketing platform across Dior, Louis Vuitton, Fendi, Kenzo and the rest of the group. Each maison already ran its own CRM. The product had to bring those streams into one store, then let teams build macro profiles, while leaving maison-specific fields alone."
       },
       {
         "type": "lvmh-dataflow",
         "label": "Data architecture",
-        "title": "From maison streams to macro customer profiles",
-        "body": "Each main maison feeds its own CRM and campaign signals into a central tool. There the data is mapped, cleaned and unified. From that store, operators filter, segment and export complete macro profiles for activation across the group."
+        "title": "Maison streams land in one hub, then leave as profiles",
+        "body": "Each maison sends CRM and campaign signals into a central tool. The hub maps, cleans and unifies them. Teams then filter, segment and export macro profiles for activation."
       },
       {
         "type": "text",
         "label": "Research",
-        "title": "Interviews built to surface where maisons actually disagree",
-        "body": "Each session mixed 1-3 CRM team participants from 3+ different maisons, covering different business sectors and seniority levels, with a UX designer facilitating and a Product Owner observing. The goal was never a generic wishlist: it was finding exactly where one maison's need conflicted with another's — and which fields could still live in a shared model."
+        "title": "Interviews that found where maisons clash",
+        "body": "Each session mixed 1–3 CRM people from 3+ maisons, across sectors and seniority. A UX designer facilitated; a Product Owner observed. We looked for field conflicts between maisons, and which fields could still live in a shared model."
       },
       {
         "type": "image-grid",
@@ -1001,8 +1001,8 @@ const PROJECTS = [
       {
         "type": "text",
         "label": "Central tool",
-        "title": "Ingest, map, clean — then build profiles",
-        "body": "The backbone is how data enters: define a data kind, create fields manually or from a template, import via CSV, SQL query or API, then clean. Once unified, the same tool lets teams compose macro profiles — identity, maison history, campaigns, spend signals — and sort or export them without leaving the platform."
+        "title": "Ingest, map, clean, then build profiles",
+        "body": "Operators define a data kind, add fields by hand or from a template, import via CSV, SQL or API, then clean. Once the store is unified, the same tool builds macro profiles (identity, maison history, campaigns, spend) and sorts or exports them in place."
       },
       {
         "type": "image-full",
@@ -1019,8 +1019,8 @@ const PROJECTS = [
       {
         "type": "text",
         "label": "Macro profiles",
-        "title": "Complete customer views, not siloed maison rows",
-        "body": "The output the maisons asked for was not another raw table. It was a complete customer view: who they are across maisons, what they bought or engaged with, which campaigns touched them, and filters that let teams slice the group for activation — while respecting that Dior and Kenzo never store every attribute the same way."
+        "title": "One customer view across maisons",
+        "body": "Maisons wanted a full customer record: identity across brands, purchases and engagement, campaigns that touched them, plus filters for activation. Dior and Kenzo still keep their own attribute shapes; the shared view does not flatten those away."
       },
       {
         "type": "process",
@@ -1357,9 +1357,9 @@ const PROJECTS = [
     narrative: [
       { type:'image-bg', src:'../images/jarvos-cover.jpg', label:'Jarvos Agent', title:'The model proposes. The backend decides.' },
       { type:'text', label:'The principle', title:'Semantic orchestration, not keyword routing',
-        body:"Jarvos routes requests by their meaning. The backend then checks each proposed tool against the tool catalogue and its permissions before execution. The LLM never owns the final call on what runs." },
+        body:"Jarvos routes by meaning. The backend checks each proposed tool against the catalogue and its permissions before anything runs. The LLM does not get the final say." },
       { type:'text', label:'The problem', title:'Agents that invent tools you do not have',
-        body:"Most agent demos trust the model’s tool list. Jarvos assumes the opposite: the model can hallucinate APIs, miss integrations the user never connected, or ask for machine control that needs a human gate. The product problem is making that check feel invisible in the chat while remaining absolute in the backend." },
+        body:"Most demos trust the model's tool list. Jarvos assumes the opposite: the model can invent APIs, miss integrations, or ask for machine control that needs a human gate. The check has to stay invisible in chat and absolute in the backend." },
       { type:'tools-row', label:'Stack', tools:[
         { name:'Next.js', icon:'../images/nextdotjs-logo.svg' },
         { name:'TypeScript', icon:'../images/typescript-logo.svg' },
@@ -1369,28 +1369,28 @@ const PROJECTS = [
         { name:'Telegram', icon:'../images/telegram-logo.svg' },
         { name:'Playwright', icon:'../images/playwright-logo.svg' },
       ]},
-      { type:'jarvos-pipeline', label:'System design', title:'From a sentence to a verified result.',
-        body:"A task moves through dispatch, tool resolution, planning, execution and verification. Supabase stores the steps, attempts and approvals so the system can track what actually happened — not what the model claimed." },
+      { type:'jarvos-pipeline', label:'System design', title:'From a sentence to a verified result',
+        body:"A task moves through dispatch, tool resolution, planning, execution and verification. Supabase stores steps, attempts and approvals so the system tracks what happened, not what the model claimed." },
       { type:'text', label:'Dispatch', title:'One intent, many phrasings',
-        body:"Semantic dispatch maps natural language to capabilities before tools are chosen. Required capabilities are retrieved from the catalog, then resolved. Keyword routers are deliberately out of the path: they break as soon as the user rephrases." },
-      { type:'jarvos-console', label:'Interactive module', title:'Inside the cockpit: stream, resolver, gates.',
-        body:"This interactive demo shows the chat stream (SSE tokens and tool events), the tool resolver classes, and an approval gate for high-risk local actions. Use the tabs to explore each stage." },
+        body:"Semantic dispatch maps natural language to capabilities before tools are chosen. Required capabilities come from the catalog, then resolve. Keyword routers stay out of the path: they break as soon as the user rephrases." },
+      { type:'jarvos-console', label:'Interactive module', title:'Inside the cockpit: stream, resolver, gates',
+        body:"This demo shows the chat stream (SSE tokens and tool events), the tool resolver classes, and an approval gate for high-risk local actions. Use the tabs to open each stage." },
       { type:'text', label:'Approvals', title:'Risk classes before the machine moves',
-        body:"Low-risk tools can run after resolution. High-risk ones — local PC exec, outbound mail, destructive file actions — pause for an approval that shows action, agent lane, scope and evidence from the plan step. Approve once or deny; the execution log keeps the decision." },
+        body:"Low-risk tools can run after resolution. High-risk ones — local PC exec, outbound mail, destructive file actions — pause for an approval that shows action, agent lane, scope and evidence. Approve once or deny; the log keeps the decision." },
       { type:'image-grid', label:'The real cockpit', borderless:true, images:[
         { src:'../images/jarvos-chat.webp', caption:'Cockpit — Chat: multi-conversation workspace with subagents and economical / auto model routing, streaming from the orchestrator.' },
         { src:'../images/jarvos-system-health.webp', caption:'Cockpit — System Health: task lifecycle, approvals, model-router decisions, runtime probes and Supabase telemetry as OK / Watch signals.' },
       ]},
       { type:'text', label:'Voice & PC', title:'Two modules, one orchestrator',
-        body:"Voice (STT + voice gateway) and local PC control (Playwright worker, residential IP, files and OS) stay independent on purpose. They only meet in the orchestrator: same tool resolution, same approvals, same verifier. That keeps a voice request from silently jumping to shell access." },
+        body:"Voice (STT + voice gateway) and local PC control (Playwright worker, residential IP, files and OS) stay independent on purpose. They only meet in the orchestrator: same tool resolution, same approvals, same verifier. A voice request cannot silently jump to shell access." },
       { type:'text', label:'Surfaces', title:'Web cockpit and Telegram on the same loop',
-        body:"The Next.js cockpit covers chat, tasks, agents, tools, integrations, memory, approvals, files, voice and local control. Telegram is a first-class input into the same dispatch → resolve → plan → execute → verify path — not a separate bot with its own rules." },
+        body:"The Next.js cockpit covers chat, tasks, agents, tools, integrations, memory, approvals, files, voice and local control. Telegram is a first-class input into the same dispatch → resolve → plan → execute → verify path, not a separate bot with its own rules." },
       { type:'text', label:'Architecture', title:'A monorepo built like an operating system',
         body:'TypeScript orchestrator (planner, executor, verifier, Model Router v2), Python DeerFlow coding runtime, Supabase Postgres + pgvector as source of truth, Cloudflare R2 and edge workers, Mem0 for memory, a Telegram bot, and a local Playwright worker. Agent lanes include coding, browser, research, file, API, memory and local PC.' },
       { type:'browser-window', src:'../images/jarvos-schema.webp', url:'localhost:3000/schema',
         caption:'Schema view inside the product — Inputs / Cockpit (web, Telegram, local worker, STT) → Orchestration (dispatch, planner DAG, executor, tool permissions, verifier, Model Router v2, approvals) → agent lanes → Data & storage (Supabase + pgvector, Cloudflare R2, edge gateway, Mem0).' },
       { type:'process', title:'How it works' },
-      { type:'outcome', text:"A side project in progress: semantic task routing, persistent task state, tool resolution, approval gates, voice and local control — with the backend as the source of truth." },
+      { type:'outcome', text:"A side project in progress: semantic task routing, persistent task state, tool resolution, approval gates, voice and local control, with the backend as the source of truth." },
     ],
   },
   {

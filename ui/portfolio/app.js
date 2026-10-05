@@ -551,6 +551,19 @@ function openProject(id) {
   window.observeLazyVideos?.(document.getElementById('proj-page-content'));
   oaLiveObserve();
   crLiveObserve();
+  mountLvmhEffects();
+}
+
+function mountLvmhEffects() {
+  const slot = document.querySelector('[data-lvmh-orb]');
+  if (!slot) return;
+  const fx = window.JobYouGoEffects;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!fx?.mountConnectingOrb || reduce) {
+    slot.hidden = true;
+    return;
+  }
+  fx.mountConnectingOrb(slot, { theme: 'dark', size: 20 });
 }
 
 function scrollToSection(anchor) {
@@ -1872,35 +1885,54 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             <div class="x-kpi"><span>Truth</span><strong>Backend</strong><em>Supabase + pgvector</em></div>
           </div>
         </div>
-        <div class="x-panel">
+        <div class="x-panel jv-schema">
           <div class="x-panel-top">
-            <div class="x-panel-title"><span class="x-led"></span> Semantic dispatch pipeline</div>
-            <div class="x-chip-row"><span class="x-chip acc">No keyword routing</span><span class="x-chip">LLM proposes · backend decides</span></div>
+            <div class="x-panel-title">Inputs to verified result</div>
+            <div class="x-chip-row"><span class="x-chip acc">Semantic dispatch</span><span class="x-chip">Backend decides</span></div>
           </div>
-          <div class="x-flow">
-            <div class="x-flow-card">
-              <div class="x-flow-num">01 · dispatch</div>
-              <div class="x-flow-title">Infer the goal</div>
-              <div class="x-flow-desc">"Post this on X", "publish as a tweet" and "share on my profile" resolve to the same capability through semantic intent inference — never string matching.</div>
-              <div class="x-bars"><span class="x-bar"><i style="--w:84%"></i></span><span class="x-bar"><i style="--w:58%;--d:.1s"></i></span></div>
+          <div class="jv-board" aria-label="Jarvos orchestration flow">
+            <svg class="jv-board-wires" viewBox="0 0 1000 520" preserveAspectRatio="none" aria-hidden="true">
+              <path class="jv-wire" d="M125 70 C 250 70, 400 170, 500 220"/>
+              <path class="jv-wire" d="M375 70 C 420 110, 470 180, 500 220"/>
+              <path class="jv-wire" d="M625 70 C 580 110, 530 180, 500 220"/>
+              <path class="jv-wire" d="M875 70 C 750 70, 580 170, 500 220"/>
+              <path class="jv-wire jv-wire--out" d="M500 310 C 500 360, 200 400, 125 450"/>
+              <path class="jv-wire jv-wire--out" d="M500 310 C 500 360, 400 400, 375 450"/>
+              <path class="jv-wire jv-wire--out" d="M500 310 C 500 360, 600 400, 625 450"/>
+              <path class="jv-wire jv-wire--out" d="M500 310 C 500 360, 800 400, 875 450"/>
+              <circle class="jv-pulse" r="2"><animateMotion dur="3.4s" repeatCount="indefinite" path="M125 70 C 250 70, 400 170, 500 220"/></circle>
+              <circle class="jv-pulse" r="2"><animateMotion dur="3.8s" begin="1s" repeatCount="indefinite" path="M875 70 C 750 70, 580 170, 500 220"/></circle>
+              <circle class="jv-pulse" r="1.8"><animateMotion dur="3.2s" begin=".8s" repeatCount="indefinite" path="M500 310 C 500 360, 600 400, 625 450"/></circle>
+            </svg>
+
+            <div class="jv-stage jv-sources">
+              <div class="jv-source"><i>CH</i><b>Chat</b><small>Web cockpit</small></div>
+              <div class="jv-source"><i>TG</i><b>Telegram</b><small>Same loop</small></div>
+              <div class="jv-source"><i>VO</i><b>Voice</b><small>STT gateway</small></div>
+              <div class="jv-source"><i>PC</i><b>Local PC</b><small>Playwright worker</small></div>
             </div>
-            <div class="x-flow-card">
-              <div class="x-flow-num">02 · resolve</div>
-              <div class="x-flow-title">Capabilities → tools</div>
-              <div class="x-flow-desc">Required capabilities are retrieved, then resolved against the tool catalog. Model-proposed tools are classified: resolved, hallucinated, unavailable, suggested.</div>
-              <div class="x-bars"><span class="x-bar"><i style="--w:72%;--d:.15s"></i></span><span class="x-bar"><i style="--w:90%;--d:.25s"></i></span></div>
+
+            <div class="jv-stage jv-hub-wrap">
+              <div class="jv-hub">
+                <div class="jv-hub-copy">
+                  <strong>Orchestrator</strong>
+                  <em>Model proposes · backend decides</em>
+                </div>
+                <div class="jv-steps">
+                  <div class="jv-step"><b>Dispatch</b></div>
+                  <div class="jv-step"><b>Resolve</b></div>
+                  <div class="jv-step"><b>Plan</b></div>
+                  <div class="jv-step"><b>Verify</b></div>
+                </div>
+                <p class="jv-hub-note">Capabilities come from the catalog. Hallucinated tools stop before execution.</p>
+              </div>
             </div>
-            <div class="x-flow-card">
-              <div class="x-flow-num">03 · plan + run</div>
-              <div class="x-flow-title">Execute with gates</div>
-              <div class="x-flow-desc">The planner builds steps persisted in Supabase. Executor drivers run them — coding, browser, composio, local PC — behind approval gates and risk classes.</div>
-              <div class="x-bars"><span class="x-bar"><i style="--w:66%;--d:.3s"></i></span><span class="x-bar"><i style="--w:78%;--d:.4s"></i></span></div>
-            </div>
-            <div class="x-flow-card">
-              <div class="x-flow-num">04 · verify</div>
-              <div class="x-flow-title">Prove it happened</div>
-              <div class="x-flow-desc">A verifier checks quality, security and completeness with execution logs and evidence, scores confidence, then the orchestrator responds.</div>
-              <div class="x-bars"><span class="x-bar"><i style="--w:92%;--d:.45s"></i></span><span class="x-bar"><i style="--w:61%;--d:.55s"></i></span></div>
+
+            <div class="jv-stage jv-out-row">
+              <div class="jv-out"><span>Tools</span><b>Resolved catalog</b><small>Resolved, hallucinated, unavailable, suggested</small></div>
+              <div class="jv-out"><span>Gates</span><b>Risk approvals</b><small>High-risk actions wait for a human</small></div>
+              <div class="jv-out"><span>Agents</span><b>Specialized lanes</b><small>Coding, browser, research, local PC</small></div>
+              <div class="jv-out"><span>Truth</span><b>Verified result</b><small>Logs, evidence, confidence score</small></div>
             </div>
           </div>
         </div>
@@ -1916,235 +1948,63 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         </div>
         <div class="x-panel lvmh-schema">
           <div class="x-panel-top">
-            <div class="x-panel-title"><span class="x-led"></span> Maison streams → central tool → macro profiles</div>
+            <div class="x-panel-title">Maison streams to macro profiles</div>
             <div class="x-chip-row"><span class="x-chip acc">15+ maisons</span><span class="x-chip">One profile store</span></div>
           </div>
-          <div class="lvmh-graph" aria-label="LVMH data flow schema">
-            <svg class="lvmh-scene" viewBox="0 0 1100 640" role="img" aria-hidden="true">
-              <defs>
-                <linearGradient id="lvmh-grad-in" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#c4a574" stop-opacity=".12"/>
-                  <stop offset="50%" stop-color="#e8d5b0" stop-opacity=".9"/>
-                  <stop offset="100%" stop-color="#c4a574" stop-opacity=".25"/>
-                </linearGradient>
-                <linearGradient id="lvmh-grad-out" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e8d5b0" stop-opacity=".85"/>
-                  <stop offset="100%" stop-color="#c4a574" stop-opacity=".15"/>
-                </linearGradient>
-                <radialGradient id="lvmh-node-fill" cx="30%" cy="28%" r="70%">
-                  <stop offset="0%" stop-color="#f0e2c4"/>
-                  <stop offset="55%" stop-color="#c4a574"/>
-                  <stop offset="100%" stop-color="#8a7150"/>
-                </radialGradient>
-                <radialGradient id="lvmh-hub-fill" cx="35%" cy="30%" r="70%">
-                  <stop offset="0%" stop-color="#3a2f22"/>
-                  <stop offset="55%" stop-color="#1a1510"/>
-                  <stop offset="100%" stop-color="#0c0a08"/>
-                </radialGradient>
-                <radialGradient id="lvmh-hub-glow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stop-color="#c4a574" stop-opacity=".35"/>
-                  <stop offset="55%" stop-color="#c4a574" stop-opacity=".08"/>
-                  <stop offset="100%" stop-color="#c4a574" stop-opacity="0"/>
-                </radialGradient>
-                <linearGradient id="lvmh-out-fill" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stop-color="rgba(196,165,116,.22)"/>
-                  <stop offset="100%" stop-color="rgba(18,14,10,.9)"/>
-                </linearGradient>
-              </defs>
-
-              <!-- constellation -->
-              <g opacity=".9">
-                <circle class="lvmh-star" cx="70" cy="90" r="1.2"/>
-                <circle class="lvmh-star--dim" cx="140" cy="40" r="1"/>
-                <circle class="lvmh-star" cx="220" cy="120" r="1.1"/>
-                <circle class="lvmh-star--dim" cx="310" cy="55" r=".8"/>
-                <circle class="lvmh-star" cx="780" cy="48" r="1.2"/>
-                <circle class="lvmh-star--dim" cx="880" cy="95" r="1"/>
-                <circle class="lvmh-star" cx="980" cy="60" r="1.1"/>
-                <circle class="lvmh-star--dim" cx="1040" cy="140" r=".9"/>
-                <circle class="lvmh-star" cx="60" cy="520" r="1"/>
-                <circle class="lvmh-star--dim" cx="160" cy="580" r=".8"/>
-                <circle class="lvmh-star" cx="980" cy="560" r="1.1"/>
-                <circle class="lvmh-star--dim" cx="1045" cy="480" r=".9"/>
-              </g>
-
-              <text class="lvmh-layer" x="550" y="28">SOURCES · MAISONS</text>
-
-              <!-- glow wires under paths -->
-              <path class="lvmh-wire-glow" d="M115 130 C 250 130, 390 250, 550 300"/>
-              <path class="lvmh-wire-glow" d="M295 118 C 360 140, 450 250, 550 300"/>
-              <path class="lvmh-wire-glow" d="M470 110 C 500 160, 530 250, 550 300"/>
-              <path class="lvmh-wire-glow" d="M630 110 C 600 160, 570 250, 550 300"/>
-              <path class="lvmh-wire-glow" d="M805 118 C 720 140, 620 250, 550 300"/>
-              <path class="lvmh-wire-glow" d="M985 130 C 830 130, 680 250, 550 300"/>
-              <path class="lvmh-wire-glow" d="M550 380 C 550 440, 300 480, 220 520"/>
-              <path class="lvmh-wire-glow" d="M550 380 C 550 430, 470 470, 420 510"/>
-              <path class="lvmh-wire-glow" d="M550 380 C 550 430, 630 470, 680 510"/>
-              <path class="lvmh-wire-glow" d="M550 380 C 550 440, 800 480, 880 520"/>
-
-              <path class="lvmh-wire" d="M115 130 C 250 130, 390 250, 550 300"/>
-              <path class="lvmh-wire" d="M295 118 C 360 140, 450 250, 550 300"/>
-              <path class="lvmh-wire" d="M470 110 C 500 160, 530 250, 550 300"/>
-              <path class="lvmh-wire" d="M630 110 C 600 160, 570 250, 550 300"/>
-              <path class="lvmh-wire" d="M805 118 C 720 140, 620 250, 550 300"/>
-              <path class="lvmh-wire" d="M985 130 C 830 130, 680 250, 550 300"/>
-              <path class="lvmh-wire lvmh-wire--out" d="M550 380 C 550 440, 300 480, 220 520"/>
-              <path class="lvmh-wire lvmh-wire--out" d="M550 380 C 550 430, 470 470, 420 510"/>
-              <path class="lvmh-wire lvmh-wire--out" d="M550 380 C 550 430, 630 470, 680 510"/>
-              <path class="lvmh-wire lvmh-wire--out" d="M550 380 C 550 440, 800 480, 880 520"/>
-
-              <!-- pulses -->
-              <circle class="lvmh-pulse" r="3.8" fill="#e8d5b0"><animateMotion dur="2.7s" repeatCount="indefinite" path="M115 130 C 250 130, 390 250, 550 300"/></circle>
-              <circle class="lvmh-pulse" r="3.2" fill="#c4a574"><animateMotion dur="3.1s" begin=".35s" repeatCount="indefinite" path="M295 118 C 360 140, 450 250, 550 300"/></circle>
-              <circle class="lvmh-pulse" r="3" fill="#e8d5b0"><animateMotion dur="2.9s" begin=".7s" repeatCount="indefinite" path="M470 110 C 500 160, 530 250, 550 300"/></circle>
-              <circle class="lvmh-pulse" r="3" fill="#c4a574"><animateMotion dur="3s" begin=".2s" repeatCount="indefinite" path="M630 110 C 600 160, 570 250, 550 300"/></circle>
-              <circle class="lvmh-pulse" r="3.2" fill="#e8d5b0"><animateMotion dur="3.2s" begin=".9s" repeatCount="indefinite" path="M805 118 C 720 140, 620 250, 550 300"/></circle>
-              <circle class="lvmh-pulse" r="3.5" fill="#c4a574"><animateMotion dur="2.8s" begin="1.1s" repeatCount="indefinite" path="M985 130 C 830 130, 680 250, 550 300"/></circle>
-              <circle class="lvmh-pulse" r="3.2" fill="#e8d5b0"><animateMotion dur="2.6s" begin=".4s" repeatCount="indefinite" path="M550 380 C 550 440, 300 480, 220 520"/></circle>
-              <circle class="lvmh-pulse" r="2.8" fill="#c4a574"><animateMotion dur="2.5s" begin=".9s" repeatCount="indefinite" path="M550 380 C 550 430, 630 470, 680 510"/></circle>
-              <circle class="lvmh-pulse" r="3" fill="#e8d5b0"><animateMotion dur="2.7s" begin="1.3s" repeatCount="indefinite" path="M550 380 C 550 440, 800 480, 880 520"/></circle>
-
-              <!-- maisons -->
-              <g transform="translate(115 95)">
-                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34"/>
-                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
-                <text class="lvmh-maison-mono" x="0" y="1">LV</text>
-                <text class="lvmh-maison-name" x="0" y="48">Louis Vuitton</text>
-                <text class="lvmh-maison-meta" x="0" y="62">CRM · retail · eCom</text>
-              </g>
-              <g transform="translate(295 82)">
-                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34" style="animation-delay:.2s"/>
-                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
-                <text class="lvmh-maison-mono" x="0" y="1">CD</text>
-                <text class="lvmh-maison-name" x="0" y="48">Dior</text>
-                <text class="lvmh-maison-meta" x="0" y="62">CRM · beauty</text>
-              </g>
-              <g transform="translate(470 74)">
-                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34" style="animation-delay:.4s"/>
-                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
-                <text class="lvmh-maison-mono" x="0" y="1">FE</text>
-                <text class="lvmh-maison-name" x="0" y="48">Fendi</text>
-                <text class="lvmh-maison-meta" x="0" y="62">CRM · boutique</text>
-              </g>
-              <g transform="translate(630 74)">
-                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34" style="animation-delay:.55s"/>
-                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
-                <text class="lvmh-maison-mono" x="0" y="1">KE</text>
-                <text class="lvmh-maison-name" x="0" y="48">Kenzo</text>
-                <text class="lvmh-maison-meta" x="0" y="62">CRM · campaigns</text>
-              </g>
-              <g transform="translate(805 82)">
-                <circle class="lvmh-maison-ring lvmh-breathe" cx="0" cy="0" r="34" style="animation-delay:.7s"/>
-                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
-                <text class="lvmh-maison-mono" x="0" y="1">SE</text>
-                <text class="lvmh-maison-name" x="0" y="48">Sephora</text>
-                <text class="lvmh-maison-meta" x="0" y="62">Loyalty · tickets</text>
-              </g>
-              <g class="lvmh-maison-more" transform="translate(985 95)">
-                <circle class="lvmh-maison-core" cx="0" cy="0" r="26"/>
-                <text class="lvmh-maison-mono" x="0" y="1">+10</text>
-                <text class="lvmh-maison-name" x="0" y="48">Maisons</text>
-                <text class="lvmh-maison-meta" x="0" y="62">CSV · SQL · API</text>
-              </g>
-
-              <!-- hub -->
-              <circle class="lvmh-hub-glow" cx="550" cy="300" r="118"/>
-              <g>
-                <animateTransform attributeName="transform" type="rotate" from="0 550 300" to="360 550 300" dur="22s" repeatCount="indefinite"/>
-                <circle class="lvmh-hub-orbit" cx="550" cy="300" r="92"/>
-                <circle cx="458" cy="300" r="4" fill="#c4a574"/>
-                <circle cx="642" cy="300" r="3" fill="#e8d5b0"/>
-              </g>
-              <g>
-                <animateTransform attributeName="transform" type="rotate" from="360 550 300" to="0 550 300" dur="34s" repeatCount="indefinite"/>
-                <circle class="lvmh-hub-orbit lvmh-hub-orbit--dash" cx="550" cy="300" r="108"/>
-                <circle cx="550" cy="192" r="3.5" fill="#c4a574"/>
-                <circle cx="550" cy="408" r="2.5" fill="#e8d5b0" opacity=".75"/>
-              </g>
-              <circle class="lvmh-hub-core" cx="550" cy="300" r="64"/>
-              <text class="lvmh-hub-title" x="550" y="294">Central tool</text>
-              <text class="lvmh-hub-sub" x="550" y="312">Data marketing platform</text>
-
-              <!-- process rail -->
-              <g transform="translate(550 390)">
-                <rect class="lvmh-rail-pill" x="-198" y="-14" width="72" height="28" rx="14"/>
-                <circle class="lvmh-rail-dot" cx="-178" cy="0" r="3.5"/>
-                <text class="lvmh-rail-txt" x="-155" y="1">Ingest</text>
-                <rect class="lvmh-rail-pill" x="-112" y="-14" width="66" height="28" rx="14"/>
-                <circle class="lvmh-rail-dot" cx="-94" cy="0" r="3.5"/>
-                <text class="lvmh-rail-txt" x="-70" y="1">Map</text>
-                <rect class="lvmh-rail-pill" x="-32" y="-14" width="70" height="28" rx="14"/>
-                <circle class="lvmh-rail-dot" cx="-12" cy="0" r="3.5"/>
-                <text class="lvmh-rail-txt" x="12" y="1">Clean</text>
-                <rect class="lvmh-rail-pill" x="52" y="-14" width="72" height="28" rx="14"/>
-                <circle class="lvmh-rail-dot" cx="72" cy="0" r="3.5"/>
-                <text class="lvmh-rail-txt" x="97" y="1">Unify</text>
-              </g>
-
-              <text class="lvmh-layer" x="550" y="455">OUTPUTS · MACRO PROFILES</text>
-
-              <!-- profile card -->
-              <g transform="translate(80 470)">
-                <rect class="lvmh-out-card lvmh-out-card--accent" width="280" height="140" rx="16"/>
-                <!-- radar -->
-                <g transform="translate(70 78)">
-                  <polygon class="lvmh-radar-grid" points="0,-36 34,-11 21,30 -21,30 -34,-11"/>
-                  <polygon class="lvmh-radar-grid" points="0,-22 21,-7 13,18 -13,18 -21,-7"/>
-                  <polygon class="lvmh-radar-area" points="0,-30 28,-6 12,22 -16,18 -26,-4"/>
-                </g>
-                <text class="lvmh-out-kicker" x="130" y="32">MACRO PROFILE</text>
-                <text class="lvmh-out-title" x="130" y="54">Complete customer view</text>
-                <rect class="lvmh-tag-bg" x="130" y="68" width="52" height="18" rx="9"/>
-                <text class="lvmh-tag-txt" x="156" y="78">Identity</text>
-                <rect class="lvmh-tag-bg" x="188" y="68" width="62" height="18" rx="9"/>
-                <text class="lvmh-tag-txt" x="219" y="78">Purchases</text>
-                <rect class="lvmh-tag-bg" x="130" y="94" width="68" height="18" rx="9"/>
-                <text class="lvmh-tag-txt" x="164" y="104">Campaigns</text>
-                <rect class="lvmh-tag-bg" x="204" y="94" width="52" height="18" rx="9"/>
-                <text class="lvmh-tag-txt" x="230" y="104">Affinity</text>
-              </g>
-
-              <!-- filter -->
-              <g transform="translate(390 490)">
-                <rect class="lvmh-out-card" width="170" height="110" rx="14"/>
-                <g transform="translate(28 42)">
-                  <path class="lvmh-icon-stroke" d="M0 0 H28 L18 14 V26 L10 30 V14 Z"/>
-                </g>
-                <text class="lvmh-out-title" x="70" y="48">Filter</text>
-                <text class="lvmh-out-meta" x="70" y="68">Maison · channel · value</text>
-                <path class="lvmh-meter-track" d="M70 88 H150"/>
-                <path class="lvmh-meter-val" d="M70 88 H128"/>
-              </g>
-
-              <!-- segment -->
-              <g transform="translate(585 490)">
-                <rect class="lvmh-out-card" width="170" height="110" rx="14"/>
-                <g transform="translate(28 34)">
-                  <circle cx="14" cy="14" r="14" fill="none" stroke="#c4a574" stroke-width="1.4"/>
-                  <path class="lvmh-pie-slice" d="M14 14 L14 0 A14 14 0 0 1 26.1 7 Z" fill="#c4a574"/>
-                  <path class="lvmh-pie-slice" d="M14 14 L26.1 7 A14 14 0 0 1 18 26.5 Z" fill="#8a7150"/>
-                  <path class="lvmh-pie-slice" d="M14 14 L18 26.5 A14 14 0 0 1 3 22 Z" fill="#e8d5b0"/>
-                  <path class="lvmh-pie-slice" d="M14 14 L3 22 A14 14 0 0 1 14 0 Z" fill="#5c4a34"/>
-                </g>
-                <text class="lvmh-out-title" x="70" y="48">Segment</text>
-                <text class="lvmh-out-meta" x="70" y="68">Macro audiences</text>
-                <path class="lvmh-meter-track" d="M70 88 H150"/>
-                <path class="lvmh-meter-val" d="M70 88 H118"/>
-              </g>
-
-              <!-- export -->
-              <g transform="translate(780 490)">
-                <rect class="lvmh-out-card" width="220" height="110" rx="14"/>
-                <g transform="translate(28 36)">
-                  <rect x="0" y="4" width="18" height="22" rx="3" fill="none" stroke="#c4a574" stroke-width="1.5"/>
-                  <path class="lvmh-icon-stroke" d="M28 15 H48 M40 8 L50 15 L40 22"/>
-                </g>
-                <text class="lvmh-out-title" x="90" y="48">Export</text>
-                <text class="lvmh-out-meta" x="90" y="68">Activation ready</text>
-                <path class="lvmh-meter-track" d="M90 88 H200"/>
-                <path class="lvmh-meter-val" d="M90 88 H188"/>
-              </g>
+          <div class="lvmh-board" aria-label="LVMH data flow">
+            <svg class="lvmh-board-wires" viewBox="0 0 1000 520" preserveAspectRatio="none" aria-hidden="true">
+              <path class="lvmh-wire" d="M83 70 C 220 70, 380 170, 500 220"/>
+              <path class="lvmh-wire" d="M250 70 C 320 70, 420 170, 500 220"/>
+              <path class="lvmh-wire" d="M417 70 C 450 110, 480 180, 500 220"/>
+              <path class="lvmh-wire" d="M583 70 C 550 110, 520 180, 500 220"/>
+              <path class="lvmh-wire" d="M750 70 C 680 70, 560 170, 500 220"/>
+              <path class="lvmh-wire" d="M917 70 C 780 70, 600 170, 500 220"/>
+              <path class="lvmh-wire lvmh-wire--out" d="M500 310 C 500 360, 280 400, 210 450"/>
+              <path class="lvmh-wire lvmh-wire--out" d="M500 310 C 500 360, 460 400, 430 450"/>
+              <path class="lvmh-wire lvmh-wire--out" d="M500 310 C 500 360, 540 400, 570 450"/>
+              <path class="lvmh-wire lvmh-wire--out" d="M500 310 C 500 360, 720 400, 790 450"/>
+              <circle class="lvmh-pulse" r="2"><animateMotion dur="3.4s" repeatCount="indefinite" path="M250 70 C 320 70, 420 170, 500 220"/></circle>
+              <circle class="lvmh-pulse" r="2"><animateMotion dur="3.8s" begin="1.2s" repeatCount="indefinite" path="M750 70 C 680 70, 560 170, 500 220"/></circle>
+              <circle class="lvmh-pulse" r="1.8"><animateMotion dur="3.2s" begin=".8s" repeatCount="indefinite" path="M500 310 C 500 360, 540 400, 570 450"/></circle>
             </svg>
+
+            <div class="lvmh-stage lvmh-sources">
+              <div class="lvmh-maison"><i>LV</i><b>Louis Vuitton</b><small>CRM · retail · eCom</small></div>
+              <div class="lvmh-maison"><i>CD</i><b>Dior</b><small>CRM · beauty</small></div>
+              <div class="lvmh-maison"><i>FE</i><b>Fendi</b><small>CRM · boutique</small></div>
+              <div class="lvmh-maison"><i>KE</i><b>Kenzo</b><small>CRM · campaigns</small></div>
+              <div class="lvmh-maison"><i>SE</i><b>Sephora</b><small>Loyalty · tickets</small></div>
+              <div class="lvmh-maison lvmh-maison--more"><i>+10</i><b>Maisons</b><small>CSV · SQL · API</small></div>
+            </div>
+
+            <div class="lvmh-stage lvmh-hub-wrap">
+              <div class="lvmh-hub">
+                <div class="lvmh-hub-top">
+                  <div class="lvmh-hub-copy">
+                    <strong>Central tool</strong>
+                    <em>Data marketing platform</em>
+                  </div>
+                </div>
+                <div class="lvmh-steps">
+                  <div class="lvmh-step"><span>01</span><b>Ingest</b></div>
+                  <div class="lvmh-step"><span>02</span><b>Map</b></div>
+                  <div class="lvmh-step"><span>03</span><b>Clean</b></div>
+                  <div class="lvmh-step"><span>04</span><b>Unify</b></div>
+                </div>
+                <p class="lvmh-hub-note">Shared fields stay shared. Maison-specific fields stay maison-specific.</p>
+              </div>
+            </div>
+
+            <div class="lvmh-stage lvmh-out-row">
+              <div class="lvmh-out lvmh-out--profile">
+                <span>Macro profile</span>
+                <b>Complete customer view</b>
+                <div class="lvmh-tags"><em>Identity</em><em>Purchases</em><em>Campaigns</em><em>Affinity</em></div>
+              </div>
+              <div class="lvmh-out"><span>Filter</span><b>By maison & channel</b><small>Maison, channel, value</small></div>
+              <div class="lvmh-out"><span>Segment</span><b>Macro audiences</b><small>Across the group</small></div>
+              <div class="lvmh-out"><span>Export</span><b>Activation ready</b><small>For campaign tools</small></div>
+            </div>
           </div>
         </div>
       </div>`;
@@ -2258,7 +2118,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         </div>
         <div class="x-panel">
           <div class="x-panel-top">
-            <div class="x-panel-title"><span class="x-led"></span> Jarvos cockpit — live internals</div>
+            <div class="x-panel-title">Jarvos cockpit — live internals</div>
             <div class="x-chip-row"><span class="x-chip acc">Click the tabs</span></div>
           </div>
           <div class="x-tabs">

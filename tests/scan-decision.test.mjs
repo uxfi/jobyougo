@@ -5,6 +5,7 @@ import * as yaml from 'js-yaml';
 import {
   assessFreshness,
   assessRemote,
+  collapseDuplicateTitles,
   dedupeCandidates,
   explainTitle,
   runTitleDryRun,
@@ -69,10 +70,26 @@ if (urls[0] === 'https://a.example/2' && urls.includes('https://b.example/1') &&
 const deduped = dedupeCandidates([
   { url: 'https://jobs.example.com/a?utm_source=x', title: 'Senior Product Manager', company: 'Acme' },
   { url: 'https://jobs.example.com/a', title: 'Senior Product Manager', company: 'Acme' },
-  { url: 'https://jobs.example.com/b', title: 'Product Manager, AI Platform', company: 'Acme' },
+  { url: 'https://jobs.example.com/b', title: 'Product Manager (Remote)', company: 'Acme' },
 ]);
 if (deduped.length === 1) pass('canonical URL and fuzzy company/title collapse the same posting');
 else fail(`expected 1 deduped offer, got ${deduped.length}`);
+// A bare "Product Manager" is not every PM opening at the company.
+const distinct = dedupeCandidates([
+  { url: 'https://jobs.example.com/a', title: 'Senior Product Manager', company: 'Acme' },
+  { url: 'https://jobs.example.com/b', title: 'Product Manager, AI Platform', company: 'Acme' },
+]);
+if (distinct.length === 2) pass('a specific opening survives next to a bare family title');
+else fail(`expected 2 offers, got ${distinct.length}`);
+
+const collapsed = collapseDuplicateTitles([
+  { url: 'https://jobs.example.com/sg', title: 'Product Lead - AI Finance', source: 'Bjak', location: 'Singapore' },
+  { url: 'https://jobs.example.com/de', title: 'Product Lead - AI Finance', source: 'Bjak', location: 'Germany' },
+  { url: 'https://jobs.example.com/invest', title: 'Product Lead - AI Investing', source: 'Bjak', location: 'Germany' },
+]);
+if (collapsed.length === 2 && collapsed[0].url.endsWith('/sg') && collapsed[1].url.endsWith('/invest')) {
+  pass('same title from one board collapses to a single location');
+} else fail(`expected 2 collapsed titles, got ${collapsed.map(item => item.url).join(', ')}`);
 
 if (classifyJevOutcome({ error: 'timeout' }) === 'unverified') pass('Jev failure is unverified');
 else fail('Jev failure should be unverified');

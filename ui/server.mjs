@@ -32,6 +32,7 @@ import { loadCanonicalStates, resolveCanonicalState } from '../tracker-utils.mjs
 import { detectChallenge, matchChallengeText } from '../lib/challenge-detect.mjs';
 import {
   PINCHTAB_URL,
+  ensurePinchtabRunning,
   pinchtabClose as pinchtabCloseRaw,
   pinchtabEvaluate,
   pinchtabHealth,
@@ -41,6 +42,7 @@ import {
 } from '../lib/pinchtab.mjs';
 import { STYLE_RULES, polishApplicationAnswer, loadApplicationVoice, extractQuestionReportContext } from '../lib/application-writing.mjs';
 import { assembleUiPrompt, candidateFacts, clipReportForWriting, compactCv } from '../lib/prompt-budget.mjs';
+import { buildMailtoUrl, generateApplicationEmail, parseRecipient } from '../lib/application-email.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
 import { resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
@@ -61,6 +63,7 @@ import {
   appendDecisionLog,
   assessRemote,
   decisionLogRecord,
+  collapseDuplicateTitles,
   dedupeCandidates,
   explainTitle,
   partitionCandidates,
@@ -95,6 +98,8 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const PORT = process.env.PORT || 3210;
+// Application emails are few and must not invent facts: the model is configurable.
+const APPLICATION_EMAIL_MODEL = process.env.APPLICATION_EMAIL_MODEL || MODELS.QWEN;
 
 // On Vercel, the deployment dir is read-only. Redirect all writes to /tmp.
 const IS_VERCEL = !!process.env.VERCEL || ROOT.startsWith('/var/task');
@@ -7216,6 +7221,53 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    // Whether the Chrome plugin is connected: the apply modal says up front
+    // if a run will happen in the user's tab or in a separate Playwright window.
+    if (path === '/api/apply/bridge-status' && method === 'GET') {
+      return json(res, {
+        connected: !IS_VERCEL && applyBridge.connected,
+        version: applyBridge.extensionVersion,
+        readOptions: applyBridge.capabilities.has('read-options'),
+      });
+    }
+
+    // Quick-fill helper: open the posting through the plugin (no popup
+    // blocker), so a later "Fill with the plugin" can reuse that tab.
+    if (path === '/api/apply/open-offer' && method === 'POST') {
+      if (IS_VERCEL) return json(res, { error: 'The Chrome plugin needs the local server' }, 400);
+      const body = await readBody(req);
+      const url = cleanString(body.url);
+      if (!/^https?:\/\//i.test(url)) return json(res, { error: 'an http(s) url is required' }, 400);
+      const opened = await applyBridge.openOffer(url);
+      return opened.tabId
+        ? json(res, { ok: true, tabId: opened.tabId, url: opened.url })
+        : json(res, { ok: false, error: opened.error || 'plugin unavailable' });
+    }
+
+    // Quick-fill helper: the answers, CV and region a run would use, without
+    // starting one (no fallback generation — that costs a model call).
+    if (path === '/api/apply/preview' && method === 'GET') {
+      const report = cleanString(urlObj.searchParams.get('report'));
+      if (!report || report.includes('/') || report.includes('..')) {
+        return json(res, { error: 'report filename is required' }, 400);
+      }
+      try {
+        const spec = await buildApplySpec({
+          root: ROOT,
+          reportFilename: report,
+          company: cleanString(urlObj.searchParams.get('company')),
+          role: cleanString(urlObj.searchParams.get('role')),
+        });
+        return json(res, {
+          region: spec.region,
+          cv: spec.cvPath ? basename(spec.cvPath) : '',
+          answers: spec.answers || [],
+        });
+      } catch (err) {
+        return json(res, { error: String(err?.message || err) }, 404);
+      }
+    }
+
     if (path === '/api/apply/start' && method === 'POST') {
       if (IS_VERCEL) return json(res, { error: 'Auto-apply requires a local server (visible Chrome)' }, 400);
       const body = await readBody(req);
@@ -7244,19 +7296,29 @@ const server = createServer(async (req, res) => {
         await mkdir(runDir, { recursive: true });
         await writeFile(join(runDir, 'spec.json'), JSON.stringify(spec, null, 2), 'utf-8');
 
-        // Plugin first: open the offer in the user's Chrome tab. On success,
-        // keep navigating + filling IN that same tab (Apply / Next / ATS
-        // normalize → form → identity/answers). Playwright only if the
-        // extension can't open a tab.
-        const opened = await applyBridge.openOffer(spec.jobUrl);
-        if (opened.tabId) {
+        // Plugin first: navigate + fill IN the user's Chrome tab (Apply / Next /
+        // ATS normalize → form → identity/answers). A tab the quick-fill helper
+        // already opened for this offer is reused; otherwise the plugin opens
+        // one. Playwright only if the extension can't.
+        let tabId = null;
+        const helperTabId = Number(body.tabId);
+        if (Number.isInteger(helperTabId) && helperTabId > 0 && applyBridge.connected) {
+          tabId = await applyBridge.getTab(helperTabId).then((t) => t?.tabId || null, () => null);
+        }
+        let pluginError = '';
+        if (!tabId) {
+          const opened = await applyBridge.openOffer(spec.jobUrl);
+          tabId = opened.tabId;
+          pluginError = opened.error || '';
+        }
+        if (tabId) {
           const statePath = join(runDir, 'state.json');
           const commandPath = join(runDir, 'command.json');
           let state = {
             state: 'navigating',
-            message: 'Ouverture dans Chrome (plugin)…',
+            message: 'Opening in your Chrome tab…',
             browserMode: 'extension',
-            tabId: opened.tabId,
+            tabId,
             filled: [],
             pending: [],
             steps: [],
@@ -7279,9 +7341,9 @@ const server = createServer(async (req, res) => {
             }
           };
 
-          console.log(`[apply-bridge] ${spec.company}: plugin tab ${opened.tabId} — navigating in-tab (no Playwright)`);
-          applyBridge.runApplyInTab(opened.tabId, spec, { onState: writeState, pollCommand })
-            .then((r) => console.log(`[apply-bridge] ${spec.company}: in-tab run done`, r?.aborted ? '(aborted)' : ''))
+          console.log(`[apply-bridge] ${spec.company}: plugin tab ${tabId} — navigating in-tab (no Playwright)`);
+          applyBridge.runApplyInTab(tabId, spec, { onState: writeState, pollCommand })
+            .then((r) => console.log(`[apply-bridge] ${spec.company}: in-tab run done`, r?.submitted ? '(sent)' : r?.aborted ? '(aborted)' : r?.expired ? '(idle, stopped)' : ''))
             .catch(async (err) => {
               console.warn(`[apply-bridge] ${spec.company}: in-tab run failed: ${err.message}`);
               await writeState({
@@ -7301,7 +7363,7 @@ const server = createServer(async (req, res) => {
           });
         }
 
-        console.log(`[apply-bridge] ${spec.company}: plugin unavailable (${opened.error || 'no tab'}) — falling back to Playwright`);
+        console.log(`[apply-bridge] ${spec.company}: plugin unavailable (${pluginError || 'no tab'}) — falling back to Playwright`);
         const child = spawn('node', ['apply-runner.mjs', '--run-dir', `scratch/apply-runs/${runId}`], {
           cwd: ROOT,
           detached: true,
@@ -7316,6 +7378,7 @@ const server = createServer(async (req, res) => {
           answersCount: spec.answers.length,
           jobUrl: spec.jobUrl,
           browserMode: 'playwright',
+          pluginError: pluginError || 'plugin not connected',
         });
       } catch (err) {
         console.error('[apply] start failed:', err);
@@ -7421,6 +7484,104 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    // Standalone application email: recipient address and/or offer link, no
+    // evaluated report needed. Returns a draft; the user sends it themselves.
+    if (path === '/api/application-email' && method === 'POST') {
+      const body = await readBody(req);
+      const recipient = parseRecipient(body.email);
+      const jobUrl = cleanString(body.jobUrl);
+      const pastedJob = cleanString(body.jobText).slice(0, 15000);
+      const language = ['fr', 'en'].includes(body.language) ? body.language : 'auto';
+      if (recipient && !recipient.valid) return json(res, { error: 'Invalid email address' }, 400);
+      if (jobUrl && !/^https?:\/\//i.test(jobUrl)) return json(res, { error: 'The offer link must start with http(s)://' }, 400);
+      if (!recipient && !jobUrl && !pastedJob) return json(res, { error: 'Enter an email, an offer link, or both' }, 400);
+
+      const fetchCompanyPage = async () => {
+        if (!recipient?.websiteUrl) return '';
+        try {
+          const response = await fetch(recipient.websiteUrl, {
+            signal: AbortSignal.timeout(8000),
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)', 'Accept-Language': 'fr,en;q=0.8' },
+          });
+          if (!response.ok) return '';
+          return textFromFetchedHtml(await response.text(), recipient.websiteUrl, { maxChars: 3000 });
+        } catch (err) {
+          console.warn(`[application-email] company page ${recipient.websiteUrl}: ${err.message}`);
+          return '';
+        }
+      };
+      const fetchJob = async () => {
+        if (pastedJob) return { text: pastedJob, fetched: false };
+        if (!jobUrl) return { text: '', fetched: false };
+        try {
+          const result = await fetchJobDescriptionText(jobUrl, { maxChars: 12000, logLabel: 'application-email' });
+          const usable = result.ok && !result.blocked && result.text && !isUnusableJobDescriptionText(result.text);
+          return { text: usable ? result.text : '', fetched: Boolean(usable) };
+        } catch (err) {
+          console.warn(`[application-email] job ${jobUrl}: ${err.message}`);
+          return { text: '', fetched: false };
+        }
+      };
+
+      const [cv, profileData, profileContext, custom, companyText, job] = await Promise.all([
+        getCvMarkdown(req.userId),
+        getProfile(req.userId).catch(() => ({})),
+        getProfileContext(req.userId).catch(() => ''),
+        readFile(join(ROOT, 'modes/_custom.md'), 'utf-8').catch(() => ''),
+        fetchCompanyPage(),
+        fetchJob(),
+      ]);
+      if (!String(cv).trim()) return json(res, { error: 'No CV in your profile yet. Import your CV first.' }, 400);
+
+      let draft = null;
+      try {
+        draft = await generateApplicationEmail({
+          chat,
+          model: APPLICATION_EMAIL_MODEL,
+          cv,
+          compactedCv: compactCv(cv, 12000),
+          profileData: profileData || {},
+          profileContext,
+          custom,
+          recipient,
+          jobUrl,
+          jobText: job.text,
+          companyText,
+          notes: cleanString(body.notes),
+          language,
+          log: message => console.log(`[application-email] ${message}`),
+        });
+      } catch (err) {
+        console.error(`[application-email] generation failed: ${err.message}`);
+        return json(res, { error: `Generation failed: ${err.message}` }, 502);
+      }
+      if (!draft) return json(res, { error: 'The model returned no usable email. Try again.' }, 502);
+
+      const warnings = [
+        ...draft.removed.map(sentence => `Phrase retirée (fait absent de ton CV) : « ${sentence.slice(0, 140)} »`),
+        ...draft.issues.map(issue => `À vérifier : ${issue}`),
+      ];
+      if (jobUrl && !pastedJob && !job.fetched) warnings.push('Could not read the offer page (blocked or empty). Paste the offer text for a more precise email.');
+      if (recipient?.websiteUrl && !companyText) warnings.push(`Could not read ${recipient.domain}. The email relies on the offer and your CV only.`);
+      if (recipient?.isWebmail) warnings.push('Personal mailbox: the company is not inferred from the domain.');
+
+      return json(res, {
+        ok: true,
+        to: recipient?.email || '',
+        company: draft.company,
+        role: draft.role,
+        language: draft.language,
+        subject: draft.subject,
+        body: draft.body,
+        mailto: buildMailtoUrl({ to: recipient?.email || '', subject: draft.subject, body: draft.body }),
+        sources: {
+          job: job.text ? (pastedJob ? 'pasted' : jobUrl) : '',
+          company: companyText ? recipient.websiteUrl : '',
+        },
+        warnings,
+      });
+    }
+
     // ── SSE: stream Claude response for a career-ops mode ──────────────────
     if (path.startsWith('/api/claude/') && method === 'GET') {
       const mode = path.slice('/api/claude/'.length);
@@ -7485,6 +7646,16 @@ const server = createServer(async (req, res) => {
           resetPinchtabSolveCircuit();
           resetWebSearchCircuit();
           resetPinchtabHealthCache();
+          if (!IS_VERCEL) {
+            const pinchtab = await ensurePinchtabRunning({
+              log: message => console.log(`[scan] ${message}`),
+              onStart: () => send('status', { text: 'PinchTab éteint, démarrage…' }),
+            });
+            if (!pinchtab.up) {
+              console.warn(`[scan] [pinchtab] still down after autostart: ${pinchtab.error}`);
+              send('status', { text: `PinchTab indisponible (${pinchtab.error}). Les recherches web passeront par Google/DDG et risquent un captcha.` });
+            }
+          }
           send('status', { text: 'Fetching direct scan sources...' });
           const { parsed: portalsConfig } = await readPortalsYaml();
           const selection = await getScanSelection();
@@ -7508,17 +7679,21 @@ const server = createServer(async (req, res) => {
               return;
             }
             if (access.mode === 'api' && access.apiUrl) {
+              // isCompany: a Greenhouse/Ashby/Lever job carries no company name,
+              // and without one the tracked/deleted company+role exclusion
+              // cannot match (46% of Jev candidates had an empty company).
               directSources.push({
                 name: company.name,
                 url: access.apiUrl,
                 type: 'json',
                 query: company.scan_query || '',
                 careers_url: company.careers_url || '',
+                isCompany: true,
               });
               return;
             }
             if (access.mode === 'websearch' && access.query) {
-              webSearchSources.push({ name: company.name, query: access.query, careers_url: company.careers_url || '' });
+              webSearchSources.push({ name: company.name, query: access.query, careers_url: company.careers_url || '', isCompany: true });
               return;
             }
             playwrightCos.push(company);
@@ -7590,6 +7765,7 @@ const server = createServer(async (req, res) => {
             ...directResults.flatMap((result, index) =>
               result.status === 'fulfilled' && result.value?.jobs?.length
                 ? buildScanCandidateRecords(directSources[index]?.name, result.value.jobs, {
+                    includeCompany: Boolean(directSources[index]?.isCompany),
                     engine: result.value.engine || '',
                   })
                 : []
@@ -7605,6 +7781,7 @@ const server = createServer(async (req, res) => {
             ...webSearchResults.flatMap((result, index) =>
               result.status === 'fulfilled' && result.value?.jobs?.length
                 ? buildScanCandidateRecords(webSearchSources[index]?.name, result.value.jobs, {
+                    includeCompany: Boolean(webSearchSources[index]?.isCompany),
                     engine: result.value.engine || '',
                   })
                 : []
@@ -7649,7 +7826,12 @@ const server = createServer(async (req, res) => {
           console.log(`[scan] [decision] ${Object.entries(decisionSummary).map(([key, count]) => `${key}=${count}`).join(' ')}`);
           appendDecisionLog(join(WRITE_ROOT, 'data', 'scan-decisions.jsonl'), scanDecisionRecords.filter(record => record.disposition === 'reject'));
 
-          const survivors = [...partitioned.kept, ...partitioned.review];
+          const beforeTitleCollapse = [...partitioned.kept, ...partitioned.review];
+          const survivors = collapseDuplicateTitles(beforeTitleCollapse);
+          const titleCollapsed = beforeTitleCollapse.length - survivors.length;
+          if (titleCollapsed > 0) {
+            console.log(`[scan] [title-collapse] ${titleCollapsed} same-title location clone(s) removed`);
+          }
           const remoteFilteredCandidates = {
             kept: survivors,
             dropped: partitioned.rejected.filter(candidate => candidate.reasonCode === 'remote'),
@@ -8120,7 +8302,7 @@ RÈGLES DE FOND :
 1. Réponds à la question LITTÉRALEMENT. Si elle contient plusieurs sous-questions, couvre-les toutes dans le même ordre.
 2. Pour une question d'expérience : une seule référence employeur ou client. Priorité à l'importance de la marque (LVMH, Renault, Société Générale) puis à l'ancienneté (poste de plusieurs années avant un rôle de 6 mois ou un prototype). OneAsset = poste actuel, pas le défaut si une marque plus forte ou plus longue convient. Décris la méthode dans ce cadre.
 3. Projets perso (UXfi, Flemme, Creads, Panfy, Jarvos, JobYouGo) = PAS une référence. Uniquement un support de motivation, une courte clause. Jamais la preuve d'expérience ou de skill. Jamais « Sur Creads.io… » / « Chez Flemme… ».
-4. Questions AI/LLM : la référence est le workflow employeur (OneAsset : Cursor, Claude, GitHub). Pratiques concrètes. Pas un side project comme credential. Pas une liste de buzzwords. Figmol est l'outil interne d'OneAsset pour relire l'app. Ne pas le citer comme un outil au même titre que Cursor, Claude, GitHub ou Figma. Le nommer seulement dans le récit OneAsset.
+4. Questions AI/LLM : la référence est le workflow employeur (OneAsset : Cursor, Claude, GitHub). Pratiques concrètes. Pas un side project comme credential. Pas une liste de buzzwords. Figmol est l'outil interne que le candidat a construit pour relire l'app. Ne pas le citer comme un outil au même titre que Cursor, Claude, GitHub ou Figma. Le nommer seulement dans le récit OneAsset.
 5. Si l'expérience exacte demandée n'existe pas, dis-le clairement en une courte clause, puis bascule vers l'expérience adjacente la plus crédible.
 6. Ne transforme jamais une expérience adjacente en expérience directe.
 7. N'invente jamais les utilisateurs. Nomme les vrais users du projet cité seulement si qualitatif et utile.
@@ -8434,6 +8616,26 @@ Contraintes : langue de l'annonce, pas de métrique inventée, pas de version lo
             ];
             await appendScanHistoryEntries(historyRows).catch(err => {
               console.warn(`[scan] Failed to append scan-history.tsv: ${err.message}`);
+            });
+          }
+
+          // Jev drops block the URL for the scan-history retention window
+          // (purge-stale, 20 days). Without it, 297 dropped offers went back to
+          // Jev on later scans (one 12 times) and filled the 120-slot roster
+          // ahead of new offers.
+          const jevDroppedRows = (jevResult.dropped || [])
+            .filter(candidate => String(candidate.url || '').startsWith('http'))
+            .map(candidate => [
+              tsvSafe(candidate.url),
+              new Date().toISOString().slice(0, 10),
+              'scan-jev',
+              tsvSafe(candidate.title),
+              tsvSafe(candidate.company),
+              'jev_dropped',
+            ].join('\t'));
+          if (jevDroppedRows.length) {
+            await appendScanHistoryEntries(jevDroppedRows).catch(err => {
+              console.warn(`[scan] Failed to record Jev drops in scan-history.tsv: ${err.message}`);
             });
           }
 

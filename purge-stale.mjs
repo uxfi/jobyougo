@@ -3,12 +3,19 @@
  * purge-stale.mjs — Delete offers / applications / related artifacts older than N days.
  *
  * A job posting older than the retention window is treated as dead:
- *   - applications.md rows (and Supabase applications)
+ *   - applications.md rows (and Supabase applications) the user never acted on
  *   - linked report files (and Supabase reports)
  *   - scan-history.tsv rows
  *   - pending pipeline.md lines whose URL appears in purged history
  *   - published-dates-cache.json entries
  *   - company+role appended to deleted-applications.tsv (blocks rediscovery)
+ *
+ * Never purged, whatever their age:
+ *   - rows the user acted on (Applied, Responded, Interview, Offer, Hired,
+ *     Rejected) and their reports: that is the application history. Until
+ *     2026-10-02 they were deleted too, OpenSea and EvenUp submissions included.
+ *   - scan-history `deleted` rows: a manual delete must keep blocking the URL,
+ *     or an undated posting comes back as new 20 days later.
  *
  * Usage:
  *   node purge-stale.mjs              # default 20 days
@@ -57,6 +64,13 @@ const stats = {
   cache: 0,
   deletedExclusions: 0,
 };
+
+const KEPT_STATUSES = new Set(['applied', 'responded', 'interview', 'offer', 'hired', 'rejected']);
+
+// Not exported: importing this script runs the purge.
+function isKeptStatus(status = '') {
+  return KEPT_STATUSES.has(String(status).replace(/\*/g, '').trim().toLowerCase());
+}
 
 function parseAppDate(value = '') {
   const m = String(value).trim().match(/^(\d{4}-\d{2}-\d{2})/);
@@ -119,12 +133,13 @@ async function appendDeletedExclusions(entries) {
 }
 
 async function purgeApplications() {
-  if (!existsSync(P.apps)) return { purgedUrls: [], reportFiles: [] };
+  if (!existsSync(P.apps)) return { purgedUrls: [], reportFiles: [], protectedReports: new Set() };
   const raw = await readFile(P.apps, 'utf-8');
   const lines = raw.split('\n');
   const kept = [];
   const purged = [];
   const reportFiles = [];
+  const protectedReports = new Set();
   const exclusions = [];
 
   for (const line of lines) {
@@ -137,7 +152,14 @@ async function purgeApplications() {
     const date = parseAppDate(cells[2]);
     const company = cells[3] || '';
     const role = cells[4] || '';
+    const status = cells[6] || '';
     const reportCell = cells[8] || '';
+    if (isKeptStatus(status)) {
+      const reportFile = extractReportFilename(reportCell);
+      if (reportFile) protectedReports.add(reportFile);
+      kept.push(line);
+      continue;
+    }
     if (date && date < cutoffIso) {
       stats.apps += 1;
       purged.push({ company, role, report: reportCell, line });
@@ -154,16 +176,16 @@ async function purgeApplications() {
   }
 
   await appendDeletedExclusions(exclusions);
-  return { purged, reportFiles };
+  return { purged, reportFiles, protectedReports };
 }
 
-async function purgeReportFiles(extraFiles = []) {
+async function purgeReportFiles(extraFiles = [], protectedReports = new Set()) {
   const toDelete = new Set(extraFiles.filter(Boolean));
   if (!existsSync(P.reports)) return toDelete;
 
   const files = await readdir(P.reports);
   for (const f of files) {
-    if (!f.endsWith('.md')) continue;
+    if (!f.endsWith('.md') || protectedReports.has(f)) continue;
     const dateMatch = f.match(/(\d{4}-\d{2}-\d{2})\.md$/);
     if (dateMatch && dateMatch[1] < cutoffIso) toDelete.add(f);
   }
@@ -192,7 +214,8 @@ async function purgeScanHistory() {
     const cells = line.split('\t');
     const url = cells[0]?.trim();
     const firstSeen = parseAppDate(cells[1] || '');
-    if (url && firstSeen && firstSeen < cutoffIso) {
+    const status = (cells[5] || '').trim().toLowerCase();
+    if (url && firstSeen && firstSeen < cutoffIso && status !== 'deleted') {
       stats.history += 1;
       purgedUrls.add(url);
       continue;
@@ -252,17 +275,23 @@ async function purgePublishedDatesCache() {
   }
 }
 
-async function purgeSupabase(reportFiles, userId) {
+async function purgeSupabase(reportFiles, userId, protectedReports = new Set()) {
   if (!useSupabase || !supabase) return;
 
-  // Applications older than cutoff
-  let appsQ = supabase.from('applications').select('num, date, company, role, report');
+  // Applications older than cutoff that the user never acted on
+  let appsQ = supabase.from('applications').select('num, date, company, role, status, report');
   if (userId) appsQ = appsQ.eq('user_id', userId);
   const { data: apps, error: appsErr } = await appsQ;
   if (appsErr) {
     console.warn(`⚠️  Supabase applications select failed: ${appsErr.message}`);
   } else {
+    for (const a of apps || []) {
+      if (!isKeptStatus(a.status)) continue;
+      const reportFile = extractReportFilename(a.report || '');
+      if (reportFile) protectedReports.add(reportFile);
+    }
     const staleNums = (apps || [])
+      .filter(a => !isKeptStatus(a.status))
       .filter(a => parseAppDate(a.date) && parseAppDate(a.date) < cutoffIso)
       .map(a => a.num);
     if (staleNums.length) {
@@ -279,7 +308,7 @@ async function purgeSupabase(reportFiles, userId) {
   }
 
   // Reports by filename list + date in filename
-  const filenames = [...reportFiles];
+  const filenames = [...reportFiles].filter(f => !protectedReports.has(f));
   if (filenames.length) {
     if (!DRY) {
       let delR = supabase.from('reports').delete().in('filename', filenames);
@@ -301,7 +330,7 @@ async function purgeSupabase(reportFiles, userId) {
       const staleReps = (reps || [])
         .filter(r => parseAppDate(r.date) && parseAppDate(r.date) < cutoffIso)
         .map(r => r.filename)
-        .filter(Boolean);
+        .filter(f => f && !protectedReports.has(f));
       if (staleReps.length && !DRY) {
         let delR = supabase.from('reports').delete().in('filename', staleReps);
         if (userId) delR = delR.eq('user_id', userId);
@@ -333,12 +362,12 @@ console.log(`Purge stale — retention ${RETENTION_DAYS}d (cutoff ${cutoffIso})$
 console.log('━'.repeat(60));
 
 const userId = await getAdminUserId();
-const { reportFiles } = await purgeApplications();
-const deletedReports = await purgeReportFiles(reportFiles);
+const { reportFiles, protectedReports } = await purgeApplications();
+const deletedReports = await purgeReportFiles(reportFiles, protectedReports);
 const purgedUrls = await purgeScanHistory();
 await purgePipeline(purgedUrls);
 await purgePublishedDatesCache();
-await purgeSupabase(deletedReports, userId);
+await purgeSupabase(deletedReports, userId, protectedReports);
 await syncApplicationsAfterPurge();
 
 console.log('\n📊 Summary:');

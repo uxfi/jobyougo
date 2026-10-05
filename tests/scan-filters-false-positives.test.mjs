@@ -13,6 +13,9 @@ const rejected = [
   'Helpdesk Support Agent 6-Month Fixed-Term Contract',
   'Luxury Goods Consultant - Fully Remote',
   'Professional Services Consultant, GRC',
+  // AI is a qualifier, not a role family: an AI engineering title has no
+  // product/design keyword and stays out.
+  'Principal AI & Agent Systems Engineer',
 ];
 
 for (const title of rejected) {
@@ -24,8 +27,9 @@ for (const title of rejected) {
 const accepted = [
   'AI Agent Product Manager',
   'Conversational Agent Designer',
-  'Principal AI & Agent Systems Engineer',
   'Senior Product Manager, AI and Endpoint',
+  'AI Product Designer',
+  'Senior Product Designer',
 ];
 
 for (const title of accepted) {

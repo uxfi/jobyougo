@@ -16,7 +16,7 @@ import { WebSocketServer } from 'ws';
 import { AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE } from '../lib/form-detect.mjs';
 import { classifyField } from '../lib/apply-classify.mjs';
 import { resolveUnknownFields, polishApplicationAnswer, hasUnresolvedPlaceholder } from '../lib/apply-llm.mjs';
-import { loadApplicationVoice } from '../lib/application-writing.mjs';
+import { loadApplicationVoice, loadCvSummary } from '../lib/application-writing.mjs';
 import {
   shouldFillField,
   isResumeFileField,
@@ -28,8 +28,17 @@ import {
   isApplicationGateConsent,
 } from '../lib/apply-fill-guards.mjs';
 import { choiceKind } from '../lib/apply-option-match.mjs';
-import { pickDeclineOption, pickSelectOption, llmKind, DECLINE_RE } from '../lib/apply-select.mjs';
-import { fieldCompletionIssue, looksReadyToSubmit, shouldUploadFileField } from '../lib/apply-completion.mjs';
+import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, DECLINE_RE } from '../lib/apply-select.mjs';
+import {
+  fieldCompletionIssue,
+  looksReadyToSubmit,
+  shouldUploadFileField,
+  fieldLabel,
+  completionIssues,
+  mergeFilled,
+  mergePending,
+} from '../lib/apply-completion.mjs';
+import { COMMAND_IDLE_MS, UI_BUTTONS } from '../lib/apply-runtime.mjs';
 import { computeStartDateISO as toIsoDate } from '../lib/apply-spec.mjs';
 import { extractEmbeddedApplyUrl } from '../lib/apply-navigation.mjs';
 import {
@@ -52,18 +61,12 @@ import {
   shouldAttemptSubmitAfterNoopNext,
 } from '../lib/apply-progression.mjs';
 import {
-  resolveNavAction,
-  navDecisionLog,
+  askNavDecision,
   exactControlPattern,
-  filterNavButtons,
 } from '../lib/apply-nav-llm.mjs';
 import { identifyAts, normalizeAtsUrl } from './apply-ats.mjs';
 import { acceptAdoptCandidate } from './apply-tab-match.mjs';
-import {
-  AUTOFILL_WAIT_MS,
-  autofillShouldKeepWaiting,
-  judgeAutofillSnapshot,
-} from './apply-autofill.mjs';
+import { waitForAutofill, autofillLogLine } from './apply-autofill.mjs';
 
 export { normalizeAtsUrl, identifyAts };
 
@@ -71,30 +74,28 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-let _cvSummary = null;
-function cvSummaryText() {
-  if (_cvSummary !== null) return _cvSummary;
-  try {
-    _cvSummary = readFileSync(join(ROOT, 'cv.md'), 'utf-8').replace(/\s+\n/g, '\n').slice(0, 3000);
-  } catch {
-    _cvSummary = '';
-  }
-  return _cvSummary;
-}
-
-function profileVoice() {
-  return loadApplicationVoice(ROOT);
-}
-
-/** Same classifier as the Playwright runner — keep in sync via lib/apply-classify.mjs */
-export function classifyBridgeField(f, spec, usedAnswers = new Set()) {
-  return classifyField(f, spec, usedAnswers);
-}
-
-/** @deprecated prefer classifyBridgeField */
+/** Identity-only value for one field (extension/dev-bridge.mjs smoke test). */
 export function classifySimpleField(f, identity) {
-  return classifyBridgeField(f, { identity, answers: [] })?.value ?? null;
+  return classifyField(f, { identity, answers: [] })?.value ?? null;
 }
+
+const isTabGone = (err) => /No tab with id/i.test(String(err?.message || err || ''));
+const isTimeout = (err) => /timed out/i.test(String(err?.message || err || ''));
+
+/** One control on the page: frame + collect index (data-co-i restarts per frame). */
+const slotKey = (x) => `${x?.frameId ?? 0}:${x?.i}`;
+
+/** Same field across re-collects, when the collect index may have moved. */
+const fieldKey = (f) => `${f?.frameId ?? 0}:${String(f?.label || f?.name || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 80)}`;
+
+const RESUME_LABEL_RE = /resume|\bcv\b|curriculum|autofill|_systemfield_resume|choose a file|drop (it|file) here|attach/i;
+const resumeUploaded = (labels = []) => labels.some((l) => RESUME_LABEL_RE.test(String(l)));
+
+// Extra wait after a fill's own budget before reading the result off the page.
+const FILL_GRACE_MS = 60000;
+// Dashboard button names, quoted in the messages that tell the user what to click.
+const RESCAN_BTN = UI_BUTTONS.rescan;
+const SEND_BTN = UI_BUTTONS.send;
 
 /** Serialize a RegExp (or string) for the extension fill payload. */
 export function serializePrefer(re) {
@@ -149,45 +150,25 @@ export function fillTimeoutMs(updates = []) {
  */
 export function planToUpdate(f, plan, identity = {}) {
   if (!plan || plan.skip) return null;
+  const label = fieldLabel(f);
   if (plan.upload) {
-    return {
-      i: f.i,
-      frameId: f.frameId ?? 0,
-      upload: plan.upload,
-      label: (f.label || f.name || 'file').slice(0, 80),
-    };
+    return { i: f.i, frameId: f.frameId ?? 0, upload: plan.upload, label };
   }
   if (plan.resume) {
-    const cv = cvSummaryText();
+    const cv = loadCvSummary(ROOT);
     if (!cv) return null;
-    return {
-      i: f.i,
-      frameId: f.frameId ?? 0,
-      value: cv,
-      label: (f.label || f.name || `field#${f.i}`).slice(0, 80),
-      resume: true,
-    };
+    return { i: f.i, frameId: f.frameId ?? 0, value: cv, label, resume: true };
   }
   if (plan.check) {
-    return {
-      i: f.i,
-      frameId: f.frameId ?? 0,
-      value: 'yes',
-      check: true,
-      label: (f.label || f.name || `field#${f.i}`).slice(0, 80),
-    };
+    return { i: f.i, frameId: f.frameId ?? 0, value: 'yes', check: true, label };
   }
 
-  const label = (f.label || f.name || `field#${f.i}`).slice(0, 80);
   const tag = String(f.tag || '').toLowerCase();
   const type = String(f.type || '').toLowerCase();
 
   if (tag === 'select' || type === 'radio' || isComboboxField(f)) {
     const opt = (f.options && f.options.length) ? pickSelectOption(f.options, plan, f.label) : null;
-    const text = opt?.text
-      || plan.selectText
-      || (plan.yesNo === 'yes' ? 'Yes' : plan.yesNo === 'no' ? 'No' : null)
-      || plan.value;
+    const text = opt?.text || plan.selectText || yesNoText(plan) || plan.value;
     // selectPrefer-only plans (US state → Outside US) must still reach the
     // extension so it can open the list and pick — window runner scrapes first.
     if (!text && plan.selectPrefer) {
@@ -236,7 +217,7 @@ export function planToUpdate(f, plan, identity = {}) {
     };
   }
 
-  const raw = plan.value ?? plan.selectText ?? (plan.yesNo === 'yes' ? 'Yes' : plan.yesNo === 'no' ? 'No' : '');
+  const raw = plan.value ?? plan.selectText ?? yesNoText(plan);
   const value = polishApplicationAnswer(String(raw || ''));
   if (!value || hasUnresolvedPlaceholder(value)) return null;
   return {
@@ -252,27 +233,7 @@ export function planToUpdate(f, plan, identity = {}) {
 // A list that showed its options and none matched fails the same way on a
 // second pass — retrying it only typed into the dropdown again. A list that
 // never opened, or a click that did not stick, is worth another try.
-const RETRYABLE_PENDING_RE = /upload échoué|échec fill|radio option not found|FileList|valeur non retenue|element not found|liste non ouverte|cliquée mais non retenue/i;
-
-const fieldKey = (f) => `${f?.frameId ?? 0}:${String(f?.label || f?.name || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 80)}`;
-
-function mergeFilled(a, b) {
-  const byLabel = new Map();
-  for (const row of [...(a || []), ...(b || [])]) byLabel.set(row.label, row);
-  return [...byLabel.values()];
-}
-
-function mergePending(pending, extra, filled) {
-  const filledLabels = new Set((filled || []).map((f) => f.label));
-  const out = [];
-  const seen = new Set();
-  for (const row of [...(pending || []), ...(extra || [])]) {
-    if (!row?.label || filledLabels.has(row.label) || seen.has(row.label)) continue;
-    seen.add(row.label);
-    out.push(row);
-  }
-  return out;
-}
+const RETRYABLE_PENDING_RE = /upload échoué|échec fill|radio option not found|FileList|valeur non retenue|element not found|liste non ouverte|cliquée mais non retenue|remplissage interrompu/i;
 
 export class ApplyBridge {
   constructor() {
@@ -387,8 +348,38 @@ export class ApplyBridge {
     return this._request('detect-fields-in-tab', { tabId });
   }
 
-  fillFields(tabId, updates) {
-    return this._request('fill-fields', { tabId, updates }, fillTimeoutMs(updates));
+  /**
+   * Write updates in the tab. Past its budget the tab is usually still typing
+   * a long answer or retrying a list: wait a little longer, then read what
+   * landed off the page instead of failing the whole run (the N26 / Bitpanda
+   * runs ended in error while the tab kept filling).
+   */
+  async fillFields(tabId, updates) {
+    if (!updates?.length) return { outcomes: [] };
+    try {
+      return await this._request('fill-fields', { tabId, updates }, fillTimeoutMs(updates) + FILL_GRACE_MS);
+    } catch (err) {
+      if (!isTimeout(err)) throw err;
+      this.onLog(`fill-fields over budget on tab ${tabId} — reading the fields back from the page`);
+      return { outcomes: await this._outcomesFromDom(tabId, updates), timedOut: true };
+    }
+  }
+
+  /** Fill outcomes rebuilt from the live DOM, for a fill whose reply never came. */
+  async _outcomesFromDom(tabId, updates) {
+    const fields = (await this.detectFieldsInTab(tabId)).fields || [];
+    const bySlot = new Map(fields.map((f) => [slotKey(f), f]));
+    return updates.map((u) => {
+      const f = bySlot.get(slotKey(u));
+      const same = f && fieldLabel(f) === u.label;
+      let value = '';
+      if (same && f.type === 'checkbox') value = f.checked ? 'checked' : '';
+      else if (same && f.type === 'radio') value = f.groupChecked ? String(f.value || 'checked') : '';
+      else if (same) value = String(f.value || '').trim();
+      return value
+        ? { i: u.i, frameId: u.frameId ?? 0, ok: true, actualValue: value }
+        : { i: u.i, frameId: u.frameId ?? 0, ok: false, reason: 'remplissage interrompu (délai dépassé)' };
+    });
   }
 
   uploadFile(tabId, { i, frameId = 0, path }) {
@@ -437,53 +428,29 @@ export class ApplyBridge {
     return (await this._pageHelper(tabId, 'PAGE_SHOWS_APPLY_ENTRY')) === true;
   }
 
-  /**
-   * Wait until resume autofill copies name or email, then stop.
-   * A timeout, an empty form, or a wrong value never blocks the fill:
-   * the caller writes the profile itself and reconcile overwrites mismatches.
-   */
-  async waitResumeAutofill(tabId, identity = {}, timeoutMs = AUTOFILL_WAIT_MS) {
-    const read = async () => {
-      try {
-        const fields = await this._pageHelper(tabId, 'IDENTITY_SNAPSHOT');
-        return Array.isArray(fields) ? fields : [];
-      } catch {
-        return [];
-      }
-    };
-    const deadline = Date.now() + timeoutMs;
-    let last = judgeAutofillSnapshot([], identity);
-    while (Date.now() < deadline) {
-      last = judgeAutofillSnapshot(await read(), identity);
-      if (!autofillShouldKeepWaiting(last.status)) break;
-      await sleep(200);
-    }
-    if (autofillShouldKeepWaiting(last.status)) {
-      last = judgeAutofillSnapshot(await read(), identity);
-    }
-    const timedOut = autofillShouldKeepWaiting(last.status);
-    if (last.status === 'matched') await sleep(400);
-    return {
-      ...last,
-      timedOut,
-      manualFill: last.status !== 'matched',
-    };
+  /** Wait for the ATS to copy name / email out of the CV (see waitForAutofill). */
+  waitResumeAutofill(tabId, identity = {}) {
+    return waitForAutofill(() => this._pageHelper(tabId, 'IDENTITY_SNAPSHOT'), identity);
   }
 
   /**
-   * Open a combobox and list visible option texts (for LLM / selectPrefer).
-   * Dedicated extension message: the old eval-in-tab string source always
-   * failed (isolated-world CSP forbids new Function), so the LLM never saw
-   * the real options. Short timeout — an extension build that predates
-   * scrape-options never replies.
+   * Open each list and read its option texts, through the code a pick uses
+   * (fill-fields with readOptions): the separate scrape opened fewer widgets
+   * than the fill, so the model answered lists blind ("0", "2") and the pick
+   * then failed. Returns Map slotKey → option texts.
    */
-  async scrapeComboboxOptions(tabId, f) {
-    try {
-      const res = await this._request('scrape-options', { tabId, i: f.i, frameId: f.frameId ?? 0 }, 8000);
-      return Array.isArray(res?.options) ? res.options : [];
-    } catch {
-      return [];
-    }
+  async readListOptions(tabId, fields = []) {
+    if (!fields.length || !this.capabilities.has('read-options')) return new Map();
+    const res = await this.fillFields(tabId, fields.map((f) => ({
+      i: f.i,
+      frameId: f.frameId ?? 0,
+      label: fieldLabel(f),
+      readOptions: true,
+      list: true, // fill budget of a list pick
+    })));
+    return new Map((res.outcomes || [])
+      .filter((o) => Array.isArray(o.options) && o.options.length)
+      .map((o) => [slotKey(o), o.options]));
   }
 
   async probeForm(tabId) {
@@ -516,66 +483,50 @@ export class ApplyBridge {
   }
 
   /**
-   * One complementary AI call. Regex navigation / review heuristics must have
-   * failed first. `phase` `review` is capped at 3 per run, other phases at 2.
+   * One complementary AI call (askNavDecision). Regex navigation / review
+   * heuristics must have failed first. The budget lives on the run, so two
+   * runs never share it; a rescan resets it.
    */
-  async askNavAi(tabId, {
-    phase = 'navigate',
-    url = '',
-    skipTexts = [],
-    fields = [],
-    heading = '',
-    bodySnippet = '',
-  } = {}) {
-    if (!this._navAi) this._navAi = { nav: 0, review: 0 };
-    const bucket = phase === 'review' ? 'review' : 'nav';
-    const max = phase === 'review' ? 3 : 2;
-    if (this._navAi[bucket] >= max) return { action: 'human', reason: 'plafond', skipped: true };
-
-    let listed = [];
-    try {
-      const res = await this._pageHelper(tabId, 'LIST_VISIBLE_NAV_BUTTONS', [{
-        avoidSrc: AUTH_AVOID_TEXT_RE.source,
-        skip: skipTexts || [],
-      }]);
-      listed = Array.isArray(res) ? res : [];
-    } catch { listed = []; }
-
-    const buttons = filterNavButtons(listed, skipTexts);
-    if (phase !== 'review' && !buttons.length) {
-      return { action: 'human', reason: 'aucun bouton', skipped: true };
-    }
+  async askNavAi(run, { url = '', skipTexts = [], ...opts } = {}) {
     let pageUrl = url;
     if (!pageUrl) {
-      try { pageUrl = (await this.getTab(tabId))?.url || ''; } catch { pageUrl = ''; }
+      try { pageUrl = (await this.getTab(run.tabId))?.url || ''; } catch { pageUrl = ''; }
     }
-    this._navAi[bucket] += 1;
-    const fieldsSummary = `${(fields || []).length} champs, ${countEditableApplyFields(fields || [])} éditables`;
-    const decision = await resolveNavAction({
-      phase,
+    return askNavDecision(run.navAi, {
+      ...opts,
       url: pageUrl,
-      heading,
-      bodySnippet,
-      buttons,
-      fieldsSummary,
+      skipTexts,
+      listButtons: async () => {
+        const res = await this._pageHelper(run.tabId, 'LIST_VISIBLE_NAV_BUTTONS', [{
+          avoidSrc: AUTH_AVOID_TEXT_RE.source,
+          skip: skipTexts || [],
+        }]);
+        return Array.isArray(res) ? res : [];
+      },
     });
-    return { ...decision, log: navDecisionLog(decision) };
   }
 
-  /** Click an exact label, then report whether the field fingerprint changed. */
-  async clickExactAndSeeChange(tabId, text, previousFingerprint) {
+  /** Click an exact label, then report whether the step changed. */
+  async clickExactAndSeeChange(tabId, text, previousMark) {
     const res = await this.clickExactLabel(tabId, text).catch(() => null);
     if (!res?.clicked) return { clicked: false };
-    if (res.openedTabId && res.openedTabId !== tabId) return { clicked: true, opened: res };
-    for (let i = 0; i < 20; i++) {
+    if ((res.openedTabId && res.openedTabId !== tabId) || res.openerGone) return { clicked: true, opened: res };
+    return { clicked: true, changed: await this._waitStepChange(tabId, previousMark) };
+  }
+
+  /** Poll ~8 s until URL, heading or fields differ from `previousMark`. */
+  async _waitStepChange(tabId, previousMark) {
+    for (let k = 0; k < 20; k++) {
       await sleep(400);
       try {
         const now = await this.detectFieldsInTab(tabId);
-        const sig = await this._stepMark(tabId, now.fields || []);
-        if (sig && sig !== previousFingerprint) return { clicked: true, changed: true };
-      } catch { /* keep polling */ }
+        const mark = await this._stepMark(tabId, now.fields || []);
+        if (mark && mark !== previousMark) return true;
+      } catch (err) {
+        if (isTabGone(err)) throw err;
+      }
     }
-    return { clicked: true, changed: false };
+    return false;
   }
 
   navigateTab(tabId, url) {
@@ -584,10 +535,6 @@ export class ApplyBridge {
 
   getTab(tabId) {
     return this._request('get-tab', { tabId });
-  }
-
-  getActiveTab(windowId) {
-    return this._request('get-active-tab', windowId ? { windowId } : {});
   }
 
   listWindowTabs(windowId) {
@@ -631,26 +578,38 @@ export class ApplyBridge {
     return fieldsFingerprint(fields, { url, heading });
   }
 
-  /** Rewrite fields the ATS marked invalid. Returns falsy when nothing to fix. */
-  async _refillInvalid(tabId, spec, { push, uploadedLabels = [] }) {
+  /** Rewrite the fields the ATS marked invalid. Returns false when none were. */
+  async _refillInvalid(run) {
     let fields = [];
-    try { fields = (await this.detectFieldsInTab(tabId)).fields || []; } catch { return null; }
-    const bad = fields.filter((f) => fieldCompletionIssue(f, { uploadedLabels }));
-    if (!bad.length) return null;
-    await push(`Erreurs ATS (${bad.length}) — correction des champs invalides…`);
+    try {
+      fields = (await this.detectFieldsInTab(run.tabId)).fields || [];
+    } catch (err) {
+      if (isTabGone(err)) throw err;
+      return false;
+    }
+    const bad = new Set(fields.filter((f) => fieldCompletionIssue(f, { uploadedLabels: run.uploaded })).map(slotKey));
+    if (!bad.size) return false;
+    await run.push(`Erreurs ATS (${bad.size}) — correction des champs invalides…`);
     // Only broken fields (+ empty file slots that still need a CV). Passing the
     // whole form used to re-upload the resume and retype already-valid inputs.
-    const resumeDone = uploadedLabels.some((l) =>
-      /resume|\bcv\b|curriculum|autofill|_systemfield_resume|choose a file|drop (it|file) here|attach/i.test(String(l))
-    );
-    const targets = fields.filter((f) => {
-      if (bad.some((b) => b.i === f.i && (b.frameId ?? 0) === (f.frameId ?? 0))) return true;
-      if (f.type === 'file') return shouldUploadFileField(f, { uploadedLabels, resumeAlreadyUploaded: resumeDone });
-      return false;
-    });
-    const result = await this._fillOnce(tabId, spec, targets.length ? targets : bad, { push, uploadedLabels });
-    try { await this.tickGateConsents(tabId, { push }); } catch { /* ignore */ }
-    return { uploaded: result?.uploaded || [] };
+    const resumeDone = resumeUploaded(run.uploaded);
+    const targets = fields.filter((f) => bad.has(slotKey(f))
+      || (f.type === 'file' && shouldUploadFileField(f, { uploadedLabels: run.uploaded, resumeAlreadyUploaded: resumeDone })));
+    const result = await this._fillOnce(run.tabId, run.spec, targets, { push: run.push, uploadedLabels: run.uploaded });
+    run.filled = mergeFilled(run.filled, result.filled);
+    run.uploaded = [...new Set([...run.uploaded, ...result.uploaded])];
+    await this._tickConsents(run);
+    return true;
+  }
+
+  /** Tick missing application-gate consents and record them as filled. */
+  async _tickConsents(run) {
+    try {
+      const { count, filled } = await this.tickGateConsents(run.tabId, { push: run.push });
+      if (count) run.filled = mergeFilled(run.filled, filled);
+    } catch (err) {
+      if (isTabGone(err)) throw err;
+    }
   }
 
   /**
@@ -770,33 +729,6 @@ export class ApplyBridge {
   }
 
   /**
-   * Best-effort one-shot (legacy): open + fill identity only.
-   */
-  async detectAndFill(url, identity, { strict = false } = {}) {
-    try {
-      if (!(await this.waitUntilConnected())) {
-        throw new Error('no apply-bridge extension connected (waited 5s)');
-      }
-      const detected = await this.detectFields(url);
-      const updates = detected.fields
-        .filter((f) => !f.value)
-        .map((f) => ({ i: f.i, value: classifySimpleField(f, identity), label: f.label }))
-        .filter((u) => u.value);
-      if (!updates.length) return { tabId: detected.tabId, filled: [] };
-      const result = await this.fillFields(detected.tabId, updates);
-      const labelByI = new Map(updates.map((u) => [u.i, u.label]));
-      return {
-        tabId: detected.tabId,
-        filled: (result.outcomes || []).map((o) => ({ ...o, label: labelByI.get(o.i) })),
-      };
-    } catch (err) {
-      if (strict) throw err;
-      this.onLog(`detectAndFill best-effort failure: ${err.message}`);
-      return { tabId: null, filled: [], error: err.message };
-    }
-  }
-
-  /**
    * True when the tab already has fillable application fields — even if the
    * scored probe says `none` (common on Greenhouse: form is on-screen but an
    * "Apply for this job" CTA still trips job_preview_cta and we scroll forever).
@@ -818,629 +750,599 @@ export class ApplyBridge {
     return false;
   }
 
+  // ── Run driver ─────────────────────────────────────────────────────────────
+
   /**
-   * Navigate inside `tabId` until an application form is found (or hops
-   * exhausted), then fill what we can. Calls `onState` after each step.
-   * `pollCommand` should return 'abort' | 'rescan' | 'submit' | 'manual_sent' | null.
+   * Drive one application in `tabId`: reach the form, fill it, then wait for
+   * the user's commands. A rescan loops back here (it used to recurse and
+   * restart the log), and a sent application ends the run (it used to keep a
+   * command loop alive forever).
+   * `pollCommand` returns 'abort' | 'rescan' | 'submit' | 'manual_sent' | null.
    */
   async runApplyInTab(tabId, spec, {
     onState = async () => {},
     pollCommand = async () => null,
     maxHops = 12,
   } = {}) {
-    const steps = [];
-    const push = async (text, extra = {}) => {
-      const at = new Date().toISOString();
-      steps.push({ at, text });
-      this.onLog(text);
-      await onState({
-        steps: [...steps],
-        updatedAt: at,
-        browserMode: 'extension',
-        tabId,
-        ...extra,
-      });
-    };
+    const run = this._newRun(tabId, spec, { onState, pollCommand });
+    let phase = 'navigate';
+    for (;;) {
+      if (phase === 'navigate') {
+        const reached = await this._navigateToForm(run, { maxHops });
+        if (reached === 'aborted') return this._abort(run);
+        phase = reached === 'form' ? 'fill' : 'wait';
+      }
+      if (phase === 'fill') {
+        if (await run.aborted()) return this._abort(run);
+        const result = await this._fillPassSafe(run);
+        if (result.aborted) return this._abort(run);
+        if (result.submitted) return { ok: true, submitted: true };
+      }
+      const next = await this._commandLoop(run);
+      if (typeof next !== 'string') return next;
+      phase = next;
+    }
+  }
 
-    const aborted = async () => (await pollCommand()) === 'abort';
-
-    await push('Plugin: navigation vers le formulaire…', {
-      state: 'navigating',
-      message: 'Navigation dans l’onglet Chrome (plugin)…',
+  /** Per-run state: the tab, the log, what was filled, the AI budget, commands. */
+  _newRun(tabId, spec, { onState, pollCommand }) {
+    const run = {
+      tabId,
+      spec,
+      originUrl: spec?.jobUrl || '',
+      steps: [],
       filled: [],
       pending: [],
+      uploaded: [],
+      navAi: { nav: 0, review: 0 },
+      abortRequested: false,
+      queued: null,
+    };
+    // Every write carries the full picture, so the modal shows fields as they
+    // land. `fields.filled` / `fields.pending` replace the run's lists.
+    run.set = async (fields = {}) => {
+      if (fields.filled) run.filled = fields.filled;
+      if (fields.pending) run.pending = fields.pending;
+      await onState({
+        browserMode: 'extension',
+        ...fields,
+        tabId: run.tabId,
+        filled: run.filled,
+        pending: run.pending,
+        steps: [...run.steps],
+        updatedAt: fields.updatedAt || new Date().toISOString(),
+      });
+    };
+    run.push = async (text, fields = {}) => {
+      const at = new Date().toISOString();
+      run.steps.push({ at, text });
+      this.onLog(text);
+      await run.set({ ...fields, updatedAt: at });
+    };
+    // Checking for an abort reads the command file: keep any other command
+    // (rescan, submit, manual_sent) for the command loop instead of dropping it.
+    run.aborted = async () => {
+      if (run.abortRequested) return true;
+      const action = await pollCommand();
+      if (action === 'abort') run.abortRequested = true;
+      else if (action) run.queued = action;
+      return run.abortRequested;
+    };
+    run.nextCommand = async () => {
+      if (run.abortRequested) return 'abort';
+      if (run.queued) {
+        const action = run.queued;
+        run.queued = null;
+        return action;
+      }
+      return pollCommand();
+    };
+    run.heartbeat = () => onState({ updatedAt: new Date().toISOString() });
+    return run;
+  }
+
+  async _abort(run) {
+    await run.push('Annulé.', { state: 'aborted', message: 'Application cancelled.' });
+    return { ok: false, aborted: true };
+  }
+
+  _adoptContext(run, { expectedHref = '', deadTabId = null } = {}) {
+    return {
+      originUrl: run.originUrl,
+      role: run.spec?.role || '',
+      company: run.spec?.company || '',
+      expectedHref,
+      deadTabId,
+    };
+  }
+
+  /** The run's tab is gone: move to the open tab that matches this offer, if any. */
+  async _recoverRunTab(run) {
+    const picked = await this.recoverLostTab(run.tabId, run.push, this._adoptContext(run));
+    if (!picked) return false;
+    run.tabId = picked;
+    await run.set();
+    return true;
+  }
+
+  /**
+   * A click opened a tab, or closed ours. Move the run to the tab when it
+   * belongs to this offer. Returns true (moved), false (nothing was opened)
+   * or 'refused' (the opened tab is not this offer's).
+   */
+  async _adoptOpenedTab(run, click, hopLabel = '') {
+    let next = click;
+    let verified = false;
+    if (next?.openerGone) {
+      const picked = await this.chooseAdoptTab(next.adoptCandidates || [], this._adoptContext(run, {
+        expectedHref: next.href || '',
+        deadTabId: run.tabId,
+      }), run.push);
+      if (!picked) return 'refused';
+      next = { ...next, openedTabId: picked.tabId, openedUrl: picked.url || '' };
+      verified = true; // chooseAdoptTab already scored it, form probe included
+    }
+    if (!next?.openedTabId || next.openedTabId === run.tabId) return false;
+    const isHttp = (u) => /^https?:\/\//i.test(u || '');
+    const dest = (isHttp(next.openedUrl) && next.openedUrl)
+      || (isHttp(next.href) && next.href)
+      || next.openedUrl
+      || next.href
+      || next.text
+      || '';
+    if (!verified) {
+      // A tab the click itself opened is kept unless it is a hard reject
+      // (Google, a login page, another posting on the same host).
+      const verdict = acceptAdoptCandidate(
+        { url: isHttp(dest) ? dest : '', title: next.title || '', tabId: next.openedTabId },
+        this._adoptContext(run, { expectedHref: next.href || '', deadTabId: run.tabId }),
+        { trustedChild: true },
+      );
+      if (!verdict.ok) {
+        await run.push(`Nouvel onglet écarté (${verdict.hardReject || (verdict.reasons || []).join(', ')}) — ${dest}`);
+        return 'refused';
+      }
+    }
+    run.tabId = next.openedTabId;
+    if (isHttp(next.href) && !isHttp(next.openedUrl)) {
+      await this.navigateTab(run.tabId, next.href).catch(() => {});
+    }
+    await run.push(`Nouvel onglet → ${dest}${hopLabel}`, { message: 'Form opened in a new tab…' });
+    // SmartRecruiters oneclick-ui (and similar SPAs) show a spinner before
+    // fields exist — do not hop/scroll/give up while the form is loading.
+    await this.waitForFormReady(run.tabId, { push: run.push, aborted: run.aborted, timeoutMs: 18000 });
+    return true;
+  }
+
+  /** Fields + form probe of the run's tab. Only a closed tab throws. */
+  async _readTab(run) {
+    const read = async (what, fn, fallback) => {
+      try {
+        return await fn();
+      } catch (err) {
+        if (isTabGone(err)) throw err;
+        await run.push(`${what}: ${err.message}`);
+        return fallback;
+      }
+    };
+    const fields = await read('Detect fields', async () => (await this.detectFieldsInTab(run.tabId)).fields || [], []);
+    const probe = await read('Probe', async () => (await this.probeForm(run.tabId)).probe, { verdict: 'none' });
+    return { fields, probe };
+  }
+
+  /**
+   * Hop through the posting (Apply, guest access, ATS redirects, new tabs)
+   * until an application form is on screen. Returns 'form', 'human' (the
+   * state already says what the user must do) or 'aborted'.
+   */
+  async _navigateToForm(run, { maxHops = 12 } = {}) {
+    const { push } = run;
+    await push('Plugin: navigation vers le formulaire…', {
+      state: 'navigating',
+      message: 'Navigating in your Chrome tab…',
     });
 
     const attempted = new Set();
     const followedApplyLinks = new Set();
-    let formFound = false;
-    let originUrl = spec?.jobUrl || '';
-    this._navAi = { nav: 0, review: 0 };
-    const adoptContext = (extra = {}) => ({
-      originUrl,
-      role: spec?.role || '',
-      company: spec?.company || '',
-      expectedHref: extra.expectedHref || '',
-      deadTabId: extra.deadTabId ?? null,
-    });
-
+    const skipOn = (url) => [...attempted].filter((k) => k.startsWith(`${url}::`)).map((k) => k.slice(url.length + 2));
+    const handOff = async (text, message, pending = []) => {
+      await push(text, { state: 'needs_human', message, pending });
+      return 'human';
+    };
+    const noTab = () => handOff(
+      'Aucun onglet ouvert ne correspond à cette offre (domaine, URL, identifiant, formulaire).',
+      `This tab is not the offer. Open this offer’s form, then ${RESCAN_BTN}.`,
+      [{ label: 'navigation', reason: 'tab does not match this offer' }],
+    );
+    // Listing pages (CryptoJobsList…) hide the real ATS URL in their HTML
+    // while the visible Apply opens a login modal.
     const followEmbeddedApplyLink = async () => {
       let link = null;
-      try { link = await this.findEmbeddedApplyUrl(tabId); } catch { return false; }
+      try { link = await this.findEmbeddedApplyUrl(run.tabId); } catch { return false; }
       if (!link || followedApplyLinks.has(link)) return false;
       followedApplyLinks.add(link);
       await push(`Apply ouvre un lien externe → ${link}`);
-      await this.navigateTab(tabId, link);
-      await this.waitForFormReady(tabId, { push, aborted, timeoutMs: 18000 });
-      return true;
-    };
-
-    const handOffRefused = async () => {
-      await push('L’onglet d’origine s’est fermé et aucun onglet ouvert ne correspond à cette offre (domaine, URL, identifiant, formulaire).', {
-        state: 'needs_human',
-        message: 'Reprise d’onglet refusée. Ouvre le formulaire de cette offre puis « Re-scanner ».',
-        pending: [{ label: 'navigation', reason: 'onglet non vérifié' }],
-      });
-      return this._commandLoop(tabId, spec, { onState, pollCommand, steps, push });
-    };
-
-    const adoptOpenedTab = async (click, hopLabel) => {
-      let next = click;
-      if (next?.openerGone) {
-        const picked = await this.chooseAdoptTab(next.adoptCandidates || [], adoptContext({
-          expectedHref: next.href || '',
-          deadTabId: tabId,
-        }), push);
-        if (!picked) return 'refused';
-        next = { ...next, openedTabId: picked.tabId, openedUrl: picked.url || '' };
-      }
-      if (!next?.openedTabId || next.openedTabId === tabId) return false;
-      const dest = (/^https?:\/\//i.test(next.openedUrl || '') && next.openedUrl)
-        || (/^https?:\/\//i.test(next.href || '') && next.href)
-        || next.openedUrl
-        || next.href
-        || next.text
-        || '';
-      const verdict = acceptAdoptCandidate({
-        url: /^https?:\/\//i.test(dest) ? dest : '',
-        title: next.title || '',
-        tabId: next.openedTabId,
-      }, adoptContext({ expectedHref: next.href || '', deadTabId: tabId }), { trustedChild: !click?.openerGone });
-      if (!verdict.ok) {
-        await push(`Nouvel onglet écarté (${verdict.hardReject || (verdict.reasons || []).join(', ')}) — ${dest}`);
-        return 'refused';
-      }
-      tabId = next.openedTabId;
-      if (/^https?:\/\//i.test(next.href || '') && !/^https?:\/\//i.test(next.openedUrl || '')) {
-        await this.navigateTab(tabId, next.href).catch(() => {});
-      }
-      await push(`Nouvel onglet → ${dest}${hopLabel}`, {
-        state: 'navigating',
-        message: 'Formulaire ouvert dans un nouvel onglet…',
-        tabId,
-      });
-      // SmartRecruiters oneclick-ui (and similar SPAs) show a spinner before
-      // fields exist — do not hop/scroll/give up while the form is loading.
-      await this.waitForFormReady(tabId, { push, aborted, timeoutMs: 18000 });
+      await this.navigateTab(run.tabId, link);
+      await this.waitForFormReady(run.tabId, { push, aborted: run.aborted, timeoutMs: 18000 });
       return true;
     };
 
     for (let hop = 0; hop < maxHops; hop++) {
-      if (await aborted()) {
-        await push('Annulé.', { state: 'aborted', message: 'Candidature annulée.' });
-        return { ok: false, aborted: true };
-      }
-
-      try { await this.dismissCookies(tabId); } catch { /* ignore */ }
+      if (await run.aborted()) return 'aborted';
+      try { await this.dismissCookies(run.tabId); } catch { /* ignore */ }
 
       // 1) Fields first — if the form is already on screen, fill it. Do NOT
       //    scroll/click Apply (that was the "only scrolls" bug on Greenhouse).
-      let fields = [];
+      let fields;
+      let probe;
       try {
-        const detected = await this.detectFieldsInTab(tabId);
-        fields = detected.fields || [];
-      } catch (err) {
-        await push(`Detect fields: ${err.message}`);
-        if (/No tab with id/i.test(String(err.message || ''))) {
-          const recovered = await this.recoverLostTab(tabId, push, adoptContext());
-          if (recovered) {
-            tabId = recovered;
-            await onState({ tabId, updatedAt: new Date().toISOString() });
-            continue;
-          }
-          return handOffRefused();
-        }
+        ({ fields, probe } = await this._readTab(run));
+      } catch {
+        if (await this._recoverRunTab(run)) continue;
+        return noTab();
       }
-
-      let probe = { verdict: 'none' };
-      try {
-        const res = await this.probeForm(tabId);
-        probe = res.probe || { verdict: 'none' };
-      } catch (err) {
-        await push(`Probe: ${err.message}`);
-        if (/No tab with id/i.test(String(err.message || ''))) {
-          const recovered = await this.recoverLostTab(tabId, push, adoptContext());
-          if (recovered) {
-            tabId = recovered;
-            await onState({ tabId, updatedAt: new Date().toISOString() });
-            continue;
-          }
-          return handOffRefused();
-        }
+      if (probe.verdict === 'application_form' || this.fieldsLookLikeForm(fields)) {
+        await push(probe.verdict === 'application_form'
+          ? `Formulaire détecté (probe score ${probe.score || '?'}: ${(probe.signals || []).join(', ') || 'ok'})`
+          : `Formulaire détecté via champs (${fields.length} field(s), probe=${probe.verdict}/${probe.score || 0})`);
+        return 'form';
       }
-
-      const fieldsOk = this.fieldsLookLikeForm(fields);
-      if (probe.verdict === 'application_form' || fieldsOk) {
-        formFound = true;
-        await push(
-          probe.verdict === 'application_form'
-            ? `Formulaire détecté (probe score ${probe.score || '?'}: ${(probe.signals || []).join(', ') || 'ok'})`
-            : `Formulaire détecté via champs (${fields.length} field(s), probe=${probe.verdict}/${probe.score || 0})`,
-        );
-        break;
-      }
-
       await push(`Hop ${hop + 1}: pas encore de form (probe=${probe.verdict} score=${probe.score || 0}, fields=${fields.length})`);
 
-      let tabInfo;
-      try { tabInfo = await this.getTab(tabId); } catch { tabInfo = { url: '' }; }
-      const url = tabInfo.url || '';
+      let url = '';
+      try { url = (await this.getTab(run.tabId)).url || ''; } catch { /* read as unknown */ }
 
       if (probe.verdict === 'auth_wall') {
         await push(`Mur d’auth (${(probe.blockers || []).join(', ')}) — essai invité…`);
-        const guestSkip = [...attempted].filter((k) => k.startsWith(`${url}::`)).map((k) => k.slice(url.length + 2));
-        const guest = await this.clickProgression(tabId, GUEST_TEXT_RE, guestSkip, { scrollFirst: false }).catch(() => null);
-        if (guest?.clicked) {
-          attempted.add(`${url}::${guest.text}`);
-          const adopted = await adoptOpenedTab(guest, '');
-          if (adopted === 'refused') return handOffRefused();
-          if (adopted) continue;
-          await push(`Clic invité: « ${guest.text} »`);
-          await sleep(2000);
-          continue;
-        }
-        const guestAi = await this.askNavAi(tabId, {
-          phase: 'navigate',
-          url,
-          skipTexts: guestSkip,
-          fields,
-        });
-        if (guestAi?.log && !guestAi.skipped) await push(guestAi.log);
-        if (guestAi?.action === 'click' && guestAi.text) {
-          const guestClick = await this.clickExactLabel(tabId, guestAi.text).catch(() => null);
-          if (guestClick?.clicked) {
-            attempted.add(`${url}::${guestClick.text || guestAi.text}`);
-            const adopted = await adoptOpenedTab(guestClick, '');
-            if (adopted === 'refused') return handOffRefused();
-            if (adopted) continue;
-            await push(`Clic IA: « ${guestClick.text || guestAi.text} »`);
-            await sleep(2000);
-            continue;
+        let click = await this.clickProgression(run.tabId, GUEST_TEXT_RE, skipOn(url), { scrollFirst: false }).catch(() => null);
+        let via = 'Clic invité';
+        if (!click?.clicked) {
+          const ai = await this.askNavAi(run, { phase: 'navigate', url, skipTexts: skipOn(url), fields });
+          if (ai?.log && !ai.skipped) await push(ai.log);
+          if (ai?.action === 'click' && ai.text) {
+            click = await this.clickExactLabel(run.tabId, ai.text).catch(() => null);
+            if (click?.clicked) click = { ...click, text: click.text || ai.text };
+            via = 'Clic IA';
           }
         }
-        await push('Pas d’accès invité — intervention manuelle.', {
-          state: 'needs_human',
-          message: 'Connexion / compte requis dans l’onglet. Connecte-toi puis clique « Re-scanner ».',
-          pending: [{ label: 'auth', reason: 'auth_wall' }],
-        });
-        return this._commandLoop(tabId, spec, { onState, pollCommand, steps, push });
+        if (!click?.clicked) {
+          return handOff(
+            'Pas d’accès invité — intervention manuelle.',
+            `This site wants a sign-in. Sign in, then ${RESCAN_BTN}.`,
+            [{ label: 'auth', reason: 'sign-in required' }],
+          );
+        }
+        attempted.add(`${url}::${click.text}`);
+        const adopted = await this._adoptOpenedTab(run, click);
+        if (adopted === 'refused') return noTab();
+        if (!adopted) {
+          await push(`${via}: « ${click.text} »`);
+          await sleep(2000);
+        }
+        continue;
       }
 
       const normalized = normalizeAtsUrl(url);
       if (normalized && normalized !== url) {
         await push(`URL ATS normalisée → ${normalized}`);
-        await this.navigateTab(tabId, normalized);
+        await this.navigateTab(run.tabId, normalized);
         continue;
       }
 
       // Some ATS already render the form mid-page. Scroll it into view once
       // instead of clicking Apply (which just scrolls / no-ops).
-      const ats = identifyAts(url);
-      if (!originUrl) originUrl = url;
-      if (ats?.behaviors?.includes('scroll-to-form') && hop === 0) {
-        await this._request('scroll-tab', { tabId, deltaY: 900 }).catch(() => {});
+      if (!run.originUrl) run.originUrl = url;
+      if (identifyAts(url)?.behaviors?.includes('scroll-to-form') && hop === 0) {
+        await this._request('scroll-tab', { tabId: run.tabId, deltaY: 900 }).catch(() => {});
         await sleep(1200);
         continue;
       }
 
-      // Visible Apply on an aggregator often does not leave the page (login
-      // modal). The destination is already in the HTML — open it here.
       if (await followEmbeddedApplyLink()) continue;
-
-      const skipFor = (re) => [...attempted]
-        .filter((k) => k.startsWith(`${url}::`))
-        .map((k) => k.slice(url.length + 2));
 
       let clicked = null;
       for (const re of [GUEST_TEXT_RE, APPLY_TEXT_RE, PROGRESS_TEXT_RE]) {
-        // Try without scroll first — form may already be in view.
-        let res = await this.clickProgression(tabId, re, skipFor(re), { scrollFirst: false }).catch(() => null);
-        if (!res?.clicked) {
-          res = await this.clickProgression(tabId, re, skipFor(re), { scrollFirst: true }).catch(() => null);
+        // Without scrolling first — the control may already be in view.
+        for (const scrollFirst of [false, true]) {
+          clicked = await this.clickProgression(run.tabId, re, skipOn(url), { scrollFirst }).catch(() => null);
+          if (clicked?.clicked) break;
         }
-        if (res?.clicked) {
-          attempted.add(`${url}::${res.text}`);
-          clicked = res;
-          break;
-        }
+        if (clicked?.clicked) break;
       }
-
-      if (!clicked) {
+      if (clicked?.clicked) {
+        attempted.add(`${url}::${clicked.text}`);
+      } else {
+        clicked = null;
         if (await followEmbeddedApplyLink()) continue;
         // Last resort: if we saw ANY text inputs, try filling anyway.
         if (fields.length >= 2) {
-          formFound = true;
           await push(`Aucun CTA — tentative de fill sur ${fields.length} champ(s) détectés`);
-          break;
+          return 'form';
         }
         // SPA still spinning (SmartRecruiters oneclick-ui): wait once before
         // declaring "no Apply/Next" — scrolling during load finds nothing.
         if (hop < maxHops - 1) {
-          const waited = await this.waitForFormReady(tabId, {
+          const waited = await this.waitForFormReady(run.tabId, {
             push,
-            aborted,
+            aborted: run.aborted,
             timeoutMs: identifyAts(url)?.behaviors?.includes('wait-spa') ? 18000 : 12000,
           });
-          if (waited.aborted) {
-            await push('Annulé.', { state: 'aborted', message: 'Candidature annulée.' });
-            return { ok: false, aborted: true };
-          }
-          if (waited.ready || (waited.fields || []).length >= 2) {
-            formFound = true;
-            break;
-          }
+          if (waited.aborted) return 'aborted';
+          if (waited.ready || (waited.fields || []).length >= 2) return 'form';
         }
-        const navAi = await this.askNavAi(tabId, {
-          phase: 'navigate',
-          url,
-          skipTexts: [...attempted].filter((k) => k.startsWith(`${url}::`)).map((k) => k.slice(url.length + 2)),
-          fields,
-        });
-        if (navAi?.log && !navAi.skipped) await push(navAi.log);
-        if (navAi?.action === 'fill') {
-          formFound = true;
+        const ai = await this.askNavAi(run, { phase: 'navigate', url, skipTexts: skipOn(url), fields });
+        if (ai?.log && !ai.skipped) await push(ai.log);
+        if (ai?.action === 'fill') {
           await push('IA nav: formulaire traité comme prêt à remplir');
-          break;
+          return 'form';
         }
-        if (navAi?.action === 'click' && navAi.text) {
-          const res = await this.clickExactLabel(tabId, navAi.text).catch(() => null);
+        if (ai?.action === 'click' && ai.text) {
+          const res = await this.clickExactLabel(run.tabId, ai.text).catch(() => null);
           if (res?.clicked) {
-            attempted.add(`${url}::${res.text || navAi.text}`);
-            clicked = res;
+            clicked = { ...res, text: res.text || ai.text };
+            attempted.add(`${url}::${clicked.text}`);
           }
         }
         if (!clicked) {
-          await push('Aucun bouton Apply/Next et pas assez de champs.', {
-            state: 'needs_human',
-            message: 'Le formulaire est-il visible ? Clique « Re-scanner » si oui.',
-            pending: [{ label: 'navigation', reason: 'pas de CTA' }],
-          });
-          return this._commandLoop(tabId, spec, { onState, pollCommand, steps, push });
+          return handOff(
+            'Aucun bouton Apply/Next et pas assez de champs.',
+            `Is the form on screen? If it is, click ${RESCAN_BTN}.`,
+            [{ label: 'navigation', reason: 'no Apply or Next button' }],
+          );
         }
       }
 
-      const adopted = await adoptOpenedTab(clicked, ` (hop ${hop + 1})`);
-      if (adopted === 'refused') return handOffRefused();
+      const adopted = await this._adoptOpenedTab(run, clicked, ` (hop ${hop + 1})`);
+      if (adopted === 'refused') return noTab();
       if (adopted) continue;
 
       // Same-tab navigation may have closed/replaced the tab without openedTabId.
       try {
-        await this.getTab(tabId);
+        await this.getTab(run.tabId);
       } catch {
-        const recovered = await this.recoverLostTab(tabId, push, adoptContext());
-        if (recovered) {
-          tabId = recovered;
-          await onState({ tabId, updatedAt: new Date().toISOString() });
-          continue;
-        }
-        return handOffRefused();
+        if (await this._recoverRunTab(run)) continue;
+        return noTab();
       }
 
       await push(`Clic: « ${clicked.text} »${clicked.href ? ` → ${clicked.href}` : ''} (hop ${hop + 1})`, {
         state: 'navigating',
-        message: `Navigation… « ${clicked.text} »`,
+        message: `Opening… “${clicked.text}”`,
       });
       await sleep(2000);
     }
 
-    if (!formFound) {
-      // One last detect before giving up.
-      try {
-        const detected = await this.detectFieldsInTab(tabId);
-        if (this.fieldsLookLikeForm(detected.fields) || (detected.fields || []).length >= 3) {
-          formFound = true;
-          await push(`Dernière chance: ${detected.fields.length} champ(s) — fill`);
-        }
-      } catch { /* ignore */ }
-    }
-
-    if (!formFound) {
-      await push('Limite de hops atteinte sans formulaire reconnu.', {
-        state: 'needs_human',
-        message: 'Formulaire visible ? Clique « Re-scanner » pour forcer le remplissage.',
-      });
-      return this._commandLoop(tabId, spec, { onState, pollCommand, steps, push });
-    }
-
-    if (await aborted()) {
-      await push('Annulé.', { state: 'aborted', message: 'Candidature annulée.' });
-      return { ok: false, aborted: true };
-    }
-
-    const fillResult = await this._fillPass(tabId, spec, { push, onState, steps });
-    if (fillResult?.tabId) tabId = fillResult.tabId;
-    return this._commandLoop(tabId, spec, { onState, pollCommand, steps, push });
+    // One last detect before giving up.
+    try {
+      const { fields } = await this.detectFieldsInTab(run.tabId);
+      if (this.fieldsLookLikeForm(fields) || (fields || []).length >= 3) {
+        await push(`Dernière chance: ${fields.length} champ(s) — fill`);
+        return 'form';
+      }
+    } catch { /* fall through to the hand-off */ }
+    return handOff(
+      'Limite de hops atteinte sans formulaire reconnu.',
+      `Is the form on screen? Click ${RESCAN_BTN} to fill it.`,
+    );
   }
 
-  async _fillPass(tabId, spec, { push, onState, steps }, { maxPages = 8 } = {}) {
+  /**
+   * _fillPass that never takes the run down: a replaced tab is followed (the
+   * Hopper run died on "No tab with id" after Next), anything else hands the
+   * half-filled form to the user with Rescan still working.
+   */
+  async _fillPassSafe(run, { recoveries = 2 } = {}) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this._fillPass(run);
+      } catch (err) {
+        if (isTabGone(err) && attempt < recoveries && await this._recoverRunTab(run)) {
+          await run.push('Onglet remplacé pendant le remplissage — reprise sur le nouvel onglet.');
+          continue;
+        }
+        const reason = isTabGone(err) ? 'onglet fermé' : String(err?.message || err).slice(0, 120);
+        await run.push(`Remplissage interrompu: ${reason}`, {
+          state: 'needs_human',
+          message: `Filling stopped (${reason}). Check the tab, then ${RESCAN_BTN}.`,
+          pending: mergePending(run.pending, [{ label: 'filling', reason: `stopped — ${reason}` }], run.filled),
+        });
+        return { submitted: false };
+      }
+    }
+  }
+
+  /**
+   * Fill the form, page by page through wizards (up to `maxPages` steps),
+   * and send it when the spec allows auto-submit. Returns { submitted } or
+   * { aborted }.
+   */
+  async _fillPass(run, { maxPages = 8 } = {}) {
+    const { spec, push } = run;
     await push('Remplissage des champs dans l’onglet…', {
       state: 'filling',
-      message: 'Remplissage (plugin)…',
+      message: 'Filling the form…',
+      pending: [],
     });
+    run.uploaded = [];
 
-    let allFilled = [];
-    let allPending = [];
-    let uploadedLabels = [];
-    let lastFingerprint = '';
-    let noopFingerprint = '';
+    let lastMark = '';
+    let noopMark = '';
     let healUsed = false;
-
-    const adoptIfOpened = async (click, label) => {
-      if (!click?.openedTabId || click.openedTabId === tabId) return false;
-      tabId = click.openedTabId;
-      await push(`Nouvel onglet${label ? ` ${label}` : ''}: tab ${tabId}`);
-      await onState({ tabId, updatedAt: new Date().toISOString() });
-      await this.waitForFormReady(tabId, { push, timeoutMs: 15000 }).catch(() => {});
-      lastFingerprint = '';
-      noopFingerprint = '';
+    // A new wizard step or tab: its fields start unanswered.
+    const newStep = () => {
+      run.pending = [];
+      lastMark = '';
+      noopMark = '';
+      healUsed = false;
+    };
+    const followOpened = async (click, label) => {
+      if ((await this._adoptOpenedTab(run, click, ` ${label}`)) !== true) return false;
+      newStep();
       return true;
+    };
+    const liveFields = async () => (await this.detectFieldsInTab(run.tabId)).fields || [];
+    const fillAndRecord = async (fields) => {
+      const { filled, pending, uploaded } = await this._fillOnce(run.tabId, spec, fields, { push, uploadedLabels: run.uploaded });
+      run.filled = mergeFilled(run.filled, filled);
+      run.pending = mergePending(run.pending, pending, run.filled);
+      run.uploaded = [...new Set([...run.uploaded, ...uploaded])];
+      await run.set();
+    };
+    // The live DOM is the judge: a field the ATS still flags is pending, even
+    // when a fill reported it typed (that hid the fields behind "envoi refusé").
+    const noteIssues = (issues) => {
+      const flagged = new Set(issues.map((x) => x.label));
+      run.filled = run.filled.filter((f) => !flagged.has(f.label));
+      run.pending = mergePending(run.pending, issues, run.filled);
+    };
+    // Click Next and wait for the step to change: 'moved', 'none' or { stuck }.
+    const clickNext = async (logText) => {
+      const next = await this.clickProgression(run.tabId, PROGRESS_TEXT_RE, [], { scrollFirst: true });
+      if (!next?.clicked) return 'none';
+      const kind = classifyActionLabel(next.text || '').kind;
+      if (kind === 'submit' || kind === 'ambiguous' || SUBMIT_TEXT_RE.test(String(next.text || ''))) {
+        await push(`« ${next.text} » cliqué — libellé proche d’un envoi, vérifie l’onglet.`);
+        return 'none';
+      }
+      await push(`${logText}: « ${next.text || 'Next'} »`);
+      if (await followOpened(next, '(Next)')) return 'moved';
+      return (await this._waitStepChange(run.tabId, lastMark)) ? 'moved' : { stuck: next.text || '' };
     };
 
     for (let page = 0; page < maxPages; page++) {
+      if (await run.aborted()) return { aborted: true };
       await sleep(600);
 
-      const detected = await this.detectFieldsInTab(tabId);
-      const fields = detected.fields || [];
+      const fields = await liveFields();
       await push(`Detect: ${fields.length} champ(s) (page ${page + 1}, frames incluses)`);
+      await fillAndRecord(fields);
 
-      const { filled, pending, uploaded } = await this._fillOnce(tabId, spec, fields, { push, uploadedLabels });
-      allFilled = mergeFilled(allFilled, filled);
-      allPending = mergePending(allPending, pending, allFilled);
-      uploadedLabels = [...new Set([...uploadedLabels, ...uploaded])];
-
-      // Auto-retry fill failures (window fillFieldsWithRequiredRetry parity).
-      let afterProbe = await this.detectFieldsInTab(tabId);
-      let issuesProbe = (afterProbe.fields || []).flatMap((f) => {
-        const reason = fieldCompletionIssue(f, { uploadedLabels });
-        return reason ? [{ label: (f.label || f.name || f.type).slice(0, 80), reason }] : [];
-      });
-      const retryable = (allPending || []).filter((p) => RETRYABLE_PENDING_RE.test(String(p.reason || '')));
-      const fileStillMissing = (issuesProbe || []).some((i) => /fichier requis|CV manquant/i.test(i.reason));
-      if (retryable.length || fileStillMissing) {
+      // Retry what failed for a reason a second try can fix (window runner parity).
+      let after = await liveFields();
+      let issues = completionIssues(after, run.uploaded);
+      const retryable = run.pending.filter((p) => RETRYABLE_PENDING_RE.test(String(p.reason || '')));
+      if (retryable.length || issues.some((x) => /fichier requis|CV manquant/i.test(x.reason))) {
         await push(`Relance auto: ${retryable.length || 1} échec(s) de remplissage…`);
         await sleep(700);
-        const fields2 = (await this.detectFieldsInTab(tabId)).fields || fields;
-        const second = await this._fillOnce(tabId, spec, fields2, { push, uploadedLabels });
-        allFilled = mergeFilled(allFilled, second.filled);
-        allPending = mergePending(
-          allPending.filter((p) => !RETRYABLE_PENDING_RE.test(String(p.reason || ''))),
-          second.pending,
-          allFilled,
-        );
-        uploadedLabels = [...new Set([...uploadedLabels, ...second.uploaded])];
-        afterProbe = await this.detectFieldsInTab(tabId);
-        issuesProbe = (afterProbe.fields || []).flatMap((f) => {
-          const reason = fieldCompletionIssue(f, { uploadedLabels });
-          return reason ? [{ label: (f.label || f.name || f.type).slice(0, 80), reason }] : [];
-        });
+        run.pending = run.pending.filter((p) => !RETRYABLE_PENDING_RE.test(String(p.reason || '')));
+        await fillAndRecord(await liveFields());
+        after = await liveFields();
+        issues = completionIssues(after, run.uploaded);
       }
+      noteIssues(issues);
+      lastMark = await this._stepMark(run.tabId, after);
 
-      // Completion check on live DOM
-      const after = afterProbe;
-      const issues = issuesProbe;
-      allPending = mergePending(allPending, issues, allFilled);
-      lastFingerprint = await this._stepMark(tabId, after.fields || fields);
+      const chip = after.find((f) => f.type === 'file' && String(f.fileChip || '').trim());
+      if (chip && !run.filled.some((f) => /📎/.test(String(f.value || '')))) {
+        run.filled = mergeFilled(run.filled, [{ label: fieldLabel(chip), value: `📎 ${chip.fileChip}` }]);
+        run.uploaded = [...new Set([...run.uploaded, fieldLabel(chip)])];
+      }
 
       let applyEntryVisible = false;
-      try {
-        applyEntryVisible = await this.pageShowsApplyEntry(tabId);
-      } catch { /* ignore */ }
+      try { applyEntryVisible = await this.pageShowsApplyEntry(run.tabId); } catch { /* ignore */ }
 
-      const ready = looksReadyToSubmit({
-        filled: allFilled,
-        pending: allPending,
-        applyEntryVisible,
-      });
-
-      const stepFields = after.fields || [];
-      const chip = stepFields.find((f) => f.type === 'file' && String(f.fileChip || '').trim());
-      if (chip && !allFilled.some((f) => /📎/.test(String(f.value || '')))) {
-        const chipLabel = (chip.label || chip.name || 'Resume/CV').slice(0, 80);
-        allFilled = mergeFilled(allFilled, [{ label: chipLabel, value: `📎 ${chip.fileChip}` }]);
-        uploadedLabels = [...new Set([...uploadedLabels, chipLabel])];
-      }
-      const inspected = await this.inspectStep(tabId, stepFields);
-      let reviewConfidence = reviewStepConfidence(inspected);
-      let isReviewStep = reviewConfidence === 'high';
+      const inspected = await this.inspectStep(run.tabId, after);
+      let finalReview = reviewStepConfidence(inspected) === 'high';
       let aiSubmitText = '';
-      if (!isReviewStep && reviewStepNeedsAi(inspected)) {
-        const ai = await this.askNavAi(tabId, {
+      if (!finalReview && reviewStepNeedsAi(inspected)) {
+        const ai = await this.askNavAi(run, {
           phase: 'review',
-          fields: stepFields,
+          fields: after,
           heading: inspected.heading,
           bodySnippet: inspected.bodySnippet,
         });
         if (ai?.log && !ai.skipped) await push(ai.log);
         if (ai?.action === 'review') {
-          isReviewStep = true;
-          reviewConfidence = 'high';
+          finalReview = true;
         } else if (ai?.action === 'click' && ai.text) {
           const cls = classifyActionLabel(ai.text);
           if (cls.kind === 'submit' && cls.autoSubmit && cls.confidence === 'high') {
-            isReviewStep = true;
-            reviewConfidence = 'high';
+            finalReview = true;
             aiSubmitText = ai.text;
-          } else if (cls.kind === 'ambiguous' || (cls.kind === 'submit' && !cls.autoSubmit)) {
+          } else if (cls.kind === 'submit' || cls.kind === 'ambiguous') {
+            // A send label is never clicked as navigation.
             await push(`Libellé ambigu « ${ai.text} » — pas d’envoi automatique.`);
           } else {
-            const moved = await this.clickExactAndSeeChange(tabId, ai.text, lastFingerprint);
-            if (moved.opened && await adoptIfOpened(moved.opened, '(IA)')) {
-              allPending = [];
-              continue;
-            }
+            const moved = await this.clickExactAndSeeChange(run.tabId, ai.text, lastMark);
+            if (moved.opened && await followOpened(moved.opened, '(IA)')) continue;
             if (moved.changed) {
-              allPending = [];
-              lastFingerprint = '';
-              noopFingerprint = '';
+              newStep();
               continue;
             }
           }
         }
       }
-      if (reviewConfidence === 'high') {
-        isReviewStep = true;
+      if (finalReview) {
         await push('Étape de vérification / récapitulatif détectée');
-        try {
-          const { count, filled: consentFilled } = await this.tickGateConsents(tabId, { push });
-          if (count) allFilled = mergeFilled(allFilled, consentFilled);
-        } catch { /* ignore */ }
-        // Soft pending on a review screen (optional blanks) must not block Submit.
-        allPending = allPending.filter((p) => isBlockingApplyPending(p.reason));
+        await this._tickConsents(run);
+        // Optional blanks on a review screen must not block Submit.
+        run.pending = run.pending.filter((p) => isBlockingApplyPending(p.reason));
       }
 
-      // Align with apply-runner: empty pending + Apply-entry still visible → open form / Next
-      if (!allPending.length && applyEntryVisible) {
-        const apply = await this.clickProgression(tabId, APPLY_TEXT_RE, [], { scrollFirst: true });
+      // Nothing left to fill but an Apply entry is still on screen: open the form.
+      if (!run.pending.length && applyEntryVisible) {
+        const apply = await this.clickProgression(run.tabId, APPLY_TEXT_RE, [], { scrollFirst: true });
         if (apply?.clicked) {
           await push(`Ouverture formulaire: « ${apply.text || 'Apply'} »`);
-          if (await adoptIfOpened(apply, '(Apply)')) {
-            allPending = [];
-            continue;
-          }
-          await sleep(1200);
+          if (!(await followOpened(apply, '(Apply)'))) await sleep(1200);
           continue;
         }
       }
 
-      // Multi-step wizards + review interstitial.
-      // On a review/verify step, prefer Submit over Next ("Review" CTA).
-      const hardBlock = allPending.some((p) => isBlockingApplyPending(p.reason));
-      const hasCvAttachedEarly = allFilled.some((f) => /📎/.test(String(f.value || '')));
-      const sawResumeSlotEarly = uploadedLabels.length > 0
-        || stepFields.some((f) => f.type === 'file' && (f.required || isResumeFileField(f)));
-      const cvBlocksSubmit = sawResumeSlotEarly && !hasCvAttachedEarly;
+      const hardBlock = run.pending.some((p) => isBlockingApplyPending(p.reason));
+      const sawResumeSlot = run.uploaded.length > 0
+        || after.some((f) => f.type === 'file' && (f.required || isResumeFileField(f)));
+      const cvBlocksSubmit = sawResumeSlot && !run.filled.some((f) => /📎/.test(String(f.value || '')));
+      const requiredEmpty = run.pending.some((p) => isRequiredEmptyReason(p.reason));
 
       let actionLabels = [];
-      try { actionLabels = await this.listVisibleActionLabels(tabId); } catch { /* boutons inconnus */ }
+      try { actionLabels = await this.listVisibleActionLabels(run.tabId); } catch { /* controls unknown */ }
       const controlsKnown = wizardControlsKnown(actionLabels);
-      const progressVisible = progressionButtonVisible(actionLabels);
-      const forwardVisible = forwardProgressVisible(actionLabels);
       const submitPick = submitChoice(actionLabels);
-      const requiredEmpty = allPending.some((p) => isRequiredEmptyReason(p.reason));
-      let blockAccidentalSubmit = false;
-      // High-confidence review blocks Next only when Continue is not also on screen.
-      // A "Review application" button on that screen is not a way forward.
-      const treatAsFinalReview = reviewConfidence === 'high' && (!controlsKnown || !forwardVisible);
-      const previousClickNoEffect = !!noopFingerprint && noopFingerprint === lastFingerprint;
+      // A review screen blocks Next only when Continue is not also on screen:
+      // a "Review application" button there is not a way forward.
+      const treatAsFinalReview = finalReview && (!controlsKnown || !forwardProgressVisible(actionLabels));
+      let nextHadNoEffect = false;
 
-      const canAdvance = page < maxPages - 1 && canAdvanceWizardStep({
+      const canAdvance = page < maxPages - 1 && !(treatAsFinalReview && !hardBlock) && canAdvanceWizardStep({
         hardBlock,
         isReview: treatAsFinalReview,
         requiredEmpty,
-        nextVisible: progressVisible,
+        nextVisible: progressionButtonVisible(actionLabels),
         nextVisibilityKnown: controlsKnown,
-        previousClickNoEffect,
+        previousClickNoEffect: !!noopMark && noopMark === lastMark,
       });
-
-      if (treatAsFinalReview && !hardBlock) {
-        // Fall through to submit path below — do not click "Review" again.
-      } else if (canAdvance) {
-        const next = await this.clickProgression(tabId, PROGRESS_TEXT_RE, [], { scrollFirst: true });
-        const nextClass = classifyActionLabel(next?.text || '');
-        if (next?.clicked && nextClass.kind !== 'submit' && nextClass.kind !== 'ambiguous' && !SUBMIT_TEXT_RE.test(String(next.text || ''))) {
-          await push(`Étape suivante: « ${next.text || 'Next'} »`);
-          if (await adoptIfOpened(next, '(Next)')) {
-            allPending = [];
-            continue;
-          }
-          // Wait until the wizard actually changes (URL, heading, or fields).
-          let changed = false;
-          for (let i = 0; i < 20; i++) {
-            await sleep(400);
-            try {
-              const now = await this.detectFieldsInTab(tabId);
-              const sig = await this._stepMark(tabId, now.fields || []);
-              if (sig && sig !== lastFingerprint) { changed = true; break; }
-            } catch { /* keep polling */ }
-          }
-          if (changed) {
-            allPending = [];
-            lastFingerprint = '';
-            noopFingerprint = '';
-            healUsed = false;
-            continue;
-          }
-          if (!healUsed) {
-            healUsed = true;
-            const healed = await this._refillInvalid(tabId, spec, { push, uploadedLabels });
-            if (healed) {
-              if (healed.uploaded?.length) {
-                uploadedLabels = [...new Set([...uploadedLabels, ...healed.uploaded])];
-              }
-              const next2 = await this.clickProgression(tabId, PROGRESS_TEXT_RE, [], { scrollFirst: true });
-              if (next2?.clicked && !SUBMIT_TEXT_RE.test(String(next2.text || ''))) {
-                await push(`Nouvel essai après correction: « ${next2.text || 'Next'} »`);
-                if (await adoptIfOpened(next2, '(Next)')) {
-                  allPending = [];
-                  healUsed = false;
-                  continue;
-                }
-                let advanced = false;
-                for (let i = 0; i < 20; i++) {
-                  await sleep(400);
-                  try {
-                    const now = await this.detectFieldsInTab(tabId);
-                    const sig = await this._stepMark(tabId, now.fields || []);
-                    if (sig && sig !== lastFingerprint) { advanced = true; break; }
-                  } catch { /* keep polling */ }
-                }
-                if (advanced) {
-                  allPending = [];
-                  lastFingerprint = '';
-                  noopFingerprint = '';
-                  healUsed = false;
-                  continue;
-                }
-              }
-            }
-          }
+      if (canAdvance) {
+        let step = await clickNext('Étape suivante');
+        if (step?.stuck !== undefined && !healUsed) {
+          healUsed = true;
+          if (await this._refillInvalid(run)) step = await clickNext('Nouvel essai après correction');
+        }
+        if (step === 'moved') {
+          newStep();
+          continue;
+        }
+        if (step?.stuck !== undefined) {
           // Next did not change the step. Do not turn that into a send.
-          noopFingerprint = lastFingerprint;
-          blockAccidentalSubmit = true;
+          noopMark = lastMark;
+          nextHadNoEffect = true;
           await push('Next sans effet — envoi automatique évité.');
-          const stuckAi = await this.askNavAi(tabId, {
+          const ai = await this.askNavAi(run, {
             phase: 'stuck',
-            fields: stepFields,
+            fields: after,
             heading: inspected.heading,
             bodySnippet: inspected.bodySnippet,
-            skipTexts: [next.text].filter(Boolean),
+            skipTexts: [step.stuck].filter(Boolean),
           });
-          if (stuckAi?.log && !stuckAi.skipped) await push(stuckAi.log);
-          if (stuckAi?.action === 'click' && stuckAi.text) {
-            const cls = classifyActionLabel(stuckAi.text);
-            if (cls.kind === 'submit' || cls.kind === 'ambiguous') {
-              await push(`« ${stuckAi.text} » non utilisé comme envoi après un Next sans effet.`);
+          if (ai?.log && !ai.skipped) await push(ai.log);
+          if (ai?.action === 'click' && ai.text) {
+            const kind = classifyActionLabel(ai.text).kind;
+            if (kind === 'submit' || kind === 'ambiguous') {
+              await push(`« ${ai.text} » non utilisé comme envoi après un Next sans effet.`);
             } else {
-              const moved = await this.clickExactAndSeeChange(tabId, stuckAi.text, lastFingerprint);
-              if (moved.opened && await adoptIfOpened(moved.opened, '(IA)')) {
-                allPending = [];
-                continue;
-              }
+              const moved = await this.clickExactAndSeeChange(run.tabId, ai.text, lastMark);
+              if (moved.opened && await followOpened(moved.opened, '(IA)')) continue;
               if (moved.changed) {
-                allPending = [];
-                lastFingerprint = '';
-                noopFingerprint = '';
-                blockAccidentalSubmit = false;
+                newStep();
                 continue;
               }
             }
@@ -1449,59 +1351,28 @@ export class ApplyBridge {
         }
       }
 
-      const message = allPending.length
-        ? `Formulaire — ${allFilled.length} rempli(s), ${allPending.length} à compléter.`
-        : treatAsFinalReview
-          ? `Vérification — prêt à envoyer (${allFilled.length} champ(s)).`
-          : ready
-            ? `Formulaire prêt — ${allFilled.length} champ(s). Vérifie puis envoie.`
-            : `Formulaire — ${allFilled.length} champ(s) remplis.`;
-
-      await onState({
-        state: allPending.length ? 'needs_human' : 'ready_to_review',
-        message,
-        filled: allFilled,
-        pending: allPending,
-        steps: [...steps],
-        browserMode: 'extension',
-        tabId,
-        updatedAt: new Date().toISOString(),
-      });
-
-      // Hard-block submit when a resume was detected/attempted but never landed.
-      const resumeStillPending = allPending.some(
-        (p) => isBlockingApplyPending(p.reason)
-          || /resume|\bcv\b|upload|fichier|CV /i.test(String(p.reason || ''))
-          || /resume|\bcv\b/i.test(String(p.label || '')),
-      );
       if (cvBlocksSubmit) {
         await push('CV manquant — envoi bloqué jusqu’à upload réussi.');
-        if (!resumeStillPending) {
-          allPending = mergePending(
-            allPending,
-            [{ label: 'Resume/CV', reason: 'CV manquant — upload non confirmé' }],
-            allFilled,
-          );
+        if (!run.pending.some((p) => /resume|\bcv\b|upload|fichier/i.test(`${p.label} ${p.reason}`))) {
+          run.pending = mergePending(run.pending, [{ label: 'Resume/CV', reason: 'CV manquant — upload non confirmé' }], run.filled);
         }
-        await onState({
-          state: 'needs_human',
-          message: `Formulaire — ${allFilled.length} rempli(s), ${allPending.length} à compléter (CV requis).`,
-          filled: allFilled,
-          pending: allPending,
-          steps: [...steps],
-          browserMode: 'extension',
-          tabId,
-          updatedAt: new Date().toISOString(),
-        });
       }
+      const ready = looksReadyToSubmit({ filled: run.filled, pending: run.pending, applyEntryVisible });
+      const filledCount = run.filled.length;
+      let message;
+      if (run.pending.length) message = `Form — ${filledCount} filled, ${run.pending.length} left${cvBlocksSubmit ? ' (CV required)' : ''}.`;
+      else if (treatAsFinalReview) message = `Review — ready to send (${filledCount} field(s)).`;
+      else if (ready) message = `Form ready — ${filledCount} field(s). Review it, then send.`;
+      else message = `Form — ${filledCount} field(s) filled.`;
+      await run.set({ state: run.pending.length ? 'needs_human' : 'ready_to_review', message });
 
       // Review step OR ready form → auto-submit (identity from earlier steps counts).
       // A failed Next must not become a send, and an ambiguous label never auto-sends.
-      let canSubmit = (ready || (treatAsFinalReview && allFilled.length >= 1))
-        && spec.autoSubmit
-        && !allPending.length
-        && !cvBlocksSubmit;
-      if (blockAccidentalSubmit && !shouldAttemptSubmitAfterNoopNext({
+      let canSubmit = !!spec.autoSubmit
+        && !run.pending.length
+        && !cvBlocksSubmit
+        && (ready || (treatAsFinalReview && filledCount >= 1));
+      if (canSubmit && nextHadNoEffect && !shouldAttemptSubmitAfterNoopNext({
         submitButtonVisible: submitPick.allow && submitPick.confidence === 'high',
         reviewConfidence: treatAsFinalReview ? 'high' : 'none',
         requiredEmpty,
@@ -1510,173 +1381,135 @@ export class ApplyBridge {
       })) {
         canSubmit = false;
       }
-      if (controlsKnown && submitPick.ambiguous) {
-        if (canSubmit) await push(`Libellé ambigu « ${submitPick.ambiguousText} » — pas d’envoi automatique.`);
+      if (canSubmit && controlsKnown && submitPick.ambiguous) {
+        await push(`Libellé ambigu « ${submitPick.ambiguousText} » — pas d’envoi automatique.`);
         canSubmit = false;
       } else if (controlsKnown && !submitPick.allow && !treatAsFinalReview) {
         canSubmit = false;
       }
-      if (canSubmit) {
-        try {
-          const { count, filled: consentFilled } = await this.tickGateConsents(tabId, { push });
-          if (count) allFilled = mergeFilled(allFilled, consentFilled);
-          const pre = await this.detectFieldsInTab(tabId);
-          const stale = (pre.fields || []).flatMap((f) => {
-            const reason = fieldCompletionIssue(f, { uploadedLabels });
-            return reason ? [{ label: (f.label || f.name || f.type).slice(0, 80), reason }] : [];
-          });
-          if (stale.length) {
-            await push(`Avant envoi: ${stale.length} champ(s) invalide(s) — correction…`);
-            const healedPre = await this._refillInvalid(tabId, spec, { push, uploadedLabels });
-            if (healedPre?.uploaded?.length) {
-              uploadedLabels = [...new Set([...uploadedLabels, ...healedPre.uploaded])];
-            }
-            const pre2 = await this.detectFieldsInTab(tabId);
-            const stale2 = (pre2.fields || []).flatMap((f) => {
-              const reason = fieldCompletionIssue(f, { uploadedLabels });
-              return reason ? [{ label: (f.label || f.name || f.type).slice(0, 80), reason }] : [];
-            });
-            if (stale2.length) {
-              allPending = mergePending(allPending, stale2, allFilled);
-              await push(`Avant envoi: ${stale2.length} champ(s) encore invalide(s) — envoi reporté.`);
-              await onState({
-                state: 'needs_human',
-                message: `✋ ${stale2.length} champ(s) à corriger avant envoi.`,
-                filled: allFilled,
-                pending: allPending,
-                steps: [...steps],
-                browserMode: 'extension',
-                tabId,
-                updatedAt: new Date().toISOString(),
-              });
-              return { filled: allFilled, pending: allPending, submitted: false, tabId };
-            }
-          }
-        } catch { /* proceed */ }
-        await push('Envoi automatique (plugin)…', { state: 'submitting', message: 'Envoi de la candidature…' });
-        const clicked = await this.clickSend(tabId, aiSubmitText).catch((err) => {
-          this.onLog(`clickSubmit failed: ${err.message}`);
-          return null;
-        });
-        if (clicked?.clicked && !clicked.rejected) {
-          await onState({
-            state: 'submitted',
-            message: 'Candidature envoyée (plugin). Vérifie la confirmation dans l’onglet.',
-            filled: allFilled,
-            pending: [],
-            steps: [...steps],
-            browserMode: 'extension',
-            tabId,
-            updatedAt: new Date().toISOString(),
-          });
-          return { filled: allFilled, pending: [], submitted: true, tabId };
-        }
-        if (clicked?.rejected) {
-          // One targeted refill of aria-invalid fields, then Privacy, then one resend.
-          let recovered = false;
-          try {
-            await this._refillInvalid(tabId, spec, { push, uploadedLabels });
-            const { count, filled: consentFilled } = await this.tickGateConsents(tabId, { push });
-            if (count) allFilled = mergeFilled(allFilled, consentFilled);
-            await sleep(500);
-            const retry = await this.clickSubmit(tabId).catch(() => null);
-            if (retry?.clicked && !retry.rejected) {
-              recovered = true;
-              await onState({
-                state: 'submitted',
-                message: 'Candidature envoyée (plugin, après correction). Vérifie la confirmation dans l’onglet.',
-                filled: allFilled,
-                pending: [],
-                steps: [...steps],
-                browserMode: 'extension',
-                tabId,
-                updatedAt: new Date().toISOString(),
-              });
-              return { filled: allFilled, pending: [], submitted: true, tabId };
-            }
-          } catch { /* fall through to needs_human */ }
-          if (!recovered) {
-            const reason = `envoi refusé — ${clicked.errorCount} champ(s) invalide(s)${clicked.sample ? ` (« ${clicked.sample} »)` : ''}`;
-            await push(`Envoi refusé par le formulaire: ${reason}`);
-            allPending = mergePending(allPending, [{ label: 'Envoi', reason }], allFilled);
-            await onState({
-              state: 'needs_human',
-              message: `⚠️ Envoi refusé — ${clicked.errorCount} champ(s) invalide(s)${clicked.sample ? ` (« ${clicked.sample} »)` : ''}. Corrige dans Chrome puis « Envoyer » ou « Re-scanner ».`,
-              filled: allFilled,
-              pending: allPending,
-              steps: [...steps],
-              browserMode: 'extension',
-              tabId,
-              updatedAt: new Date().toISOString(),
-            });
-            return { filled: allFilled, pending: allPending, submitted: false, tabId };
-          }
-        }
-        if (!clicked?.clicked) {
-          const sendAi = await this.askNavAi(tabId, {
-            phase: 'stuck',
-            fields: stepFields,
-            heading: inspected.heading,
-            bodySnippet: inspected.bodySnippet,
-            skipTexts: [aiSubmitText].filter(Boolean),
-          });
-          if (sendAi?.log && !sendAi.skipped) await push(sendAi.log);
-          if (sendAi?.action === 'click' && sendAi.text) {
-            const exact = await this.clickExactLabel(tabId, sendAi.text).catch(() => null);
-            if (exact?.clicked && !exact.rejected) {
-              await onState({
-                state: 'submitted',
-                message: 'Candidature envoyée (plugin, bouton choisi par IA). Vérifie la confirmation dans l’onglet.',
-                filled: allFilled,
-                pending: [],
-                steps: [...steps],
-                browserMode: 'extension',
-                tabId,
-                updatedAt: new Date().toISOString(),
-              });
-              return { filled: allFilled, pending: [], submitted: true, tabId };
-            }
-          }
-        }
-        await push('Bouton Submit introuvable — confirme manuellement dans l’onglet.');
-      }
+      if (!canSubmit) return { submitted: false };
 
-      return { filled: allFilled, pending: allPending, submitted: false, tabId };
+      // Last look before sending: fix what the ATS still flags, or hand over.
+      await this._tickConsents(run);
+      let stale = completionIssues(await liveFields(), run.uploaded);
+      if (stale.length) {
+        await push(`Avant envoi: ${stale.length} champ(s) invalide(s) — correction…`);
+        await this._refillInvalid(run);
+        stale = completionIssues(await liveFields(), run.uploaded);
+      }
+      if (stale.length) {
+        noteIssues(stale);
+        await push(`Avant envoi: ${stale.length} champ(s) encore invalide(s) — envoi reporté.`, {
+          state: 'needs_human',
+          message: `✋ ${stale.length} field(s) to fix before sending.`,
+        });
+        return { submitted: false };
+      }
+      return { submitted: await this._sendApplication(run, { exactText: aiSubmitText }) };
     }
 
-    await onState({
-      state: allPending.length ? 'needs_human' : 'ready_to_review',
-      message: `Limite d’étapes — ${allFilled.length} rempli(s).`,
-      filled: allFilled,
-      pending: allPending,
-      steps: [...steps],
-      browserMode: 'extension',
-      tabId,
-      updatedAt: new Date().toISOString(),
+    await run.set({
+      state: run.pending.length ? 'needs_human' : 'ready_to_review',
+      message: `Step limit reached — ${run.filled.length} field(s) filled.`,
     });
-    return { filled: allFilled, pending: allPending, submitted: false, tabId };
+    return { submitted: false };
   }
 
+  /**
+   * Click Send. A form that rejects it gets one refill of the invalid fields
+   * and one resend; a send button the regex cannot find gets one AI pick,
+   * clicked only if it reads as a send label. Shared by auto-submit and the
+   * dashboard's "Confirm send". Returns true once a send went through.
+   */
+  async _sendApplication(run, { exactText = '' } = {}) {
+    const { push } = run;
+    await push('Envoi de la candidature…', { state: 'submitting', message: 'Sending the application…' });
+    await this._tickConsents(run);
+    let clicked = await this.clickSend(run.tabId, exactText).catch((err) => {
+      this.onLog(`clickSubmit failed: ${err.message}`);
+      return null;
+    });
+    if (clicked?.rejected) {
+      await this._refillInvalid(run).catch((err) => {
+        if (isTabGone(err)) throw err;
+        return false;
+      });
+      await sleep(500);
+      const retry = await this.clickSubmit(run.tabId).catch(() => null);
+      if (retry?.clicked) clicked = retry;
+    }
+    if (!clicked?.clicked) {
+      const fields = (await this.detectFieldsInTab(run.tabId).catch(() => null))?.fields || [];
+      const inspected = await this.inspectStep(run.tabId, fields);
+      const ai = await this.askNavAi(run, {
+        phase: 'stuck',
+        fields,
+        heading: inspected.heading,
+        bodySnippet: inspected.bodySnippet,
+        skipTexts: [exactText].filter(Boolean),
+      });
+      if (ai?.log && !ai.skipped) await push(ai.log);
+      if (ai?.action === 'click' && ai.text) {
+        if (classifyActionLabel(ai.text).kind === 'submit') {
+          const exact = await this.clickExactLabel(run.tabId, ai.text).catch(() => null);
+          if (exact?.clicked) clicked = exact;
+        } else {
+          await push(`« ${ai.text} » n’est pas un bouton d’envoi — non cliqué.`);
+        }
+      }
+    }
+
+    if (clicked?.clicked && !clicked.rejected) {
+      await push(`Envoyé: « ${clicked.text || 'Submit'} »`, {
+        state: 'submitted',
+        message: 'Application sent. Check the confirmation in the tab.',
+        pending: [],
+      });
+      return true;
+    }
+    if (clicked?.rejected) {
+      const reason = `send refused — ${clicked.errorCount} invalid field(s)${clicked.sample ? ` (“${clicked.sample}”)` : ''}`;
+      await push(`Form refused the send: ${reason}`, {
+        state: 'needs_human',
+        message: `⚠️ The form refused the send — ${clicked.errorCount} invalid field(s)${clicked.sample ? ` (“${clicked.sample}”)` : ''}. Fix them in Chrome, then ${SEND_BTN} or ${RESCAN_BTN}.`,
+        pending: mergePending(run.pending, [{ label: 'Send', reason }], run.filled),
+      });
+      return false;
+    }
+    await push('Bouton Submit introuvable — confirme manuellement dans l’onglet.', {
+      state: 'needs_human',
+      message: `Click Submit or Send in the Chrome tab, then ${UI_BUTTONS.sent}.`,
+    });
+    return false;
+  }
+
+  /**
+   * One fill of `fields`: A) CV uploads, B) deterministic answers from the
+   * spec, C) the model for required fields B could not answer, then a
+   * reconcile of profile fields the ATS autofill got wrong.
+   * Returns this pass's { filled, pending, uploaded }.
+   */
   async _fillOnce(tabId, spec, fields, { push, uploadedLabels = [] }) {
     const usedAnswers = new Set();
     const filled = [];
     const pending = [];
     const unresolved = [];
     const uploaded = [];
-    let resumeAlreadyUploaded = uploadedLabels.some((l) =>
-      /resume|\bcv\b|curriculum|autofill|_systemfield_resume|choose a file|drop (it|file) here|attach/i.test(String(l))
-    );
+    let resumeAlreadyUploaded = resumeUploaded(uploadedLabels);
+    const reCollect = async (fallback) => {
+      try {
+        return (await this.detectFieldsInTab(tabId)).fields || fallback;
+      } catch (err) {
+        if (isTabGone(err)) throw err;
+        return fallback;
+      }
+    };
 
     // Phase A — file uploads first (Ashby autofill from resume). Re-collect
     // after each upload: ATS re-render invalidates data-co-i markers.
     const doneFiles = new Set();
     for (let pass = 0; pass < 4; pass++) {
-      let fileFields;
-      try {
-        fileFields = ((await this.detectFieldsInTab(tabId)).fields || []).filter((x) => x.type === 'file');
-      } catch {
-        fileFields = fields.filter((x) => x.type === 'file');
-      }
+      let fileFields = (await reCollect(fields)).filter((x) => x.type === 'file');
       // Ashby sometimes hides the resume input so hard that collect misses it.
       // Probe raw file inputs and synthesize a resume field when needed.
       if (!fileFields.length && pass === 0 && spec.cvPath && !resumeAlreadyUploaded) {
@@ -1692,16 +1525,10 @@ export class ApplyBridge {
         await push('Aucun champ fichier détecté — CV non tenté sur cette page.');
       }
       const knownUploaded = [...uploadedLabels, ...uploaded];
-      const todo = fileFields.find((f) => {
-        const key = (f.label || f.name || 'file').slice(0, 80);
-        if (doneFiles.has(key)) return false;
-        return shouldUploadFileField(f, {
-          uploadedLabels: knownUploaded,
-          resumeAlreadyUploaded,
-        });
-      });
+      const todo = fileFields.find((f) => !doneFiles.has(fieldLabel(f))
+        && shouldUploadFileField(f, { uploadedLabels: knownUploaded, resumeAlreadyUploaded }));
       if (!todo) break;
-      const labelShort = (todo.label || todo.name || 'file').slice(0, 80);
+      const labelShort = fieldLabel(todo);
       doneFiles.add(labelShort);
       const plan = classifyField(todo, spec, usedAnswers);
       // Dropzones ("Choose a file…") count as resume slots even without HTML required.
@@ -1732,17 +1559,8 @@ export class ApplyBridge {
           if (isResumeFileField(todo) || plan.upload === spec.cvPath) resumeAlreadyUploaded = true;
           await push(`CV attaché: ${basename(plan.upload)}`);
           await sleep(900);
-          const auto = await this.waitResumeAutofill(tabId, spec?.identity || {});
-          if (auto.status === 'matched') {
-            await push('Autofill ATS: nom ou email recopié.');
-          } else if (auto.status === 'mismatch') {
-            const detail = (auto.mismatches || []).map((m) => m.kind).join(', ') || 'identité';
-            await push(`Autofill ATS incorrect (${detail}) — correction avec le profil.`);
-          } else if (auto.status === 'partial') {
-            await push('Autofill ATS partiel — les champs vides seront remplis.');
-          } else if (auto.manualFill) {
-            await push('Autofill ATS absent après le délai — remplissage manuel des champs identité.');
-          }
+          const autofillLine = autofillLogLine(await this.waitResumeAutofill(tabId, spec?.identity || {}));
+          if (autofillLine) await push(autofillLine);
         } else {
           const reason = `upload échoué: ${result?.error || 'unknown'}`;
           await push(`CV non attaché — ${reason}`);
@@ -1756,30 +1574,21 @@ export class ApplyBridge {
     }
 
     // Re-collect after uploads (form may have re-rendered)
-    let live = fields;
-    if (uploaded.length) {
-      try {
-        live = (await this.detectFieldsInTab(tabId)).fields || fields;
-      } catch { /* keep */ }
-    }
+    const live = uploaded.length ? await reCollect(fields) : fields;
 
     // Phase B — deterministic classify
     const updates = [];
     for (const f of live) {
       if (f.type === 'file') continue;
-      if (!shouldFillField(f) && !(f.type === 'checkbox' && f.required)) {
-        // Still fill core identity even when shouldFill is false? shouldFill already covers identity.
-        continue;
-      }
+      if (!shouldFillField(f) && !(f.type === 'checkbox' && f.required)) continue;
       const alreadyFilled = f.value && f.type !== 'radio' && f.type !== 'checkbox';
-      const invalid = !!(f.ariaInvalid || f.invalid);
-      if (alreadyFilled && f.type !== 'checkbox' && !invalid) continue;
+      if (alreadyFilled && !(f.ariaInvalid || f.invalid)) continue;
       if (f.type === 'checkbox' && f.checked) continue;
       if (f.type === 'radio' && f.groupChecked) continue;
 
       const plan = classifyField(f, spec, usedAnswers);
       if (plan?.fromQuestion) usedAnswers.add(plan.fromQuestion);
-      const labelShort = (f.label || f.name || f.type).slice(0, 80);
+      const labelShort = fieldLabel(f);
 
       if (!plan) {
         if (f.required && !f.value) unresolved.push(f);
@@ -1839,23 +1648,19 @@ export class ApplyBridge {
 
     if (updates.length) {
       await push(`Fill: envoi de ${updates.length} valeur(s)…`);
-      const result = await this.fillFields(tabId, updates.filter((u) => !u.upload));
-      const labelByKey = new Map(updates.map((u) => [`${u.frameId ?? 0}:${u.i}`, u.label]));
-      const fieldByKey = new Map(live.map((f) => [`${f.frameId ?? 0}:${f.i}`, f]));
+      const result = await this.fillFields(tabId, updates);
+      const labelBySlot = new Map(updates.map((u) => [slotKey(u), u.label]));
+      const fieldBySlot = new Map(live.map((f) => [slotKey(f), f]));
       for (const o of result.outcomes || []) {
-        const key = `${o.frameId ?? 0}:${o.i}`;
-        const lab = labelByKey.get(key) || `field#${o.i}`;
-        const field = fieldByKey.get(key);
-        const update = updates.find((u) => `${u.frameId ?? 0}:${u.i}` === key);
+        const lab = labelBySlot.get(slotKey(o)) || `field#${o.i}`;
+        const field = fieldBySlot.get(slotKey(o));
+        // Text reads back as typed, a choice as its option's label, a
+        // checkbox as "checked": an empty or "unchecked" read-back did not land.
         const landed = String(o.actualValue ?? '').trim();
-        const choiceLanded = field?.type === 'radio' || update?.choice
-          ? /^(yes|no|oui|non)\b/i.test(landed) || !!landed
-          : false;
-        const choiceOk = update?.check || (field?.type === 'checkbox' && /checked/i.test(landed)) || choiceLanded;
         if (!o.ok && Array.isArray(o.options) && o.options.length && field) {
           seenOptions.set(fieldKey(field), o.options);
         }
-        if (o.ok && (landed || choiceOk) && !(field?.type === 'radio' && /^(unchecked)?$/i.test(landed))) {
+        if (o.ok && landed && !/^unchecked$/i.test(landed)) {
           filled.push({ label: lab, value: o.actualValue || '' });
         } else if (fieldLooksRequired(field) || field?.required) {
           unresolved.push(field || { label: lab, required: true, i: o.i, frameId: o.frameId ?? 0, type: 'text' });
@@ -1870,146 +1675,145 @@ export class ApplyBridge {
     if (unresolved.length) {
       // Re-collect so data-co-i / data-co-opt markers (and option lists) are fresh
       // after Phase B fills — Ashby remounts wipe stamps and broke radio clicks.
-      let freshFields = live;
-      try {
-        freshFields = (await this.detectFieldsInTab(tabId)).fields || live;
-      } catch { /* keep */ }
-      const byLabel = new Map();
-      for (const f of freshFields) {
-        const k = String(f.label || f.name || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 80);
-        if (k) byLabel.set(k, f);
-      }
-      const rematch = (f) => {
-        const k = String(f.label || f.name || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 80);
-        return (k && byLabel.get(k)) || f;
-      };
-
-      const uniq = [];
+      const freshFields = await reCollect(live);
+      const byKey = new Map(freshFields.map((f) => [fieldKey(f), f]));
+      const targets = [];
       const seen = new Set();
       for (const f of unresolved) {
-        const liveF = rematch(f);
-        const key = `${liveF.i}|${liveF.label}|${liveF.type}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        uniq.push(liveF);
+        const liveF = byKey.get(fieldKey(f)) || f;
+        if (seen.has(slotKey(liveF))) continue;
+        seen.add(slotKey(liveF));
+        targets.push(liveF);
       }
-      await push(`Résolution intelligente de ${uniq.length} champ(s)…`);
-      const declineTargets = [];
+      await push(`Résolution intelligente de ${targets.length} champ(s)…`);
+
+      // Lists collected without options: read them first (or reuse what a
+      // failed Phase B pick saw), so the model picks a real entry.
+      const blind = targets.filter((f) => !(f.options || []).length && (isComboboxField(f) || f.tag === 'select'));
+      const toRead = blind.filter((f) => !seenOptions.get(fieldKey(f))?.length);
+      const read = toRead.length ? await this.readListOptions(tabId, toRead) : new Map();
+      for (const f of blind) {
+        const texts = seenOptions.get(fieldKey(f)) || read.get(slotKey(f));
+        if (texts?.length) f.options = texts.map((t, k) => ({ value: t, text: t, key: `${f.i}:${k}` }));
+      }
+
+      // A "prefer not to say" option answers sensitive questions without the model.
+      const declineUpdates = [];
       const llmTargets = [];
-      for (const f of uniq) {
+      for (const f of targets) {
         const opt = pickDeclineOption(f.options || []);
-        if (opt) declineTargets.push({ f, opt });
-        else llmTargets.push(f);
-      }
-      // Scrape combobox options before LLM (window parity) so the model picks
-      // a real list entry instead of paraphrasing into a miss.
-      for (const f of llmTargets) {
-        if ((!f.options || !f.options.length) && (isComboboxField(f) || f.tag === 'select')) {
-          const seenTexts = seenOptions.get(fieldKey(f));
-          const scraped = seenTexts?.length
-            ? seenTexts.map((t, k) => ({ value: t, text: t, key: `${f.i}:${k}` }))
-            : await this.scrapeComboboxOptions(tabId, f);
-          if (scraped.length) f.options = scraped;
+        if (!opt) {
+          llmTargets.push(f);
+          continue;
         }
-      }
-      // Re-route newly-scraped decline options away from the LLM.
-      for (let i = llmTargets.length - 1; i >= 0; i--) {
-        const f = llmTargets[i];
-        const opt = pickDeclineOption(f.options || []);
-        if (opt) {
-          declineTargets.push({ f, opt });
-          llmTargets.splice(i, 1);
-        }
-      }
-      const llmUpdates = [];
-      for (const { f, opt } of declineTargets) {
-        llmUpdates.push({
+        declineUpdates.push({
           i: f.i,
           frameId: f.frameId ?? 0,
           value: opt.text,
           selectText: opt.text,
-          label: (f.label || f.name || f.type).slice(0, 80),
+          label: fieldLabel(f),
           declined: true,
           options: f.options,
           choice: f.type === 'radio',
           ...listPayload(f, { optionText: opt.text }),
         });
       }
-      let answers = {};
-      try {
-        answers = await resolveUnknownFields({
-          fields: llmTargets.map((f) => ({
-            i: f.i,
-            label: f.label,
-            kind: llmKind(f),
-            required: f.required,
-            multiple: fieldIsMulti(f),
-            options: f.options,
-          })),
-          spec,
-          cvSummary: cvSummaryText(),
-          styleGuide: profileVoice(),
-        });
-      } catch (err) {
-        await push(`LLM indisponible (${String(err.message || err).slice(0, 70)})`);
-      }
-      for (const f of llmTargets) {
-        const ans = answers[String(f.i)];
-        const labelShort = (f.label || f.name || f.type).slice(0, 80);
-        if (!ans) {
-          if (f.required) pending.push({ label: labelShort, reason: 'sans réponse — à remplir manuellement' });
-          continue;
+
+      const updateFor = (f, ans) => {
+        const label = fieldLabel(f);
+        const text = Array.isArray(ans) ? ans[0] : ans;
+        if (!text) {
+          if (f.required) pending.push({ label, reason: 'sans réponse — à remplir manuellement' });
+          return null;
         }
-        const text = Array.isArray(ans) ? ans[0] : String(ans);
-        if (hasUnresolvedPlaceholder(text)) {
-          if (f.required) pending.push({ label: labelShort, reason: 'réponse LLM avec placeholder' });
-          continue;
+        if (hasUnresolvedPlaceholder(String(text))) {
+          if (f.required) pending.push({ label, reason: 'réponse LLM avec placeholder' });
+          return null;
         }
         // Prefer a listed option text when the LLM paraphrases Yes/No.
-        let selectText = polishApplicationAnswer(text);
+        let selectText = polishApplicationAnswer(String(text));
         let optionText = '';
-        if (Array.isArray(f.options) && f.options.length) {
-          const picked = pickSelectOption(f.options, { yesNo: /^(yes|oui)\b/i.test(selectText) ? 'yes' : /^(no|non)\b/i.test(selectText) ? 'no' : null, selectText, value: selectText }, f.label);
+        if (f.options?.length) {
+          const yesNo = /^(yes|oui)\b/i.test(selectText) ? 'yes' : /^(no|non)\b/i.test(selectText) ? 'no' : null;
+          const picked = pickSelectOption(f.options, { yesNo, selectText, value: selectText }, f.label);
           if (picked?.text) selectText = optionText = picked.text;
         }
-        // A multi-select answer is several option texts: tick them all, not
-        // only the first one.
+        // A multi-select answer is several option texts: tick them all.
         const many = Array.isArray(ans) && fieldIsMulti(f)
           ? [...new Set(ans.map((a) => String(a || '').trim()).filter(Boolean))]
           : [];
-        llmUpdates.push({
+        return {
           i: f.i,
           frameId: f.frameId ?? 0,
           value: selectText,
           selectText,
           selectMany: many.length > 1 ? many : undefined,
-          label: labelShort,
+          label,
           llm: true,
           options: f.options,
           choice: f.type === 'radio',
           // No real option: the model's words are only matched. A search list
           // (city, country…) still gets its profile query, never the answer.
           ...listPayload(f, { optionText, identity: spec.identity || {} }),
-        });
-      }
-      if (llmUpdates.length) {
+        };
+      };
+      const answer = async (fieldsToAnswer) => {
+        if (!fieldsToAnswer.length) return [];
+        let answers = {};
+        try {
+          answers = await resolveUnknownFields({
+            fields: fieldsToAnswer.map((f) => ({
+              i: f.i,
+              label: f.label,
+              kind: llmKind(f),
+              required: f.required,
+              multiple: fieldIsMulti(f),
+              options: f.options,
+            })),
+            spec,
+            cvSummary: loadCvSummary(ROOT),
+            styleGuide: loadApplicationVoice(ROOT),
+          });
+        } catch (err) {
+          await push(`LLM indisponible (${String(err.message || err).slice(0, 70)})`);
+        }
+        return fieldsToAnswer.map((f) => updateFor(f, answers[String(f.i)])).filter(Boolean);
+      };
+      // Fill; return the blind lists whose real options the widget showed.
+      const fillAnswers = async (llmUpdates, blindBySlot) => {
+        if (!llmUpdates.length) return [];
         const result = await this.fillFields(tabId, llmUpdates);
-        const labelByI = new Map(llmUpdates.map((u) => [u.i, u.label]));
+        const bySlot = new Map(llmUpdates.map((u) => [slotKey(u), u]));
+        const again = [];
         for (const o of result.outcomes || []) {
-          if (o.ok) filled.push({ label: labelByI.get(o.i) || `field#${o.i}`, value: o.actualValue || '', llm: true });
-          else if (llmUpdates.find((u) => u.i === o.i)) {
-            pending.push({
-              label: labelByI.get(o.i),
-              reason: `réponse suggérée — ${o.reason || 'option introuvable'}`,
-            });
+          const u = bySlot.get(slotKey(o));
+          if (!u) continue;
+          if (o.ok) {
+            filled.push({ label: u.label, value: o.actualValue || '', llm: true });
+            continue;
+          }
+          const f = blindBySlot.get(slotKey(o));
+          if (f && Array.isArray(o.options) && o.options.length) {
+            again.push({ ...f, options: o.options.map((t, k) => ({ value: t, text: t, key: `${f.i}:${k}` })) });
+          } else {
+            pending.push({ label: u.label, reason: `réponse suggérée — ${o.reason || 'option introuvable'}` });
           }
         }
+        return again;
+      };
+
+      const stillBlind = new Map(llmTargets.filter((f) => !(f.options || []).length).map((f) => [slotKey(f), f]));
+      const again = await fillAnswers([...declineUpdates, ...(await answer(llmTargets))], stillBlind);
+      if (again.length) {
+        // The list opened during the fill: answer once more, among its real options.
+        await push(`${again.length} liste(s) lue(s) pendant le remplissage — nouvelle réponse avec leurs options…`);
+        await fillAnswers(await answer(again), new Map());
       }
     }
 
     // Reconcile profile fields that ATS autofill may have wrong
     try {
-      const fresh = (await this.detectFieldsInTab(tabId)).fields || [];
+      const fresh = await reCollect([]);
       const recon = [];
       for (const f of fresh) {
         if (f.type === 'file' || f.type === 'checkbox' || f.type === 'radio') continue;
@@ -2020,30 +1824,30 @@ export class ApplyBridge {
         if (isList && !String(f.value || '').trim()) continue;
         const plan = classifyField(f, spec);
         if (!plan || plan.skip || plan.check || plan.resume) continue;
-        const want = polishApplicationAnswer(plan.value || plan.selectText || (plan.yesNo === 'yes' ? 'Yes' : plan.yesNo === 'no' ? 'No' : ''));
+        const want = polishApplicationAnswer(plan.value || plan.selectText || yesNoText(plan));
         if (!want || !shouldReplaceFilledValue(f, f.value, want)) continue;
         recon.push({
           i: f.i,
           frameId: f.frameId ?? 0,
           value: want,
           selectText: want,
-          label: (f.label || f.name || f.type).slice(0, 80),
+          label: fieldLabel(f),
           ...(isCustomList(f) ? { list: true, typeQuery: '' } : {}),
         });
       }
-      if (recon.length) {
-        const result = await this.fillFields(tabId, recon);
-        for (const o of result.outcomes || []) {
-          if (!o.ok) continue;
-          const lab = recon.find((u) => u.i === o.i)?.label;
-          if (!lab) continue;
-          const rec = { label: lab, value: o.actualValue || '', reconciled: true };
-          const idx = filled.findIndex((x) => x.label === lab);
-          if (idx >= 0) filled[idx] = rec;
-          else filled.push(rec);
-        }
+      const labelBySlot = new Map(recon.map((u) => [slotKey(u), u.label]));
+      const result = await this.fillFields(tabId, recon);
+      for (const o of result.outcomes || []) {
+        const lab = o.ok && labelBySlot.get(slotKey(o));
+        if (!lab) continue;
+        const rec = { label: lab, value: o.actualValue || '', reconciled: true };
+        const idx = filled.findIndex((x) => x.label === lab);
+        if (idx >= 0) filled[idx] = rec;
+        else filled.push(rec);
       }
-    } catch { /* best-effort */ }
+    } catch (err) {
+      if (isTabGone(err)) throw err; // otherwise best-effort
+    }
 
     const filledLabels = new Set(filled.map((f) => f.label));
     return {
@@ -2078,87 +1882,64 @@ export class ApplyBridge {
     };
   }
 
-  async _commandLoop(tabId, spec, { onState, pollCommand, steps, push }) {
-    // Keep updatedAt fresh so the UI stale-watchdog doesn't disable buttons,
-    // and honour rescan / abort / submit / manual_sent (submit = click Send).
+  /**
+   * Wait for the dashboard's next command. Returns the phase a rescan
+   * resumes ('fill' or 'navigate'), or the run's final result. Heartbeats
+   * keep the modal's stale watchdog quiet; a run left without any command
+   * for COMMAND_IDLE_MS stops instead of polling forever.
+   */
+  async _commandLoop(run) {
+    const { push } = run;
+    let idleSince = Date.now();
     for (;;) {
       await sleep(1500);
-      const action = await pollCommand();
-      const now = new Date().toISOString();
-
-      if (action === 'abort') {
-        await push('Annulé.', { state: 'aborted', message: 'Candidature annulée.', updatedAt: now });
-        return { ok: false, aborted: true };
-      }
-      if (action === 'rescan') {
-        await push('Re-scan demandé…', { state: 'finding_form', message: 'Re-scan du formulaire…', updatedAt: now });
-        // Try fill on current page first; if no form, resume nav hops.
-        let probe;
-        try { probe = (await this.probeForm(tabId)).probe; } catch { probe = { verdict: 'none' }; }
-        if (probe?.verdict === 'application_form') {
-          const fillResult = await this._fillPass(tabId, spec, { push, onState, steps });
-          if (fillResult?.tabId) tabId = fillResult.tabId;
-        } else {
-          return this.runApplyInTab(tabId, spec, { onState, pollCommand });
+      const action = await run.nextCommand();
+      if (!action) {
+        if (Date.now() - idleSince > COMMAND_IDLE_MS) {
+          await push('Aucune action depuis 6 h — suivi arrêté.', {
+            state: 'aborted',
+            message: 'Stopped after 6 hours with no action. The Chrome tab stays open.',
+          });
+          return { ok: false, expired: true };
         }
+        await run.heartbeat();
         continue;
       }
+      idleSince = Date.now();
+
+      if (action === 'abort') return this._abort(run);
       if (action === 'manual_sent') {
         await push('Envoi confirmé manuellement.', {
           state: 'submitted',
-          message: '📨 Envoi confirmé manuellement.',
-          updatedAt: now,
+          message: '📨 Send confirmed manually.',
         });
         return { ok: true, submitted: true };
       }
       if (action === 'submit') {
-        await push('Envoi demandé…', { state: 'submitting', message: 'Envoi de la candidature…', updatedAt: now });
-        try {
-          await this.tickGateConsents(tabId, { push });
-        } catch { /* proceed */ }
-        const clicked = await this.clickSubmit(tabId).catch(() => null);
-        if (clicked?.clicked && !clicked.rejected) {
-          await push(`Submit cliqué: « ${clicked.text || 'Submit'} »`, {
-            state: 'submitted',
-            message: 'Candidature envoyée (plugin). Vérifie la confirmation dans l’onglet.',
-            updatedAt: new Date().toISOString(),
-          });
-          return { ok: true, submitted: true };
-        }
-        if (clicked?.rejected) {
-          try {
-            await this._refillInvalid(tabId, spec, { push, uploadedLabels: [] });
-            await this.tickGateConsents(tabId, { push });
-            await sleep(500);
-            const retry = await this.clickSubmit(tabId).catch(() => null);
-            if (retry?.clicked && !retry.rejected) {
-              await push(`Submit cliqué après correction: « ${retry.text || 'Submit'} »`, {
-                state: 'submitted',
-                message: 'Candidature envoyée (plugin, après correction). Vérifie la confirmation dans l’onglet.',
-                updatedAt: new Date().toISOString(),
-              });
-              return { ok: true, submitted: true };
-            }
-          } catch { /* fall through */ }
-          await push(`Envoi refusé par le formulaire (${clicked.errorCount} champ(s) invalide(s))`, {
-            state: 'needs_human',
-            message: `⚠️ Envoi refusé — ${clicked.errorCount} champ(s) invalide(s)${clicked.sample ? ` (« ${clicked.sample} »)` : ''}. Corrige dans Chrome puis « Envoyer » ou « Re-scanner ».`,
-            updatedAt: new Date().toISOString(),
-          });
-          continue;
-        }
-        await push('Bouton Submit introuvable — confirme manuellement dans l’onglet.', {
-          state: 'needs_human',
-          message: 'Clique Submit / Send dans l’onglet Chrome.',
-          updatedAt: now,
-        });
+        if (await this._sendApplication(run)) return { ok: true, submitted: true };
         continue;
       }
-
-      // Heartbeat
-      await onState({ updatedAt: now, browserMode: 'extension', tabId });
+      if (action === 'rescan') {
+        await push('Re-scan demandé…', { state: 'finding_form', message: 'Rescanning the form…' });
+        run.navAi = { nav: 0, review: 0 };
+        let probe = { verdict: 'none' };
+        try {
+          probe = (await this.probeForm(run.tabId)).probe || probe;
+        } catch (err) {
+          if (isTabGone(err) && !(await this._recoverRunTab(run))) {
+            await push('Onglet introuvable — ouvre le formulaire de l’offre dans Chrome.', {
+              state: 'needs_human',
+              message: `Tab closed. Open this offer’s form, then ${RESCAN_BTN}.`,
+            });
+            continue;
+          }
+        }
+        // No form on screen: navigation starts over (it fills as soon as one shows).
+        return probe.verdict === 'application_form' ? 'fill' : 'navigate';
+      }
     }
   }
+
 }
 
 export function attachApplyBridge(httpServer, bridge, { path = '/apply-bridge', log = () => {} } = {}) {

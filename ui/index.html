@@ -377,7 +377,7 @@
     height: 34px;
     padding: 0 14px;
     border: 1px solid transparent;
-    border-radius: var(--radius-sm);
+    border-radius: 999px;
     font-family: inherit;
     font-size: 13px;
     font-weight: 500;
@@ -385,9 +385,12 @@
     white-space: nowrap;
     text-decoration: none;
     cursor: pointer;
-    transition: background 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out), transform 140ms var(--ease-out);
+    transition: background 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out), transform 160ms var(--ease-out);
   }
-  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn svg { transition: transform 160ms var(--ease-out); }
+  .btn:hover:not(:disabled) svg { transform: translateX(2px); }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn:active:not(:disabled) { transform: translateY(0); }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .btn-primary,
   .btn-accent {
@@ -410,13 +413,13 @@
     border-color: rgba(239,107,107,0.34);
   }
   .btn-danger:hover:not(:disabled) { background: rgba(239,107,107,0.22); color: #fff; }
-  .btn-sm { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 7px; gap: 6px; }
-  .btn-xs { height: 24px; padding: 0 8px; font-size: 11.5px; border-radius: 6px; gap: 5px; }
+  .btn-sm { height: 28px; padding: 0 12px; font-size: 12.5px; gap: 6px; }
+  .btn-xs { height: 24px; padding: 0 10px; font-size: 11.5px; gap: 5px; }
   .btn-icon {
     width: 28px; height: 28px;
     padding: 0;
     border: 1px solid var(--border-s);
-    border-radius: 7px;
+    border-radius: 50%;
     background: rgba(255,255,255,0.03);
     color: var(--text-3);
     display: inline-flex; align-items: center; justify-content: center;
@@ -433,7 +436,7 @@
     height: 32px;
     padding: 0 12px;
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: 999px;
     background: rgba(255,255,255,0.03);
     color: var(--text-2);
     font-family: inherit;
@@ -441,11 +444,12 @@
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
-    transition: background 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+    transition: background 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out), transform 160ms var(--ease-out);
   }
-  .btn-action:hover { background: rgba(255,255,255,0.065); color: var(--text-1); border-color: var(--border-strong); }
-  .btn-action svg { color: var(--text-3); transition: color 140ms var(--ease-out); }
-  .btn-action:hover svg { color: var(--accent); }
+  .btn-action:hover { background: rgba(255,255,255,0.065); color: var(--text-1); border-color: var(--border-strong); transform: translateY(-1px); }
+  .btn-action:active { transform: translateY(0); }
+  .btn-action svg { color: var(--text-3); transition: color 160ms var(--ease-out), transform 160ms var(--ease-out); }
+  .btn-action:hover svg { color: var(--accent); transform: translateX(2px); }
   .btn-action.claude svg { color: var(--accent); }
   .btn-action.success { border-color: var(--accent-line); color: var(--accent-h); background: var(--accent-soft); }
   .btn-action.is-primary {
@@ -753,8 +757,7 @@
     font-weight: 600;
     text-transform: uppercase;
   }
-  .eyebrow,
-  .dashboard-eyebrow {
+  .eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -764,18 +767,6 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--accent);
-  }
-  .dashboard-eyebrow::before {
-    content: '';
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 0 3px rgba(45,212,160,0.16), 0 0 14px rgba(45,212,160,0.55);
-    animation: pulse-dot 2.4s ease-in-out infinite;
-  }
-  @keyframes pulse-dot {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(45,212,160,0.16), 0 0 14px rgba(45,212,160,0.55); }
-    50%      { box-shadow: 0 0 0 5px rgba(45,212,160,0.06), 0 0 18px rgba(45,212,160,0.35); }
   }
   .dot {
     display: inline-block;
@@ -1348,6 +1339,32 @@
   .add-form-label { font-size: 12px; font-weight: 500; color: var(--text-3); }
   .add-form .btn { height: 36px; }
 
+  /* ─── Application email modal ──────────────────────────────────── */
+  .email-form { display: flex; flex-direction: column; gap: 14px; }
+  .email-hint { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-3); }
+  .email-row { display: flex; gap: 12px; }
+  .email-textarea { width: 100%; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.55; box-sizing: border-box; }
+  .email-more {
+    border: 1px solid var(--border-s);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.02);
+  }
+  .email-more summary { cursor: pointer; font-size: 12.5px; color: var(--text-3); }
+  .email-more[open] summary { color: var(--text-1); margin-bottom: 2px; }
+  .email-more summary:hover { color: var(--text-1); }
+  .email-more-body { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+  .email-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .email-actions a.btn { text-decoration: none; }
+  .email-result { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; border-top: 1px solid var(--border-s); }
+  .email-result[hidden] { display: none; }
+  .email-warnings:empty { display: none; }
+  .email-warnings { font-size: 12px; line-height: 1.5; color: var(--warn-ink); }
+  .email-warnings p { margin: 0 0 4px; }
+  .email-sources { font-size: 12px; color: var(--text-4); overflow-wrap: anywhere; }
+  .email-sources:empty { display: none; }
+  @media (max-width: 640px) { .email-row { flex-direction: column; } }
+
   /* ─── Action bar ───────────────────────────────────────────────── */
   .action-bar {
     display: flex;
@@ -1454,6 +1471,8 @@
   }
   .portals-tab:hover { color: var(--text-1); }
   .portals-tab.active { color: var(--text-1); border-bottom-color: var(--accent); }
+  .portals-tab svg { flex-shrink: 0; color: var(--text-4); transition: color 140ms var(--ease-out); }
+  .portals-tab:hover svg, .portals-tab.active svg { color: var(--accent); }
   .portals-tab .tab-count {
     font-family: var(--font-mono);
     font-size: 11px;
@@ -1468,39 +1487,6 @@
     margin-bottom: 12px;
   }
   .portals-toolbar .filter-bar { flex: 1; width: auto; }
-  .td-portal-url {
-    max-width: 280px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-  }
-  .td-portal-url a { color: var(--text-3) !important; text-decoration: none; transition: color 120ms; }
-  .td-portal-url a:hover { color: var(--accent-h) !important; text-decoration: underline; text-underline-offset: 3px; }
-  .td-portal-method {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-3);
-    white-space: nowrap;
-  }
-  .td-portal-method span {
-    display: inline-flex;
-    height: 20px;
-    align-items: center;
-    padding: 0 7px;
-    border-radius: 5px;
-    background: rgba(255,255,255,0.04);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
-  }
-  .td-portal-notes {
-    font-size: 12px;
-    color: var(--text-4);
-    max-width: 240px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   .row-actions { display: inline-flex; gap: 4px; }
   .row-actions .btn-icon.is-danger:hover { color: var(--bad); border-color: rgba(239,107,107,0.3); background: rgba(239,107,107,0.08); }
   .scan-state {
@@ -1585,50 +1571,478 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
-    background: rgba(3,5,6,0.72);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    padding: 28px 20px;
+    background:
+      radial-gradient(ellipse 70% 46% at 50% 0%, rgba(45,212,160,0.10), transparent 58%),
+      rgba(3,5,6,0.78);
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     transition: opacity 180ms var(--ease-out), visibility 0s linear 180ms;
   }
   .modal-backdrop.open { opacity: 1; visibility: visible; pointer-events: all; transition: opacity 180ms var(--ease-out); }
+  #auto-apply-overlay { z-index: 160; }
   .modal {
+    position: relative;
     width: 100%;
     max-width: 760px;
-    max-height: 84vh;
+    max-height: min(860px, calc(100dvh - 48px));
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent 120px), var(--panel);
-    box-shadow: var(--shadow-pop);
-    transform: translateY(10px) scale(0.985);
-    transition: transform 220ms var(--ease-out);
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    border-radius: 22px;
+    background:
+      linear-gradient(180deg, rgba(45,212,160,0.07), transparent 120px),
+      linear-gradient(180deg, rgba(255,255,255,0.035), transparent 80px),
+      var(--panel);
+    box-shadow: var(--shadow-pop), 0 0 0 1px rgba(45,212,160,0.06);
+    transform: translateY(14px) scale(0.985);
+    transition: transform 240ms var(--ease-out);
   }
+  .modal.is-sm { max-width: 460px; }
+  .modal.is-md { max-width: 560px; }
+  .modal.is-lg { max-width: 680px; }
+  .modal.is-xl { max-width: 920px; }
+  .modal.is-scan { max-width: 680px; }
   .modal-backdrop.open .modal { transform: none; }
+  .modal::before,
+  .confirm-card::before,
+  .cmd-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 22px; right: 22px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(94,239,192,0.85), transparent);
+    pointer-events: none;
+    z-index: 2;
+  }
   .modal-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
-    padding: 14px 16px 14px 20px;
+    gap: 16px;
+    padding: 18px 18px 16px 22px;
     border-bottom: 1px solid var(--border-s);
     flex-shrink: 0;
   }
+  .modal-heading { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .modal-kicker {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-h);
+  }
   .modal-title {
     min-width: 0;
-    font-size: 14.5px;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
     color: var(--text-1);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+  }
+  .modal-sub {
+    margin: 2px 0 0;
+    max-width: 52ch;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-3);
+  }
+  .modal-close {
+    width: 32px; height: 32px;
+    margin-top: 1px;
+    padding: 0;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    color: var(--text-3);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.07); color: var(--text-1); border-color: var(--border-strong); }
+  .modal-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 22px;
+    border-bottom: 1px solid var(--border-s);
+    background: rgba(0,0,0,0.16);
+    flex-shrink: 0;
+  }
+  .modal-toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .modal-body {
+    padding: 18px 22px 22px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+  .modal-body::-webkit-scrollbar { width: 10px; }
+  .modal-body::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.12);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 99px;
+  }
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 22px;
+    border-top: 1px solid var(--border-s);
+    background: rgba(0,0,0,0.22);
+    flex-shrink: 0;
+  }
+  .modal-footer.is-split { justify-content: space-between; }
+  .modal-stack { display: flex; flex-direction: column; gap: 14px; }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal .modal-stack > .add-form-field,
+  .modal .modal-grid .add-form-field,
+  .modal .email-more .add-form-field,
+  .modal .email-result .add-form-field { flex: 0 0 auto; width: 100%; min-width: 0; }
+  .modal .email-row > .add-form-field { flex: 1 1 0; width: auto; min-width: 0; }
+  .modal .add-form-label { letter-spacing: 0.01em; }
+  .field-optional { font-weight: 400; color: var(--text-5); }
+  .modal-hint { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-3); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .modal-empty { color: var(--text-4); font-size: 13px; padding: 8px 0; }
+  .modal-pre {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-2);
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--border-s);
+    border-radius: 12px;
+    padding: 14px 14px 14px 16px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .modal-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 12px;
+    border: 1px solid var(--border-s);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.025);
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-2);
+  }
+  .modal-check:hover { border-color: var(--border); background: rgba(255,255,255,0.04); }
+  .modal-check input { margin-top: 2px; width: 15px; height: 15px; flex-shrink: 0; }
+  .modal-check.is-compact {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    align-items: center;
+  }
+  .modal-check.is-compact:hover { background: transparent; }
+  .modal-check.is-compact input { margin-top: 0; }
+  .modal-check small { display: block; margin-top: 2px; color: var(--text-4); font-size: 12px; }
+  .modal-check[hidden] { display: none; }
+
+  /* Scan source picker */
+  #scan-sel-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--text-3);
+    flex: 1;
+    min-width: 120px;
+  }
+  .scan-group { display: flex; flex-direction: column; gap: 6px; }
+  .scan-group + .scan-group { margin-top: 10px; }
+  .scan-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-s);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+  }
+  .scan-group-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+  .scan-group-toggle svg { flex-shrink: 0; color: var(--text-4); transition: transform 160ms var(--ease-out); }
+  .scan-group.is-open .scan-group-toggle svg { transform: rotate(90deg); }
+  .scan-group-title {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .scan-group-count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-4);
+    font-variant-numeric: tabular-nums;
+  }
+  .scan-group-all-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .scan-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 2px 0 6px 18px;
+  }
+  .scan-group-list[hidden] { display: none; }
+  .portal-groups { display: flex; flex-direction: column; gap: 8px; }
+  .portal-fold-list { display: flex; flex-direction: column; gap: 4px; padding: 8px 0 4px 12px; }
+  .portal-fold-list[hidden] { display: none; }
+  .portal-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .portal-row:hover { background: rgba(255,255,255,0.03); border-color: var(--border-s); }
+  .portal-row-id {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 240px;
+    flex: 0 0 240px;
+    min-width: 0;
+  }
+  .portal-row-name { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; font-weight: 500; color: var(--text-1); }
+  .portal-row-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .portal-row-link {
+    margin-left: 24px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-3);
+    text-decoration: none;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+  .portal-row-link:hover { color: var(--accent); }
+  .portal-row-notes {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-3);
+    font-size: 12.5px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .portal-row.is-off .portal-row-id,
+  .portal-row.is-off .portal-row-notes { opacity: 0.45; }
+  .site-favicon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+  .td-company .site-name { display: inline-flex; align-items: center; gap: 8px; }
+  tr.fold-item[hidden] { display: none !important; }
+  #queries-tbody tr.fold-item { cursor: pointer; }
+  .fold-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-s);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    color: var(--text-2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-align: left;
+  }
+  .fold-toggle:hover { background: rgba(255,255,255,0.06); color: var(--text-1); }
+  .fold-toggle svg { flex-shrink: 0; color: var(--text-4); transition: transform 160ms var(--ease-out); }
+  .fold-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+  .fold-meta {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text-4);
+    font-variant-numeric: tabular-nums;
+  }
+  .scan-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 7px 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 140ms var(--ease-out), border-color 140ms var(--ease-out);
+  }
+  .scan-row:hover { background: rgba(255,255,255,0.035); border-color: var(--border-s); }
+  .scan-row:has(input:checked) {
+    background: rgba(45,212,160,0.06);
+    border-color: rgba(45,212,160,0.18);
+  }
+  .scan-row input { width: 15px; height: 15px; flex-shrink: 0; }
+  .scan-row-name {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 13.5px;
+    color: var(--text-1);
+  }
+  .scan-when {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-4);
+  }
+  .scan-when.is-fresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent-h);
+  }
+  .scan-when.is-fresh i {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(45,212,160,0.16);
+  }
+
+  /* Auto-apply */
+  .aa-setup, .aa-run { display: flex; flex-direction: column; gap: 12px; }
+  .aa-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .aa-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: -0.01em;
+  }
+  .aa-chip[data-tone="info"] { color: var(--st-applied); background: rgba(125,182,236,0.12); border-color: rgba(125,182,236,0.22); }
+  .aa-chip[data-tone="warn"] { color: var(--warn-ink); background: rgba(232,184,109,0.12); border-color: rgba(232,184,109,0.28); }
+  .aa-chip[data-tone="good"] { color: var(--accent-h); background: var(--accent-soft); border-color: var(--accent-line); }
+  .aa-chip[data-tone="bad"] { color: #ffc9c9; background: rgba(239,107,107,0.12); border-color: rgba(239,107,107,0.28); }
+  .aa-chip[data-tone="muted"] { color: var(--text-3); background: rgba(255,255,255,0.04); border-color: var(--border); }
+  .aa-chip[data-tone="violet"] { color: var(--st-responded); background: rgba(182,162,245,0.12); border-color: rgba(182,162,245,0.28); }
+  .aa-spin {
+    width: 10px; height: 10px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .aa-meta { color: var(--text-4); font-size: 12px; font-family: var(--font-mono); }
+  .aa-message {
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-s);
+    border-radius: 12px;
+    line-height: 1.5;
+    color: var(--text-2);
+  }
+  .aa-message:empty { display: none; }
+  .aa-alert {
+    padding: 12px 14px;
+    background: rgba(239,107,107,0.1);
+    border: 1px solid rgba(239,107,107,0.32);
+    border-radius: 12px;
+    line-height: 1.5;
+    color: #ffc9c9;
+    font-size: 13px;
+  }
+  .aa-pending-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--warn-ink);
+    margin-bottom: 6px;
+  }
+  .aa-list { margin: 0; padding-left: 18px; color: var(--text-2); line-height: 1.6; }
+  .aa-list.is-muted { font-size: 12px; }
+  .aa-details { border-top: 1px solid var(--border-s); padding-top: 8px; }
+  .aa-details summary { cursor: pointer; color: var(--text-3); font-size: 12.5px; }
+  .aa-details summary:hover { color: var(--text-1); }
+  .aa-log {
+    margin: 8px 0 0;
+    max-height: 180px;
+    overflow: auto;
+    background: rgba(0,0,0,0.32);
+    border: 1px solid var(--border-s);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--text-3);
+    white-space: pre-wrap;
+  }
+  .aa-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+
+  @media (max-width: 640px) {
+    .modal-backdrop { padding: 10px; align-items: flex-end; }
+    .modal { max-height: calc(100dvh - 20px); border-radius: 18px; }
+    .modal-header, .modal-body, .modal-footer, .modal-toolbar { padding-left: 16px; padding-right: 16px; }
+    .modal-title { font-size: 18px; }
+    .modal-grid, .email-row { grid-template-columns: 1fr; }
+    .modal-footer.is-split { flex-wrap: wrap; }
+  }
 
   /* ─── Native confirmation ──────────────────────────────────────── */
   .confirm-backdrop {
@@ -1639,14 +2053,25 @@
     z-index: 230;
   }
   .confirm-card {
+    position: relative;
     width: min(420px, calc(100vw - 40px));
-    padding: 18px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 80px), var(--surface-2);
+    padding: 20px;
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    border-radius: 20px;
+    background:
+      linear-gradient(180deg, rgba(239,107,107,0.08), transparent 90px),
+      linear-gradient(180deg, rgba(255,255,255,0.035), transparent 80px),
+      var(--surface-2);
     box-shadow: var(--shadow-pop);
-    transform: translateY(10px) scale(0.98);
-    transition: transform 180ms var(--ease-out), opacity 180ms;
+    transform: translateY(12px) scale(0.98);
+    transition: transform 200ms var(--ease-out), opacity 180ms;
+  }
+  .confirm-backdrop.is-neutral .confirm-card {
+    background:
+      linear-gradient(180deg, rgba(45,212,160,0.08), transparent 90px),
+      linear-gradient(180deg, rgba(255,255,255,0.035), transparent 80px),
+      var(--surface-2);
   }
   .confirm-backdrop.open .confirm-card { transform: none; }
   .confirm-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
@@ -1670,8 +2095,11 @@
     background: var(--accent-soft);
     box-shadow: inset 0 0 0 1px var(--accent-line);
   }
+  .confirm-backdrop:not(.is-neutral) .confirm-card::before {
+    background: linear-gradient(90deg, transparent, rgba(244,138,138,0.9), transparent);
+  }
   .confirm-copy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-  .confirm-title { font-size: 15px; font-weight: 600; color: var(--text-1); letter-spacing: -0.012em; }
+  .confirm-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text-1); letter-spacing: -0.03em; line-height: 1.2; }
   .confirm-message { margin: 0; color: var(--text-3); font-size: 13px; line-height: 1.5; }
   .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
 
@@ -1696,6 +2124,7 @@
     transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
   }
   .cmd-panel {
+    position: relative;
     width: 100%;
     max-height: inherit;
     display: grid;
@@ -1703,8 +2132,11 @@
     overflow: hidden;
     pointer-events: none;
     border: 1px solid var(--border-strong);
-    border-radius: var(--radius-lg);
-    background: linear-gradient(180deg, rgba(45,212,160,0.05), transparent 90px), var(--panel);
+    border-radius: 20px;
+    background:
+      linear-gradient(180deg, rgba(45,212,160,0.08), transparent 110px),
+      linear-gradient(180deg, rgba(255,255,255,0.03), transparent 80px),
+      var(--panel);
     box-shadow: var(--shadow-pop);
   }
   .cmd-dock.open .cmd-panel { pointer-events: auto; }
@@ -1722,10 +2154,11 @@
   .cmd-dock.collapsed .cmd-head { border-bottom: none; }
   .cmd-title-wrap { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .cmd-title {
-    font-size: 13.5px;
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
     color: var(--text-1);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.03em;
     line-height: 1.25;
     white-space: nowrap;
     overflow: hidden;
@@ -1889,6 +2322,10 @@
     text-decoration: none;
   }
   #view-only-banner a:hover { background: rgba(45,212,160,0.18); }
+  body:has(.modal-backdrop.open) #view-only-banner {
+    opacity: 0;
+    pointer-events: none;
+  }
 
   /* ─── Views ────────────────────────────────────────────────────── */
   .view { display: none; }
@@ -1911,67 +2348,30 @@
      Dashboard
      ═══════════════════════════════════════════════════════════════════ */
   .dashboard-shell { display: flex; flex-direction: column; gap: 16px; }
-  .dashboard-shell > * { animation: dash-in 560ms var(--ease-out) both; }
-  .dashboard-shell > :nth-child(2) { animation-delay: 40ms; }
-  .dashboard-shell > :nth-child(3) { animation-delay: 90ms; }
-  .dashboard-shell > :nth-child(4) { animation-delay: 140ms; }
-  .dashboard-shell > :nth-child(5) { animation-delay: 190ms; }
-  @keyframes dash-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: none; }
-  }
 
   .dashboard-onboarding {
     display: none;
     padding: 16px 18px;
     border: 1px solid var(--accent-line);
     border-radius: var(--radius-lg);
-    background: linear-gradient(90deg, rgba(45,212,160,0.10), rgba(45,212,160,0.02) 60%), var(--surface);
+    background: var(--surface);
   }
 
   /* Hero */
   .dashboard-hero {
-    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.95fr);
-    gap: 28px;
-    padding: 26px 26px 26px 30px;
+    gap: 24px;
+    padding: 20px;
     border: 1px solid var(--border-s);
-    border-radius: var(--radius-xl);
-    background:
-      radial-gradient(ellipse 55% 90% at 0% 0%, rgba(45,212,160,0.10), transparent 65%),
-      linear-gradient(180deg, rgba(255,255,255,0.018), transparent 60%),
-      var(--surface);
-    overflow: hidden;
-    isolation: isolate;
-  }
-  .dashboard-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 28px 28px;
-    mask-image: radial-gradient(ellipse 60% 80% at 0% 0%, #000, transparent 70%);
-    -webkit-mask-image: radial-gradient(ellipse 60% 80% at 0% 0%, #000, transparent 70%);
-  }
-  .dashboard-hero::after {
-    content: '';
-    position: absolute;
-    left: 30px; right: 30px; top: 0;
-    height: 1px;
-    background: linear-gradient(90deg, rgba(45,212,160,0.55), rgba(45,212,160,0) 55%);
-    pointer-events: none;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
   }
   .dashboard-hero-main {
-    position: relative;
-    z-index: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 16px;
   }
   .dashboard-eyebrow-row {
     display: flex;
@@ -2000,17 +2400,23 @@
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--warn);
   }
-  .dashboard-hero-heading { max-width: 760px; min-width: 0; }
+  .dashboard-hero-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    max-width: none;
+    min-width: 0;
+  }
+  .dashboard-hero-lead { min-width: 0; flex: 1; max-width: 640px; }
   .dashboard-hero-title {
-    margin-bottom: 12px;
-    font-family: var(--font-display);
-    font-size: clamp(28px, 3.1vw, 40px);
+    margin: 0 0 6px;
+    font-size: 22px;
     font-weight: 600;
-    line-height: 1.08;
-    letter-spacing: -0.028em;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
     color: var(--text-1);
     text-wrap: balance;
-    overflow: hidden;
   }
   .dashboard-hero-copy {
     max-width: 600px;
@@ -2057,40 +2463,116 @@
     gap: 8px;
     margin-top: auto;
   }
-  .dashboard-command-row .btn-action { height: 38px; padding: 0 15px; border-radius: 10px; font-size: 13.5px; }
-  .dashboard-command-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    height: 38px;
-    margin-left: 6px;
-    padding-left: 14px;
-    border-left: 1px solid var(--border);
-    color: var(--text-3);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    user-select: none;
-  }
-  .dashboard-command-toggle:hover { color: var(--text-1); }
-  .cmd-beam-host { display: inline-flex; border-radius: 10px; }
+  .dashboard-command-row .btn-action { height: 38px; padding: 0 16px; font-size: 13.5px; }
+  .cmd-beam-host { display: inline-flex; border-radius: 999px; }
   .cmd-beam-host > div { border-radius: inherit; }
 
+  /* CSS 3D illustration — same face system as the portfolio objects */
+  .dash-illu {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    flex: none;
+    perspective: 720px;
+  }
+  .dash-illu-aura {
+    position: absolute;
+    inset: 12%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(45,212,160,0.55), transparent 68%);
+    filter: blur(14px);
+    animation: dash-aura 5s ease-in-out infinite alternate;
+  }
+  @keyframes dash-aura {
+    from { opacity: 0.65; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1.06); }
+  }
+  .dash-illu-stage { position: absolute; inset: 0; }
+  .dash-illu-shadow {
+    position: absolute;
+    left: 50%; bottom: 16px;
+    width: 72px; height: 14px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse, rgba(0,0,0,0.45), transparent 70%);
+    filter: blur(2px);
+  }
+  .dash-illu-scene {
+    position: absolute;
+    inset: 16px;
+    transform-style: preserve-3d;
+    animation: dash-spin 7.6s ease-in-out infinite;
+  }
+  .dash-illu:hover .dash-illu-scene { animation-play-state: paused; }
+  @keyframes dash-spin {
+    0%, 100% { transform: rotateX(-22deg) rotateY(-38deg) translateY(0); }
+    50%      { transform: rotateX(-14deg) rotateY(20deg) translateY(-8px); }
+  }
+  .dbox {
+    --w: 40px; --h: 40px; --d: 40px;
+    --cf: #f4efe4; --ct: #fffaf2; --cs: #c9c0b0;
+    position: absolute;
+    left: 50%; top: 54%;
+    width: 0; height: 0;
+    transform-style: preserve-3d;
+  }
+  .dbox.paper {
+    --w: 52px; --h: 66px; --d: 6px;
+    transform: translate3d(-22px, 6px, -10px) rotateZ(-8deg);
+  }
+  .dbox.mint {
+    --w: 34px; --h: 34px; --d: 34px;
+    --cf: #3ee6b0; --ct: #d6fff1; --cs: #0f8a68;
+    transform: translate3d(18px, -14px, 28px);
+  }
+  .dbox.chip {
+    --w: 28px; --h: 8px; --d: 28px;
+    --cf: #ffe08a; --ct: #fff6d0; --cs: #c9a227;
+    transform: translate3d(-6px, 22px, 18px) rotateZ(12deg);
+  }
+  .df {
+    position: absolute;
+    left: 50%; top: 50%;
+    backface-visibility: hidden;
+    box-shadow: inset 0 0 0 1px rgba(12,11,9,0.12);
+  }
+  .df-front, .df-back {
+    width: var(--w); height: var(--h);
+    margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
+  }
+  .df-front { background: var(--cf); transform: translateZ(calc(var(--d) / 2)); }
+  .df-back { background: var(--cs); transform: rotateY(180deg) translateZ(calc(var(--d) / 2)); }
+  .df-left, .df-right {
+    width: var(--d); height: var(--h);
+    margin: calc(var(--h) / -2) 0 0 calc(var(--d) / -2);
+    background: var(--cs);
+  }
+  .df-right { transform: rotateY(90deg) translateZ(calc(var(--w) / 2)); }
+  .df-left { transform: rotateY(-90deg) translateZ(calc(var(--w) / 2)); }
+  .df-top, .df-bot {
+    width: var(--w); height: var(--d);
+    margin: calc(var(--d) / -2) 0 0 calc(var(--w) / -2);
+  }
+  .df-top { background: var(--ct); transform: rotateX(90deg) translateZ(calc(var(--h) / 2)); }
+  .df-bot { background: var(--cs); transform: rotateX(-90deg) translateZ(calc(var(--h) / 2)); }
+  .dbox.paper .df-front {
+    background:
+      linear-gradient(#d6d0c4, #d6d0c4) 8px 16px / 30px 3px no-repeat,
+      linear-gradient(#d6d0c4, #d6d0c4) 8px 24px / 22px 3px no-repeat,
+      linear-gradient(#2dd4a0, #2dd4a0) 8px 36px / 16px 3px no-repeat,
+      linear-gradient(#d6d0c4, #d6d0c4) 8px 44px / 26px 3px no-repeat,
+      var(--cf);
+    border-radius: 3px;
+  }
   /* Next best move */
   .dashboard-focus-card {
-    position: relative;
-    z-index: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
     padding: 16px 18px;
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), rgba(7,9,10,0.55);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    border-radius: var(--radius);
+    background: var(--bg);
   }
   .focus-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .dashboard-focus-label {
@@ -2190,16 +2672,29 @@
     text-align: left;
     font: inherit;
     cursor: pointer;
-    transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out);
+    transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out), transform 160ms var(--ease-out);
   }
-  .stat-card:hover { border-color: var(--border); background: var(--surface-2); }
+  .stat-card:hover { border-color: var(--border); background: var(--surface-2); transform: translateY(-2px); }
   .stat-card:hover .stat-go { opacity: 1; transform: translate(0, 0); }
   .stat-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .stat-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-size: 12.5px;
     font-weight: 500;
     color: var(--text-3);
     letter-spacing: -0.004em;
+  }
+  .stat-ico {
+    width: 22px;
+    height: 22px;
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    border-radius: 7px;
+    background: var(--accent-soft);
+    color: var(--accent-h);
   }
   .stat-go {
     color: var(--text-4);
@@ -3029,8 +3524,8 @@
   }
   @media (max-width: 960px) {
     .criteria-grid { grid-template-columns: 1fr; }
-    .dashboard-command-toggle { margin-left: 0; padding-left: 0; border-left: none; }
     .dashboard-hero { padding: 20px; border-radius: var(--radius-lg); gap: 20px; }
+    .dash-illu { display: none; }
   }
   @media (max-width: 860px) {
     .menu-toggle { display: inline-flex; }
@@ -3200,6 +3695,10 @@
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Add URL
       </button>
+      <button class="nav-item" id="open-email-btn">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 4l5.5 4L13 4M2 4v7a1 1 0 001 1h9a1 1 0 001-1V4M2 4a1 1 0 011-1h9a1 1 0 011 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Application email
+      </button>
     </div>
 
     <!-- User pill -->
@@ -3258,36 +3757,46 @@
         <section class="dashboard-hero" aria-labelledby="dashboard-hero-title">
           <div class="dashboard-hero-main">
             <div class="dashboard-eyebrow-row">
-              <span class="dashboard-eyebrow">Command center</span>
               <span class="dashboard-date" id="dashboard-date"></span>
               <span class="dashboard-hero-meta" id="dashboard-hero-meta"></span>
             </div>
             <div class="dashboard-hero-heading">
-              <h1 class="dashboard-hero-title" id="dashboard-hero-title" data-metal-host="true">Keep the funnel moving.</h1>
-              <p class="dashboard-hero-copy" id="dashboard-hero-copy">Scan portals, score fit, and push strong matches into real applications.</p>
+              <div class="dashboard-hero-lead">
+                <h1 class="dashboard-hero-title" id="dashboard-hero-title">Keep the funnel moving.</h1>
+                <p class="dashboard-hero-copy" id="dashboard-hero-copy">Scan portals, score fit, and push strong matches into real applications.</p>
+              </div>
+              <div class="dash-illu" aria-hidden="true">
+                <div class="dash-illu-aura"></div>
+                <div class="dash-illu-stage">
+                  <span class="dash-illu-shadow"></span>
+                  <div class="dash-illu-scene">
+                    <div class="dbox paper">
+                      <i class="df df-front"></i><i class="df df-back"></i>
+                      <i class="df df-left"></i><i class="df df-right"></i>
+                      <i class="df df-top"></i><i class="df df-bot"></i>
+                    </div>
+                    <div class="dbox mint">
+                      <i class="df df-front"></i><i class="df df-back"></i>
+                      <i class="df df-left"></i><i class="df df-right"></i>
+                      <i class="df df-top"></i><i class="df df-bot"></i>
+                    </div>
+                    <div class="dbox chip">
+                      <i class="df df-front"></i><i class="df df-back"></i>
+                      <i class="df df-left"></i><i class="df df-right"></i>
+                      <i class="df df-top"></i><i class="df df-bot"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="dashboard-hero-sources" id="dashboard-hero-sources"></div>
             <div class="dashboard-command-row" id="dashboard-command-row">
-              <span class="cmd-beam-host" data-cmd-beam="pipeline">
-                <button class="btn-action claude" data-cmd="pipeline" data-desc="Evaluates all pending URLs in the pipeline.">
-                  <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M2 7.5h11M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  Process pipeline
-                </button>
-              </span>
               <span class="cmd-beam-host" data-cmd-beam="scan">
-                <button class="btn-action claude" data-cmd="scan" data-desc="Scans all configured portals (WTTJ, JobsDB, Lever, Ashby…) and adds new offers into the pipeline.">
+                <button class="btn-action claude is-primary" data-cmd="scan" data-desc="Scans all configured portals (WTTJ, JobsDB, Lever, Ashby…) and adds new offers into the pipeline.">
                   <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.25" stroke="currentColor" stroke-width="1.4"/><path d="M9.75 9.75l3.25 3.25" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
                   Run scan
                 </button>
               </span>
-              <label class="dashboard-command-toggle" title="Chain pipeline runs automatically, one offer after another">
-                <span class="toggle">
-                  <input type="checkbox" id="auto-next-toggle">
-                  <span class="toggle-track"></span>
-                  <span class="toggle-thumb"></span>
-                </span>
-                <span>Auto-next</span>
-              </label>
             </div>
           </div>
           <aside class="dashboard-focus-card" id="dashboard-focus-card" aria-label="Next best move"></aside>
@@ -3355,9 +3864,9 @@
     <div class="content view" id="view-pipeline">
       <div class="action-bar">
         <span class="action-bar-label">Actions</span>
-        <button class="btn-action claude" data-cmd="pipeline" data-desc="Evaluates all pending URLs in the pipeline.">
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M2 7.5h11M8.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Process full pipeline
+        <button class="btn-action claude is-primary" data-cmd="pipeline" data-desc="Evaluates the selected offers one after another, or the next pending offer when none is selected: loads the job description, scores fit, and writes the report.">
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 1.5L9.18 5.91l4.82.42-3.64 3.16 1.09 4.71L7.5 11.77l-3.95 2.43 1.09-4.71L1 6.33l4.82-.42z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+          Process offers
         </button>
         <button class="btn-action claude" data-cmd="scan" data-desc="Scans every configured portal (WTTJ, JobsDB, Lever, Ashby, Indeed Asia…) and adds new offers to the pipeline.">
           <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.5v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -3390,9 +3899,11 @@
       <!-- Tab switcher -->
       <div class="portals-tabs" role="tablist">
         <button class="portals-tab active" data-tab="companies" role="tab">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M2.5 13V3.2h5.2V13M7.7 6.2H12.5V13M2.5 13h10M4.2 5.2h1.4M4.2 7.6h1.4M4.2 10h1.4M9.2 8.4h1.4M9.2 10.6h1.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Companies <span class="tab-count" id="tab-badge-companies"></span>
         </button>
         <button class="portals-tab" data-tab="queries" role="tab">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5.4" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 2.1c-1.7 1.7-2.6 3.4-2.6 5.4s.9 3.7 2.6 5.4m0-10.8c1.7 1.7 2.6 3.4 2.6 5.4s-.9 3.7-2.6 5.4M2.1 7.5h10.8" stroke="currentColor" stroke-width="1.2"/></svg>
           Job boards <span class="tab-count" id="tab-badge-queries"></span>
         </button>
       </div>
@@ -3407,20 +3918,7 @@
           </button>
         </div>
         <div class="list-bar" id="portals-list-bar"></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr>
-              <th style="width:36px">On</th>
-              <th>Company</th>
-              <th>Careers URL</th>
-              <th>Method</th>
-              <th>Notes</th>
-              <th style="width:110px">Last Scan</th>
-              <th style="width:80px"></th>
-            </tr></thead>
-            <tbody id="portals-tbody"></tbody>
-          </table>
-        </div>
+        <div class="portal-groups" id="portals-groups"></div>
       </div>
 
       <!-- Job Boards tab -->
@@ -3778,10 +4276,13 @@
 
 <!-- ─── Report Modal ──────────────────────────────────────────── -->
 <div class="modal-backdrop" id="modal">
-  <div class="modal">
+  <div class="modal is-xl" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-header">
-      <span class="modal-title" id="modal-title">Report</span>
-      <button class="btn-icon" id="modal-close">
+      <div class="modal-heading">
+        <span class="modal-kicker">Offer</span>
+        <span class="modal-title" id="modal-title">Report</span>
+      </div>
+      <button class="modal-close" id="modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
@@ -3794,48 +4295,58 @@
 
 <!-- ─── Quick Add Modal ───────────────────────────────────────── -->
 <div class="modal-backdrop" id="quick-modal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal is-sm" role="dialog" aria-modal="true" aria-labelledby="quick-modal-title">
     <div class="modal-header">
-      <span class="modal-title">Add to Pipeline</span>
-      <button class="btn-icon" id="quick-modal-close">
+      <div class="modal-heading">
+        <span class="modal-kicker">Pipeline</span>
+        <span class="modal-title" id="quick-modal-title">Add to pipeline</span>
+        <p class="modal-sub">Drop a job URL into the inbox. Evaluation stays a separate step.</p>
+      </div>
+      <button class="modal-close" id="quick-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="padding:20px">
-      <div style="display:flex;flex-direction:column;gap:14px">
+    <div class="modal-body">
+      <div class="modal-stack">
         <div class="add-form-field">
-          <label class="add-form-label">Job URL</label>
+          <label class="add-form-label" for="quick-url">Job URL</label>
           <input type="url" id="quick-url" placeholder="https://...">
         </div>
         <div class="add-form-field">
-          <label class="add-form-label">Note (optional)</label>
+          <label class="add-form-label" for="quick-note">Note <span class="field-optional">optional</span></label>
           <input type="text" id="quick-note" placeholder="e.g. Berlin, Senior PM">
         </div>
-        <button class="btn btn-primary" id="quick-add-btn" style="align-self:flex-end">Add to Pipeline</button>
       </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="quick-add-btn">Add to pipeline</button>
     </div>
   </div>
 </div>
 
 <!-- ─── Portal Form Modal ─────────────────────────────────────── -->
 <div class="modal-backdrop" id="portal-modal">
-  <div class="modal" style="max-width:560px">
+  <div class="modal is-md" role="dialog" aria-modal="true" aria-labelledby="portal-modal-title">
     <div class="modal-header">
-      <span class="modal-title" id="portal-modal-title">Add company</span>
-      <button class="btn-icon" id="portal-modal-close">
+      <div class="modal-heading">
+        <span class="modal-kicker">Sources</span>
+        <span class="modal-title" id="portal-modal-title">Add company</span>
+        <p class="modal-sub">A company board that the scanner can open on the next run.</p>
+      </div>
+      <button class="modal-close" id="portal-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="padding:20px">
-      <div style="display:flex;flex-direction:column;gap:14px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="modal-body">
+      <div class="modal-stack">
+        <div class="modal-grid">
           <div class="add-form-field">
-            <label class="add-form-label">Company name *</label>
+            <label class="add-form-label" for="pf-name">Company name</label>
             <input type="text" id="pf-name" placeholder="e.g. Mistral AI">
           </div>
           <div class="add-form-field">
-            <label class="add-form-label">Scan method</label>
-            <select id="pf-scan-method" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text-1);font-family:inherit;font-size:14px;padding:8px 12px;border-radius:6px;outline:none;width:100%">
+            <label class="add-form-label" for="pf-scan-method">Scan method</label>
+            <select id="pf-scan-method">
               <option value="">playwright (default)</option>
               <option value="websearch">websearch</option>
               <option value="greenhouse_api">greenhouse_api</option>
@@ -3843,84 +4354,90 @@
           </div>
         </div>
         <div class="add-form-field">
-          <label class="add-form-label">Careers URL *</label>
+          <label class="add-form-label" for="pf-careers-url">Careers URL</label>
           <input type="url" id="pf-careers-url" placeholder="https://jobs.lever.co/company">
         </div>
         <div class="add-form-field">
-          <label class="add-form-label">Greenhouse API URL (optional)</label>
+          <label class="add-form-label" for="pf-api">Greenhouse API URL <span class="field-optional">optional</span></label>
           <input type="url" id="pf-api" placeholder="https://boards-api.greenhouse.io/v1/boards/slug/jobs">
         </div>
         <div class="add-form-field">
-          <label class="add-form-label">Search query (optional)</label>
+          <label class="add-form-label" for="pf-scan-query">Search query <span class="field-optional">optional</span></label>
           <input type="text" id="pf-scan-query" placeholder='site:jobs.ashbyhq.com/company "AI" OR "Solutions"'>
         </div>
         <div class="add-form-field">
-          <label class="add-form-label">Notes (optional)</label>
+          <label class="add-form-label" for="pf-notes">Notes <span class="field-optional">optional</span></label>
           <input type="text" id="pf-notes" placeholder="e.g. Paris FR. European AI lab.">
         </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2)">
-            <input type="checkbox" id="pf-enabled" checked style="accent-color:var(--brand);width:15px;height:15px">
-            Enabled (included in scans)
-          </label>
-          <button class="btn btn-primary" id="portal-save-btn" style="margin-left:auto">Save</button>
-        </div>
       </div>
+    </div>
+    <div class="modal-footer is-split">
+      <label class="modal-check is-compact">
+        <input type="checkbox" id="pf-enabled" checked>
+        <span>Included in scans</span>
+      </label>
+      <button class="btn btn-primary" id="portal-save-btn">Save</button>
     </div>
   </div>
 </div>
 
 <!-- ─── Query Form Modal ──────────────────────────────────────── -->
 <div class="modal-backdrop" id="query-modal">
-  <div class="modal" style="max-width:580px">
+  <div class="modal is-md" role="dialog" aria-modal="true" aria-labelledby="query-modal-title">
     <div class="modal-header">
-      <span class="modal-title" id="query-modal-title">Add job board query</span>
-      <button class="btn-icon" id="query-modal-close">
+      <div class="modal-heading">
+        <span class="modal-kicker">Sources</span>
+        <span class="modal-title" id="query-modal-title">Add job board query</span>
+        <p class="modal-sub">A search the scanner runs across a board, not a single company.</p>
+      </div>
+      <button class="modal-close" id="query-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="padding:20px">
-      <div style="display:flex;flex-direction:column;gap:14px">
+    <div class="modal-body">
+      <div class="modal-stack">
         <div class="add-form-field">
-          <label class="add-form-label">Name *</label>
+          <label class="add-form-label" for="qf-name">Name</label>
           <input type="text" id="qf-name" placeholder="e.g. JobsDB — AI Product (TH/SG)">
         </div>
         <div class="add-form-field">
-          <label class="add-form-label">Search query *</label>
+          <label class="add-form-label" for="qf-query">Search query</label>
           <textarea id="qf-query" rows="3" placeholder='site:th.jobsdb.com OR site:sg.jobsdb.com "AI Product" OR "Head of AI"' style="resize:vertical"></textarea>
         </div>
-        <div style="display:flex;gap:12px">
-          <div class="add-form-field" style="flex:1">
-            <label class="add-form-label">Section</label>
-            <select id="qf-section" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--text-1);font-family:inherit;font-size:14px;padding:8px 12px;border-radius:6px;outline:none;width:100%">
-              <option value="search_queries">General (search_queries)</option>
-              <option value="eu_job_boards">EU / Asia (eu_job_boards)</option>
-            </select>
-          </div>
-          <div style="display:flex;align-items:flex-end;padding-bottom:2px">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);white-space:nowrap">
-              <input type="checkbox" id="qf-enabled" checked style="accent-color:var(--brand);width:15px;height:15px">
-              Enabled
-            </label>
-          </div>
+        <div class="add-form-field">
+          <label class="add-form-label" for="qf-section">Section</label>
+          <select id="qf-section">
+            <option value="search_queries">General (search_queries)</option>
+            <option value="eu_job_boards">EU / Asia (eu_job_boards)</option>
+          </select>
         </div>
-        <button class="btn btn-primary" id="query-save-btn" style="align-self:flex-end">Save</button>
       </div>
+    </div>
+    <div class="modal-footer is-split">
+      <label class="modal-check is-compact">
+        <input type="checkbox" id="qf-enabled" checked>
+        <span>Enabled</span>
+      </label>
+      <button class="btn btn-primary" id="query-save-btn">Save</button>
     </div>
   </div>
 </div>
 
 <!-- ─── Scan Selector Modal ───────────────────────────────────── -->
 <div class="modal-backdrop" id="scan-modal">
-  <div class="modal" style="max-width:560px">
+  <div class="modal is-scan" role="dialog" aria-modal="true" aria-labelledby="scan-modal-title">
     <div class="modal-header">
-      <span class="modal-title">Configure Scan</span>
-      <button class="btn-icon" id="scan-modal-close">
+      <div class="modal-heading">
+        <span class="modal-kicker">Scan</span>
+        <span class="modal-title" id="scan-modal-title">Choose sources</span>
+        <p class="modal-sub">Boards and companies to sweep. A green mark means the source was scanned in the last 24 hours.</p>
+      </div>
+      <button class="modal-close" id="scan-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div style="padding:14px 20px 8px;border-bottom:1px solid var(--border-s);display:flex;flex-direction:column;gap:10px">
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+    <div class="modal-toolbar">
+      <div class="modal-toolbar-row">
         <div class="segmented" role="group" aria-label="Source type">
           <span class="segmented-label" aria-hidden="true">Type</span>
           <button type="button" class="filter-btn active" data-scan-kind="all">All</button>
@@ -3928,19 +4445,19 @@
           <button type="button" class="filter-btn" data-scan-kind="freelance">Freelance / Missions</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span id="scan-sel-count" style="font-size:12px;color:var(--text-3);flex:1">Loading sources…</span>
+      <div class="modal-toolbar-row">
+        <span id="scan-sel-count">Loading sources…</span>
         <button class="btn btn-ghost btn-sm" id="scan-sel-all">Select all</button>
         <button class="btn btn-ghost btn-sm" id="scan-sel-none">Deselect all</button>
         <button class="btn btn-ghost btn-sm" id="scan-sel-fresh">Fresh only</button>
       </div>
     </div>
-    <div id="scan-modal-body" style="padding:16px 20px;max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:20px"></div>
-    <div style="padding:14px 20px;border-top:1px solid var(--border-s);display:flex;justify-content:flex-end;gap:10px">
+    <div class="modal-body" id="scan-modal-body"></div>
+    <div class="modal-footer">
       <button class="btn btn-ghost" id="scan-modal-cancel">Cancel</button>
       <button class="btn btn-primary" id="scan-launch-btn">
         <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 4.5v3l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-        Launch Scan
+        Launch scan
       </button>
     </div>
   </div>
@@ -3996,36 +4513,112 @@
 
 <!-- ─── Script output Modal ──────────────────────────────────── -->
 <div class="modal-backdrop" id="run-modal">
-  <div class="modal" style="max-width:600px">
+  <div class="modal is-lg" role="dialog" aria-modal="true" aria-labelledby="run-modal-title">
     <div class="modal-header">
-      <span class="modal-title" id="run-modal-title">Result</span>
-      <button class="btn-icon" id="run-modal-close">
+      <div class="modal-heading">
+        <span class="modal-kicker">Script</span>
+        <span class="modal-title" id="run-modal-title">Result</span>
+      </div>
+      <button class="modal-close" id="run-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="padding:20px">
-      <pre id="run-modal-output" style="font-family:'SF Mono',monospace;font-size:12px;color:var(--text-2);white-space:pre-wrap;word-break:break-all;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;max-height:360px;overflow-y:auto"></pre>
+    <div class="modal-body">
+      <pre id="run-modal-output" class="modal-pre"></pre>
     </div>
   </div>
 </div>
 
 <div class="modal-backdrop" id="question-input-modal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal is-sm" role="dialog" aria-modal="true" aria-labelledby="question-input-modal-title">
     <div class="modal-header">
-      <span class="modal-title" id="question-input-modal-title">Answer a question</span>
-      <button class="btn-icon" id="question-input-modal-close">
+      <div class="modal-heading">
+        <span class="modal-kicker">Application</span>
+        <span class="modal-title" id="question-input-modal-title">Answer a question</span>
+        <p class="modal-sub" id="question-input-modal-sub">Paste the form question. The answer is written in the first person from the offer report and your profile.</p>
+      </div>
+      <button class="modal-close" id="question-input-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="padding:20px;display:flex;flex-direction:column;gap:14px">
-      <p style="margin:0;font-size:13px;color:var(--text-3)">Paste the question from the application form. Claude will write a first-person answer based on the offer report and your profile.</p>
-      <textarea id="question-input-text"
-        placeholder="e.g. Why do you want to join us? / Describe a project you are proud of."
-        style="width:100%;min-height:100px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:13px;color:var(--text-1);resize:vertical;font-family:inherit;box-sizing:border-box;outline:none"
-      ></textarea>
-      <div style="display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn btn-ghost" id="question-input-cancel">Cancel</button>
-        <button class="btn btn-primary" id="question-input-submit">Generate answer</button>
+    <div class="modal-body">
+      <textarea id="question-input-text" rows="5" style="resize:vertical;min-height:120px"
+        placeholder="e.g. Why do you want to join us? / Describe a project you are proud of."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="question-input-cancel">Cancel</button>
+      <button class="btn btn-primary" id="question-input-submit">Generate answer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Application email (standalone) ─────────────────────────── -->
+<div class="modal-backdrop" id="email-modal">
+  <div class="modal is-lg" role="dialog" aria-modal="true" aria-labelledby="email-modal-title">
+    <div class="modal-header">
+      <div class="modal-heading">
+        <span class="modal-kicker">Outreach</span>
+        <span class="modal-title" id="email-modal-title">Application email</span>
+        <p class="modal-sub">A draft adapted to the company and the role. Nothing is sent until you send it yourself.</p>
+      </div>
+      <button class="modal-close" id="email-modal-close" aria-label="Close">
+        <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body email-form">
+      <div class="email-row">
+        <div class="add-form-field">
+          <label class="add-form-label" for="email-to">Recipient email</label>
+          <input type="text" id="email-to" placeholder="marie.dupont@company.com" autocomplete="off">
+        </div>
+        <div class="add-form-field">
+          <label class="add-form-label" for="email-job-url">Offer link (optional)</label>
+          <input type="url" id="email-job-url" placeholder="https://...">
+        </div>
+      </div>
+      <details class="email-more">
+        <summary>More options</summary>
+        <div class="email-more-body">
+          <div class="add-form-field">
+            <label class="add-form-label" for="email-job-text">Offer text (if the page can't be read)</label>
+            <textarea id="email-job-text" class="email-textarea" rows="4" placeholder="Paste the job description here"></textarea>
+          </div>
+          <div class="email-row">
+            <div class="add-form-field">
+              <label class="add-form-label" for="email-language">Language</label>
+              <select id="email-language">
+                <option value="auto">Auto (offer / company)</option>
+                <option value="fr">French</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div class="add-form-field">
+              <label class="add-form-label" for="email-notes">Notes for the draft</label>
+              <input type="text" id="email-notes" placeholder="e.g. met them at a meetup, mention freelance">
+            </div>
+          </div>
+        </div>
+      </details>
+      <div class="email-actions">
+        <button class="btn btn-primary" id="email-generate-btn">Generate email</button>
+      </div>
+
+      <div id="email-result" class="email-result" hidden>
+        <div id="email-warnings" class="email-warnings"></div>
+        <div class="add-form-field">
+          <label class="add-form-label" for="email-subject">Subject</label>
+          <input type="text" id="email-subject">
+        </div>
+        <div class="add-form-field">
+          <label class="add-form-label" for="email-body">Body</label>
+          <textarea id="email-body" class="email-textarea" rows="12"></textarea>
+        </div>
+        <div class="email-sources" id="email-sources"></div>
+        <div class="email-actions">
+          <button class="btn btn-ghost" id="email-copy-btn">Copy</button>
+          <a class="btn btn-ghost" id="email-gmail-btn" target="_blank" rel="noopener">Open in Gmail</a>
+          <a class="btn btn-primary" id="email-mailto-btn">Open in mail app</a>
+        </div>
       </div>
     </div>
   </div>
@@ -4051,7 +4644,7 @@ const state = {
   pipeLimit: 60,
   pipeSourcesOpen: false,
   selectedPipelineUrls: new Set(),
-  processingPipelineUrls: new Set(),
+  pipelineChain: null,
   hiddenApplicationNums: new Set(),
   reportSearch: '',
   reportMinScore: 0,
@@ -4066,12 +4659,6 @@ const state = {
   sponsoredJobs: [],
 };
 
-// Dashboard hero headline (see setDashboardHeroTitle). Declared up front because
-// navigate() reads them during the initial route, before the effects section runs.
-const HERO_TITLE_FONT = { weight: 600, family: 'Syne, Inter, system-ui, sans-serif', max: 40, min: 24, lineHeight: 1.08 };
-let metalHeroMounted = false;
-let heroTitleText = '';
-let heroTitleSize = HERO_TITLE_FONT.max;
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_CLASS = {
@@ -4501,37 +5088,7 @@ function renderAll() {
 }
 
 function getVisiblePipeline() {
-  return (state.pipeline || []).filter(item => item && !state.processingPipelineUrls.has(item.url));
-}
-
-function hidePipelineUrls(urls) {
-  const list = [...new Set((urls || []).filter(Boolean))];
-  if (!list.length) return;
-  let changed = false;
-  for (const url of list) {
-    if (!state.processingPipelineUrls.has(url)) {
-      state.processingPipelineUrls.add(url);
-      state.selectedPipelineUrls.delete(url);
-      changed = true;
-    }
-  }
-  if (!changed) return;
-  updateBadges();
-  renderPipeline();
-  renderDashboard();
-}
-
-function revealPipelineUrls(urls) {
-  const list = [...new Set((urls || []).filter(Boolean))];
-  if (!list.length) return;
-  let changed = false;
-  for (const url of list) {
-    if (state.processingPipelineUrls.delete(url)) changed = true;
-  }
-  if (!changed) return;
-  updateBadges();
-  renderPipeline();
-  renderDashboard();
+  return (state.pipeline || []).filter(Boolean);
 }
 
 function updateBadges() {
@@ -4551,6 +5108,13 @@ function renderDashboardNavButton(view, label, className = 'btn btn-ghost btn-sm
 
 const ICON_ARROW = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M3 7.5h9M8.5 4l3.5 3.5L8.5 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_ARROW_UP_RIGHT = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M4.5 10.5l6-6M5.5 4.5h5v5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const STAT_ICON = {
+  queue: '<svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M3 4.5h9M3 7.5h9M3 10.5h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  evaluated: '<svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M4 2.5h5.2L12 5.2V12.5H4V2.5zM9.2 2.7V5.2H12" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+  ready: '<svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M3.2 8.2l2.6 2.6 6-6.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  applied: '<svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M2.5 7.5l10-4.5-4.2 10-1.6-4.2L2.5 7.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+  score: '<svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M3 11.5V8.5M7.5 11.5V4.5M12 11.5V6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+};
 
 const formatNumber = n => Number(n || 0).toLocaleString('en-US');
 const percent = (part, whole) => (whole ? Math.round((part / whole) * 100) : 0);
@@ -4710,7 +5274,7 @@ function renderDashboard() {
 
   if (!apps.length && !pipeline.length) {
     heroTitle = 'The funnel is empty. Start a scan.';
-    heroCopy = 'Scan your portals to fill the queue, then let the pipeline score every role against your profile.';
+    heroCopy = 'Scan your portals to fill the queue.';
     focus.title = 'Fill the queue';
     focus.copy = `${formatNumber(enabledPortals)} companies and ${formatNumber(enabledBoards)} job boards are ready to scan.`;
     focus.actions = `<button class="btn btn-ghost btn-sm" data-dashboard-view="portals">Manage portals ${ICON_ARROW}</button>`;
@@ -4727,16 +5291,15 @@ function renderDashboard() {
     heroCopy = [
       pipelineSources.length
         ? `Sourced from ${formatNumber(pipelineSources.length)} ${pipelineSources.length === 1 ? 'board' : 'boards'}${queueThisWeek ? ` — ${formatNumber(queueThisWeek)} arrived this week` : ''}.`
-        : 'Ready to be scored.',
-      'Score them before the postings go stale.',
+        : 'Waiting in the queue.',
     ].join(' ');
     heroSources = topSources.length
       ? `<span class="hero-sources-label">Top sources</span>${topSources.map(([source, count]) =>
           `<button type="button" class="hero-source" data-dash-source="${escapeHtml(source)}" title="Filter the pipeline by ${escapeHtml(source)}">${escapeHtml(source)}<span>${formatNumber(count)}</span></button>`).join('')}${moreSources > 0
           ? `<button type="button" class="hero-source is-more" data-dashboard-view="pipeline">+${formatNumber(moreSources)} more</button>` : ''}`
       : '';
-    focus.title = `Score the next ${next.length} ${next.length === 1 ? 'role' : 'roles'}`;
-    focus.copy = 'Next in line — processing turns each posting into a scored report.';
+    focus.title = `Next ${next.length} in the queue`;
+    focus.copy = 'Roles waiting in the queue.';
     focus.count = `${formatNumber(pipeline.length)} queued`;
     focus.items = next.map(queueItem).join('');
     focus.actions = `<button class="btn btn-ghost btn-sm" data-dashboard-view="pipeline">Review queue ${ICON_ARROW}</button>`;
@@ -4750,7 +5313,7 @@ function renderDashboard() {
     focus.actions = `<button class="btn btn-ghost btn-sm" data-dash-apps="Evaluated" data-dash-min-score="4">Review matches ${ICON_ARROW}</button>`;
   } else {
     heroTitle = 'The queue is clear. Time to scan.';
-    heroCopy = `${formatNumber(everApplied)} ${everApplied === 1 ? 'application' : 'applications'} sent so far. A fresh scan brings new roles to score.`;
+    heroCopy = `${formatNumber(everApplied)} ${everApplied === 1 ? 'application' : 'applications'} sent so far. A fresh scan brings new roles.`;
     focus.title = 'Source new roles';
     focus.copy = `${formatNumber(enabledPortals)} companies and ${formatNumber(enabledBoards)} job boards are ready to scan.`;
     focus.actions = `<button class="btn btn-ghost btn-sm" data-dashboard-view="portals">Manage portals ${ICON_ARROW}</button>`;
@@ -4760,10 +5323,10 @@ function renderDashboard() {
   document.getElementById('dashboard-hero-sources').innerHTML = heroSources;
   setDashboardHeroTitle(heroTitle);
 
-  const primaryCmd = pipeline.length > 0 ? 'pipeline' : 'scan';
   document.querySelectorAll('#dashboard-command-row [data-cmd]').forEach(btn => {
-    btn.classList.toggle('is-primary', btn.dataset.cmd === primaryCmd);
+    btn.classList.add('is-primary');
   });
+  syncDashboardBeam();
 
   document.getElementById('dashboard-focus-card').innerHTML = `
     <div class="focus-head">
@@ -4783,6 +5346,7 @@ function renderDashboard() {
     : { high: '', good: '', mid: 'is-warn', low: 'is-bad' }[scoreTier(avgScoreNum)];
   const tiles = [
     {
+      icon: STAT_ICON.queue,
       label: 'In queue',
       value: formatNumber(pipeline.length),
       sub: queueThisWeek
@@ -4792,6 +5356,7 @@ function renderDashboard() {
       attrs: 'data-dashboard-view="pipeline" aria-label="In queue — open the pipeline"',
     },
     {
+      icon: STAT_ICON.evaluated,
       label: 'Evaluated',
       value: formatNumber(evaluatedTotal),
       sub: evalThisWeek ? `<span class="delta-up">+${formatNumber(evalThisWeek)}</span> this week` : 'None this week',
@@ -4799,6 +5364,7 @@ function renderDashboard() {
       attrs: 'data-dashboard-view="reports" aria-label="Evaluated — open the reports"',
     },
     {
+      icon: STAT_ICON.ready,
       label: 'Ready to apply',
       value: formatNumber(readyToApply.length),
       sub: readyThisWeek
@@ -4808,6 +5374,7 @@ function renderDashboard() {
       attrs: 'data-dash-apps="Evaluated" data-dash-min-score="4" aria-label="Ready to apply — open strong matches not sent yet"',
     },
     {
+      icon: STAT_ICON.applied,
       label: 'Applied',
       value: formatNumber(everApplied),
       sub: evaluatedTotal ? `${percent(everApplied, evaluatedTotal)}% of evaluated offers` : 'Nothing sent yet',
@@ -4815,6 +5382,7 @@ function renderDashboard() {
       attrs: 'data-dash-apps="Applied" aria-label="Applied — open applied offers"',
     },
     {
+      icon: STAT_ICON.score,
       label: 'Avg fit score',
       value: avgScoreNum != null ? avgScoreNum.toFixed(1) : '—',
       unit: avgScoreNum != null ? '/5' : '',
@@ -4825,7 +5393,7 @@ function renderDashboard() {
   ];
   document.getElementById('stats-grid').innerHTML = tiles.map(t => `
     <button type="button" class="stat-card" ${t.attrs}>
-      <span class="stat-card-top"><span class="stat-label">${t.label}</span><span class="stat-go">${ICON_ARROW_UP_RIGHT}</span></span>
+      <span class="stat-card-top"><span class="stat-label"><span class="stat-ico">${t.icon}</span>${t.label}</span><span class="stat-go">${ICON_ARROW_UP_RIGHT}</span></span>
       <span class="stat-value">${t.value}${t.unit ? `<span class="stat-unit">${t.unit}</span>` : ''}</span>
       <span class="stat-sub">${t.sub}</span>
       <span class="stat-trend">${t.trend}</span>
@@ -5450,26 +6018,22 @@ async function runApplicationAction(action, num, trigger) {
   if (action === 'auto-apply') {
     openAutoApplyModal({ company, role, report, num: String(num) });
   } else if (action === 'open') {
-    // Opens the posting and a quick-fill helper window (popups need the click).
+    // One window.open per click gets past the popup blocker: it goes to the
+    // helper, and the posting opens through the plugin (openApplyHelper).
     const jobUrl = app.JobURL;
     if (!jobUrl) { toast('No job URL found for this offer yet', true); return; }
-    window.open(jobUrl, '_blank', 'noopener,noreferrer');
-    const helperWin = window.open('', `apply-helper-${Date.now()}`, 'width=430,height=760');
-    if (helperWin) {
-      renderApplyHelperLoading(helperWin, app);
-      try {
-        const profile = profileData || await api('/api/profile');
-        if (!profileData) profileData = profile;
-        renderApplyHelper(helperWin, app, profile);
-      } catch (err) {
-        renderApplyHelper(helperWin, app, {});
-        toast(`Offer opened, but helper could not load profile: ${err.message}`, true);
-      }
-    } else {
-      toast('Offer opened. Allow popups if you also want the quick-fill helper.', true);
+    const helperWin = window.open('', `apply-helper-${Date.now()}`, 'width=440,height=780');
+    if (!helperWin) {
+      window.open(jobUrl, '_blank', 'noopener,noreferrer');
+      toast('Offer opened. Allow popups for this site to also get the quick-fill helper.', true);
+      return;
     }
+    renderApplyHelperLoading(helperWin, app);
+    openApplyHelper(helperWin, app, { company, role, report, num: String(num) });
   } else if (action === 'cover') {
     openCmdModal('coverletter', { company, role, report });
+  } else if (action === 'email') {
+    openEmailModal({ jobUrl: app.JobURL });
   } else if (action === 'question') {
     openQuestionModal(company, role, report);
   } else if (action === 'report') {
@@ -5532,6 +6096,7 @@ function openRowMenu(trigger) {
   const items = [];
   if (report) items.push(item('report', ICON_REPORT, 'Open report'));
   if (report) items.push(item('cover', ICON_MAIL, 'Generate cover letter', 'cover-letter-row-btn'));
+  if (app.JobURL) items.push(item('email', ICON_MAIL, 'Write application email', 'email-row-btn'));
   if (coverPdf?.filename) {
     items.push(`<a class="row-menu-item" role="menuitem" href="/output/${encodeURIComponent(coverPdf.filename)}" download="${escapeHtml(coverPdf.filename)}">${ICON_DOWNLOAD}Download cover letter PDF</a>`);
   }
@@ -5706,21 +6271,20 @@ function buildApplyHelperFields(app, profile) {
   ].filter(field => field.value);
 }
 
-// ── Auto-apply (Playwright headed runner) ─────────────────────────────────────
+// ── Auto-apply (Chrome plugin; a Playwright window when the plugin is absent) ──
 
 const AUTO_APPLY_STATE_LABELS = {
-  launching: { label: 'Launching Chrome…', color: '#60a5fa', spin: true },
-  navigating: { label: 'Opening the offer…', color: '#60a5fa', spin: true },
-  finding_form: { label: 'Finding the form…', color: '#60a5fa', spin: true },
-  solving_challenge: { label: 'Auto verification…', color: '#a78bfa', spin: true },
-  filling: { label: 'Filling the form…', color: '#60a5fa', spin: true },
-  needs_human: { label: 'Your input is needed', color: '#fbbf24', spin: false },
-  ready_to_review: { label: 'Ready — review, then confirm', color: '#34d399', spin: false },
-  extension_open: { label: 'Opened in Chrome (extension)', color: '#34d399', spin: false },
-  submitting: { label: 'Sending…', color: '#60a5fa', spin: true },
-  submitted: { label: 'Application sent', color: '#34d399', spin: false },
-  aborted: { label: 'Cancelled', color: '#9ca3af', spin: false },
-  error: { label: 'Error', color: '#f87171', spin: false },
+  launching: { label: 'Launching Chrome…', tone: 'info', spin: true },
+  navigating: { label: 'Opening the offer…', tone: 'info', spin: true },
+  finding_form: { label: 'Finding the form…', tone: 'info', spin: true },
+  solving_challenge: { label: 'Auto verification…', tone: 'violet', spin: true },
+  filling: { label: 'Filling the form…', tone: 'info', spin: true },
+  needs_human: { label: 'Your input is needed', tone: 'warn', spin: false },
+  ready_to_review: { label: 'Ready — review, then confirm', tone: 'good', spin: false },
+  submitting: { label: 'Sending…', tone: 'info', spin: true },
+  submitted: { label: 'Application sent', tone: 'good', spin: false },
+  aborted: { label: 'Cancelled', tone: 'muted', spin: false },
+  error: { label: 'Error', tone: 'bad', spin: false },
 };
 
 function openAutoApplyModal(app) {
@@ -5728,65 +6292,71 @@ function openAutoApplyModal(app) {
 
   const overlay = document.createElement('div');
   overlay.id = 'auto-apply-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:1000;display:grid;place-items:center;padding:20px';
+  overlay.className = 'modal-backdrop open';
   overlay.innerHTML = `
-    <div style="width:min(560px,100%);max-height:88vh;overflow:auto;background:var(--panel,#171a22);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;color:var(--text-1,#f3f4f6);font-size:13px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px">
-        <div>
-          <div style="font-size:16px;font-weight:700">🚀 Apply automatically</div>
-          <div style="color:var(--text-3,#9ca3af);margin-top:4px">${escapeHtml(app.company)} — ${escapeHtml(app.role)}</div>
+    <div class="modal is-md" role="dialog" aria-modal="true" aria-labelledby="aa-title">
+      <div class="modal-header">
+        <div class="modal-heading">
+          <span class="modal-kicker">Auto-apply</span>
+          <span class="modal-title" id="aa-title">${escapeHtml(app.company)}</span>
+          <p class="modal-sub">${escapeHtml(app.role || 'Offer')}</p>
         </div>
-        <button id="aa-close" class="btn btn-ghost btn-sm" title="Close (the application keeps running in the background)">✕</button>
+        <button id="aa-close" class="modal-close" aria-label="Close" title="Close. The application keeps running in the background.">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
       </div>
 
-      <div id="aa-setup" style="margin-top:14px">
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <label style="display:flex;flex-direction:column;gap:6px">
-            <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-3,#9ca3af)">Region (CV + declared details)</span>
-            <select id="aa-region" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 10px;color:inherit;font:inherit">
+      <div class="modal-body">
+        <div id="aa-setup" class="aa-setup">
+          <div class="add-form-field">
+            <label class="add-form-label" for="aa-region">Region — CV and declared details</label>
+            <select id="aa-region">
               <option value="">Detect from the report</option>
               <option value="europe">Europe → Paris CV, Paris details (CET)</option>
               <option value="asia">Asia → Bangkok CV, Bangkok details (ICT)</option>
             </select>
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          </div>
+          <label class="modal-check">
             <input type="checkbox" id="aa-autosubmit" checked>
-            <span>Submit automatically, without a final confirmation <span style="color:var(--text-3,#9ca3af)">(uncheck to review before sending)</span></span>
+            <span>Submit automatically, without a final confirmation<small>Uncheck to review the form before it is sent.</small></span>
           </label>
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <label class="modal-check" id="aa-solve-row" hidden>
             <input type="checkbox" id="aa-solve-challenges" checked>
-            <span>Automatically try verifications PinchTab can handle (Cloudflare/Turnstile)</span>
+            <span>Try verifications PinchTab can handle<small>Cloudflare and Turnstile. You solve any other captcha.</small></span>
           </label>
-          <button id="aa-start" class="btn btn-primary" style="justify-content:center">Start the application in Chrome</button>
-          <div style="color:var(--text-3,#9ca3af);font-size:11px;line-height:1.5">A visible Chrome window will open: it goes to the offer, follows ATS redirects, tries Cloudflare/Turnstile checks, fills the form with the report answers, and uploads the regional CV. Other captchas stay manual. If PinchTab fails, a sign-in is required, or a field stays ambiguous, finish it yourself in Chrome.</div>
+          <p id="aa-plugin" class="modal-hint">Checking the Chrome plugin…</p>
+          <p class="modal-hint">The run opens the offer, follows ATS redirects, fills the form from the report, and uploads the regional CV. If a sign-in is required or a field stays ambiguous, finish it in the tab, then click “Rescan the form”.</p>
+        </div>
+
+        <div id="aa-run" class="aa-run" style="display:none">
+          <div class="aa-status-row">
+            <span id="aa-chip" class="aa-chip" data-tone="info"></span>
+            <span id="aa-meta" class="aa-meta"></span>
+          </div>
+          <div id="aa-message" class="aa-message"></div>
+          <div id="aa-stale" class="aa-alert" style="display:none">Auto-apply looks stopped. “Confirm send” and “Rescan the form” no longer respond. “I sent it” still marks the application as sent.</div>
+          <div id="aa-pending-box" style="display:none">
+            <div class="aa-pending-label">Fields to complete in Chrome</div>
+            <ul id="aa-pending" class="aa-list"></ul>
+          </div>
+          <details class="aa-details">
+            <summary>Filled fields (<span id="aa-filled-count">0</span>)</summary>
+            <ul id="aa-filled" class="aa-list is-muted"></ul>
+          </details>
+          <details class="aa-details">
+            <summary>Log</summary>
+            <pre id="aa-log" class="aa-log"></pre>
+          </details>
+          <div class="aa-actions">
+            <button id="aa-manual-sent" class="btn btn-primary" style="display:none" title="Use this after you click send in Chrome">I sent it</button>
+            <button id="aa-submit" class="btn btn-ghost" style="display:none" title="Ask Chrome to click the send button">Confirm send</button>
+            <button id="aa-rescan" class="btn btn-ghost" style="display:none">Rescan the form</button>
+            <button id="aa-abort" class="btn btn-danger">Abort</button>
+          </div>
         </div>
       </div>
-
-      <div id="aa-run" style="display:none;margin-top:14px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span id="aa-chip" style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;background:rgba(96,165,250,0.12);font-weight:600;font-size:12px"></span>
-          <span id="aa-meta" style="color:var(--text-3,#9ca3af);font-size:11px"></span>
-        </div>
-        <div id="aa-message" style="margin-top:10px;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:10px;line-height:1.5"></div>
-        <div id="aa-stale" style="display:none;margin-top:10px;padding:10px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);border-radius:10px;line-height:1.5;color:#fca5a5;font-size:13px">Auto-apply looks stopped. “Confirm send” and “Rescan” no longer respond. “I sent it” still marks the application as sent.</div>
-        <div id="aa-pending-box" style="display:none;margin-top:10px">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#fbbf24;margin-bottom:6px">Fields to complete in Chrome</div>
-          <ul id="aa-pending" style="margin:0;padding-left:18px;color:var(--text-2,#d1d5db);line-height:1.6"></ul>
-        </div>
-        <details style="margin-top:10px">
-          <summary style="cursor:pointer;color:var(--text-3,#9ca3af);font-size:12px">Filled fields (<span id="aa-filled-count">0</span>)</summary>
-          <ul id="aa-filled" style="margin:6px 0 0;padding-left:18px;color:var(--text-2,#d1d5db);line-height:1.6;font-size:12px"></ul>
-        </details>
-        <details style="margin-top:6px">
-          <summary style="cursor:pointer;color:var(--text-3,#9ca3af);font-size:12px">Log</summary>
-          <pre id="aa-log" style="margin:6px 0 0;max-height:160px;overflow:auto;background:rgba(0,0,0,0.25);border-radius:8px;padding:10px;font-size:11px;line-height:1.5;white-space:pre-wrap"></pre>
-        </details>
-        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <button id="aa-manual-sent" class="btn btn-primary" style="display:none" title="Use this after you click send in Chrome">I sent it</button>
-          <button id="aa-submit" class="btn btn-ghost" style="display:none" title="Ask Chrome to click the send button">Confirm send</button>
-          <button id="aa-rescan" class="btn btn-ghost" style="display:none">↻ Rescan the form</button>
-          <button id="aa-abort" class="btn btn-danger">Abort</button>
-        </div>
+      <div class="modal-footer" id="aa-setup-footer">
+        <button id="aa-start" class="btn btn-primary">Start in Chrome</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -5800,6 +6370,19 @@ function openAutoApplyModal(app) {
   const stopPolling = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
   const close = () => { stopPolling(); overlay.remove(); };
   $('aa-close').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  // PinchTab only runs in the separate window. Hide that option while the plugin is connected.
+  api('/api/apply/bridge-status').then((b) => {
+    const connected = !!b?.connected;
+    $('aa-solve-row').hidden = connected;
+    $('aa-plugin').textContent = !connected
+      ? 'Chrome plugin not connected: a separate Chromium window will do the application. Reload the extension in chrome://extensions to use your own Chrome.'
+      : `Chrome plugin connected${b.version ? ` (v${b.version})` : ''}: the application runs in ${app.tabId ? 'the offer tab already open' : 'a new tab of your Chrome'}.${b.readOptions ? '' : ' Reload the extension to get the latest list handling.'}`;
+  }).catch(() => {
+    $('aa-solve-row').hidden = false;
+    $('aa-plugin').textContent = '';
+  });
 
   $('aa-start').addEventListener('click', async () => {
     $('aa-start').disabled = true;
@@ -5813,20 +6396,25 @@ function openAutoApplyModal(app) {
           role: app.role,
           region: $('aa-region').value,
           autoSubmit: $('aa-autosubmit').checked,
-          solveChallenges: $('aa-solve-challenges').checked,
+          solveChallenges: $('aa-solve-row').hidden ? true : $('aa-solve-challenges').checked,
+          tabId: app.tabId || undefined,
         }),
       });
       if (!r?.runId) throw new Error(r?.error || 'Launch incomplete');
       runId = r.runId;
       $('aa-setup').style.display = 'none';
-      $('aa-run').style.display = 'block';
-      $('aa-meta').textContent = `${r.region === 'asia' ? '🌏 Asia → Bangkok' : '🇪🇺 Europe → Paris'} · CV: ${r.cv} · ${r.answersCount} pre-written answer(s)`;
+      $('aa-setup-footer').style.display = 'none';
+      $('aa-run').style.display = 'flex';
+      const mode = r.browserMode === 'extension'
+        ? 'Chrome plugin, your tab'
+        : `Separate window (plugin: ${r.pluginError || 'not connected'})`;
+      $('aa-meta').textContent = `${r.region === 'asia' ? '🌏 Asia → Bangkok' : '🇪🇺 Europe → Paris'} · CV: ${r.cv} · ${r.answersCount} pre-written answer(s) · ${mode}`;
       pollTimer = setInterval(poll, 1500);
       poll();
     } catch (err) {
       toast(`Could not start: ${err.message}`, true);
       $('aa-start').disabled = false;
-      $('aa-start').textContent = 'Start the application in Chrome';
+      $('aa-start').textContent = 'Start in Chrome';
     }
   });
 
@@ -5855,8 +6443,7 @@ function openAutoApplyModal(app) {
       finished = true;
       stopPolling();
       const meta = AUTO_APPLY_STATE_LABELS.submitted;
-      $('aa-chip').style.color = meta.color;
-      $('aa-chip').style.background = meta.color + '20';
+      $('aa-chip').dataset.tone = meta.tone;
       $('aa-chip').textContent = meta.label;
       $('aa-message').textContent = 'Send confirmed manually.';
       $('aa-submit').style.display = 'none';
@@ -5884,10 +6471,9 @@ function openAutoApplyModal(app) {
     catch { return; } // state.json pas encore écrit
     if (finished || s.error) return;
 
-    const meta = AUTO_APPLY_STATE_LABELS[s.state] || { label: s.state, color: '#9ca3af', spin: false };
-    $('aa-chip').style.color = meta.color;
-    $('aa-chip').style.background = meta.color + '20';
-    $('aa-chip').innerHTML = `${meta.spin ? '<span style="display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></span>' : ''}${escapeHtml(meta.label)}`;
+    const meta = AUTO_APPLY_STATE_LABELS[s.state] || { label: s.state, tone: 'muted', spin: false };
+    $('aa-chip').dataset.tone = meta.tone;
+    $('aa-chip').innerHTML = `${meta.spin ? '<span class="aa-spin" aria-hidden="true"></span>' : ''}${escapeHtml(meta.label)}`;
     $('aa-message').textContent = s.message || '';
 
     const pending = s.pending || [];
@@ -5904,17 +6490,17 @@ function openAutoApplyModal(app) {
     $('aa-submit').style.display = waiting ? 'inline-flex' : 'none';
     $('aa-rescan').style.display = waiting ? 'inline-flex' : 'none';
 
-    // Staleness watchdog: in a waiting state the runner rewrites state.json every
-    // ~1.5s (waitForCommand). If updatedAt is old, the process died — submit and
-    // rescan would be written to command.json but never consumed. "J'ai envoyé"
-    // still marks the tracker, so that button stays enabled.
+    // Staleness watchdog: while waiting, the run rewrites state.json every
+    // ~1.5s. If updatedAt is old, the run stopped (server restart, window
+    // closed) — submit and rescan would be written to command.json but never
+    // consumed. "I sent it" still marks the tracker, so it stays enabled.
     const ageMs = s.updatedAt ? (Date.now() - new Date(s.updatedAt).getTime()) : 0;
     const stale = waiting && ageMs > 20000;
     $('aa-stale').style.display = stale ? 'block' : 'none';
     $('aa-submit').disabled = stale || Date.now() < submitDebounceUntil;
     $('aa-rescan').disabled = stale;
 
-    if (['submitted', 'aborted', 'error', 'extension_open'].includes(s.state)) {
+    if (['submitted', 'aborted', 'error'].includes(s.state)) {
       finished = true;
       stopPolling();
       $('aa-abort').textContent = 'Close';
@@ -5935,181 +6521,143 @@ function openAutoApplyModal(app) {
   }
 }
 
-function renderApplyHelper(win, app, profile) {
-  if (!win || win.closed) return;
-  const fields = buildApplyHelperFields(app, profile);
-  const copyAll = fields.map(f => `${f.label}: ${f.value}`).join('\n');
-  const rows = fields.map(field => `
-    <div class="field-row">
-      <div class="field-meta">
-        <div class="field-label">${escapeHtml(field.label)}</div>
-        <div class="field-value">${escapeHtml(field.value)}</div>
-      </div>
-      <button class="copy-btn" data-copy="${escapeHtml(field.value)}">Copy</button>
-    </div>
-  `).join('');
+// Quick-fill helper window: profile values, the report's answers and the
+// regional CV one click away next to the offer. The page is written from the
+// dashboard and its buttons are wired from here, so it carries no script.
+const APPLY_HELPER_CSS = `
+  :root {
+    color-scheme: dark;
+    --bg: #07090a; --surface: #0e1112; --surface-2: #13171a;
+    --border: rgba(255,255,255,0.085);
+    --text-1: #f2f5f3; --text-2: #b9c2bd; --text-3: #8a948f;
+    --accent: #2dd4a0; --accent-ink: #03140d;
+    --accent-soft: rgba(45,212,160,0.10); --accent-line: rgba(45,212,160,0.30);
+    --warn: #e8b86d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; padding: 16px; background: var(--bg); color: var(--text-1);
+    font: 13px/1.5 Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  h1 { font-size: 16px; font-weight: 650; margin: 0; }
+  h2 { font: 500 11px/1 'Geist Mono', ui-monospace, Menlo, monospace; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--text-3); margin: 18px 0 8px; }
+  .sub { color: var(--text-3); margin: 2px 0 12px; }
+  .status { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--text-2); margin-bottom: 12px; }
+  .status.is-warn { border-color: rgba(232,184,109,0.35); color: var(--warn); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn { font: inherit; font-weight: 600; border-radius: 8px; cursor: pointer; padding: 8px 12px;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text-1); text-decoration: none; }
+  .btn:hover { border-color: var(--accent-line); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.copy { flex: none; padding: 5px 9px; font-size: 12px; color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface); margin-bottom: 8px; }
+  .row > div { min-width: 0; }
+  .label { font-size: 11px; color: var(--text-3); margin-bottom: 2px; }
+  .value { white-space: pre-wrap; word-break: break-word; }
+  .answer { max-height: 9.5em; overflow: auto; color: var(--text-2); }
+  .loading { display: grid; place-items: center; min-height: 80vh; color: var(--text-2); text-align: center; }
+`;
 
+function writeApplyHelperPage(win, bodyHtml) {
+  if (!win || win.closed) return null;
   win.document.open();
-  win.document.write(`<!doctype html>
-  <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Apply Helper</title>
-      <style>
-        :root {
-          color-scheme: dark;
-          --bg: #0f1117;
-          --panel: #171a22;
-          --border: rgba(255,255,255,0.08);
-          --text: #f3f4f6;
-          --muted: #9ca3af;
-          --accent: #60a5fa;
-          --accent-2: #2563eb;
-        }
-        * { box-sizing: border-box; }
-        body {
-          margin: 0;
-          min-height: 100vh;
-          font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-          background: radial-gradient(circle at top, #1d2230 0%, var(--bg) 55%);
-          color: var(--text);
-          padding: 18px;
-        }
-        .panel {
-          background: rgba(23,26,34,0.92);
-          border: 1px solid var(--border);
-          border-radius: 16px;
-          padding: 16px;
-          box-shadow: 0 18px 50px rgba(0,0,0,0.28);
-        }
-        .title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
-        .sub { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 14px; }
-        .actions { display: flex; gap: 10px; margin-bottom: 14px; }
-        .primary-btn, .ghost-btn, .copy-btn {
-          border: 0;
-          border-radius: 10px;
-          font: inherit;
-          cursor: pointer;
-        }
-        .primary-btn, .ghost-btn {
-          padding: 10px 12px;
-          font-size: 12px;
-          font-weight: 600;
-        }
-        .primary-btn {
-          background: linear-gradient(135deg, var(--accent), var(--accent-2));
-          color: white;
-        }
-        .ghost-btn {
-          background: rgba(255,255,255,0.04);
-          color: var(--text);
-          border: 1px solid var(--border);
-        }
-        .copy-btn {
-          align-self: flex-start;
-          background: rgba(96,165,250,0.12);
-          color: #bfdbfe;
-          padding: 8px 10px;
-          min-width: 60px;
-          font-size: 12px;
-          font-weight: 600;
-        }
-        .field-list { display: flex; flex-direction: column; gap: 10px; }
-        .field-row {
-          display: flex;
-          gap: 10px;
-          justify-content: space-between;
-          align-items: flex-start;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 12px;
-        }
-        .field-meta { min-width: 0; }
-        .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px; }
-        .field-value { font-size: 13px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
-        .hint { margin-top: 14px; color: var(--muted); font-size: 11px; line-height: 1.5; }
-      </style>
-    </head>
-    <body>
-      <div class="panel">
-        <h1 class="title">Apply Helper</h1>
-        <p class="sub">${escapeHtml(app.Company || 'Offer')} - ${escapeHtml(app.Role || '')}<br>Use these values to paste quickly into the application form.</p>
-        <div class="actions">
-          <button class="primary-btn" id="copy-all-btn">Copy all fields</button>
-          <button class="ghost-btn" id="open-offer-btn">Open offer again</button>
-        </div>
-        <div class="field-list">${rows}</div>
-        <div class="hint">Direct auto-fill on external job pages is limited by browser cross-origin rules. This helper keeps the common fields one click away.</div>
-      </div>
-      <script>
-        const copyAll = ${JSON.stringify(copyAll)};
-        const jobUrl = ${JSON.stringify(app.JobURL || '')};
-        async function copyText(value) {
-          try {
-            await navigator.clipboard.writeText(value);
-          } catch (err) {
-            console.error(err);
-          }
-        }
-        document.getElementById('copy-all-btn').addEventListener('click', async () => {
-          await copyText(copyAll);
-          document.getElementById('copy-all-btn').textContent = 'Copied';
-          setTimeout(() => { document.getElementById('copy-all-btn').textContent = 'Copy all fields'; }, 1200);
-        });
-        document.getElementById('open-offer-btn').addEventListener('click', () => {
-          if (jobUrl) window.open(jobUrl, '_blank', 'noopener,noreferrer');
-        });
-        document.querySelectorAll('.copy-btn').forEach(btn => {
-          btn.addEventListener('click', async () => {
-            await copyText(btn.dataset.copy || '');
-            const original = btn.textContent;
-            btn.textContent = 'Copied';
-            setTimeout(() => { btn.textContent = original; }, 1200);
-          });
-        });
-      <\/script>
-    </body>
-  </html>`);
+  win.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Apply helper</title><style>${APPLY_HELPER_CSS}</style></head><body>${bodyHtml}</body></html>`);
   win.document.close();
+  return win.document;
 }
 
 function renderApplyHelperLoading(win, app) {
-  if (!win || win.closed) return;
-  win.document.open();
-  win.document.write(`<!doctype html>
-  <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <title>Apply Helper</title>
-      <style>
-        body {
-          margin: 0;
-          min-height: 100vh;
-          display: grid;
-          place-items: center;
-          background: #0f1117;
-          color: #f3f4f6;
-          font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        }
-        .box {
-          padding: 18px 20px;
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 14px;
-          background: rgba(23,26,34,0.92);
-        }
-        .sub { color: #9ca3af; font-size: 12px; margin-top: 6px; }
-      </style>
-    </head>
-    <body>
-      <div class="box">
-        <div>Preparing quick-fill helper...</div>
-        <div class="sub">${escapeHtml(app.Company || 'Offer')} - ${escapeHtml(app.Role || '')}</div>
-      </div>
-    </body>
-  </html>`);
-  win.document.close();
+  writeApplyHelperPage(win, `<div class="loading"><div>Preparing the quick-fill helper…
+    <div class="sub">${escapeHtml(app.Company || 'Offer')} · ${escapeHtml(app.Role || '')}</div></div></div>`);
+}
+
+// The helper window already used this click's popup allowance: the posting
+// opens through the plugin, in a tab the plugin can then fill.
+async function openApplyHelper(win, app, { company, role, report, num }) {
+  const [profile, preview, opened] = await Promise.all([
+    profileData || api('/api/profile').then((p) => (profileData = p)).catch(() => ({})),
+    report
+      ? api(`/api/apply/preview?${new URLSearchParams({ report, company, role })}`).catch(() => null)
+      : null,
+    api('/api/apply/open-offer', { method: 'POST', body: JSON.stringify({ url: app.JobURL }) })
+      .catch((err) => ({ ok: false, error: err.message })),
+  ]);
+  renderApplyHelper(win, app, {
+    profile,
+    preview,
+    tabId: opened?.ok ? opened.tabId : null,
+    pluginError: opened?.ok ? '' : (opened?.error || 'plugin unavailable'),
+    company,
+    role,
+    report,
+    num,
+  });
+}
+
+function renderApplyHelper(win, app, {
+  profile = {}, preview = null, tabId = null, pluginError = '', company, role, report, num,
+} = {}) {
+  const fields = buildApplyHelperFields(app, profile);
+  const answers = (preview?.answers || []).filter((a) => a?.question && a?.answer);
+  const copyValues = [];
+  const copyButton = (value) => `<button class="btn copy" data-copy="${copyValues.push(value) - 1}">Copy</button>`;
+  const row = (label, value, extraClass = '') => `<div class="row"><div><div class="label">${escapeHtml(label)}</div>
+    <div class="value ${extraClass}">${escapeHtml(value)}</div></div>${copyButton(value)}</div>`;
+  const status = tabId
+    ? '<div class="status">Offer opened in your Chrome. The plugin can fill it in that tab.</div>'
+    : `<div class="status is-warn">The plugin could not open the offer (${escapeHtml(pluginError)}). Open it with the button below.</div>`;
+  const doc = writeApplyHelperPage(win, `
+    <h1>${escapeHtml(app.Company || 'Offer')}</h1>
+    <p class="sub">${escapeHtml(app.Role || '')}</p>
+    ${status}
+    <div class="actions">
+      ${tabId && report ? '<button class="btn primary" id="fill-btn">Fill with the plugin</button>' : ''}
+      <a class="btn ${tabId ? '' : 'primary'}" href="${escapeHtml(app.JobURL || '')}" target="_blank" rel="noopener noreferrer">${tabId ? 'Open the offer again' : 'Open the offer'}</a>
+      <button class="btn" id="copy-all-btn">Copy all fields</button>
+    </div>
+    ${preview?.cv ? `<h2>CV to attach</h2>${row(preview.region === 'asia' ? 'Asia → Bangkok' : 'Europe → Paris', preview.cv)}` : ''}
+    <h2>Profile</h2>
+    ${fields.map((f) => row(f.label, f.value)).join('') || '<p class="sub">No profile fields found.</p>'}
+    ${answers.length ? `<h2>Answers from the report</h2>${answers.map((a) => row(a.question, a.answer, 'answer')).join('')}` : ''}
+  `);
+  if (!doc) return;
+
+  const flash = (btn, text) => {
+    const original = btn.textContent;
+    btn.textContent = text;
+    setTimeout(() => { btn.textContent = original; }, 1200);
+  };
+  // The helper's own clipboard: it is the focused window when its button is clicked.
+  const copy = async (value, btn) => {
+    try {
+      await win.navigator.clipboard.writeText(value);
+    } catch {
+      const area = doc.createElement('textarea');
+      area.value = value;
+      doc.body.appendChild(area);
+      area.select();
+      const ok = doc.execCommand('copy');
+      area.remove();
+      if (!ok) return flash(btn, 'Copy failed');
+    }
+    flash(btn, 'Copied');
+  };
+  doc.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', () => copy(copyValues[Number(btn.dataset.copy)] ?? '', btn));
+  });
+  doc.getElementById('copy-all-btn').addEventListener('click', (e) => {
+    copy(fields.map((f) => `${f.label}: ${f.value}`).join('\n'), e.currentTarget);
+  });
+  // The run starts from the dashboard, which shows its progress; the plugin
+  // fills the tab it already opened instead of opening a second one.
+  doc.getElementById('fill-btn')?.addEventListener('click', () => {
+    window.focus();
+    openAutoApplyModal({ company, role, report, num, tabId });
+  });
 }
 
 function formatDisplayDate(value) {
@@ -6213,6 +6761,8 @@ let pipelineView = { shownUrls: [], matchingUrls: [] };
 
 function renderPipeline({ keepToolbar = false } = {}) {
   const items = getVisiblePipeline();
+  const queueBtn = document.querySelector('#view-pipeline [data-cmd="pipeline"]');
+  if (queueBtn) queueBtn.disabled = items.length === 0;
 
   // Sources, biggest first
   const sourceCounts = new Map();
@@ -6377,7 +6927,7 @@ function renderPipeline({ keepToolbar = false } = {}) {
         <span class="pipeline-url" title="${escapeHtml(item.url)}">${pipelineUrlHtml(item.url, query)}</span>
       </div>
       <div class="pipeline-actions">
-        <button class="btn btn-primary btn-sm pipeline-run-btn" data-pipeline-url="${escapeHtml(item.url)}" title="Evaluate only this URL">Process</button>
+        <button class="btn btn-primary btn-sm" data-process-url="${escapeHtml(item.url)}" title="Evaluate this offer">Process</button>
         <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm">Open</a>
         <button class="btn-icon" data-delete-url="${escapeHtml(item.url)}" title="Remove from the pipeline" aria-label="Remove from the pipeline">
           <svg width="11" height="11" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -6398,7 +6948,7 @@ function renderPipeline({ keepToolbar = false } = {}) {
       : `<div class="empty">
           <svg width="36" height="36" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 4v3.5l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
           <strong>Pipeline is empty</strong>
-          <span>Add URLs above to queue them for evaluation</span>
+          <span>Add a job URL above, or run a scan</span>
         </div>`;
 
   // Row interactions are delegated once: the list re-renders on every keystroke.
@@ -6410,11 +6960,9 @@ function renderPipeline({ keepToolbar = false } = {}) {
         renderPipeline({ keepToolbar: true });
         return;
       }
-      const runBtn = e.target.closest('.pipeline-run-btn');
-      if (runBtn) {
-        const targetUrl = runBtn.dataset.pipelineUrl;
-        if (!targetUrl) { toast('No URL found for this pipeline row', true); return; }
-        openCmdModal('pipeline', { url: targetUrl });
+      const processBtn = e.target.closest('[data-process-url]');
+      if (processBtn) {
+        openCmdModal('pipeline', { url: processBtn.dataset.processUrl });
         return;
       }
       const deleteBtn = e.target.closest('[data-delete-url]');
@@ -6456,7 +7004,7 @@ function renderPipelineBulkBar() {
       ${canSelectAll ? ` · <button type="button" class="bulk-select-all" id="pipe-bulk-select-all">Select all ${formatNumber(matchingUrls.length)} matching</button>` : ''}
     </div>
     <div class="pipeline-bulk-actions">
-      <button class="btn btn-primary btn-sm" id="pipe-bulk-process">Process</button>
+      <button class="btn btn-primary btn-sm" id="pipe-bulk-process"${state.pipelineChain ? ' disabled' : ''}>${state.pipelineChain ? `Processing ${state.pipelineChain.current}/${state.pipelineChain.total}…` : `Process ${count > 1 ? `${formatNumber(count)} in a row` : ''}`.trim()}</button>
       <button class="btn btn-ghost btn-sm" id="pipe-bulk-open">Open</button>
       <button class="btn btn-ghost btn-sm" id="pipe-bulk-scan">Scan</button>
       <button class="btn btn-ghost btn-sm" id="pipe-bulk-clear">Clear</button>
@@ -6473,19 +7021,12 @@ function renderPipelineBulkBar() {
     state.selectedPipelineUrls.clear();
     renderPipeline({ keepToolbar: true });
   });
+  bar.querySelector('#pipe-bulk-process').addEventListener('click', () => {
+    processSelectedOffers(selectedUrls());
+  });
   bar.querySelector('#pipe-bulk-scan').addEventListener('click', () => openScanModal());
   bar.querySelector('#pipe-bulk-open').addEventListener('click', () => {
     selectedUrls().slice(0, 8).forEach(url => window.open(url, '_blank', 'noopener,noreferrer'));
-  });
-  bar.querySelector('#pipe-bulk-process').addEventListener('click', () => {
-    const urls = selectedUrls();
-    if (!urls.length) return;
-    if (urls.length === 1) {
-      openCmdModal('pipeline', { url: urls[0] });
-    } else {
-      startPipelineQueue(urls);
-      toast(`Processing ${urls.length} offers one by one…`);
-    }
   });
   bar.querySelector('#pipe-bulk-delete').addEventListener('click', async () => {
     const urls = selectedUrls();
@@ -6657,6 +7198,95 @@ document.getElementById('quick-add-btn').addEventListener('click', async () => {
   navigate('pipeline');
 });
 
+// ─── Application email (standalone: recipient and/or offer link) ─────────────
+function emailComposeLinks() {
+  const to = document.getElementById('email-to').value.trim().replace(/^.*<([^>]+)>.*$/, '$1');
+  const subject = document.getElementById('email-subject').value;
+  const body = document.getElementById('email-body').value;
+  const q = [subject && `subject=${encodeURIComponent(subject)}`, body && `body=${encodeURIComponent(body)}`].filter(Boolean).join('&');
+  document.getElementById('email-mailto-btn').href = `mailto:${encodeURIComponent(to).replace(/%40/g, '@')}${q ? `?${q}` : ''}`;
+  const gmail = new URLSearchParams({ view: 'cm', fs: '1', to, su: subject, body });
+  document.getElementById('email-gmail-btn').href = `https://mail.google.com/mail/?${gmail}`;
+}
+
+function openEmailModal({ email = '', jobUrl = '' } = {}) {
+  // Opened for a specific offer: start from a clean form, not the last draft.
+  if (email || jobUrl) {
+    ['email-to', 'email-job-url', 'email-job-text', 'email-notes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('email-result').hidden = true;
+    document.getElementById('email-generate-btn').textContent = 'Generate email';
+    document.getElementById('email-to').value = email;
+    document.getElementById('email-job-url').value = jobUrl;
+  }
+  document.getElementById('email-modal').classList.add('open');
+  document.getElementById(email ? 'email-job-url' : 'email-to').focus();
+}
+
+document.getElementById('open-email-btn').addEventListener('click', () => openEmailModal());
+document.getElementById('email-modal-close').addEventListener('click', () => {
+  document.getElementById('email-modal').classList.remove('open');
+});
+document.getElementById('email-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+['email-subject', 'email-body'].forEach(id => {
+  document.getElementById(id).addEventListener('input', emailComposeLinks);
+});
+document.getElementById('email-generate-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('email-generate-btn');
+  const email = document.getElementById('email-to').value.trim();
+  const jobUrl = document.getElementById('email-job-url').value.trim();
+  const jobText = document.getElementById('email-job-text').value.trim();
+  if (!email && !jobUrl && !jobText) { toast('Enter an email, an offer link, or both', true); return; }
+  if (jobUrl && !/^https?:\/\//i.test(jobUrl)) { toast('The offer link must start with http(s)://', true); return; }
+
+  btn.disabled = true;
+  btn.textContent = jobUrl || email ? 'Reading the offer and company…' : 'Writing…';
+  try {
+    const draft = await api('/api/application-email', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        jobUrl,
+        jobText,
+        language: document.getElementById('email-language').value,
+        notes: document.getElementById('email-notes').value.trim(),
+      }),
+    });
+    document.getElementById('email-subject').value = draft.subject || '';
+    document.getElementById('email-body').value = draft.body || '';
+    document.getElementById('email-warnings').innerHTML = (draft.warnings || [])
+      .map(w => `<p>${escapeHtml(w)}</p>`).join('');
+    const target = [draft.company, draft.role].filter(Boolean).join(' · ');
+    const used = [
+      draft.sources?.job && (draft.sources.job === 'pasted' ? 'pasted offer text' : 'offer page'),
+      draft.sources?.company && draft.sources.company.replace(/^https?:\/\//, ''),
+    ].filter(Boolean);
+    document.getElementById('email-sources').textContent = [
+      target && `Adapted for ${target}`,
+      used.length ? `from ${used.join(' + ')}` : 'from your CV only',
+    ].filter(Boolean).join(' ');
+    document.getElementById('email-result').hidden = false;
+    emailComposeLinks();
+    document.getElementById('email-body').focus();
+  } catch (err) {
+    toast(err.message || 'Email generation failed', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = document.getElementById('email-result').hidden ? 'Generate email' : 'Regenerate';
+  }
+});
+document.getElementById('email-copy-btn').addEventListener('click', async () => {
+  const subject = document.getElementById('email-subject').value;
+  const body = document.getElementById('email-body').value;
+  try {
+    await navigator.clipboard.writeText(subject ? `${subject}\n\n${body}` : body);
+    toast('Email copied');
+  } catch {
+    toast('Copy failed', true);
+  }
+});
+
 // ─── Portals tab switcher ─────────────────────────────────────────────────────
 document.querySelectorAll('.portals-tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -6730,6 +7360,25 @@ document.addEventListener('click', async event => {
 });
 
 // ─── Portals (companies) ──────────────────────────────────────────────────────
+function siteHostname(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    return new URL(withProtocol).hostname.replace(/^www\./i, '');
+  } catch {
+    const site = raw.match(/(?:^|\s)site:([a-z0-9.-]+\.[a-z]{2,})/i);
+    return site ? site[1].replace(/^www\./i, '') : '';
+  }
+}
+
+function faviconHtml(source) {
+  const host = siteHostname(source);
+  if (!host) return '';
+  const src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`;
+  return `<img class="site-favicon" src="${escapeHtml(src)}" alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`;
+}
+
 function renderPortals({ keepToolbar = false } = {}) {
   const allPortals = state.portals || [];
   let portals = allPortals;
@@ -6778,24 +7427,24 @@ function renderPortals({ keepToolbar = false } = {}) {
     });
   }
 
-  document.getElementById('portals-tbody').innerHTML = portals.length
-    ? portals.map(p => `
-        <tr>
-          <td style="text-align:center">
+  const root = document.getElementById('portals-groups');
+  const groups = groupBy(portals, companyBucket, companyBucketLabel, 'companies');
+  root.innerHTML = portals.length
+    ? groups.map(group => {
+        const open = filtersActive || portalOpenGroups.has(group.id);
+        const on = group.items.filter(item => item.enabled).length;
+        const rows = group.items.map(p => `
+          <div class="portal-row${p.enabled ? '' : ' is-off'}">
             <label class="toggle" title="${p.enabled ? 'Enabled' : 'Disabled'}">
               <input type="checkbox" ${p.enabled ? 'checked' : ''} data-toggle-portal="${encodeURIComponent(p.name)}">
               <span class="toggle-track"></span>
               <span class="toggle-thumb"></span>
             </label>
-          </td>
-          <td class="td-company" style="${!p.enabled ? 'opacity:0.45' : ''}">${highlightText(p.name, query)}</td>
-          <td class="td-portal-url" title="${escapeHtml(p.careers_url)}">
-            <a href="${escapeHtml(p.careers_url)}" target="_blank" rel="noopener noreferrer">${highlightText(p.careers_url, query)}</a>
-          </td>
-          <td class="td-portal-method"><span class="tag tag-mono">${escapeHtml(p.scan_method || 'playwright')}</span></td>
-          <td class="td-portal-notes" title="${escapeHtml(p.notes || '')}">${p.notes ? highlightText(p.notes, query) : '—'}</td>
-          <td style="white-space:nowrap">${scanStateEl(p.name)}</td>
-          <td style="white-space:nowrap;text-align:right">
+            <div class="portal-row-id">
+              <span class="portal-row-name">${faviconHtml(p.careers_url)}<span>${highlightText(p.name, query)}</span></span>
+              ${p.careers_url ? `<a class="portal-row-link" href="${escapeHtml(p.careers_url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(p.careers_url)}">${highlightText(p.careers_url, query)}</a>` : ''}
+            </div>
+            <span class="portal-row-notes" title="${escapeHtml(p.notes || '')}">${highlightText(p.notes || '', query)}</span>
             <span class="row-actions">
               <button class="btn-icon" data-edit-portal="${encodeURIComponent(p.name)}" title="Edit" aria-label="Edit ${escapeHtml(p.name)}">
                 <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M10.5 2.5l2 2L5 12H3v-2L10.5 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
@@ -6804,12 +7453,18 @@ function renderPortals({ keepToolbar = false } = {}) {
                 <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M2.5 4h10M5.5 4V2.5h4V4M3.5 4l.5 8a1 1 0 001 1h5a1 1 0 001-1l.5-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
             </span>
-          </td>
-        </tr>
-      `).join('')
-    : `<tr><td colspan="7">${allPortals.length
+          </div>`).join('');
+        return `<section class="portal-fold">
+          <button type="button" class="fold-toggle" data-fold="${escapeHtml(group.id)}" aria-expanded="${open ? 'true' : 'false'}">${FOLD_CHEVRON}<span>${escapeHtml(group.label)}</span><span class="fold-meta">${formatNumber(on)} on · ${formatNumber(group.items.length)}</span></button>
+          <div class="portal-fold-list"${open ? '' : ' hidden'}>${rows}</div>
+        </section>`;
+      }).join('')
+    : (allPortals.length
         ? emptyResultsHtml({ query, scope: 'portals', what: 'companies' })
-        : '<div class="empty"><strong>No companies yet</strong><span>Add a company to include it in scans</span></div>'}</td></tr>`;
+        : '<div class="empty"><strong>No companies yet</strong><span>Add a company to include it in scans</span></div>');
+
+  bindFoldToggles(root, portalOpenGroups, () => renderPortals({ keepToolbar: true }));
+  bindRowToggle(root, '.portal-row', '[data-toggle-portal]');
 
   // Toggle handlers
   document.querySelectorAll('[data-toggle-portal]').forEach(cb => {
@@ -6994,8 +7649,15 @@ function renderQueries({ keepToolbar = false } = {}) {
     });
   }
 
-  document.getElementById('queries-tbody').innerHTML = queries.length
-    ? queries.map(p => `
+  const tbody = document.getElementById('queries-tbody');
+  const groups = groupBy(
+    queries,
+    item => item.section === 'eu_job_boards' ? 'eu_job_boards' : 'search_queries',
+    id => id === 'eu_job_boards' ? 'EU / Asia' : 'General',
+    'boards',
+  );
+  tbody.innerHTML = queries.length
+    ? foldedRows(groups, 6, queryOpenGroups, filtersActive, p => `
         <tr>
           <td style="text-align:center">
             <label class="toggle" title="${p.enabled ? 'Enabled' : 'Disabled'}">
@@ -7004,7 +7666,7 @@ function renderQueries({ keepToolbar = false } = {}) {
               <span class="toggle-thumb"></span>
             </label>
           </td>
-          <td class="td-company" style="${!p.enabled ? 'opacity:0.45' : ''}">${highlightText(p.name, query)}</td>
+          <td class="td-company" style="${!p.enabled ? 'opacity:0.45' : ''}"><span class="site-name">${faviconHtml(p.query)}${highlightText(p.name, query)}</span></td>
           <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-3);max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(p.query)}">${highlightText(p.query, query)}</td>
           <td><span class="tag">${p.section === 'eu_job_boards' ? 'EU / Asia' : 'General'}</span></td>
           <td style="white-space:nowrap">${scanStateEl(p.name)}</td>
@@ -7019,10 +7681,13 @@ function renderQueries({ keepToolbar = false } = {}) {
             </span>
           </td>
         </tr>
-      `).join('')
+      `)
     : `<tr><td colspan="6">${allQueries.length
         ? emptyResultsHtml({ query, scope: 'queries', what: 'job boards' })
         : '<div class="empty"><strong>No job boards yet</strong><span>Add a search query to scan a board</span></div>'}</td></tr>`;
+
+  bindFoldToggles(tbody, queryOpenGroups, () => renderQueries({ keepToolbar: true }));
+  bindRowToggle(tbody, 'tr.fold-item', '[data-toggle-query]');
 
   // Toggle handlers
   document.querySelectorAll('[data-toggle-query]').forEach(cb => {
@@ -7577,10 +8242,6 @@ function navigate(view, { push = true, replace = false, runViewHooks = true } = 
     if (view === 'profile' && !profileData) loadProfile();
     if (view === 'cvs') refreshTemplatePreview();
   }
-  // The metal headline is sized to its column, which only has a width once visible.
-  if (view === 'dashboard' && metalHeroMounted && heroTitleText) {
-    requestAnimationFrame(() => setDashboardHeroTitle(heroTitleText));
-  }
 }
 
 function navigateFromCurrentUrl({ replace = false } = {}) {
@@ -7744,7 +8405,9 @@ let _questionModalMeta = {};
 
 function openQuestionModal(company, role, report) {
   _questionModalMeta = { company, role, report };
-  document.getElementById('question-input-modal-title').textContent = `Answer a question — ${company} — ${role}`;
+  document.getElementById('question-input-modal-title').textContent = 'Answer a question';
+  const questionSub = document.getElementById('question-input-modal-sub');
+  if (questionSub) questionSub.textContent = [company, role].filter(Boolean).join(' — ') || 'Paste the form question. The answer is written from the offer report and your profile.';
   document.getElementById('question-input-text').value = '';
   document.getElementById('question-input-modal').classList.add('open');
   setTimeout(() => document.getElementById('question-input-text').focus(), 50);
@@ -7778,7 +8441,7 @@ document.getElementById('question-input-text').addEventListener('keydown', e => 
 // ─── Command Modal (Claude commands) ─────────────────────────────────────────
 const CLAUDE_CMDS = {
   scan:     { label: 'Scan Portals',       cmd: '/career-ops scan' },
-  pipeline: { label: 'Process Pipeline',   cmd: '/career-ops pipeline' },
+  pipeline: { label: 'Process offers',     cmd: '/career-ops pipeline' },
   pdf:      { label: 'Generate CV/PDF',    cmd: '/career-ops pdf' },
   tracker:  { label: 'View Tracker',       cmd: '/career-ops tracker' },
   oferta:   { label: 'Evaluate Offer',     cmd: '/career-ops oferta' },
@@ -7790,6 +8453,7 @@ const CLAUDE_CMDS = {
 };
 
 let activeStream = null;
+let activeCmdFinish = null;
 let activeCmdKey = null;
 let activeCmdMarkdown = '';
 let activeCmdMeta = {};
@@ -7799,6 +8463,25 @@ function orbStateForCmd(cmdKey) {
   if (cmdKey === 'question' || cmdKey === 'coverletter' || cmdKey === 'pdf') return 'composing';
   if (cmdKey === 'deep') return 'weaving';
   return 'working';
+}
+
+function prefersReducedMotion() {
+  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+}
+
+function syncDashboardBeam() {
+  const fx = window.JobYouGoEffects;
+  if (!fx?.setCmdBeam) return;
+  if (prefersReducedMotion()) {
+    fx.setCmdBeam(null);
+    return;
+  }
+  if (activeCmdKey) {
+    fx.setCmdBeam(activeCmdKey);
+    return;
+  }
+  const primary = document.querySelector('#dashboard-command-row .btn-action.is-primary');
+  fx.setCmdBeam(primary?.dataset.cmd || null);
 }
 
 function setCmdStatus(label, { active = false, state, cmdKey } = {}) {
@@ -7814,145 +8497,31 @@ function setCmdStatus(label, { active = false, state, cmdKey } = {}) {
     const el = document.getElementById('cmd-status');
     if (el) el.textContent = plain;
   }
-  if (fx?.setCmdBeam) {
-    // Beams are decorative motion: keep them off for reduced-motion users.
-    fx.setCmdBeam(active && !prefersReducedMotion() ? (cmdKey || activeCmdKey || null) : null);
+  if (active && !prefersReducedMotion()) {
+    fx?.setCmdBeam?.(cmdKey || activeCmdKey || null);
+  } else {
+    syncDashboardBeam();
   }
-}
-
-function prefersReducedMotion() {
-  return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-}
-
-// The hero headline can be rendered by metal-fx's MetalText, which draws a
-// single line (white-space: nowrap, zero tracking): size it to fit its column.
-function heroTitleFontSize(text, el) {
-  const width = el?.parentElement?.clientWidth || 0;
-  if (!width) return heroTitleSize; // dashboard hidden: keep the last fitted size
-  const ctx = heroTitleFontSize.ctx || (heroTitleFontSize.ctx = document.createElement('canvas').getContext('2d'));
-  ctx.font = `${HERO_TITLE_FONT.weight} 100px ${HERO_TITLE_FONT.family}`;
-  const widthAt100 = ctx.measureText(text).width || 1;
-  heroTitleSize = Math.max(HERO_TITLE_FONT.min, Math.min(HERO_TITLE_FONT.max, Math.floor(((width - 8) / widthAt100) * 100)));
-  return heroTitleSize;
 }
 
 function setDashboardHeroTitle(text) {
-  heroTitleText = text;
   const el = document.getElementById('dashboard-hero-title');
-  if (!el) return;
-  const fx = window.JobYouGoEffects;
-  if (metalHeroMounted && fx?.mountMetalHero) {
-    const size = heroTitleFontSize(text, el);
-    fx.mountMetalHero(el, {
-      text,
-      font: `${HERO_TITLE_FONT.weight} ${size}px/${HERO_TITLE_FONT.lineHeight} ${HERO_TITLE_FONT.family}`,
-      color: getComputedStyle(el).color || '#f2f5f3',
-    });
-    return;
-  }
-  el.textContent = text;
+  if (el) el.textContent = text;
 }
-
-let heroResizeFrame = 0;
-window.addEventListener('resize', () => {
-  if (!metalHeroMounted || !heroTitleText) return;
-  cancelAnimationFrame(heroResizeFrame);
-  heroResizeFrame = requestAnimationFrame(() => setDashboardHeroTitle(heroTitleText));
-});
 
 function mountLibrariesEffects() {
   const fx = window.JobYouGoEffects;
   if (!fx) return;
   const status = document.getElementById('cmd-status');
   if (status && fx.mountCmdStatus) fx.mountCmdStatus(status);
-  const title = document.getElementById('dashboard-hero-title');
-  // MetalText has no reduced-motion switch and cannot wrap: keep the plain
-  // headline for reduced motion and for narrow screens.
-  const wideEnough = window.matchMedia?.('(min-width: 861px)').matches;
-  if (title && fx.mountMetalHero && !prefersReducedMotion() && wideEnough) {
-    const fontReady = document.fonts?.load
-      ? document.fonts.load(`${HERO_TITLE_FONT.weight} ${HERO_TITLE_FONT.max}px Syne`).catch(() => {})
-      : Promise.resolve();
-    fontReady.then(() => {
-      metalHeroMounted = true;
-      setDashboardHeroTitle(heroTitleText || title.textContent.trim());
-    });
-  }
-  if (fx.mountCmdBeams) {
+  if (fx.mountCmdBeams && !prefersReducedMotion()) {
     document.querySelectorAll('[data-cmd-beam]').forEach((host) => {
       fx.mountCmdBeams(host, host.getAttribute('data-cmd-beam'));
     });
+    syncDashboardBeam();
   }
 }
 
-// Sequential bulk processing of multiple selected pipeline offers.
-let pipelineQueue = [];      // URLs not yet started
-let pipelineQueueTotal = 0;  // total in the current batch (0 = no batch running)
-let pipelineQueueIndex = 0;  // 1-based index of the offer currently processing
-let pipelineQueueFailed = 0; // count of offers that errored during the batch
-
-function startPipelineQueue(urls) {
-  const list = [...new Set((urls || []).filter(Boolean))];
-  if (!list.length) return;
-  hidePipelineUrls(list);
-  pipelineQueue = list;
-  pipelineQueueTotal = list.length;
-  pipelineQueueIndex = 0;
-  pipelineQueueFailed = 0;
-  advancePipelineQueue();
-}
-
-function resetPipelineQueue() {
-  pipelineQueue = [];
-  pipelineQueueTotal = 0;
-  pipelineQueueIndex = 0;
-  pipelineQueueFailed = 0;
-}
-
-// Start the next queued offer, or finalize the batch when the queue is empty.
-function advancePipelineQueue() {
-  if (!pipelineQueue.length) {
-    if (pipelineQueueTotal > 1) {
-      const ok = pipelineQueueTotal - pipelineQueueFailed;
-      toast(pipelineQueueFailed
-        ? `Pipeline batch done — ${ok}/${pipelineQueueTotal} processed, ${pipelineQueueFailed} failed (left selected for retry)`
-        : `Pipeline batch done — ${ok} offer${ok > 1 ? 's' : ''} processed`);
-    }
-    resetPipelineQueue();
-    return;
-  }
-  const url = pipelineQueue.shift();
-  pipelineQueueIndex += 1;
-  openCmdModal('pipeline', { url });
-}
-
-// Called from the stream's done/error handlers to chain to the next offer.
-// `ok` = the just-finished offer succeeded (deselect it) vs failed (keep selected).
-function onPipelineStreamSettled(ok) {
-  if (pipelineQueueTotal <= 1) return;
-  const finishedUrl = activeCmdMeta.url;
-  if (ok) {
-    if (finishedUrl) state.selectedPipelineUrls.delete(finishedUrl);
-  } else {
-    pipelineQueueFailed += 1;
-    if (finishedUrl) state.selectedPipelineUrls.add(finishedUrl);
-  }
-  renderPipeline();
-  const modal = document.getElementById('cmd-modal');
-  if (pipelineQueue.length) {
-    const next = pipelineQueueIndex + 1;
-    setCmdStatus(`${pipelineQueueIndex}/${pipelineQueueTotal} done. Next offer (${next}/${pipelineQueueTotal}) in 2s…`, {
-      active: true,
-      state: 'connecting',
-    });
-    setTimeout(() => {
-      if (modal.classList.contains('open')) advancePipelineQueue();
-      else resetPipelineQueue();
-    }, 2000);
-  } else {
-    advancePipelineQueue();
-  }
-}
 const BLOCKING_MODAL_IDS = [
   'modal',
   'quick-modal',
@@ -7962,6 +8531,7 @@ const BLOCKING_MODAL_IDS = [
   'confirm-modal',
   'run-modal',
   'question-input-modal',
+  'email-modal',
 ];
 
 function closeBlockingModals() {
@@ -7985,7 +8555,16 @@ function extractCoverLetterShortVersion(md = '') {
   return md.trim();
 }
 
-function openCmdModal(cmdKey, params = {}) {
+// onFinish(result) runs once per run, after the data reload:
+// { ok: true, blocked } on done, { ok: false, message } on error,
+// { cancelled: true } when the dock is closed or another command replaces it.
+function finishActiveCmd(result) {
+  const finish = activeCmdFinish;
+  activeCmdFinish = null;
+  finish?.(result);
+}
+
+function openCmdModal(cmdKey, params = {}, { titleSuffix = '', onFinish } = {}) {
   const def = CLAUDE_CMDS[cmdKey];
   if (!def) return;
   const out  = document.getElementById('cmd-stream-output');
@@ -7994,20 +8573,16 @@ function openCmdModal(cmdKey, params = {}) {
   const cvPdfBtn = document.getElementById('cmd-cv-pdf-btn');
   const coverPdfBtn = document.getElementById('cmd-cover-pdf-btn');
   const copyShortBtn = document.getElementById('cmd-copy-short-btn');
-  const isAuto = document.getElementById('auto-next-toggle').checked && cmdKey === 'pipeline' && !params.url;
-  const pipelineUrl = cmdKey === 'pipeline'
-    ? (params.url || getVisiblePipeline()[0]?.url || '')
-    : '';
-  if (pipelineUrl) hidePipelineUrls([pipelineUrl]);
 
   closeBlockingModals();
-  
-  document.getElementById('cmd-modal-title').textContent =
+  finishActiveCmd({ cancelled: true });
+  activeCmdFinish = typeof onFinish === 'function' ? onFinish : null;
+
+  const baseTitle =
     ((cmdKey === 'apply' || cmdKey === 'coverletter' || cmdKey === 'question') && params.company && params.role)
       ? `${def.label} — ${params.company} — ${params.role}`
-      : (cmdKey === 'pipeline' && pipelineQueueTotal > 1)
-      ? `${def.label} — ${pipelineQueueIndex}/${pipelineQueueTotal}`
       : def.label;
+  document.getElementById('cmd-modal-title').textContent = titleSuffix ? `${baseTitle} — ${titleSuffix}` : baseTitle;
   out.innerHTML = '';
   activeCmdKey = cmdKey;
   setCmdStatus('Running…', { active: true, state: orbStateForCmd(cmdKey), cmdKey });
@@ -8016,7 +8591,6 @@ function openCmdModal(cmdKey, params = {}) {
   toggleBtn.title = 'Collapse';
   activeCmdMarkdown = '';
   activeCmdMeta = { ...params };
-  if (pipelineUrl) activeCmdMeta.url = pipelineUrl;
   const canGenerateCvFromResponse = cmdKey === 'pdf';
   cvPdfBtn.style.display = canGenerateCvFromResponse ? '' : 'none';
   cvPdfBtn.disabled = true;
@@ -8081,18 +8655,7 @@ function openCmdModal(cmdKey, params = {}) {
     }
     es.close(); activeStream = null;
     await loadAll();
-    if (pipelineUrl) revealPipelineUrls([pipelineUrl]);
-
-    // AUTO-CONTINUE LOGIC
-    if (isAuto && getVisiblePipeline().length > 0) {
-      setCmdStatus('Done. Waiting for next offer (3s)…', { active: true, state: 'connecting' });
-      setTimeout(() => {
-        if (modal.classList.contains('open')) openCmdModal('pipeline');
-      }, 3000);
-    }
-
-    // BULK QUEUE: chain to the next selected offer (no-op outside a batch).
-    onPipelineStreamSettled(!blocked);
+    finishActiveCmd({ ok: true, blocked });
   });
   es.addEventListener('error', async e => {
     if (activeStream !== es) return;
@@ -8103,11 +8666,61 @@ function openCmdModal(cmdKey, params = {}) {
     // pipeline removal), so refresh state here too — otherwise a partially
     // successful run leaves stale data/pipeline lists until a manual reload.
     await loadAll();
-    if (pipelineUrl) revealPipelineUrls([pipelineUrl]);
-
-    // BULK QUEUE: a failed offer stays selected; carry on with the rest.
-    onPipelineStreamSettled(false);
+    finishActiveCmd({ ok: false, message: msg });
   });
+}
+
+// Selected offers are evaluated one after another: the next run starts when
+// the previous stream ends. Closing the dock stops the chain. An account error
+// (OpenRouter 401/402) or two failures in a row stop it too, since every
+// following offer would fail the same way.
+async function processSelectedOffers(urls) {
+  const queue = [...new Set(urls)].filter(Boolean);
+  if (!queue.length) return;
+  if (state.pipelineChain) {
+    toast(`Already processing offer ${state.pipelineChain.current}/${state.pipelineChain.total}`, true);
+    return;
+  }
+  const chain = { total: queue.length, current: 0, done: 0, failed: 0, stopReason: '' };
+  state.pipelineChain = chain;
+  let failuresInRow = 0;
+  try {
+    for (const url of queue) {
+      chain.current += 1;
+      const result = await new Promise(resolve => {
+        openCmdModal('pipeline', { url }, { titleSuffix: `${chain.current}/${chain.total}`, onFinish: resolve });
+      });
+      if (result.cancelled) {
+        chain.current -= 1;
+        chain.stopReason = 'stopped';
+        break;
+      }
+      state.selectedPipelineUrls.delete(url);
+      if (result.ok) {
+        chain.done += 1;
+        failuresInRow = 0;
+        continue;
+      }
+      chain.failed += 1;
+      failuresInRow += 1;
+      if (/\b40[12]\b|credits|crédits/i.test(result.message || '')) {
+        chain.stopReason = result.message;
+        break;
+      }
+      if (failuresInRow >= 2) {
+        chain.stopReason = 'two failures in a row';
+        break;
+      }
+    }
+  } finally {
+    state.pipelineChain = null;
+    renderPipeline({ keepToolbar: true });
+  }
+  const left = chain.total - chain.done - chain.failed;
+  const summary = `${chain.done}/${chain.total} processed${chain.failed ? `, ${chain.failed} failed` : ''}`;
+  if (!left) toast(summary, chain.failed > 0);
+  else if (chain.stopReason === 'stopped') toast(`Chain stopped: ${summary}. ${left} still selected.`);
+  else toast(`Chain stopped (${chain.stopReason}): ${summary}. ${left} still selected.`, true);
 }
 
 document.getElementById('cmd-copy-short-btn').addEventListener('click', async () => {
@@ -8201,17 +8814,16 @@ function closeCmdDock({ cancelStream = true } = {}) {
   const modal = document.getElementById('cmd-modal');
   modal.classList.remove('open', 'collapsed');
   document.getElementById('cmd-modal-toggle').title = 'Collapse';
-  const pendingPipelineUrls = [...state.processingPipelineUrls];
   if (cancelStream && activeStream) {
     const es = activeStream;
     activeStream = null;
     es.close();
+    finishActiveCmd({ cancelled: true });
   }
   activeCmdKey = null;
   activeCmdMarkdown = '';
   activeCmdMeta = {};
-  resetPipelineQueue();
-  if (pendingPipelineUrls.length) revealPipelineUrls(pendingPipelineUrls);
+  syncDashboardBeam();
 }
 
 document.getElementById('cmd-modal-toggle').addEventListener('click', () => {
@@ -8262,6 +8874,72 @@ let scanSources = { companies: [], rss: [], queries: [], aggregators: [] };
 let scanSelection = { companies: [], rss: [], queries: [], aggregators: [], all: true };
 let scanKindFilter = 'all'; // 'all' | 'job' | 'freelance'
 const scanGroupItems = {};
+const scanOpenGroups = new Set();
+const portalOpenGroups = new Set();
+const queryOpenGroups = new Set();
+const FOLD_CHEVRON = '<svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M6 4l4 3.5L6 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function companyBucket(portal) {
+  if (portal.api) return 'api';
+  const method = String(portal.scan_method || 'playwright').toLowerCase();
+  if (method === 'websearch' || method === 'playwright') return 'web';
+  return method || 'web';
+}
+
+function companyBucketLabel(id) {
+  return { api: 'Direct API', web: 'Web' }[id] || id;
+}
+
+function groupBy(items, idOf, labelOf, idPrefix) {
+  const buckets = new Map();
+  items.forEach(item => {
+    const id = idOf(item);
+    if (!buckets.has(id)) buckets.set(id, []);
+    buckets.get(id).push(item);
+  });
+  const preferred = ['api', 'web', 'search_queries', 'eu_job_boards'];
+  return [...buckets.keys()]
+    .sort((a, b) => {
+      const ia = preferred.indexOf(a);
+      const ib = preferred.indexOf(b);
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      return labelOf(a).localeCompare(labelOf(b));
+    })
+    .map(id => ({ id: `${idPrefix}-${id}`, label: labelOf(id), items: buckets.get(id) }));
+}
+
+function foldedRows(groups, colspan, openSet, forceOpen, rowHtml) {
+  return groups.map(group => {
+    const open = forceOpen || openSet.has(group.id);
+    const on = group.items.filter(item => item.enabled).length;
+    const head = `<tr class="fold-head"><td colspan="${colspan}"><button type="button" class="fold-toggle" data-fold="${escapeHtml(group.id)}" aria-expanded="${open ? 'true' : 'false'}">${FOLD_CHEVRON}<span>${escapeHtml(group.label)}</span><span class="fold-meta">${formatNumber(on)} on · ${formatNumber(group.items.length)}</span></button></td></tr>`;
+    const rows = group.items.map(item => rowHtml(item).replace('<tr>', `<tr class="fold-item"${open ? '' : ' hidden'}>`)).join('');
+    return head + rows;
+  }).join('');
+}
+
+function bindRowToggle(root, rowSelector, inputSelector) {
+  root.querySelectorAll(rowSelector).forEach(row => {
+    row.addEventListener('click', e => {
+      if (e.target.closest('a, button, input, label')) return;
+      const cb = row.querySelector(inputSelector);
+      if (!cb) return;
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change'));
+    });
+  });
+}
+
+function bindFoldToggles(root, openSet, rerender) {
+  root.querySelectorAll('.fold-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.fold;
+      if (openSet.has(id)) openSet.delete(id);
+      else openSet.add(id);
+      rerender();
+    });
+  });
+}
 
 function filterByKind(items) {
   if (scanKindFilter === 'all') return items;
@@ -8269,19 +8947,21 @@ function filterByKind(items) {
 }
 
 function cooldownEl(lastScanned) {
-  if (!lastScanned) return `<span style="font-size:11px;color:var(--text-4)">—</span>`;
+  if (!lastScanned) return `<span class="scan-when">—</span>`;
   const diff = Date.now() - new Date(lastScanned).getTime();
   const inCd = diff < 86400000;
   const label = relativeTime(lastScanned);
   return inCd
-    ? `<span style="font-size:11px;color:var(--emerald);display:flex;align-items:center;gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:var(--emerald);display:inline-block"></span>${label}</span>`
-    : `<span style="font-size:11px;color:var(--text-4)">${label}</span>`;
+    ? `<span class="scan-when is-fresh"><i></i>${label}</span>`
+    : `<span class="scan-when">${label}</span>`;
 }
 
 function renderScanGroup(title, items, key, groupId) {
   if (!items.length) return '';
   scanGroupItems[groupId] = items;
-  const allChecked = items.every(it => scanSelection[key]?.includes(it.name));
+  const open = scanOpenGroups.has(groupId);
+  const selectedCount = items.filter(it => scanSelection[key]?.includes(it.name)).length;
+  const allChecked = selectedCount === items.length;
   const rows = items.map(it => {
     const checked = scanSelection[key]?.includes(it.name) ? 'checked' : '';
     let badge = '';
@@ -8299,29 +8979,32 @@ function renderScanGroup(title, items, key, groupId) {
         ? `<span class="src-badge is-web">Configured</span>`
         : `<span class="src-badge is-play">Key missing</span>`;
     }
-    return `<label style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;border-bottom:1px solid var(--border-s)">
-      <input type="checkbox" class="scan-cb" data-key="${key}" data-name="${it.name}" ${checked} style="accent-color:var(--brand);width:14px;height:14px;flex-shrink:0">
-      <span style="flex:1;font-size:13px;color:var(--text-2)">${it.name}${badge}</span>
+    return `<label class="scan-row">
+      <input type="checkbox" class="scan-cb" data-key="${key}" data-name="${escapeHtml(it.name)}" ${checked}>
+      <span class="scan-row-name">${escapeHtml(it.name)}${badge}</span>
       ${cooldownEl(it.lastScanned)}
     </label>`;
   }).join('');
-  return `<div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <span style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">${title}</span>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-3)">
-        <input type="checkbox" class="scan-group-all" data-key="${key}" data-group="${groupId}" ${allChecked ? 'checked' : ''} style="accent-color:var(--brand);width:13px;height:13px">
+  return `<div class="scan-group${open ? ' is-open' : ''}">
+    <div class="scan-group-head">
+      <button type="button" class="scan-group-toggle" data-group="${groupId}" aria-expanded="${open ? 'true' : 'false'}">
+        ${FOLD_CHEVRON}
+        <span class="scan-group-title">${title}</span>
+        <span class="scan-group-count">${selectedCount}/${items.length}</span>
+      </button>
+      <label class="scan-group-all-label">
+        <input type="checkbox" class="scan-group-all" data-key="${key}" data-group="${groupId}" ${allChecked ? 'checked' : ''}>
         All
       </label>
     </div>
-    <div>${rows}</div>
+    <div class="scan-group-list"${open ? '' : ' hidden'}>${rows}</div>
   </div>`;
 }
 
 function renderScanModal() {
   const body = document.getElementById('scan-modal-body');
   const apiCos    = filterByKind(scanSources.companies.filter(c => c.access === 'api'));
-  const webCos    = filterByKind(scanSources.companies.filter(c => c.access === 'websearch'));
-  const playCos   = filterByKind(scanSources.companies.filter(c => c.access === 'playwright'));
+  const webCos    = filterByKind(scanSources.companies.filter(c => c.access === 'websearch' || c.access === 'playwright'));
   const rssItems  = filterByKind(scanSources.rss);
   const aggItems  = filterByKind(scanSources.aggregators);
   const jobQ      = scanSources.queries.filter(q => (q.kind || 'job') === 'job');
@@ -8330,14 +9013,13 @@ function renderScanModal() {
   const freeQueries = filterByKind(freeQ);
 
   body.innerHTML = [
-    renderScanGroup(`Direct API (${apiCos.length})`, apiCos, 'companies', 'companies-api'),
-    renderScanGroup(`WebSearch (${webCos.length})`, webCos, 'companies', 'companies-websearch'),
-    renderScanGroup(`Playwright (${playCos.length})`, playCos, 'companies', 'companies-playwright'),
-    renderScanGroup(`RSS Feeds (${rssItems.length})`, rssItems, 'rss', 'rss'),
-    renderScanGroup(`API Aggregators (${aggItems.length})`, aggItems, 'aggregators', 'aggregators'),
-    renderScanGroup(`WebSearch Queries — Jobs (${jobQueries.length})`, jobQueries, 'queries', 'queries-jobs'),
-    renderScanGroup(`Freelance / Missions Portals (${freeQueries.length})`, freeQueries, 'queries', 'queries-freelance'),
-  ].filter(Boolean).join('') || '<span style="color:var(--text-4);font-size:13px">No sources match this filter.</span>';
+    renderScanGroup('Direct API', apiCos, 'companies', 'companies-api'),
+    renderScanGroup('Web', webCos, 'companies', 'companies-web'),
+    renderScanGroup('RSS feeds', rssItems, 'rss', 'rss'),
+    renderScanGroup('API aggregators', aggItems, 'aggregators', 'aggregators'),
+    renderScanGroup('Job boards', jobQueries, 'queries', 'queries-jobs'),
+    renderScanGroup('Freelance boards', freeQueries, 'queries', 'queries-freelance'),
+  ].filter(Boolean).join('') || '<p class="modal-empty">No sources match this filter.</p>';
 
   const total = (scanSelection.companies?.length || 0) + (scanSelection.rss?.length || 0)
     + (scanSelection.queries?.length || 0) + (scanSelection.aggregators?.length || 0);
@@ -8351,6 +9033,14 @@ function renderScanModal() {
       if (cb.checked) { if (!scanSelection[key].includes(name)) scanSelection[key].push(name); }
       else { scanSelection[key] = scanSelection[key].filter(n => n !== name); }
       scanSelection.all = false;
+      renderScanModal();
+    });
+  });
+  body.querySelectorAll('.scan-group-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.group;
+      if (scanOpenGroups.has(id)) scanOpenGroups.delete(id);
+      else scanOpenGroups.add(id);
       renderScanModal();
     });
   });
@@ -8383,7 +9073,7 @@ function allNames(sources) {
 async function openScanModal() {
   const modal = document.getElementById('scan-modal');
   modal.classList.add('open');
-  document.getElementById('scan-modal-body').innerHTML = '<span style="color:var(--text-4);font-size:13px">Loading…</span>';
+  document.getElementById('scan-modal-body').innerHTML = '<p class="modal-empty">Loading sources…</p>';
 
   const [sources, savedSel] = await Promise.all([
     api('/api/scan-sources'),
@@ -8504,6 +9194,12 @@ document.addEventListener('click', e => {
   const btnCmd = e.target.closest('[data-cmd]');
   if (btnCmd) {
     if (btnCmd.dataset.cmd === 'scan') { openScanModal(); return; }
+    // In the pipeline view, "Process offers" runs the selection in a row;
+    // with nothing selected it evaluates the next pending offer, as before.
+    if (btnCmd.dataset.cmd === 'pipeline' && btnCmd.closest('#view-pipeline') && state.selectedPipelineUrls.size) {
+      processSelectedOffers([...state.selectedPipelineUrls]);
+      return;
+    }
     openCmdModal(btnCmd.dataset.cmd);
     return;
   }
@@ -8560,8 +9256,7 @@ if (!session && !isViewOnly) {
   function applyViewOnlyRestrictions() {
     document.querySelectorAll(
       '.btn-action, .btn-primary, [data-cmd], [data-run], ' +
-      '#add-pipeline-btn, #quick-add-btn, .pipeline-run-btn, ' +
-      '.apply-row-btn, .auto-apply-row-btn, .cover-letter-row-btn, .question-row-btn, ' +
+      '.apply-row-btn, .auto-apply-row-btn, .cover-letter-row-btn, .email-row-btn, .question-row-btn, ' +
       '.mark-applied-btn, .delete-application-btn, [data-bulk-enable], #btn-signout'
     ).forEach(el => {
       if (el.id === 'btn-signout') return; // keep sign-in button

@@ -111,3 +111,42 @@ export function judgeAutofillSnapshot(fields, identity = {}) {
 export function autofillShouldKeepWaiting(status) {
   return status === 'empty' || status === 'absent' || status === 'partial';
 }
+
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Poll `read()` (identity field snapshots) until the ATS autofill lands, a
+ * wrong value shows up, or `timeoutMs` passes. Never blocks the fill: the
+ * caller fills the blanks and overwrites values that do not match.
+ * Shared by apply-runner (frame.evaluate) and the bridge (page helper).
+ */
+export async function waitForAutofill(read, identity = {}, timeoutMs = AUTOFILL_WAIT_MS) {
+  const judge = async () => {
+    let fields = [];
+    try { fields = await read(); } catch { fields = []; }
+    return judgeAutofillSnapshot(Array.isArray(fields) ? fields : [], identity);
+  };
+  const deadline = Date.now() + timeoutMs;
+  let last = judgeAutofillSnapshot([], identity);
+  while (Date.now() < deadline) {
+    last = await judge();
+    if (!autofillShouldKeepWaiting(last.status)) break;
+    await pause(200);
+  }
+  if (autofillShouldKeepWaiting(last.status)) last = await judge();
+  const timedOut = autofillShouldKeepWaiting(last.status);
+  if (last.status === 'matched') await pause(400);
+  return { ...last, timedOut, manualFill: last.status !== 'matched' };
+}
+
+/** The run-log line for an autofill outcome ('' when there is nothing to say). */
+export function autofillLogLine(auto) {
+  if (auto?.status === 'matched') return 'Autofill ATS: nom ou email recopié.';
+  if (auto?.status === 'mismatch') {
+    const detail = (auto.mismatches || []).map((m) => m.kind).join(', ') || 'identité';
+    return `Autofill ATS incorrect (${detail}) — correction avec le profil.`;
+  }
+  if (auto?.status === 'partial') return 'Autofill ATS partiel — les champs vides seront remplis.';
+  if (auto?.manualFill) return 'Autofill ATS absent après le délai — remplissage manuel des champs identité.';
+  return '';
+}

@@ -2,7 +2,7 @@
 ai_builder:
   use_profile_config: false
   headline: AI Product Builder | Senior Product Designer
-  portrait: hugo_vermot.png
+  portrait: hugo_vermot.optimized.jpg
   summary: >-
     AI Product Builder with a senior product design background across enterprise and SaaS. I have worked with
     AI for 4 years, building bootstrapped products: UXfi, Flemme OS and Creads.io, which has 1,200 registered
@@ -116,7 +116,7 @@ ai_builder:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads-logo.webp
@@ -163,7 +163,7 @@ ai_builder:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - >-
           Product strategy, investor UX, KYB compliance onboarding, and PM workspace architecture for a
           regulated RWA investment platform (commercial real estate, daily USDC yield, Base / ERC-3643).
@@ -226,7 +226,7 @@ ai_builder:
 product_designer:
   use_profile_config: false
   headline: Senior Product Designer | AI Products
-  portrait: hugo_vermot.png
+  portrait: hugo_vermot.optimized.jpg
   summary: >-
     Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
     research, complex journeys and design systems with product and engineering teams. My experience includes
@@ -306,7 +306,7 @@ product_designer:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads-logo.webp
@@ -353,7 +353,7 @@ product_designer:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - >-
           Design lead on a regulated RWA investment platform: investor homepage, asset marketplace, fractional
           purchase flows, five-step KYB onboarding, and the Property Manager workspace.
@@ -418,8 +418,9 @@ complete_paris:
   phone: +33 6 95 65 91 31
   phone_link: '+33695659131'
   headline: Senior Product Designer | AI Products
-  portrait: hugo_vermot.png
+  portrait: hugo_vermot.optimized.jpg
   maxim: From user research to working products.
+  experience_note: Agency (Agence V0) and freelance client missions ran in parallel, so some dates overlap.
   summary: >-
     Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
     research, complex journeys and design systems with product and engineering teams. My experience includes
@@ -437,12 +438,12 @@ complete_paris:
     - value: '12'
       label: years
       sub: product design
-    - value: 1,200
-      label: users
-      sub: Creads.io
-    - value: 15+
-      label: maisons
-      sub: LVMH platform
+    - value: 30+
+      label: projects
+      sub: delivered
+    - value: '5'
+      label: founder
+      sub: projects
   availability_tags:
     - label: Seeking full-time
       bg: '#f0fdf4'
@@ -493,7 +494,7 @@ complete_paris:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads-logo.webp
@@ -532,34 +533,29 @@ complete_paris:
         - Designed investor-profile validation, savings and allocation journeys on desktop and mobile.
         - Recorded +12% investment activity following work on these flows.
   founder_projects:
+    - name: Creads.io
+      logo: creads-logo.webp
+      desc: AI advertising SaaS for brands
+      tag: Launched · 1,200 users
+      year: '2024'
     - name: Jarvos
       logo: jarvos-logo.svg
       desc: AI Agent OS with semantic orchestration
       tag: Agent OS in progress
-    - name: Ancient World
-      logo: ancient-world-logo.svg
-      desc: MMORPG on Unreal Engine 5 + Supabase
-      tag: Side project in progress
     - name: UXfi.ai
       logo: uxfi.png
       desc: AI UX Audit platform
       tag: Prototype
-      year: '2024'
-    - name: Panfy.ai
-      logo: panfy_icon.png
-      desc: Crypto analytics & portfolio
-      tag: Prototype · On hold
       year: '2024'
     - name: FlemmeOS
       logo: cursor-logo.jpg
       desc: AI Agentic Workflow OS
       tag: AI / OS
       year: '2024'
-    - name: Vloggy
-      logo: vloggy_logo.png
-      desc: Video Social Network
-      tag: Social / Mobile
-      year: '2017'
+    - name: JobYouGo
+      logo: favicon.png
+      desc: Portfolio + AI job-search automation
+      tag: Career / AI
     - name: Newflux.fr
       logo: logo-HV.jpg
       desc: First UX/UI media in France
@@ -570,8 +566,9 @@ complete_bangkok:
   phone: +66 62 784 2137
   phone_link: '+66627842137'
   headline: Senior Product Designer | AI Products
-  portrait: hugo_vermot.png
+  portrait: hugo_vermot.optimized.jpg
   maxim: From user research to working products.
+  experience_note: Agency (Agence V0) and freelance client missions ran in parallel, so some dates overlap.
   summary: >-
     Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
     research, complex journeys and design systems with product and engineering teams. My experience includes
@@ -589,12 +586,12 @@ complete_bangkok:
     - value: '12'
       label: years
       sub: product design
-    - value: 1,200
-      label: users
-      sub: Creads.io
-    - value: 15+
-      label: maisons
-      sub: LVMH platform
+    - value: 30+
+      label: projects
+      sub: delivered
+    - value: '5'
+      label: founder
+      sub: projects
   availability_tags:
     - label: Seeking full-time
       bg: '#f0fdf4'
@@ -645,7 +642,7 @@ complete_bangkok:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads-logo.webp
@@ -684,34 +681,29 @@ complete_bangkok:
         - Designed investor-profile validation, savings and allocation journeys on desktop and mobile.
         - Recorded +12% investment activity following work on these flows.
   founder_projects:
+    - name: Creads.io
+      logo: creads-logo.webp
+      desc: AI advertising SaaS for brands
+      tag: Launched · 1,200 users
+      year: '2024'
     - name: Jarvos
       logo: jarvos-logo.svg
       desc: AI Agent OS with semantic orchestration
       tag: Agent OS in progress
-    - name: Ancient World
-      logo: ancient-world-logo.svg
-      desc: MMORPG on Unreal Engine 5 + Supabase
-      tag: Side project in progress
     - name: UXfi.ai
       logo: uxfi.png
       desc: AI UX Audit platform
       tag: Prototype
-      year: '2024'
-    - name: Panfy.ai
-      logo: panfy_icon.png
-      desc: Crypto analytics & portfolio
-      tag: Prototype · On hold
       year: '2024'
     - name: FlemmeOS
       logo: cursor-logo.jpg
       desc: AI Agentic Workflow OS
       tag: AI / OS
       year: '2024'
-    - name: Vloggy
-      logo: vloggy_logo.png
-      desc: Video Social Network
-      tag: Social / Mobile
-      year: '2017'
+    - name: JobYouGo
+      logo: favicon.png
+      desc: Portfolio + AI job-search automation
+      tag: Career / AI
     - name: Newflux.fr
       logo: logo-HV.jpg
       desc: First UX/UI media in France
@@ -720,7 +712,7 @@ complete_bangkok:
 product_manager:
   use_profile_config: false
   headline: Product Designer / Product Manager
-  portrait: hugo_vermot.png
+  portrait: hugo_vermot.optimized.jpg
   summary: >-
     Product Designer / Product Manager with experience in SaaS discovery, prioritization and delivery. At
     UpViral, I ran user interviews and worked with the CPO on a product overhaul. At OneAsset, I shipped the
@@ -824,7 +816,7 @@ product_manager:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads-logo.webp
@@ -873,7 +865,7 @@ product_manager:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - >-
           Own product strategy and UX architecture for a regulated RWA investment platform: investor flows,
           KYB compliance onboarding, reporting logic, and the Property Manager workspace.
@@ -943,7 +935,7 @@ shared:
         - >-
           In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
           and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          GitHub flow with engineering. Figmol is OneAsset's internal review tool, not a peer of GitHub or Cursor.
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - >-
           Regulated real-world asset investment platform: fractional real estate ownership from $10,000, daily
           USDC yield (Base / ERC-3643).
@@ -958,8 +950,8 @@ shared:
       bullets:
         - SaaS marketing platform.
         - >-
-          Led a complete SaaS overhaul solo: UI redesign, information architecture rebuild, and user-flow
-          redesign from weak initial foundations.
+          Led a complete SaaS overhaul as the sole designer: UI redesign, information architecture rebuild,
+          and user-flow redesign from weak initial foundations.
         - >-
           Ran multiple rounds of user interviews with real customers, translating findings directly into
           structural product decisions.
@@ -983,7 +975,7 @@ shared:
           regulatory constraints, driving +12% investment activity.
     - company: Edenred
       logo: edenred.png
-      role: UI Designer
+      role: Senior Product Designer
       period: 2023 – 2024
       bullets:
         - 'Corporate mobility benefits: gas station and EV-charging locator apps.'
@@ -1027,47 +1019,8 @@ shared:
           Product design agency: Renault Group, BMW Group, Volkswagen, Casino/Spar/Vival, Skiset, Shiseido,
           Société Générale, Edenred, and GALIAN-SMABTP.
         - >-
-          Founded and ran the agency solo, scaled it to 7 junior freelance designers, and delivered 20+ client
-          projects generating ~€400K in revenue over three years.
-    - company: France Télévisions
-      logo: francetv.png
-      role: Product Designer
-      period: 2017 – 2019
-      bullets:
-        - >-
-          France Télévisions' main website, a cross-platform children's app (including IPTV), and a children's
-          documentation and support site.
-        - >-
-          Designed across three product surfaces: the flagship site, a multi-platform children's app, and a
-          dedicated documentation and support site for young audiences.
-    - company: Groupe SNCF
-      logo: sncf.png
-      role: UX Designer
-      period: 2017 – 2020
-      bullets:
-        - 'Internal professional apps: security, information, and HR workflows.'
-        - >-
-          Designed internal professional apps for SNCF staff and contributed to the redesign of SNCF Réseau's
-          digital tools.
-    - company: Marcel Worldwide / Publicis
-      role: UX Designer
-      period: Oct 2015 – Feb 2017
-      bullets:
-        - >-
-          Agency clients: Banque Populaire, Groupama, Orange, Renault, Ruinart, Sanofy, Hépar, Renzo Piano,
-          Axe.
-        - >-
-          Ran Sprint Design and Lean UX engagements, facilitating workshops and rapid prototyping under agency
-          deadlines.
-    - company: Vloggy
-      logo: vloggy_logo.png
-      role: Co-founder
-      period: 2017 – 2020
-      bullets:
-        - 100% video social network for iOS and Android with an integrated mobile editing studio, Gen-Z focus.
-        - >-
-          Co-founded and helped build the product from zero, raising €100K seed funding (Columbus BlueSky
-          Holding).
+          Founded the agency and grew it to a team of up to 7 junior freelance designers, recruited and
+          mentored as it scaled; delivered 20+ client projects generating ~€400K in revenue over three years.
   education:
     - degree: Bachelor Product Design
       school: Digital Campus

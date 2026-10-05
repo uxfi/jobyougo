@@ -109,6 +109,11 @@ export function normalizeUrl(raw) {
   u.search = '';
   for (const [k, v] of keep) u.searchParams.append(k, v);
 
+  // A posting's apply page is the same posting: Ashby `/application` and Lever
+  // `/apply` (scan-history held one Bjak posting under both keys).
+  if (/(^|\.)ashbyhq\.com$/.test(u.hostname)) u.pathname = u.pathname.replace(/\/application\/?$/, '');
+  if (/(^|\.)lever\.co$/.test(u.hostname)) u.pathname = u.pathname.replace(/\/apply\/?$/, '');
+
   // Drop a single trailing slash on the path (but never the root "/").
   if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
     u.pathname = u.pathname.slice(0, -1);
