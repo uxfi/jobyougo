@@ -12,6 +12,9 @@ import {
   buildMailtoUrl,
   parseApplicationEmailResponse,
   parseRecipient,
+  portfolioUrlFromCv,
+  profileWithPortfolio,
+  applyContactFallback,
   stripUngroundedSentences,
 } from '../lib/application-email.mjs';
 
@@ -83,8 +86,31 @@ test('formatApplicationEmail rebuilds greeting, paragraphs and signature', () =>
     '',
     'Mon CV est en pièce jointe.',
     '',
-    'Bien à vous,\nHugo Vermot\njobyougo.xyz/portfolio | linkedin.com/in/hugovermot',
+    'Bien à vous,\nHugo Vermot\nhttps://jobyougo.xyz/portfolio\nhttps://linkedin.com/in/hugovermot',
   ].join('\n'));
+});
+
+test('portfolio URL comes from the CV when the profile row has none, and stays off another person', () => {
+  const cv = '**Portfolio:** [jobyougo.xyz/portfolio](https://jobyougo.xyz/portfolio)';
+  assert.equal(portfolioUrlFromCv(cv), 'https://jobyougo.xyz/portfolio');
+  const fromCv = profileWithPortfolio({ full_name: 'Hugo Vermot', linkedin: 'linkedin.com/in/hugovermot' }, cv);
+  const body = formatApplicationEmail('Hello,\n\nI am applying for the role.\n\nI designed the investor app with one Product Owner.\n\nCV is attached.', {
+    language: 'en',
+    profileData: fromCv,
+  });
+  assert.match(body, /https:\/\/jobyougo\.xyz\/portfolio/);
+  assert.match(body, /https:\/\/linkedin\.com\/in\/hugovermot/);
+
+  const other = applyContactFallback(
+    { candidate: { full_name: 'Ada Lovelace' } },
+    { candidate: { full_name: 'Hugo Vermot', portfolio_url: 'https://jobyougo.xyz/portfolio' } },
+  );
+  assert.equal(other.candidate.portfolio_url, undefined);
+  const same = applyContactFallback(
+    { full_name: 'Hugo Vermot' },
+    { candidate: { full_name: 'Hugo Vermot', portfolio_url: 'https://jobyougo.xyz/portfolio', linkedin: 'linkedin.com/in/hugovermot' } },
+  );
+  assert.equal(same.candidate.portfolio_url, 'https://jobyougo.xyz/portfolio');
 });
 
 test('extractOutreachRules reads the employers that must not be named', () => {
@@ -106,9 +132,10 @@ test('auditApplicationEmail flags brand, opener, hollow link and length', () => 
   ].join('\n'), { language: 'en', profileData: PROFILE });
   const issues = auditApplicationEmail({ subject: 'Product Designer - Hugo Vermot', body }, { unnamedEmployers: ['OneAsset'] });
   assert.ok(issues.some(i => /OneAsset/.test(i)));
-  assert.ok(issues.some(i => /Ouverture/.test(i)));
+  assert.doesNotMatch(body, /drawn to/i);
   const curly = formatApplicationEmail('Hello,\n\nI\u2019m particularly drawn to shaping trust-driven flows at Affirm. At OneAsset I shipped the investor app with one Product Owner and handed it to engineering via GitHub.\n\nMy CV is attached. Would you have 20 minutes next week?', { language: 'en', profileData: PROFILE });
-  assert.ok(auditApplicationEmail({ subject: 'Product Designer - Hugo Vermot', body: curly, language: 'en' }).some(i => /Ouverture/.test(i)));
+  assert.doesNotMatch(curly, /drawn to|trust-driven/i);
+  assert.match(curly, /https:\/\/jobyougo\.xyz\/portfolio/);
   assert.ok(issues.some(i => /Formule creuse/.test(i)));
   assert.ok(issues.some(i => /Trop court/.test(i)));
 });

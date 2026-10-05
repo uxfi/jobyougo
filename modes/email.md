@@ -477,6 +477,7 @@ Use:
 {if candidate.wechat}微信：{candidate.wechat}{/if}
 {if candidate.phone}手机号：{candidate.phone}{/if}
 {if candidate.email or application_email.default_sender_note}邮箱：{candidate.email or application_email.default_sender_note}{/if}
+{if candidate.portfolio_url}Portfolio：{candidate.portfolio_url}{/if}
 ```
 
 For English:
@@ -486,6 +487,7 @@ Contact:
 {if candidate.wechat}WeChat: {candidate.wechat}{/if}
 {if candidate.phone}Phone: {candidate.phone}{/if}
 {if candidate.email or application_email.default_sender_note}Email: {candidate.email or application_email.default_sender_note}{/if}
+{if candidate.portfolio_url}Portfolio: {candidate.portfolio_url}{/if}
 ```
 
 If `application_email.default_sender_note` is set in `config/profile.yml` to a
