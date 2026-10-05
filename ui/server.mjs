@@ -42,7 +42,7 @@ import {
 } from '../lib/pinchtab.mjs';
 import { STYLE_RULES, polishApplicationAnswer, loadApplicationVoice, extractQuestionReportContext } from '../lib/application-writing.mjs';
 import { assembleUiPrompt, candidateFacts, clipReportForWriting, compactCv } from '../lib/prompt-budget.mjs';
-import { buildMailtoUrl, generateApplicationEmail, parseRecipient } from '../lib/application-email.mjs';
+import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
 import { resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
@@ -7523,15 +7523,19 @@ const server = createServer(async (req, res) => {
         }
       };
 
-      const [cv, profileData, profileContext, custom, companyText, job] = await Promise.all([
+      const [cv, profileData, profileContext, custom, companyText, job, localProfileRaw] = await Promise.all([
         getCvMarkdown(req.userId),
         getProfile(req.userId).catch(() => ({})),
         getProfileContext(req.userId).catch(() => ''),
         readFile(join(ROOT, 'modes/_custom.md'), 'utf-8').catch(() => ''),
         fetchCompanyPage(),
         fetchJob(),
+        readFile(PROFILE_FILE, 'utf-8').catch(() => ''),
       ]);
       if (!String(cv).trim()) return json(res, { error: 'No CV in your profile yet. Import your CV first.' }, 400);
+      let localProfile = {};
+      try { localProfile = localProfileRaw ? yamlLoad(localProfileRaw) || {} : {}; } catch { localProfile = {}; }
+      const emailProfile = applyContactFallback(profileWithPortfolio(profileData || {}, cv), localProfile);
 
       let draft = null;
       try {
@@ -7540,7 +7544,7 @@ const server = createServer(async (req, res) => {
           model: APPLICATION_EMAIL_MODEL,
           cv,
           compactedCv: compactCv(cv, 12000),
-          profileData: profileData || {},
+          profileData: emailProfile,
           profileContext,
           custom,
           recipient,
