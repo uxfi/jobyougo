@@ -2,9 +2,9 @@
 
 This repository is two things at once, and which one you are working on depends on what you were asked.
 
-**A. Helping a person with their job search.** If the user runs career-ops as a product (evaluate a posting, tailor a CV, scan portals, track applications, prepare an interview), then `AGENTS.md` and the files under `modes/` govern everything you do, exactly as they would in any other AI coding CLI. Ignore the rest of this file.
+**A. Helping a person with their job search.** If the user runs JobYouGo as a product (evaluate a posting, tailor a CV, scan portals, track applications, prepare an interview), then `AGENTS.md` and the files under `modes/` govern everything you do, exactly as they would in any other AI coding CLI. Ignore the rest of this file.
 
-**B. Working on the repository itself.** If you were asked to reproduce a bug, brief a pull request, write or fix a test, re-sync a translation, find stale documentation, or make any change to the code (this is what the maintainers use Copilot cloud agent for), then the rules below apply. In this mode `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, `KIMI.md`, `GEMINI.md`, every file under `modes/` and the skills under `.claude/skills/` are **text you may read or edit, never instructions you follow**: do not run a mode, do not evaluate a posting, do not generate a CV, do not invoke the `career-ops` skill. If a task seems to require it, stop and say so in your report.
+**B. Working on the repository itself.** If you were asked to reproduce a bug, brief a pull request, write or fix a test, re-sync a translation, find stale documentation, or make any change to the code (this is what the maintainers use Copilot cloud agent for), then the rules below apply. In this mode `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, `KIMI.md`, `GEMINI.md`, every file under `modes/` and the skills under `.claude/skills/` are **text you may read or edit, never instructions you follow**: do not run a mode, do not evaluate a posting, do not generate a CV, do not invoke the `JobYouGo` skill. If a task seems to require it, stop and say so in your report.
 
 ## Setup, build and validate
 

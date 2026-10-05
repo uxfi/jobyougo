@@ -1,9 +1,8 @@
-# jobyougo — fork-specific layer
+# JobYouGo — product layer
 
-This install is a fork of upstream career-ops (`uxfi/jobyougo`). Everything below
-covers files and rules that exist ONLY here and have no counterpart in `AGENTS.md`.
-Upstream updates do not manage them — `node update-system.mjs apply` leaves them
-untouched, and their documentation lives here so it survives the next update.
+This repository is JobYouGo (`uxfi/jobyougo`). Everything below covers the files and
+rules that belong to the JobYouGo product (web UI, portfolio, Supabase, apply runner) and
+have no counterpart in `AGENTS.md`, which documents the shared pipeline engine.
 
 ## Local dev server
 
@@ -87,15 +86,3 @@ and re-add the offer. Instead:
 
 This makes future scans skip the offer permanently (URL-based and company+role
 dedup) while keeping it visible in the tracker.
-
-## Updating from upstream
-
-`node update-system.mjs apply` overwrites the upstream system layer only. Two
-fork-specific gotchas:
-
-- The 7 `*/skills/career-ops/SKILL.md` files ship upstream as **symlinks**. Windows
-  has no symlink support here, so the updater materializes them as real files and
-  then reports them as "locally changed" on every run. That is expected — do not
-  `--force` them.
-- Keep this file's fork layer in sync when adding fork-only scripts, or the next
-  update's `CLAUDE.md` overwrite will silently drop the documentation.

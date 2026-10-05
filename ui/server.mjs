@@ -103,7 +103,7 @@ const APPLICATION_EMAIL_MODEL = process.env.APPLICATION_EMAIL_MODEL || MODELS.QW
 
 // On Vercel, the deployment dir is read-only. Redirect all writes to /tmp.
 const IS_VERCEL = !!process.env.VERCEL || ROOT.startsWith('/var/task');
-const WRITE_ROOT = IS_VERCEL ? '/tmp/career-ops' : ROOT;
+const WRITE_ROOT = IS_VERCEL ? '/tmp/jobyougo' : ROOT;
 
 // Ensure writable dirs exist on Vercel
 if (IS_VERCEL) {
@@ -1505,7 +1505,7 @@ async function getAshbyBoardCached(slug) {
         signal: AbortSignal.timeout(30000),
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+          'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
         },
       });
       if (!r.ok) return {};
@@ -1989,7 +1989,7 @@ async function fetchWeWorkRemotelyJobDescriptionFromRss(jobUrl, { maxChars = 150
       response = await fetch(feedUrl, {
         signal: AbortSignal.timeout(12000),
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0; +https://weworkremotely.com/rss)',
+          'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0; +https://weworkremotely.com/rss)',
           'Accept': 'application/rss+xml, application/xml;q=0.9, text/xml;q=0.8',
         },
       });
@@ -2437,7 +2437,7 @@ async function fetchDeelJobDescriptionFromJsonLd(jobUrl, { maxChars = 15000, hin
       const response = await fetch(url, {
         signal: AbortSignal.timeout(20000),
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+          'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
           'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'en-US,en;q=0.9',
         },
@@ -2473,7 +2473,7 @@ async function fetchZohoRecruitJobDescription(jobUrl, { maxChars = 15000, hints 
   const response = await fetch(String(jobUrl), {
     signal: AbortSignal.timeout(20000),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
       'Accept': 'text/html,application/xhtml+xml',
       'Accept-Language': 'en-US,en;q=0.9',
     },
@@ -2702,7 +2702,7 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
         const response = await fetch(url, {
           signal: AbortSignal.timeout(10000),
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+            'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
             'Accept-Language': 'en-US,en;q=0.9',
           },
         });
@@ -3627,7 +3627,7 @@ async function fetchJsonWithTimeout(url, { method = 'GET', headers = {}, body, t
     signal: AbortSignal.timeout(timeoutMs),
     headers: {
       'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
       ...headers,
     },
     body,
@@ -9242,7 +9242,7 @@ async function startServer() {
   }
 
   const mode = useSupabase ? 'Supabase' : 'markdown files';
-  console.log(`\n  Career Ops UI  →  http://localhost:${PORT}  [${mode}]\n`);
+  console.log(`\n  JobYouGo UI  →  http://localhost:${PORT}  [${mode}]\n`);
 
   // Startup maintenance (local only): drop dead offers >20d, then heal apps sync.
   if (!IS_VERCEL) {

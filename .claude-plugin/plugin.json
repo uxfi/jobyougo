@@ -1,12 +1,12 @@
 {
-  "name": "career-ops",
-  "version": "1.34.0",
-  "description": "Open-source AI job search that runs locally in your AI coding CLI: scan job portals, evaluate listings into a structured A-H report with a 1-5 score, tailor your CV, track applications",
+  "name": "jobyougo",
+  "version": "1.0.0",
+  "description": "JobYouGo — AI job search that runs locally in your AI coding CLI: scan the career pages you care about, score each offer against your CV out of 5 with the reasons, tailor your CV and cover letter, track applications. You hit Submit.",
   "author": {
-    "name": "santifer",
-    "url": "https://santifer.io"
+    "name": "Hugo Vermot",
+    "url": "https://jobyougo.xyz"
   },
   "skills": [
-    "./.agents/skills/career-ops"
+    "./.agents/skills/jobyougo"
   ]
 }

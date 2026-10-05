@@ -4,7 +4,7 @@
 company in my funnel?**
 
 It takes the `Connections.csv` file LinkedIn gives you when you export your
-data, matches the employers in it against the companies career-ops already
+data, matches the employers in it against the companies JobYouGo already
 tracks, and prints only the overlap. No network calls, no model calls, nothing
 written to disk. A run costs zero tokens and takes about as long as reading a
 CSV, because that is all it does.
@@ -204,7 +204,7 @@ inside LinkedIn's own UI and are not exportable, so the honest answer is a link
 rather than a result: every target carries a prefilled people-search URL,
 filtered to 2nd degree.
 
-career-ops builds that string and **never fetches it**. You open it in your own
+JobYouGo builds that string and **never fetches it**. You open it in your own
 browser, logged in as yourself.
 
 ## 5. Privacy
@@ -239,7 +239,7 @@ it returns one company's connections instead of your whole overlap.
 A run that exits 1 tells you why:
 
 ```
-Connections export not readable: /path/to/career-ops/data/Connections.csv
+Connections export not readable: /path/to/jobyougo/data/Connections.csv
 Export it from LinkedIn (Settings → Data Privacy → Get a copy of your data → Connections),
 drop Connections.csv in data/, or pass --csv <path> pointing at the file.
 ```

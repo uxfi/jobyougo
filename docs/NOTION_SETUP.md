@@ -26,7 +26,7 @@ truth throughout — Notion is an opt-in mirror, not a replacement backend.
 
 ## 2. Build the database
 
-1. In Notion, create a page named **"Career Ops"** (any parent is fine — this page is
+1. In Notion, create a page named **"JobYouGo"** (any parent is fine — this page is
    just a container the plugin walks for child databases).
 2. Under it, add a database named **exactly** `Applications` — the plugin resolves it
    by this literal name (`resolveDBs()` in `_notion.mjs`) and throws if it's missing
@@ -42,12 +42,12 @@ truth throughout — Notion is an opt-in mirror, not a replacement backend.
    | `Score` | Number | |
    | `URL` | URL | Only populated if *you* fill it in manually — `export` never sets it. `search` only returns rows that have this set |
 
-4. Share the **Career Ops page** (not just the database) with your integration:
+4. Share the **JobYouGo page** (not just the database) with your integration:
    page **•••** menu → **Connections** → add your integration by name.
 
 ## 3. Get the parent page ID
 
-Open the Career Ops page in the browser and copy the 32-character id from the URL
+Open the JobYouGo page in the browser and copy the 32-character id from the URL
 (the segment right before any `?v=` query string) — this becomes
 `NOTION_PARENT_PAGE_ID`.
 

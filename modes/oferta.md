@@ -43,7 +43,7 @@ Hard limits for Blocks D and G combined:
 - Do not spawn subagents or delegate research to another agent.
 - Do not continue researching after the query cap is reached; summarize the evidence found and explicitly mark missing data as unavailable.
 
-If deeper company research is useful, recommend running `/career-ops deep` separately after the evaluation.
+If deeper company research is useful, recommend running `/jobyougo deep` separately after the evaluation.
 
 ## Step 0 — Archetype Detection
 
@@ -434,7 +434,7 @@ If both conditions hold, append a short, non-alarmist note to the report:
 
 **Tracker composition (suggestion only):** when this evaluation lands in the tracker with a `via={Agency}` field (#1596), suggest carrying the registry pointer into the tracker note — so the one-click check survives into the follow-up workflow. This mode **never writes the tracker itself**; tracker updates go through the normal TSV/`set-status.mjs` paths with the user in the loop.
 
-**Hard rule (mandatory):** this signal **never asserts an agency is unlicensed** and **never fetches or scrapes the registry** — no WebFetch, no WebSearch, no Playwright against the registry URL; career-ops stays zero-fetch here by design. Transitional rules alone (operators with a pending pre-deadline application may lawfully operate) make "this agency is unlicensed" unknowable from outside the registry; only the official lookup, clicked by the candidate, answers it. State the regime facts and the pointer — never render this finding as an accusation that any specific agency is operating unlawfully.
+**Hard rule (mandatory):** this signal **never asserts an agency is unlicensed** and **never fetches or scrapes the registry** — no WebFetch, no WebSearch, no Playwright against the registry URL; JobYouGo stays zero-fetch here by design. Transitional rules alone (operators with a pending pre-deadline application may lawfully operate) make "this agency is unlicensed" unknowable from outside the registry; only the official lookup, clicked by the candidate, answers it. State the regime facts and the pointer — never render this finding as an accusation that any specific agency is operating unlawfully.
 
 This signal does not change the High Confidence / Proceed with Caution / Suspicious tier below — the posting can be entirely real and licensed; this is a jurisdiction-awareness pointer, reported separately.
 
@@ -522,7 +522,7 @@ If (b) fires (and only (b), i.e. no disclosure language present), append a short
 
 > ⚠️ **AI-screening disclosure note:** [Render in {language.output}: state the statutory fact and the posting's silence side by side — e.g. "this posting doesn't mention AI/automated screening; as of {effective date}, {jurisdiction_name} requires employers to disclose AI use in hiring under {law_name} — you may be entitled to ask directly." Include the honest caveat when relevant to the matched law (e.g. for Illinois: "this obligation attaches to the interview step itself, not the job ad, so the posting's silence here doesn't tell you whether disclosure happens before the interview"). Close with a note that this is informational only, not legal advice, and never assert the employer failed to disclose.]
 
-**Hard rule (mandatory):** this signal never fetches or scrapes anything — no WebFetch, no WebSearch, no Playwright against `official_source.url`; career-ops stays zero-fetch here by design, same as the agency-licensing signal. It reads the JD text the mode already has and the candidate's own jurisdiction from `config/profile.yml`.
+**Hard rule (mandatory):** this signal never fetches or scrapes anything — no WebFetch, no WebSearch, no Playwright against `official_source.url`; JobYouGo stays zero-fetch here by design, same as the agency-licensing signal. It reads the JD text the mode already has and the candidate's own jurisdiction from `config/profile.yml`.
 
 This signal does not change the High Confidence / Proceed with Caution / Suspicious tier below — it is orthogonal to ghost-job detection and reported separately. **Out of scope for this signal (deliberately deferred, #2892):** cross-referencing whether the candidate actually ended up on an AI-led interview via `invite-match.mjs`'s `isAIInterviewerPlatform` detection (#2676), and disclosure *capture* feeding the ATS-channel analytics layer (#1404/#1405) — both need their own design pass per the umbrella's own scoping note.
 
@@ -595,7 +595,7 @@ Mirror the block into `## Machine Summary` as a `risk_summary:` map (exact key n
 
 ## Cover Letter Draft (auto-generated after Block G)
 
-After saving the report and recording in the tracker, append a cover letter draft to the report file under `## Cover Letter Draft`. This is a starting point — not the final letter. The user completes it via `/career-ops cover {slug}`.
+After saving the report and recording in the tracker, append a cover letter draft to the report file under `## Cover Letter Draft`. This is a starting point — not the final letter. The user completes it via `/jobyougo cover {slug}`.
 
 **How to generate the draft:**
 
@@ -611,7 +611,7 @@ After saving the report and recording in the tracker, append a cover letter draf
 ```markdown
 ## Cover Letter Draft
 
-> Draft generated at evaluation time. Complete via `/career-ops cover {slug}` to fill in angles, confirm research, and generate the PDF.
+> Draft generated at evaluation time. Complete via `/jobyougo cover {slug}` to fill in angles, confirm research, and generate the PDF.
 > Gaps flagged below — address them during the cover flow.
 
 ---
@@ -643,7 +643,7 @@ I am happy to discuss further at your convenience.
 {8-10 exact phrases from the JD}
 
 ---
-*Run `/career-ops cover {slug}` to complete angles, confirm company research, and generate the PDF.*
+*Run `/jobyougo cover {slug}` to complete angles, confirm company research, and generate the PDF.*
 ```
 
 Apply all language rules from `_writing.md` Professional Writing section to the draft content. No em dashes, no buzzwords, active voice, concrete claims only.

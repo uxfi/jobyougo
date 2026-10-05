@@ -18,7 +18,7 @@ Un conjunto de habilidades reutilizables para la preparación integral de entrev
 
 ## Convenciones de Archivos
 
-Estas habilidades asumen que existen los siguientes archivos (valores predeterminados de career-ops):
+Estas habilidades asumen que existen los siguientes archivos (valores predeterminados de JobYouGo):
 
 | Archivo | Propósito |
 |---|---|

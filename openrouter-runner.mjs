@@ -249,8 +249,8 @@ async function callOpenRouter(systemPrompt, userMessage) {
         headers: {
           'Authorization': `Bearer ${key}`,
           'Content-Type':  'application/json',
-          'HTTP-Referer':  'https://github.com/career-ops-hq/career-ops',
-          'X-Title':       'career-ops',
+          'HTTP-Referer':  'https://github.com/uxfi/jobyougo',
+          'X-Title':       'JobYouGo',
         },
         body,
         signal: ctrl.signal,
@@ -310,8 +310,8 @@ async function callOpenRouter(systemPrompt, userMessage) {
           headers: {
             'Authorization': `Bearer ${key}`,
             'Content-Type':  'application/json',
-            'HTTP-Referer':  'https://github.com/career-ops-hq/career-ops',
-            'X-Title':       'career-ops',
+            'HTTP-Referer':  'https://github.com/uxfi/jobyougo',
+            'X-Title':       'JobYouGo',
           },
           body,
           signal: controller.signal,

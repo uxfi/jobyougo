@@ -18,7 +18,7 @@ Un ensemble de compétences réutilisables pour préparer un entretien de bout e
 
 ## Conventions de fichiers
 
-Ces compétences supposent l'existence des fichiers suivants (valeurs par défaut de career-ops) :
+Ces compétences supposent l'existence des fichiers suivants (valeurs par défaut de JobYouGo) :
 
 | Fichier | Rôle |
 |---|---|

@@ -1,8 +1,8 @@
-# Running career-ops with Hermes Agent
+# Running JobYouGo with Hermes Agent
 
 This page is the full guide for using this repository from [Hermes Agent](https://hermes-agent.nousresearch.com). It assumes no prior setup beyond a working Hermes install.
 
-Hermes is not a special case for career-ops. The pipeline is the same set of markdown prompt files and Node scripts that every other CLI drives. What differs is only how you point Hermes at this folder, and two behaviours that are specific to Hermes.
+Hermes is not a special case for JobYouGo. The pipeline is the same set of markdown prompt files and Node scripts that every other CLI drives. What differs is only how you point Hermes at this folder, and two behaviours that are specific to Hermes.
 
 ## What you need
 
@@ -13,8 +13,8 @@ Hermes is not a special case for career-ops. The pipeline is the same set of mar
 ## Step 1 — Clone and install once
 
 ```bash
-git clone https://github.com/career-ops-hq/career-ops.git
-cd career-ops
+git clone https://github.com/uxfi/jobyougo
+cd jobyougo
 npm install
 ```
 
@@ -31,13 +31,13 @@ This step matters more than it looks. Both the project rules and the repository'
 **Desktop app.** The left sidebar lists your local Git repositories as projects, and this repo appears there automatically once cloned. Selecting it scopes new chats to the folder. If it does not appear, point the app at the folder directly:
 
 ```bash
-hermes desktop --cwd /path/to/career-ops
+hermes desktop --cwd /path/to/jobyougo
 ```
 
 **Terminal.**
 
 ```bash
-cd /path/to/career-ops
+cd /path/to/jobyougo
 hermes
 ```
 
@@ -51,7 +51,7 @@ Hermes does not load a skill that ships inside a project folder until you allow 
 hermes skills trust
 ```
 
-That registers the router at `.agents/skills/career-ops/SKILL.md` for sessions in this directory. It is a one-time step per folder, and `hermes skills untrust` reverses it.
+That registers the router at `.agents/skills/jobyougo/SKILL.md` for sessions in this directory. It is a one-time step per folder, and `hermes skills untrust` reverses it.
 
 Without this step the tool still works, because the prompt files are ordinary files the agent can read. You just have to name the task yourself, for example "read the evaluation mode in `modes/oferta.md` and evaluate this posting", instead of letting the router pick it.
 
@@ -105,11 +105,11 @@ Nothing in this repository drives a `hermes` binary headlessly, so there is no H
 
 | Symptom | Cause |
 |---|---|
-| Hermes offers no career-ops modes and seems unaware of the repo | The session is not running in the checkout, or `hermes skills trust` was never run. Check with `hermes skills list` |
+| Hermes offers no JobYouGo modes and seems unaware of the repo | The session is not running in the checkout, or `hermes skills trust` was never run. Check with `hermes skills list` |
 | The agent ignores the repository's rules | The rules file was dropped by the scanner. Look for the block marker, and describe quoted examples rather than quoting them |
 | A script errors immediately | `npm install` has not been run in the checkout, or Node is older than 18 |
 | Nothing happens after you paste a link | The posting is dead and the liveness check stopped the run. That is the check working |
 
 ## What the agent will never do
 
-career-ops prepares, you decide. No Hermes session will submit an application, send an email, or click anything on your behalf.
+JobYouGo prepares, you decide. No Hermes session will submit an application, send an email, or click anything on your behalf.

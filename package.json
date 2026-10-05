@@ -1,7 +1,7 @@
 {
-  "name": "career-ops",
-  "version": "1.26.0",
-  "description": "AI-powered job search pipeline — works with any AI coding CLI (Claude Code, Codex, OpenCode, Antigravity, Grok, Qwen, Kimi, Copilot)",
+  "name": "jobyougo",
+  "version": "1.0.0",
+  "description": "JobYouGo — apply better to fewer jobs. Scans the career pages you care about, scores each offer against your CV out of 5 and prepares a tailored application you send yourself.",
   "private": true,
   "engines": {
     "node": ">=18"
@@ -32,10 +32,6 @@
     "test:cv-visual": "playwright test --config=playwright.cv.config.mjs",
     "test:cv-visual:update": "playwright test --config=playwright.cv.config.mjs --update-snapshots",
     "sync-check": "node cv-sync-check.mjs",
-    "update:check": "node update-system.mjs check",
-    "update:test": "node updater-migration-tests.mjs",
-    "update": "node update-system.mjs apply",
-    "rollback": "node update-system.mjs rollback",
     "liveness": "node check-liveness.mjs",
     "extract": "node browser-extract.mjs",
     "scan": "node scan.mjs",
@@ -68,8 +64,7 @@
     "application:init": "node application-artifacts.mjs --init",
     "build:dashboard": "node build-dashboard.mjs",
     "serve:dashboard": "cd dashboard && go run . --path ..",
-    "postinstall": "node install-browsers.mjs",
-    "manifesto": "node manifesto.mjs"
+    "postinstall": "node install-browsers.mjs"
   },
   "keywords": [
     "ai",
@@ -77,7 +72,6 @@
     "claude-code",
     "opencode",
     "career",
-    "career-ops",
     "careerops",
     "automation",
     "codex",
@@ -86,13 +80,14 @@
     "kimi",
     "copilot",
     "grok",
-    "ai-agent-skill"
+    "ai-agent-skill",
+    "jobyougo"
   ],
-  "author": "Santiago Fernández de Valderrama <hi@santifer.io> (https://santifer.io)",
-  "homepage": "https://santifer.io",
+  "author": "Hugo Vermot (https://jobyougo.xyz)",
+  "homepage": "https://jobyougo.xyz",
   "repository": {
     "type": "git",
-    "url": "https://github.com/santifer/career-ops"
+    "url": "https://github.com/uxfi/jobyougo"
   },
   "license": "MIT",
   "dependencies": {
@@ -102,5 +97,8 @@
     "js-yaml": "^4.3.1",
     "playwright": "1.62.1",
     "ws": "^8.21.3"
+  },
+  "bugs": {
+    "url": "https://github.com/uxfi/jobyougo/issues"
   }
 }
