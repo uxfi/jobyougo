@@ -28,7 +28,7 @@ import { pass, fail, hermeticGitEnv } from './helpers.mjs';
 
 console.log('\nhermetic git env — ambient GIT_CONFIG* must not reach a fixture');
 
-const root = mkdtempSync(join(tmpdir(), 'career-ops-hermetic-env-'));
+const root = mkdtempSync(join(tmpdir(), 'jobyougo-hermetic-env-'));
 try {
   const pinned = join(root, 'gitconfig');
   writeFileSync(pinned, '');

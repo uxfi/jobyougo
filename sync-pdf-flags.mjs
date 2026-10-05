@@ -17,12 +17,12 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { extractTrackerReportNumbers, resolveColumns, parseTrackerRow } from './tracker-parse.mjs';
 import { rebuildRow, resolveTrackerPath, resolvePdfIndexPath, openTrackerTransaction } from './tracker-utils.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const APPS_FILE = resolveTrackerPath(DATA_ROOT);
 // Derived from the TRACKER, not from this script's location, so a redirected
-// CAREER_OPS_TRACKER moves the whole workspace together (#2471).
+// JOBYOUGO_TRACKER moves the whole workspace together (#2471).
 const PDF_MANIFEST = resolvePdfIndexPath(APPS_FILE);
 
 const flags = { dryRun: false, json: false };

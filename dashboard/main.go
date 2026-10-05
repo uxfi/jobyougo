@@ -331,6 +331,24 @@ func getRepoRoot() string {
 	return cwd
 }
 
+func readDataMarker() string {
+	for _, name := range []string{".jobyougo-data", ".career-ops-data"} {
+		content, err := os.ReadFile(filepath.Join(getRepoRoot(), name))
+		if err != nil {
+			continue
+		}
+		trimmed := strings.TrimSpace(string(content))
+		if trimmed == "" {
+			continue
+		}
+		if filepath.IsAbs(trimmed) {
+			return filepath.Clean(trimmed)
+		}
+		return filepath.Clean(filepath.Join(getRepoRoot(), trimmed))
+	}
+	return ""
+}
+
 func resolveEnvPath(envVal string) string {
 	trimmed := strings.TrimSpace(envVal)
 	if trimmed == "" {
@@ -344,24 +362,14 @@ func resolveEnvPath(envVal string) string {
 
 func main() {
 	defaultPath := getRepoRoot()
-	if envPath := resolveEnvPath(os.Getenv("CAREER_OPS_ROOT")); envPath != "" {
+	if envPath := resolveEnvPath(data.FirstEnv("JOBYOUGO_ROOT", "CAREER_OPS_ROOT")); envPath != "" {
 		defaultPath = envPath
-	} else if envPath := resolveEnvPath(os.Getenv("CAREER_OPS_DATA_DIR")); envPath != "" {
+	} else if envPath := resolveEnvPath(data.FirstEnv("JOBYOUGO_DATA_DIR", "CAREER_OPS_DATA_DIR")); envPath != "" {
 		defaultPath = envPath
-	} else {
-		markerFile := filepath.Join(getRepoRoot(), ".career-ops-data")
-		if content, err := os.ReadFile(markerFile); err == nil {
-			trimmed := strings.TrimSpace(string(content))
-			if trimmed != "" {
-				if filepath.IsAbs(trimmed) {
-					defaultPath = filepath.Clean(trimmed)
-				} else {
-					defaultPath = filepath.Clean(filepath.Join(getRepoRoot(), trimmed))
-				}
-			}
-		}
+	} else if marker := readDataMarker(); marker != "" {
+		defaultPath = marker
 	}
-	pathFlag := flag.String("path", defaultPath, "Path to career-ops directory")
+	pathFlag := flag.String("path", defaultPath, "Path to the JobYouGo directory")
 	langFlag := flag.String("lang", "", "Language for UI (en, tr). Defaults to auto-detect/en.")
 	flag.Parse()
 

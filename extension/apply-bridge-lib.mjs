@@ -19,6 +19,7 @@ import { resolveUnknownFields, polishApplicationAnswer, hasUnresolvedPlaceholder
 import { loadApplicationVoice, loadCvSummary } from '../lib/application-writing.mjs';
 import {
   shouldFillField,
+  isSubstantiveOptionalQuestion,
   isResumeFileField,
   isComboboxField,
   listTypeQuery,
@@ -27,7 +28,7 @@ import {
   fieldLooksRequired,
   isApplicationGateConsent,
 } from '../lib/apply-fill-guards.mjs';
-import { choiceKind } from '../lib/apply-option-match.mjs';
+import { choiceKind, optionsAreYesNo, placeWantedOnYesNoList } from '../lib/apply-option-match.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, DECLINE_RE } from '../lib/apply-select.mjs';
 import {
   fieldCompletionIssue,
@@ -104,6 +105,12 @@ export function serializePrefer(re) {
   return { source: String(re), flags: 'i' };
 }
 
+function serializeRank(rank) {
+  if (!Array.isArray(rank)) return undefined;
+  const out = rank.map(serializePrefer).filter(Boolean);
+  return out.length ? out : undefined;
+}
+
 /** A custom dropdown (react-select, Ashby, SmartRecruiters…), not a native select or radio group. */
 function isCustomList(f) {
   const tag = String(f?.tag || '').toLowerCase();
@@ -167,6 +174,10 @@ export function planToUpdate(f, plan, identity = {}) {
   const type = String(f.type || '').toLowerCase();
 
   if (tag === 'select' || type === 'radio' || isComboboxField(f)) {
+    // Options already scraped as Yes|No: never ship a city string at them.
+    if (optionsAreYesNo(f.options) && placeWantedOnYesNoList(f.label, plan.selectText || plan.value)) {
+      plan = { ...plan, yesNo: 'yes', selectText: 'Yes', value: 'Yes' };
+    }
     const opt = (f.options && f.options.length) ? pickSelectOption(f.options, plan, f.label) : null;
     const text = opt?.text || plan.selectText || yesNoText(plan) || plan.value;
     // selectPrefer-only plans (US state → Outside US) must still reach the
@@ -200,6 +211,7 @@ export function planToUpdate(f, plan, identity = {}) {
       options: Array.isArray(f.options) ? f.options : undefined,
       choice: type === 'radio' || !!plan.yesNo,
       selectPrefer: plan.selectPrefer ? serializePrefer(plan.selectPrefer) : undefined,
+      selectRank: serializeRank(plan.selectRank),
       alternates: alternates.length ? alternates : undefined,
       ...listPayload(f, { optionText: opt?.text, plan, identity }),
     };
@@ -1591,10 +1603,11 @@ export class ApplyBridge {
       const labelShort = fieldLabel(f);
 
       if (!plan) {
-        if (f.required && !f.value) unresolved.push(f);
+        if ((f.required || isSubstantiveOptionalQuestion(f)) && !f.value) unresolved.push(f);
         continue;
       }
       if (plan.skip) {
+        if (plan.answeredBlank) continue;
         if (plan.declinePreferred && f.required && (f.tag === 'select' || f.type === 'radio' || isComboboxField(f))) {
           const decline = pickDeclineOption(f.options || []);
           if (decline) {
@@ -1788,7 +1801,8 @@ export class ApplyBridge {
         for (const o of result.outcomes || []) {
           const u = bySlot.get(slotKey(o));
           if (!u) continue;
-          if (o.ok) {
+          const landed = String(o.actualValue ?? '').trim();
+          if (o.ok && landed && !/^unchecked$/i.test(landed)) {
             filled.push({ label: u.label, value: o.actualValue || '', llm: true });
             continue;
           }

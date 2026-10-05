@@ -72,8 +72,8 @@ const intake = await import(pathToFileURL(join(ROOT, 'intake.mjs')).href);
   writeFileSync(join(docsDir, 'unknown.docx'), 'binaryish');
   const env = {
     ...process.env,
-    CAREER_OPS_DOCUMENTS_DIR: docsDir,
-    CAREER_OPS_INTAKE_STATE: stateFile,
+    JOBYOUGO_DOCUMENTS_DIR: docsDir,
+    JOBYOUGO_INTAKE_STATE: stateFile,
   };
 
   try {
@@ -183,8 +183,8 @@ const intake = await import(pathToFileURL(join(ROOT, 'intake.mjs')).href);
   mkdirSync(outsideDir, { recursive: true });
   const env = {
     ...process.env,
-    CAREER_OPS_DOCUMENTS_DIR: docsDir,
-    CAREER_OPS_INTAKE_STATE: join(tmp, 'intake-state.json'),
+    JOBYOUGO_DOCUMENTS_DIR: docsDir,
+    JOBYOUGO_INTAKE_STATE: join(tmp, 'intake-state.json'),
   };
 
   try {
@@ -275,8 +275,8 @@ if (process.platform !== 'win32' && process.getuid?.() !== 0) {
   writeFileSync(join(docsDir, 'cv', 'master.md'), '# CV\n');
   const env = {
     ...process.env,
-    CAREER_OPS_DOCUMENTS_DIR: docsDir,
-    CAREER_OPS_INTAKE_STATE: join(tmp, 'intake-state.json'),
+    JOBYOUGO_DOCUMENTS_DIR: docsDir,
+    JOBYOUGO_INTAKE_STATE: join(tmp, 'intake-state.json'),
   };
 
   try {

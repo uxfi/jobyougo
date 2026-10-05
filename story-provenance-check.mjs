@@ -157,11 +157,11 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { flagValue } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 // ── Config ──────────────────────────────────────────────────────────
 
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const DEFAULT_STORY_BANK_PATH = join(DATA_ROOT, 'interview-prep', 'story-bank.md');
 const DEFAULT_CV_PATH = join(DATA_ROOT, 'cv.md');
 

@@ -17,10 +17,10 @@ import { decodeEntities } from './providers/_html-entities.mjs';
 import { safeEncodeURIComponent } from './providers/_safe-url.mjs';
 import { BROWSER_LIKE_USER_AGENT } from './user-agent.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const DEFAULT_LIMIT = 20;
 const DEFAULT_MONTHS = 3;
 const DEFAULT_SORT = 'date';

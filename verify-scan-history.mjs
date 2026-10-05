@@ -31,7 +31,7 @@
  * Duplicate URLs are reported (informational) but NOT collapsed — the file is an
  * audit log of every seen URL, and added→deleted transitions are legitimate.
  *
- * Run from the career-ops root: node verify-scan-history.mjs [--fix]
+ * Run from the jobyougo root: node verify-scan-history.mjs [--fix]
  */
 
 import { readFileSync, writeFileSync, copyFileSync, existsSync, appendFileSync } from 'fs';
@@ -95,7 +95,7 @@ const duplicates = [...urlCounts.entries()].filter(([, n]) => n > 1);
 
 // ─── Report ──────────────────────────────────────────────────────────────────
 
-console.log(`scan-history.tsv integrity — ${HISTORY.replace(/^.*career-ops-main\//, '')}`);
+console.log(`scan-history.tsv integrity — ${HISTORY.replace(/^.*jobyougo-main\//, '')}`);
 console.log('━'.repeat(60));
 console.log(`Valid rows:      ${valid.length}`);
 console.log(`Malformed rows:  ${malformed.length}`);
@@ -151,7 +151,7 @@ console.log(`🧹  Rewrote scan-history.tsv with ${valid.length} valid rows (rem
 if (recovered.length) {
   if (!existsSync(DELETED)) {
     writeFileSync(DELETED, 'company\trole\tdate_deleted\treason\n', 'utf-8');
-    console.log(`📄  Created ${DELETED.replace(/^.*career-ops-main\//, '')} (header).`);
+    console.log(`📄  Created ${DELETED.replace(/^.*jobyougo-main\//, '')} (header).`);
   }
   const d = today();
   const rows = recovered

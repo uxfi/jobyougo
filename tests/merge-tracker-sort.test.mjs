@@ -9,7 +9,7 @@
 //
 // CLI integration, like tests/merge-tracker.test.mjs: importing
 // merge-tracker.mjs would run the merge at import time, so these drive the real
-// script through the CAREER_OPS_TRACKER / CAREER_OPS_ADDITIONS overrides.
+// script through the JOBYOUGO_TRACKER / JOBYOUGO_ADDITIONS overrides.
 import { pass, fail, NODE, ROOT, rmSync } from './helpers.mjs';
 import { join } from 'path';
 import { execFileSync } from 'child_process';
@@ -51,7 +51,7 @@ function runMerge(opts = {}) {
         encoding: 'utf-8',
         timeout: 30000,
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, CAREER_OPS_TRACKER: tracker, CAREER_OPS_ADDITIONS: addsDir },
+        env: { ...process.env, JOBYOUGO_TRACKER: tracker, JOBYOUGO_ADDITIONS: addsDir },
       });
     } catch (e) {
       output = String(e.stdout ?? '') + String(e.stderr ?? '');

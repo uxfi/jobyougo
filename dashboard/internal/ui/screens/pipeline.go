@@ -121,8 +121,6 @@ type reportSummary struct {
 	comp      string
 }
 
-const storyTemplateURL = "https://github.com/career-ops-hq/career-ops/issues/new?template=i-got-hired.yml"
-
 // Sort modes
 const (
 	sortScore    = "score"
@@ -627,7 +625,7 @@ func (m PipelineModel) handleKey(msg tea.KeyMsg) (PipelineModel, tea.Cmd) {
 
 	case "m":
 		return m, func() tea.Msg {
-			return PipelineOpenURLMsg{URL: "https://career-ops.org/manifesto?utm_source=dashboard-shortcut"}
+			return PipelineOpenURLMsg{URL: "https://jobyougo.xyz"}
 		}
 
 	case "d":
@@ -635,7 +633,7 @@ func (m PipelineModel) handleKey(msg tea.KeyMsg) (PipelineModel, tea.Cmd) {
 			manifest := data.LoadPDFManifest(m.careerOpsPath)
 			candidates := data.ResolvePDFs(m.careerOpsPath, app, manifest)
 			if len(candidates) == 0 {
-				m.flash = "No CV PDF found for this application — generate one with /career-ops pdf"
+				m.flash = "No CV PDF found for this application — generate one with /jobyougo pdf"
 			} else {
 				return m, m.openPDFCmd(candidates[0]) // newest first
 			}
@@ -659,7 +657,7 @@ func (m PipelineModel) handleKey(msg tea.KeyMsg) (PipelineModel, tea.Cmd) {
 				}
 			}
 			if !found || entry.HTMLPath == "" {
-				m.flash = "No source HTML found for this application — run /career-ops pdf first"
+				m.flash = "No source HTML found for this application — run /jobyougo pdf first"
 				return m, nil
 			}
 			if _, err := os.Stat(filepath.Join(m.careerOpsPath, filepath.FromSlash(entry.HTMLPath))); err != nil {
@@ -1017,16 +1015,6 @@ func (m PipelineModel) handleHiredFlow(msg tea.KeyMsg) (PipelineModel, tea.Cmd) 
 	switch m.hiredStep {
 	case 1: // win screen
 		if msg.String() == "enter" {
-			m.hiredStep = 2
-		}
-	case 2: // story invite
-		switch msg.String() {
-		case "y", "Y":
-			m.hiredStep = 3
-			return m, func() tea.Msg {
-				return PipelineOpenURLMsg{URL: storyTemplateURL}
-			}
-		case "n", "N", "enter", "esc":
 			m.hiredStep = 3
 		}
 	case 3: // anonymous stat
@@ -2038,12 +2026,8 @@ func (m PipelineModel) renderHelp() string {
 				keyStyle.Render("Esc") + descStyle.Render(i18n.Current.HelpCancel))
 	}
 
-	// The manifesto segment is an OSC 8 hyperlink (utm_source=dashboard);
-	// terminals without support show the same text, just not clickable. The
-	// gap math uses the plain text so the escapes never skew the layout.
-	const brandPlain = "built on the CareerOps Manifesto · career-ops by santifer.io"
-	manifestoLink := "\x1b]8;;https://career-ops.org/manifesto?utm_source=dashboard\x1b\\built on the CareerOps Manifesto\x1b]8;;\x1b\\"
-	brand := lipgloss.NewStyle().Foreground(m.theme.Overlay).Render(manifestoLink + " · career-ops by santifer.io")
+	const brandPlain = "JobYouGo"
+	brand := lipgloss.NewStyle().Foreground(m.theme.Overlay).Render(brandPlain)
 
 	keys := keyStyle.Render("↑↓/jk") + descStyle.Render(i18n.Current.HelpNav) +
 		keyStyle.Render("←→/hl") + descStyle.Render(i18n.Current.HelpTabs) +
@@ -2119,15 +2103,6 @@ func (m PipelineModel) overlayHiredFlow() string {
 			lipgloss.NewStyle().Foreground(m.theme.Subtext).Render("This moment belongs entirely to you. Celebrate the win!"),
 			"",
 			lipgloss.NewStyle().Foreground(m.theme.Blue).Render("Press [ Enter ] to continue..."),
-		)
-	case 2:
-		winContent = lipgloss.JoinVertical(lipgloss.Center,
-			lipgloss.NewStyle().Foreground(m.theme.Green).Bold(true).Render("Share your story? 🚀"),
-			"",
-			lipgloss.NewStyle().Foreground(m.theme.Text).Render("We'd love to hear your story on GitHub!"),
-			lipgloss.NewStyle().Foreground(m.theme.Text).Render("Your story helps others in the community see what's possible."),
-			"",
-			lipgloss.NewStyle().Foreground(m.theme.Blue).Render("Press [ Y ] to open template in browser / [ N ] to skip"),
 		)
 	case 3:
 		weeks := m.calculateWeeksToHire()

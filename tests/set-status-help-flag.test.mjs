@@ -1,7 +1,7 @@
 // tests/set-status-help-flag.test.mjs — set-status.mjs must answer --help/-h
 // with the canonical states, exit 0, and never touch the tracker.
 //
-// HERMETIC: every run pins CAREER_OPS_TRACKER at a path that does not exist.
+// HERMETIC: every run pins JOBYOUGO_TRACKER at a path that does not exist.
 // If --help were NOT handled before the tracker check, the run would reach
 // "No tracker found" instead of exiting on the flag itself — so that message
 // doubles as proof the tracker was consulted.
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { loadCanonicalStates } from '../tracker-utils.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const NO_TRACKER = join(tmpdir(), 'career-ops-no-such-tracker.md');
+const NO_TRACKER = join(tmpdir(), 'jobyougo-no-such-tracker.md');
 const NO_TRACKER_FOUND = /No tracker found/i;
 
 function runSetStatus(...args) {
@@ -22,7 +22,7 @@ function runSetStatus(...args) {
     cwd: ROOT,
     encoding: 'utf-8',
     timeout: 30_000,
-    env: { ...process.env, CAREER_OPS_TRACKER: NO_TRACKER },
+    env: { ...process.env, JOBYOUGO_TRACKER: NO_TRACKER },
   });
   assert.equal(r.error, undefined, `set-status.mjs failed to spawn: ${r.error?.message}`);
   assert.equal(r.signal, null, `set-status.mjs was killed by ${r.signal} (timeout?)`);

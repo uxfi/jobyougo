@@ -60,15 +60,15 @@ absorb the days you don't need — `0 9 * * *` — or on weekdays only, at 8am:
 
 ### macOS — launchd (survives sleep better than cron)
 
-Save as `~/Library/LaunchAgents/io.career-ops.scan.plist`, then
-`launchctl load ~/Library/LaunchAgents/io.career-ops.scan.plist`:
+Save as `~/Library/LaunchAgents/io.jobyougo.scan.plist`, then
+`launchctl load ~/Library/LaunchAgents/io.jobyougo.scan.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key>            <string>io.career-ops.scan</string>
+  <key>Label</key>            <string>io.jobyougo.scan</string>
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/node</string>
@@ -190,15 +190,15 @@ reviewing it first, headless or not.
 
 ### macOS — launchd
 
-Save as `~/Library/LaunchAgents/io.career-ops.followup.plist`, then
-`launchctl load ~/Library/LaunchAgents/io.career-ops.followup.plist`:
+Save as `~/Library/LaunchAgents/io.jobyougo.followup.plist`, then
+`launchctl load ~/Library/LaunchAgents/io.jobyougo.followup.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key> <string>io.career-ops.followup</string>
+  <key>Label</key> <string>io.jobyougo.followup</string>
   <key>ProgramArguments</key>
   <array>
     <string>/bin/zsh</string>

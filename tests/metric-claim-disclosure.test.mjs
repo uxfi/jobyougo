@@ -138,7 +138,7 @@ for (const [label, text, personalClaim = '12 years', requirementClaim = '7 years
 // Same shape, end-to-end: the fabricated "12 years" must still block even
 // when it shares a clause with a correctly-cited posting requirement.
 {
-  const tmpMixed = mkdtempSync(join(tmpdir(), 'career-ops-metric-disclosure-mixed-'));
+  const tmpMixed = mkdtempSync(join(tmpdir(), 'jobyougo-metric-disclosure-mixed-'));
   try {
     const source = join(tmpMixed, 'cv.md');
     const config = join(tmpMixed, 'cv-facts.json');
@@ -170,7 +170,7 @@ for (const [label, text, personalClaim = '12 years', requirementClaim = '7 years
 // End-to-end through verifyFacts: a genuinely fabricated personal metric claim
 // (no source backing) must still block, and a real source-backed claim must
 // still pass -- the exemption must not weaken the gate for ordinary claims.
-const tmp = mkdtempSync(join(tmpdir(), 'career-ops-metric-disclosure-'));
+const tmp = mkdtempSync(join(tmpdir(), 'jobyougo-metric-disclosure-'));
 try {
   const source = join(tmp, 'cv.md');
   const config = join(tmp, 'cv-facts.json');

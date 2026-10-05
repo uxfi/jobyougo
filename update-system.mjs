@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * update-system.mjs — Safe auto-updater for career-ops
+ * update-system.mjs — Safe auto-updater for jobyougo
  *
  * Updates ONLY system layer files (modes, scripts, dashboard, templates).
  * NEVER touches user data (cv.md, profile.yml, _profile.md, data/, reports/).
@@ -53,7 +53,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
 
 export function createReexecMarker() {
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'career-ops-reexec-')));
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'jobyougo-reexec-')));
   const path = join(directory, 'marker');
   const token = randomBytes(32).toString('hex');
   writeFileSync(path, token, { encoding: 'utf8', mode: 0o600 });
@@ -61,8 +61,8 @@ export function createReexecMarker() {
 }
 
 export function consumeReexecMarker() {
-  const suppliedPath = process.env.CAREER_OPS_UPDATE_REEXEC_MARKER;
-  const token = process.env.CAREER_OPS_UPDATE_REEXEC_TOKEN;
+  const suppliedPath = process.env.JOBYOUGO_UPDATE_REEXEC_MARKER;
+  const token = process.env.JOBYOUGO_UPDATE_REEXEC_TOKEN;
   if (!suppliedPath || !token) {
     return false;
   }
@@ -70,7 +70,7 @@ export function consumeReexecMarker() {
     const tmpRoot = realpathSync(tmpdir());
     const path = resolve(suppliedPath);
     const parent = dirname(path);
-    if (dirname(parent) !== tmpRoot || !basename(parent).startsWith('career-ops-reexec-') || basename(path) !== 'marker') {
+    if (dirname(parent) !== tmpRoot || !basename(parent).startsWith('jobyougo-reexec-') || basename(path) !== 'marker') {
       return false;
     }
     if (realpathSync(parent) !== parent || !lstatSync(parent).isDirectory() ||
@@ -90,7 +90,7 @@ export function consumeReexecMarker() {
 }
 
 function isLegacyReexec() {
-  if (process.env.CAREER_OPS_UPDATE_REEXEC !== '1') {
+  if (process.env.JOBYOUGO_UPDATE_REEXEC !== '1') {
     return false;
   }
   // A matching backup branch is durable state, not proof that a parent updater
@@ -99,7 +99,7 @@ function isLegacyReexec() {
   if (!existsSync(join(ROOT, '.update-lock'))) {
     return false;
   }
-  const backupBranch = process.env.CAREER_OPS_UPDATE_BACKUP_BRANCH || '';
+  const backupBranch = process.env.JOBYOUGO_UPDATE_BACKUP_BRANCH || '';
   if (!/^backup-pre-update-\d+\.\d+\.\d+-\d{8}T\d{6}Z$/.test(backupBranch)) {
     return false;
   }
@@ -113,28 +113,28 @@ function isLegacyReexec() {
   }
 }
 
-const CANONICAL_REPO = 'https://github.com/career-ops-hq/career-ops.git';
-const RAW_VERSION_URL = 'https://raw.githubusercontent.com/career-ops-hq/career-ops/main/VERSION';
-const RELEASES_API = 'https://api.github.com/repos/career-ops-hq/career-ops/releases/latest';
+const CANONICAL_REPO = 'https://github.com/uxfi/jobyougo.git';
+const RAW_VERSION_URL = 'https://raw.githubusercontent.com/uxfi/jobyougo/main/VERSION';
+const RELEASES_API = 'https://api.github.com/repos/uxfi/jobyougo/releases/latest';
 
 // Matches a semver, with or without a leading `v` and an optional
-// Release Please component prefix (e.g. `career-ops-v1.9.0` → `1.9.0`).
+// Release Please component prefix (e.g. `jobyougo-v1.9.0` → `1.9.0`).
 // Anchoring on `(?:^|-)` lets the releases-API fallback parse our tags,
 // which Release Please always prefixes with the component name.
 export const SEMVER_RE = /(?:^|-)v?(\d+\.\d+\.\d+)$/i;
 // 120s: local git commands are normally instant, but a cloud-evicted working
 // tree (iCloud "optimize storage", OneDrive dehydration) can stall a plain
 // `git status` for a minute of pure I/O wait re-materializing files (#1393).
-export const DEFAULT_GIT_TIMEOUT_MS = parsePositiveInt(process.env.CAREER_OPS_GIT_TIMEOUT_MS, 120000);
+export const DEFAULT_GIT_TIMEOUT_MS = parsePositiveInt(process.env.JOBYOUGO_GIT_TIMEOUT_MS, 120000);
 export const DEFAULT_GIT_FETCH_TIMEOUT_MS = parsePositiveInt(
-  process.env.CAREER_OPS_GIT_FETCH_TIMEOUT_MS,
+  process.env.JOBYOUGO_GIT_FETCH_TIMEOUT_MS,
   Math.max(DEFAULT_GIT_TIMEOUT_MS, 300000),
 );
-export const NPM_INSTALL_TIMEOUT_MS = parsePositiveInt(process.env.CAREER_OPS_NPM_INSTALL_TIMEOUT_MS, 60000);
-export const PLAYWRIGHT_INSTALL_TIMEOUT_MS = parsePositiveInt(process.env.CAREER_OPS_PLAYWRIGHT_INSTALL_TIMEOUT_MS, 120000);
-export const DASHBOARD_REBUILD_TIMEOUT_MS = parsePositiveInt(process.env.CAREER_OPS_DASHBOARD_REBUILD_TIMEOUT_MS, 60000);
-export const UPDATE_PATH_CHECKOUT_BUDGET_MS = parsePositiveInt(process.env.CAREER_OPS_UPDATE_PATH_CHECKOUT_BUDGET_MS, 5000);
-export const REEXEC_BUFFER_TIMEOUT_MS = parsePositiveInt(process.env.CAREER_OPS_REEXEC_BUFFER_TIMEOUT_MS, 60000);
+export const NPM_INSTALL_TIMEOUT_MS = parsePositiveInt(process.env.JOBYOUGO_NPM_INSTALL_TIMEOUT_MS, 60000);
+export const PLAYWRIGHT_INSTALL_TIMEOUT_MS = parsePositiveInt(process.env.JOBYOUGO_PLAYWRIGHT_INSTALL_TIMEOUT_MS, 120000);
+export const DASHBOARD_REBUILD_TIMEOUT_MS = parsePositiveInt(process.env.JOBYOUGO_DASHBOARD_REBUILD_TIMEOUT_MS, 60000);
+export const UPDATE_PATH_CHECKOUT_BUDGET_MS = parsePositiveInt(process.env.JOBYOUGO_UPDATE_PATH_CHECKOUT_BUDGET_MS, 5000);
+export const REEXEC_BUFFER_TIMEOUT_MS = parsePositiveInt(process.env.JOBYOUGO_REEXEC_BUFFER_TIMEOUT_MS, 60000);
 
 // System layer paths — ONLY these files get updated
 const SYSTEM_PATHS = [
@@ -743,7 +743,7 @@ function timeoutSeconds(timeout) {
 }
 
 function gitTimeoutEnvVar(args) {
-  return args[0] === 'fetch' ? 'CAREER_OPS_GIT_FETCH_TIMEOUT_MS' : 'CAREER_OPS_GIT_TIMEOUT_MS';
+  return args[0] === 'fetch' ? 'JOBYOUGO_GIT_FETCH_TIMEOUT_MS' : 'JOBYOUGO_GIT_TIMEOUT_MS';
 }
 
 /**
@@ -803,7 +803,7 @@ function gitQuiet(...args) {
  * or null when ROOT is its own toplevel (or not inside any worktree at all).
  *
  * Every git call in this file runs with `cwd: ROOT` and assumes that resolves
- * to the career-ops checkout. An install with no `.git` of its own that sits
+ * to the jobyougo checkout. An install with no `.git` of its own that sits
  * INSIDE another repository — a ZIP unpacked into an existing project — breaks
  * that silently: git walks up, finds the outer repo, and every rev-parse,
  * fetch, branch and checkout lands there, with pathspecs failing because at
@@ -849,7 +849,7 @@ function assertOwnGitToplevel() {
   const foreignToplevel = gitToplevelMismatch();
   if (foreignToplevel) {
     throw new Error(
-      `career-ops at ${ROOT} is not a git checkout of its own, so git operations would land in the enclosing repository at ${foreignToplevel} — this happens when the install was unpacked from a ZIP or copied without its .git directory. Nothing was changed. To make updates work, clone career-ops fresh (git clone ${CANONICAL_REPO}) and move your user-layer files (cv.md, config/, data/, reports/ — see DATA_CONTRACT.md) into the new clone.`,
+      `jobyougo at ${ROOT} is not a git checkout of its own, so git operations would land in the enclosing repository at ${foreignToplevel} — this happens when the install was unpacked from a ZIP or copied without its .git directory. Nothing was changed. To make updates work, clone jobyougo fresh (git clone ${CANONICAL_REPO}) and move your user-layer files (cv.md, config/, data/, reports/ — see DATA_CONTRACT.md) into the new clone.`,
     );
   }
 }
@@ -1956,7 +1956,7 @@ function curlGet(url, extraArgs = []) {
 
 /**
  * Which channel apply() should fetch from: the `--channel` flag wins over
- * CAREER_OPS_UPDATE_CHANNEL (the re-exec'd child's copy of the parent's
+ * JOBYOUGO_UPDATE_CHANNEL (the re-exec'd child's copy of the parent's
  * resolved choice — see resolveTargetRef()'s callers). Unset means the
  * default, 'release'. Anything else is a typo, not a third channel, so it
  * throws before any lock or network call rather than silently doing
@@ -1968,7 +1968,7 @@ function curlGet(url, extraArgs = []) {
  */
 function resolveChannel(argv, env) {
   const idx = argv.indexOf('--channel');
-  const requested = idx !== -1 ? argv[idx + 1] : env.CAREER_OPS_UPDATE_CHANNEL;
+  const requested = idx !== -1 ? argv[idx + 1] : env.JOBYOUGO_UPDATE_CHANNEL;
   if (requested === undefined || requested === 'release') return 'release';
   if (requested === 'main') return 'main';
   throw new Error(`Unknown --channel '${requested}'. Supported channels: release (default), main.`);
@@ -1976,17 +1976,17 @@ function resolveChannel(argv, env) {
 
 // release-please-config.json also releases a sibling `web` component, tagged
 // `web-vX.Y.Z` — see resolveTargetRef()'s doc comment for why this matters.
-const RELEASE_TAG_PREFIX = 'career-ops-v';
+const RELEASE_TAG_PREFIX = 'jobyougo-v';
 
 // The whole tag, anchored at both ends. SEMVER_RE is suffix-anchored (it has
-// to be, to read `career-ops-v1.9.0` and `v1.9.0` alike), so the prefix check
-// plus SEMVER_RE on its own let `career-ops-vpreview-v1.32.0` through: right
+// to be, to read `jobyougo-v1.9.0` and `v1.9.0` alike), so the prefix check
+// plus SEMVER_RE on its own let `jobyougo-vpreview-v1.32.0` through: right
 // prefix, and a valid `-v1.32.0` suffix. A release tag is exactly the prefix
 // followed by X.Y.Z, nothing between.
 export const RELEASE_TAG_RE = new RegExp(`^${RELEASE_TAG_PREFIX}(\\d+\\.\\d+\\.\\d+)$`);
 
 /**
- * The version a career-ops release tag names (`career-ops-v1.33.0` → `1.33.0`),
+ * The version a jobyougo release tag names (`jobyougo-v1.33.0` → `1.33.0`),
  * or '' for anything that is not exactly such a tag. Shared by apply()'s
  * resolveTargetRef() and check()'s latestRelease(), so the prompt and the
  * install agree on what counts as a release.
@@ -2022,7 +2022,7 @@ export function newerThanTarget(local, targetRef) {
 /**
  * Resolve the git ref apply() should fetch from CANONICAL_REPO.
  *
- * Default channel ('release'): the newest published career-ops release tag,
+ * Default channel ('release'): the newest published jobyougo release tag,
  * read from RELEASES_API. main's tip is not a safe default — release-please
  * can bump VERSION on main hours before the matching tag lands, so a
  * same-moment `main` checkout can carry a version string with none of that
@@ -2037,7 +2037,7 @@ export function newerThanTarget(local, targetRef) {
  * monorepo (release-please-config.json also releases a `web` component,
  * tagged `web-vX.Y.Z`), and RELEASES_API's `/releases/latest` returns
  * whichever release was created most recently across BOTH components —
- * correct only because release.yml's "Keep the career-ops release marked
+ * correct only because release.yml's "Keep the jobyougo release marked
  * as Latest" step re-asserts it on every push. If that step ever silently
  * stopped running, this would otherwise fetch and install a `web` tag
  * without complaint; the RELEASE_TAG_PREFIX + SEMVER_RE check makes that
@@ -2048,7 +2048,7 @@ export function newerThanTarget(local, targetRef) {
  * @param {NodeJS.ProcessEnv} env - process.env (or a test double).
  * @param {{curlGet?: typeof curlGet}} [ctx] - injection seam for tests.
  * @returns {Promise<string>} A ref fetchable from CANONICAL_REPO: a release
- *   tag verbatim (e.g. `career-ops-v1.32.0`) or the literal `main`.
+ *   tag verbatim (e.g. `jobyougo-v1.32.0`) or the literal `main`.
  */
 export async function resolveTargetRef(argv, env, ctx = {}) {
   const runCurlGet = ctx.curlGet || curlGet;
@@ -2058,11 +2058,11 @@ export async function resolveTargetRef(argv, env, ctx = {}) {
 
   const releaseRaw = await runCurlGet(RELEASES_API, [
     '--header', 'Accept: application/vnd.github.v3+json',
-    '--header', 'User-Agent: career-ops-update-checker',
+    '--header', 'User-Agent: jobyougo-update-checker',
   ]);
   if (releaseRaw === null) {
     throw new Error(
-      `Could not reach ${RELEASES_API} to resolve the latest career-ops release. ` +
+      `Could not reach ${RELEASES_API} to resolve the latest jobyougo release. ` +
       'Retry, or run with --channel main to update from the latest commit on main instead.',
     );
   }
@@ -2079,8 +2079,8 @@ export async function resolveTargetRef(argv, env, ctx = {}) {
       'Retry, or run with --channel main to update from the latest commit on main instead.',
     );
   }
-  // Prefix AND shape, as one anchored match: 'career-ops-vnot-a-version'
-  // passes a prefix-only check, and 'career-ops-vpreview-v1.32.0' passes a
+  // Prefix AND shape, as one anchored match: 'jobyougo-vnot-a-version'
+  // passes a prefix-only check, and 'jobyougo-vpreview-v1.32.0' passes a
   // prefix check plus the suffix-anchored SEMVER_RE — neither is a release.
   if (!releaseTagVersion(tagName)) {
     // Almost certainly the sibling `web` component's tag surfacing because
@@ -2091,7 +2091,7 @@ export async function resolveTargetRef(argv, env, ctx = {}) {
     // an actionable report instead.
     throw new Error(
       `${RELEASES_API} returned '${tagName}', which is not a valid ${RELEASE_TAG_PREFIX}X.Y.Z release tag — ` +
-      `likely the sibling 'web' component's release surfacing instead of career-ops's, or a malformed tag. ` +
+      `likely the sibling 'web' component's release surfacing instead of jobyougo's, or a malformed tag. ` +
       'Retry, or run with --channel main to update from the latest commit on main instead.',
     );
   }
@@ -2157,7 +2157,7 @@ function readDismissMarker() {
 // ── CHECK ───────────────────────────────────────────────────────
 
 /**
- * The newest published career-ops release: the same RELEASES_API lookup
+ * The newest published jobyougo release: the same RELEASES_API lookup
  * resolveTargetRef() makes for apply(), held to the same tag shape, so the
  * prompt names exactly the release an update would install. Never throws:
  * check() runs silently at the start of every session and answers with a
@@ -2170,7 +2170,7 @@ function readDismissMarker() {
 async function latestRelease(runCurlGet) {
   const releaseRaw = await runCurlGet(RELEASES_API, [
     '--header', 'Accept: application/vnd.github.v3+json',
-    '--header', 'User-Agent: career-ops-update-checker',
+    '--header', 'User-Agent: jobyougo-update-checker',
   ]);
   if (releaseRaw === null) return { status: 'offline' };
   let release = null;
@@ -2187,7 +2187,7 @@ async function latestRelease(runCurlGet) {
  * What check() reports, as data (check() prints it; tests call it directly).
  *
  * Default channel ('release'): an update is offered only when a newer
- * career-ops release is published. apply() installs that release, not main's
+ * jobyougo release is published. apply() installs that release, not main's
  * tip (#3845), so merges landing on main between releases never prompt — the
  * version number decides when users are asked (#3203, #3583). The local side
  * is VERSION: an install that tracked main before this change reads as its
@@ -2235,7 +2235,7 @@ async function checkMainChannel(local, marker, runCurlGet) {
     runCurlGet(RAW_VERSION_URL),
     runCurlGet(RELEASES_API, [
       '--header', 'Accept: application/vnd.github.v3+json',
-      '--header', 'User-Agent: career-ops-update-checker',
+      '--header', 'User-Agent: jobyougo-update-checker',
     ]),
   ]);
 
@@ -2245,9 +2245,9 @@ async function checkMainChannel(local, marker, runCurlGet) {
   // deliberately conservative: version checks still work offline/behind a
   // restricted git transport.
   try { localCommit = gitQuiet('rev-parse', 'HEAD'); } catch { /* no git checkout */ }
-  const remoteRef = await runCurlGet('https://api.github.com/repos/career-ops-hq/career-ops/git/ref/heads/main', [
+  const remoteRef = await runCurlGet('https://api.github.com/repos/uxfi/jobyougo/git/ref/heads/main', [
     '--header', 'Accept: application/vnd.github+json',
-    '--header', 'User-Agent: career-ops-update-checker',
+    '--header', 'User-Agent: jobyougo-update-checker',
   ]);
   if (remoteRef !== null) {
     try { remoteCommit = String(JSON.parse(remoteRef)?.object?.sha || '').trim(); } catch { /* malformed API response */ }
@@ -2364,7 +2364,7 @@ async function check() {
 // reconciler keys off pattern presence, never off this marker, so a user who
 // deletes or moves it loses nothing.
 const GITIGNORE_BLOCK_HEADER = [
-  '# Added by career-ops update-system.mjs.',
+  '# Added by jobyougo update-system.mjs.',
   '# System-owned ignore rules that were missing from this file. Your own rules',
   '# are never modified, reordered or removed: the updater only appends patterns',
   '# it cannot already find somewhere in this file. Reordering these lines, or',
@@ -2537,7 +2537,7 @@ export function reconcileGitignore(localText, upstreamText) {
 // ── APPLY ───────────────────────────────────────────────────────
 
 /**
- * Whether apply() should trust CAREER_OPS_UPDATE_TARGET_REF from the
+ * Whether apply() should trust JOBYOUGO_UPDATE_TARGET_REF from the
  * environment for this invocation, rather than resolving a fresh ref via
  * resolveTargetRef(). True only when reexec status was actually PROVEN: a
  * cryptographically authenticated marker (consumeReexecMarker()) or the more
@@ -2546,7 +2546,7 @@ export function reconcileGitignore(localText, upstreamText) {
  *
  * Deliberately narrower than isReexec as a whole: isReexec's own third,
  * unauthenticated disjunct (`--confirm` in argv plus a bare
- * CAREER_OPS_UPDATE_REEXEC=1 in env — no marker, no lock, no backup branch)
+ * JOBYOUGO_UPDATE_REEXEC=1 in env — no marker, no lock, no backup branch)
  * proves nothing and is satisfiable from a clean state with one stray env
  * var. Letting THAT alone reach this fallback would skip resolveTargetRef()
  * entirely on what looks like a fresh invocation, silently reverting to
@@ -2575,11 +2575,11 @@ async function apply() {
   const authenticatedReexec = consumeReexecMarker();
   const legacyReexec = isLegacyReexec();
   const isReexec = authenticatedReexec || legacyReexec ||
-    (process.argv.includes('--confirm') && process.env.CAREER_OPS_UPDATE_REEXEC === '1');
+    (process.argv.includes('--confirm') && process.env.JOBYOUGO_UPDATE_REEXEC === '1');
   const updateForce = process.argv.includes('--force') ||
-    (isReexec && process.env.CAREER_OPS_UPDATE_FORCE === '1');
+    (isReexec && process.env.JOBYOUGO_UPDATE_FORCE === '1');
   const updateConfirmed = process.argv.includes('--confirm') ||
-    (isReexec && (process.env.CAREER_OPS_UPDATE_CONFIRM === '1' || legacyReexec));
+    (isReexec && (process.env.JOBYOUGO_UPDATE_CONFIRM === '1' || legacyReexec));
   const initialStatusPaths = new Set(gitStatusEntries().map(entry => entry.path));
   // Backups created by this apply run are expected updater output, not user
   // files the checkout modified. Record only successful copies so an unrelated
@@ -2596,7 +2596,7 @@ async function apply() {
 
   // Which ref to fetch from CANONICAL_REPO. Resolved once — a real network
   // call on the default channel — and threaded to the re-exec'd child via
-  // CAREER_OPS_UPDATE_TARGET_REF below, so both fetches in a self-reexec pair
+  // JOBYOUGO_UPDATE_TARGET_REF below, so both fetches in a self-reexec pair
   // land on the exact same content; resolving independently in each process
   // would leave a window where a new release lands between the two fetches.
   //
@@ -2610,7 +2610,7 @@ async function apply() {
   // one), but the same fallback covers it as a safety net rather than crashing
   // mid-update.
   const targetRef = trustsEnvTargetRef(authenticatedReexec, legacyReexec)
-    ? (process.env.CAREER_OPS_UPDATE_TARGET_REF || 'main')
+    ? (process.env.JOBYOUGO_UPDATE_TARGET_REF || 'main')
     : await resolveTargetRef(process.argv, process.env);
 
   const olderTarget = newerThanTarget(local, targetRef);
@@ -2638,7 +2638,7 @@ async function apply() {
     // invisible to `git branch` and can be lost if the update aborts.
     // `git stash create` builds a stash object without touching the stash
     // stack, giving a recoverable ref for WIP even if the update fails.
-    const backupBranch = process.env.CAREER_OPS_UPDATE_BACKUP_BRANCH || updateBackupBranchName(local);
+    const backupBranch = process.env.JOBYOUGO_UPDATE_BACKUP_BRANCH || updateBackupBranchName(local);
     if (!isReexec) {
       try {
         const wip = git('stash', 'create');
@@ -2692,17 +2692,17 @@ async function apply() {
           timeout,
           env: {
             ...process.env,
-            CAREER_OPS_UPDATE_REEXEC_MARKER: marker.path,
-            CAREER_OPS_UPDATE_REEXEC_TOKEN: marker.token,
+            JOBYOUGO_UPDATE_REEXEC_MARKER: marker.path,
+            JOBYOUGO_UPDATE_REEXEC_TOKEN: marker.token,
             // Compatibility for target updaters before the authenticated
             // marker was introduced; only the authenticated child receives it.
-            CAREER_OPS_UPDATE_REEXEC: '1',
-            CAREER_OPS_UPDATE_BACKUP_BRANCH: backupBranch,
-            CAREER_OPS_UPDATE_TARGET_REF: targetRef,
-            ...(updateForce ? { CAREER_OPS_UPDATE_FORCE: '1' } : {}),
+            JOBYOUGO_UPDATE_REEXEC: '1',
+            JOBYOUGO_UPDATE_BACKUP_BRANCH: backupBranch,
+            JOBYOUGO_UPDATE_TARGET_REF: targetRef,
+            ...(updateForce ? { JOBYOUGO_UPDATE_FORCE: '1' } : {}),
             // Keep the legacy confirmation channel for older target updaters;
             // this process still requires the authenticated marker above.
-            CAREER_OPS_UPDATE_CONFIRM: '1',
+            JOBYOUGO_UPDATE_CONFIRM: '1',
           },
         });
         return;
@@ -3146,11 +3146,6 @@ async function apply() {
     console.log(`Updated ${updated.length} system paths.`);
     console.log(`Rollback available: node update-system.mjs rollback`);
 
-    console.log('\n-- The CareerOps Manifesto ------------------------------');
-    console.log('A new way of job searching is taking shape. You are');
-    console.log('already practicing it. Read it, sign it if you want to help:');
-    console.log('    npm run manifesto  ·  https://career-ops.org/manifesto?utm_source=updater');
-
   } finally {
     // Remove lock
     if (!isReexec && existsSync(lockFile)) unlinkSync(lockFile);
@@ -3321,15 +3316,15 @@ if (process.argv[1] && !isCli) {
 if (isCli) {
   const cmd = process.argv[2] || 'check';
 
-  // JobYouGo is maintained in this repository and no longer tracks career-ops
-  // releases. `check` stays callable (the test harness runs it) and answers
+  // JobYouGo is maintained in this repository. There is no upstream to update
+  // from. `check` stays callable (the test harness runs it) and answers
   // "disabled"; apply / rollback / dismiss refuse unless explicitly re-enabled.
   if (process.env.JOBYOUGO_ALLOW_UPSTREAM_UPDATE !== '1') {
     if (cmd === 'check') {
-      console.log(JSON.stringify({ status: 'disabled', reason: 'JobYouGo does not auto-update from career-ops' }));
+      console.log(JSON.stringify({ status: 'disabled', reason: 'JobYouGo does not auto-update' }));
       process.exit(0);
     }
-    console.error('Auto-update from career-ops is disabled in JobYouGo (set JOBYOUGO_ALLOW_UPSTREAM_UPDATE=1 to override).');
+    console.error('Auto-update is disabled in JobYouGo (set JOBYOUGO_ALLOW_UPSTREAM_UPDATE=1 to override).');
     process.exit(1);
   }
 

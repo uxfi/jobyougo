@@ -44,7 +44,7 @@ try {
   try {
     execFileSync(NODE, [OUTCOME_SCRIPT, '1', 'invalid_outcome_type'], {
       cwd: testDir,
-      env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+      env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
       encoding: 'utf-8',
       stdio: 'pipe',
     });
@@ -57,7 +57,7 @@ try {
   try {
     execFileSync(NODE, [OUTCOME_SCRIPT, '999', 'rejected'], {
       cwd: testDir,
-      env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+      env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
       encoding: 'utf-8',
       stdio: 'pipe',
     });
@@ -69,7 +69,7 @@ try {
   // Test 4: Dry-run mode
   const dryRunOut = execFileSync(NODE, [OUTCOME_SCRIPT, '1', 'interview_progress', '--stage', 'Tech Screen', '--dry-run', '--json'], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   });
   const dryRunJson = JSON.parse(dryRunOut);
@@ -86,7 +86,7 @@ try {
     '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   });
   const res1 = JSON.parse(outcome1Out);
@@ -114,7 +114,7 @@ try {
     '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   });
   const res2 = JSON.parse(outcome2Out);
@@ -143,7 +143,7 @@ try {
       '--json',
     ], {
       cwd: testDir,
-      env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+      env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
       encoding: 'utf-8',
     });
     const parsed = JSON.parse(out);
@@ -160,7 +160,7 @@ try {
     '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   });
   const resWithPdf = JSON.parse(outWithPdf);
@@ -179,7 +179,7 @@ try {
 
   const resKeyed = JSON.parse(execFileSync(NODE, [OUTCOME_SCRIPT, '3', 'rejected', '--json'], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   }));
   const keyedPosting = join(resKeyed.outcomeDir, 'posting.txt');
@@ -199,7 +199,7 @@ try {
     OUTCOME_SCRIPT, '1', 'rejected', '--clean-output', '--dry-run', '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   });
   const cleanDryJson = JSON.parse(cleanDryOut);
@@ -213,7 +213,7 @@ try {
     OUTCOME_SCRIPT, '1', 'rejected', '--clean-output', '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   }));
   check('Archives submitted_cv.pdf before cleanup', existsSync(join(cleanRes.outcomeDir, 'submitted_cv.pdf')));
@@ -243,7 +243,7 @@ try {
     OUTCOME_SCRIPT, '2', 'rejected', '--clean-output', '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   }));
   check('Refuses to delete when archived copy does not match despite equal size', refuseRes.cleanup.refused.length === 1);
@@ -255,7 +255,7 @@ try {
     OUTCOME_SCRIPT, '3', 'no_response', '--cv', 'output/gamma-custom.pdf', '--clean-output', '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   }));
   check('Archives an explicit --cv from output/', existsSync(join(cvInOutputRes.outcomeDir, 'submitted_cv.pdf')));
@@ -269,7 +269,7 @@ try {
     OUTCOME_SCRIPT, '3', 'hired', '--cv', outsideCv, '--clean-output', '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   }));
   check('An explicit --cv outside output/ is left untouched', existsSync(outsideCv));
@@ -291,7 +291,7 @@ try {
     OUTCOME_SCRIPT, '3', 'offer_declined', '--clean-output', '--json',
   ], {
     cwd: testDir,
-    env: { ...process.env, CAREER_OPS_TRACKER: join(testDir, 'data', 'applications.md') },
+    env: { ...process.env, JOBYOUGO_TRACKER: join(testDir, 'data', 'applications.md') },
     encoding: 'utf-8',
   }));
   const touchedPaths = [...escapeRes.cleanup.removed, ...escapeRes.cleanup.refused.map(r => r.path)];
@@ -327,14 +327,14 @@ try {
       cwd: rootLayoutDir,
       env: {
         ...process.env,
-        CAREER_OPS_TRACKER: rootTracker,
-        CAREER_OPS_PDF_INDEX: customManifest,
+        JOBYOUGO_TRACKER: rootTracker,
+        JOBYOUGO_PDF_INDEX: customManifest,
       },
       encoding: 'utf-8',
     }));
     const expectedDir = join(rootLayoutDir, 'data', 'outcomes', '7_root-corp_platform-engineer');
     check('Root-layout outcome directory stays under workspace/data', rootResult.outcomeDir === expectedDir);
-    check('Outcome honors CAREER_OPS_PDF_INDEX', readFileSync(join(expectedDir, 'submitted_cv.pdf'), 'utf8') === 'ROOT-LAYOUT-PDF');
+    check('Outcome honors JOBYOUGO_PDF_INDEX', readFileSync(join(expectedDir, 'submitted_cv.pdf'), 'utf8') === 'ROOT-LAYOUT-PDF');
   } finally {
     rmSync(rootLayoutDir, { recursive: true, force: true });
   }
@@ -349,7 +349,7 @@ try {
   // its relative() output doesn't start with '..', so only a real isAbsolute()
   // check (not a hand-rolled regex) classifies it as outside output/.
   check('Windows UNC path is correctly rejected as outside output/',
-    pathIsInside('\\\\server\\share\\cv.pdf', 'C:\\career-ops\\output', win32Path) === false);
+    pathIsInside('\\\\server\\share\\cv.pdf', 'C:\\jobyougo\\output', win32Path) === false);
 
   check('A UNC path actually inside a UNC output/ is still correctly accepted',
     pathIsInside('\\\\server\\share\\output\\cv.pdf', '\\\\server\\share\\output', win32Path) === true);
@@ -404,7 +404,7 @@ try {
       OUTCOME_SCRIPT, '1', 'rejected', '--cv', join('output', 'link', 'acme.pdf'), '--clean-output', '--json',
     ], {
       cwd: symWs,
-      env: { ...process.env, CAREER_OPS_TRACKER: symTracker },
+      env: { ...process.env, JOBYOUGO_TRACKER: symTracker },
       encoding: 'utf-8',
     }));
 

@@ -1,9 +1,9 @@
 /**
  * tests/followup-cadence-applied-date.test.mjs — parseAppliedDate() and its
- * cross-reference filter, isCrossReferencedMention() (career-ops#4084).
+ * cross-reference filter, isCrossReferencedMention() (jobyougo#4084).
  *
  * parseAppliedDate() originally matched only "applied" immediately followed by
- * a date. Any word in between — including the channel phrasing career-ops'
+ * a date. Any word in between — including the channel phrasing jobyougo'
  * own apply modes write, "Applied via {ATS} {date}" — missed the match
  * entirely and silently degraded to the evaluation-date fallback, which
  * `followup-cadence.mjs`'s own header comment calls out as the failure this
@@ -25,7 +25,7 @@ function expectDate(notes, expected, label) {
   }
 }
 
-// ── The exact four repro cases from the issue — career-ops' own apply-mode
+// ── The exact four repro cases from the issue — jobyougo' own apply-mode
 //    phrasing, which the adjacent-only regex missed entirely. ──
 expectDate(
   'Applied via Ashby 2026-08-31', '2026-08-31',
@@ -116,7 +116,7 @@ expectDate(
 // ── Cross-reference filtering must stay in sync with the wider matcher: a
 //    cited row's OWN date, written with the same gapped phrasing, must still
 //    be recognized as "the citation already has a date" so the date after the
-//    separator is read as this row's own (career-ops#2607's rule, now
+//    separator is read as this row's own (jobyougo#2607's rule, now
 //    exercised with gapped phrasing rather than only the adjacent form). ──
 {
   const notes = '#154 Sr PM (applied via Ashby 2026-08-04); applied via Ashby 2026-06-15';

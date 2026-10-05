@@ -5,7 +5,7 @@ import { pass, fail } from './helpers.mjs';
 import { boardKey, loadDeadBoards, recordBoardResult, saveDeadBoards, shouldSkipDeadBoard } from '../dead-boards.mjs';
 
 console.log('\nPersistent dead-board memory (#2840)');
-const root = mkdtempSync(join(tmpdir(), 'career-ops-dead-boards-'));
+const root = mkdtempSync(join(tmpdir(), 'jobyougo-dead-boards-'));
 const file = join(root, 'data', 'dead-boards.tsv');
 const now = Date.parse('2026-08-14T00:00:00Z');
 try {

@@ -5,9 +5,10 @@
   "description": "Libraries.dev React islands for JobYouGo UI",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.tsx --bundle --format=iife --global-name=JobYouGoEffects --outfile=dist/effects.js --jsx=automatic --minify --target=es2020"
+    "build": "esbuild src/index.tsx --bundle --format=iife --global-name=JobYouGoEffects --outfile=dist/effects.js --jsx=automatic --minify --target=es2020 && esbuild src/landing-figures.ts --bundle --format=esm --outfile=dist/landing-figures.js --minify --target=es2020"
   },
   "dependencies": {
+    "@lucasmarkes/hairline": "^0.2.0",
     "border-beam": "^1.4.1",
     "bot-avatars": "^0.1.1",
     "metal-fx": "^2.0.11",

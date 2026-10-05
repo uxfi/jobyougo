@@ -908,7 +908,21 @@ async function fillFieldsInPage(updates) {
         cands = near.length || !allowGlobal ? near : all;
       }
     }
-    return cands.filter((n) => !PLACEHOLDER_OPT.test(normText(n.innerText || n.getAttribute?.('aria-label') || n.getAttribute?.('title'))));
+    // Always-visible Yes/No toggles are not the open list of a Location
+    // typeahead. Keep Yes/No rows that live inside a real listbox.
+    const isForeignYesNo = (n) => {
+      const host = n.closest?.('.ashby-application-form-input-yesno, [class*="yesno" i], [class*="YesNo"]');
+      if (host) return !(fieldEl && host.contains(fieldEl));
+      if (n.closest?.('[role="listbox"], [role="menu"], .pac-container')) return false;
+      const role = (n.getAttribute?.('role') || '').toLowerCase();
+      if (role === 'option' || role === 'menuitem' || role === 'menuitemradio') return false;
+      const dataOpt = (n.getAttribute?.('data-option') || '').toLowerCase();
+      const text = normText(n.innerText || n.getAttribute?.('aria-label') || n.getAttribute?.('title'));
+      const binary = /^(yes|no|oui|non)$/i.test(text) || /^(yes|no|oui|non)$/.test(dataOpt);
+      if (!binary) return false;
+      return n.tagName === 'BUTTON' || role === 'radio' || role === 'checkbox' || n.hasAttribute?.('data-radix-collection-item');
+    };
+    return cands.filter((n) => !isForeignYesNo(n) && !PLACEHOLDER_OPT.test(normText(n.innerText || n.getAttribute?.('aria-label') || n.getAttribute?.('title'))));
   };
 
   const optionSnapshot = (fieldEl, allowGlobal) => {
@@ -1104,11 +1118,11 @@ async function fillFieldsInPage(updates) {
   // typed ("Available upon request" in a Yes/No dropdown was the bug), and a
   // query that commits nothing is cleared again.
   const selectComboboxOption = async (el, want, {
-    alternates = [], typeQuery = '', prefer = null, budgetMs = 9000, many = [],
+    alternates = [], typeQuery = '', prefer = null, rank = [], label = '', budgetMs = 9000, many = [],
   } = {}) => {
     const wants = [want, ...alternates].map(normText).filter((x, k, all) => x && all.indexOf(x) === k);
     const out = { picked: null, listOpened: false, clicked: '', options: [], typed: false };
-    if (!wants.length && !prefer) return out;
+    if (!wants.length && !prefer && !rank.length) return out;
     const deadline = Date.now() + budgetMs;
     // Yes/No is never typed ("No" filters down to "None").
     const binary = /^(yes|oui|y|true|no|non|n|false)$/i.test(wants[0] || '');
@@ -1118,7 +1132,23 @@ async function fillFieldsInPage(updates) {
         const hit = pickBestOption(nodes, q);
         if (hit) return hit;
       }
+      for (const re of rank) {
+        const hit = nodes.find((n) => re.test(labelOfNode(n)));
+        if (hit) return hit;
+      }
       return prefer ? nodes.find((n) => prefer.test(labelOfNode(n))) || null : null;
+    };
+    const yesNoOnly = (nodes) => {
+      const texts = nodes.map(labelOfNode).filter(Boolean);
+      if (texts.length < 2 || texts.length > 4) return false;
+      let yes = false;
+      let no = false;
+      for (const t of texts) {
+        if (/^(yes|oui)\b/i.test(t)) yes = true;
+        else if (/^(no|non)\b/i.test(t) && !/^non-?binary/i.test(t) && !/^none\b/i.test(t)) no = true;
+        else return false;
+      }
+      return yes && no;
     };
 
     // Checkbox-style rows (menuitemcheckbox) say themselves whether they are
@@ -1194,7 +1224,22 @@ async function fillFieldsInPage(updates) {
       return out;
     }
 
-    if (shown) {
+    // A Location control whose real list is Yes | No is not a city search.
+    // "Paris, France" matches nothing there and the field stays empty.
+    if (shown && yesNoOnly(shown.nodes) && !binary
+        && /\blocation\b|\bcity\b|\bville\b|\bbased in\b|\blocated\b/i.test(label)
+        && !/relocat|hear|sponsor|visa|travel/i.test(label)) {
+      const yesNode = shown.nodes.find((n) => /^(yes|oui)\b/i.test(labelOfNode(n)));
+      if (yesNode) {
+        const got = await clickAndCheck(yesNode);
+        if (got) {
+          out.picked = got;
+          return out;
+        }
+      }
+    }
+
+    if (shown && !(yesNoOnly(shown.nodes) && !binary)) {
       const hit = matchIn(shown.nodes);
       if (hit) {
         const got = await clickAndCheck(hit);
@@ -1315,6 +1360,10 @@ async function fillFieldsInPage(updates) {
     if (!u?.selectPrefer?.source) return null;
     try { return new RegExp(u.selectPrefer.source, u.selectPrefer.flags || 'i'); } catch { return null; }
   };
+  const rankRes = (u) => (Array.isArray(u?.selectRank) ? u.selectRank : []).flatMap((r) => {
+    if (!r?.source) return [];
+    try { return [new RegExp(r.source, r.flags || 'i')]; } catch { return []; }
+  });
 
   const resolvePreferWant = async (el, u) => {
     const re = preferRe(u);
@@ -1453,26 +1502,54 @@ async function fillFieldsInPage(updates) {
             });
             if (opt?.key) hit = document.querySelector(`[data-co-opt="${opt.key}"]`) || deepQueryAll(document, `[data-co-opt="${opt.key}"]`)[0];
           }
-          if (hit) {
-            const pressed = hit.getAttribute?.('aria-pressed') === 'true'
-              || hit.getAttribute?.('aria-checked') === 'true'
-              || !!hit.checked;
-            if (!pressed) {
-              hit.click();
-              // Ashby toggle buttons need a real pointer sequence sometimes.
-              if (hit.getAttribute?.('aria-pressed') === 'false' || hit.getAttribute?.('aria-pressed') == null) {
-                try {
-                  hit.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, composed: true }));
-                  hit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
-                } catch { /* ignore */ }
-              }
+          // "How did you hear" often has no row named exactly "LinkedIn" /
+          // "Other". Ranked patterns pick a real source before we give up.
+          if (!hit) {
+            for (const re of rankRes(u)) {
+              hit = pool.find((o) => re.test(labelOf(o)) || re.test(textOf(o)));
+              if (hit) break;
             }
+          }
+          if (!hit) {
+            const prefer = preferRe(u);
+            if (prefer) hit = pool.find((o) => prefer.test(labelOf(o)) || prefer.test(textOf(o)));
+          }
+          if (hit) {
+            const on = (node) => node?.getAttribute?.('aria-pressed') === 'true'
+              || node?.getAttribute?.('aria-checked') === 'true'
+              || !!node?.checked;
+            const activate = (node) => {
+              if (!node || on(node)) return;
+              const forLabel = node.id ? document.querySelector(`label[for="${CSS.escape(node.id)}"]`) : null;
+              const wrap = node.closest?.('label');
+              const target = forLabel || wrap || node;
+              pointerClick(target);
+              if (target !== node) node.click?.();
+            };
+            if (!on(hit)) activate(hit);
+            let stuck = pool.some(on) || on(hit);
+            if (!stuck) {
+              await sleep(180);
+              stuck = pool.some(on) || on(hit);
+            }
+            // A click that did not stick used to be reported as filled. The
+            // next scan then said "choix requis" on a still-empty radio.
+            if (!stuck) {
+              results.push({
+                i,
+                frameId,
+                ok: false,
+                reason: `radio option not found for "${textOf(hit) || want}"`,
+                options: pool.map(textOf).filter(Boolean).slice(0, 40),
+              });
+              continue;
+            }
+            const chosen = pool.find(on) || hit;
             results.push({
               i,
               frameId,
               ok: true,
-              // The option's label, not its value ("3" on Teamtailor radios).
-              actualValue: textOf(hit) || want,
+              actualValue: textOf(chosen) || want,
             });
             continue;
           }
@@ -1489,9 +1566,19 @@ async function fillFieldsInPage(updates) {
         }
         // Plain checkbox (not Ashby Yes/No)
         if (type === 'checkbox' || role === 'checkbox' || role === 'switch') {
-          const wantOn = /^(1|true|yes|oui|on|checked)$/i.test(String(value));
+          const val = String(value || '').trim();
+          const own = String(u.label || '').split(/[—–]/).pop().trim();
+          const same = own.length > 2 && val.length > 2 && own.toLowerCase() === val.toLowerCase();
+          const wantOn = /^(1|true|yes|oui|on|checked)$/i.test(val) || same;
           if (el.checked !== wantOn) el.click();
-          results.push({ i, frameId, ok: true, actualValue: el.checked ? 'checked' : 'unchecked' });
+          const on = !!el.checked;
+          results.push({
+            i,
+            frameId,
+            ok: wantOn ? on : true,
+            actualValue: on ? 'checked' : 'unchecked',
+            reason: wantOn && !on ? 'checkbox non cochée' : undefined,
+          });
           continue;
         }
         results.push({ i, frameId, ok: false, reason: `radio option not found for "${want}"` });
@@ -1507,9 +1594,22 @@ async function fillFieldsInPage(updates) {
         }
         const opts = [...el.options].map((o) => ({ value: o.value, text: o.text }));
         const prefer = preferRe(u);
-        const match = pickOption(opts, want)
+        const ranks = rankRes(u);
+        let match = pickOption(opts, want)
           || (Array.isArray(u.alternates) ? u.alternates.map((a) => pickOption(opts, a)).find(Boolean) : null)
+          || ranks.map((re) => opts.find((o) => re.test(o.text || ''))).find(Boolean)
           || (prefer ? opts.find((o) => prefer.test(o.text || '')) : null);
+        if (!match) {
+          const texts = opts.map((o) => normText(o.text)).filter((t) => t && !PLACEHOLDER_OPT.test(t));
+          const yesNo = texts.length >= 2 && texts.length <= 4
+            && texts.every((t) => /^(yes|oui|no|non)\b/i.test(t))
+            && texts.some((t) => /^(yes|oui)\b/i.test(t))
+            && texts.some((t) => /^(no|non)\b/i.test(t) && !/^non-?binary/i.test(t));
+          const lab = String(u.label || '');
+          if (yesNo && /\blocation\b|\bcity\b|\bville\b/i.test(lab) && !/relocat|hear|sponsor|visa|travel/i.test(lab)) {
+            match = opts.find((o) => /^(yes|oui)\b/i.test(o.text || ''));
+          }
+        }
         if (!match) {
           // Leave the select alone: assigning a value it does not offer only
           // blanks it (selectedIndex -1).
@@ -1560,6 +1660,8 @@ async function fillFieldsInPage(updates) {
           alternates: Array.isArray(u.alternates) ? u.alternates : [],
           typeQuery,
           prefer: preferRe(u),
+          rank: rankRes(u),
+          label: u.label || '',
           many: Array.isArray(u.selectMany) ? u.selectMany : [],
           budgetMs: 9000 + (Array.isArray(u.selectMany) ? u.selectMany.length * 1200 : 0),
         });

@@ -53,7 +53,7 @@ try {
 
   // 6. Same for User-Agent. Several providers pass a capitalized
   // 'User-Agent': BROWSER_LIKE_USER_AGENT, which was being joined onto the
-  // default career-ops agent rather than sent on its own.
+  // default jobyougo agent rather than sent on its own.
   await fetchText('https://example.com/jobs.html', { headers: { 'User-Agent': 'Mozilla/5.0 (test)' } });
   if (seen?.get('user-agent') === 'Mozilla/5.0 (test)') pass('a capitalized User-Agent override replaces the default');
   else fail(`capitalized User-Agent override merged instead of replacing: got "${seen?.get('user-agent')}"`);

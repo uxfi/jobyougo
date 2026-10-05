@@ -16,7 +16,7 @@
  * the default tier. The user's only signal is noticing the wrong language in
  * finished work.
  *
- * WARN, never FAIL. career-ops is meant to work out of the box and an unknown
+ * WARN, never FAIL. jobyougo is meant to work out of the box and an unknown
  * key is not a broken install — it is almost always a typo, and the right
  * response is to name it, not to refuse to run. `portals.yml` gets
  * validate-portals.mjs and the plugin registry gets validate-plugin-registry.mjs;
@@ -41,14 +41,14 @@ import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import * as yaml from 'js-yaml';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
 const CODE_ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
 export const EXAMPLE_PATH = join(CODE_ROOT, 'config', 'profile.example.yml');
-export const DEFAULT_PROFILE_PATH = process.env.CAREER_OPS_PROFILE
+export const DEFAULT_PROFILE_PATH = process.env.JOBYOUGO_PROFILE
   || join(DATA_ROOT, 'config', 'profile.yml');
 
 /**

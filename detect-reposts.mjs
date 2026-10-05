@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * detect-reposts.mjs — Repost Detector for career-ops
+ * detect-reposts.mjs — Repost Detector for jobyougo
  *
  * Reads data/scan-history.tsv, groups rows by company, groups role titles by
  * title identity (see titleIdentityKey), and flags any company+role that
@@ -65,15 +65,15 @@ import { fileURLToPath } from 'url';
 import * as yaml from 'js-yaml';
 
 import { roleFuzzyMatch } from './role-matcher.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { normalizeCompanyName } from './invite-match.mjs';
 import { flagValue, validateFlags, safeIntFlag } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
-const CAREER_OPS = getCareerOpsRoot();
-const SCAN_HISTORY_PATH = join(CAREER_OPS, 'data/scan-history.tsv');
+const JOBYOUGO = getJobYouGoRoot();
+const SCAN_HISTORY_PATH = join(JOBYOUGO, 'data/scan-history.tsv');
 // Same resolution scan.mjs uses, so a sandboxed run overrides both together.
-const PORTALS_PATH = process.env.CAREER_OPS_PORTALS || join(CAREER_OPS, 'portals.yml');
+const PORTALS_PATH = process.env.JOBYOUGO_PORTALS || join(JOBYOUGO, 'portals.yml');
 const DEFAULT_WINDOW_DAYS = 90;
 
 // Smallest first_seen span a cluster may have and still count as a repost.
@@ -482,7 +482,7 @@ function buildRepostCluster(clusterRows, windowDays, minSpan = MIN_REPOST_SPAN_D
 // --- Summary mode ---
 function printSummary(clusters, aggregatorCount = 0) {
   console.log(`\n${'='.repeat(78)}`);
-  console.log('  Repost Detector — career-ops');
+  console.log('  Repost Detector — jobyougo');
   console.log(`  window: ${windowDays} days | min span: ${minSpanDays} day(s) | aggregators skipped: ${aggregatorCount} | clusters: ${clusters.length}`);
   console.log(`${'='.repeat(78)}\n`);
 

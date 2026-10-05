@@ -62,7 +62,7 @@ import { SEED_SOURCES, toPortalEntry } from './seeds/vc-portfolios.mjs';
 import { validateFlags } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 import { boardKey, loadDeadBoards, recordBoardResult, saveDeadBoards, shouldSkipDeadBoard } from './dead-boards.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 // ── Config ──────────────────────────────────────────────────────────
 
@@ -70,9 +70,9 @@ import { getCareerOpsRoot } from './path-resolver.mjs';
 // re-derived here (#3510). This file appends results through scan.mjs's
 // appendToPipeline, so its own bare-relative copy meant it could create an empty
 // data/pipeline.md in the cwd and then write the actual matches somewhere else.
-// Its portals fallback had the same split: it honored CAREER_OPS_PORTALS but
+// Its portals fallback had the same split: it honored JOBYOUGO_PORTALS but
 // otherwise looked in the cwd instead of the data root.
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const CACHE_DIR = path.join(DATA_ROOT, 'data/cache/ats-companies');
 const CACHE_TTL_HOURS = 24;
 // Tracks `main` deliberately: the dataset's value is freshness (new boards
@@ -1223,7 +1223,7 @@ async function main() {
       log(`\n  ⛔ stopped ${name}/${resolverOutageCompany}: ${RESOLVER_FAILURE_LIMIT} consecutive DNS failures.`);
       log(`     Your resolver is refusing queries — it may be rate-limiting this host.`);
       log(`     Lower CONCURRENCY, raise the resolver's per-client limit, or set`);
-      log(`     CAREER_OPS_NO_DNS_CACHE=1 only if you know the cache is at fault.`);
+      log(`     JOBYOUGO_NO_DNS_CACHE=1 only if you know the cache is at fault.`);
       // Only claim resumability when a checkpoint actually exists: --dry-run
       // writes none, and a failed write (ENOSPC, read-only volume) leaves at
       // best the last periodic checkpoint — nothing at the offset named here.
@@ -1266,7 +1266,7 @@ async function main() {
   // wall-clock time as a hang (#2229).
   const pacing = dnsPacingStats();
   if (pacing.delayed > 0) {
-    log(`DNS pacing:         ${pacing.delayed} lookup${pacing.delayed === 1 ? '' : 's'} delayed, ${Math.round(pacing.waitedMs / 1000)}s total wait (CAREER_OPS_DNS_LOOKUPS_PER_MIN to tune, 0 disables)`);
+    log(`DNS pacing:         ${pacing.delayed} lookup${pacing.delayed === 1 ? '' : 's'} delayed, ${Math.round(pacing.waitedMs / 1000)}s total wait (JOBYOUGO_DNS_LOOKUPS_PER_MIN to tune, 0 disables)`);
   }
   // noDateSkipJobs is a subset of droppedNoDate, not a separate pool: every
   // no-postedOn workday posting counted here also hits the per-job undated
@@ -1387,7 +1387,7 @@ async function main() {
     log('\n(dry run — run without --dry-run to save results)');
     return;
   }
-  log(`\n→ Run /career-ops pipeline to evaluate new offers.`);
+  log(`\n→ Run /jobyougo pipeline to evaluate new offers.`);
 }
 
 // Only run main() when invoked directly, not when imported by tests.

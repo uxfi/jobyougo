@@ -110,7 +110,7 @@ try {
 // Regression fixture: a rule added after a personal file was committed must be
 // detected, while a negated system scaffold inside a protected directory stays
 // allowed.
-const fixture = mkdtempSync(join(tmpdir(), 'career-ops-user-layer-index-'));
+const fixture = mkdtempSync(join(tmpdir(), 'jobyougo-user-layer-index-'));
 try {
   mkdirSync(join(fixture, 'documents'));
   writeFileSync(join(fixture, 'DATA_CONTRACT.md'), `# Data Contract
@@ -156,7 +156,7 @@ try {
 // this guard forbids a User Layer file that is ignored AND tracked. Un-ignoring
 // it satisfies both — it is then tracked and NOT ignored — and that has to keep
 // being true, or the documented escape stops working without anything saying so.
-const forkFixture = mkdtempSync(join(tmpdir(), 'career-ops-fork-local-paths-'));
+const forkFixture = mkdtempSync(join(tmpdir(), 'jobyougo-fork-local-paths-'));
 try {
   mkdirSync(join(forkFixture, 'config'));
   writeFileSync(join(forkFixture, 'DATA_CONTRACT.md'), `# Data Contract

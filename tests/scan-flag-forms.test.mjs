@@ -14,7 +14,7 @@
 // typo'd bound was silently ignored, the exact outcome the guard exists to
 // prevent.
 //
-// HERMETIC: every run pins CAREER_OPS_PORTALS at a path that does not exist, so
+// HERMETIC: every run pins JOBYOUGO_PORTALS at a path that does not exist, so
 // scan.mjs stops at its portals check and can never load providers, reach the
 // network, or write scan state — regardless of whether the developer running
 // the suite has a real portals.yml. Each assertion also checks the subprocess
@@ -27,14 +27,14 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const NO_PORTALS = join(tmpdir(), 'career-ops-no-such-portals.yml');
+const NO_PORTALS = join(tmpdir(), 'jobyougo-no-such-portals.yml');
 
 function runScan(...args) {
   const r = spawnSync(process.execPath, [join(ROOT, 'scan.mjs'), ...args], {
     cwd: ROOT,
     encoding: 'utf-8',
     timeout: 30_000,
-    env: { ...process.env, CAREER_OPS_PORTALS: NO_PORTALS },
+    env: { ...process.env, JOBYOUGO_PORTALS: NO_PORTALS },
   });
   assert.equal(r.error, undefined, `scan.mjs failed to spawn: ${r.error?.message}`);
   assert.equal(r.signal, null, `scan.mjs was killed by ${r.signal} (timeout?)`);

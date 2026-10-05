@@ -1083,7 +1083,7 @@ async function addToPipeline(url, note, userId) {
 }
 
 // ─── Portals (portals.yml) ────────────────────────────────────────────────────
-// Local: career-ops/portals.yml (user layer, gitignored).
+// Local: jobyougo/portals.yml (user layer, gitignored).
 // Vercel: /var/task is read-only and portals.yml is often absent from the
 // GitHub deploy (gitignored). Prefer a writable copy under WRITE_ROOT, seeded
 // from the bundled root file (CLI uploads) or templates/portals.example.yml.
@@ -3225,7 +3225,7 @@ async function fetchCareersUrlFallback(source) {
   return result || { ok: false, section: null, jobs: [], engine: 'playwright-fallback' };
 }
 
-async function launchLocalBrowserContext({ profilePrefix = 'career-ops-browser-profile-' } = {}) {
+async function launchLocalBrowserContext({ profilePrefix = 'jobyougo-browser-profile-' } = {}) {
   if (IS_VERCEL) throw new Error('local browser unavailable on Vercel');
   const chromium = await getChromium();
   const persistentProfiles = [
@@ -3275,7 +3275,7 @@ async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = n
   let local = null;
   let ownBrowser = false;
   try {
-    local = sharedBrowser || await launchLocalBrowserContext({ profilePrefix: 'career-ops-search-profile-' });
+    local = sharedBrowser || await launchLocalBrowserContext({ profilePrefix: 'jobyougo-search-profile-' });
     ownBrowser = !sharedBrowser;
     const page = local.ctx.pages()[0] || await local.ctx.newPage();
     const searchUrl = `https://www.google.com/search?hl=en&num=10&q=${encodeURIComponent(query)}`;
@@ -3756,7 +3756,7 @@ async function fetchCareerjetSection(aggregator = {}) {
       pagesize: String(aggregator.results_per_page || 20),
       page: '1',
       user_ip: '127.0.0.1',
-      user_agent: 'career-ops/1.0',
+      user_agent: 'jobyougo/1.0',
     });
     const url = `https://public.api.careerjet.net/search?${params.toString()}`;
     try {
@@ -4042,7 +4042,7 @@ async function fetchWebSearchSectionsSequential(sources = []) {
   try {
     if (!IS_VERCEL && sources.length && !(await pinchtabIsUp())) {
       try {
-        sharedBrowser = await launchLocalBrowserContext({ profilePrefix: 'career-ops-search-profile-' });
+        sharedBrowser = await launchLocalBrowserContext({ profilePrefix: 'jobyougo-search-profile-' });
       } catch (err) {
         console.warn(`[scan] [Chrome/Google] shared browser unavailable: ${err.message}`);
       }
@@ -4526,7 +4526,7 @@ async function fetchPlaywrightSectionsLocal(companies = []) {
   let ctx = null, lastErr, tempProfile = null;
   const profiles = [...persistentProfiles];
   try {
-    tempProfile = await mkdtemp(join(tmpdir(), 'career-ops-scan-profile-'));
+    tempProfile = await mkdtemp(join(tmpdir(), 'jobyougo-scan-profile-'));
     profiles.push(tempProfile);
   } catch {
     tempProfile = null;
@@ -7501,7 +7501,7 @@ const server = createServer(async (req, res) => {
         try {
           const response = await fetch(recipient.websiteUrl, {
             signal: AbortSignal.timeout(8000),
-            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)', 'Accept-Language': 'fr,en;q=0.8' },
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', 'Accept-Language': 'fr,en;q=0.8' },
           });
           if (!response.ok) return '';
           return textFromFetchedHtml(await response.text(), recipient.websiteUrl, { maxChars: 3000 });
@@ -7582,7 +7582,7 @@ const server = createServer(async (req, res) => {
       });
     }
 
-    // ── SSE: stream Claude response for a career-ops mode ──────────────────
+    // ── SSE: stream Claude response for a jobyougo mode ──────────────────
     if (path.startsWith('/api/claude/') && method === 'GET') {
       const mode = path.slice('/api/claude/'.length);
       const ALLOWED_MODES = ['scan','pipeline','tracker','oferta','pdf','deep','contacto','apply','coverletter','question'];
@@ -9154,7 +9154,7 @@ async function findListeningPids(port) {
   return [...new Set(result.stdout.split(/\s+/).map(Number).filter(Number.isInteger))];
 }
 
-async function isCareerOpsServer(pid) {
+async function isJobYouGoServer(pid) {
   if (pid === process.pid) return false;
 
   if (process.platform === 'win32') {
@@ -9224,7 +9224,7 @@ async function startServer() {
     const pids = await findListeningPids(PORT).catch(() => []);
     const oldServers = [];
     for (const pid of pids) {
-      if (await isCareerOpsServer(pid).catch(() => false)) oldServers.push(pid);
+      if (await isJobYouGoServer(pid).catch(() => false)) oldServers.push(pid);
     }
 
     if (!oldServers.length) {

@@ -132,16 +132,16 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-// --target, not CAREER_OPS_ROOT. It is the flag doctor's own existing suite
+// --target, not JOBYOUGO_ROOT. It is the flag doctor's own existing suite
 // uses (tests/doctor-unfilled-templates.test.mjs) and it names the directory
 // outright instead of going through env resolution, which the parent process,
-// the suite runner and a .career-ops-data marker can all have an opinion about.
+// the suite runner and a .jobyougo-data marker can all have an opinion about.
 // An earlier version of this helper passed the env var and read the target
 // correctly on my machine and not on CI's.
 function doctorJson(dir) {
   const r = spawnSync(process.execPath, [join(ROOT, 'doctor.mjs'), '--json', '--target', dir], {
     cwd: dir, encoding: 'utf-8', timeout: 60_000,
-    env: { ...process.env, CAREER_OPS_ROOT: dir },
+    env: { ...process.env, JOBYOUGO_ROOT: dir },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
   const brace = r.stdout.indexOf('{');
@@ -159,7 +159,7 @@ function assertTargeted(j, dir) {
 }
 
 function pluginSandbox(contents) {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-doctor-plug-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-doctor-plug-'));
   mkdirSync(join(dir, 'config'), { recursive: true });
   writeFileSync(join(dir, 'config', 'plugins.yml'), contents);
   return dir;

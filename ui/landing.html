@@ -928,6 +928,21 @@
   .step-num { margin-right: 10px; color: var(--text-4); font-variant-numeric: tabular-nums; }
   .step .card { flex: 1; display: flex; flex-direction: column; }
   .step .card-visual { height: 168px; display: flex; flex-direction: column; justify-content: center; }
+  .step .card-visual.hairline-slot {
+    height: auto;
+    padding: 16px 20px 4px;
+    background: var(--bg-2);
+  }
+  .hairline-fig {
+    width: min(100%, 240px);
+    margin: 0 auto;
+    --hairline-plate: var(--bg-2);
+    --hairline-hi: #f2f5f3;
+    --hairline-edge: #9aa39e;
+    --hairline-mid: #6e7873;
+    --hairline-lo: #3a4440;
+    --hairline-stroke: 1.05;
+  }
   .step .card-body { flex: 1; }
   .step .card-kicker { color: var(--accent); }
 
@@ -1538,13 +1553,8 @@
     <ol class="steps" role="list">
       <li class="step reveal">
         <div class="card">
-          <div class="card-visual" aria-hidden="true">
-            <div class="scan-list">
-              <div class="scan-item is-live"><span class="dot"></span>Greenhouse · 38 boards<span class="n">+12</span></div>
-              <div class="scan-item"><span class="dot"></span>Ashby · 24 boards<span class="n">+5</span></div>
-              <div class="scan-item"><span class="dot"></span>Lever · 19 boards<span class="n">+3</span></div>
-              <div class="scan-item"><span class="dot idle"></span>Reposts &amp; dead links<span class="n dim">−9</span></div>
-            </div>
+          <div class="card-visual hairline-slot">
+            <div class="hairline-fig" data-hairline="dish" data-intensity="0.6" aria-label="A dish scanning the boards for new offers"></div>
           </div>
           <div class="card-body">
             <div class="card-kicker"><span class="step-num" aria-hidden="true">01</span>Scan</div>
@@ -1556,18 +1566,8 @@
 
       <li class="step reveal reveal-d1">
         <div class="card">
-          <div class="card-visual" aria-hidden="true">
-            <div class="verdict">
-              <div class="verdict-top">
-                <span class="big">4.4<small>/5</small></span>
-                <span class="score"><span class="score-bar"><i style="--fill:1"></i><i style="--fill:1"></i><i style="--fill:1"></i><i style="--fill:1"></i><i style="--fill:.4"></i></span></span>
-              </div>
-              <ul>
-                <li><svg class="ok" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2l2.2 2.2L9.5 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Design systems at scale</li>
-                <li><svg class="ok" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2l2.2 2.2L9.5 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Remote EU, salary in range</li>
-                <li><svg class="gap" viewBox="0 0 12 12" fill="none"><path d="M6 3v3.6M6 8.8v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Gap: no fintech experience</li>
-              </ul>
-            </div>
+          <div class="card-visual hairline-slot">
+            <div class="hairline-fig" data-hairline="riffle" data-intensity="0.5" aria-label="A tray of offers, the closest one standing up"></div>
           </div>
           <div class="card-body">
             <div class="card-kicker"><span class="step-num" aria-hidden="true">02</span>Score</div>
@@ -1579,12 +1579,8 @@
 
       <li class="step reveal reveal-d2">
         <div class="card">
-          <div class="card-visual" aria-hidden="true">
-            <div class="tailor">
-              <div class="doc is-src"><div class="ln t"></div><div class="ln s"></div><div class="ln m"></div><div class="ln s"></div><div class="ln m"></div><div class="ln s"></div></div>
-              <span class="tailor-arrow"><svg viewBox="0 0 18 18" fill="none"><path d="M3 9h11m0 0-4-4m4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              <div class="doc is-tailored"><div class="ln t"></div><div class="ln s hl"></div><div class="ln m"></div><div class="ln s hl"></div><div class="ln m"></div><div class="ln s hl"></div><span class="doc-stamp tag is-accent">Tailored</span></div>
-            </div>
+          <div class="card-visual hairline-slot">
+            <div class="hairline-fig" data-hairline="laptop" data-intensity="0.45" aria-label="A laptop open on a tailored CV"></div>
           </div>
           <div class="card-body">
             <div class="card-kicker"><span class="step-num" aria-hidden="true">03</span>Tailor</div>
@@ -1596,16 +1592,8 @@
 
       <li class="step reveal reveal-d3">
         <div class="card">
-          <div class="card-visual" aria-hidden="true">
-            <div class="form">
-              <div class="field"><span class="k">Name</span><span class="v">Alex Martin</span><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2l2.2 2.2L9.5 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div class="field"><span class="k">CV</span><span class="v">cv-vercel-design-eng.pdf</span><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2l2.2 2.2L9.5 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div class="field"><span class="k">Why us?</span><span class="v">I've shipped design systems…</span><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2l2.2 2.2L9.5 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div class="submit-row">
-                <span class="hint">Ready for your review</span>
-                <span class="submit-btn">Submit<svg class="cursor" viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.5v11.2l3-2.7 2 4.4 1.9-.9-2-4.3 4-.3z" stroke="#07090a" stroke-width=".8" stroke-linejoin="round"/></svg></span>
-              </div>
-            </div>
+          <div class="card-visual hairline-slot">
+            <div class="hairline-fig" data-hairline="keyboard" data-intensity="0.5" aria-label="A keyboard, ready for you to submit"></div>
           </div>
           <div class="card-body">
             <div class="card-kicker"><span class="step-num" aria-hidden="true">04</span>Apply</div>
@@ -1716,6 +1704,7 @@
   </div>
 </footer>
 
+<script type="module" src="/effects/dist/landing-figures.js"></script>
 <script>
   // Plain script: runs even if the Supabase module below fails to load.
   document.getElementById('yr').textContent = new Date().getFullYear();

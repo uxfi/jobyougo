@@ -13,7 +13,7 @@ import { isMainModule } from './lib/is-main-module.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_TEMPLATES_DIR = resolve(__dirname, 'templates');
 const DEFAULT_PROFILE_PATH =
-  process.env.CAREER_OPS_PROFILE || resolve(__dirname, 'config', 'profile.yml');
+  process.env.JOBYOUGO_PROFILE || resolve(__dirname, 'config', 'profile.yml');
 
 export const KINDS = {
   cv: {
@@ -69,7 +69,7 @@ export function parseMeta(path) {
   } catch {
     return {};
   }
-  const block = text.match(/<!--\s*career-ops-template\s*([\s\S]*?)-->/);
+  const block = text.match(/<!--\s*jobyougo-template\s*([\s\S]*?)-->/);
   if (!block) return {};
   const meta = {};
   for (const line of block[1].split(/\r?\n/)) {
@@ -126,7 +126,7 @@ function entryFor(parsed, path, pack) {
 // recurses; a link pointing at its own ancestor is read once as a directory
 // and contributes whatever template files sit at its top level.
 //
-// The deciding cost is silent invisibility. career-ops sanctions a symlinked
+// The deciding cost is silent invisibility. jobyougo sanctions a symlinked
 // user layer (#524), so a pack maintained outside the repo is a supported
 // setup, and skipping it would drop the template from the registry with
 // nothing said — the same failure this file refuses to accept for name

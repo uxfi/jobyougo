@@ -1,12 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { choiceKind, listFilterText, optionMatchScore, pickMatchingOption, selectionLooksCommitted } from '../lib/apply-option-match.mjs';
+import { choiceKind, listFilterText, optionMatchScore, optionsAreYesNo, pickMatchingOption, placeWantedOnYesNoList, selectionLooksCommitted } from '../lib/apply-option-match.mjs';
 
 test('list filter types the short query and only the first word of a long one', () => {
   assert.equal(listFilterText('Bangkok'), 'Bangkok');
   assert.equal(listFilterText('Yes'), '');
   assert.equal(listFilterText('No'), '');
   assert.equal(listFilterText('I have led design systems across several product teams'), 'have');
+});
+
+test('Yes|No lists are not a city, and a Location label should take Yes', () => {
+  assert.equal(optionsAreYesNo([{ text: 'Yes' }, { text: 'No' }]), true);
+  assert.equal(optionsAreYesNo(['Yes', 'No', 'Prefer not to say']), false);
+  assert.equal(optionsAreYesNo(['Paris, France', 'Lyon, France']), false);
+  assert.equal(placeWantedOnYesNoList('Location', 'Paris, France'), true);
+  assert.equal(placeWantedOnYesNoList('How did you hear about this job?', 'LinkedIn'), false);
+  assert.equal(placeWantedOnYesNoList('Willing to relocate?', 'Paris, France'), false);
 });
 
 test('choiceKind recognizes yes/no literals only', () => {

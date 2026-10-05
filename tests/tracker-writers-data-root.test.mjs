@@ -3,13 +3,13 @@
 //
 // #3715 fixed the analysis scripts, which only read. These two write:
 //
-//   set-status.mjs:103    const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-//   set-status.mjs:263    const APPS_FILE  = resolveTrackerPath(CAREER_OPS);
+//   set-status.mjs:103    const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+//   set-status.mjs:263    const APPS_FILE  = resolveTrackerPath(JOBYOUGO);
 //   mark-pdf-ready.mjs:45 / :105   the same pair
 //
 // The constant reads as the project root and holds the CODE root, so
-// getCareerOpsRoot() — the only thing that honours CAREER_OPS_ROOT,
-// CAREER_OPS_DATA_DIR and the .career-ops-data marker — was never consulted.
+// getJobYouGoRoot() — the only thing that honours JOBYOUGO_ROOT,
+// JOBYOUGO_DATA_DIR and the .jobyougo-data marker — was never consulted.
 //
 // set-status.mjs is the one that matters: AGENTS.md calls it "the canonical
 // (locked, validated, atomic) write path", the tracker Pipeline Integrity rules
@@ -48,8 +48,8 @@ const TRACKER = [
 ].join('\n');
 
 function fixture() {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-trwriter-'));
-  const decoyCwd = mkdtempSync(join(tmpdir(), 'career-ops-trdecoy-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-trwriter-'));
+  const decoyCwd = mkdtempSync(join(tmpdir(), 'jobyougo-trdecoy-'));
   mkdirSync(join(dataRoot, 'data'), { recursive: true });
   writeFileSync(join(dataRoot, 'data', 'applications.md'), TRACKER);
   return { dataRoot, decoyCwd };
@@ -62,7 +62,7 @@ const cleanup = (f) => {
 function run(script, args, f) {
   const r = spawnSync(process.execPath, [join(ROOT, script), ...args], {
     cwd: f.decoyCwd, encoding: 'utf-8', timeout: 60_000,
-    // CAREER_OPS_TRACKER is cleared too, and that is not belt-and-braces.
+    // JOBYOUGO_TRACKER is cleared too, and that is not belt-and-braces.
     // path-resolver.mjs ranks it ABOVE the resolved root, so on a machine where
     // a developer has it exported these spawns ignore f.dataRoot entirely and
     // operate on whatever tracker it names — and these are the WRITERS. Left
@@ -74,9 +74,9 @@ function run(script, args, f) {
     // contributor running the suite locally.
     env: {
       ...process.env,
-      CAREER_OPS_ROOT: f.dataRoot,
-      CAREER_OPS_DATA_DIR: '',
-      CAREER_OPS_TRACKER: '',
+      JOBYOUGO_ROOT: f.dataRoot,
+      JOBYOUGO_DATA_DIR: '',
+      JOBYOUGO_TRACKER: '',
     },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
@@ -118,7 +118,7 @@ test('nothing is written into the directory it was launched from', () => {
 test('outcome.mjs finds the configured tracker too', () => {
   // It shells out to set-status.mjs, so both halves have to resolve: the parent
   // to locate the tracker, and the child to write it. The child inherits
-  // CAREER_OPS_ROOT through the environment.
+  // JOBYOUGO_ROOT through the environment.
   const f = fixture();
   try {
     const r = run('outcome.mjs', ['1', 'rejected'], f);

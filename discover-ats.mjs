@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * discover-ats.mjs — Company-list → scannable ATS board resolver for career-ops
+ * discover-ats.mjs — Company-list → scannable ATS board resolver for jobyougo
  *
  * Takes a list of companies and resolves each to a scannable ATS board by
- * probing the public JSON APIs career-ops already supports (see VENDOR_ORDER)
+ * probing the public JSON APIs jobyougo already supports (see VENDOR_ORDER)
  * via the existing providers/ layer — zero LLM tokens, zero auth. A company
  * "resolves" when a vendor's board exists AND currently lists ≥1 job.
  *
@@ -25,7 +25,7 @@
  *      node discover-ats.mjs --in companies.yml --vendors gh,ashby
  *      node discover-ats.mjs --self-test
  *
- * Probing hits live third-party APIs, so honor CAREER_OPS_PORTALS to point at a
+ * Probing hits live third-party APIs, so honor JOBYOUGO_PORTALS to point at a
  * scratch portals file during tests/experiments.
  *
  * Issue #1864 — github.com/career-ops-hq/career-ops
@@ -51,11 +51,11 @@ import pinpoint from './providers/pinpoint.mjs';
 import rippling from './providers/rippling.mjs';
 import joinProvider from './providers/join.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
-const PORTALS_PATH = process.env.CAREER_OPS_PORTALS || join(DATA_ROOT, 'portals.yml');
+const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
+const PORTALS_PATH = process.env.JOBYOUGO_PORTALS || join(DATA_ROOT, 'portals.yml');
 
 // Safe charset for a slug that will be interpolated into an ATS URL. Consistent
 // with the SLUG_RE guard in scan-ats-full.mjs and seeds/vc-portfolios.mjs — a
@@ -797,7 +797,7 @@ export async function runDiscovery(companies, { vendors = VENDOR_ORDER, ctx, con
 
 function printSummary({ resolved, unresolved, duplicates }) {
   console.log(`\n${'='.repeat(78)}`);
-  console.log('  ATS Discovery — career-ops');
+  console.log('  ATS Discovery — jobyougo');
   console.log(`  resolved: ${resolved.length} | unresolved: ${unresolved.length} | duplicates skipped: ${duplicates.length}`);
   console.log(`${'='.repeat(78)}\n`);
 
@@ -1107,7 +1107,7 @@ async function main() {
   // Data-contract rule: portals.yml is a USER-LAYER file and is NEVER written
   // unless the user explicitly opts in with --write. The default is preview —
   // we print the entries we WOULD add and touch nothing. This mirrors how the
-  // rest of career-ops treats user files (see DATA_CONTRACT.md).
+  // rest of jobyougo treats user files (see DATA_CONTRACT.md).
   let written = false;
   if (opts.write && fresh.length && existsSync(PORTALS_PATH)) {
     const current = readFileSync(PORTALS_PATH, 'utf-8');

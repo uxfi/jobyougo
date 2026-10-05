@@ -21,7 +21,7 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-default-cadence.yml');
 
 // Pin the cadence source BEFORE followup-cadence.mjs is evaluated: it resolves
-// its cadence at module load from CAREER_OPS_PROFILE and otherwise falls back
+// its cadence at module load from JOBYOUGO_PROFILE and otherwise falls back
 // to the USER's config/profile.yml, so a customized followup_cadence turned
 // these date assertions red on a healthy install (#2268). The spawned
 // followup-seed.mjs inherits the same pin through run()'s env.
@@ -29,7 +29,7 @@ const DEFAULT_CADENCE_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-default
 // The import below must stay DYNAMIC: ESM hoists static imports above every
 // statement here, so a static one would run the module first and the pin would
 // do nothing.
-process.env.CAREER_OPS_PROFILE = DEFAULT_CADENCE_PROFILE;
+process.env.JOBYOUGO_PROFILE = DEFAULT_CADENCE_PROFILE;
 
 const { parseNextOverrides, resolveNextOverride, normalizeStatus, addDays, parseDate } =
   await import('./followup-cadence.mjs');
@@ -58,7 +58,7 @@ function makeSandbox() {
   const dir = mkdtempSync(join(tmpdir(), 'co-seed-'));
   const tracker = join(dir, 'applications.md');
   const followups = join(dir, 'follow-ups.md');
-  const lock = join(dir, `career-ops-followups-test-${Math.random().toString(36).slice(2)}.lock`);
+  const lock = join(dir, `jobyougo-followups-test-${Math.random().toString(36).slice(2)}.lock`);
   return { dir, tracker, followups, lock };
 }
 
@@ -82,12 +82,12 @@ function trackerRow(num, date, company, role, score, status, notes) {
 function run(args, sandbox, extraEnv = {}) {
   const env = {
     ...process.env,
-    CAREER_OPS_TRACKER: sandbox.tracker,
-    CAREER_OPS_FOLLOWUPS: sandbox.followups,
+    JOBYOUGO_TRACKER: sandbox.tracker,
+    JOBYOUGO_FOLLOWUPS: sandbox.followups,
     // Explicit, not inherited: the child resolves its cadence from this or
     // falls back to the user's real config/profile.yml (#2268).
-    CAREER_OPS_PROFILE: DEFAULT_CADENCE_PROFILE,
-    CAREER_OPS_FOLLOWUPS_LOCK: sandbox.lock,
+    JOBYOUGO_PROFILE: DEFAULT_CADENCE_PROFILE,
+    JOBYOUGO_FOLLOWUPS_LOCK: sandbox.lock,
     ...extraEnv,
   };
   try {
@@ -350,7 +350,7 @@ function cleanup(sandbox) {
   writeTracker(sb, [trackerRow(1, '2026-05-01', 'Acme', 'Engineer', '4.0/5', 'Applied', 'Applied 2026-06-20.')]);
   mkdirSync(sb.lock, { recursive: true });
   writeFileSync(join(sb.lock, 'owner.json'), JSON.stringify({ pid: process.pid, token: 'x', startedAt: new Date().toISOString() }));
-  const res = run(['1'], sb, { CAREER_OPS_FOLLOWUPS_LOCK_TIMEOUT_MS: '200' });
+  const res = run(['1'], sb, { JOBYOUGO_FOLLOWUPS_LOCK_TIMEOUT_MS: '200' });
   if (res.code === 4) pass('9. lock held by live pid → exit 4');
   else fail(`9. lock held by live pid → exit 4 — got ${res.code}\n${res.stdout}${res.stderr}`);
   cleanup(sb);
@@ -449,8 +449,8 @@ function cleanup(sandbox) {
   utimesSync(sb.lock, anHourAgo, anHourAgo);
   utimesSync(guard, anHourAgo, anHourAgo);
   const res = run(['1'], sb, {
-    CAREER_OPS_FOLLOWUPS_LOCK_STALE_MS: '10',
-    CAREER_OPS_FOLLOWUPS_LOCK_TIMEOUT_MS: '3000',
+    JOBYOUGO_FOLLOWUPS_LOCK_STALE_MS: '10',
+    JOBYOUGO_FOLLOWUPS_LOCK_TIMEOUT_MS: '3000',
   });
   if (res.code === 0) pass('14. orphaned recover guard does not block stale-lock recovery');
   else fail(`14. orphaned recover guard does not block stale-lock recovery — got ${res.code}\n${res.stdout}${res.stderr}`);
@@ -478,8 +478,8 @@ function cleanup(sandbox) {
   // reach 60s of age inside this run no matter how the retry loop is scheduled,
   // so "fresh" stays true for the whole window rather than expiring mid-test.
   const res = run(['1'], sb, {
-    CAREER_OPS_FOLLOWUPS_LOCK_STALE_MS: '60000',
-    CAREER_OPS_FOLLOWUPS_LOCK_TIMEOUT_MS: '400',
+    JOBYOUGO_FOLLOWUPS_LOCK_STALE_MS: '60000',
+    JOBYOUGO_FOLLOWUPS_LOCK_TIMEOUT_MS: '400',
   });
   if (res.code === 4) pass('15. a guard inside its age window is respected → exit 4');
   else fail(`15. a guard inside its age window is respected → exit 4 — got ${res.code}\n${res.stdout}${res.stderr}`);
@@ -505,8 +505,8 @@ function cleanup(sandbox) {
   const heldSince = new Date(Date.now() - 100);
   utimesSync(sb.lock, heldSince, heldSince);
   const res = run(['1'], sb, {
-    CAREER_OPS_FOLLOWUPS_LOCK_STALE_MS: '10',
-    CAREER_OPS_FOLLOWUPS_LOCK_TIMEOUT_MS: '300',
+    JOBYOUGO_FOLLOWUPS_LOCK_STALE_MS: '10',
+    JOBYOUGO_FOLLOWUPS_LOCK_TIMEOUT_MS: '300',
   });
   if (res.code === 4) pass('16. ownerless lock inside the grace period is not stolen → exit 4');
   else fail(`16. ownerless lock inside the grace period is not stolen → exit 4 — got ${res.code}\n${res.stdout}${res.stderr}`);
@@ -525,8 +525,8 @@ function cleanup(sandbox) {
   const when = new Date(Date.now() - 60_000);
   utimesSync(sb.lock, when, when);                  // a real orphan, not a new lock
   const res = run(['1'], sb, {
-    CAREER_OPS_FOLLOWUPS_LOCK_STALE_MS: '10',
-    CAREER_OPS_FOLLOWUPS_LOCK_TIMEOUT_MS: '2000',
+    JOBYOUGO_FOLLOWUPS_LOCK_STALE_MS: '10',
+    JOBYOUGO_FOLLOWUPS_LOCK_TIMEOUT_MS: '2000',
   });
   if (res.code === 0) pass('17. ownerless lock older than the grace period is still recovered');
   else fail(`17. ownerless lock older than the grace period is still recovered — got ${res.code}\n${res.stdout}${res.stderr}`);

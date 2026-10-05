@@ -216,8 +216,8 @@ for (const path of atomicWriteTempProbes) {
 //
 // The nested probes are the ones that decide the SHAPE of the rule. A
 // root-anchored `/*.db` covers the repo root and nothing else, and would still
-// pass every root probe below — but getCareerOpsRoot() resolves a RELATIVE
-// CAREER_OPS_ROOT (or .career-ops-data marker) against the codebase directory,
+// pass every root probe below — but getJobYouGoRoot() resolves a RELATIVE
+// JOBYOUGO_ROOT (or .jobyougo-data marker) against the codebase directory,
 // so a data root configured as `career-data` puts the tracker, and its index,
 // in a subdirectory of the checkout. `data/applications.db` cannot settle this
 // on its own: it is already covered by the blanket `data/*` rule at the top of
@@ -231,7 +231,7 @@ for (const path of atomicWriteTempProbes) {
 // one directory down.
 // The tracker and its follow-ups file in the LEGACY ROOT LAYOUT — the third
 // entry in resolveTrackerPath()'s own documented fallback chain
-// (CAREER_OPS_TRACKER > <root>/data/applications.md > <root>/applications.md),
+// (JOBYOUGO_TRACKER > <root>/data/applications.md > <root>/applications.md),
 // and a supported install shape rather than a mistake.
 //
 // data/ is covered by the blanket rule at the top of .gitignore; the root
@@ -241,7 +241,7 @@ for (const path of atomicWriteTempProbes) {
 // first, on the argument that it carries the same PII as the tracker.
 //
 // The career-data/ probes decide the SHAPE, exactly as they do for the index: a
-// relative CAREER_OPS_ROOT resolves against the codebase directory, so an
+// relative JOBYOUGO_ROOT resolves against the codebase directory, so an
 // anchored rule would leave a configured data root inside the checkout
 // uncovered.
 const rootLayoutTrackerProbes = [
@@ -279,7 +279,7 @@ for (const path of trackedFixtureProbes) {
 const derivedIndexLocations = [
   'applications',                // legacy layout: tracker markdown in the root
   'data/applications',           // standard layout
-  'career-data/applications',    // a relative CAREER_OPS_ROOT / .career-ops-data root
+  'career-data/applications',    // a relative JOBYOUGO_ROOT / .jobyougo-data root
 ];
 const derivedIndexProbes = derivedIndexLocations.flatMap(
   (base) => ['.db', '.db-wal', '.db-shm'].map((suffix) => `${base}${suffix}`),

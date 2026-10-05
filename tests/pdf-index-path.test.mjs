@@ -1,7 +1,7 @@
 // tests/pdf-index-path.test.mjs — the PDF manifest must follow the tracker (#2471).
 //
 // sync-pdf-flags.mjs and find.mjs used to resolve data/pdf-index.tsv from their
-// own install directory while resolving the tracker through CAREER_OPS_TRACKER.
+// own install directory while resolving the tracker through JOBYOUGO_TRACKER.
 // Redirecting the tracker therefore reconciled one workspace's rows against
 // another workspace's manifest: the merge-tracker suite read the developer's
 // real manifest and flipped an isolated fixture's PDF cells, so `node
@@ -14,17 +14,17 @@ import { resolveWorkspaceRoot, resolvePdfIndexPath } from '../tracker-utils.mjs'
 console.log('\nPDF manifest follows the tracker (#2471)');
 
 // Env is process-wide and discovered suites run in-process, so every mutation
-// is restored — a leaked CAREER_OPS_PDF_INDEX would silently retarget later
+// is restored — a leaked JOBYOUGO_PDF_INDEX would silently retarget later
 // suites (PIT: each case must stand alone, in any order).
 function withPdfIndexEnv(value, body) {
-  const previous = process.env.CAREER_OPS_PDF_INDEX;
-  if (value === undefined) delete process.env.CAREER_OPS_PDF_INDEX;
-  else process.env.CAREER_OPS_PDF_INDEX = value;
+  const previous = process.env.JOBYOUGO_PDF_INDEX;
+  if (value === undefined) delete process.env.JOBYOUGO_PDF_INDEX;
+  else process.env.JOBYOUGO_PDF_INDEX = value;
   try {
     return body();
   } finally {
-    if (previous === undefined) delete process.env.CAREER_OPS_PDF_INDEX;
-    else process.env.CAREER_OPS_PDF_INDEX = previous;
+    if (previous === undefined) delete process.env.JOBYOUGO_PDF_INDEX;
+    else process.env.JOBYOUGO_PDF_INDEX = previous;
   }
 }
 
@@ -64,22 +64,22 @@ withPdfIndexEnv(undefined, () => {
   }
 });
 
-// Given CAREER_OPS_PDF_INDEX, When resolving, Then the override wins outright.
+// Given JOBYOUGO_PDF_INDEX, When resolving, Then the override wins outright.
 withPdfIndexEnv('/elsewhere/custom-index.tsv', () => {
   const resolved = resolvePdfIndexPath(join('/ws', 'data', 'applications.md'));
-  if (resolved === '/elsewhere/custom-index.tsv') pass('CAREER_OPS_PDF_INDEX overrides the derived path');
+  if (resolved === '/elsewhere/custom-index.tsv') pass('JOBYOUGO_PDF_INDEX overrides the derived path');
   else fail(`override ignored: got ${resolved}`);
 });
 
 // THE REGRESSION (#2471). Given a tracker redirected into an isolated
 // workspace, When resolving the manifest with no override, Then it must be that
-// workspace's own manifest — never the career-ops install directory's, which is
+// workspace's own manifest — never the jobyougo install directory's, which is
 // how an isolated run came to read real user data.
 //
 // Asserted as exact equality rather than a prefix match: a prefix would also
 // accept a wrong filename or a nested path inside the workspace.
 withPdfIndexEnv(undefined, () => {
-  const isolatedWorkspace = join('/tmp', 'career-ops-fixture');
+  const isolatedWorkspace = join('/tmp', 'jobyougo-fixture');
   const resolved = resolvePdfIndexPath(join(isolatedWorkspace, 'data', 'applications.md'));
   const expected = join(isolatedWorkspace, 'data', 'pdf-index.tsv');
   if (resolved === expected) {

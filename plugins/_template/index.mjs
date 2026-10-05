@@ -1,5 +1,5 @@
 // @ts-check
-// {{NAME}} — a career-ops plugin.
+// {{NAME}} — a jobyougo plugin.
 // Guide: https://github.com/career-ops-hq/career-ops/blob/main/docs/PLUGINS.md
 //
 // Rules the engine enforces for you:

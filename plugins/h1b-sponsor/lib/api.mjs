@@ -1,7 +1,7 @@
 // Thin client for the H-1B sponsorship API.
 // Uses global fetch + AbortController. Handles the 429/Retry-After retry-once
 // policy specified in the plugin contract. Self-contained: no imports from
-// career-ops core (so this plugin can later ship as its own npm package).
+// jobyougo core (so this plugin can later ship as its own npm package).
 
 const DEFAULT_BASE = 'https://api.surakshith.com/immigration/v1';
 

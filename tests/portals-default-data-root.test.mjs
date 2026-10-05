@@ -3,8 +3,8 @@
 //
 // Both defaulted to the bare string 'portals.yml', which resolves against
 // process.cwd(). scan.mjs, audit-portals.mjs and verify-portals.mjs resolve the
-// same default against the data root (CAREER_OPS_ROOT / CAREER_OPS_DATA_DIR /
-// .career-ops-data), so once the data lived outside the checkout these two
+// same default against the data root (JOBYOUGO_ROOT / JOBYOUGO_DATA_DIR /
+// .jobyougo-data), so once the data lived outside the checkout these two
 // worked on a different file than the scanner: `npm run validate:portals`,
 // which npm always runs from the checkout, failed with "file not found" or
 // validated a stale copy, and fix-slugs.mjs reported "nothing to fix" for the
@@ -30,8 +30,8 @@ const NO_ENTRIES = 'job_boards: []\ntracked_companies: []\n';
 /** A data root and a separate working directory; the caller removes both. */
 function makeDirs() {
   return {
-    dataRoot: mkdtempSync(join(tmpdir(), 'career-ops-portals-root-')),
-    cwd: mkdtempSync(join(tmpdir(), 'career-ops-portals-cwd-')),
+    dataRoot: mkdtempSync(join(tmpdir(), 'jobyougo-portals-root-')),
+    cwd: mkdtempSync(join(tmpdir(), 'jobyougo-portals-cwd-')),
   };
 }
 
@@ -43,9 +43,9 @@ function removeDirs({ dataRoot, cwd }) {
 
 /** Run `script` with no --file from `cwd`, with the data root set elsewhere. */
 function runWithDefaultPath(script, { dataRoot, cwd }) {
-  const env = { ...process.env, CAREER_OPS_ROOT: dataRoot };
-  delete env.CAREER_OPS_DATA_DIR;
-  delete env.CAREER_OPS_PORTALS;
+  const env = { ...process.env, JOBYOUGO_ROOT: dataRoot };
+  delete env.JOBYOUGO_DATA_DIR;
+  delete env.JOBYOUGO_PORTALS;
   const res = spawnSync(process.execPath, [join(ROOT, script)], {
     cwd,
     env,

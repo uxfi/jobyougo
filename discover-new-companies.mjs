@@ -33,12 +33,12 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { buildCompanyCanonicalizer } from './scan.mjs';
 
-const DATA_ROOT = getCareerOpsRoot();
-const HISTORY_PATH = process.env.CAREER_OPS_SCAN_HISTORY || join(DATA_ROOT, 'data', 'scan-history.tsv');
-const PORTALS_PATH = process.env.CAREER_OPS_PORTALS || join(DATA_ROOT, 'portals.yml');
+const DATA_ROOT = getJobYouGoRoot();
+const HISTORY_PATH = process.env.JOBYOUGO_SCAN_HISTORY || join(DATA_ROOT, 'data', 'scan-history.tsv');
+const PORTALS_PATH = process.env.JOBYOUGO_PORTALS || join(DATA_ROOT, 'portals.yml');
 
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f);

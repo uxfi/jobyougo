@@ -15,7 +15,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { isAbsolute, join, basename } from 'path';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 // Two roots, because this gate compares user-layer files against a user-layer
 // config and previously resolved neither from the user's data root.
@@ -36,7 +36,7 @@ import { getCareerOpsRoot } from './path-resolver.mjs';
 //
 // So one invocation both invented failures and silently skipped half its
 // checks. --source and --config still override; only the defaults move.
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const DEFAULT_SOURCES = [join(DATA_ROOT, 'cv.md'), join(DATA_ROOT, 'article-digest.md')];
 const DEFAULT_CONFIG = join(DATA_ROOT, 'config', 'cv-facts.json');
 const TOOL_PROSE_WORDS = new Set([

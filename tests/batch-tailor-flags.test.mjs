@@ -12,7 +12,7 @@
 //
 // All three are the #2459 class that lib/cli-flags.mjs exists to end.
 //
-// The state-file path is env-overridable (CAREER_OPS_BATCH_STATE, the same
+// The state-file path is env-overridable (JOBYOUGO_BATCH_STATE, the same
 // override merge-tracker.mjs already honours) so these cases run against a
 // sandbox instead of the developer's real batch run. Every case below picks a
 // threshold that matches NO job, so the script always exits before spawning a
@@ -40,7 +40,7 @@ function makeStateFile() {
 // Run batch-tailor and return { code, out }. cwd defaults to a directory that
 // is NOT the project root, which is what exposes a cwd-relative path.
 function runTailor(args, stateFile, cwd) {
-  const env = { ...process.env, CAREER_OPS_BATCH_STATE: stateFile };
+  const env = { ...process.env, JOBYOUGO_BATCH_STATE: stateFile };
   try {
     const out = execFileSync(NODE, [SCRIPT, ...args], { cwd: cwd || tmpdir(), env, encoding: 'utf-8', timeout: 30000 });
     return { code: 0, out };
@@ -127,7 +127,7 @@ try {
   // ── 3c. An unreadable state-file path is a usage error, not a stack trace ──
   // existsSync() is true for a DIRECTORY, so readFileSync threw an uncaught
   // EISDIR. The message must name the resolved path so an operator can see
-  // which value CAREER_OPS_BATCH_STATE actually resolved to.
+  // which value JOBYOUGO_BATCH_STATE actually resolved to.
   {
     const r = runTailor([], tmpdir());
     if (r.code === 1 && !/at Object\.|node:fs/.test(r.out) && r.out.includes(tmpdir())) {

@@ -35,13 +35,13 @@ try {
   );
 
   const runJson = (fixture) => {
-    // CAREER_OPS_ROOT, not just cwd: cv.md is a user-layer file and is now
+    // JOBYOUGO_ROOT, not just cwd: cv.md is a user-layer file and is now
     // resolved from the data root rather than the working directory, so the
     // fixture has to be pointed at as the data root for the CLI to find it.
     // cwd is kept so the rest of this test's behaviour is unchanged.
     const out = run(NODE, [join(ROOT, 'jd-skill-gap.mjs'), fixture], {
       cwd: dir,
-      env: { ...process.env, CAREER_OPS_ROOT: dir, CAREER_OPS_DATA_DIR: '' },
+      env: { ...process.env, JOBYOUGO_ROOT: dir, JOBYOUGO_DATA_DIR: '' },
     });
     if (out === null) return null;
     try {

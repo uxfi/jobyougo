@@ -10,7 +10,7 @@
  * malformed rows. Both now map columns by header NAME (see #946).
  *
  * These tests provision a throwaway tracker + additions dir via the
- * CAREER_OPS_TRACKER / CAREER_OPS_ADDITIONS env overrides and assert:
+ * JOBYOUGO_TRACKER / JOBYOUGO_ADDITIONS env overrides and assert:
  *   1. A 10-column tracker (with Location) merges a new row into the correct
  *      columns — Score/Status are NOT shifted, Location is populated.
  *   2. verify-pipeline reports a clean bill of health on that 10-column tracker.
@@ -50,16 +50,16 @@ function fail(m) { console.error(`FAIL ${m}`); failed++; }
 function runScript(script, args, sandbox) {
   const env = {
     ...process.env,
-    CAREER_OPS_TRACKER: sandbox.tracker,
-    CAREER_OPS_ADDITIONS: sandbox.additions,
-    CAREER_OPS_TRACKER_LOCK: sandbox.lock,
+    JOBYOUGO_TRACKER: sandbox.tracker,
+    JOBYOUGO_ADDITIONS: sandbox.additions,
+    JOBYOUGO_TRACKER_LOCK: sandbox.lock,
     // The derived SQLite index defaults to sitting beside the tracker it was
     // built from — pin it into the sandbox so a test run can never create one
     // next to the developer's real data (#3506).
-    CAREER_OPS_TRACKER_DB: join(sandbox.dir, 'applications.db'),
+    JOBYOUGO_TRACKER_DB: join(sandbox.dir, 'applications.db'),
     // Pinned for the same reason as the tracker: keep the fixture isolated from
     // the real reports/ dir. See makeSandbox.
-    ...(sandbox.reports ? { CAREER_OPS_REPORTS: sandbox.reports } : {}),
+    ...(sandbox.reports ? { JOBYOUGO_REPORTS: sandbox.reports } : {}),
   };
   try {
     const res = spawnSync(NODE, [join(ROOT, script), ...args], {
@@ -344,7 +344,7 @@ const TSV_NO_LOCATION = '2\t2026-02-02\tGlobex\tManager\tApplied\tN/A\t✅\t—\
 }
 
 // ── Test 8: web read path resolves headers via the SHARED alias table ───────
-// web/src/lib/tracker-table.mjs (behind readApplications() in career-ops.ts)
+// web/src/lib/tracker-table.mjs (behind readApplications() in jobyougo.ts)
 // loads tracker-aliases.json — the same file tracker-parse.mjs exports as
 // HEADER_ALIASES — instead of mirroring it. Passing ROOT here exercises the
 // REAL alias file, so an alias added/renamed there is either honored by the
@@ -750,10 +750,10 @@ function runCaptured(script, sandbox) {
     cwd: ROOT,
     env: {
       ...process.env,
-      CAREER_OPS_TRACKER: sandbox.tracker,
-      CAREER_OPS_ADDITIONS: sandbox.additions,
-      CAREER_OPS_TRACKER_LOCK: sandbox.lock,
-      ...(sandbox.reports ? { CAREER_OPS_REPORTS: sandbox.reports } : {}),
+      JOBYOUGO_TRACKER: sandbox.tracker,
+      JOBYOUGO_ADDITIONS: sandbox.additions,
+      JOBYOUGO_TRACKER_LOCK: sandbox.lock,
+      ...(sandbox.reports ? { JOBYOUGO_REPORTS: sandbox.reports } : {}),
     },
     encoding: 'utf-8',
     timeout: 30000,
@@ -1449,7 +1449,7 @@ Last reviewed 2026-09-01.
   rmSync(sb.dir, { recursive: true, force: true });
 }
 
-// ── Test 25: a header career-ops cannot name is still preserved ─────────────
+// ── Test 25: a header jobyougo cannot name is still preserved ─────────────
 // isHeaderRow only fires when the alias table resolves the FULL schema, so a
 // Spanish header (puntuación/estado are unmapped) recorded no layout at all and
 // exported as the English default, exit 0 (PR #3794 review).

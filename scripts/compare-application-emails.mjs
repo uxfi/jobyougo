@@ -47,7 +47,7 @@ function htmlToText(html) {
 async function getJson(url) {
   const response = await fetch(url, {
     signal: AbortSignal.timeout(12000),
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; career-ops/1.0)', Accept: 'application/json' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', Accept: 'application/json' },
   });
   if (!response.ok) throw new Error(`${response.status} ${url}`);
   return response.json();

@@ -2,7 +2,7 @@
 // reads report inputs. A typo (or a `--applied-days=N` the old indexOf lookup
 // couldn't see) must never fall through to a plausible JSON report at exit 0.
 //
-// followup-cadence.mjs's tracker/follow-ups paths are fixed to CAREER_OPS's
+// followup-cadence.mjs's tracker/follow-ups paths are fixed to JOBYOUGO's
 // own data/ dir (unlike funnel-velocity.mjs, there is no env override), so
 // these tests only assert on flag validation itself — everything checked here
 // happens before analyze() ever touches disk, except the one test that

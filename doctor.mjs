@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * doctor.mjs — Setup validation for career-ops
+ * doctor.mjs — Setup validation for jobyougo
  * Checks all prerequisites and prints a pass/fail checklist.
  */
 
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 import * as yaml from 'js-yaml';
 import dotenv from 'dotenv';
 import { discoverPlugins, pluginRoots, pluginStatus } from './plugins/_engine.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { validateProfile, EXAMPLE_PATH } from './validate-profile.mjs';
 import { resolveExtractorMode } from './browser-extract.mjs';
 import { parseConfigByExtension } from './jsonc-parse.mjs';
@@ -40,7 +40,7 @@ const USAGE = `Usage:
   node doctor.mjs                    # run the setup diagnostic
   node doctor.mjs --json             # machine-readable onboarding state
   node doctor.mjs --strict           # also probe portals.yml entries (network)
-  node doctor.mjs --target <path>    # diagnose another career-ops checkout
+  node doctor.mjs --target <path>    # diagnose another jobyougo checkout
   node doctor.mjs --cli <name>       # check a specific CLI's integration
   node doctor.mjs --help             # show this message
 
@@ -56,11 +56,11 @@ validateFlags(argv, KNOWN_FLAGS, USAGE, { valueFlags: VALUE_FLAGS, requireOperan
 
 const targetIdx = argv.indexOf('--target');
 const explicitTarget = targetIdx !== -1 && argv[targetIdx + 1] ? argv[targetIdx + 1] : null;
-const projectRoot = explicitTarget || getCareerOpsRoot();
+const projectRoot = explicitTarget || getJobYouGoRoot();
 // node_modules and .git belong to the CODE checkout, not the resolved data
-// root — under a split checkout (CAREER_OPS_ROOT/CAREER_OPS_DATA_DIR or the
-// .career-ops-data marker) those are two different directories, and neither
-// ever holds the other's artifacts (career-ops#3867 finding 6). --target is
+// root — under a split checkout (JOBYOUGO_ROOT/JOBYOUGO_DATA_DIR or the
+// .jobyougo-data marker) those are two different directories, and neither
+// ever holds the other's artifacts (jobyougo#3867 finding 6). --target is
 // the one case that means "diagnose this whole other checkout" — code layer
 // included — so it keeps pointing both roots at the same place, matching how
 // tests/doctor-tracked-bak-files.test.mjs already exercises it.
@@ -168,7 +168,7 @@ function checkDependencies() {
 // when a checkout write failed. #2857 stops that for NEW installs, but an
 // install that already `git add`ed one is stuck: nothing in the update path
 // untracks a path git already has, so the .bak files persist forever and the
-// next update looks like it silently did nothing (career-ops#2881) — nothing
+// next update looks like it silently did nothing (jobyougo#2881) — nothing
 // points at .bak unless something checks for it. Kept to a single cheap
 // `git ls-files` call so it costs nothing on the common case of zero matches.
 function checkTrackedBakFiles(root) {
@@ -356,7 +356,7 @@ function isPlaywrightMcpConfigured(root, activeCli) {
   return entry.plugins === true && isPlaywrightMcpFromPlugin(root);
 }
 
-// CLI resolution: --cli flag > $CAREER_OPS_CLI > .env (CAREER_OPS_CLI=...) >
+// CLI resolution: --cli flag > $JOBYOUGO_CLI > .env (JOBYOUGO_CLI=...) >
 // default ('claude'). An unknown value at ANY level returns the sentinel
 // 'unknown' and produces no output — CLI-dependent checks are silently
 // skipped. .env parsing is best-effort: missing file is normal, malformed
@@ -368,20 +368,20 @@ function resolveActiveCli() {
     }
     return { cli: cliFlag, source: 'flag' };
   }
-  if (process.env.CAREER_OPS_CLI) {
-    if (!VALID_CLIS.includes(process.env.CAREER_OPS_CLI)) {
-      return { cli: 'unknown', source: 'env', warning: `CAREER_OPS_CLI="${process.env.CAREER_OPS_CLI}" is not a recognized CLI. Valid: ${VALID_CLIS.join(', ')}.` };
+  if (process.env.JOBYOUGO_CLI) {
+    if (!VALID_CLIS.includes(process.env.JOBYOUGO_CLI)) {
+      return { cli: 'unknown', source: 'env', warning: `JOBYOUGO_CLI="${process.env.JOBYOUGO_CLI}" is not a recognized CLI. Valid: ${VALID_CLIS.join(', ')}.` };
     }
-    return { cli: process.env.CAREER_OPS_CLI, source: 'env' };
+    return { cli: process.env.JOBYOUGO_CLI, source: 'env' };
   }
   // .env is best-effort: missing file → fall through to default. dotenv does
   // not throw on a missing path when `quiet: true`, so no try/catch is needed.
   dotenv.config({ path: join(projectRoot, '.env'), quiet: true });
-  if (process.env.CAREER_OPS_CLI) {
-    if (!VALID_CLIS.includes(process.env.CAREER_OPS_CLI)) {
-      return { cli: 'unknown', source: '.env', warning: `CAREER_OPS_CLI in .env is not a recognized CLI. Valid: ${VALID_CLIS.join(', ')}.` };
+  if (process.env.JOBYOUGO_CLI) {
+    if (!VALID_CLIS.includes(process.env.JOBYOUGO_CLI)) {
+      return { cli: 'unknown', source: '.env', warning: `JOBYOUGO_CLI in .env is not a recognized CLI. Valid: ${VALID_CLIS.join(', ')}.` };
     }
-    return { cli: process.env.CAREER_OPS_CLI, source: '.env' };
+    return { cli: process.env.JOBYOUGO_CLI, source: '.env' };
   }
   return { cli: 'claude', source: 'default' };
 }
@@ -582,7 +582,7 @@ async function checkPortalSlugs(root) {
 
 const PIPELINE_SKELETON = `# Pipeline — Pending URLs
 
-Paste job URLs below as \`- [ ] {url}\` then run \`/career-ops pipeline\`.
+Paste job URLs below as \`- [ ] {url}\` then run \`/jobyougo pipeline\`.
 
 ## Pending
 
@@ -662,7 +662,7 @@ function checkPlugins(root) {
 // not a broken install, and refusing to run would be a worse answer than naming
 // it.
 function checkProfileShape(root) {
-  const profilePath = process.env.CAREER_OPS_PROFILE || join(root, 'config', 'profile.yml');
+  const profilePath = process.env.JOBYOUGO_PROFILE || join(root, 'config', 'profile.yml');
   if (!existsSync(profilePath)) return null;   // the prereq check owns "absent"
   let findings;
   try {
@@ -681,7 +681,7 @@ function checkProfileShape(root) {
 }
 
 async function main() {
-  console.log('\ncareer-ops doctor');
+  console.log('\njobyougo doctor');
   console.log('================\n');
 
   const { cli: activeCli, source: cliSource, warning: cliWarning } = resolveActiveCli();
@@ -896,7 +896,7 @@ function onboardingState(root) {
   return {
     onboardingNeeded: missing.length > 0,
     missing,
-    // Non-blocking by design: career-ops is meant to work out of the box, so an
+    // Non-blocking by design: jobyougo is meant to work out of the box, so an
     // unedited personalization file must not gate the whole system. It DOES have
     // to be visible — surfaced as its own field the agent can branch on rather
     // than a string it has to pattern-match out of `warnings`.

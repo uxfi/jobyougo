@@ -29,12 +29,12 @@
 import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
-const CAREER_OPS = getCareerOpsRoot();
-const LOG_PATH = join(CAREER_OPS, 'data/assessments.tsv');
+const JOBYOUGO = getJobYouGoRoot();
+const LOG_PATH = join(JOBYOUGO, 'data/assessments.tsv');
 
 const KNOWN_FLAGS = ['--self-test', '--summary', '--help', '-h'];
 const ADD_VALUE_FLAGS = ['--company', '--report', '--platform', '--subject', '--threshold', '--score', '--stale'];

@@ -264,6 +264,7 @@ test('isAvailabilityStartField ignores employment month/year dropdowns', () => {
   assert.equal(isAvailabilityStartField(field('Start date month*')), false);
   assert.equal(isAvailabilityStartField(field('Start date year*')), false);
   assert.equal(isAvailabilityStartField(field('When can you start?')), true);
+  assert.equal(isAvailabilityStartField(field('When could you start?')), true);
   assert.equal(isAvailabilityStartField(field('Start date')), true);
 });
 

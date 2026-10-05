@@ -4,8 +4,8 @@
  * generate-pdf.mjs — HTML → PDF via Playwright
  *
  * Usage:
- *   node career-ops/generate-pdf.mjs <input.html> <output.pdf> [--format=letter|a4] [--report=NNN] [--allow-reorder] [--max-pages=N] [--strict-pages] [--skip-fact-check]
- *   node career-ops/generate-pdf.mjs --batch=<manifest.json> [--format=letter|a4] [--allow-reorder] [--max-pages=N] [--strict-pages]
+ *   node jobyougo/generate-pdf.mjs <input.html> <output.pdf> [--format=letter|a4] [--report=NNN] [--allow-reorder] [--max-pages=N] [--strict-pages] [--skip-fact-check]
+ *   node jobyougo/generate-pdf.mjs --batch=<manifest.json> [--format=letter|a4] [--allow-reorder] [--max-pages=N] [--strict-pages]
  *
  * --batch renders every document in a JSON manifest (an array of
  * {input, output, format?, reportNum?}) through ONE shared Chromium instead of
@@ -39,7 +39,7 @@ import { readFile } from 'fs/promises';
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { randomUUID } from 'node:crypto';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { readStyleTokens, injectThemeStyle, readCvSectionOrder } from './theme-style.mjs';
 import { resolvePdfIndexPath, resolveTrackerPath, resolveWorkspaceRoot } from './tracker-utils.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
@@ -47,17 +47,17 @@ import { stripEmptyRenderedSections } from './cv-sections-core.mjs';
 import { PAGE_CSS_SIZE, PAGE_FORMATS, normalizePageFormat, resolvePageFormat } from './lib/page-format.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const trackerPath = resolveTrackerPath(getCareerOpsRoot());
+const trackerPath = resolveTrackerPath(getJobYouGoRoot());
 const workspaceRoot = resolveWorkspaceRoot(trackerPath);
 const PDF_PAGE_MARGIN = '0.6in';
 
 // Canonical tracker workspace: realpath so a symlinked ancestor (e.g. macOS
 // /var -> /private/var) is compared like-for-like by assertInsideWorkspace.
-// When CAREER_OPS_TRACKER points at another workspace, that workspace—not the
+// When JOBYOUGO_TRACKER points at another workspace, that workspace—not the
 // installed script directory—is the safe boundary for input and output.
 //
 // Derived at USE time, not frozen at import (#3162, root-caused occurrence 6):
-// the root reads CAREER_OPS_TRACKER, and a sibling test that legitimately sets
+// the root reads JOBYOUGO_TRACKER, and a sibling test that legitimately sets
 // that variable for its own fixture — and correctly restores it afterwards —
 // still poisoned this module for the whole process if the import happened to
 // land inside that window. A `const` cannot un-read an env var, so the guard
@@ -67,24 +67,24 @@ const PDF_PAGE_MARGIN = '0.6in';
 // self-correcting the moment it does. Same defect class as #3159.
 let __rootCache = { key: null, root: null, canonical: null };
 function refreshRootCache() {
-  // Every input the derivation below reads. CAREER_OPS_ROOT / CAREER_OPS_DATA_DIR
-  // join the key because getCareerOpsRoot() reads them too; keying on the tracker
+  // Every input the derivation below reads. JOBYOUGO_ROOT / JOBYOUGO_DATA_DIR
+  // join the key because getJobYouGoRoot() reads them too; keying on the tracker
   // variable alone would reintroduce #3162 for the other two.
   const key = [
-    process.env.CAREER_OPS_TRACKER || '',
-    process.env.CAREER_OPS_ROOT || '',
-    process.env.CAREER_OPS_DATA_DIR || '',
+    process.env.JOBYOUGO_TRACKER || '',
+    process.env.JOBYOUGO_ROOT || '',
+    process.env.JOBYOUGO_DATA_DIR || '',
   ].join('\u0000');
   if (__rootCache.key !== key) {
     // Always re-derive: falling back to the import-time const when the variable
     // is unset would hand back the very value the poisoned import froze.
-    // getCareerOpsRoot(), not __dirname: the data root is the env vars, then a
-    // .career-ops-data marker, then the repo, and only the last of those is the
+    // getJobYouGoRoot(), not __dirname: the data root is the env vars, then a
+    // .jobyougo-data marker, then the repo, and only the last of those is the
     // script's own directory. With the user layer outside the checkout this
     // derived the workspace from the CODE directory, so every path under the
     // real data root read as an escape and the PDF was refused (#4389). Line 49
-    // already used getCareerOpsRoot(), so the two disagreed inside one module.
-    const root = resolveWorkspaceRoot(resolveTrackerPath(getCareerOpsRoot()));
+    // already used getJobYouGoRoot(), so the two disagreed inside one module.
+    const root = resolveWorkspaceRoot(resolveTrackerPath(getJobYouGoRoot()));
     __rootCache = { key, root, canonical: realpathSync(root) };
   }
   return __rootCache;
@@ -1196,7 +1196,7 @@ export function injectPrintPageCss(html, format) {
   // hardcoded value would silently win the cascade and make style.margin
   // ineffective (#1837 review). PDF_PAGE_MARGIN is only the fallback for a
   // template that never declares --page-margin at all.
-  const pageStyle = `<style id="career-ops-page-setup">\n@page { size: ${pageSize}; margin: var(--page-margin, ${PDF_PAGE_MARGIN}); }\n</style>`;
+  const pageStyle = `<style id="jobyougo-page-setup">\n@page { size: ${pageSize}; margin: var(--page-margin, ${PDF_PAGE_MARGIN}); }\n</style>`;
 
   if (/<\/head>/i.test(html)) {
     // Replacer function, matching the <html> branch just below. `pageStyle`
@@ -1341,7 +1341,7 @@ async function generatePDF() {
     console.error('This script only converts an already-built HTML file to PDF.');
     console.error('The input HTML is produced by the pdf mode: the agent fills cv-template.html');
     console.error('with content tailored to the specific job (see modes/pdf.md) — there is no');
-    console.error('mechanical markdown-to-HTML step by design. Run `/career-ops pdf` in your AI');
+    console.error('mechanical markdown-to-HTML step by design. Run `/jobyougo pdf` in your AI');
     console.error('CLI to drive the full flow end to end.');
     process.exit(1);
   }
@@ -1395,7 +1395,7 @@ async function generatePDF() {
   // before the guard runs, so the guard judges the document that will be
   // printed. Anchored to workspaceRoot, NOT __dirname: readStyleTokens() reads
   // the same file from workspaceRoot, and cv.md is read from there too, so an
-  // __dirname anchor made CAREER_OPS_TRACKER split one logical profile across
+  // __dirname anchor made JOBYOUGO_TRACKER split one logical profile across
   // two files — style from the workspace, section order from the checkout —
   // and validated the workspace's CV against the checkout's declared order.
   html = reorderCvSections(html, readCvSectionOrder(resolve(workspaceRoot, 'config', 'profile.yml')));
@@ -1763,7 +1763,7 @@ async function renderInPage(browser, html, outputPath, opts = {}) {
   // keep the render workspace-owned while still allowing the input itself to
   // be read.
   const baseDir = isWorkspaceOutputPath(
-    resolve(requestedBaseDir, '.career-ops-render-anchor'),
+    resolve(requestedBaseDir, '.jobyougo-render-anchor'),
     outputRoot,
   ) ? requestedBaseDir : resolve(outputRoot);
   const reportNum = opts.reportNum || '';
@@ -1789,7 +1789,7 @@ async function renderInPage(browser, html, outputPath, opts = {}) {
 
   // Write HTML to a temp file in baseDir so page.goto() gives a file://
   // origin that can load local images, fonts, and other resources.
-  const tmpHtmlPath = resolve(baseDir, `.career-ops-render-${randomUUID()}.html`);
+  const tmpHtmlPath = resolve(baseDir, `.jobyougo-render-${randomUUID()}.html`);
   const { writeFile, unlink } = await import('fs/promises');
   await writeFile(tmpHtmlPath, html, 'utf-8');
 

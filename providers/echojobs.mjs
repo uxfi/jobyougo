@@ -5,7 +5,7 @@
 // feed this provider read (https://echojobs.io/api/jobs) no longer serves
 // listings: both the feed and its robots.txt now answer with a Vercel
 // bot-protection checkpoint (HTTP 429), and the site's own robots.txt
-// disallows /api. career-ops does not work around bot protection, so this is
+// disallows /api. jobyougo does not work around bot protection, so this is
 // not a provider to repair — the door is closed on purpose. See
 // docs/SUPPORTED_JOB_BOARDS.md for the current state.
 //
@@ -132,7 +132,7 @@ export default {
 
   async fetch() {
     // Deliberately no network call: the feed is confirmed gone (see the file
-    // header), and career-ops does not work around bot protection. Throwing
+    // header), and jobyougo does not work around bot protection. Throwing
     // immediately, with a message naming the cause, is what turns "expected
     // { jobs: [...] }" into something a user can act on.
     throw new Error(RETIRED_MESSAGE);

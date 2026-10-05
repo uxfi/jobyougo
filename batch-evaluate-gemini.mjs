@@ -19,7 +19,7 @@ import { chromium } from 'playwright';
 import { execFileSync, execFile } from 'child_process';
 import { promisify } from 'util';
 import { rejectPrivateOrInvalid } from './liveness-browser.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { TSV_ADDITION_HEADER } from './tracker-parse.mjs';
 import {
@@ -35,7 +35,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { isMainModule } from './lib/is-main-module.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 export const PATHS = {
   shared:      join(ROOT, 'modes', '_shared.md'),
   oferta:      join(ROOT, 'modes', 'oferta.md'),
@@ -134,7 +134,7 @@ function loadContext() {
   const profileContent = readFile(PATHS.profile, '_profile.md');
   const profileYml     = readFile(PATHS.profileYml, 'profile.yml');
 
-  systemPromptTemplate = `You are career-ops, an AI-powered job search assistant.
+  systemPromptTemplate = `You are jobyougo, an AI-powered job search assistant.
 You evaluate job offers against the user's CV using a structured A-G scoring system.
 
 ═══════════════════════════════════════════════════════

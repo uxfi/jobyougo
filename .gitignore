@@ -98,7 +98,7 @@ career-dashboard
 scratch/
 data/chrome-profile/
 
-# Added by career-ops update-system.mjs.
+# Added by jobyougo update-system.mjs.
 # System-owned ignore rules that were missing from this file. Your own rules
 # are never modified, reordered or removed: the updater only appends patterns
 # it cannot already find somewhere in this file. Reordering these lines, or
@@ -162,7 +162,7 @@ bun.lock
 # Report-number reservation sentinels (ephemeral, created by reserve-report-num.mjs)
 reports/*-RESERVED.md
 # The tracker and its follow-ups file in the LEGACY ROOT LAYOUT. resolveTrackerPath()
-# documents its own fallback chain — CAREER_OPS_TRACKER > <root>/data/applications.md
+# documents its own fallback chain — JOBYOUGO_TRACKER > <root>/data/applications.md
 # > <root>/applications.md — and that third entry is a supported install shape, not a
 # mistake. data/ is covered by the blanket rule at the top of this file; the root
 # spelling was not covered by anything.
@@ -171,8 +171,8 @@ reports/*-RESERVED.md
 # cv.md, portals.yml, article-digest.md and voice-dna.md are all ignored at the root
 # already, and #3469 ignores the derived .db index on the argument that it "holds the
 # same PII as the tracker" — while the tracker itself sat beside it, unignored.
-# Unanchored, like the .db rule below and for the same reason: getCareerOpsRoot()
-# resolves a relative CAREER_OPS_ROOT (or .career-ops-data marker) against the
+# Unanchored, like the .db rule below and for the same reason: getJobYouGoRoot()
+# resolves a relative JOBYOUGO_ROOT (or .jobyougo-data marker) against the
 # codebase directory, so a data root configured as `career-data` puts these inside
 # the checkout, where an anchored rule would not reach them. The upgrade fixtures
 # that share these names stay tracked via the `!test-fixtures/**` rule further down,
@@ -190,7 +190,7 @@ follow-ups.md
 # carries the same PII as the file it indexes, under a name none of the rules
 # above match. SQLite's -wal/-shm sidecars travel with it.
 # Deliberately not root-anchored. The index follows the tracker markdown, and
-# getCareerOpsRoot() resolves a relative CAREER_OPS_ROOT (or .career-ops-data
+# getJobYouGoRoot() resolves a relative JOBYOUGO_ROOT (or .jobyougo-data
 # marker) against the codebase directory — so a data root configured as
 # `career-data` puts both inside the checkout, in neither of the two places an
 # anchored rule would cover. Nothing tracked in this repo ends in .db, and an
@@ -224,7 +224,7 @@ playwright-report/
 # Planning (local scratchpad)
 plan/
 # Web — runtime cache/history the dashboard writes locally; nothing here is tracked.
-.career-ops-web/
+.jobyougo-web/
 # Upgrade-test fixtures are fictional system-layer data, never user data
 # (see DATA_CONTRACT.md). Re-include them past the unanchored user-layer
 # patterns above (cv.md, portals.yml).
@@ -232,7 +232,7 @@ plan/
 !documents/.gitkeep
 !documents/README.md
 
-# Added by career-ops update-system.mjs.
+# Added by jobyougo update-system.mjs.
 # System-owned ignore rules that were missing from this file. Your own rules
 # are never modified, reordered or removed: the updater only appends patterns
 # it cannot already find somewhere in this file. Reordering these lines, or

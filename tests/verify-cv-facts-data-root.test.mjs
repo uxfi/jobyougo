@@ -44,8 +44,8 @@ const CV = '# CV\n\n- Led a team of 12 engineers.\n- Cut deploy time by 40 minut
 const GENERATED = '# Generated CV\n\n- Led a team of 12 engineers.\n';
 
 function fixture({ withConfig = false } = {}) {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-factgate-'));
-  const decoyCwd = mkdtempSync(join(tmpdir(), 'career-ops-factdecoy-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-factgate-'));
+  const decoyCwd = mkdtempSync(join(tmpdir(), 'jobyougo-factdecoy-'));
   writeFileSync(join(dataRoot, 'cv.md'), CV);
   writeFileSync(join(dataRoot, 'generated.md'), GENERATED);
   if (withConfig) {
@@ -66,7 +66,7 @@ const cleanup = (f) => {
 function run(f, args = []) {
   const r = spawnSync(process.execPath, [join(ROOT, 'verify-cv-facts.mjs'), join(f.dataRoot, 'generated.md'), ...args], {
     cwd: f.decoyCwd, encoding: 'utf-8', timeout: 60_000,
-    env: { ...process.env, CAREER_OPS_ROOT: f.dataRoot, CAREER_OPS_DATA_DIR: '' },
+    env: { ...process.env, JOBYOUGO_ROOT: f.dataRoot, JOBYOUGO_DATA_DIR: '' },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
   return { ...r, all: `${r.stdout ?? ''}${r.stderr ?? ''}` };
@@ -124,7 +124,7 @@ test('a genuinely fabricated claim is still caught', () => {
 test('--source still overrides the default', () => {
   // Documented escape hatch; anchoring the default must not remove it.
   const f = fixture();
-  const other = mkdtempSync(join(tmpdir(), 'career-ops-factalt-'));
+  const other = mkdtempSync(join(tmpdir(), 'jobyougo-factalt-'));
   try {
     writeFileSync(join(other, 'alt.md'), '# Alt\n\n- Led a team of 12 engineers.\n');
     const r = run(f, ['--source', join(other, 'alt.md')]);

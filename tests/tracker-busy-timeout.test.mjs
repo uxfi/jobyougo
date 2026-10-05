@@ -22,11 +22,11 @@ console.log('\ntracker.mjs — SQLite busy_timeout (#1957)');
 //
 // Restored in the finally below. Suites share one process, so an env var left
 // set here outlives this file: every later suite, and every child process they
-// spawn, would inherit a CAREER_OPS_TRACKER_DB pointing at a directory this
+// spawn, would inherit a JOBYOUGO_TRACKER_DB pointing at a directory this
 // test has already deleted.
 const work = mkdtempSync(join(tmpdir(), 'cops-busy-'));
-const priorDbEnv = process.env.CAREER_OPS_TRACKER_DB;
-process.env.CAREER_OPS_TRACKER_DB = join(work, 'applications.db');
+const priorDbEnv = process.env.JOBYOUGO_TRACKER_DB;
+process.env.JOBYOUGO_TRACKER_DB = join(work, 'applications.db');
 
 try {
   const { DatabaseSync } = await import('node:sqlite');
@@ -44,7 +44,7 @@ try {
 } catch (e) {
   fail(`tracker busy_timeout test crashed: ${e.message}`);
 } finally {
-  if (priorDbEnv === undefined) delete process.env.CAREER_OPS_TRACKER_DB;
-  else process.env.CAREER_OPS_TRACKER_DB = priorDbEnv;
+  if (priorDbEnv === undefined) delete process.env.JOBYOUGO_TRACKER_DB;
+  else process.env.JOBYOUGO_TRACKER_DB = priorDbEnv;
   rmSync(work, { recursive: true, force: true });
 }

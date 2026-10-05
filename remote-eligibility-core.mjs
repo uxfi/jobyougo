@@ -68,7 +68,7 @@ const ONLY_QUALIFIER_RE = /\(([a-z][a-z .,'-]{1,40})\s+only\)|\b([a-z][a-z .'-]{
 
 // Well-known broad-region restrictions that show up as free text (not always
 // paired with "only"). Kept as a short, generic list — these phrasings are
-// job-board boilerplate independent of which career-ops user is running this,
+// job-board boilerplate independent of which jobyougo user is running this,
 // unlike a full country gazetteer for the "compatible" side (which genuinely
 // depends on the candidate's own authorized_in).
 // Mirrors modes/_custom.md's own "US / must live in the US — SKIP" list
@@ -127,7 +127,7 @@ function normalize(text) {
 /**
  * Builds the set of location-text tokens this candidate's profile makes
  * compatible, derived from `config/profile.yml`'s `location.authorized_in`.
- * Generic by design: any career-ops user's own authorized_in drives this,
+ * Generic by design: any jobyougo user's own authorized_in drives this,
  * not anything specific to one person's bases.
  *
  * @param {string[]} authorizedIn - profile.location.authorized_in, e.g.

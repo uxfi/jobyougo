@@ -21,7 +21,7 @@ import { resolveUnknownFields } from './lib/apply-llm.mjs';
 import { classifyField } from './lib/apply-classify.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, yesNoText } from './lib/apply-select.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice, loadCvSummary } from './lib/application-writing.mjs';
-import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isResumeFileField, shouldReplaceFilledValue, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
+import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isSubstantiveOptionalQuestion, isResumeFileField, shouldReplaceFilledValue, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
 import {
   attachedLabels,
@@ -1788,10 +1788,11 @@ async function fillFields(frame, spec) {
 
     try {
       if (!plan) {
-        if (f.required && !f.value) unresolved.push(f);
+        if ((f.required || isSubstantiveOptionalQuestion(f)) && !f.value) unresolved.push(f);
         continue;
       }
       if (plan.skip) {
+        if (plan.answeredBlank) continue;
         // A sensitive question classifyField recognized (gender, race…): the
         // field's own decline option is known-good. One extra open/close, and
         // only for these fields — probing every unclassified dropdown made an
@@ -1834,7 +1835,7 @@ async function fillFields(frame, spec) {
         // so a 3+ option group (work authorization, EEOC) matches like a select.
         const opt = f.options?.length ? pickSelectOption(f.options, plan, f.label) : null;
         const isYesNo = !opt && !!plan.yesNo;
-        const want = opt ? opt.text : (isYesNo ? plan.yesNo : null);
+        const want = opt?.text || (isYesNo ? plan.yesNo : null) || plan.selectText || null;
         if (want && await clickRadioOption(frame, f, want, isYesNo)) filled.push({ label: labelShort, value: want });
         else giveUp(f, plan, MANUAL_REASON.noChoice);
         continue;

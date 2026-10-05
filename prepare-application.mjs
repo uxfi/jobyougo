@@ -21,10 +21,10 @@
 import { readFileSync, existsSync, statSync } from 'fs';
 import { basename, resolve, dirname, relative, isAbsolute } from 'path';
 import { fileURLToPath } from 'url';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
 const ALLOWED_HOSTS = new Set([
   'boards.greenhouse.io',

@@ -22,7 +22,7 @@ func TestTrackerLockDirMatchesNodeProtocol(t *testing.T) {
 		t.Fatalf("canonical temp dir: %v", err)
 	}
 	sum := sha256.Sum256([]byte(canonicalTracker))
-	want := filepath.Join(canonicalTemp, fmt.Sprintf("career-ops-merge-tracker-%x.lock", sum[:8]))
+	want := filepath.Join(canonicalTemp, fmt.Sprintf("jobyougo-merge-tracker-%x.lock", sum[:8]))
 
 	got, err := trackerLockDirFor(trackerPath)
 	if err != nil {
@@ -413,7 +413,8 @@ func TestParseApplicationsRespectsCareerOpsTracker(t *testing.T) {
 		t.Fatalf("failed to write custom tracker: %v", err)
 	}
 
-	t.Setenv("CAREER_OPS_TRACKER", customTrackerPath)
+	t.Setenv("JOBYOUGO_TRACKER", customTrackerPath)
+	t.Setenv("CAREER_OPS_TRACKER", "")
 
 	apps := ParseApplications(tempDir)
 	if len(apps) != 1 {

@@ -30,11 +30,11 @@ import { fileURLToPath } from 'url';
 import { resolveColumns, parseTrackerRow } from './tracker-parse.mjs';
 import { resolvePdfIndexPath } from './tracker-utils.mjs';
 import { roleFuzzyMatch } from './role-matcher.mjs';
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
 // "008" and "8" are the same report — zero-padded report-link form vs unpadded
 // tracker-# form (same normalization as the manifest writer in generate-pdf.mjs).
@@ -51,7 +51,7 @@ const cleanStatus = (s) =>
  * The report number and path come from the Report cell's markdown link. The
  * path is normalized to be root-relative: trackers at `data/applications.md`
  * carry `../reports/...` links (relative to the tracker file, see #760), which
- * would be misleading when printed from the career-ops root.
+ * would be misleading when printed from the jobyougo root.
  *
  * @param {string} text - Full contents of applications.md.
  * @returns {Array<{trackerNum:number,date:string,company:string,role:string,score:string,status:string,reportNum:string|null,reportPath:string|null}>}
@@ -174,7 +174,7 @@ function main() {
   const rows = parseTrackerRows(readFileSync(trackerPath, 'utf-8'));
 
   // Derived from the tracker resolved just above, not from ROOT: a redirected
-  // CAREER_OPS_TRACKER must not be searched against this install's manifest (#2471).
+  // JOBYOUGO_TRACKER must not be searched against this install's manifest (#2471).
   const manifestPath = resolvePdfIndexPath(trackerPath);
   const pdfIndex = existsSync(manifestPath)
     ? parsePdfIndex(readFileSync(manifestPath, 'utf-8'))

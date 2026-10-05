@@ -4,7 +4,7 @@
 //   const CV_PATH = 'cv.md';   // -> process.cwd()
 //
 // cv.md is a Source-of-Truth Boundary primary file and lives wherever
-// CAREER_OPS_ROOT / CAREER_OPS_DATA_DIR / the .career-ops-data marker points. A
+// JOBYOUGO_ROOT / JOBYOUGO_DATA_DIR / the .jobyougo-data marker points. A
 // bare relative path resolves against whatever directory the process was
 // started in, so from anywhere else:
 //
@@ -38,8 +38,8 @@ const JD = [
 ].join('\n');
 
 function fixture() {
-  const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-jdgap-'));
-  const decoyCwd = mkdtempSync(join(tmpdir(), 'career-ops-jddecoy-'));
+  const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-jdgap-'));
+  const decoyCwd = mkdtempSync(join(tmpdir(), 'jobyougo-jddecoy-'));
   writeFileSync(join(dataRoot, 'cv.md'), CV);
   writeFileSync(join(dataRoot, 'jd.md'), JD);
   return { dataRoot, decoyCwd };
@@ -52,7 +52,7 @@ const cleanup = (f) => {
 function run(f, args = ['--summary']) {
   const r = spawnSync(process.execPath, [join(ROOT, 'jd-skill-gap.mjs'), join(f.dataRoot, 'jd.md'), ...args], {
     cwd: f.decoyCwd, encoding: 'utf-8', timeout: 60_000,
-    env: { ...process.env, CAREER_OPS_ROOT: f.dataRoot, CAREER_OPS_DATA_DIR: '' },
+    env: { ...process.env, JOBYOUGO_ROOT: f.dataRoot, JOBYOUGO_DATA_DIR: '' },
   });
   assert.equal(r.error, undefined, `spawn failed: ${r.error?.message}`);
   return { ...r, all: `${r.stdout ?? ''}${r.stderr ?? ''}` };

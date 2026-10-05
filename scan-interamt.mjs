@@ -22,7 +22,7 @@ import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { appendToPipeline, appendToScanHistory, loadSeenUrls, PORTALS_PATH, SCAN_HISTORY_PATH } from './scan.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { printScanSummaryHeader } from './lib/scan-summary-marker.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
@@ -33,10 +33,10 @@ import { isMainModule } from './lib/is-main-module.mjs';
 // scan.mjs's appendToScanHistory — anchored to the data root — while reading its
 // own bare-relative copy to work out the last scan date, so within a single run
 // it could write one history file and read another. Its portals copy also
-// ignored CAREER_OPS_PORTALS, which #2271 added so a second search lane does not
+// ignored JOBYOUGO_PORTALS, which #2271 added so a second search lane does not
 // poison the first one's dedup history.
 const SCAN_HISTORY    = SCAN_HISTORY_PATH;
-const DATA_ROOT       = getCareerOpsRoot();
+const DATA_ROOT       = getJobYouGoRoot();
 const INTERAMT_HOME   = 'https://interamt.de/koop/app/';
 // Direct offer URL — constructed from StellenangebotId.
 // Wicket adds a session version number (?28&id=...) during live navigation,
@@ -371,7 +371,7 @@ async function main() {
     }
   }
 
-  console.log('\n→ Run /career-ops pipeline to evaluate new offers.');
+  console.log('\n→ Run /jobyougo pipeline to evaluate new offers.');
 }
 
 // Guarded like every sibling scanner (scan-hn.mjs:122, scan-ats-full.mjs:1115).

@@ -21,15 +21,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Pin the cadence source for the import only, so the module never reads the
 // user's config/profile.yml and the env var does not leak into later suites
 // (see tests/followup-cadence.test.mjs, #2268 / #3306).
-const PRIOR_PROFILE_ENV = process.env.CAREER_OPS_PROFILE;
-process.env.CAREER_OPS_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-default-cadence.yml');
+const PRIOR_PROFILE_ENV = process.env.JOBYOUGO_PROFILE;
+process.env.JOBYOUGO_PROFILE = join(ROOT, 'tests', 'fixtures', 'profile-default-cadence.yml');
 
 let cadence;
 try {
   cadence = await import('../followup-cadence.mjs');
 } finally {
-  if (PRIOR_PROFILE_ENV === undefined) delete process.env.CAREER_OPS_PROFILE;
-  else process.env.CAREER_OPS_PROFILE = PRIOR_PROFILE_ENV;
+  if (PRIOR_PROFILE_ENV === undefined) delete process.env.JOBYOUGO_PROFILE;
+  else process.env.JOBYOUGO_PROFILE = PRIOR_PROFILE_ENV;
 }
 
 // The cross-reference lookback is 120 characters before "applied". Padding

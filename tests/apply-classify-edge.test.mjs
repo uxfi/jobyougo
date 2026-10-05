@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyField } from '../lib/apply-classify.mjs';
+import { pickSelectOption } from '../lib/apply-select.mjs';
 import {
   shouldFillField,
   skipComboboxProbe,
@@ -122,6 +123,29 @@ test('visa / sponsorship / agentic radios stay deterministic Yes/No', () => {
   );
 });
 
+test('Location whose only options are Yes|No is not filled with the city', () => {
+  const loc = classifyField(f('Location', {
+    type: 'text',
+    role: 'combobox',
+    options: [{ text: 'Yes' }, { text: 'No' }],
+  }), spec);
+  assert.equal(loc?.yesNo, 'yes');
+  assert.equal(loc?.selectText, 'Yes');
+  assert.equal(classifyField(f('Location'), spec)?.selectText, 'Paris, France');
+});
+
+test('How did you hear picks LinkedIn before Other when both exist', () => {
+  const plan = classifyField(f('How did you hear about this job?', { type: 'radio', required: true }), spec);
+  assert.equal(plan?.selectText, 'LinkedIn');
+  const picked = pickSelectOption([
+    { text: 'Employee referral' },
+    { text: 'Other' },
+    { text: 'LinkedIn' },
+    { text: 'Career fair' },
+  ], plan, 'How did you hear about this job?');
+  assert.equal(picked?.text, 'LinkedIn');
+});
+
 test('relocation / capacity do not steal city or location answers', () => {
   assert.equal(classifyField(f('This role requires relocation to Doha', { type: 'radio' }), spec)?.yesNo, 'no');
   assert.equal(classifyField(f('Capacity planning notes'), spec), null);
@@ -190,4 +214,115 @@ test('Bitpanda / Greenhouse: dial Country*, national phone, EU passport, hybrid,
   });
   assert.equal(salary?.value, '60000');
   assert.equal(salary?.selectMatch, '60000');
+});
+
+test('Stravito: essays are not the portfolio URL; choices follow the CV', () => {
+  const sites = f(
+    'Share two or three live websites you designed and built yourself.*Required',
+    { tag: 'textarea', type: 'textarea', required: true },
+  );
+  assert.equal(classifyField(sites, spec), null);
+  assert.equal(shouldFillField(sites), true);
+
+  const decision = f(
+    'Tell us about a design decision you changed because of how it actually behaved in the browser.*Required',
+    { tag: 'textarea', type: 'textarea', required: true },
+  );
+  assert.equal(classifyField(decision, spec), null);
+
+  const ai = f(
+    'Where does AI help in your design and build work, and where does it not?',
+    { tag: 'textarea', type: 'textarea' },
+  );
+  assert.equal(classifyField(ai, spec), null);
+  assert.equal(shouldFillField(ai), true);
+
+  assert.equal(
+    classifyField(f('Can you share a link to code you wrote?'), spec)?.value,
+    'https://github.com/uxfi',
+  );
+  assert.equal(shouldFillField(f('Can you share a link to code you wrote?')), true);
+  assert.equal(classifyField(f('Website'), spec)?.value, 'https://jobyougo.xyz/portfolio');
+
+  const built = f(
+    'Have you personally both designed and written the production code for websites that are live today?',
+    { type: 'radio', required: true },
+  );
+  assert.equal(classifyField(built, spec)?.yesNo, 'yes');
+  assert.notEqual(classifyField(built, spec)?.value, id.portfolio);
+
+  const react = classifyField(f(
+    'How much React have you shipped to production?',
+    { type: 'radio', required: true },
+  ), spec);
+  assert.match(react?.selectText || '', /mostly myself/);
+  const reactOpt = pickSelectOption([
+    { text: 'None yet' },
+    { text: 'Side projects or courses only' },
+    { text: 'Components in a production codebase someone else set up' },
+    { text: 'A production site or app I built mostly myself' },
+  ], react, 'How much React have you shipped to production?');
+  assert.equal(reactOpt?.text, 'A production site or app I built mostly myself');
+
+  const box = (q, opt) => f(`${q} — ${opt}`, { type: 'checkbox', required: true });
+  const hands = 'Which of these have you worked in hands-on?*Required';
+  assert.equal(classifyField(box(hands, 'React'), spec)?.check, true);
+  assert.equal(classifyField(box(hands, 'Next.js, Astro or another code-based framework'), spec)?.check, true);
+  assert.equal(classifyField(box(hands, 'HubSpot CMS (HubL)'), spec)?.answeredBlank, true);
+  assert.equal(classifyField(box(hands, 'WordPress or another templating CMS'), spec)?.answeredBlank, true);
+  assert.equal(classifyField(box(hands, 'Webflow or Framer'), spec)?.answeredBlank, true);
+
+  const years = classifyField(f(
+    'How many years have you worked in a role where you both designed and built websites?',
+    { type: 'radio', required: true },
+  ), spec);
+  assert.equal(years?.selectText, '2 to 4 years');
+  assert.notEqual(years?.value, '8');
+  const yearOpt = pickSelectOption([
+    { text: 'Less than 2 years' },
+    { text: '2 to 4 years' },
+    { text: '5 to 8 years' },
+    { text: 'More than 8 years' },
+  ], years, 'years');
+  assert.equal(yearOpt?.text, '2 to 4 years');
+
+  const loc = 'Locations*Required';
+  assert.equal(classifyField(box(loc, 'The Netherlands'), spec)?.check, true);
+  assert.equal(classifyField(box(loc, 'Sweden'), spec)?.check, true);
+  assert.equal(classifyField(box(loc, 'The UK'), spec)?.answeredBlank, true);
+
+  assert.equal(classifyField(f(
+    'Are you based in a European time zone, within two hours of Central European Time?',
+    { type: 'radio', required: true },
+  ), spec)?.yesNo, 'yes');
+  assert.equal(classifyField(f('Timezone'), spec)?.value, 'CET/CEST');
+
+  assert.equal(classifyField(f('Can you invoice for this engagement?', { type: 'radio', required: true }), spec)?.yesNo, 'yes');
+
+  const days = classifyField(f(
+    'How many days a week can you work on this for the full six months?',
+    { type: 'radio', required: true },
+  ), spec);
+  assert.equal(pickSelectOption([
+    { text: '5 days (full time)' },
+    { text: '4 days' },
+    { text: '3 days or fewer' },
+  ], days, 'days')?.text, '5 days (full time)');
+
+  const start = classifyField(f('When could you start?', { type: 'radio', required: true }), spec);
+  assert.equal(pickSelectOption([
+    { text: 'Within 2 weeks' },
+    { text: 'Within a month' },
+    { text: 'In 1 to 2 months' },
+    { text: 'In more than 2 months' },
+  ], start, 'start')?.text, 'Within 2 weeks');
+
+  const ind = 'What industries do you have relevant experience in?*Required';
+  assert.equal(classifyField(box(ind, 'B2B SaaS'), spec)?.check, true);
+  assert.equal(classifyField(box(ind, 'Enterprise SaaS'), spec)?.check, true);
+  assert.equal(classifyField(box(ind, 'MarTech'), spec)?.check, true);
+  assert.equal(classifyField(box(ind, 'AI / GenAI'), spec)?.check, true);
+  assert.equal(classifyField(box(ind, 'Consumer SaaS / B2C software'), spec)?.answeredBlank, true);
+  assert.equal(classifyField(box(ind, 'Cybersecurity'), spec)?.answeredBlank, true);
+  assert.equal(classifyField(box(ind, 'Other'), spec)?.answeredBlank, true);
 });

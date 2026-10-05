@@ -25,11 +25,11 @@ import { fileURLToPath } from 'url';
 import * as yaml from 'js-yaml';
 import { resolveColumns, parseTrackerRow } from './tracker-parse.mjs';
 import { normalizeStatus, analyzeFromContent } from './followup-cadence.mjs';
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 const APPS_FILE = resolveTrackerPath(DATA_ROOT);
 const SCAN_HISTORY_FILE = join(DATA_ROOT, 'data', 'scan-history.tsv');
 const FOLLOWUPS_FILE = join(DATA_ROOT, 'data', 'follow-ups.md');
@@ -159,7 +159,7 @@ export function computeColdAppNums(trackerContent, followupsContent) {
  * response is indistinguishable from one rejected after interviews — middle
  * stages are lower bounds until status-transition logging exists (#1428).
  *
- * This is the canonical funnel definition for career-ops going forward;
+ * This is the canonical funnel definition for jobyougo going forward;
  * dashboard/web consuming this JSON instead of keeping independent copies is
  * a named follow-up in #1604.
  */

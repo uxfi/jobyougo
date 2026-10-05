@@ -13,7 +13,7 @@ import { reserveReportNumbers, releaseReportNumbers } from '../reserve-report-nu
 import { pass, fail } from './helpers.mjs';
 
 async function reserveIn(dir) {
-  // Pass the fixture path explicitly so a CAREER_OPS_BATCH_STATE set in the
+  // Pass the fixture path explicitly so a JOBYOUGO_BATCH_STATE set in the
   // caller's environment cannot redirect these tests to another file.
   const nums = await reserveReportNumbers(1, {
     rootDir: dir,

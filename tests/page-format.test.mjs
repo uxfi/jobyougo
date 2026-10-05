@@ -38,7 +38,7 @@ import {
 
 /** A throwaway workspace whose config/profile.yml states `pageFormat`, or none. */
 function workspace(pageFormat) {
-  const dir = mkdtempSync(join(tmpdir(), 'career-ops-page-format-'));
+  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-page-format-'));
   mkdirSync(join(dir, 'config'), { recursive: true });
   mkdirSync(join(dir, 'data'), { recursive: true });
   mkdirSync(join(dir, 'output'), { recursive: true });
@@ -52,8 +52,8 @@ function workspace(pageFormat) {
 function workspaceEnv(dir) {
   return {
     ...process.env,
-    CAREER_OPS_ROOT: dir,
-    CAREER_OPS_TRACKER: join(dir, 'data', 'applications.md'),
+    JOBYOUGO_ROOT: dir,
+    JOBYOUGO_TRACKER: join(dir, 'data', 'applications.md'),
   };
 }
 
@@ -91,7 +91,7 @@ test('resolvePageFormat: nothing stated falls through to the project default', (
 });
 
 test('resolvePageFormat: a missing profile never fails a render', () => {
-  assert.equal(resolvePageFormat(undefined, { profilePath: join(tmpdir(), 'career-ops-absent.yml') }), DEFAULT_PAGE_FORMAT);
+  assert.equal(resolvePageFormat(undefined, { profilePath: join(tmpdir(), 'jobyougo-absent.yml') }), DEFAULT_PAGE_FORMAT);
 });
 
 test('resolvePageFormat: an unusable profile value falls through, it does not stick', () => {
@@ -241,7 +241,7 @@ function coverSandbox() {
   // realpathSync, not the raw mkdtemp path: isMainModule compares a realpathed
   // import.meta.url against argv[1], and a spawned copy that fails that check
   // exits 0 having done nothing (#3165).
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'career-ops-cover-format-')));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'jobyougo-cover-format-')));
   mkdirSync(join(dir, 'lib'), { recursive: true });
   mkdirSync(join(dir, 'templates'), { recursive: true });
   mkdirSync(join(dir, 'output'), { recursive: true });

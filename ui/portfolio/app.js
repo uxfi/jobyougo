@@ -499,7 +499,6 @@ function goHome() {
   disposeProjStages();
   document.getElementById('view-home').classList.remove('hidden');
   document.getElementById('view-project').classList.add('hidden');
-  document.getElementById('nav-links').style.display = '';
   window.scrollTo(0, 0);
   document.title = 'Hugo Vermot, Product Manager | AI Products';
   if (history.pushState) history.pushState(null, '', '#');
@@ -515,7 +514,6 @@ function openProject(id) {
   const mountToken = projStage3DToken;
   disposeProjStages();
   document.getElementById('view-home').classList.add('hidden');
-  document.getElementById('nav-links').style.display = 'none';
   document.getElementById('proj-page-content').innerHTML = renderProject(p);
   document.getElementById('view-project').classList.remove('hidden');
   window.scrollTo(0, 0);
@@ -2604,6 +2602,95 @@ function getUsedMethodTypes() {
   return Object.keys(METHOD_STEPS).filter(type => used.has(type));
 }
 
+function methodCellHash(r, c) {
+  let h = Math.imul(r + 3, 374761393) ^ Math.imul(c + 11, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return h >>> 0;
+}
+
+function methodJitter(type) {
+  let h = 2166136261;
+  for (let i = 0; i < type.length; i++) {
+    h ^= type.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const u = h >>> 0;
+  return {
+    jx: (u % 9) - 4,
+    jy: ((u >>> 4) % 9) - 4,
+    jr: ((u >>> 8) % 7) - 3,
+  };
+}
+
+function pickSpreadSlots(cells, count, cols) {
+  const byCol = Array.from({ length: cols }, () => []);
+  cells.forEach(cell => {
+    if (cell.c >= 1 && cell.c <= cols) byCol[cell.c - 1].push(cell);
+  });
+  byCol.forEach(list => list.sort((a, b) => methodCellHash(a.r, a.c) - methodCellHash(b.r, b.c)));
+  const order = [];
+  for (let i = 0; i < cols; i++) {
+    const left = i;
+    const right = cols - 1 - i;
+    if (order.includes(left)) break;
+    order.push(left);
+    if (right !== left) order.push(right);
+  }
+  const picked = [];
+  let pass = 0;
+  while (picked.length < count && pass < 12) {
+    let added = false;
+    for (const col of order) {
+      const cell = byCol[col][pass];
+      if (!cell) continue;
+      picked.push(cell);
+      added = true;
+      if (picked.length >= count) break;
+    }
+    if (!added) break;
+    pass += 1;
+  }
+  return picked;
+}
+
+function methodBannerSlots(count, width) {
+  const narrow = width < 760;
+  const tile = narrow ? 46 : 52;
+  const pitch = narrow ? 68 : 118;
+  const cols = Math.max(narrow ? 5 : 11, Math.min(24, Math.round(width / pitch)));
+  const gap = narrow ? 12 : 20;
+  const holeRows = 3;
+  let holeCols = narrow ? cols : Math.min(8, Math.max(6, cols - 8));
+  if (holeCols > cols - (narrow ? 0 : 2)) holeCols = Math.max(4, cols - (narrow ? 0 : 2));
+  if ((cols - holeCols) % 2) holeCols = Math.max(4, holeCols - 1);
+  let rows = narrow ? 7 : 5;
+  while (cols * rows - holeCols * holeRows < count && rows < 13) rows += 2;
+  const hole = {
+    r0: Math.floor((rows - holeRows) / 2),
+    r1: Math.floor((rows - holeRows) / 2) + holeRows - 1,
+    c0: Math.floor((cols - holeCols) / 2),
+    c1: Math.floor((cols - holeCols) / 2) + holeCols - 1,
+  };
+  const primary = [];
+  const extra = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (r >= hole.r0 && r <= hole.r1 && c >= hole.c0 && c <= hole.c1) continue;
+      const cell = { r: r + 1, c: c + 1 };
+      if ((r + c) % 2 === 0) primary.push(cell);
+      else extra.push(cell);
+    }
+  }
+  const picked = pickSpreadSlots(primary, count, cols);
+  if (picked.length < count) {
+    const used = new Set(picked.map(cell => cell.r + ':' + cell.c));
+    const rest = extra.filter(cell => !used.has(cell.r + ':' + cell.c));
+    picked.push(...pickSpreadSlots(rest, count - picked.length, cols));
+  }
+  picked.sort((a, b) => a.r - b.r || a.c - b.c);
+  return { cols, rows, tile, gap, holeCols, holeRows, slots: picked };
+}
+
 function renderMethodsCarousel() {
   const root = document.getElementById('methods-carousel');
   const track = document.getElementById('methods-carousel-track');
@@ -2615,16 +2702,33 @@ function renderMethodsCarousel() {
     track.innerHTML = '';
     return;
   }
-  track.innerHTML = types.map((type) => {
+  const layout = methodBannerSlots(types.length, root.clientWidth || 1100);
+  root.style.setProperty('--hole-w', (layout.holeCols * layout.tile + (layout.holeCols - 1) * layout.gap) + 'px');
+  root.style.setProperty('--hole-h', (layout.holeRows * layout.tile + (layout.holeRows - 1) * layout.gap) + 'px');
+  track.style.setProperty('--cols', String(layout.cols));
+  track.style.setProperty('--rows', String(layout.rows));
+  track.style.setProperty('--tile', layout.tile + 'px');
+  track.style.setProperty('--gap', layout.gap + 'px');
+  track.innerHTML = types.map((type, i) => {
     const meta = METHOD_STEPS[type];
     const name = methodLangText(meta.label);
-    return `<div class="methods-carousel-item" data-type="${type}">
+    const slot = layout.slots[i] || layout.slots[layout.slots.length - 1];
+    const jitter = methodJitter(type);
+    return `<div class="methods-carousel-item" data-type="${type}" style="--c:${slot.c};--r:${slot.r};--jx:${jitter.jx}px;--jy:${jitter.jy}px;--jr:${jitter.jr}deg">
       <div class="methods-carousel-visual" aria-hidden="true">
         <div class="method-obj" data-type="${type}">${renderMethodObject(type)}</div>
       </div>
       <div class="methods-carousel-label" data-method-type-label="${type}">${name}</div>
     </div>`;
   }).join('');
+  if (!renderMethodsCarousel.bound) {
+    renderMethodsCarousel.bound = true;
+    let timer;
+    window.addEventListener('resize', () => {
+      clearTimeout(timer);
+      timer = setTimeout(renderMethodsCarousel, 150);
+    });
+  }
 }
 
 function renderMethodSchema(p) {
@@ -3102,11 +3206,33 @@ if ('requestIdleCallback' in window) {
   type();
 })();
 
+const NAV_SECTIONS = ['work', 'ai-projects', 'ifaces-section'];
+
+function navToSection(id, event) {
+  if (event) event.preventDefault();
+  const home = document.getElementById('view-home');
+  const wasProject = !!(home && home.classList.contains('hidden'));
+  if (wasProject) goHome();
+  const go = () => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (history.pushState) history.pushState(null, '', '#' + id);
+  };
+  if (wasProject) requestAnimationFrame(go);
+  else go();
+  return false;
+}
+
 (function() {
   const hash = window.location.hash;
   if (hash.startsWith('#project/')) {
     const id = hash.replace('#project/', '');
     if (publicProjects().find(p => p.id === id)) openProject(id);
+  } else if (NAV_SECTIONS.includes(hash.slice(1))) {
+    requestAnimationFrame(() => {
+      document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    });
   }
 })();
 
@@ -3117,6 +3243,12 @@ window.addEventListener('popstate', function() {
     const id = hash.replace('#project/', '');
     if (publicProjects().find(p => p.id === id)) openProject(id);
     else goHome();
+  } else if (NAV_SECTIONS.includes(hash.slice(1))) {
+    const home = document.getElementById('view-home');
+    if (home && home.classList.contains('hidden')) goHome();
+    requestAnimationFrame(() => {
+      document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 });
 
@@ -3325,6 +3457,10 @@ function setLang(lang) {
   const contactBtn = document.getElementById('nav-contact-btn');
   if (contactBtn && t.nav_contact !== undefined) {
     contactBtn.setAttribute('aria-label', t.nav_contact);
+  }
+  const calendlyBtn = document.getElementById('nav-calendly-btn');
+  if (calendlyBtn && t.contact_calendly !== undefined) {
+    calendlyBtn.setAttribute('aria-label', t.contact_calendly);
   }
 
   // Toggle active flag button

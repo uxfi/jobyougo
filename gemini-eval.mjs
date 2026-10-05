@@ -10,7 +10,7 @@ if (process.platform === 'win32') {
 }
 
 /**
- * gemini-eval.mjs — Gemini-powered Job Offer Evaluator for career-ops
+ * gemini-eval.mjs — Gemini-powered Job Offer Evaluator for jobyougo
  *
  * A free-tier alternative to the Claude-based pipeline.
  * Reads evaluation logic from modes/oferta.md + modes/_shared.md,
@@ -76,12 +76,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // ---------------------------------------------------------------------------
 // Paths
 // ---------------------------------------------------------------------------
-import { getCareerOpsRoot, resolveTrackerPath } from './path-resolver.mjs';
+import { getJobYouGoRoot, resolveTrackerPath } from './path-resolver.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { TSV_ADDITION_HEADER } from './tracker-parse.mjs';
 
 const CODE_ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+const DATA_ROOT = getJobYouGoRoot();
 
 const PATHS = {
   // Primary evaluation logic lives in these two mode files (default values)
@@ -146,7 +146,7 @@ const args = process.argv.slice(2);
 if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
   console.log(`
 ╔══════════════════════════════════════════════════════════════════╗
-║           career-ops — Gemini Evaluator (free-tier)             ║
+║           jobyougo — Gemini Evaluator (free-tier)             ║
 ╚══════════════════════════════════════════════════════════════════╝
 
   Evaluate a job offer using Google Gemini instead of Claude.
@@ -286,7 +286,7 @@ function validateEvaluationShape(text) {
   }
 
   if (issues.length > 0) {
-    throw new Error(`Gemini returned an invalid career-ops report: ${issues.join('; ')}`);
+    throw new Error(`Gemini returned an invalid jobyougo report: ${issues.join('; ')}`);
   }
 }
 
@@ -341,7 +341,7 @@ if (budgetReport.compressed) {
   console.log(`📊  Token budget: ${budgetReport.totalTokens} tokens (within ${budgetReport.budget} limit)`);
 }
 
-const systemPrompt = `You are career-ops, an AI-powered job search assistant.
+const systemPrompt = `You are jobyougo, an AI-powered job search assistant.
 You evaluate job offers against the user's CV using a structured A-G scoring system.
 
 Your evaluation methodology is defined below. Follow it exactly.

@@ -13,7 +13,7 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const BUCKETS = ['existing', 'supportedByResume', 'derivedUnverified', 'userCannotConfirm'];
 
 function fixture(t) {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'career-ops-provenance-root-')));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'jobyougo-provenance-root-')));
   t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
   const f = { dir };
   for (const [name, figure] of [['code', 71], ['data', 63], ['other', 94], ['cwd', 82]]) {
@@ -61,7 +61,7 @@ function run(f, args, env) {
   const before = snapshot(f.dir);
   const result = spawnSync(process.execPath, [join(f.code.root, 'story-provenance-check.mjs'), ...args], {
     cwd: f.cwd.root,
-    env: { ...process.env, CAREER_OPS_ROOT: '', CAREER_OPS_DATA_DIR: '', ...env },
+    env: { ...process.env, JOBYOUGO_ROOT: '', JOBYOUGO_DATA_DIR: '', ...env },
     encoding: 'utf8',
     timeout: 15_000,
   });
@@ -107,7 +107,7 @@ function check(f, { env = {}, args = [], source = f.data, storyPath = source.sto
   else assert.doesNotMatch(summary, /LOW CONFIDENCE/);
 }
 
-for (const name of ['CAREER_OPS_ROOT', 'CAREER_OPS_DATA_DIR']) {
+for (const name of ['JOBYOUGO_ROOT', 'JOBYOUGO_DATA_DIR']) {
   for (const relativePath of [false, true]) {
     test(`${name} reads both files from the ${relativePath ? 'code-relative' : 'absolute'} data root`, (t) => {
       const f = fixture(t);
@@ -119,7 +119,7 @@ for (const name of ['CAREER_OPS_ROOT', 'CAREER_OPS_DATA_DIR']) {
 for (const relativePath of [false, true]) {
   test(`the ${relativePath ? 'relative' : 'absolute'} marker selects the data root`, (t) => {
     const f = fixture(t);
-    writeFileSync(join(f.code.root, '.career-ops-data'), `${relativePath ? relative(f.code.root, f.data.root) : f.data.root}\n`);
+    writeFileSync(join(f.code.root, '.jobyougo-data'), `${relativePath ? relative(f.code.root, f.data.root) : f.data.root}\n`);
     check(f);
   });
 }
@@ -129,52 +129,52 @@ test('with no configuration, foreign cwd does not replace the code-root default'
   check(f, { source: f.code });
 });
 
-test('CAREER_OPS_ROOT wins over CAREER_OPS_DATA_DIR and the marker', (t) => {
+test('JOBYOUGO_ROOT wins over JOBYOUGO_DATA_DIR and the marker', (t) => {
   const f = fixture(t);
-  writeFileSync(join(f.code.root, '.career-ops-data'), f.code.root);
-  check(f, { env: { CAREER_OPS_ROOT: f.data.root, CAREER_OPS_DATA_DIR: f.other.root } });
+  writeFileSync(join(f.code.root, '.jobyougo-data'), f.code.root);
+  check(f, { env: { JOBYOUGO_ROOT: f.data.root, JOBYOUGO_DATA_DIR: f.other.root } });
 });
 
-test('CAREER_OPS_DATA_DIR wins over the marker when CAREER_OPS_ROOT is blank', (t) => {
+test('JOBYOUGO_DATA_DIR wins over the marker when JOBYOUGO_ROOT is blank', (t) => {
   const f = fixture(t);
-  writeFileSync(join(f.code.root, '.career-ops-data'), f.other.root);
-  check(f, { env: { CAREER_OPS_ROOT: '  ', CAREER_OPS_DATA_DIR: f.data.root } });
+  writeFileSync(join(f.code.root, '.jobyougo-data'), f.other.root);
+  check(f, { env: { JOBYOUGO_ROOT: '  ', JOBYOUGO_DATA_DIR: f.data.root } });
 });
 
 test('an explicit relative story-bank overrides only that input and stays cwd-relative', (t) => {
   const f = fixture(t);
   const storyPath = join('interview-prep', 'story-bank.md');
-  check(f, { env: { CAREER_OPS_ROOT: f.data.root }, args: ['--story-bank', storyPath], source: f.cwd, storyPath, cvPath: f.data.cv, bucket: 'supportedByResume' });
+  check(f, { env: { JOBYOUGO_ROOT: f.data.root }, args: ['--story-bank', storyPath], source: f.cwd, storyPath, cvPath: f.data.cv, bucket: 'supportedByResume' });
 });
 
 test('an explicit relative CV overrides only that input and stays cwd-relative', (t) => {
   const f = fixture(t);
-  check(f, { env: { CAREER_OPS_ROOT: f.data.root }, args: ['--cv=cv.md'], cvPath: 'cv.md', bucket: 'supportedByResume' });
+  check(f, { env: { JOBYOUGO_ROOT: f.data.root }, args: ['--cv=cv.md'], cvPath: 'cv.md', bucket: 'supportedByResume' });
 });
 
 test('both explicit relative inputs override the configured data root', (t) => {
   const f = fixture(t);
   const storyPath = join('interview-prep', 'story-bank.md');
-  check(f, { env: { CAREER_OPS_ROOT: f.data.root }, args: ['--story-bank', storyPath, '--cv', 'cv.md'], source: f.cwd, storyPath, cvPath: 'cv.md' });
+  check(f, { env: { JOBYOUGO_ROOT: f.data.root }, args: ['--story-bank', storyPath, '--cv', 'cv.md'], source: f.cwd, storyPath, cvPath: 'cv.md' });
 });
 
 test('absolute input flags override the configured data root', (t) => {
   const f = fixture(t);
-  check(f, { env: { CAREER_OPS_ROOT: f.data.root }, args: [`--story-bank=${f.other.story}`, '--cv', f.other.cv], source: f.other });
+  check(f, { env: { JOBYOUGO_ROOT: f.data.root }, args: [`--story-bank=${f.other.story}`, '--cv', f.other.cv], source: f.other });
 });
 
 for (const [input, missing] of [['story', 'no-story-bank'], ['cv', 'no-cv']]) {
   test(`a missing configured ${input} never falls back to the code root or cwd`, (t) => {
     const f = fixture(t);
     rmSync(f.data[input]);
-    check(f, { env: { CAREER_OPS_ROOT: f.data.root }, missing, bucket: 'derivedUnverified' });
+    check(f, { env: { JOBYOUGO_ROOT: f.data.root }, missing, bucket: 'derivedUnverified' });
   });
 
   test(`a missing explicit ${input} never falls back to the configured default`, (t) => {
     const f = fixture(t);
     const path = `missing-${input}.md`;
     check(f, {
-      env: { CAREER_OPS_ROOT: f.data.root },
+      env: { JOBYOUGO_ROOT: f.data.root },
       args: [input === 'story' ? '--story-bank' : '--cv', path],
       ...(input === 'story' ? { storyPath: path } : { cvPath: path }),
       missing,

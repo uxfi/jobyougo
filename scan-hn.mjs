@@ -25,7 +25,7 @@ import { isMainModule } from './lib/is-main-module.mjs';
 import { printScanSummaryHeader } from './lib/scan-summary-marker.mjs';
 
 // ── Configuration ────────────────────────────────────────────────────
-// Imported from scan.mjs so it honors CAREER_OPS_PORTALS and the data root (#3510).
+// Imported from scan.mjs so it honors JOBYOUGO_PORTALS and the data root (#3510).
 
 function loadKeywords() {
   const defaultKeywords = ["Software Engineer"];

@@ -6,7 +6,7 @@
 // fired and a duplicate row was written (#3665).
 //
 // Every case drives the REAL merge-tracker.mjs CLI against a temp tracker via
-// the CAREER_OPS_TRACKER / CAREER_OPS_ADDITIONS env hooks: the merge path is
+// the JOBYOUGO_TRACKER / JOBYOUGO_ADDITIONS env hooks: the merge path is
 // where the bug lives, so the resulting rows are what proves the fix. The
 // over-merge guards below matter more than the fix itself, because folding two
 // rows is destructive and splitting them is only untidy.
@@ -42,7 +42,7 @@ function addTsv(env, name, cols) {
 function runMerge(env, args = []) {
   return execFileSync('node', [MERGE, ...args], {
     encoding: 'utf-8',
-    env: { ...process.env, CAREER_OPS_TRACKER: env.tracker, CAREER_OPS_ADDITIONS: env.addDir },
+    env: { ...process.env, JOBYOUGO_TRACKER: env.tracker, JOBYOUGO_ADDITIONS: env.addDir },
   });
 }
 function trackerRows(env) {

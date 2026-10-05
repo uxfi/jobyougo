@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * add-entry.mjs — Deterministic dedup + insertion for `/career-ops add`.
+ * add-entry.mjs — Deterministic dedup + insertion for `/jobyougo add`.
  *
  * The `add` mode (agent) does the fetching, extraction, ATS-bullet writing,
  * preview, and confirm-before-write gate. This helper does ONE thing: take a
@@ -34,22 +34,22 @@
  * Exit codes: 0 on success (including a no-op "duplicate"); non-zero only on a
  * hard error (bad/empty payload, a requested target file missing, unwritable).
  *
- * Test isolation: CAREER_OPS_CV / CAREER_OPS_ARTICLE_DIGEST override the target
+ * Test isolation: JOBYOUGO_CV / JOBYOUGO_ARTICLE_DIGEST override the target
  * files so tests never touch a real user CV.
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { normalizeTextKey } from './tracker-parse.mjs';
 import { validateFlags } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 
-const CAREER_OPS = getCareerOpsRoot();
+const JOBYOUGO = getJobYouGoRoot();
 
-const CV_FILE = process.env.CAREER_OPS_CV || join(CAREER_OPS, 'cv.md');
-const ARTICLE_DIGEST_FILE = process.env.CAREER_OPS_ARTICLE_DIGEST || join(CAREER_OPS, 'article-digest.md');
+const CV_FILE = process.env.JOBYOUGO_CV || join(JOBYOUGO, 'cv.md');
+const ARTICLE_DIGEST_FILE = process.env.JOBYOUGO_ARTICLE_DIGEST || join(JOBYOUGO, 'article-digest.md');
 
 const KNOWN_FLAGS = ['--dry-run', '--stdin', '--help', '-h'];
 
@@ -196,7 +196,7 @@ export function applyAdd(payload, { cvText = null, articleText = null } = {}) {
     if (!normalizeKey(dedupKey)) throw new Error('payload.articleDigest requires a non-empty dedupKey (used for dedup/idempotency)');
     // article-digest.md is optional; create it from a header when missing.
     const current = articleText === null
-      ? '# Article Digest -- Proof Points\n\nCompact proof points from portfolio projects. Read by career-ops at evaluation time.\n'
+      ? '# Article Digest -- Proof Points\n\nCompact proof points from portfolio projects. Read by jobyougo at evaluation time.\n'
       : articleText;
     if (articleDigestHasEntry(current, dedupKey)) {
       result.articleDigest = { status: 'duplicate' };

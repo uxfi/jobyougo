@@ -52,8 +52,8 @@ try {
 
   const env = {
     ...process.env,
-    CAREER_OPS_ROOT: work,
-    CAREER_OPS_TRACKER: tracker,
+    JOBYOUGO_ROOT: work,
+    JOBYOUGO_TRACKER: tracker,
   };
 
   // SUCCESS CASE

@@ -373,7 +373,7 @@ export default {
           // Why the walk stopped, driving the warning below — never the
           // results-count mismatch (see the transport note up top: a source
           // total falling short of what pagination collected is routine here
-          // and does not mean career-ops left postings behind).
+          // and does not mean jobyougo left postings behind).
           let stopReason = 'complete';
           let page = 2;
           for (; page <= lastPage && jobs.length < maxJobs; page++) {

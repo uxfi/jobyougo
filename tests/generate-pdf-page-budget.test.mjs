@@ -26,7 +26,7 @@ mkdirSync(outputRoot, { recursive: true });
 // then fail against empty output rather than against behaviour (#3165).
 const sandbox = realpathSync(mkdtempSync(join(outputRoot, 'page-budget-test-')));
 const externalOutput = realpathSync(mkdtempSync(join(outputRoot, 'page-budget-external-')));
-const externalInputRoot = mkdtempSync(join(tmpdir(), 'career-ops-pdf-external-input-'));
+const externalInputRoot = mkdtempSync(join(tmpdir(), 'jobyougo-pdf-external-input-'));
 const script = join(sandbox, 'generate-pdf.mjs');
 const input = join(sandbox, 'two-pages.html');
 const defaultOverflowInput = join(sandbox, 'three-pages.html');
@@ -51,7 +51,7 @@ copyFileSync(join(ROOT, 'pipeline-lock.mjs'), join(sandbox, 'pipeline-lock.mjs')
 // ./cv-sections-core.mjs (#3986), another local sibling this sandbox needs.
 copyFileSync(join(ROOT, 'cv-sections-core.mjs'), join(sandbox, 'cv-sections-core.mjs'));
 // ...and generate-pdf resolves user-layer paths via path-resolver.mjs
-// (CAREER_OPS_ROOT), so the fixture carries that too.
+// (JOBYOUGO_ROOT), so the fixture carries that too.
 copyFileSync(join(ROOT, 'path-resolver.mjs'), join(sandbox, 'path-resolver.mjs'));
 // generate-pdf.mjs's main-guard lives in lib/is-main-module.mjs (#3170). Without
 // it the copy dies with ERR_MODULE_NOT_FOUND before parsing an argument.
@@ -215,7 +215,7 @@ try {
   const defaultTracker = join(sandbox, 'applications.md');
   writeFileSync(defaultTracker, '# Applications\n', 'utf-8');
   const withinBudget = runPdf([input, withinBudgetPdf, '--max-pages=2'], {
-    CAREER_OPS_TRACKER: defaultTracker,
+    JOBYOUGO_TRACKER: defaultTracker,
   });
   if (
     withinBudget.status === 0 &&
@@ -295,8 +295,8 @@ try {
   writeFileSync(redirectedTracker, '# Applications\n', 'utf8');
 
   const redirected = runPdf([redirectedInput, redirectedPdf, '--report=42'], {
-    CAREER_OPS_TRACKER: redirectedTracker,
-    CAREER_OPS_PDF_INDEX: redirectedManifest,
+    JOBYOUGO_TRACKER: redirectedTracker,
+    JOBYOUGO_PDF_INDEX: redirectedManifest,
   });
   const redirectedManifestText = existsSync(redirectedManifest)
     ? readFileSync(redirectedManifest, 'utf8')
@@ -332,7 +332,7 @@ try {
   const externalInputPdf = join(sandbox, 'external-input.pdf');
   const externalInputRun = runPdf([externalInput, externalInputPdf]);
   const externalTempFiles = readdirSync(externalInputRoot)
-    .filter((name) => name.startsWith('.career-ops-render-'));
+    .filter((name) => name.startsWith('.jobyougo-render-'));
   if (
     externalInputRun.status !== 0 &&
     externalInputRun.output.includes('Refusing to write the PDF outside the tracker workspace') &&

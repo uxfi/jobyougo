@@ -13,7 +13,7 @@
 // reply-watch.mjs (#2743/#2745) and dedup-tracker.mjs (#2744/#2746), now
 // shared via lib/cli-flags.mjs's validateFlags() (#2775).
 //
-// HERMETIC: every run pins CAREER_OPS_PORTALS at ENV_PORTALS, a path that
+// HERMETIC: every run pins JOBYOUGO_PORTALS at ENV_PORTALS, a path that
 // does not exist. If --help or an unrecognized flag were NOT handled before
 // the portals file is read, the run would print verify-portals's own "no
 // portals file at ... — nothing to verify" line instead of exiting on the
@@ -23,7 +23,7 @@
 //
 // ENV_PORTALS and FILE_PORTALS are deliberately DIFFERENT absent paths
 // (CodeRabbit, #4254 review): the --file tests originally passed the same
-// path as both the --file argument AND the CAREER_OPS_PORTALS env fallback,
+// path as both the --file argument AND the JOBYOUGO_PORTALS env fallback,
 // so a completely broken --file (its value silently discarded, falling back
 // to the env default) would have produced byte-identical output and passed
 // anyway. Naming the selected path in the assertion — not just checking
@@ -46,7 +46,7 @@ let ENV_PORTALS;
 let FILE_PORTALS;
 
 before(() => {
-  scratchDir = mkdtempSync(join(tmpdir(), 'career-ops-verify-portals-help-'));
+  scratchDir = mkdtempSync(join(tmpdir(), 'jobyougo-verify-portals-help-'));
   // Neither file is ever created — both stay absent for the whole suite —
   // but they are two distinct paths under the same fresh, unique-per-run
   // directory, so no other test or concurrent process can collide with
@@ -64,7 +64,7 @@ function runVerify(...args) {
     cwd: ROOT,
     encoding: 'utf-8',
     timeout: 30_000,
-    env: { ...process.env, CAREER_OPS_PORTALS: ENV_PORTALS },
+    env: { ...process.env, JOBYOUGO_PORTALS: ENV_PORTALS },
   });
   assert.equal(r.error, undefined, `verify-portals.mjs failed to spawn: ${r.error?.message}`);
   assert.equal(r.signal, null, `verify-portals.mjs was killed by ${r.signal} (timeout?)`);
@@ -112,7 +112,7 @@ test('a genuinely empty argv reaches normal sweep logic using the env-var defaul
   const r = runVerify();
   assert.match(r.all, NOTHING_TO_VERIFY, 'no flags at all must proceed past flag validation into the real run');
   assert.match(r.all, new RegExp(ENV_PORTALS.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    'a bare run must select CAREER_OPS_PORTALS (ENV_PORTALS), not something else');
+    'a bare run must select JOBYOUGO_PORTALS (ENV_PORTALS), not something else');
 });
 
 test('--file <path> is honored — the run selects FILE_PORTALS, not the env-var default', () => {

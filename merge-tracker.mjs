@@ -22,7 +22,7 @@ import { join, basename, dirname, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
 import { normalizeReportLink as normalizeLink } from './tracker-links.mjs';
-import { getCareerOpsRoot } from './path-resolver.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 import { roleFuzzyMatch } from './role-matcher.mjs';
 import { parsePdfIndex } from './find.mjs';
 import { LEGACY_COLMAP, TSV_REQUIRED_FIELDS, detectColumns, isHeaderRow, resolveScoreStatus, looksLikeTsvHeaderRow, resolveTsvColumns, looksLikeScoreCell, normalizeVia, normalizeTextKey, SEPARATOR_ROW_RE, extractReqNumber } from './tracker-parse.mjs';
@@ -50,23 +50,23 @@ Options:
 }
 
 // Executable hooks live beside this script even when user data is redirected
-// through CAREER_OPS_ROOT / CAREER_OPS_DATA_DIR / .career-ops-data.
-const CAREER_OPS_CODE_ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = getCareerOpsRoot();
+// through JOBYOUGO_ROOT / JOBYOUGO_DATA_DIR / .jobyougo-data.
+const JOBYOUGO_CODE_ROOT = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
 // Support both layouts: data/applications.md (boilerplate) and applications.md
-// (original). CAREER_OPS_TRACKER overrides the path (used by tests and
+// (original). JOBYOUGO_TRACKER overrides the path (used by tests and
 // non-standard layouts). Resolution lives in tracker-utils.mjs so every tracker
 // writer agrees on the same canonical path (and therefore the same lock).
 const APPS_FILE = resolveTrackerPath(DATA_ROOT);
 const TRACKER_DIR = dirname(APPS_FILE);
-// CAREER_OPS_ADDITIONS overrides the additions dir (used by tests, mirrors CAREER_OPS_TRACKER).
-const ADDITIONS_DIR = process.env.CAREER_OPS_ADDITIONS
-  ? process.env.CAREER_OPS_ADDITIONS
+// JOBYOUGO_ADDITIONS overrides the additions dir (used by tests, mirrors JOBYOUGO_TRACKER).
+const ADDITIONS_DIR = process.env.JOBYOUGO_ADDITIONS
+  ? process.env.JOBYOUGO_ADDITIONS
   : join(DATA_ROOT, 'batch/tracker-additions');
 const MERGED_DIR = join(ADDITIONS_DIR, 'merged');
-// CAREER_OPS_BATCH_STATE overrides the batch-state.tsv path (used by tests).
-const BATCH_STATE_FILE = process.env.CAREER_OPS_BATCH_STATE
-  ? process.env.CAREER_OPS_BATCH_STATE
+// JOBYOUGO_BATCH_STATE overrides the batch-state.tsv path (used by tests).
+const BATCH_STATE_FILE = process.env.JOBYOUGO_BATCH_STATE
+  ? process.env.JOBYOUGO_BATCH_STATE
   : join(DATA_ROOT, 'batch/batch-state.tsv');
 
 // Cross-check against batch-state.tsv (found 2026-07-30): a worker can write
@@ -103,8 +103,8 @@ const VERIFY = process.argv.includes('--verify');
 const MIGRATE = process.argv.includes('--migrate');
 const MIGRATE_VIA = process.argv.includes('--migrate-via');
 const BACKFILL_URLS = process.argv.includes('--backfill-urls');
-const MERGE_HOLD_MS = Number(process.env.CAREER_OPS_MERGE_HOLD_MS) || 0;
-const MERGE_READY_IPC = process.env.CAREER_OPS_MERGE_READY_IPC === '1';
+const MERGE_HOLD_MS = Number(process.env.JOBYOUGO_MERGE_HOLD_MS) || 0;
+const MERGE_READY_IPC = process.env.JOBYOUGO_MERGE_READY_IPC === '1';
 
 const TRACKER_LOCK_DIR = trackerLockDirFor(APPS_FILE);
 
@@ -135,7 +135,7 @@ mkdirSync(ADDITIONS_DIR, { recursive: true });
 /**
  * Pause the async merge flow for a fixed number of milliseconds.
  *
- * Used by the regression test hook (`CAREER_OPS_MERGE_HOLD_MS`), which
+ * Used by the regression test hook (`JOBYOUGO_MERGE_HOLD_MS`), which
  * deliberately holds the first merge after it reads `applications.md` so a
  * second merge can try to enter the same critical section. (The lock retry
  * loop's own sleep lives in tracker-utils.mjs with the lock.)
@@ -150,9 +150,9 @@ function sleep(ms) {
 let trackerLock;
 try {
   trackerLock = await acquireTrackerLock(TRACKER_LOCK_DIR, {
-    timeoutMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_TIMEOUT_MS) || 60_000,
-    retryMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_RETRY_MS) || 75,
-    staleMs: Number(process.env.CAREER_OPS_TRACKER_LOCK_STALE_MS) || 10 * 60_000,
+    timeoutMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_TIMEOUT_MS) || 60_000,
+    retryMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_RETRY_MS) || 75,
+    staleMs: Number(process.env.JOBYOUGO_TRACKER_LOCK_STALE_MS) || 10 * 60_000,
     tracker: APPS_FILE,
   });
   process.once('exit', () => trackerLock?.release());
@@ -541,7 +541,7 @@ let COLMAP = LEGACY_COLMAP;
 
 // Total cell count of the tracker's ACTUAL header row, set once the table is
 // read. Writes are driven by this width rather than by a hardcoded column list
-// so a tracker carrying columns career-ops has no field for (Apply Link,
+// so a tracker carrying columns jobyougo has no field for (Apply Link,
 // Follow-up, or anything else a user adds) still round-trips: the row keeps the
 // header's shape and the unknown cells are filled with the tracker's own "no
 // data" marker instead of being dropped. Null until detected; falls back to the
@@ -619,8 +619,8 @@ function addMissingUrlColumn(lines) {
 }
 
 // Build a tracker row string matching the detected layout. Every field
-// career-ops knows about is placed at ITS OWN detected index, and any column
-// the header declares but career-ops has no value for becomes '—'.
+// jobyougo knows about is placed at ITS OWN detected index, and any column
+// the header declares but jobyougo has no value for becomes '—'.
 //
 // The previous implementation appended a fixed tail (score, status, pdf,
 // report, notes, [url]) after the optional Via/Location columns. That silently
@@ -635,12 +635,12 @@ function buildRow(o) {
   // the one right of the trailing pipe. Data cells live in between.
   const cells = new Array(Math.max(0, width - 2)).fill('—');
   // Rebuilding an EXISTING row (PDF sync, re-evaluation update, URL backfill):
-  // start from the row's current cells so values in columns career-ops has no
+  // start from the row's current cells so values in columns jobyougo has no
   // field for — a hand-entered Apply Link, a Follow-up date — survive the
   // rebuild. parseAppLine only carries the mapped fields, so without this the
   // '—' fill above would overwrite those user-owned cells on every update.
   // Copied verbatim (empty cells included); the put() calls below then
-  // overwrite only the fields career-ops owns. New rows pass no `raw` and keep
+  // overwrite only the fields jobyougo owns. New rows pass no `raw` and keep
   // the plain '—' fill.
   if (o.raw) {
     const prev = String(o.raw).split('|').map(s => s.trim());
@@ -1244,7 +1244,7 @@ if (COLMAP.url != null) console.log('🧭 Detected URL column (deterministic ded
 if (HEADER_WIDTH != null && HEADER_WIDTH - 2 > Object.keys(COLMAP).length) {
   console.log(
     `🧭 Header has ${HEADER_WIDTH - 2} columns; ${HEADER_WIDTH - 2 - Object.keys(COLMAP).length} ` +
-    'not mapped to a career-ops field — those cells are written as "—".',
+    'not mapped to a jobyougo field — those cells are written as "—".',
   );
 }
 const existingApps = [];
@@ -1925,7 +1925,7 @@ trackerLock.release();
 // Sync PDF flags (idempotent; uses its own lock/transaction)
 if (!DRY_RUN) {
   try {
-    execFileSync(process.execPath, [join(CAREER_OPS_CODE_ROOT, 'sync-pdf-flags.mjs')], { stdio: 'inherit' });
+    execFileSync(process.execPath, [join(JOBYOUGO_CODE_ROOT, 'sync-pdf-flags.mjs')], { stdio: 'inherit' });
   } catch (e) {
     console.warn(`⚠️  Failed to sync PDF flags: ${e.message}`);
   }
@@ -1935,7 +1935,7 @@ if (!DRY_RUN) {
 if (VERIFY && !DRY_RUN) {
   console.log('\n--- Running verification ---');
   try {
-    execFileSync(process.execPath, [join(CAREER_OPS_CODE_ROOT, 'verify-pipeline.mjs')], { stdio: 'inherit' });
+    execFileSync(process.execPath, [join(JOBYOUGO_CODE_ROOT, 'verify-pipeline.mjs')], { stdio: 'inherit' });
   } catch (e) {
     process.exit(1);
   }

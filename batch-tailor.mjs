@@ -7,15 +7,15 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-// CAREER_OPS_BATCH_STATE overrides the batch-state.tsv path — the same override
+// JOBYOUGO_BATCH_STATE overrides the batch-state.tsv path — the same override
 // merge-tracker.mjs already honours, so tests can drive this script against a
 // sandbox instead of the developer's real batch run.
-const batchStateFile = process.env.CAREER_OPS_BATCH_STATE
-  ? resolve(process.env.CAREER_OPS_BATCH_STATE)
+const batchStateFile = process.env.JOBYOUGO_BATCH_STATE
+  ? resolve(process.env.JOBYOUGO_BATCH_STATE)
   : join(__dirname, 'batch', 'batch-state.tsv');
 const reportsDir = join(__dirname, 'reports');
 
-const USAGE = `career-ops batch tailor — bulk generate tailored CVs for high-scoring batch jobs
+const USAGE = `jobyougo batch tailor — bulk generate tailored CVs for high-scoring batch jobs
 
 Usage:
   node batch-tailor.mjs [--min-score N]
@@ -63,7 +63,7 @@ if (!existsSync(batchStateFile)) {
 
 // existsSync() is true for a directory and says nothing about permissions, so
 // reading can still throw (EISDIR, EACCES) — an uncaught stack trace where a
-// usage error belongs. Name the RESOLVED path: with CAREER_OPS_BATCH_STATE set,
+// usage error belongs. Name the RESOLVED path: with JOBYOUGO_BATCH_STATE set,
 // the value that failed is not the one written in the source.
 let stateContent;
 try {

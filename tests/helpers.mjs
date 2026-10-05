@@ -44,7 +44,7 @@ let warnings = 0;
  * Record and print one passing test assertion.
  *
  * The suite uses these small counters instead of a framework so it can run in
- * any freshly cloned career-ops checkout with only Node.js available.
+ * any freshly cloned jobyougo checkout with only Node.js available.
  *
  * @param {string} msg - Human-readable success message for the terminal log.
  * @returns {void}
@@ -364,7 +364,7 @@ export function formatRunFailure(maxChars = 2000) {
 /**
  * Check whether a repo-relative file exists.
  *
- * @param {string} path - Path relative to the career-ops repository root.
+ * @param {string} path - Path relative to the jobyougo repository root.
  * @returns {boolean} True when the file exists.
  */
 export function fileExists(path) { return existsSync(join(ROOT, path)); }
@@ -646,7 +646,7 @@ export async function captureConsoleErrors(fn) {
  *   temp dir names the suite that made it.
  * @param {boolean} [options.includeRoot=false] - Add `root` to the returned ctx.
  *   `addPaths` resolves paths against it to decide what is a directory; without
- *   it the guard would lstat the real career-ops checkout instead of the
+ *   it the guard would lstat the real jobyougo checkout instead of the
  *   fixture. `isTracked` never reads it.
  * @returns {{dir: string, g: Function, ctx: {git: Function, root?: string}}}
  */

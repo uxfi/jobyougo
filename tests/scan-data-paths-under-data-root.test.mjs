@@ -28,8 +28,8 @@ import { pathToFileURL } from 'url';
 
 console.log('\nscanners — user data follows the data root, not the cwd (#3510)');
 
-const dataRoot = mkdtempSync(join(tmpdir(), 'career-ops-scanroot-'));
-const decoyCwd = mkdtempSync(join(tmpdir(), 'career-ops-scandecoy-'));
+const dataRoot = mkdtempSync(join(tmpdir(), 'jobyougo-scanroot-'));
+const decoyCwd = mkdtempSync(join(tmpdir(), 'jobyougo-scandecoy-'));
 mkdirSync(join(dataRoot, 'data', 'cache'), { recursive: true });
 mkdirSync(join(decoyCwd, 'data', 'cache'), { recursive: true });
 
@@ -39,7 +39,7 @@ function inChild(snippet) {
     cwd: decoyCwd,
     encoding: 'utf-8',
     timeout: 60000,
-    env: { ...process.env, CAREER_OPS_ROOT: dataRoot, CAREER_OPS_DATA_DIR: '' },
+    env: { ...process.env, JOBYOUGO_ROOT: dataRoot, JOBYOUGO_DATA_DIR: '' },
   }).trim();
 }
 

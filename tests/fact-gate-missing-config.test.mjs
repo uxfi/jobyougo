@@ -28,7 +28,7 @@ const { loadFactConfig, verifyFacts } = factGate;
 
 console.log('\nFact gate: missing config is a distinguishable state (#3894)');
 
-const tmp = mkdtempSync(join(tmpdir(), 'career-ops-facts-missing-config-'));
+const tmp = mkdtempSync(join(tmpdir(), 'jobyougo-facts-missing-config-'));
 try {
   const source = join(tmp, 'cv.md');
   const presentConfig = join(tmp, 'cv-facts.json');
