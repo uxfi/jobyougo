@@ -10,6 +10,9 @@ import {
   compactPipeline,
   compactProfile,
   compactTracker,
+  questionLanguage,
+  questionPromptEn,
+  questionPromptFr,
 } from '../lib/prompt-budget.mjs';
 
 function ok(label, cond) {
@@ -71,6 +74,15 @@ const question = assembleUiPrompt({
 ok('question system is not _shared.md', question.systemPrompt.length < 500);
 ok('question prefetch drops the archived JD', !question.parts.join('\n').includes('lorem'));
 ok('question profile still carries form-answer rules', /Form answers|Evidence order/i.test(question.parts.join('\n')));
+ok('question prompt lists later roles from the full career', /Vloggy/.test(question.parts.join('\n')) && /Edenred/.test(question.parts.join('\n')) && /Casino/.test(question.parts.join('\n')));
+
+const enQuestion = 'Tell us about the product you are most proud of designing. What problem were you solving?';
+const frQuestion = 'Décrivez une expérience dont vous êtes fier et le problème que vous résolviez.';
+const enPrompt = questionPromptEn({ question: enQuestion, company: 'Acme', role: 'Designer', voice: 'short' });
+const frPrompt = questionPromptFr({ question: frQuestion, company: 'Acme', role: 'Designer', voice: 'court' });
+ok('english question instructions stay in english', /English only/.test(enPrompt) && /Never open with/.test(enPrompt) && !/français uniquement/.test(enPrompt));
+ok('french question instructions stay in french', /français uniquement/.test(frPrompt) && /N'ouvre jamais/.test(frPrompt));
+ok('question language follows the question', questionLanguage(enQuestion) === 'en' && questionLanguage(frQuestion) === 'fr');
 
 const tracker = [
   '| # | Date | Company | Role | Score | Status | PDF | Report | Notes |',

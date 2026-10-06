@@ -588,6 +588,7 @@ function mountProjectMethodIcons(p, mountToken) {
 }
 
 function goHome() {
+  setNavMenu(false);
   window.disconnectLazyVideos?.(document.getElementById('proj-page-content'));
   oaLiveTeardownAll();
   crLiveTeardownAll();
@@ -3079,15 +3080,15 @@ function renderProject(p) {
           <div class="proj-hero-name">${p.company}</div>
         </div>
         <div class="proj-hero-tagline">${p.tagline}</div>
-        <div class="proj-hero-desc" style="max-width:800px;">${p.desc}</div>
-        <div class="proj-hero-footer" style="display:flex; justify-content:space-between; align-items:flex-end; gap:32px; margin-top:32px; flex-wrap:wrap; width:100%;">
-          <div class="proj-meta-row" style="margin-top:0;">
+        <div class="proj-hero-desc">${p.desc}</div>
+        <div class="proj-hero-footer">
+          <div class="proj-meta-row">
             <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M5 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>${currentLang === 'en' ? 'Role' : 'Rôle'}</div><div class="proj-meta-val">${p.role}</div></div>
             <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12M5 2v2M11 2v2"/></svg>${currentLang === 'en' ? 'Duration' : 'Durée'}</div><div class="proj-meta-val">${p.duration}</div></div>
             <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 14v-1a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v1"/><circle cx="8" cy="5" r="3"/></svg>${currentLang === 'en' ? 'Team' : 'Équipe'}</div><div class="proj-meta-val">${p.team}</div></div>
             <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13h4M8 11v2"/></svg>${currentLang === 'en' ? 'Platform' : 'Plateforme'}</div><div class="proj-meta-val">${platformStr}</div></div>
           </div>
-          ${(urlBtn || landingBtn) ? `<div class="proj-hero-actions" style="margin-top:0;">${urlBtn}${landingBtn}</div>` : ''}
+          ${(urlBtn || landingBtn) ? `<div class="proj-hero-actions">${urlBtn}${landingBtn}</div>` : ''}
         </div>
       </div>
     </div>
@@ -3483,8 +3484,35 @@ if ('requestIdleCallback' in window) {
 
 const NAV_SECTIONS = ['work', 'ai-projects', 'ifaces-section', 'tools'];
 
+function setNavMenu(open) {
+  const shell = document.querySelector('.nav-shell');
+  const btn = document.querySelector('.nav-burger');
+  if (!shell || !btn) return;
+  shell.classList.toggle('is-open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function toggleNavMenu() {
+  const shell = document.querySelector('.nav-shell');
+  setNavMenu(!(shell && shell.classList.contains('is-open')));
+}
+
+document.addEventListener('click', (event) => {
+  const shell = document.querySelector('.nav-shell');
+  if (!shell || !shell.classList.contains('is-open')) return;
+  if (shell.contains(event.target)) return;
+  setNavMenu(false);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') setNavMenu(false);
+});
+document.querySelectorAll('.nav-icon-dock .btn-contact').forEach((el) => {
+  el.addEventListener('click', () => setNavMenu(false));
+});
+
 function navToSection(id, event) {
   if (event) event.preventDefault();
+  setNavMenu(false);
   const home = document.getElementById('view-home');
   const wasProject = !!(home && home.classList.contains('hidden'));
   if (wasProject) goHome();

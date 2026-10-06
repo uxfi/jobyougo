@@ -5,7 +5,7 @@ import { watch } from 'fs';
 import { join, dirname, resolve, sep, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
-import { gzipSync, brotliCompressSync, constants as zlibConstants } from 'zlib';
+import { gzipSync, brotliCompressSync, deflateRawSync, constants as zlibConstants } from 'zlib';
 import { spawn } from 'child_process';
 import { load as yamlLoad, dump as yamlDump } from 'js-yaml';
 import { supabase, isEnabled as useSupabase } from '../lib/supabase.mjs';
@@ -40,8 +40,9 @@ import {
   pinchtabSolve as pinchtabSolveRaw,
   pinchtabSolveSucceeded,
 } from '../lib/pinchtab.mjs';
-import { STYLE_RULES, polishApplicationAnswer, loadApplicationVoice, extractQuestionReportContext } from '../lib/application-writing.mjs';
-import { assembleUiPrompt, candidateFacts, clipReportForWriting, compactCv } from '../lib/prompt-budget.mjs';
+import { loadApplicationVoice, extractQuestionReportContext } from '../lib/application-writing.mjs';
+import { assembleUiPrompt, candidateFacts, clipReportForWriting, compactCv, experienceIndex } from '../lib/prompt-budget.mjs';
+import { writeFormAnswer } from '../lib/form-answer.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
 import { resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
@@ -97,6 +98,94 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+
+// Files Chrome actually loads. The bridge library stays on the server.
+const EXTENSION_ZIP_FILES = [
+  'manifest.json',
+  'background.js',
+  'apply-upload-signals.mjs',
+  'page-helper-registry.mjs',
+  'page-helpers.mjs',
+  'collect-fields.js',
+  'README.md',
+];
+const EXTENSION_INSTALL_TXT = `JobYouGo Chrome plugin
+
+1. Unzip this file.
+2. In Chrome, open chrome://extensions
+3. Turn on Developer mode.
+4. Click "Load unpacked" and select the unzipped folder.
+5. Keep the JobYouGo dashboard open. The plugin connects on its own.
+`;
+
+function zipCrc32(buf) {
+  let c = ~0;
+  for (let i = 0; i < buf.length; i++) {
+    c ^= buf[i];
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+  }
+  return ~c >>> 0;
+}
+
+function zipFiles(entries) {
+  const parts = [];
+  const centrals = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = Buffer.from(entry.name);
+    const raw = Buffer.isBuffer(entry.data) ? entry.data : Buffer.from(entry.data);
+    const data = deflateRawSync(raw);
+    const crc = zipCrc32(raw);
+    const local = Buffer.alloc(30 + name.length);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(8, 8);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(raw.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    name.copy(local, 30);
+    parts.push(local, data);
+    const central = Buffer.alloc(46 + name.length);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(data.length, 20);
+    central.writeUInt32LE(raw.length, 24);
+    central.writeUInt16LE(name.length, 28);
+    central.writeUInt32LE(offset, 42);
+    name.copy(central, 46);
+    centrals.push(central);
+    offset += local.length + data.length;
+  }
+  const centralBuf = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralBuf.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...parts, centralBuf, end]);
+}
+
+let extensionZipCache = { key: '', buf: null };
+
+async function buildExtensionZip() {
+  const paths = EXTENSION_ZIP_FILES.map((name) => join(ROOT, 'extension', name));
+  const stats = await Promise.all(paths.map((p) => stat(p)));
+  const key = stats.map((s) => s.mtimeMs).join('|');
+  if (extensionZipCache.key === key && extensionZipCache.buf) return extensionZipCache.buf;
+  const entries = [];
+  for (let i = 0; i < EXTENSION_ZIP_FILES.length; i++) {
+    entries.push({ name: EXTENSION_ZIP_FILES[i], data: await readFile(paths[i]) });
+  }
+  entries.push({ name: 'INSTALL.txt', data: Buffer.from(EXTENSION_INSTALL_TXT, 'utf8') });
+  const buf = zipFiles(entries);
+  extensionZipCache = { key, buf };
+  return buf;
+}
 const PORT = process.env.PORT || 3210;
 // Application emails are few and must not invent facts: the model is configurable.
 const APPLICATION_EMAIL_MODEL = process.env.APPLICATION_EMAIL_MODEL || MODELS.QWEN;
@@ -6742,7 +6831,7 @@ const server = createServer(async (req, res) => {
 
     // ── Auth guard (toutes les routes /api/* sauf /api/hrhv) ─────────────────
     // Read-only GET routes are accessible without auth (view-only mode)
-    const VIEW_ONLY_PATHS = ['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs', '/api/portals', '/api/queries', '/api/profile', '/api/scan-state', '/api/scan-sources', '/api/monetization/affiliates'];
+    const VIEW_ONLY_PATHS = ['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs', '/api/portals', '/api/queries', '/api/profile', '/api/scan-state', '/api/scan-sources', '/api/monetization/affiliates', '/api/apply/bridge-status', '/api/apply/extension.zip'];
     const AUTH_REQUIRED_PROFILE_PATHS = new Set(['/api/profile/status', '/api/profile/cv-parse']);
     const isViewOnlyGet = method === 'GET'
       && !AUTH_REQUIRED_PROFILE_PATHS.has(path)
@@ -7195,30 +7284,64 @@ const server = createServer(async (req, res) => {
       try { reportText = await readFile(join(ROOT, 'reports', spec.report), 'utf-8'); } catch { return []; }
       const candidateCv = await readFile(join(ROOT, 'cv.md'), 'utf-8').catch(() => '');
       if (!candidateCv.trim()) return [];
-      const voice = loadApplicationVoice(ROOT);
+      const career = experienceIndex(candidateCv);
+      const voice = loadApplicationVoice(ROOT).slice(0, 700);
       const regionLine = spec.region === 'asia'
         ? 'The candidate is based in Bangkok, Thailand (ICT, UTC+7).'
         : 'The candidate is based in Paris, France (CET/CEST).';
       const reportSlice = clipReportForWriting(reportText, 4000).replace(/\s*[—–]\s*/g, ', ');
-      const cvSlice = compactCv(candidateCv, 4500);
-      const prompt = `Here is an evaluation report for a job offer (company: ${spec.company}, role: ${spec.role}):\n\n${reportSlice}\n\n${regionLine}\nSalary target: ${spec.identity.salary}. Availability: ${spec.identity.startDate}.\n\nWrite application-form answers for these standard questions, as the candidate (first person), using only the candidate CV and explicit identity facts for personal claims. The report describes the role, not verified candidate history. Omit an answer if the facts are insufficient.\n\n${STYLE_RULES}\n\nCANDIDATE CV (source of personal facts):\n${cvSlice}\n\nUSER WRITING PREFERENCES:\n${voice.slice(0, 1800)}\n\nEach of the 7 answers must be DISTINCT. Questions 1, 2 and 4 are different angles: role scope, the company and its product, overall fit. Never reuse the same sentences across them.\n\nReply with ONLY a JSON array: [{"question": "...", "answer": "..."}] for these questions:\n1. Why are you interested in this role?\n2. Why do you want to work at ${spec.company}?\n3. Tell us about a relevant project or achievement\n4. What makes you a good fit for this position?\n5. Salary expectations\n6. Notice period / availability\n7. Cover letter (a short standalone letter; do not concatenate the other answers)`;
-      try {
-        const raw = await chat({
-          model: MODELS.QWEN,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.5,
-          max_tokens: 1800,
-        });
-        const jsonText = raw.match(/\[[\s\S]*\]/)?.[0];
-        const parsed = JSON.parse(jsonText || '[]');
-        return Array.isArray(parsed)
-          ? parsed.filter(a => a?.question && a?.answer).map(a => ({ question: String(a.question), answer: String(a.answer) }))
-              .map(a => ({ ...a, answer: polishApplicationAnswer(a.answer) }))
-          : [];
-      } catch (err) {
-        console.warn('[apply] fallback answers generation failed:', err.message);
-        return [];
+      const facts = `${regionLine}\nSalary target: ${spec.identity.salary}. Availability: ${spec.identity.startDate}.`;
+      const offerContext = `Company: ${spec.company}\nRole: ${spec.role}\n\n${reportSlice}`;
+      const questions = [
+        'Why are you interested in this role?',
+        `Why do you want to work at ${spec.company}?`,
+        'Tell us about a relevant project or achievement',
+        'What makes you a good fit for this position?',
+        'Salary expectations',
+        'Notice period / availability',
+        'Cover letter',
+      ];
+      const complete = (req) => chat({
+        model: MODELS.QWEN,
+        messages: [{ role: 'user', content: req.user }],
+        systemPrompt: req.system,
+        temperature: req.temperature,
+        max_tokens: req.max_tokens,
+      });
+      const answers = [];
+      for (const question of questions) {
+        try {
+          const written = await writeFormAnswer({
+            question,
+            company: spec.company,
+            role: spec.role,
+            career,
+            voice,
+            facts,
+            offerContext,
+            complete,
+          });
+          if (written.answer) answers.push({ question, answer: written.answer });
+        } catch (err) {
+          console.warn('[apply] fallback answer failed:', err.message);
+        }
       }
+      return answers;
+    }
+
+    // Unpacked Chrome plugin. The dashboard offers this when the bridge is down.
+    if (path === '/api/apply/extension.zip' && method === 'GET') {
+      try {
+        const zip = await buildExtensionZip();
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', 'attachment; filename="jobyougo-chrome-plugin.zip"');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.writeHead(200);
+        res.end(zip);
+      } catch (err) {
+        json(res, { error: String(err?.message || err) }, 500);
+      }
+      return;
     }
 
     // Whether the Chrome plugin is connected: the apply modal says up front
@@ -8242,12 +8365,13 @@ const server = createServer(async (req, res) => {
         const systemPrompt = budget.systemPrompt;
         const parts = budget.parts;
         console.log(`[${mode}] prompt budget ${budget.beforeChars} → ${budget.afterChars} chars`);
+        let questionStories = '';
         if (mode === 'question') {
           const asked = urlObj.searchParams.get('question') || '';
           const behavioral = /\b(time when|tell (?:us|me) about a time|describe a (?:time|situation)|exemple de situation|raconte)\b/i.test(asked);
           if (behavioral) {
             const stories = await readFile(join(ROOT, 'interview-prep/story-bank.md'), 'utf-8').catch(() => '');
-            if (stories.trim()) parts.push(`## Story bank\n${stories.slice(0, 2000)}`);
+            if (stories.trim()) questionStories = stories.slice(0, 2000);
           }
         }
         const SCORE_FORMAT_RULE = `FORMAT DU SCORE (obligatoire, même en hard fail):
@@ -8289,54 +8413,7 @@ Règles:
         } else if (mode === 'apply') {
           parts.push(`---\nTu démarres le mode apply pour une offre déjà sélectionnée. Utilise le report complet fourni ci-dessus pour préparer un starter pack d'application: résumé ciblé de l'offre, 3-5 angles forts à réutiliser, pièces à joindre, valeurs probables pour les champs standards (salaire, préavis, visa/remote) basées sur profile.yml si disponibles, puis une liste concise de ce qu'il faut partager ensuite (screenshot ou copier-coller des questions). N'invente aucun champ de formulaire non visible et ne prétends pas voir le formulaire tant qu'il n'a pas été fourni.`);
         } else if (mode === 'question') {
-          const userQuestion = urlObj.searchParams.get('question')?.trim() || '';
-          parts.push(`---
-Tu dois répondre à une question de formulaire de candidature pour l'offre ci-dessus.
-
-**Question posée dans le formulaire :**
-${userQuestion || '(aucune question fournie — demande à l\'utilisateur de la préciser)'}
-
-SOURCES À UTILISER (uniquement les sections déjà dans ce prompt) :
-1. Expérience : CV compact + Evidence order du profil. Le résumé A/B de l'offre donne le vocabulaire, pas des métriques à inventer.
-2. Motivation : détail de l'offre + une preuve du CV. Pas de cover letter, pas de plan d'entretien.
-3. Factuel (salaire, préavis, remote, visa) : critères de matching.
-4. Behavioral : story bank seulement s'il est présent dans le prompt.
-
-RÈGLES DE FOND :
-1. Réponds à la question LITTÉRALEMENT. Si elle contient plusieurs sous-questions, couvre-les toutes dans le même ordre.
-2. Pour une question d'expérience : une seule référence employeur ou client. Priorité à l'importance de la marque (LVMH, Renault, Société Générale) puis à l'ancienneté (poste de plusieurs années avant un rôle de 6 mois ou un prototype). OneAsset = poste actuel, pas le défaut si une marque plus forte ou plus longue convient. Décris la méthode dans ce cadre.
-3. Projets perso (UXfi, Flemme, Creads, Panfy, Jarvos, JobYouGo) = PAS une référence. Uniquement un support de motivation, une courte clause. Jamais la preuve d'expérience ou de skill. Jamais « Sur Creads.io… » / « Chez Flemme… ».
-4. Questions AI/LLM : la référence est le workflow employeur (OneAsset : Cursor, Claude, GitHub). Pratiques concrètes. Pas un side project comme credential. Pas une liste de buzzwords. Figmol est l'outil interne que le candidat a construit pour relire l'app. Ne pas le citer comme un outil au même titre que Cursor, Claude, GitHub ou Figma. Le nommer seulement dans le récit OneAsset.
-5. Si l'expérience exacte demandée n'existe pas, dis-le clairement en une courte clause, puis bascule vers l'expérience adjacente la plus crédible.
-6. Ne transforme jamais une expérience adjacente en expérience directe.
-7. N'invente jamais les utilisateurs. Nomme les vrais users du projet cité seulement si qualitatif et utile.
-8. N'utilise jamais du langage de translation flou du type "maps closely to", "similar infrastructure field", "this experience translates to", "internal AI operators", "robust pipeline orchestration", sauf si c'est un fait exact présent dans les sources.
-9. Privilégie une réponse simple, concrète, courte. 40 à 110 mots par défaut.
-10. Si la question demande produit + utilisateurs + problème + impact, réponds exactement dans cet ordre (sans présenter le produit comme une marque célèbre).
-
-RÈGLES DE RÉDACTION :
-Phrases courtes. Une idée par phrase. Pas de tiret cadratin. Réponds puis arrête. Pas d'accroche (« I'm excited to ») ni de closer (« That's the work I do »). Yes / No / URL = la valeur seule.
-
-VOIX :
-${loadApplicationVoice(ROOT).slice(0, 900)}
-
-CLASSIFICATION DE LA QUESTION :
-- Motivation ("Pourquoi nous / ce rôle ?") → détail de l'offre. Side project autorisé ici seulement, une clause d'intérêt, pas comme preuve.
-- Expérience / projet → une référence employeur/client, marque + ancienneté. Pas de projet perso.
-- Compétence / AI-LLM → pratique concrète dans un poste (OneAsset ou autre employeur). Pas de side project comme référence.
-- Valeurs / style de travail → honnête + cohérent avec _profile.md (autonomie, systèmes, ownership)
-- Factuel (salaire, préavis, remote, visa) → réponse directe depuis profile.yml
-- Open-ended ("Parlez-nous de vous") → archétype + une preuve méthode + fit spécifique à cette offre
-
-Format de sortie — UNIQUEMENT ceci, prêt à coller :
-
-## ${urlObj.searchParams.get('company') || 'Company'} — ${urlObj.searchParams.get('role') || 'Role'}
-**Question :** [question exacte reprise telle quelle]
-
-[Réponse]
-
----
-_Note : [uniquement si quelque chose doit être vérifié ou personnalisé avant envoi — sinon, omets complètement cette ligne]_`);
+          // Prompt and rewrite live in writeFormAnswer, shared with auto-apply.
         } else if (mode === 'coverletter') {
           parts.push(`---
 Génère deux textes pour cette offre, à partir du CV et du rapport déjà dans le prompt.
@@ -8447,6 +8524,29 @@ Contraintes : langue de l'annonce, pas de métrique inventée, pas de version lo
           streamMeta.finish_reason = 'jev-hard-reject';
           console.log(`[pipeline] skipping text LLM — hardReject=true reasons=${JSON.stringify(profileGate.reasons)}`);
           send('status', { text: 'Hard pass — pas d’évaluation LLM texte' });
+          send('chunk', { text: fullResponse });
+        } else if (mode === 'question') {
+          const userQuestion = urlObj.searchParams.get('question')?.trim() || '';
+          const companyLabel = urlObj.searchParams.get('company') || 'Company';
+          const roleLabel = urlObj.searchParams.get('role') || 'Role';
+          const written = await writeFormAnswer({
+            question: userQuestion,
+            company: companyLabel,
+            role: roleLabel,
+            career: experienceIndex(cv),
+            voice: loadApplicationVoice(ROOT).slice(0, 700),
+            facts: profileCriteriaBlock || '',
+            offerContext: [prefetchData, questionStories].filter(Boolean).join('\n\n'),
+            complete: (req) => chat({
+              model: MODELS.QWEN,
+              messages: [{ role: 'user', content: req.user }],
+              systemPrompt: req.system,
+              temperature: req.temperature,
+              max_tokens: req.max_tokens,
+            }),
+          });
+          fullResponse = written.block;
+          streamMeta.finish_reason = 'form-answer';
           send('chunk', { text: fullResponse });
         } else {
           const promptLength = parts.join('\n\n').length;

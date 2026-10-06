@@ -345,6 +345,74 @@
   }
   .topbar-sync[hidden] { display: none; }
 
+  .plugin-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 8px 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.03);
+    color: var(--text-2);
+    font-size: 12.5px;
+    flex-shrink: 0;
+  }
+  .plugin-chip-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-4);
+    flex-shrink: 0;
+  }
+  .plugin-chip[data-state="on"] .plugin-chip-dot {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(45,212,160,0.14);
+  }
+  .plugin-chip[data-state="off"] .plugin-chip-dot {
+    background: var(--warn);
+    box-shadow: 0 0 0 3px var(--warm-soft);
+  }
+  .plugin-chip-label { white-space: nowrap; }
+  .plugin-chip-btn { height: 24px; }
+  .plugin-chip-btn-short { display: none; }
+  .plugin-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: min(320px, calc(100vw - 24px));
+    padding: 14px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-pop);
+    z-index: 40;
+    color: var(--text-2);
+  }
+  .plugin-panel[hidden] { display: none; }
+  .plugin-panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-1);
+    margin-bottom: 6px;
+  }
+  .plugin-panel-copy { font-size: 12.5px; line-height: 1.45; margin-bottom: 12px; }
+  .plugin-panel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .plugin-panel-steps {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    color: var(--text-3);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .plugin-panel-steps code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-2);
+  }
+
   .btn-portfolio-switch {
     display: inline-flex;
     align-items: center;
@@ -3547,6 +3615,11 @@
     .topbar-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .topbar-actions { gap: 6px; }
     .topbar-sync { display: none; }
+    .plugin-chip { padding-left: 8px; }
+    .plugin-chip-label { display: none; }
+    .plugin-chip[data-state="on"] .plugin-chip-label { display: inline; }
+    .plugin-chip-btn-long { display: none; }
+    .plugin-chip-btn-short { display: inline; }
     .btn-portfolio-switch { height: 30px; padding: 0 10px; font-size: 12px; }
     .content { padding: 18px 16px 32px; }
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -3727,6 +3800,28 @@
       </button>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
       <div class="topbar-actions" id="topbar-actions">
+        <div class="plugin-chip" id="plugin-chip" data-state="checking">
+          <span class="plugin-chip-dot" aria-hidden="true"></span>
+          <span class="plugin-chip-label" id="plugin-chip-label">Checking plugin…</span>
+          <button type="button" class="btn btn-accent btn-xs plugin-chip-btn" id="plugin-chip-btn" hidden aria-expanded="false" aria-controls="plugin-panel">
+            <span class="plugin-chip-btn-long">Connect or download</span>
+            <span class="plugin-chip-btn-short">Plugin</span>
+          </button>
+          <div class="plugin-panel" id="plugin-panel" hidden role="dialog" aria-label="Chrome plugin">
+            <div class="plugin-panel-title">Chrome plugin</div>
+            <p class="plugin-panel-copy">Load it once in Chrome. It connects to this dashboard on its own, and applications then run in your own browser.</p>
+            <div class="plugin-panel-actions">
+              <a class="btn btn-primary btn-sm" id="plugin-download" href="/api/apply/extension.zip" download="jobyougo-chrome-plugin.zip">Download</a>
+              <button type="button" class="btn btn-ghost btn-sm" id="plugin-chip-retry">Check again</button>
+            </div>
+            <ol class="plugin-panel-steps">
+              <li>Unzip the file.</li>
+              <li>Open <code>chrome://extensions</code>.</li>
+              <li>Turn on Developer mode.</li>
+              <li>Load unpacked and select that folder.</li>
+            </ol>
+          </div>
+        </div>
         <span class="topbar-sync" id="topbar-sync" hidden></span>
         <!-- Portfolio switch -->
         <a href="portfolio" class="btn-portfolio-switch" title="Open portfolio">
@@ -9208,6 +9303,66 @@ document.addEventListener('click', e => {
   if (btnRun) { runScript(btnRun.dataset.run, btnRun.dataset.title); return; }
 });
 
+// Chrome plugin: live bridge status in the top bar. Disconnected offers a
+// download of the unpacked extension; the extension connects by itself.
+function setPluginChip(state, label, title) {
+  const chip = document.getElementById('plugin-chip');
+  const text = document.getElementById('plugin-chip-label');
+  const btn = document.getElementById('plugin-chip-btn');
+  const panel = document.getElementById('plugin-panel');
+  if (!chip || !text || !btn) return;
+  chip.dataset.state = state;
+  text.textContent = label;
+  chip.title = title || label;
+  const off = state === 'off';
+  btn.hidden = !off;
+  if (!off && panel) {
+    panel.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+async function refreshPluginChip() {
+  try {
+    const res = await fetch('/api/apply/bridge-status');
+    if (!res.ok) throw new Error(String(res.status));
+    const status = await res.json();
+    if (status?.connected) {
+      const version = status.version ? `v${status.version}` : '';
+      setPluginChip('on', 'Plugin on', version ? `Chrome plugin connected (${version})` : 'Chrome plugin connected');
+      return;
+    }
+    setPluginChip('off', 'Plugin off', 'Chrome plugin is not connected');
+  } catch {
+    setPluginChip('off', 'Plugin off', 'Chrome plugin is not connected');
+  }
+}
+
+function togglePluginPanel(force) {
+  const panel = document.getElementById('plugin-panel');
+  const btn = document.getElementById('plugin-chip-btn');
+  if (!panel || !btn || btn.hidden) return;
+  const open = typeof force === 'boolean' ? force : panel.hidden;
+  panel.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+document.getElementById('plugin-chip-btn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  togglePluginPanel();
+});
+document.getElementById('plugin-chip-retry')?.addEventListener('click', () => {
+  refreshPluginChip();
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#plugin-chip')) togglePluginPanel(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') togglePluginPanel(false);
+});
+refreshPluginChip();
+setInterval(refreshPluginChip, 8000);
+
 // Init lancé après auth (voir module Supabase ci-dessous)
 </script>
 
@@ -9259,7 +9414,7 @@ if (!session && !isViewOnly) {
       '.apply-row-btn, .auto-apply-row-btn, .cover-letter-row-btn, .email-row-btn, .question-row-btn, ' +
       '.mark-applied-btn, .delete-application-btn, [data-bulk-enable], #btn-signout'
     ).forEach(el => {
-      if (el.id === 'btn-signout') return; // keep sign-in button
+      if (el.id === 'btn-signout' || el.closest('#plugin-chip')) return;
       el.disabled = true;
       el.style.opacity = '0.3';
       el.style.cursor  = 'not-allowed';

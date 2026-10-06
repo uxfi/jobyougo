@@ -12,9 +12,10 @@ const STORY_CHAPTERS = {
       figTitle: 'Product desk',
       figHint: 'Click a panel',
       figStatus: ['Brief', 'Screens', 'Agent'],
-      title: 'Product and design at OneAsset',
+      title: 'I design the product, and the agents around it',
       paragraphs: [
-        'Today I work on product strategy and design at <strong>OneAsset</strong>, alongside my independent projects.'
+        'At OneAsset I’m the product manager and the only designer. That means the product, the admin platform and the marketing site.',
+        'I prototype with AI coding tools and send the design through agents on GitHub. Figmol is the review tool I built for that. My own products are still going on the side.'
       ]
     },
     {
@@ -24,9 +25,10 @@ const STORY_CHAPTERS = {
       figTitle: 'Three products',
       figHint: 'Click a product',
       figStatus: ['UXfi', 'Flemme OS', 'Creads.io'],
-      title: 'UXfi, Flemme OS and Creads.io',
+      title: 'I build products on my own',
       paragraphs: [
-        'Independent products include <strong>UXfi</strong>, <strong>Flemme OS</strong> and <strong>Creads.io</strong>, which has 1,200 registered users and 20 paying clients.'
+        'Since 2022 I’ve built UXfi, Flemme OS and Creads.io, on my own.',
+        'UXfi scores an e-commerce site and suggests redesigns. Flemme OS does the social posts and the outreach. Creads.io is an AI ad product: 1,200 people signed up, and 20 of them pay.'
       ]
     },
     {
@@ -36,9 +38,10 @@ const STORY_CHAPTERS = {
       figTitle: 'Workflow',
       figHint: 'Click a step',
       figStatus: ['Prompt', 'Screen', 'Check'],
-      title: 'Four years with AI',
+      title: 'AI is in how I design',
       paragraphs: [
-        'I have worked with <strong>AI for 4 years</strong>, and rebuilt my UX and design workflow around it.'
+        'I’ve worked with AI for 4 years. I rebuilt how I do UX and design around it.',
+        'On an AI product I write the prompts, plug in the data and the integrations, then look at what comes back.'
       ]
     },
     {
@@ -48,27 +51,23 @@ const STORY_CHAPTERS = {
       figTitle: 'Studio',
       figHint: 'Click a seat',
       figStatus: ['Seat 1', 'Seat 2', 'Seat 3', 'Seat 4'],
-      title: 'Agence V0',
+      title: 'I ran a product design agency',
       paragraphs: [
-        'In <strong>2020</strong>, I founded <strong>Agence V0</strong>, a product design agency.',
-        'I managed up to <strong>7 junior freelance designers</strong>. The agency generated around <strong>€400K over three years</strong>.',
-        'My client work included <strong>LVMH</strong>, <strong>Société Générale</strong>, Renault and Shiseido.'
+        'In 2020 I started Agence V0 and managed up to 7 junior freelance designers. Over three years the agency made about €400K.',
+        'At LVMH I worked on data-marketing flows across 15+ maisons, and at Renault on the international marketplace. Société Générale was regulated investment journeys. Shiseido was a client too.'
       ]
     },
     {
       id: 'story-earlier',
-      label: 'Earlier',
+      label: 'Team',
       fig: 'archive',
-      figTitle: 'Archive',
-      figHint: 'Click a piece',
-      figStatus: ['Newflux', 'Vloggy', 'UX'],
-      title: 'Twelve years in UX',
+      figTitle: 'From scratch',
+      figHint: 'Click a mode',
+      figStatus: ['Solo', 'Team', 'Ship'],
+      title: 'I start from scratch and manage the people',
       paragraphs: [
-        'I have spent <strong>12 years in UX</strong>, starting in digital design and working at <strong>Marcel/Publicis</strong>.',
-        'I then went <strong>freelance</strong>, working with startups and larger companies.',
-        'In <strong>2015</strong>, I founded <strong>Newflux.fr</strong>, a French UX/UI publication. I published 300+ articles and organized events and workshops.',
-        'In <strong>2017</strong>, I co-founded <strong>Vloggy</strong>, a video social network with a mobile editing studio.',
-        'We raised <strong>€100K</strong> and reached delivery stage. We later stopped operations when funding ran out.'
+        'For 12 years I’ve taken products from nothing to something people can use, on my own or while managing the team.',
+        'At Agence V0 that was up to 7 junior freelance designers.'
       ]
     }
   ],
@@ -80,9 +79,10 @@ const STORY_CHAPTERS = {
       figTitle: 'Bureau produit',
       figHint: 'Cliquer un panneau',
       figStatus: ['Brief', 'Écrans', 'Agent'],
-      title: 'Produit et design chez OneAsset',
+      title: 'Je conçois le produit, et les agents autour',
       paragraphs: [
-        'Aujourd’hui, je travaille sur la stratégie produit et le design chez <strong>OneAsset</strong>, en parallèle de mes projets indépendants.'
+        'Chez OneAsset, je suis product manager et le seul designer. Je m’occupe du produit, de l’admin et du site marketing.',
+        'Je prototype avec des outils de code IA, et je fais passer le design par des agents sur GitHub. Figmol, c’est l’outil de revue que j’ai fait pour ça. Mes propres produits tournent encore à côté.'
       ]
     },
     {
@@ -92,9 +92,10 @@ const STORY_CHAPTERS = {
       figTitle: 'Trois produits',
       figHint: 'Cliquer un produit',
       figStatus: ['UXfi', 'Flemme OS', 'Creads.io'],
-      title: 'UXfi, Flemme OS et Creads.io',
+      title: 'Je construis des produits, seul',
       paragraphs: [
-        'Parmi les produits indépendants : <strong>UXfi</strong>, <strong>Flemme OS</strong> et <strong>Creads.io</strong>, qui compte 1 200 utilisateurs inscrits et 20 clients payants.'
+        'Depuis 2022, je construis UXfi, Flemme OS et Creads.io, seul.',
+        'UXfi note un site e-commerce et propose une refonte. Flemme OS s’occupe des posts et de la prospection. Creads.io est un produit de pub avec de l’IA : 1 200 inscrits, dont 20 qui paient.'
       ]
     },
     {
@@ -104,9 +105,10 @@ const STORY_CHAPTERS = {
       figTitle: 'Workflow',
       figHint: 'Cliquer une étape',
       figStatus: ['Prompt', 'Écran', 'Contrôle'],
-      title: 'Quatre ans avec l’IA',
+      title: 'L’IA est dans ma façon de concevoir',
       paragraphs: [
-        'Je travaille avec l’<strong>IA depuis 4 ans</strong>, et j’ai adapté mon workflow UX et design autour d’elle.'
+        'Ça fait 4 ans que je travaille avec l’IA. J’ai refait ma façon de faire l’UX et le design autour.',
+        'Sur un produit IA, j’écris les prompts, je branche les données et les intégrations, puis je regarde ce qui ressort.'
       ]
     },
     {
@@ -116,27 +118,23 @@ const STORY_CHAPTERS = {
       figTitle: 'Studio',
       figHint: 'Cliquer une place',
       figStatus: ['Place 1', 'Place 2', 'Place 3', 'Place 4'],
-      title: 'Agence V0',
+      title: 'J’ai dirigé une agence de product design',
       paragraphs: [
-        'En <strong>2020</strong>, j’ai fondé <strong>Agence V0</strong>, une agence de product design.',
-        'J’y ai encadré jusqu’à <strong>7 designers freelances juniors</strong>. L’agence a réalisé environ <strong>400K EUR sur trois ans</strong>.',
-        'J’ai notamment travaillé pour <strong>LVMH</strong>, <strong>Société Générale</strong>, Renault et Shiseido.'
+        'En 2020, j’ai monté Agence V0 et j’ai encadré jusqu’à 7 designers freelances juniors. En trois ans, l’agence a fait environ 400K EUR.',
+        'Chez LVMH, des flux de data marketing pour plus de 15 maisons, et chez Renault la marketplace internationale. Société Générale, c’était des parcours d’investissement réglementés. Shiseido était client aussi.'
       ]
     },
     {
       id: 'story-earlier',
-      label: 'Avant',
+      label: 'Équipe',
       fig: 'archive',
-      figTitle: 'Archives',
-      figHint: 'Cliquer une pièce',
-      figStatus: ['Newflux', 'Vloggy', 'UX'],
-      title: 'Douze ans d’UX',
+      figTitle: 'Depuis zéro',
+      figHint: 'Cliquer un mode',
+      figStatus: ['Seul', 'Équipe', 'Livraison'],
+      title: 'Je pars de zéro, et je dirige les gens',
       paragraphs: [
-        'Je travaille dans <strong>l’UX depuis 12 ans</strong>. J’ai commencé dans le design digital, puis travaillé chez <strong>Marcel/Publicis</strong>.',
-        'Je suis ensuite devenu <strong>freelance</strong>, auprès de startups et de grands groupes.',
-        'En <strong>2015</strong>, j’ai fondé <strong>Newflux.fr</strong>, un média UX/UI français. J’y ai publié 300+ articles et organisé des événements et des ateliers.',
-        'En <strong>2017</strong>, j’ai cofondé <strong>Vloggy</strong>, un réseau social vidéo avec un studio de montage mobile.',
-        'Nous avons levé <strong>100K EUR</strong> et atteint le stade de livraison. Nous avons ensuite arrêté l’activité faute de financement.'
+        'Depuis 12 ans, j’amène des produits de rien jusqu’à une version que les gens peuvent utiliser, seul ou en dirigeant l’équipe.',
+        'Chez Agence V0, ça a été jusqu’à 7 designers freelances juniors.'
       ]
     }
   ]
@@ -286,14 +284,14 @@ function renderStoryModalContent() {
         </div>
       </div>
       <div class="story-parallax-fade"></div>
-      <div class="story-parallax-cue">
+      <button type="button" class="story-parallax-cue" id="story-scroll-cue">
         <span class="story-parallax-cue-label">${scrollLabel}</span>
-        <span class="story-parallax-cue-dot">
+        <span class="story-parallax-cue-dot" aria-hidden="true">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3.5 6.5L8 11l4.5-4.5"></path>
           </svg>
         </span>
-      </div>
+      </button>
     </div>
   `;
 
@@ -441,6 +439,17 @@ function updateStoryScrollCue() {
   cue.classList.toggle('hidden', scroller.scrollTop > 24);
 }
 
+function scrollStoryDown() {
+  const scroller = document.getElementById('story-modal-scroller');
+  const target = scroller?.querySelector('.story-chapter');
+  if (!scroller || !target) return;
+  const nav = scroller.querySelector('.story-chapters');
+  const bar = nav && getComputedStyle(nav).flexDirection === 'row';
+  const offset = bar ? nav.getBoundingClientRect().height + 16 : 24;
+  const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - offset;
+  scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
 function openStoryModal() {
   const modal = document.getElementById('story-modal');
   const scroller = document.getElementById('story-modal-scroller');
@@ -485,6 +494,11 @@ document.getElementById('story-modal-scroller').addEventListener('scroll', () =>
   updateStoryScrollCue();
 }, { passive: true });
 document.getElementById('story-modal-scroller').addEventListener('click', (event) => {
+  if (event.target.closest('#story-scroll-cue')) {
+    event.preventDefault();
+    scrollStoryDown();
+    return;
+  }
   const link = event.target.closest('.story-chapter-link');
   if (!link) return;
   event.preventDefault();

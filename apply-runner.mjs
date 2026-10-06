@@ -18,6 +18,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { resolveUnknownFields } from './lib/apply-llm.mjs';
+import { loadCareerIndex } from './lib/form-answer.mjs';
 import { classifyField } from './lib/apply-classify.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, yesNoText } from './lib/apply-select.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice, loadCvSummary } from './lib/application-writing.mjs';
@@ -1953,7 +1954,7 @@ async function fillFields(frame, spec) {
       answers = await resolveUnknownFields({
         fields: llmTargets.map(f => ({ i: f.i, label: f.label, kind: llmKind(f), required: f.required, multiple: fieldIsMulti(f), options: f.options })),
         spec,
-        cvSummary: loadCvSummary(ROOT),
+        career: loadCareerIndex(ROOT),
         styleGuide: loadApplicationVoice(ROOT),
       });
     } catch (err) {

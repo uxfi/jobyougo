@@ -7,8 +7,12 @@ import {
   assessRemote,
   collapseDuplicateTitles,
   dedupeCandidates,
-  explainTitle,
+  evaluateCandidate,
+  explicitDateFromText,
+  relativeDateFromText,
+  resolvePublishedDate,
   runTitleDryRun,
+  explainTitle,
   selectRoster,
 } from '../lib/scan-decision.mjs';
 import { buildJevScanResponse, classifyJevOutcome } from '../lib/jev.mjs';
@@ -48,6 +52,68 @@ if (!manager.ok) pass('Engineering Manager is blocked by a configured pattern');
 else fail('Engineering Manager should be rejected');
 
 const today = '2026-09-24';
+if (explicitDateFromText('Tuyển dụng Product Manager [Update 23/06/2026]') === '2026-06-23') {
+  pass('a day/month/year in the title is a published date');
+} else fail(`expected 2026-06-23, got ${explicitDateFromText('Tuyển dụng Product Manager [Update 23/06/2026]')}`);
+if (explicitDateFromText('606 Senior Product Manager Ai Job Vacancies In July 2026') === '2026-07-31') {
+  pass('a month and year in the title uses the last day of that month');
+} else fail(`expected 2026-07-31, got ${explicitDateFromText('606 Senior Product Manager Ai Job Vacancies In July 2026')}`);
+
+const titledOld = evaluateCandidate(
+  { url: 'https://example.com/jobs/991122', title: 'Senior Product Manager Update 23/06/2026', location: 'Remote' },
+  { scan_max_age_days: 7, title_filter: { positive: ['Product Manager'] } },
+  { today: '2026-10-06' },
+);
+if (titledOld.reasonCode === 'age' && titledOld.disposition === 'reject') {
+  pass('a title date older than scan_max_age_days is rejected');
+} else fail(`expected age reject, got ${titledOld.disposition}/${titledOld.reasonCode} ${titledOld.reasons.join('; ')}`);
+
+const ageGate = { scan_max_age_days: 7, title_filter: { positive: ['Product Manager'] } };
+const postedAgo = evaluateCandidate(
+  { url: 'https://example.com/jobs/441100', title: 'Senior Product Manager', description: 'Posted 20 days ago' },
+  ageGate,
+  { today: '2026-10-06' },
+);
+if (postedAgo.reasonCode === 'age') pass('a "posted N days ago" badge older than the window is rejected');
+else fail(`expected age reject for posted 20 days ago, got ${postedAgo.disposition}/${postedAgo.reasonCode}`);
+
+const weeksAgo = relativeDateFromText('il y a 3 semaines', '2026-10-06');
+if (weeksAgo === '2026-09-15') pass('il y a 3 semaines resolves to 21 days before today');
+else fail(`expected 2026-09-15, got ${weeksAgo}`);
+
+const fromUrl = resolvePublishedDate({ url: 'https://blog.example.com/2026/05/02/senior-product-manager', title: 'Senior Product Manager' }, '2026-10-06');
+if (fromUrl === '2026-05-02') pass('a /YYYY/MM/DD path is a published date');
+else fail(`expected 2026-05-02 from the URL, got ${fromUrl}`);
+
+const experience = evaluateCandidate(
+  { url: 'https://example.com/jobs/441101', title: 'Senior Product Manager', description: 'Plus de 3 mois d\'expérience et 5 years of experience.' },
+  ageGate,
+  { today: '2026-10-06' },
+);
+if (experience.reasonCode !== 'age') pass('experience length is not treated as a publication date');
+else fail(`experience text was read as a publication date: ${experience.reasons.join('; ')}`);
+
+const hier = resolvePublishedDate(
+  { title: 'Senior Product Manager', description: 'Hier, l equipe a livre un prototype.' },
+  '2026-10-06',
+);
+if (!hier) pass('a French sentence starting with Hier is not a publication date');
+else fail(`Hier sentence became ${hier}`);
+
+const history = resolvePublishedDate(
+  { title: 'Senior Product Manager', publishedAt: '2026-10-05', description: 'We published the design system in March 2020.' },
+  '2026-10-06',
+);
+if (history === '2026-10-05') pass('a source date is kept when the description mentions an older publication');
+else fail(`source date was replaced by ${history}`);
+
+const futureTitle = resolvePublishedDate(
+  { title: 'Product Manager — you may join in October 2026' },
+  '2026-10-06',
+);
+if (!futureTitle) pass('a future month in the title is not a publication date');
+else fail(`future title date became ${futureTitle}`);
+
 const fresh = assessFreshness({ publishedAt: '', firstSeen: '', maxAgeDays: 7, today });
 if (fresh.ok && fresh.source === 'proxy' && fresh.freshness < 0.5) pass('undated offer uses a first_seen proxy and is downranked');
 else fail(`expected proxy downrank, got ${JSON.stringify(fresh)}`);

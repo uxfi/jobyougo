@@ -121,10 +121,10 @@ Then read `modes/_profile.md` → **Writing Style** and `modes/_custom.md` → *
 5. One JD detail + one real proof point. Describe the method and scope. Do not catalogue projects. Do not paste headcounts, %, revenue, month counts, or year ranges into free-text answers.
 6. Experience: one employer or client reference. Rank by **brand importance** (LVMH, Renault, Société Générale before smaller names) and **tenure** (multi-year before a 6-month role or a prototype). OneAsset is the current job, not the automatic lead. Describe the method inside that job. Never invent users, metrics, emotion, or employers.
 6b. **Personal projects (UXfi, Flemme OS, Creads.io, Panfy, Jarvos, Ancient World, JobYouGo) are not references.** Do not use them to answer experience, skill, or AI/LLM questions. Motivation only: one short clause of interest, not a brand drop ("On Creads.io…", "At Flemme OS…"). If the question is not about motivation, leave them out.
-7. Missing exact experience: say so in one short clause, then the closest adjacent fact. Never recast adjacent as direct.
+7. Never open with a denial ("I have not", "Je n'ai pas") when the full career already contains a relevant product, role, or skill. Read the whole history before answering, including later roles. One closest real match. A true gap stays one short positive clause about the nearest shipped work, without recasting it as the missing thing.
 8. No vague bridges: "maps closely to", "this experience translates to", "similar infrastructure field".
 9. If the form asks product + users + problem + impact together → method/what you built first, then users/problem in plain terms. Still no famous-brand framing for side projects. Skip numeric impact unless the field is explicitly about metrics or salary.
-10. Language of the question (FR or EN).
+10. Language of the question (FR or EN). An English question gets an English answer, even when the notes around it are in French.
 11. **No em dash (—). No en dash as a pause.** Period or comma. Numeric ranges use a hyphen (`70-110K`) only on salary/comp fields. No semicolon as a fancy comma.
 12. No not-X-but-Y. No forced triads. No staged openers ("I'm excited to", "Throughout my career", "Here's the thing").
 13. Banned unless they are a product name: delve, leverage, utilize, robust, seamless, cutting-edge, passionate, thrilled, unique blend, meaningful impact, game-changer.

@@ -17,6 +17,7 @@ import { AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE } from '../lib/form-detect.mjs';
 import { classifyField } from '../lib/apply-classify.mjs';
 import { resolveUnknownFields, polishApplicationAnswer, hasUnresolvedPlaceholder } from '../lib/apply-llm.mjs';
 import { loadApplicationVoice, loadCvSummary } from '../lib/application-writing.mjs';
+import { loadCareerIndex } from '../lib/form-answer.mjs';
 import {
   shouldFillField,
   isSubstantiveOptionalQuestion,
@@ -1784,7 +1785,7 @@ export class ApplyBridge {
               options: f.options,
             })),
             spec,
-            cvSummary: loadCvSummary(ROOT),
+            career: loadCareerIndex(ROOT),
             styleGuide: loadApplicationVoice(ROOT),
           });
         } catch (err) {
