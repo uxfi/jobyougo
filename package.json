@@ -7,6 +7,7 @@
     "node": ">=18"
   },
   "scripts": {
+    "lint": "node scripts/check-syntax.mjs",
     "dev": "node ui/server.mjs",
     "build:effects": "npm --prefix ui/effects run build",
     "test:writing": "node --test tests/application-writing.test.mjs",
