@@ -16,7 +16,9 @@ function initNeuralVortexBackground() {
   };
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let animationFrame = null;
-  let isVisible = true;
+  let isVisible = false;
+  let lastFrame = 0;
+  const FRAME_MS = 1000 / 30;
 
   const vsSource = `
     precision mediump float;
@@ -44,7 +46,7 @@ function initNeuralVortexBackground() {
       vec2 sine_acc = vec2(0.);
       vec2 res = vec2(0.);
       float scale = 8.;
-      for (int j = 0; j < 15; j++) {
+      for (int j = 0; j < 8; j++) {
         uv = rotate(uv, 1.);
         sine_acc = rotate(sine_acc, 1.);
         vec2 layer = uv * scale + float(j) + sine_acc - t;
@@ -129,9 +131,9 @@ function initNeuralVortexBackground() {
 
   function resizeCanvas() {
     refreshSectionGeometry();
-    const dpr = 1; // cap to 1: noise pattern doesn't need retina, saves ~4x GPU on retina
-    canvasEl.width = Math.max(1, Math.floor(sectionWidth * dpr));
-    canvasEl.height = Math.max(1, Math.floor(sectionHeight * dpr));
+    const scale = 0.5;
+    canvasEl.width = Math.max(1, Math.floor(sectionWidth * scale));
+    canvasEl.height = Math.max(1, Math.floor(sectionHeight * scale));
     gl.viewport(0, 0, canvasEl.width, canvasEl.height);
     gl.uniform1f(uRatio, canvasEl.width / canvasEl.height);
   }
@@ -144,7 +146,15 @@ function initNeuralVortexBackground() {
     pointer.tY = point.clientY - (sectionAbsoluteTop - window.scrollY);
   }
 
-  function render() {
+  function render(now) {
+    animationFrame = null;
+    if (!isVisible) return;
+    const time = now || performance.now();
+    if (!prefersReducedMotion && time - lastFrame < FRAME_MS) {
+      animationFrame = requestAnimationFrame(render);
+      return;
+    }
+    lastFrame = time;
     const viewportTop = sectionAbsoluteTop - window.scrollY;
     const sectionProgress = (window.innerHeight - viewportTop) / (window.innerHeight + sectionHeight);
     const scrollProgress = Math.max(0, Math.min(1, sectionProgress));
@@ -152,7 +162,7 @@ function initNeuralVortexBackground() {
     pointer.x += (pointer.tX - pointer.x) * 0.2;
     pointer.y += (pointer.tY - pointer.y) * 0.2;
 
-    gl.uniform1f(uTime, performance.now());
+    gl.uniform1f(uTime, time);
     gl.uniform2f(
       uPointerPosition,
       pointer.x / Math.max(1, sectionWidth),
@@ -179,7 +189,11 @@ function initNeuralVortexBackground() {
   }
 
   resizeCanvas();
-  render();
+  if (prefersReducedMotion) {
+    isVisible = true;
+    render(performance.now());
+    isVisible = false;
+  }
   window.addEventListener('resize', resizeCanvas, { passive: true });
   window.addEventListener('pointermove', updatePointer, { passive: true });
   window.addEventListener('touchmove', updatePointer, { passive: true });
@@ -190,6 +204,8 @@ function initNeuralVortexBackground() {
       else stop();
     }, { rootMargin: '160px' });
     observer.observe(sectionEl);
+  } else if (!prefersReducedMotion) {
+    start();
   }
 }
 
@@ -222,18 +238,20 @@ function initAiProductsMatrix() {
   let height = 0;
   let columns = [];
   let animationFrame = null;
-  let isVisible = true;
+  let isVisible = false;
+  let lastFrame = 0;
+  const FRAME_MS = 1000 / 30;
 
   function resizeCanvas() {
     const rect = sectionEl.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const scale = 0.5;
     width = Math.max(1, Math.floor(rect.width));
     height = Math.max(1, Math.floor(rect.height));
-    canvasEl.width = Math.floor(width * dpr);
-    canvasEl.height = Math.floor(height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvasEl.width = Math.max(1, Math.floor(width * scale));
+    canvasEl.height = Math.max(1, Math.floor(height * scale));
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
-    const columnWidth = width < 640 ? 18 : 24;
+    const columnWidth = width < 640 ? 28 : 40;
     const count = Math.ceil(width / columnWidth);
     columns = Array.from({ length: count }, (_, index) => ({
       x: index * columnWidth + Math.random() * 8,
@@ -245,23 +263,27 @@ function initAiProductsMatrix() {
   }
 
   function draw(now = 0) {
+    animationFrame = null;
+    if (!prefersReducedMotion && isVisible && now - lastFrame < FRAME_MS) {
+      animationFrame = requestAnimationFrame(draw);
+      return;
+    }
+    lastFrame = now;
     ctx.clearRect(0, 0, width, height);
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = 'rgba(4, 5, 10, 0.28)';
     ctx.fillRect(0, 0, width, height);
     ctx.globalCompositeOperation = 'lighter';
-    ctx.font = '600 12px ui-monospace, SFMono-Regular, Menlo, monospace';
     ctx.textBaseline = 'top';
 
     columns.forEach((column, columnIndex) => {
-      const trail = width < 640 ? 12 : 18;
+      const trail = 8;
+      ctx.font = `600 ${column.size}px ui-monospace, SFMono-Regular, Menlo, monospace`;
       for (let i = 0; i < trail; i++) {
         const y = (column.y - i * column.size * 1.35 + height) % height;
         const charIndex = (columnIndex + i + Math.floor(now / 160)) % glyphs.length;
         const alpha = column.alpha * (1 - i / trail);
 
-        ctx.font = `600 ${column.size}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-        // Matrix green
         ctx.fillStyle = `rgba(0, 255, 65, ${alpha})`;
         ctx.fillText(glyphs[charIndex], column.x, y);
       }
@@ -300,10 +322,10 @@ function initAiProductsMatrix() {
   }
 
   resizeCanvas();
-  draw();
+  if (prefersReducedMotion) draw(0);
   window.addEventListener('resize', () => {
     resizeCanvas();
-    if (prefersReducedMotion || !animationFrame) draw();
+    if (isVisible && (prefersReducedMotion || !animationFrame)) draw(performance.now());
   }, { passive: true });
 
   if ('IntersectionObserver' in window && !prefersReducedMotion) {
@@ -312,6 +334,8 @@ function initAiProductsMatrix() {
       else stop();
     }, { rootMargin: '180px' });
     observer.observe(sectionEl);
+  } else if (!prefersReducedMotion) {
+    start();
   }
 }
 
@@ -417,8 +441,11 @@ window.addEventListener('scroll', resetHeroStatRepelTargets, { passive: true });
 ═══════════════════════════════════════════ */
 let projStage3DToken = 0;
 let currentProjectId = null;
+let methodIconIo = null;
 
 function disposeProjStages() {
+  methodIconIo?.disconnect();
+  methodIconIo = null;
   if (Array.isArray(window._projStage3DList)) {
     window._projStage3DList.forEach(s => { try { s?.dispose(); } catch {} });
   }
@@ -445,14 +472,62 @@ function mountProjectMethodIcons(p, mountToken) {
   const steps = PROJECT_METHODS[p.id];
   if (!steps || !steps.length) return;
   if (window.matchMedia('(max-width: 768px)').matches) return;
-  whenMethod3DReady(async () => {
-    if (mountToken !== projStage3DToken) return;
-    for (let i = 0; i < steps.length; i++) {
-      const meta = METHOD_STEPS[steps[i].type];
-      if (!meta) continue;
-      const stage = document.getElementById(`method-stage-${i}`);
-      if (!stage) continue;
-      let instance = null;
+  const stages = [...document.querySelectorAll('.method-token-stage')];
+  if (!stages.length) return;
+
+  const visible = new Set();
+  let activeStage = null;
+  let mountGen = 0;
+
+  function pickStage(prefer) {
+    if (prefer && visible.has(prefer)) return prefer;
+    const cx = window.innerWidth / 2;
+    let best = null;
+    let bestDist = Infinity;
+    visible.forEach((stage) => {
+      const rect = stage.getBoundingClientRect();
+      const dist = Math.abs(rect.left + rect.width / 2 - cx);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = stage;
+      }
+    });
+    return best;
+  }
+
+  function release(stage) {
+    const instance = stage._method3d;
+    stage._method3d = null;
+    stage._method3dPending = false;
+    if (instance) {
+      try { instance.dispose(); } catch {}
+      window._projStage3DList = (window._projStage3DList || []).filter((item) => item !== instance);
+    }
+    const cssObj = stage.querySelector('.method-obj');
+    if (cssObj) cssObj.hidden = false;
+    if (activeStage === stage) activeStage = null;
+  }
+
+  async function activate(stage) {
+    if (!stage || mountToken !== projStage3DToken) return;
+    if (activeStage === stage && (stage._method3d || stage._method3dPending)) return;
+    const gen = ++mountGen;
+    if (activeStage && activeStage !== stage) release(activeStage);
+    activeStage = stage;
+    if (stage._method3d || stage._method3dPending) return;
+    if (!window.mountMethodIcon3D && !window.mountStage3D) {
+      whenMethod3DReady(() => {
+        if (gen === mountGen && mountToken === projStage3DToken && activeStage === stage) activate(stage);
+      });
+      return;
+    }
+    const index = Number(String(stage.id || '').replace('method-stage-', ''));
+    const step = steps[index];
+    const meta = step && METHOD_STEPS[step.type];
+    if (!meta) return;
+    stage._method3dPending = true;
+    let instance = null;
+    try {
       if (meta.src && window.mountStage3D) {
         const iso = stage.querySelector('.method-obj');
         if (iso) iso.hidden = true;
@@ -472,17 +547,43 @@ function mountProjectMethodIcons(p, mountToken) {
           targetSize: 1.25,
         });
       } else if (window.mountMethodIcon3D) {
-        instance = await window.mountMethodIcon3D({
-          stage,
-          type: meta.id,
-        });
+        instance = await window.mountMethodIcon3D({ stage, type: meta.id });
       }
-      if (mountToken !== projStage3DToken) {
-        instance?.dispose();
-        return;
-      }
-      if (instance) window._projStage3DList.push(instance);
+    } catch (err) {
+      console.warn('Method icon', err);
     }
+    stage._method3dPending = false;
+    if (gen !== mountGen || mountToken !== projStage3DToken || activeStage !== stage) {
+      instance?.dispose();
+      const cssObj = stage.querySelector('.method-obj');
+      if (cssObj) cssObj.hidden = false;
+      return;
+    }
+    stage._method3d = instance || null;
+    if (instance) window._projStage3DList.push(instance);
+  }
+
+  methodIconIo = new IntersectionObserver((entries) => {
+    if (mountToken !== projStage3DToken) return;
+    entries.forEach((entry) => {
+      const stage = entry.target;
+      if (entry.isIntersecting) visible.add(stage);
+      else {
+        visible.delete(stage);
+        if (activeStage === stage) release(stage);
+      }
+    });
+    const next = pickStage(null);
+    if (next) activate(next);
+  }, { rootMargin: '40px' });
+
+  stages.forEach((stage) => {
+    methodIconIo.observe(stage);
+    const card = stage.closest('.proj-method-card') || stage;
+    card.addEventListener('pointerenter', () => {
+      if (mountToken !== projStage3DToken || !visible.has(stage)) return;
+      activate(stage);
+    });
   });
 }
 
@@ -504,6 +605,36 @@ function goHome() {
   if (history.pushState) history.pushState(null, '', '#');
 }
 
+/** Keep the wheel inside a tall page capture until it reaches the end. */
+function bindBrowserViewports(root = document) {
+  root.querySelectorAll('.browser-viewport').forEach((vp) => {
+    if (vp.dataset.wheelBound) return;
+    vp.dataset.wheelBound = '1';
+    vp.addEventListener('wheel', (event) => {
+      const max = vp.scrollHeight - vp.clientHeight;
+      if (max <= 1 || !event.deltaY) return;
+      const atTop = vp.scrollTop <= 0;
+      const atBottom = vp.scrollTop >= max - 1;
+      if ((event.deltaY < 0 && atTop) || (event.deltaY > 0 && atBottom)) return;
+      event.preventDefault();
+      vp.scrollTop = Math.max(0, Math.min(max, vp.scrollTop + event.deltaY));
+    }, { passive: false });
+  });
+}
+
+/** A vertical wheel over the method rail scrolls the page, not the cards. */
+function bindMethodTracks(root = document) {
+  root.querySelectorAll('.proj-method-track').forEach((track) => {
+    if (track.dataset.wheelBound) return;
+    track.dataset.wheelBound = '1';
+    track.addEventListener('wheel', (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      window.scrollBy(0, event.deltaY);
+    }, { passive: false });
+  });
+}
+
 function openProject(id) {
   const p = publicProjects().find(x => x.id === id);
   if (!p) return;
@@ -515,35 +646,14 @@ function openProject(id) {
   disposeProjStages();
   document.getElementById('view-home').classList.add('hidden');
   document.getElementById('proj-page-content').innerHTML = renderProject(p);
+  bindBrowserViewports(document.getElementById('proj-page-content'));
+  bindMethodTracks(document.getElementById('proj-page-content'));
   document.getElementById('view-project').classList.remove('hidden');
   window.scrollTo(0, 0);
   document.title = `${p.company} | Hugo Vermot`;
   if (history.pushState) history.pushState(null, '', `#project/${id}`);
   if (p.models3d && p.models3d.variants && !window.matchMedia('(max-width: 768px)').matches) {
-    window.scheduleStage3DInit?.(async () => {
-      if (mountToken !== projStage3DToken) return;
-      for (let i = 0; i < p.models3d.variants.length; i++) {
-        const v = p.models3d.variants[i];
-        const stage = document.getElementById(`aw-model-stage-${i}`);
-        if (!stage) continue;
-        const variant = {
-          ...v,
-          src: String(v.src || '').replace(/^\.\.\/images\//, '/images/'),
-        };
-        const instance = await window.mountStage3D({
-          stage,
-          variants: [variant],
-          storageKey: `awModel_${v.id}`,
-          rimColor: p.models3d.rimColor,
-          fillColor: p.models3d.fillColor,
-        });
-        if (mountToken !== projStage3DToken) {
-          instance?.dispose();
-          return;
-        }
-        window._projStage3DList.push(instance);
-      }
-    });
+    mountAncientWorldModel(p, mountToken);
   }
   mountProjectMethodIcons(p, mountToken);
   window.observeLazyVideos?.(document.getElementById('proj-page-content'));
@@ -552,16 +662,106 @@ function openProject(id) {
   mountLvmhEffects();
 }
 
+let effectsPromise = null;
+function loadEffectsScript() {
+  if (window.JobYouGoEffects) return Promise.resolve(window.JobYouGoEffects);
+  if (effectsPromise) return effectsPromise;
+  effectsPromise = new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = '/effects/dist/effects.js';
+    script.onload = () => resolve(window.JobYouGoEffects || null);
+    script.onerror = () => resolve(null);
+    document.head.appendChild(script);
+  });
+  return effectsPromise;
+}
+
 function mountLvmhEffects() {
   const slot = document.querySelector('[data-lvmh-orb]');
   if (!slot) return;
-  const fx = window.JobYouGoEffects;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!fx?.mountConnectingOrb || reduce) {
+  if (reduce) {
     slot.hidden = true;
     return;
   }
-  fx.mountConnectingOrb(slot, { theme: 'dark', size: 20 });
+  loadEffectsScript().then((fx) => {
+    if (!slot.isConnected) return;
+    if (!fx?.mountConnectingOrb) {
+      slot.hidden = true;
+      return;
+    }
+    fx.mountConnectingOrb(slot, { theme: 'dark', size: 20 });
+  });
+}
+
+function mountAncientWorldModel(p, mountToken) {
+  const variants = p.models3d?.variants || [];
+  const root = document.querySelector('[data-aw-models]');
+  if (!root || !variants.length) return;
+  let current = null;
+  let seq = 0;
+
+  function setActive(index) {
+    root.querySelectorAll('[data-aw-index]').forEach((btn) => {
+      const on = Number(btn.dataset.awIndex) === index;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    const variant = variants[index];
+    const name = root.querySelector('[data-aw-name]');
+    const dot = root.querySelector('[data-aw-dot]');
+    if (name && variant) name.textContent = variant.label;
+    if (dot && variant) dot.style.color = variant.dot || '#fbbf24';
+  }
+
+  async function show(index) {
+    if (mountToken !== projStage3DToken) return;
+    const variant = variants[index];
+    const stage = root.querySelector('.aw-model-stage');
+    if (!variant || !stage) return;
+    const ticket = ++seq;
+    setActive(index);
+    if (current) {
+      try { current.dispose(); } catch {}
+      window._projStage3DList = (window._projStage3DList || []).filter((item) => item !== current);
+      current = null;
+    }
+    if (!window.mountStage3D) {
+      window.scheduleStage3DInit?.(() => {
+        if (ticket === seq && mountToken === projStage3DToken) show(index);
+      });
+      return;
+    }
+    const instance = await window.mountStage3D({
+      stage,
+      variants: [{
+        ...variant,
+        src: String(variant.src || '').replace(/^\.\.\/images\//, '/images/'),
+      }],
+      storageKey: `awModel_${variant.id}`,
+      rimColor: p.models3d.rimColor,
+      fillColor: p.models3d.fillColor,
+    });
+    if (ticket !== seq || mountToken !== projStage3DToken) {
+      instance?.dispose();
+      return;
+    }
+    current = instance;
+    if (instance) window._projStage3DList.push(instance);
+  }
+
+  root._awShow = show;
+  if (!mountAncientWorldModel.bound) {
+    mountAncientWorldModel.bound = true;
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-aw-index]');
+      if (!btn) return;
+      const holder = btn.closest('[data-aw-models]');
+      const index = Number(btn.dataset.awIndex);
+      if (holder && typeof holder._awShow === 'function' && Number.isFinite(index)) holder._awShow(index);
+    });
+  }
+  window.scheduleStage3DInit?.(() => show(0));
 }
 
 function scrollToSection(anchor) {
@@ -977,17 +1177,23 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
         ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
         ${b.body  ? `<div class="proj-n-body">${b.body}</div>` : ''}
-        <div class="aw-models">
-          ${variants.map((v, i) => `
-            <div class="aw-model-frame">
-              <div class="aw-model-grid-bg"></div>
-              <div class="aw-model-stage" id="aw-model-stage-${i}"></div>
-              <div class="aw-model-label">
+        <div class="aw-models" data-aw-models>
+          <div class="aw-model-frame">
+            <div class="aw-model-grid-bg"></div>
+            <div class="aw-model-stage" id="aw-model-stage"></div>
+            <div class="aw-model-label">
+              <span class="aw-model-dot" data-aw-dot style="color:${variants[0]?.dot || '#fbbf24'}"></span>
+              <span class="aw-model-name" data-aw-name>${variants[0]?.label || ''}</span>
+              <span class="aw-model-hint">Drag to rotate</span>
+            </div>
+          </div>
+          <div class="aw-model-switch" role="tablist">
+            ${variants.map((v, i) => `
+              <button type="button" data-aw-index="${i}" aria-pressed="${i === 0 ? 'true' : 'false'}" class="${i === 0 ? 'is-active' : ''}">
                 <span class="aw-model-dot" style="color:${v.dot || '#fbbf24'}"></span>
-                <span class="aw-model-name">${v.label}</span>
-                <span class="aw-model-hint">Drag to rotate</span>
-              </div>
-            </div>`).join('')}
+                ${v.label}
+              </button>`).join('')}
+          </div>
         </div>
       </div>`;
     }
@@ -1052,9 +1258,9 @@ function renderNarrativeBlock(b, stepsHTML, p) {
                 <span class="bw-seg-opt bw-seg-opt--light">${altLabel}</span>
               </label>
             </div>
-            <div class="browser-viewport">
-              <img class="bw-img bw-img--dark" src="${b.src}" alt="${b.caption || ''}" loading="lazy" decoding="async">
-              <img class="bw-img bw-img--light" src="${b.srcAlt}" alt="${b.caption ? `${b.caption} (${altLabel})` : altLabel}" loading="lazy" decoding="async">
+            <div class="browser-viewport" tabindex="0">
+              <img class="bw-img bw-img--dark" src="${b.src}" alt="${b.caption || ''}" loading="eager" decoding="async">
+              <img class="bw-img bw-img--light" src="${b.srcAlt}" alt="${b.caption ? `${b.caption} (${altLabel})` : altLabel}" loading="eager" decoding="async">
             </div>
           </div>
           ${b.caption ? `<div class="proj-n-caption">${b.caption}</div>` : ''}
@@ -1067,8 +1273,8 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             <span class="browser-url-wrap">${url ? `<span class="browser-url">${url}</span>` : ''}</span>
             <span class="browser-bar-spacer"></span>
           </div>
-          <div class="browser-viewport">
-            <img src="${b.src}" alt="${b.caption || ''}" loading="lazy" decoding="async">
+          <div class="browser-viewport" tabindex="0">
+            <img src="${b.src}" alt="${b.caption || ''}" loading="eager" decoding="async">
           </div>
         </div>
         ${b.caption ? `<div class="proj-n-caption">${b.caption}</div>` : ''}
@@ -2886,8 +3092,8 @@ function renderProject(p) {
       </div>
     </div>
 
+    ${renderMethodSchema(p)}
     <div class="proj-body">
-      ${renderMethodSchema(p)}
       ${p.narrative ? `
       <div class="proj-narrative">
         ${renderNarrativeItems(
@@ -2946,6 +3152,73 @@ function renderProject(p) {
 /* ═══════════════════════════════════════════
    RENDER HOME
 ═══════════════════════════════════════════ */
+const PROJECT_HAIRLINE = {
+  oneasset: 'terrain',
+  creads: 'laptop',
+  lvmh: 'patch',
+  renault: 'riffle',
+  sg: 'vault',
+  upviral: 'branches',
+  edenred: 'phone',
+  arlequin: 'terminal',
+  skiset: 'lockers',
+  casino: 'slow',
+  shiseido: 'turntable',
+  vloggy: 'phosphor',
+  bmw: 'exploded',
+  sncf: 'elevator',
+  galian: 'padlock',
+};
+
+function bindProjectShape(item) {
+  if (!item || item.dataset.shapeBound === '1') return;
+  const fig = item.querySelector('.hairline-fig');
+  if (!fig) return;
+  item.dataset.shapeBound = '1';
+  if (typeof window.mountHairlines === 'function') window.mountHairlines(item);
+  const relay = (type, e) => {
+    fig.dispatchEvent(new PointerEvent(type, {
+      bubbles: false,
+      cancelable: false,
+      clientX: e ? e.clientX : 0,
+      clientY: e ? e.clientY : 0,
+      pointerType: 'mouse',
+    }));
+  };
+  item.addEventListener('pointermove', (e) => {
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    relay('pointermove', e);
+  });
+  item.addEventListener('pointerleave', (e) => relay('pointerleave', e));
+}
+
+function projectShapesEnabled() {
+  return !window.matchMedia('(hover: none), (pointer: coarse), (max-width: 900px)').matches;
+}
+
+function mountProjectShapes(root) {
+  if (mountProjectShapes.observer) {
+    mountProjectShapes.observer.disconnect();
+    mountProjectShapes.observer = null;
+  }
+  if (!projectShapesEnabled()) return;
+  const items = [...root.querySelectorAll('.proj-list-item')];
+  if (!items.length) return;
+  if (!('IntersectionObserver' in window)) {
+    items.forEach(bindProjectShape);
+    return;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      bindProjectShape(entry.target);
+    });
+  }, { rootMargin: '200px' });
+  mountProjectShapes.observer = observer;
+  items.forEach((item) => observer.observe(item));
+}
+
 function renderProjList() {
   const AI_IDS = ['uxfi','panfy','flemme','jarvos','ancient-world'];
   const featuredOrder = ['oneasset','creads','lvmh','renault','sg'];
@@ -2960,7 +3233,7 @@ function renderProjList() {
   };
   const el = document.getElementById('proj-list-el');
   el.innerHTML = publicProjects().filter(p => !AI_IDS.includes(p.id)).sort((a, b) => {
-    const rank = p => featuredOrder.includes(p.id) ? featuredOrder.indexOf(p.id) : featuredOrder.length;
+    const rank = p => p.id === 'arlequin' ? featuredOrder.length + 1 : (featuredOrder.includes(p.id) ? featuredOrder.indexOf(p.id) : featuredOrder.length);
     return rank(a) - rank(b);
   }).map(p => {
     // Hardcoded taxonomy mapping requested by user
@@ -3038,6 +3311,7 @@ function renderProjList() {
     <div class="proj-list-item" onclick="openProject('${p.id}')">
       ${p.logo ? `<img class="proj-list-logo" src="${p.logo}" alt="${p.company}" loading="${featuredOrder.includes(p.id) ? 'eager' : 'lazy'}"${featuredOrder.indexOf(p.id) === 0 ? ' fetchpriority="high"' : ''} decoding="async">` : `<div class="proj-list-logo-placeholder"></div>`}
       <div class="proj-list-preview-trigger">
+        ${projectShapesEnabled() ? `<div class="proj-list-shape" aria-hidden="true"><div class="hairline-fig" data-hairline="${PROJECT_HAIRLINE[p.id] || 'laptop'}" data-theme="light" data-intensity="0.55"></div></div>` : ''}
         <div class="proj-list-title-block">
           <div class="proj-list-name-wrap">
             <span class="proj-list-name">${p.company}</span>
@@ -3053,12 +3327,12 @@ function renderProjList() {
           Website <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </a>` : ''}
         <div class="proj-list-details">
-          <span>Details</span>
           <span class="proj-list-arrow">→</span>
         </div>
       </div>
     </div>`;
   }).join('');
+  mountProjectShapes(el);
 }
 
 const AI_PROJECT_IDS = ['uxfi','panfy','flemme'];
@@ -3120,6 +3394,7 @@ function renderClientsTable() {
    INIT — Selected work + method 3D tags first; heavy sections wait.
 ═══════════════════════════════════════════ */
 renderProjList();
+window.matchMedia('(hover: none), (pointer: coarse), (max-width: 900px)').addEventListener('change', () => renderProjList());
 renderMethodsCarousel();
 document.dispatchEvent(new Event('portfolio:work-ready'));
 window.__portfolioWorkReady = true;
@@ -3206,7 +3481,7 @@ if ('requestIdleCallback' in window) {
   type();
 })();
 
-const NAV_SECTIONS = ['work', 'ai-projects', 'ifaces-section'];
+const NAV_SECTIONS = ['work', 'ai-projects', 'ifaces-section', 'tools'];
 
 function navToSection(id, event) {
   if (event) event.preventDefault();
@@ -3258,8 +3533,34 @@ window.addEventListener('popstate', function() {
   const nav = document.getElementById('site-nav');
   if (!nav) return;
   const THRESHOLD = 60;
+  const sectionLinks = [...nav.querySelectorAll('.nav-link')];
+  function markSection() {
+    const home = document.getElementById('view-home');
+    if (home && home.classList.contains('hidden')) {
+      sectionLinks.forEach(link => {
+        link.classList.remove('is-active');
+        link.removeAttribute('aria-current');
+      });
+      return;
+    }
+    const mark = window.scrollY + 140;
+    let current = '';
+    NAV_SECTIONS.forEach(id => {
+      const section = document.getElementById(id);
+      if (!section) return;
+      const top = section.getBoundingClientRect().top + window.scrollY;
+      if (top <= mark) current = id;
+    });
+    sectionLinks.forEach(link => {
+      const on = link.getAttribute('href') === '#' + current;
+      link.classList.toggle('is-active', on);
+      if (on) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+  }
   function onScroll() {
     nav.classList.toggle('nav--scrolled', window.scrollY > THRESHOLD);
+    markSection();
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
@@ -3420,7 +3721,14 @@ window.addEventListener('popstate', function() {
     }
   });
 
-  loadUsage();
+  const startUsage = () => {
+    if (startUsage.started) return;
+    startUsage.started = true;
+    loadUsage();
+  };
+  trigger.addEventListener('click', startUsage, { once: true });
+  if ('requestIdleCallback' in window) requestIdleCallback(startUsage, { timeout: 2500 });
+  else window.addEventListener('load', () => setTimeout(startUsage, 1200), { once: true });
 })();
 
 // Skill bars — animate on scroll into view
@@ -3462,6 +3770,10 @@ function setLang(lang) {
   if (calendlyBtn && t.contact_calendly !== undefined) {
     calendlyBtn.setAttribute('aria-label', t.contact_calendly);
   }
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    const key = el.getAttribute('data-i18n-aria');
+    if (t[key] !== undefined) el.setAttribute('aria-label', t[key]);
+  });
 
   // Toggle active flag button
   document.getElementById('btn-en').classList.toggle('active', lang === 'en');

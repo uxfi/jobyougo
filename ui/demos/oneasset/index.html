@@ -16,6 +16,34 @@
     /* Prefer white shell before React hydrates (CSS default .shell is dark). */
     html[data-oa-theme="light"] { color-scheme: light; background: #fafaf7; }
     html[data-oa-theme="dark"] { color-scheme: dark; background: #05070a; }
+    html[data-oa-unlocked] #oa-gate { display: none; }
+    #oa-gate {
+      position: fixed; inset: 0; z-index: 100000;
+      display: grid; place-items: center;
+      background: #fafaf7; color: #0d1124;
+      font-family: Inter, sans-serif;
+    }
+    #oa-gate form {
+      width: min(360px, calc(100% - 40px));
+      display: grid; gap: 12px;
+      padding: 28px; border-radius: 18px;
+      background: #fff; border: 1px solid #e3e7f3;
+      box-shadow: 0 24px 60px rgba(28,40,110,.12);
+    }
+    #oa-gate h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -.02em; }
+    #oa-gate p { margin: 0; font-size: 14px; line-height: 1.5; color: #4a506a; }
+    #oa-gate input {
+      width: 100%; box-sizing: border-box;
+      padding: 12px 14px; border-radius: 12px;
+      border: 1px solid #e3e7f3; background: #fafaf7;
+      font: 500 15px/1.2 Inter, sans-serif; color: #0d1124;
+    }
+    #oa-gate input:focus { outline: 2px solid #3b59ff; border-color: transparent; }
+    #oa-gate button {
+      border: 0; border-radius: 12px; padding: 12px 14px; cursor: pointer;
+      background: #3b59ff; color: #fff; font: 600 14px/1 Inter, sans-serif;
+    }
+    #oa-gate-err { color: #b42318; font-size: 13px; }
     </style>
     <script>
     /* Force theme from ?theme= before the app boots. Default: light/white. */
@@ -42,7 +70,49 @@
       } catch (e) {}
     })();
     </script>
-    <script type="module" crossorigin src="/demos/oneasset/assets/main-CkwmdojU.js"></script>
+    <script>
+    /* Soft gate for the portfolio embed and the full-screen tab. Same origin, so one unlock covers both. */
+    (function () {
+      var PASSWORD = 'oneasset';
+      var KEY = 'oa-demo-ok';
+      function boot() {
+        if (document.documentElement.dataset.oaBooted) return;
+        document.documentElement.dataset.oaBooted = '1';
+        document.documentElement.dataset.oaUnlocked = '1';
+        var gate = document.getElementById('oa-gate');
+        if (gate) gate.remove();
+        var root = document.getElementById('root');
+        if (root) root.hidden = false;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.crossOrigin = 'anonymous';
+        s.src = '/demos/oneasset/assets/main-CkwmdojU.js';
+        document.head.appendChild(s);
+      }
+      window.__oaBootDemo = boot;
+      try {
+        if (sessionStorage.getItem(KEY) === '1') document.documentElement.dataset.oaUnlocked = '1';
+      } catch (e) {}
+      document.addEventListener('DOMContentLoaded', function () {
+        if (document.documentElement.dataset.oaUnlocked === '1') { boot(); return; }
+        var form = document.getElementById('oa-gate-form');
+        var input = document.getElementById('oa-gate-pass');
+        var err = document.getElementById('oa-gate-err');
+        if (!form || !input) return;
+        form.addEventListener('submit', function (ev) {
+          ev.preventDefault();
+          if (input.value !== PASSWORD) {
+            if (err) err.hidden = false;
+            input.select();
+            return;
+          }
+          try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+          boot();
+        });
+        input.focus();
+      });
+    })();
+    </script>
     <link rel="modulepreload" crossorigin href="/demos/oneasset/assets/workspace-navigation-CnubU-Pg.js">
     <link rel="modulepreload" crossorigin href="/demos/oneasset/assets/vendor-react-DUX7-3KW.js">
     <link rel="modulepreload" crossorigin href="/demos/oneasset/assets/vendor-radix-D5bgM0J6.js">
@@ -51,6 +121,15 @@
     <link rel="stylesheet" crossorigin href="/demos/oneasset/assets/main-icie1ROI.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="oa-gate">
+      <form id="oa-gate-form" autocomplete="off">
+        <h1>Live prototype</h1>
+        <p>Enter the password to open the OneAsset prototype.</p>
+        <input id="oa-gate-pass" type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+        <p id="oa-gate-err" hidden>Wrong password.</p>
+        <button type="submit">Open</button>
+      </form>
+    </div>
+    <div id="root" hidden></div>
   </body>
 </html>

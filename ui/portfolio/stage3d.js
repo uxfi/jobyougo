@@ -30,7 +30,6 @@
     if (!sharedDracoLoader) {
       sharedDracoLoader = new DRACOLoader();
       sharedDracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
-      sharedDracoLoader.setDecoderConfig({ type: 'js' });
     }
     return sharedDracoLoader;
   }
@@ -61,7 +60,7 @@
       stencil: false,
       depth: true,
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.1));
+    renderer.setPixelRatio(1);
     renderer.setSize(stage.clientWidth, stage.clientHeight, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -205,7 +204,25 @@
     const clock = new THREE.Clock();
     let rafId = null;
     let isVisible = true;
-    function animate() {
+    let interacting = false;
+    let lastFrame = 0;
+    const IDLE_FRAME_MS = 1000 / 30;
+    const onPointerDown = () => { interacting = true; };
+    const onPointerUp = () => { interacting = false; };
+    stage.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    function animate(now) {
+      if (!isVisible) {
+        rafId = null;
+        return;
+      }
+      const time = now || performance.now();
+      if (!interacting && lastFrame && time - lastFrame < IDLE_FRAME_MS) {
+        rafId = requestAnimationFrame(animate);
+        return;
+      }
+      lastFrame = time;
       const t = clock.getElapsedTime();
       if (model) {
         model.position.y = model.userData.baseY + Math.sin(t * 1.6) * 0.08;
@@ -213,7 +230,7 @@
       }
       controls.update();
       renderer.render(scene, camera);
-      if (isVisible) rafId = requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
     }
     function startAnim() {
       if (rafId || !isVisible) return;
@@ -256,6 +273,9 @@
         ro.disconnect();
         io?.disconnect();
         document.removeEventListener('visibilitychange', onVisibility);
+        stage.removeEventListener('pointerdown', onPointerDown);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
         objectSwitch?.removeEventListener('click', onSwitchClick);
         toggle?.removeEventListener('change', onToggleChange);
         if (model) {
@@ -311,16 +331,16 @@
       return obj;
     };
     const box = (w, h, d, color, extra) => methodMesh(THREE, new THREE.BoxGeometry(w, h, d), color, extra);
-    const cyl = (rt, rb, h, color, seg = 22, extra) => methodMesh(THREE, new THREE.CylinderGeometry(rt, rb, h, seg), color, extra);
-    const ball = (r, color, extra) => methodMesh(THREE, new THREE.SphereGeometry(r, 24, 18), color, extra);
+    const cyl = (rt, rb, h, color, seg = 64, extra) => methodMesh(THREE, new THREE.CylinderGeometry(rt, rb, h, Math.max(seg || 0, 64)), color, extra);
+    const ball = (r, color, extra) => methodMesh(THREE, new THREE.SphereGeometry(r, 64, 48), color, extra);
     const mark = (name, obj) => { parts[name] = obj; return obj; };
 
     switch (type) {
       case 'research': {
         const loupe = mark('loupe', new THREE.Group());
         g.add(loupe);
-        add(loupe, methodMesh(THREE, new THREE.TorusGeometry(0.4, 0.085, 18, 40), C.gold, metal), 0, 0.16, 0, 0.38, 0, 0);
-        add(loupe, methodMesh(THREE, new THREE.CircleGeometry(0.32, 32), 0xfff4c0, { transparent: true, opacity: 0.38, roughness: 0.06, metalness: 0.35, emissive: 0xffe08a, emissiveIntensity: 0.18 }), 0, 0.16, 0.02, 0.38, 0, 0);
+        add(loupe, methodMesh(THREE, new THREE.TorusGeometry(0.4, 0.085, 32, 80), C.gold, metal), 0, 0.16, 0, 0.38, 0, 0);
+        add(loupe, methodMesh(THREE, new THREE.CircleGeometry(0.32, 64), 0xfff4c0, { transparent: true, opacity: 0.38, roughness: 0.06, metalness: 0.35, emissive: 0xffe08a, emissiveIntensity: 0.18 }), 0, 0.16, 0.02, 0.38, 0, 0);
         add(loupe, cyl(0.065, 0.075, 0.62, C.gold, 14, metal), 0.38, -0.34, 0.05, 0, 0, -0.72);
         add(loupe, ball(0.08, C.gold, metal), 0.58, -0.58, 0.08);
         add(g, box(0.62, 0.8, 0.08, C.paper, soft), -0.42, -0.02, -0.22, 0, 0.35, 0);
@@ -444,7 +464,7 @@
         mark('c2', add(g, box(0.44, 0.44, 0.44, C.blue, soft), 0.32, -0.06, -0.26));
         mark('c3', add(g, box(0.44, 0.44, 0.44, C.green, soft), -0.32, -0.06, 0.26));
         mark('c4', add(g, box(0.44, 0.64, 0.44, C.pink, soft), 0.32, 0.04, 0.26));
-        add(g, methodMesh(THREE, new THREE.TorusGeometry(0.16, 0.035, 10, 24), C.gold, metal), 0, 0.42, 0, Math.PI / 2, 0, 0);
+        add(g, methodMesh(THREE, new THREE.TorusGeometry(0.16, 0.035, 24, 64), C.gold, metal), 0, 0.42, 0, Math.PI / 2, 0, 0);
         break;
       }
       case 'ai-vibe-code': {
@@ -456,7 +476,7 @@
         add(g, box(0.08, 0.22, 0.04, C.mint, glow(C.mint, 0.4)), -0.34, -0.02, 0.08);
         const crystal = mark('crystal', methodMesh(
           THREE,
-          new THREE.OctahedronGeometry(0.28, 0),
+          new THREE.OctahedronGeometry(0.28, 1),
           0xc4b5fd,
           {
             metalness: 0.18,
@@ -482,8 +502,8 @@
         g.add(loupe);
         loupe.position.set(0.38, 0.06, 0.22);
         loupe.userData.base = loupe.position.clone();
-        add(loupe, methodMesh(THREE, new THREE.TorusGeometry(0.26, 0.05, 12, 32), C.gold, metal), 0, 0, 0, 0.2, 0, -0.15);
-        add(loupe, methodMesh(THREE, new THREE.CircleGeometry(0.18, 24), 0xfff4c0, { transparent: true, opacity: 0.35, roughness: 0.08, metalness: 0.3 }), 0, 0, 0.02, 0.2, 0, -0.15);
+        add(loupe, methodMesh(THREE, new THREE.TorusGeometry(0.26, 0.05, 28, 72), C.gold, metal), 0, 0, 0, 0.2, 0, -0.15);
+        add(loupe, methodMesh(THREE, new THREE.CircleGeometry(0.18, 48), 0xfff4c0, { transparent: true, opacity: 0.35, roughness: 0.08, metalness: 0.3 }), 0, 0, 0.02, 0.2, 0, -0.15);
         add(loupe, box(0.08, 0.36, 0.08, C.gold, metal), 0.22, -0.28, 0.04, 0, 0, 0.55);
         mark('dot1', add(g, ball(0.07, C.orange, glow(C.orange, 0.35)), -0.02, -0.18, 0.26));
         mark('dot2', add(g, ball(0.055, C.yellow, glow(C.yellow, 0.3)), 0.14, 0.12, 0.2));
@@ -526,8 +546,8 @@
       }
       case 'product-vision': {
         add(g, box(0.96, 0.1, 0.96, C.paper, soft), 0, -0.48, 0);
-        mark('ring1', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.42, 0.035, 12, 48), C.gold, metal), 0, -0.36, 0, Math.PI / 2, 0, 0));
-        mark('ring2', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.26, 0.03, 10, 40), C.cream, soft), 0, -0.32, 0, Math.PI / 2, 0, 0));
+        mark('ring1', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.42, 0.035, 24, 96), C.gold, metal), 0, -0.36, 0, Math.PI / 2, 0, 0));
+        mark('ring2', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.26, 0.03, 20, 80), C.cream, soft), 0, -0.32, 0, Math.PI / 2, 0, 0));
         add(g, cyl(0.1, 0.1, 0.06, C.gold, 18, metal), 0, -0.28, 0);
         mark('obelisk', add(g, box(0.16, 0.72, 0.16, C.ink, { metalness: 0.25, roughness: 0.35 }), 0, 0.12, 0));
         add(g, ball(0.1, C.yellow, glow(C.yellow, 0.45)), 0, 0.52, 0);
@@ -546,7 +566,7 @@
           new THREE.Vector3(0, 0.34, 0.08),
           new THREE.Vector3(0.5, 0.46, -0.16)
         );
-        add(g, methodMesh(THREE, new THREE.TubeGeometry(curve, 28, 0.03, 8, false), C.teal, { metalness: 0.2, roughness: 0.35 }));
+        add(g, methodMesh(THREE, new THREE.TubeGeometry(curve, 64, 0.03, 16, false), C.teal, { metalness: 0.2, roughness: 0.35 }));
         add(g, box(0.14, 0.08, 0.14, C.yellow, soft), 0.5, 0.58, -0.16);
         break;
       }
@@ -595,7 +615,7 @@
         mark('head', add(g, ball(0.2, C.paper, soft), 0, 0.4, 0.06));
         add(g, ball(0.045, C.night, soft), -0.07, 0.42, 0.22);
         add(g, ball(0.045, C.night, soft), 0.07, 0.42, 0.22);
-        mark('crystal', add(g, methodMesh(THREE, new THREE.OctahedronGeometry(0.18, 0), C.mint, glow(C.mint, 0.45)), 0.34, 0.18, 0.2));
+        mark('crystal', add(g, methodMesh(THREE, new THREE.OctahedronGeometry(0.18, 1), C.mint, glow(C.mint, 0.45)), 0.34, 0.18, 0.2));
         mark('panel', add(g, box(0.26, 0.18, 0.08, C.night, { metalness: 0.3, roughness: 0.3 }), -0.36, -0.06, 0.16));
         add(g, box(0.14, 0.04, 0.03, C.mint, glow(C.mint, 0.35)), -0.36, -0.02, 0.22);
         break;
@@ -619,7 +639,7 @@
         break;
       }
       case 'seo': {
-        mark('ring', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.36, 0.06, 14, 36), C.paper, soft), -0.12, 0.04, 0, Math.PI / 2, 0, 0));
+        mark('ring', add(g, methodMesh(THREE, new THREE.TorusGeometry(0.36, 0.06, 28, 80), C.paper, soft), -0.12, 0.04, 0, Math.PI / 2, 0, 0));
         add(g, cyl(0.18, 0.18, 0.1, C.night, 24, { metalness: 0.3, roughness: 0.3 }), -0.12, 0.04, 0);
         mark('needle', add(g, box(0.08, 0.42, 0.08, C.ink, metal), 0.18, 0.0, 0.1, 0, 0, -0.45));
         mark('doc', add(g, box(0.42, 0.52, 0.08, C.paper, soft), -0.48, 0.16, -0.16, 0, 0.25, 0));
@@ -677,7 +697,7 @@
         break;
       }
       default: {
-        add(g, methodMesh(THREE, new THREE.TorusGeometry(0.4, 0.085, 18, 40), C.gold, metal), 0, 0.16, 0, 0.38, 0, 0);
+        add(g, methodMesh(THREE, new THREE.TorusGeometry(0.4, 0.085, 32, 80), C.gold, metal), 0, 0.16, 0, 0.38, 0, 0);
         add(g, cyl(0.065, 0.075, 0.62, C.gold, 14, metal), 0.38, -0.34, 0.05, 0, 0, -0.72);
         break;
       }
@@ -882,7 +902,7 @@
         break;
     }
   }
-  function createMethodIcon3D(THREE, options) {
+  function createMethodIcon3D(THREE, options, RoomEnvironment) {
     const { stage, type } = options;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 40);
@@ -891,19 +911,20 @@
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
       antialias: false,
-      powerPreference: 'low-power',
       stencil: false,
       depth: true,
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1));
+    renderer.setPixelRatio(1);
     renderer.setSize(stage.clientWidth, stage.clientHeight, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.72;
+    renderer.toneMappingExposure = 1.28;
     renderer.setClearColor(0x000000, 0);
     stage.appendChild(renderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.88));
+    let envTarget = null;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.52));
     const key = new THREE.DirectionalLight(0xfff4e0, 2.55);
     key.position.set(2.6, 3.4, 3.2);
     scene.add(key);
@@ -941,9 +962,44 @@
     if (cssObj) cssObj.hidden = true;
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let paused = false;
-    const onEnter = () => { paused = true; };
-    const onLeave = () => { paused = false; };
+    let hovering = false;
+    const clock = new THREE.Clock();
+    let rafId = null;
+    let isVisible = true;
+
+    function poseRest() {
+      model.rotation.y = -0.5;
+      model.position.y = model.userData.baseY;
+      animateMethodParts(model, 0, true);
+      renderer.render(scene, camera);
+    }
+
+    function frame(t) {
+      model.rotation.y = -0.5 + t * spinSpeed;
+      model.position.y = model.userData.baseY + Math.sin(t * 1.35) * bobAmp;
+      animateMethodParts(model, t, false);
+      renderer.render(scene, camera);
+    }
+
+    function loop() {
+      rafId = null;
+      if (!hovering || !isVisible || reduceMotion) return;
+      frame(clock.getElapsedTime());
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function startLoop() {
+      if (rafId || !hovering || !isVisible || reduceMotion) return;
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function stopLoop() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+
+    const onEnter = () => { hovering = true; startLoop(); };
+    const onLeave = () => { hovering = false; stopLoop(); poseRest(); };
     stage.addEventListener('pointerenter', onEnter);
     stage.addEventListener('pointerleave', onLeave);
 
@@ -953,55 +1009,39 @@
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      if (!rafId) poseRest();
     });
     ro.observe(stage);
 
-    const clock = new THREE.Clock();
-    let rafId = null;
-    let isVisible = true;
-    function animate() {
-      const t = clock.getElapsedTime();
-      if (!reduceMotion) {
-        if (paused) {
-          model.rotation.y += ((-0.5 + t * spinSpeed * 0.28) - model.rotation.y) * 0.06;
-        } else {
-          model.rotation.y = -0.5 + t * spinSpeed;
-          model.position.y = model.userData.baseY + Math.sin(t * 1.35) * bobAmp;
-        }
-        animateMethodParts(model, t, paused);
-      }
-      renderer.render(scene, camera);
-      if (isVisible) rafId = requestAnimationFrame(animate);
-    }
     function startAnim() {
-      if (rafId || !isVisible) return;
-      rafId = requestAnimationFrame(animate);
+      isVisible = true;
+      if (hovering) startLoop();
+      else poseRest();
     }
     function stopAnim() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = null;
+      isVisible = false;
+      stopLoop();
     }
-    animate();
 
     let io = null;
     if ('IntersectionObserver' in window) {
       io = new IntersectionObserver(([entry]) => {
-        isVisible = entry.isIntersecting && document.visibilityState !== 'hidden';
-        if (isVisible) startAnim(); else stopAnim();
+        const on = entry.isIntersecting && document.visibilityState !== 'hidden';
+        if (on) startAnim(); else stopAnim();
       }, { rootMargin: '40px' });
       io.observe(stage);
     }
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
-        isVisible = false;
         stopAnim();
         return;
       }
       const rect = stage.getBoundingClientRect();
-      isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
-      if (isVisible) startAnim();
+      if (rect.bottom > 0 && rect.top < window.innerHeight) startAnim();
+      else stopAnim();
     };
     document.addEventListener('visibilitychange', onVisibility);
+    poseRest();
 
     function disposeObject(object) {
       object.traverse((child) => {
@@ -1021,6 +1061,8 @@
         stage.removeEventListener('pointerleave', onLeave);
         scene.remove(model);
         disposeObject(model);
+        scene.environment = null;
+        envTarget?.dispose();
         renderer.dispose();
         renderer.forceContextLoss?.();
         if (renderer.domElement.parentNode === stage) {
@@ -1037,7 +1079,7 @@
 
   window.mountMethodIcon3D = async (options) => {
     const [THREE] = await loadThreeModules();
-    return createMethodIcon3D(THREE, options);
+    return createMethodIcon3D(THREE, options, null);
   };
 
   // Hero 3D waits until Selected work has painted — work list is the critical path.

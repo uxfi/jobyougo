@@ -70,10 +70,10 @@ const PROJECT_METHODS = {
   oneasset: [
     { type:'user-flows',     note:{ en:'Seven portals, each with its own onboarding (KYC, KYB) and account states.', fr:'Sept portails, chacun avec son onboarding (KYC, KYB) et ses états de compte.' } },
     { type:'ia',             note:{ en:'Money cycle and lifecycle docs turned into interface rules.', fr:'Docs du cycle financier et du cycle de vie traduites en règles d’interface.' } },
+    { type:'design-system',  note:{ en:'v2 liquid glass shared by every portal and the marketing site.', fr:'v2 liquid glass partagé par tous les portails et le site marketing.' } },
     { type:'prototype',      note:{ en:'The whole product as a working React prototype, light and dark.', fr:'Tout le produit en prototype React fonctionnel, clair et sombre.' } },
     { type:'ai-agent',       note:{ en:'Design work runs through AI agents on GitHub.', fr:'Le travail de design passe par des agents IA sur GitHub.' } },
     { type:'ai-vibe-code',   note:{ en:'GitHub agents, product requirements, and PR reviews. Figmol is the internal review tool I built.', fr:'Agents GitHub, specs produit et revues de PR. Figmol est l\'outil interne de revue que j\'ai construit.' } },
-    { type:'design-system',  note:{ en:'v2 liquid glass shared by every portal and the marketing site.', fr:'v2 liquid glass partagé par tous les portails et le site marketing.' } },
   ],
   upviral: [
     { type:'user-research',  note:{ en:'Repeated interviews with live customers.', fr:'Entretiens répétés avec des clients en production.' } },
@@ -514,7 +514,7 @@ const PROJECTS = [
         "type": "oneasset-live",
         "label": "Live prototype",
         "title": "Open the product, not a picture of it.",
-        "body": "This is the prototype the team works from, embedded as is. A static poster stays until you launch it — the live app only loads on demand, then unloads when you scroll away. Switch portal or theme, then click through; fixture data only, nothing is saved."
+        "body": "This is the prototype the team works from, embedded as is. A password is required to open it. A static poster stays until you launch it — the live app only loads on demand, then unloads when you scroll away. Switch portal or theme, then click through; fixture data only, nothing is saved."
       },
       {
         "type": "oneasset-own",
@@ -524,52 +524,15 @@ const PROJECTS = [
       },
       {
         "type": "browser-window",
-        "src": "../images/oneasset-v2-inv-deal-full.webp",
+        "src": "../images/oneasset-v2-inv-deal-full.webp?v=full",
         "url": "OneAsset prototype · Market · Yas Business Hub",
         "caption": "The deal page, scroll inside the window: raise progress and time left, the buy panel, a return simulator, the ownership chain, investor reviews, press and an FAQ. The target yield is always labelled as a target."
-      },
-      {
-        "type": "image-full",
-        "src": "../images/oneasset-v2-inv-dashboard.webp",
-        "borderless": true,
-        "caption": "Investor dashboard: portfolio value and return, allocation by property, market insights, and recent activity that explains a dip instead of hiding it."
-      },
-      {
-        "type": "image-grid",
-        "label": "Investor app",
-        "borderless": true,
-        "images": [
-          { "src": "../images/oneasset-v2-inv-market.webp", "caption": "Market: primary raises with target yield, time left and funding progress per property." },
-          { "src": "../images/oneasset-v2-inv-portfolio.webp", "caption": "Portfolio: total value, allocation by property and claimable yield." },
-          { "src": "../images/oneasset-v2-inv-funds.webp", "caption": "Funds: one USDC balance, deposits by bank, card or crypto, and a readable activity log." },
-          { "src": "../images/oneasset-v2-inv-deal.webp", "caption": "Deal page: target yield labelled as a target, raise progress, time left and the buy panel above the fold." }
-        ]
       },
       {
         "type": "oneasset-waterfall",
         "label": "The money cycle",
         "title": "Show why money is withheld, not only the yield.",
         "body": "Rent goes through running costs, reserves, admin and tax before it becomes investor USDC. The product should feel like a transparent ledger, not a yield marketplace, so every deduction on screen is traced to a rule. Toggle the vehicle state to see what changes."
-      },
-      {
-        "type": "image-grid",
-        "label": "Portfolio Manager",
-        "borderless": true,
-        "images": [
-          { "src": "../images/oneasset-v2-pmgr-waterfall.webp", "caption": "Monthly cycle per vehicle: each stage blocks the next until it is reconciled, so nothing is computed on unconfirmed rent." },
-          { "src": "../images/oneasset-v2-pmgr-portfolio.webp", "caption": "Portfolio of vehicles: structure, cycle status and the next action for each one." }
-        ]
-      },
-      {
-        "type": "image-grid",
-        "label": "Property Manager",
-        "borderless": true,
-        "images": [
-          { "src": "../images/oneasset-v2-pm-reports.webp", "caption": "Reports: a monthly board with the mandatory package per asset class, commercial or hospitality." },
-          { "src": "../images/oneasset-v2-pm-kyb.webp", "caption": "KYB admission in five steps: business, contact and authority, compliance, banking, documents." },
-          { "src": "../images/oneasset-v2-pm-dashboard.webp", "caption": "Dashboard: properties, sub-accounts, reports and the investor Q&A activity." },
-          { "src": "../images/oneasset-v2-pm-properties.webp", "caption": "Properties: operational report status and key figures on every card." }
-        ]
       },
       {
         "type": "oneasset-portals",
@@ -1438,7 +1401,7 @@ const PROJECTS = [
         src:'../images/ancient-world-city.png', borderless:true,
         caption:'Concept art — the Great Mother Pyramid, market plaza, and the golden atmosphere of the Empire of the Sun.' },
       { type:'aw-models', label:'Real-time 3D assets', title:'Three production assets, live in your browser.',
-        body:"Drag each viewer to rotate the Solar Warrior, Sunburst Guardian or market stall. The browser renders these game assets with WebGL." },
+        body:"Switch between the Solar Warrior, Sunburst Guardian and market stall, then drag to rotate. One asset is rendered at a time." },
       { type:'aw-console', label:'Interactive module', title:'Inventory, loot and quests — straight from the `aw` schema.',
         body:"The demo presents inventory, loot and quests from the Supabase data model. Items have rarity tiers, and quests track acceptance, progress and rewards. The itemization audit checks definitions, vendors and drop rates, including orphan inventory records." },
       { type:'aw-pyramidion', label:'Story & endgame', title:'The Night of the Broken Eclipse',

@@ -41,7 +41,9 @@
   let viewportHalfWidth = window.innerWidth / 2;
   let frame = 0;
   let isVisible = false;
+  let hovered = false;
   let rafId = null;
+  const hoverZone = track.closest('.hero-divider-band') || track.parentElement;
 
   function calculateMetrics() {
     itemData = [];
@@ -65,50 +67,48 @@
     track.dataset.trackLeft = trackLeftOnScreen;
   }
 
+  function paint() {
+    const sWidth = parseFloat(track.dataset.singleWidth);
+    if (!sWidth) return;
+    const scrollPos = ((frame * PIXELS_PER_FRAME) % sWidth) - sWidth;
+    track.style.transform = `rotateX(8deg) rotateY(28deg) translateX(${scrollPos}px)`;
+  }
+
+  function stop() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+    paint();
+  }
+
   function animate() {
-    if (!isVisible) {
+    if (!isVisible || !hovered) {
       rafId = null;
       return;
     }
     frame++;
-    const sWidth = parseFloat(track.dataset.singleWidth);
-    const tLeft = parseFloat(track.dataset.trackLeft);
-    
-    // Invert direction: (frame % sWidth) - sWidth moves Left to Right
-    const scrollPos = ((frame * PIXELS_PER_FRAME) % sWidth) - sWidth;
-    track.style.transform = `rotateX(8deg) rotateY(28deg) translateX(${scrollPos}px)`;
+    paint();
+    rafId = requestAnimationFrame(animate);
+  }
 
-    for (let i = 0; i < itemData.length; i++) {
-      const { el, width, offset } = itemData[i];
-      
-      const itemCenterOnScreen = tLeft + offset + (width / 2) + scrollPos;
-      const norm = (itemCenterOnScreen - viewportHalfWidth) / viewportHalfWidth;
-      const dist = Math.abs(norm);
-
-      let blurAmount = 0;
-      let opacityAmount = 1;
-
-      if (dist > 0.6) {
-        const factor = Math.min(1, (dist - 0.6) / 0.4);
-        blurAmount = factor * 4;
-        opacityAmount = 1 - (factor * 0.4);
-      }
-
-      el.style.filter = `blur(${blurAmount.toFixed(1)}px)`;
-      el.style.opacity = opacityAmount.toFixed(2);
-    }
+  function play() {
+    if (!isVisible || !hovered || rafId) return;
     rafId = requestAnimationFrame(animate);
   }
 
   const observer = new IntersectionObserver(([entry]) => {
     isVisible = entry.isIntersecting;
-    if (isVisible) {
-      if (!rafId) rafId = requestAnimationFrame(animate);
-    } else {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = null;
-    }
+    if (isVisible && hovered) play();
+    else stop();
   }, { rootMargin: '100px' });
+
+  hoverZone.addEventListener('pointerenter', () => {
+    hovered = true;
+    play();
+  });
+  hoverZone.addEventListener('pointerleave', () => {
+    hovered = false;
+    stop();
+  });
 
   function whenImagesReady(cb) {
     const imgs = [...track.querySelectorAll('img')];
@@ -127,8 +127,12 @@
   function start() {
     whenImagesReady(() => {
       calculateMetrics();
+      paint(false);
       observer.observe(track.parentElement);
-      window.addEventListener('resize', calculateMetrics);
+      window.addEventListener('resize', () => {
+        calculateMetrics();
+        if (!rafId) paint(false);
+      });
     });
   }
 

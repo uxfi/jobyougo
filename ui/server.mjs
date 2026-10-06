@@ -6500,8 +6500,8 @@ async function getOpenRouterManagedUsage(managementKey) {
 }
 
 async function getOpenRouterUsage(range, localEvents = []) {
-  const managementKey = process.env.OPENROUTER_MANAGEMENT_KEY || process.env.OPENROUTER_MANAGEMENT_API_KEY || process.env.OPENROUTER_ADMIN_KEY || '';
-  const key = process.env.OPENROUTER_ADMIN_KEY || process.env.OPENROUTER_API_KEY || '';
+  const managementKey = process.env.OPENROUTER_MANAGEMENT_KEY || process.env.OPENROUTER_MANAGEMENT_API_KEY || '';
+  const key = process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_ADMIN_KEY || '';
   const localUsage = aggregateUsageEvents(localEvents, 'openrouter');
   const provider = emptyProvider(
     'openrouter',
