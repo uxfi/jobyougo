@@ -308,3 +308,55 @@ export function mountConnectingOrb(
     }),
   );
 }
+
+/* ─── LedgerStack wordmark + invoice CTA ──────────────────────── */
+
+export function mountMetalWord(
+  el: Element,
+  opts: { text: string; font: string; color: string; theme?: 'dark' | 'light' },
+) {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) {
+    el.textContent = opts.text;
+    return;
+  }
+  renderInto(
+    el,
+    createElement(MetalText, {
+      font: opts.font,
+      color: opts.color,
+      strength: 0.9,
+      theme: opts.theme || 'dark',
+      children: opts.text,
+    }),
+  );
+}
+
+function PulseButtonIsland({ host }: { host: HTMLElement }) {
+  return createElement(
+    BorderBeam,
+    {
+      size: 'pulse-inner',
+      colorVariant: 'ocean',
+      theme: 'dark',
+      style: { display: 'inline-flex', borderRadius: 10 },
+    },
+    createElement(DomSlot, {
+      element: host,
+      style: {
+        width: 'auto',
+        background: 'transparent',
+        display: 'inline-flex',
+        borderRadius: 10,
+      },
+    }),
+  );
+}
+
+export function mountPulseButton(host: HTMLElement) {
+  if (!(host instanceof HTMLElement) || !host.parentNode) return;
+  const mount = document.createElement('div');
+  mount.style.cssText = 'display:inline-flex;border-radius:10px;';
+  host.parentNode.insertBefore(mount, host);
+  renderInto(mount, createElement(PulseButtonIsland, { host }));
+}

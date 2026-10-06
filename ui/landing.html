@@ -340,6 +340,22 @@
 
   /* ── Hero ──────────────────────────────────────────────────────── */
   .hero { padding: 76px 0 0; text-align: center; }
+  .hero-art {
+    width: min(780px, 94vw);
+    margin: -24px auto -96px;
+  }
+  .hero-art .hairline-fig {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    --hairline-plate: var(--bg);
+    --hairline-hi: #f4f7f5;
+    --hairline-edge: #b4bdb8;
+    --hairline-mid: #87928c;
+    --hairline-lo: #46514c;
+    --hairline-stroke: 1.15;
+  }
+  .hero-art + .stage { margin-top: 12px; }
   .hero-chip {
     display: inline-flex;
     align-items: center;
@@ -1180,6 +1196,7 @@
     .nav-inner { height: 58px; }
     .nav-cta .btn-ghost { display: none; }
     .hero { padding-top: 44px; }
+    .hero-art { width: min(440px, 94vw); margin: -8px auto -48px; }
     .hero-chip { font-size: 12px; margin-bottom: 22px; }
     .hero h1 { font-size: 42px; letter-spacing: -0.04em; }
     .hero-sub { font-size: 16px; }
@@ -1294,6 +1311,10 @@
       <span><svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 7.2l2.6 2.6L11 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Free to use</span>
       <span><svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 7.2l2.6 2.6L11 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Works with your own AI key</span>
       <span><svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 7.2l2.6 2.6L11 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Your data stays with you</span>
+    </div>
+
+    <div class="hero-art" aria-hidden="true">
+      <div class="hairline-fig" data-hairline="terrain" data-intensity="0.7"></div>
     </div>
 
     <!-- ── Command center preview (decorative) ── -->

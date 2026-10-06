@@ -3,11 +3,271 @@ const STORY_CONTENT = {"en": {"lines": ["I have spent <strong>12 years in UX</st
 
 let storyScrollRaf = 0;
 
+const STORY_CHAPTERS = {
+  en: [
+    {
+      id: 'story-now',
+      label: 'Now',
+      fig: 'desk',
+      figTitle: 'Product desk',
+      figHint: 'Click a panel',
+      figStatus: ['Brief', 'Screens', 'Agent'],
+      title: 'Product and design at OneAsset',
+      paragraphs: [
+        'Today I work on product strategy and design at <strong>OneAsset</strong>, alongside my independent projects.'
+      ]
+    },
+    {
+      id: 'story-products',
+      label: 'Products',
+      fig: 'products',
+      figTitle: 'Three products',
+      figHint: 'Click a product',
+      figStatus: ['UXfi', 'Flemme OS', 'Creads.io'],
+      title: 'UXfi, Flemme OS and Creads.io',
+      paragraphs: [
+        'Independent products include <strong>UXfi</strong>, <strong>Flemme OS</strong> and <strong>Creads.io</strong>, which has 1,200 registered users and 20 paying clients.'
+      ]
+    },
+    {
+      id: 'story-ai',
+      label: 'AI',
+      fig: 'workflow',
+      figTitle: 'Workflow',
+      figHint: 'Click a step',
+      figStatus: ['Prompt', 'Screen', 'Check'],
+      title: 'Four years with AI',
+      paragraphs: [
+        'I have worked with <strong>AI for 4 years</strong>, and rebuilt my UX and design workflow around it.'
+      ]
+    },
+    {
+      id: 'story-agency',
+      label: 'Agency',
+      fig: 'studio',
+      figTitle: 'Studio',
+      figHint: 'Click a seat',
+      figStatus: ['Seat 1', 'Seat 2', 'Seat 3', 'Seat 4'],
+      title: 'Agence V0',
+      paragraphs: [
+        'In <strong>2020</strong>, I founded <strong>Agence V0</strong>, a product design agency.',
+        'I managed up to <strong>7 junior freelance designers</strong>. The agency generated around <strong>€400K over three years</strong>.',
+        'My client work included <strong>LVMH</strong>, <strong>Société Générale</strong>, Renault and Shiseido.'
+      ]
+    },
+    {
+      id: 'story-earlier',
+      label: 'Earlier',
+      fig: 'archive',
+      figTitle: 'Archive',
+      figHint: 'Click a piece',
+      figStatus: ['Newflux', 'Vloggy', 'UX'],
+      title: 'Twelve years in UX',
+      paragraphs: [
+        'I have spent <strong>12 years in UX</strong>, starting in digital design and working at <strong>Marcel/Publicis</strong>.',
+        'I then went <strong>freelance</strong>, working with startups and larger companies.',
+        'In <strong>2015</strong>, I founded <strong>Newflux.fr</strong>, a French UX/UI publication. I published 300+ articles and organized events and workshops.',
+        'In <strong>2017</strong>, I co-founded <strong>Vloggy</strong>, a video social network with a mobile editing studio.',
+        'We raised <strong>€100K</strong> and reached delivery stage. We later stopped operations when funding ran out.'
+      ]
+    }
+  ],
+  fr: [
+    {
+      id: 'story-now',
+      label: 'Maintenant',
+      fig: 'desk',
+      figTitle: 'Bureau produit',
+      figHint: 'Cliquer un panneau',
+      figStatus: ['Brief', 'Écrans', 'Agent'],
+      title: 'Produit et design chez OneAsset',
+      paragraphs: [
+        'Aujourd’hui, je travaille sur la stratégie produit et le design chez <strong>OneAsset</strong>, en parallèle de mes projets indépendants.'
+      ]
+    },
+    {
+      id: 'story-products',
+      label: 'Produits',
+      fig: 'products',
+      figTitle: 'Trois produits',
+      figHint: 'Cliquer un produit',
+      figStatus: ['UXfi', 'Flemme OS', 'Creads.io'],
+      title: 'UXfi, Flemme OS et Creads.io',
+      paragraphs: [
+        'Parmi les produits indépendants : <strong>UXfi</strong>, <strong>Flemme OS</strong> et <strong>Creads.io</strong>, qui compte 1 200 utilisateurs inscrits et 20 clients payants.'
+      ]
+    },
+    {
+      id: 'story-ai',
+      label: 'IA',
+      fig: 'workflow',
+      figTitle: 'Workflow',
+      figHint: 'Cliquer une étape',
+      figStatus: ['Prompt', 'Écran', 'Contrôle'],
+      title: 'Quatre ans avec l’IA',
+      paragraphs: [
+        'Je travaille avec l’<strong>IA depuis 4 ans</strong>, et j’ai adapté mon workflow UX et design autour d’elle.'
+      ]
+    },
+    {
+      id: 'story-agency',
+      label: 'Agence',
+      fig: 'studio',
+      figTitle: 'Studio',
+      figHint: 'Cliquer une place',
+      figStatus: ['Place 1', 'Place 2', 'Place 3', 'Place 4'],
+      title: 'Agence V0',
+      paragraphs: [
+        'En <strong>2020</strong>, j’ai fondé <strong>Agence V0</strong>, une agence de product design.',
+        'J’y ai encadré jusqu’à <strong>7 designers freelances juniors</strong>. L’agence a réalisé environ <strong>400K EUR sur trois ans</strong>.',
+        'J’ai notamment travaillé pour <strong>LVMH</strong>, <strong>Société Générale</strong>, Renault et Shiseido.'
+      ]
+    },
+    {
+      id: 'story-earlier',
+      label: 'Avant',
+      fig: 'archive',
+      figTitle: 'Archives',
+      figHint: 'Cliquer une pièce',
+      figStatus: ['Newflux', 'Vloggy', 'UX'],
+      title: 'Douze ans d’UX',
+      paragraphs: [
+        'Je travaille dans <strong>l’UX depuis 12 ans</strong>. J’ai commencé dans le design digital, puis travaillé chez <strong>Marcel/Publicis</strong>.',
+        'Je suis ensuite devenu <strong>freelance</strong>, auprès de startups et de grands groupes.',
+        'En <strong>2015</strong>, j’ai fondé <strong>Newflux.fr</strong>, un média UX/UI français. J’y ai publié 300+ articles et organisé des événements et des ateliers.',
+        'En <strong>2017</strong>, j’ai cofondé <strong>Vloggy</strong>, un réseau social vidéo avec un studio de montage mobile.',
+        'Nous avons levé <strong>100K EUR</strong> et atteint le stade de livraison. Nous avons ensuite arrêté l’activité faute de financement.'
+      ]
+    }
+  ]
+};
+
+function storyIso(x, y, z) {
+  return [(x - y) * 0.8660254, (x + y) * 0.5 - z];
+}
+
+function storyPoly(points, fill, stroke) {
+  const pts = points.map(([x, y, z]) => {
+    const [sx, sy] = storyIso(x, y, z);
+    return `${sx.toFixed(2)},${sy.toFixed(2)}`;
+  }).join(' ');
+  return `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="1.15" stroke-linejoin="round"/>`;
+}
+
+function storyBox(x, y, z, w, d, h, active) {
+  const line = active ? 'rgba(77,184,138,.9)' : 'rgba(255,255,255,.3)';
+  const front = [[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]];
+  const side = [[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]];
+  const top = [[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]];
+  return storyPoly(front, active ? '#12261e' : '#151515', line)
+    + storyPoly(side, '#101010', line)
+    + storyPoly(top, active ? '#1c3d30' : '#1c1c1c', line);
+}
+
+function storyLine(a, b, stroke) {
+  const [x1, y1] = storyIso(a[0], a[1], a[2]);
+  const [x2, y2] = storyIso(b[0], b[1], b[2]);
+  return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${stroke}" stroke-width="1.2"/>`;
+}
+
+function drawStoryFigure(kind, step) {
+  if (kind === 'desk') {
+    let svg = storyBox(-78, -46, 0, 156, 92, 10, false);
+    svg += storyBox(-8, -4, 10, 16, 14, 4, false);
+    svg += storyBox(-4, 0, 14, 8, 8, 16, false);
+    svg += storyBox(-46, -34, 28, 92, 8, 56, false);
+    const padX = 8;
+    const padZ = 6;
+    const gap = 4;
+    const ph = (56 - padZ * 2 - gap * 2) / 3;
+    for (let i = 0; i < 3; i += 1) {
+      const active = i === step;
+      const pz = 28 + padZ + i * (ph + gap);
+      const py = -34 + 8 + 0.8;
+      svg += storyPoly(
+        [[-46 + padX, py, pz], [46 - padX, py, pz], [46 - padX, py, pz + ph], [-46 + padX, py, pz + ph]],
+        active ? 'rgba(77,184,138,.5)' : 'rgba(255,255,255,.05)',
+        active ? '#4db88a' : 'rgba(255,255,255,.22)'
+      );
+    }
+    svg += storyBox(-30, 10, 10, 60, 20, 3, false);
+    return svg;
+  }
+  if (kind === 'products') {
+    let svg = '';
+    for (let i = 0; i < 3; i += 1) {
+      const active = i === step;
+      svg += storyBox(-84 + i * 56, active ? -10 : 0, active ? 8 : 0, 42, 12, active ? 72 : 62, active);
+    }
+    return svg;
+  }
+  if (kind === 'workflow') {
+    const xs = [-72, -10, 52];
+    let svg = '';
+    for (let i = 0; i < 2; i += 1) {
+      svg += storyLine(
+        [xs[i] + 28, 14, 18],
+        [xs[i + 1], 14, 18],
+        i < step ? '#4db88a' : 'rgba(255,255,255,.32)'
+      );
+    }
+    xs.forEach((x, i) => {
+      svg += storyBox(x, 0, 0, 28, 28, 28, i === step);
+    });
+    return svg;
+  }
+  if (kind === 'studio') {
+    let svg = storyBox(-74, -40, 0, 148, 78, 8, false);
+    [[-56, -30], [-8, -30], [36, -30], [-32, 22]].forEach(([x, y], i) => {
+      svg += storyBox(x, y, 8, 24, 18, 14, i === step);
+    });
+    return svg;
+  }
+  const pieces = [
+    [-62, -24, 0, 96, 68, 8],
+    [-36, -6, 14, 68, 46, 6],
+    [28, 16, 24, 22, 10, 42]
+  ];
+  return pieces.map((piece, i) => {
+    const lift = i === step ? 16 : 0;
+    return storyBox(piece[0], piece[1], piece[2] + lift, piece[3], piece[4], piece[5], i === step);
+  }).join('');
+}
+
+function mountStoryFigures(root) {
+  root.querySelectorAll('[data-story-fig]').forEach((figure) => {
+    const kind = figure.dataset.storyFig;
+    const status = figure.querySelector('[data-story-fig-status]');
+    const svg = figure.querySelector('svg');
+    const labels = (figure.dataset.storyStatus || '').split('|').filter(Boolean);
+    const paint = (step) => {
+      const index = ((step % labels.length) + labels.length) % labels.length;
+      figure.dataset.storyStep = String(index);
+      if (svg) svg.innerHTML = drawStoryFigure(kind, index);
+      if (status) status.textContent = labels[index] || '';
+    };
+    const next = () => paint(Number(figure.dataset.storyStep || 0) + 1);
+    paint(0);
+    figure.addEventListener('click', (event) => {
+      event.stopPropagation();
+      next();
+    });
+    figure.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      next();
+    });
+  });
+}
+
 function renderStoryModalContent() {
-  const data = STORY_CONTENT[currentLang] || STORY_CONTENT.en;
+  const chapters = STORY_CHAPTERS[currentLang] || STORY_CHAPTERS.en;
   const scroller = document.getElementById('story-modal-scroller');
   const track = document.getElementById('story-modal-track');
-  if (!track || !data) return;
+  if (!track || !chapters) return;
+  const heroTitle = currentLang === 'fr' ? 'Mon parcours' : 'My background';
+  const scrollLabel = currentLang === 'fr' ? 'Défiler' : 'Scroll';
+  const chaptersLabel = currentLang === 'fr' ? 'Chapitres' : 'Chapters';
 
   const parallaxHtml = `
     <div class="story-parallax-hero" id="story-parallax-hero">
@@ -19,7 +279,7 @@ function renderStoryModalContent() {
           <img src="https://cdn.prod.website-files.com/671752cd4027f01b1b8f1c7f/6717795b4d5ac529e7d3a562_osmo-parallax-layer-2.webp" loading="eager" alt="" class="story-parallax-layer-img" />
         </div>
         <div class="story-parallax-title-wrap" data-parallax-layer="3">
-          <h2 class="story-parallax-title">My background<em>.</em></h2>
+          <h2 class="story-parallax-title">${heroTitle}<em>.</em></h2>
         </div>
         <div class="story-parallax-layer" data-parallax-layer="4">
           <img src="https://cdn.prod.website-files.com/671752cd4027f01b1b8f1c7f/6717795bb5aceca85011ad83_osmo-parallax-layer-1.webp" loading="eager" alt="" class="story-parallax-layer-img" />
@@ -27,7 +287,7 @@ function renderStoryModalContent() {
       </div>
       <div class="story-parallax-fade"></div>
       <div class="story-parallax-cue">
-        <span class="story-parallax-cue-label">Scroll</span>
+        <span class="story-parallax-cue-label">${scrollLabel}</span>
         <span class="story-parallax-cue-dot">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3.5 6.5L8 11l4.5-4.5"></path>
@@ -37,9 +297,33 @@ function renderStoryModalContent() {
     </div>
   `;
 
-  const linesHtml = data.lines.map((line, index) => `
-    <article class="story-line" data-index="${index}">${line}</article>
+  const chaptersHtml = chapters.map((chapter, index) => `
+    <section class="story-chapter" id="${chapter.id}">
+      <figure class="story-fig" data-story-fig="${chapter.fig}" data-story-status="${chapter.figStatus.join('|')}" tabindex="0" role="button" aria-label="${chapter.figTitle}. ${chapter.figHint}">
+        <span class="story-fig-lbl tl">Fig ${index + 1}</span>
+        <span class="story-fig-lbl tr">${chapter.figTitle}</span>
+        <svg viewBox="-150 -130 300 250" role="img" aria-hidden="true"></svg>
+        <span class="story-fig-lbl bl">${chapter.figHint}</span>
+        <span class="story-fig-lbl br" data-story-fig-status></span>
+      </figure>
+      <div class="story-chapter-copy">
+        <p class="story-chapter-label">${String(index + 1).padStart(2, '0')} ${chapter.label}</p>
+        <h3 class="story-chapter-title">${chapter.title}</h3>
+        ${chapter.paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join('')}
+      </div>
+    </section>
   `).join('');
+
+  const navHtml = `
+    <nav class="story-chapters" aria-label="${chaptersLabel}">
+      ${chapters.map((chapter, index) => `
+        <button type="button" class="story-chapter-link" data-story-target="${chapter.id}">
+          <span>${String(index + 1).padStart(2, '0')}</span>
+          ${chapter.label}
+        </button>
+      `).join('')}
+    </nav>
+  `;
 
   const contactHtml = `
     <div class="story-contact-wrap">
@@ -71,8 +355,14 @@ function renderStoryModalContent() {
     track.insertAdjacentHTML('beforebegin', parallaxHtml);
   }
 
-  track.innerHTML = linesHtml + contactHtml;
+  track.innerHTML = `
+    <div class="story-sheet">
+      <div class="story-sheet-main">${chaptersHtml}${contactHtml}</div>
+      ${navHtml}
+    </div>
+  `;
 
+  mountStoryFigures(track);
   refreshStoryPrompter();
   refreshStoryParallax();
 }
@@ -81,21 +371,20 @@ function refreshStoryPrompter() {
   const scroller = document.getElementById('story-modal-scroller');
   if (!scroller) return;
 
-  const items = Array.from(scroller.querySelectorAll('.story-line'));
-  if (!items.length) return;
+  const chapters = Array.from(scroller.querySelectorAll('.story-chapter'));
+  const links = Array.from(scroller.querySelectorAll('.story-chapter-link'));
+  if (!chapters.length) return;
 
-  const rect = scroller.getBoundingClientRect();
-  const focalY = rect.top + (rect.height * 0.46);
-  const maxDistance = rect.height * 0.72;
-
-  items.forEach((item) => {
-    const itemRect = item.getBoundingClientRect();
-    const itemCenter = itemRect.top + (itemRect.height / 2);
-    const distance = Math.abs(itemCenter - focalY);
-    const visibility = Math.max(0.18, 1 - (distance / maxDistance));
-
-    item.style.setProperty('--story-visibility', visibility.toFixed(3));
-    item.classList.toggle('is-focus', visibility >= 0.74);
+  const mark = scroller.getBoundingClientRect().top + Math.min(160, scroller.clientHeight * 0.28);
+  let current = chapters[0].id;
+  chapters.forEach((chapter) => {
+    if (chapter.getBoundingClientRect().top <= mark) current = chapter.id;
+  });
+  links.forEach((link) => {
+    const on = link.dataset.storyTarget === current;
+    link.classList.toggle('is-current', on);
+    if (on) link.setAttribute('aria-current', 'true');
+    else link.removeAttribute('aria-current');
   });
 }
 
@@ -195,6 +484,20 @@ document.getElementById('story-modal-scroller').addEventListener('scroll', () =>
   scheduleStoryPrompterRefresh();
   updateStoryScrollCue();
 }, { passive: true });
+document.getElementById('story-modal-scroller').addEventListener('click', (event) => {
+  const link = event.target.closest('.story-chapter-link');
+  if (!link) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const scroller = document.getElementById('story-modal-scroller');
+  const target = document.getElementById(link.dataset.storyTarget || '');
+  if (!scroller || !target) return;
+  const nav = scroller.querySelector('.story-chapters');
+  const bar = nav && getComputedStyle(nav).flexDirection === 'row';
+  const offset = bar ? nav.getBoundingClientRect().height + 16 : 24;
+  const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - offset;
+  scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+});
 document.getElementById('story-modal').addEventListener('click', (event) => {
   if (event.target === event.currentTarget) closeStoryModal();
 });
@@ -226,6 +529,7 @@ const INTERFACES = [
     name: 'LedgerStack — IT Accounting',
     tag: 'SaaS · Accounting · Light',
     type: 'desktop',
+    thumb: 'covers/iface-accounting-dashboard.jpg',
     url: 'ledgerstack.io/dashboard',
     src: 'interfaces/accounting-dashboard.html'
   },

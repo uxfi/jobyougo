@@ -143,6 +143,34 @@ async function captureOne(page, shot) {
   if (shot.coverCrop) {
     await page.screenshot({ path: png, clip: { x: 0, y: 0, width: 1440, height: 720 } });
   } else if (shot.fullPage) {
+    // App shells scroll inside <main>, not the document. Expand that pane or
+    // fullPage only captures the 1440×900 viewport and the portfolio window stops early.
+    await page.evaluate(() => {
+      const main = document.querySelector('main');
+      if (!main || main.scrollHeight <= main.clientHeight + 20) return;
+      const h = main.scrollHeight;
+      main.style.overflow = 'visible';
+      main.style.height = h + 'px';
+      main.style.maxHeight = 'none';
+      main.style.flex = '0 0 auto';
+      const shell = main.closest('.shell') || document.querySelector('.shell');
+      if (shell) {
+        shell.style.overflow = 'visible';
+        shell.style.height = 'auto';
+        shell.style.maxHeight = 'none';
+        shell.style.alignItems = 'flex-start';
+      }
+      const rail = document.querySelector('.investor-nav-dock-rail');
+      if (rail) {
+        rail.style.position = 'sticky';
+        rail.style.top = '0';
+        rail.style.height = '900px';
+        rail.style.alignSelf = 'flex-start';
+      }
+      document.documentElement.style.height = 'auto';
+      document.body.style.height = 'auto';
+      document.body.style.overflow = 'visible';
+    });
     await page.screenshot({ path: png, fullPage: true });
   } else {
     await page.screenshot({ path: png });
@@ -164,6 +192,7 @@ async function main() {
   // Hide cursor / stabilize
   await page.addInitScript(() => {
     localStorage.setItem('oneasset-theme', 'light');
+    sessionStorage.setItem('oa-demo-ok', '1');
   });
 
   const failed = [];
