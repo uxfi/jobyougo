@@ -209,7 +209,7 @@ const PROJECTS = [
       "Ads eCom"
     ],
     "accent": "#a855f7",
-    "desc": "I founded and built Creads.io, an AI advertising SaaS with 1,200 registered users and 20 paying clients. I own the user experience, AI workflow, infrastructure and launch.",
+    "desc": "I founded and built Creads.io, an AI advertising SaaS. I own the user experience, AI workflow, infrastructure and launch.",
     "subtitle": "Brand analysis, creative briefs and ad generation",
     "challenge": "Carry a brand’s identity, audience and positioning through the brief and generated creative, while keeping the workflow manageable as a solo founder.",
     "goals": "Connect brand onboarding, creative decisions and generation, with a check against the brief before accepting an output.",
@@ -231,8 +231,8 @@ const PROJECTS = [
         "desc": "One prompt generates the output. A second checks coherence and brief compliance before acceptance. Python workers run on Cloud Run, with Supabase, Vercel and Cloudflare supporting the application."
       }
     ],
-    "outcome": "1,200 registered users, 20 paying clients and 5,000 monthly visits, confirmed in September 2026. Zero paid acquisition. Founded and built independently.",
-    "outcomeStat": "1,200 users",
+    "outcome": "Founded and built independently, with no paid acquisition.",
+    "outcomeStat": null,
     "url": "https://www.creads.io/",
     "screenshot": "../images/screenshot_creads.webp",
     "video": "../images/creads-video-cover.mp4",
@@ -241,7 +241,7 @@ const PROJECTS = [
         "type": "text",
         "label": "My scope",
         "title": "From product design to a launched SaaS",
-        "body": "I founded and built Creads.io, an AI advertising SaaS with 1,200 registered users and 20 paying clients. I own the user experience, AI workflow, infrastructure and launch."
+        "body": "I founded and built Creads.io, an AI advertising SaaS. I own the user experience, AI workflow, infrastructure and launch."
       },
       {
         "type": "tools-row",
@@ -322,8 +322,7 @@ const PROJECTS = [
       },
       {
         "type": "outcome",
-        "stat": "1,200 users",
-        "text": "1,200 registered users, 20 paying clients and 5,000 monthly visits, confirmed in September 2026. Zero paid acquisition. Founded and built independently."
+        "text": "Founded and built independently, with no paid acquisition."
       }
     ]
   },
@@ -492,7 +491,7 @@ const PROJECTS = [
     "outcomeStat": null,
     "url": "https://oneasset.io",
     "screenshot": "../images/oneasset-v2-inv-dashboard.webp",
-    "heroCover": "../images/oneasset-v2-cover.webp",
+    "heroCover": "../images/oneasset-dubai-skyline.jpg",
     "narrative": [
       {
         "type": "text",
@@ -1251,7 +1250,7 @@ const PROJECTS = [
       {num:'03', title:'Fundraising Support', desc:'Built the investor presentation and product demo that secured the €100K seed round from Columbus BlueSky Holding.'},
     ],
     outcome:"Raised €100K and reached the delivery stage. Operations stopped when funding ran out.",
-    outcomeStat:'€100K',
+    outcomeStat:'€100K', heroCover:'../images/vloggy-cover.jpg',
     narrative: [
       { type:'text', label:'The project', title:'Co-founding a video social network, before TikTok took over',
         body:"Vloggy was a video social network for iOS and Android with an integrated editing studio. The product included 24-minute 1080p editing, 10-second video comments and creator monetization." },
