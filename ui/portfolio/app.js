@@ -2537,20 +2537,24 @@ function renderNarrativeBlock(b, stepsHTML, p) {
           ${(b.tools || []).map(t => `<span class="x-chip">${t.icon ? `<img class="x-chip-icon" src="${t.icon}" alt="${t.name}" loading="lazy">` : ''}${t.name}</span>`).join('')}
         </div>
       </div>`;
-    case 'process':
-      return `<div class="proj-n-block">
-        <div class="proj-n-label">Process</div>
-        <div class="proj-n-title">${b.title || 'How I approached it'}</div>
-        <div class="proj-steps">${stepsHTML}</div>
+    case 'process': {
+      const processTitle = (!b.title || b.title === 'How I approached it') ? uiLabel('process_title') : b.title;
+      const count = Array.isArray(p && p.steps) ? p.steps.length : 0;
+      const stepsClass = `proj-steps${count > 0 && count % 3 === 0 ? ' is-trio' : ''}`;
+      return `<div class="proj-n-block proj-approach">
+        <div class="proj-n-label">${uiLabel('process_label')}</div>
+        <div class="proj-approach-title">${processTitle}</div>
+        <div class="${stepsClass}">${stepsHTML}</div>
       </div>`;
+    }
     case 'outcome':
-      return `<div class="proj-n-block">
+      return `<div class="proj-n-block proj-close">
         <div class="proj-n-outcome">
-          ${b.stat ? `<div class="proj-n-outcome-stat">${b.stat}</div>` : ''}
-          <div>
+          <div class="proj-n-outcome-top">
             <div class="proj-outcome-label" data-i18n="key_outcome">${uiLabel('key_outcome')}</div>
-            <div class="proj-n-outcome-text"><strong>${b.text}</strong></div>
+            ${b.stat ? `<div class="proj-n-outcome-stat">${b.stat}</div>` : ''}
           </div>
+          <div class="proj-n-outcome-text">${b.text}</div>
         </div>
       </div>`;
     default: return '';
@@ -2975,15 +2979,69 @@ function renderMethodSchema(p) {
     </section>`;
 }
 
-function renderProject(p) {
+function projectTrail(current) {
+  const aiIds = ['uxfi', 'panfy', 'flemme', 'jarvos', 'ancient-world'];
+  const featuredOrder = ['oneasset', 'creads', 'lvmh', 'renault', 'sg'];
   const visible = publicProjects();
-  const idx = visible.findIndex(x => x.id === p.id);
-  const prev = idx > 0 ? visible[idx - 1] : null;
-  const next = idx < visible.length - 1 ? visible[idx + 1] : null;
+  const work = visible.filter(item => !aiIds.includes(item.id)).sort((a, b) => {
+    const rank = item => item.id === 'arlequin'
+      ? featuredOrder.length + 1
+      : (featuredOrder.includes(item.id) ? featuredOrder.indexOf(item.id) : featuredOrder.length);
+    return rank(a) - rank(b);
+  });
+  const ai = aiIds.map(id => visible.find(item => item.id === id)).filter(Boolean);
+  const seq = aiIds.includes(current.id) ? ai : work;
+  const idx = seq.findIndex(item => item.id === current.id);
+  if (idx === -1) {
+    const fallback = visible;
+    const fallbackIdx = fallback.findIndex(item => item.id === current.id);
+    return { seq: fallback, idx: fallbackIdx };
+  }
+  return { seq, idx };
+}
+
+function projectStill(p) {
+  return p.heroCover || p.screenshot || p.cover || '';
+}
+
+function projectNavCard(p, role) {
+  const dir = role === 'prev'
+    ? (currentLang === 'en' ? 'Previous' : 'Précédent')
+    : role === 'next'
+      ? (currentLang === 'en' ? 'Next' : 'Suivant')
+      : (currentLang === 'en' ? 'Then' : 'Ensuite');
+  const still = projectStill(p);
+  const tag = String(p.subtitle || p.tagline || '');
+  const arrow = role === 'prev'
+    ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>';
+  const media = still
+    ? `<img class="proj-next-img" src="${still}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+    : `<span class="proj-next-fallback"${p.accent ? ` style="background:${p.accent}"` : ''}></span>${p.logo ? `<img class="proj-next-logo" src="${p.logo}" alt="" loading="lazy" decoding="async">` : ''}`;
+  return `
+    <button type="button" class="proj-next-card is-${role}" onclick="openProject('${p.id}')" aria-label="${dir}: ${p.company}">
+      ${media}
+      <span class="proj-next-shade"></span>
+      <span class="proj-next-copy">
+        <span class="proj-next-dir">${dir}</span>
+        <span class="proj-next-name">${p.company}</span>
+        ${tag ? `<span class="proj-next-tag">${tag}</span>` : ''}
+      </span>
+      <span class="proj-next-go">${arrow}</span>
+    </button>`;
+}
+
+function renderProject(p) {
+  const { seq, idx } = projectTrail(p);
+  const prev = idx > 0 ? seq[idx - 1] : null;
+  const next = idx >= 0 && idx < seq.length - 1 ? seq[idx + 1] : null;
+  const after = idx >= 0 && idx < seq.length - 2 ? seq[idx + 2] : null;
 
   const isLightAccent = p.accent === '#8cff2f' || p.accent === 'rgb(140, 255, 47)';
   const accentText = isLightAccent ? '#000000' : '#ffffff';
 
+  const stepCount = Array.isArray(p.steps) ? p.steps.length : 0;
+  const stepsClass = `proj-steps${stepCount > 0 && stepCount % 3 === 0 ? ' is-trio' : ''}`;
   const stepsHTML = p.steps.map(s => `
     <div class="proj-step">
       <div class="proj-step-line"></div>
@@ -2992,10 +3050,12 @@ function renderProject(p) {
       <div class="proj-step-desc">${s.desc}</div>
     </div>`).join('');
 
-  const outcomeHTML = p.outcomeStat
-    ? `<div class="proj-outcome-stat">${p.outcomeStat}</div>
-       <div><div class="proj-outcome-label" data-i18n="key_outcome">${uiLabel('key_outcome')}</div><div class="proj-outcome-text"><strong>${p.outcome}</strong></div></div>`
-    : `<div style="grid-column:1/-1"><div class="proj-outcome-label" data-i18n="key_outcome">${uiLabel('key_outcome')}</div><div class="proj-outcome-text"><strong>${p.outcome}</strong></div></div>`;
+  const outcomeHTML = `
+    <div class="proj-n-outcome-top">
+      <div class="proj-outcome-label" data-i18n="key_outcome">${uiLabel('key_outcome')}</div>
+      ${p.outcomeStat ? `<div class="proj-n-outcome-stat">${p.outcomeStat}</div>` : ''}
+    </div>
+    <div class="proj-n-outcome-text">${p.outcome}</div>`;
 
   // Before/after — rendered early (after goals/solution, before process)
   const galleryBeforeAfterHTML = p.gallery && p.gallery.beforeAfter ? `
@@ -3050,19 +3110,16 @@ function renderProject(p) {
       </button>`
     : '';
 
-  const prevBtn = prev
-    ? `<div class="proj-nav-btn" onclick="openProject('${prev.id}')">
-         <div class="proj-nav-arr">←</div>
-         <div><div class="proj-nav-dir">Previous</div><div class="proj-nav-co">${prev.company}</div></div>
-       </div>`
-    : `<div></div>`;
-
-  const nextBtn = next
-    ? `<div class="proj-nav-btn next" onclick="openProject('${next.id}')">
-         <div><div class="proj-nav-dir">Next</div><div class="proj-nav-co">${next.company}</div></div>
-         <div class="proj-nav-arr">→</div>
-       </div>`
-    : `<div></div>`;
+  const trailIndex = idx >= 0
+    ? `${String(idx + 1).padStart(2, '0')}<span>/ ${String(seq.length).padStart(2, '0')}</span>`
+    : '';
+  const stageClass = [
+    'proj-next-stage',
+    prev ? 'has-prev' : '',
+    next ? 'has-next' : '',
+    after ? 'has-after' : '',
+  ].filter(Boolean).join(' ');
+  const sideCount = (prev ? 1 : 0) + (after ? 1 : 0);
 
   const platformStr = p.platforms.join(', ');
 
@@ -3126,7 +3183,7 @@ function renderProject(p) {
       <div class="proj-process">
         <div class="proj-block-label" data-i18n="process_label">${uiLabel('process_label')}</div>
         <div class="proj-process-title" data-i18n="process_title">${uiLabel('process_title')}</div>
-        <div class="proj-steps">${stepsHTML}</div>
+        <div class="${stepsClass}">${stepsHTML}</div>
       </div>
 
       ${galleryHTML}
@@ -3139,14 +3196,22 @@ function renderProject(p) {
       <div style="height:64px"></div>
     </div>
 
-    <div class="proj-nav-bar">
-      ${prevBtn}
-      <div class="proj-nav-all" onclick="goHome()">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12h12M2 8h12M2 4h12"/></svg>
-        ${currentLang === 'en' ? 'All work' : 'Tous les projets'}
+    <section class="proj-next">
+      <div class="proj-next-head">
+        <div>
+          <div class="proj-next-kicker">${currentLang === 'en' ? 'Up next' : 'À suivre'}</div>
+          ${trailIndex ? `<div class="proj-next-index">${trailIndex}</div>` : ''}
+        </div>
+        <button type="button" class="proj-next-all" onclick="goHome()">
+          ${currentLang === 'en' ? 'All work' : 'Tous les projets'}
+        </button>
       </div>
-      ${nextBtn}
-    </div>
+      <div class="${stageClass}${sideCount === 1 ? ' sides-1' : ''}">
+        ${prev ? projectNavCard(prev, 'prev') : ''}
+        ${next ? projectNavCard(next, 'next') : ''}
+        ${after ? projectNavCard(after, 'after') : ''}
+      </div>
+    </section>
   </div>`;
 }
 
