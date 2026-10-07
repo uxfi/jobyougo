@@ -7062,13 +7062,18 @@ function renderPipeline({ keepToolbar = false } = {}) {
       }
       const deleteBtn = e.target.closest('[data-delete-url]');
       if (deleteBtn) {
-        await api('/api/pipeline', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: deleteBtn.dataset.deleteUrl }),
-        });
-        toast('Removed from pipeline');
-        await loadAll();
+        try {
+          await api('/api/pipeline', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: deleteBtn.dataset.deleteUrl }),
+          });
+          toast('Removed from pipeline');
+          await loadAll();
+        } catch (err) {
+          toast(`Error: ${err.message}`, true);
+          await loadAll();
+        }
         return;
       }
       if (e.target.closest('button, a, input, textarea, select')) return;
@@ -7132,14 +7137,19 @@ function renderPipelineBulkBar() {
       confirmLabel: 'Delete',
     });
     if (!ok) return;
-    await api('/api/pipeline', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls }),
-    });
-    state.selectedPipelineUrls.clear();
-    toast(`${urls.length} offer${urls.length > 1 ? 's' : ''} removed from pipeline`);
-    await loadAll();
+    try {
+      await api('/api/pipeline', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls }),
+      });
+      state.selectedPipelineUrls.clear();
+      toast(`${urls.length} offer${urls.length > 1 ? 's' : ''} removed from pipeline`);
+      await loadAll();
+    } catch (err) {
+      toast(`Error: ${err.message}`, true);
+      await loadAll();
+    }
   });
 }
 
@@ -7284,13 +7294,19 @@ document.getElementById('quick-add-btn').addEventListener('click', async () => {
   const url  = document.getElementById('quick-url').value.trim();
   const note = document.getElementById('quick-note').value.trim();
   if (!url.startsWith('http')) { toast('Please enter a valid URL', true); return; }
-  await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
-  document.getElementById('quick-url').value = '';
-  document.getElementById('quick-note').value = '';
-  document.getElementById('quick-modal').classList.remove('open');
-  toast('Added to pipeline');
-  await loadAll();
-  navigate('pipeline');
+  try {
+    const result = await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
+    toast(result?.duplicate ? 'Cette URL est déjà dans le pipeline' : 'Ajoutée en haut du pipeline');
+    if (!result?.duplicate) {
+      document.getElementById('quick-url').value = '';
+      document.getElementById('quick-note').value = '';
+      document.getElementById('quick-modal').classList.remove('open');
+    }
+    await loadAll();
+    navigate('pipeline');
+  } catch (err) {
+    toast(err.message || 'Ajout impossible', true);
+  }
 });
 
 // ─── Application email (standalone: recipient and/or offer link) ─────────────
@@ -8409,11 +8425,17 @@ document.getElementById('add-pipeline-btn').addEventListener('click', async () =
   const url  = document.getElementById('pipeline-url').value.trim();
   const note = document.getElementById('pipeline-note').value.trim();
   if (!url.startsWith('http')) { toast('Please enter a valid URL', true); return; }
-  await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
-  document.getElementById('pipeline-url').value = '';
-  document.getElementById('pipeline-note').value = '';
-  toast('Added to pipeline');
-  await loadAll();
+  try {
+    const result = await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
+    toast(result?.duplicate ? 'Cette URL est déjà dans le pipeline' : 'Ajoutée en haut du pipeline');
+    if (!result?.duplicate) {
+      document.getElementById('pipeline-url').value = '';
+      document.getElementById('pipeline-note').value = '';
+    }
+    await loadAll();
+  } catch (err) {
+    toast(err.message || 'Ajout impossible', true);
+  }
 });
 
 // Enter key on pipeline inputs

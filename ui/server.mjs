@@ -55,6 +55,8 @@ import {
   formatPipelineMarkdown,
   pipelineRecordFromEntry,
   overlayPipelineRecord,
+  removePipelineMarkdownUrls,
+  insertPipelineMarkdownLines,
 } from '../lib/pipeline-record.mjs';
 import { withPipelineLock } from '../pipeline-lock.mjs';
 import { formatReportNumber, releaseReportNumbers, reserveReportNumbers } from '../reserve-report-num.mjs';
@@ -1043,29 +1045,116 @@ async function appendPipelineRecords(records = []) {
   await appendFile(file, `${rows.map(record => JSON.stringify(record)).join('\n')}\n`, 'utf-8');
 }
 
+async function loadPipelineRows(userId, { columns = '*', processed } = {}) {
+  if (!useSupabase) return [];
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    let q = supabase.from('pipeline').select(columns);
+    if (processed != null) q = q.eq('processed', processed);
+    if (userId) q = q.eq('user_id', userId);
+    const { data, error } = await q.range(from, from + 999);
+    if (error) throw new Error(`Supabase pipeline sync failed: ${error.message}`);
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) return rows;
+  }
+}
+
+function pipelineRowsByKey(rows) {
+  const byKey = new Map();
+  for (const row of rows) {
+    const key = normalizeUrlKey(row.url);
+    if (!key) continue;
+    const list = byKey.get(key) || [];
+    list.push(row);
+    byKey.set(key, list);
+  }
+  return byKey;
+}
+
+async function getProcessedPipelineUrlKeys(userId) {
+  const rows = await loadPipelineRows(userId, { columns: 'url', processed: true });
+  return new Set(rows.map(row => normalizeUrlKey(row.url)).filter(Boolean));
+}
+
+async function updatePipelineRows(urls, patch, userId) {
+  const failed = [];
+  for (const url of [...new Set(urls)]) {
+    let q = supabase.from('pipeline').update(patch).eq('url', url);
+    if (userId) q = q.eq('user_id', userId);
+    const { error } = await q;
+    if (error) failed.push({ url, error });
+  }
+  return failed;
+}
+
+function pipelineHistoryLine(url, portal, title, company, status) {
+  const cell = (value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim();
+  return [url, new Date().toISOString().slice(0, 10), portal, cell(title), cell(company), status].join('\t');
+}
+
+async function recordPipelineChange(records, historyRows) {
+  await appendPipelineRecords(records).catch(err => console.warn(`[pipeline] jsonl: ${err.message}`));
+  if (!historyRows.length) return;
+  await appendScanHistoryEntries(historyRows).catch(err => console.warn(`[pipeline] scan-history: ${err.message}`));
+}
+
+async function editPipelineMarkdown(edit) {
+  const file = join(WRITE_ROOT, 'data/pipeline.md');
+  await withPipelineLock(file, async () => {
+    let raw = '';
+    try {
+      raw = await readFile(file, 'utf-8');
+    } catch {
+      try { raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8'); } catch { raw = ''; }
+    }
+    const next = await edit(raw);
+    if (typeof next !== 'string' || next === raw) return;
+    await writeFile(file, next, 'utf-8');
+  });
+}
+
+function visiblePipelineItems(items, records) {
+  return items
+    .map(item => overlayPipelineRecord(normalizePipelineItem(item), records.get(normalizeUrlKey(item.url))))
+    .filter(Boolean);
+}
+
+function withoutSuppressedOrphans(orphans, records, processedKeys) {
+  return orphans.filter(item => {
+    const key = normalizeUrlKey(item?.url || '');
+    return key && !processedKeys.has(key) && records.get(key)?.status !== 'removed';
+  });
+}
+
 async function getPipeline(userId) {
+  const records = await readLatestPipelineRecords().catch(() => new Map());
+  let items = [];
   if (useSupabase) {
-    let q = supabase.from('pipeline').select('*').eq('processed', false).order('created_at', { ascending: true });
+    let q = supabase.from('pipeline').select('*').eq('processed', false).order('created_at', { ascending: false });
     if (userId) q = q.eq('user_id', userId);
     const { data, error } = await q;
     if (error) throw error;
-    const pipeline = (data || []).map(normalizePipelineItem);
-    const includeLocalOrphans = await shouldIncludeLocalScanHistoryOrphans(userId);
-    const orphaned = includeLocalOrphans
-      ? await getOrphanedScanPipelineItems(pipeline).catch(() => [])
-      : [];
-    return [...pipeline, ...orphaned];
+    items = data || [];
+  } else {
+    try { items = parsePipeline(await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8')); }
+    catch { items = []; }
   }
-  try {
-    const raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8');
-    const pipeline = parsePipeline(raw).map(normalizePipelineItem);
-    const records = await readLatestPipelineRecords();
-    const enriched = pipeline.map(item => overlayPipelineRecord(item, records.get(normalizeUrlKey(item.url))));
-    const orphaned = await getOrphanedScanPipelineItems(enriched).catch(() => []);
-    return [...enriched, ...orphaned];
-  } catch {
-    return getOrphanedScanPipelineItems([]).catch(() => []);
-  }
+
+  const enriched = visiblePipelineItems(items, records);
+  if (useSupabase && !await shouldIncludeLocalScanHistoryOrphans(userId)) return enriched;
+
+  const processedKeys = useSupabase
+    ? await getProcessedPipelineUrlKeys(userId).catch(err => {
+        console.warn(`[pipeline] processed-url lookup failed: ${err.message}`);
+        return new Set();
+      })
+    : new Set();
+  const orphans = withoutSuppressedOrphans(
+    await getOrphanedScanPipelineItems(enriched).catch(() => []),
+    records,
+    processedKeys,
+  );
+  return [...enriched, ...orphans];
 }
 
 async function getReports(userId) {
@@ -1124,51 +1213,92 @@ async function getReport(filename, userId) {
   return readFile(join(ROOT, 'reports', filename), 'utf-8');
 }
 
-// Atomic batch insert: single Supabase upsert OR single read+write of pipeline.md.
-// Avoids the read-modify-write race that occurs when callers Promise.all([addToPipeline, ...]).
-async function addManyToPipeline(entries = [], userId) {
-  const clean = (entries || []).filter(e => e?.url);
+function pipelineSideStatus(entry, fallback) {
+  const status = String(entry?.status || '').trim();
+  return status === 'remote_review' || status === 'jev_unverified' ? status : fallback;
+}
+
+function uniquePipelineEntries(entries) {
+  const clean = [];
+  const seen = new Set();
+  for (const entry of entries || []) {
+    const url = String(entry?.url || '').trim();
+    if (!url.startsWith('http')) continue;
+    const key = normalizeUrlKey(url);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    clean.push({ ...entry, url });
+  }
+  return clean;
+}
+
+async function addManyToPipeline(entries = [], userId, { prepend = false } = {}) {
+  const clean = uniquePipelineEntries(entries);
   if (!clean.length) return;
 
+  const storedByKey = pipelineRowsByKey(await loadPipelineRows(userId));
+  const canonical = clean.map(entry => {
+    const matches = storedByKey.get(normalizeUrlKey(entry.url)) || [];
+    return {
+      entry: { ...entry, url: matches[0]?.url || entry.url },
+      extras: matches.slice(1).map(row => row.url),
+    };
+  });
+
   if (useSupabase) {
-    const rows = clean.map(({ url, note }) => {
-      const row = { url, note: note || '', processed: false };
+    const now = new Date().toISOString();
+    const rows = canonical.map(({ entry }) => {
+      const row = { url: entry.url, note: entry.note || '', processed: false };
+      if (prepend) row.created_at = now;
       if (userId) row.user_id = userId;
       return row;
     });
-    const { error } = await supabase
-      .from('pipeline')
-      .upsert(rows, { onConflict: 'url,user_id' });
+    const { error } = await supabase.from('pipeline').upsert(rows, { onConflict: 'url,user_id' });
     if (error) throw error;
+    const failed = await updatePipelineRows(canonical.flatMap(item => item.extras), { processed: true }, userId);
+    for (const { error: extraError } of failed) console.warn(`[pipeline] duplicate spelling not closed: ${extraError.message}`);
   }
-  const pipelineFile = join(WRITE_ROOT, 'data/pipeline.md');
-  await withPipelineLock(pipelineFile, async () => {
-    let raw = '';
-    try {
-      raw = await readFile(pipelineFile, 'utf-8');
-    } catch {
-      try { raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8'); } catch { raw = ''; }
-    }
-    const existing = new Set(
-      parsePipeline(raw).map(item => normalizeUrlKey(item.url)).filter(Boolean)
+
+  const scannedAt = new Date().toISOString();
+  const records = canonical.map(({ entry }) => pipelineRecordFromEntry({
+    ...entry,
+    status: pipelineSideStatus(entry, 'pending'),
+  }, scannedAt));
+  await recordPipelineChange(records, canonical.map(({ entry }) => {
+    const parts = extractPipelineNoteParts(entry.note || '');
+    return pipelineHistoryLine(
+      entry.url,
+      entry.historyPortal || 'manual-add',
+      entry.title || parts.title,
+      entry.company || parts.company,
+      pipelineSideStatus(entry, 'added'),
     );
-    const fresh = clean.filter(({ url }) => {
-      const key = normalizeUrlKey(url);
-      if (!key || existing.has(key)) return false;
-      existing.add(key);
-      return true;
+  }));
+
+  try {
+    await editPipelineMarkdown(raw => {
+      const existing = new Set(parsePipeline(raw).map(item => normalizeUrlKey(item.url)).filter(Boolean));
+      const lines = records.flatMap(record => {
+        const key = normalizeUrlKey(record.url);
+        if (!key || existing.has(key)) return [];
+        existing.add(key);
+        return [formatPipelineMarkdown(record)];
+      });
+      return lines.length ? insertPipelineMarkdownLines(raw, lines, prepend) : null;
     });
-    if (!fresh.length) return;
-    const scannedAt = new Date().toISOString();
-    const records = fresh.map(entry => pipelineRecordFromEntry(entry, scannedAt));
-    const lines = records.map(formatPipelineMarkdown);
-    await writeFile(pipelineFile, `${raw.trimEnd()}\n${lines.join('\n')}\n`, 'utf-8');
-    await appendPipelineRecords(records);
-  });
+  } catch (err) {
+    console.warn(`[pipeline] markdown add failed: ${err.message}`);
+  }
 }
 
 async function addToPipeline(url, note, userId) {
-  return addManyToPipeline([{ url, note }], userId);
+  const key = normalizeUrlKey(url);
+  const pipe = await getPipeline(userId).catch(() => []);
+  if (key && pipe.some(item => normalizeUrlKey(item.url) === key)) {
+    return { added: false, duplicate: true };
+  }
+  await addManyToPipeline([{ url, note }], userId, { prepend: true });
+  return { added: true, duplicate: false };
 }
 
 // ─── Portals (portals.yml) ────────────────────────────────────────────────────
@@ -5801,81 +5931,38 @@ function readBulkEnabledBody(body) {
   return { enabled, names };
 }
 
-// Atomic batch remove: one Supabase update + one read+write of pipeline.md +
-// one appendScanHistoryEntries call. Replaces parallel removeFromPipeline calls
-// that clobbered each other on pipeline.md.
 async function removeManyFromPipeline(urls = [], userId, { historyStatus = 'deleted', historyPortal = 'manual-delete' } = {}) {
-  const cleanUrls = (urls || []).map(u => String(u || '').trim()).filter(u => u.startsWith('http'));
+  const cleanUrls = uniquePipelineEntries(urls.map(url => ({ url }))).map(entry => entry.url);
   if (!cleanUrls.length) return;
-  const removeSet = new Set(cleanUrls);
 
-  // Fetch metadata for scan-history before we mutate anything
-  const itemsByUrl = new Map();
-  if (useSupabase) {
-    let q = supabase.from('pipeline').select('*').in('url', cleanUrls);
-    if (userId) q = q.eq('user_id', userId);
-    const { data } = await q;
-    (data || []).forEach(d => itemsByUrl.set(d.url, normalizePipelineItem(d)));
-  } else {
-    const all = await getPipeline().catch(() => []);
-    all.forEach(it => { if (removeSet.has(it.url)) itemsByUrl.set(it.url, it); });
-  }
-
-  // Mark processed in Supabase. Use one equality update per URL: PostgREST's
-  // `in` filter treats commas inside some real posting URLs as separators and
-  // returns a bare Bad Request, which previously left the UI unchanged.
-  if (useSupabase) {
-    for (const url of cleanUrls) {
-      let q = supabase.from('pipeline').update({ processed: true }).eq('url', url);
-      if (userId) q = q.eq('user_id', userId);
-      const { error } = await q;
-      if (error) {
-        console.error('Supabase update error:', error);
-        throw new Error(`Supabase pipeline sync failed: ${error.message}`);
-      }
-    }
-  }
-
-  // Single locked read+write of pipeline.md so scan add and pipeline
-  // process cannot clobber each other on Windows.
-  const pipelineFile = join(WRITE_ROOT, 'data/pipeline.md');
-  await withPipelineLock(pipelineFile, async () => {
-    let raw = '';
-    try {
-      raw = await readFile(pipelineFile, 'utf-8');
-    } catch {
-      try { raw = await readFile(join(ROOT, 'data/pipeline.md'), 'utf-8'); } catch { raw = ''; }
-    }
-    const updated = raw
-      .split('\n')
-      .filter(l => {
-        const trimmed = l.trim();
-        const cleanUrlOnLine = trimmed.replace(/^[-*+]\s*(\[[ xX]\]\s*)?/, '').trim().split(/\s+(?:[—–|]|-(?!\s*[\w]))\s+/)[0];
-        if (removeSet.has(cleanUrlOnLine)) return false;
-        for (const url of cleanUrls) {
-          if (trimmed.startsWith(url) || trimmed.includes(url)) return false;
-        }
-        return true;
-      })
-      .join('\n');
-    await writeFile(pipelineFile, updated, 'utf-8');
+  const storedByKey = pipelineRowsByKey(await loadPipelineRows(userId));
+  const localByKey = useSupabase
+    ? null
+    : new Map((await getPipeline().catch(() => [])).filter(item => item?.url).map(item => [normalizeUrlKey(item.url), item]));
+  const targets = cleanUrls.map(url => {
+    const matches = storedByKey.get(normalizeUrlKey(url)) || [];
+    const item = matches[0] ? normalizePipelineItem(matches[0]) : localByKey?.get(normalizeUrlKey(url));
+    return { url, stored: matches.map(row => row.url), item };
   });
+
+  const failed = useSupabase
+    ? await updatePipelineRows(targets.flatMap(target => target.stored.length ? target.stored : [target.url]), { processed: true }, userId)
+    : [];
+  for (const { error } of failed) console.error('Supabase update error:', error);
 
   const removedAt = new Date().toISOString();
-  await appendPipelineRecords(cleanUrls.map(url => ({
-    url,
-    status: 'removed',
-    scanned_at: removedAt,
-  }))).catch(err => console.warn('[pipeline] Failed to append pipeline.jsonl:', err.message));
+  await recordPipelineChange(
+    cleanUrls.map(url => ({ url, status: 'removed', scanned_at: removedAt })),
+    targets.map(target => pipelineHistoryLine(target.url, historyPortal, target.item?.title, target.item?.company, historyStatus)),
+  );
 
-  // Append all scan-history entries in one shot
-  const today = new Date().toISOString().split('T')[0];
-  const historyRows = cleanUrls.map(url => {
-    const item = itemsByUrl.get(url);
-    return `${url}\t${today}\t${historyPortal}\t${item?.title || ''}\t${item?.company || ''}\t${historyStatus}`;
-  });
-  await appendScanHistoryEntries(historyRows)
-    .catch(err => console.warn('[pipeline] Failed to append to scan-history:', err.message));
+  try {
+    await editPipelineMarkdown(raw => removePipelineMarkdownUrls(raw, cleanUrls));
+  } catch (err) {
+    console.warn(`[pipeline] markdown remove failed: ${err.message}`);
+  }
+
+  if (failed.length) throw new Error(`Supabase pipeline sync failed for ${failed.length} offer(s)`);
 }
 
 async function removeFromPipeline(url, userId, opts) {
@@ -7073,8 +7160,8 @@ const server = createServer(async (req, res) => {
       if (method === 'POST') {
         const { url, note } = await readBody(req);
         if (!url?.startsWith('http')) return json(res, { error: 'Invalid URL' }, 400);
-        await addToPipeline(url, note || '', req.userId);
-        return json(res, { ok: true });
+        const result = await addToPipeline(url, note || '', req.userId);
+        return json(res, { ok: true, ...result });
       }
       if (method === 'DELETE') {
         const { url, urls } = await readBody(req);
@@ -7989,16 +8076,18 @@ const server = createServer(async (req, res) => {
           // Filter out URLs already in pipeline, scan-history, or reports, and
           // company+role pairs already tracked / permanently deleted.
           {
-            const [existingPipeline, existingHistory, existingReports, companyRoleExclusions] = await Promise.all([
+            const [existingPipeline, existingHistory, existingReports, companyRoleExclusions, processedKeys] = await Promise.all([
               getPipeline().catch(() => []),
               getBlockingScanHistoryUrlSet().catch(() => new Set()),
               getReportUrlSet().catch(() => new Set()),
               getCompanyRoleExclusions(req.userId).catch(() => new Map()),
+              getProcessedPipelineUrlKeys().catch(() => new Set()),
             ]);
             const knownNormalized = new Set([
               ...existingPipeline.map(e => normalizeUrlKey(String(e?.url || ''))).filter(Boolean),
               ...[...existingHistory].map(u => normalizeUrlKey(u)).filter(Boolean),
               ...[...existingReports].map(u => normalizeUrlKey(u)).filter(Boolean),
+              ...processedKeys,
             ]);
             const beforeCount = verifiedCandidates.length;
             const freshCandidates = verifiedCandidates.filter(c => {
@@ -8650,9 +8739,10 @@ Contraintes : langue de l'annonce, pas de métrique inventée, pas de version lo
           const existingReportUrls = await getReportUrlSet().catch(() => new Set());
           const companyRoleExclusions = await getCompanyRoleExclusions(req.userId).catch(() => new Map());
           const normalizedReportUrls = new Set([...existingReportUrls].map(url => normalizeUrlKey(url)).filter(Boolean));
+          const processedPipelineKeys = await getProcessedPipelineUrlKeys(req.userId).catch(() => new Set());
           const isKnown = (url, note = '') => {
             const key = normalizeUrlKey(url);
-            if (existingPipelineUrls.has(key) || existingHistoryUrls.has(key) || normalizedReportUrls.has(key)) return true;
+            if (existingPipelineUrls.has(key) || existingHistoryUrls.has(key) || normalizedReportUrls.has(key) || processedPipelineKeys.has(key)) return true;
             const parts = extractPipelineNoteParts(note);
             const candidate = candidateUrlIndex.get(url) || candidateUrlIndex.get(key);
             return isCompanyRoleExcluded(
