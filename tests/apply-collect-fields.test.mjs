@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { COLLECT_FIELDS } from '../lib/apply-collect-fields.mjs';
 import { fieldCompletionIssue, fieldMatchesAnswer } from '../lib/apply-completion.mjs';
+import { revealSfResumeInputInPage } from '../extension/page-helper-registry.mjs';
+import { isResumeFileField, fileUploadPlan } from '../lib/apply-fill-guards.mjs';
 
 async function launchBrowser() {
   try {
@@ -462,4 +464,31 @@ test('Ashby Yes/No exposes two options and No counts as answered', async () => {
   fields = await page.evaluate(COLLECT_FIELDS);
   assert.equal(fields[0].groupChecked, true);
   assert.equal(fieldCompletionIssue(fields[0]), null);
+});
+
+test('SuccessFactors resume upload appears only after Upload a CV is clicked', async () => {
+  await page.setContent(`<!doctype html><body>
+    <div class="RCMFormField attachmentField">
+      <label class="rcmFormFieldLabel"><span class="requiredField">*</span> Resume / CV</label>
+      <span id="cvIcon" class="glyphicon addAttachments" onclick="window.__cv=1; this.insertAdjacentHTML('afterend', '<div class=&quot;calloutPopupWrapper&quot;><div class=&quot;attachmentUploadOptions&quot;><span class=&quot;attachmentLabel&quot; id=&quot;dev&quot;>Upload from Device</span><input type=&quot;file&quot; class=&quot;fileUpload&quot; name=&quot;fileData1&quot; aria-labelledby=&quot;dev&quot; style=&quot;opacity:0;width:160px;height:24px&quot;><span onclick=&quot;openCloudChooser(\\\'RESUME\\\')&quot;></span></div></div>')"></span>
+    </div>
+    <div class="RCMFormField attachmentField">
+      <label class="rcmFormFieldLabel">Cover Letter</label>
+      <span id="coverIcon" class="glyphicon addAttachments" onclick="window.__cover=1"></span>
+    </div>
+  </body>`);
+  const before = await page.evaluate(COLLECT_FIELDS);
+  assert.equal(before.filter((f) => f.type === 'file').length, 0);
+  const revealed = await page.evaluate(revealSfResumeInputInPage);
+  assert.equal(revealed.clicked, true);
+  assert.equal(revealed.ready, true);
+  assert.equal(await page.evaluate(() => window.__cover || 0), 0);
+  const fields = await page.evaluate(COLLECT_FIELDS);
+  const file = fields.find((f) => f.type === 'file');
+  assert.ok(file, JSON.stringify(fields.map((f) => f.type + ':' + f.label)));
+  assert.equal(isResumeFileField(file), true);
+  assert.equal(fileUploadPlan(file, { cvPath: '/tmp/cv.pdf' }).upload, '/tmp/cv.pdf');
+  const again = await page.evaluate(revealSfResumeInputInPage);
+  assert.equal(again.clicked, false);
+  assert.equal(again.ready, true);
 });

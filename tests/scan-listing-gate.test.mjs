@@ -41,6 +41,9 @@ const listings = [
   ['https://magazine.workingnotworking.com/magazine/hire-product-designer-portfolios-examples', 'Ready to Hire a Product Designer? Read Our Breakdown of 12 Awesome Product Designer Portfolios'],
   ['https://workingnotworking.com/search/everywhere/members/ui-designer', 'UI Designers – Working Not Working'],
   ['https://cdn1.workingnotworking.com/54631-samantha', 'Product Designer / Samantha Chiu – Working Not Working'],
+  ['https://remote.co/remote-jobs/product-manager', 'Remote Product Manager Jobs Online - Work From Home'],
+  ['https://remote.co/remote-jobs/product-manager?page=73', 'Remote Product Manager Jobs - Work From Home'],
+  ['https://hk.jobsdb.com/profiles/paddy-wong-R4tb9SRbXg', 'Paddy Wong, AI Product Manager at Shanghai Junzhiyu Network Technology Co., Ltd. | Jobsdb'],
 ];
 for (const [url, title] of listings) {
   const reason = listingPageReason({ url, title });
@@ -66,6 +69,8 @@ const postings = [
   ['https://www.404works.com/fr/project/mission-freelance-product-designer-e-commerce-sr-ux-transverse', 'Mission freelance : Product Designer e-commerce sr - UX transverse'],
   ['https://www.twine.net/projects/b8vbb0-uiux-ui-designer-remote-job', 'UI/UX freelance job'],
   ['https://agentic-engineering-jobs.com/jobs/tiger-tracks-founding-ai-engineer-contract-to-hire-LBGg5p', 'Founding AI Engineer (Contract-to-Hire)'],
+  ['https://remote.co/job/senior-product-manager-1/', 'Senior Product Manager - Remote.co'],
+  ['https://remote.co/job-details/technical-product-manager-f0d86f17-8c4e-4c02-a0a4-446501526ced', 'Technical Product Manager job at Ready - Remote.co'],
 ];
 for (const [url, title] of postings) {
   const reason = listingPageReason({ url, title });

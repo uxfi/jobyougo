@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { choiceKind, listFilterText, optionMatchScore, optionsAreYesNo, pickMatchingOption, placeWantedOnYesNoList, selectionLooksCommitted } from '../lib/apply-option-match.mjs';
+import { choiceKind, listFilterText, optionMatchScore, optionsAreYesNo, optionsLookLikeWorkPolicy, pickMatchingOption, pickRemotePolicyOption, placeWantedOnYesNoList, remotePolicyPlan, selectionLooksCommitted } from '../lib/apply-option-match.mjs';
 
 test('list filter types the short query and only the first word of a long one', () => {
   assert.equal(listFilterText('Bangkok'), 'Bangkok');
@@ -16,6 +16,23 @@ test('Yes|No lists are not a city, and a Location label should take Yes', () => 
   assert.equal(placeWantedOnYesNoList('Location', 'Paris, France'), true);
   assert.equal(placeWantedOnYesNoList('How did you hear about this job?', 'LinkedIn'), false);
   assert.equal(placeWantedOnYesNoList('Willing to relocate?', 'Paris, France'), false);
+});
+
+test('Ashby Location travel/Hamburg rows are a remote policy, not a city list', () => {
+  const opts = [
+    { text: 'Yes' },
+    { text: 'No' },
+    { text: 'Yes, no problem I am open to travel frequently' },
+    { text: 'Yes, I would also consider to move to Hamburg' },
+    { text: "No, this doesn't work for me I only want to work remote" },
+  ];
+  assert.equal(optionsAreYesNo(opts), false);
+  assert.equal(optionsLookLikeWorkPolicy(opts), true);
+  assert.equal(pickRemotePolicyOption(opts)?.text, "No, this doesn't work for me I only want to work remote");
+  assert.equal(remotePolicyPlan(opts).selectText, "No, this doesn't work for me I only want to work remote");
+  assert.equal(remotePolicyPlan([{ text: 'Yes' }, { text: 'No' }]).selectText, 'No');
+  assert.equal(remotePolicyPlan([{ text: 'Yes' }, { text: 'No' }]).yesNo, 'no');
+  assert.equal(optionsLookLikeWorkPolicy([{ text: 'Yes, I can work remotely from the EU' }, { text: 'No' }]), false);
 });
 
 test('choiceKind recognizes yes/no literals only', () => {
@@ -47,6 +64,13 @@ test('Yes matches the long authorized-to-work option', () => {
     'Yes, I am authorized to work in this country',
   ], 'Yes');
   assert.equal(picked?.text, 'Yes, I am authorized to work in this country');
+});
+
+test('Deloitte ex-employee No matches the long option, not Yes', () => {
+  const no = 'No, I am not a current/an ex-employee of Deloitte (or its Subsidiary companies)';
+  const yes = 'Yes, I am a current/an ex-employee of Deloitte (or its Subsidiary companies)';
+  assert.equal(pickMatchingOption([yes, no], 'No')?.text, no);
+  assert.equal(pickMatchingOption([yes, no], no)?.text, no);
 });
 
 test('country aliases: France ↔ French Republic, Thailand ↔ Thaïlande', () => {

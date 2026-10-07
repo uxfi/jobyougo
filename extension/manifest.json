@@ -1,10 +1,32 @@
 {
   "manifest_version": 3,
-  "name": "JobYouGo Apply Bridge (dev POC)",
-  "version": "0.0.30",
-  "description": "Open a job-application tab in the user's Chrome, navigate Apply/Next, adopt a new tab only when it matches the offer, fill with classify + LLM + CV upload checks + combobox CDP, optional Submit.",
-  "permissions": ["tabs", "scripting", "windows", "alarms", "debugger"],
+  "name": "JobYouGo Apply Bridge",
+  "version": "0.0.33",
+  "description": "Open a job-application tab in your Chrome and fill it from the JobYouGo dashboard.",
+  "permissions": ["tabs", "scripting", "windows", "alarms", "debugger", "storage"],
   "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "JobYouGo",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1:3210/*", "http://localhost:3210/*"],
+      "js": ["dashboard-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"

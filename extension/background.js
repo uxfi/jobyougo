@@ -17,6 +17,8 @@
 //   list-window-tabs      → HTTP tabs of the focused window (lost-tab recovery)
 //   scroll-tab            → human-like scroll before looking for CTAs
 //   dismiss-cookies       → best-effort cookie banner click
+//   show-helper           → draw the quick-fill helper over the offer tab
+//                           (apply-helper-overlay.js), kept across navigations
 //
 // Any other message type is answered with ok:false at once, so the bridge
 // never waits out its timeout on a request this build does not know.
@@ -48,31 +50,124 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 let ws = null;
 let reconnectTimer = null;
+let bridgePhase = 'off';
+let bridgeError = '';
+const bridgePorts = new Set();
+
+function quiet(result) {
+  if (result && typeof result.then === 'function') result.catch(() => {});
+}
+
+function bridgeSnapshot() {
+  return {
+    ok: true,
+    phase: bridgePhase,
+    connected: bridgePhase === 'on',
+    error: bridgeError,
+    url: BRIDGE_URL,
+    version: chrome.runtime.getManifest().version,
+  };
+}
+
+function paintBadge() {
+  const text = bridgePhase === 'on' ? '' : bridgePhase === 'connecting' ? '…' : '!';
+  const color = bridgePhase === 'on' ? '#1f9d6e' : bridgePhase === 'connecting' ? '#3d6f8f' : '#8a6230';
+  const title = bridgePhase === 'on'
+    ? 'JobYouGo connected'
+    : bridgePhase === 'connecting'
+      ? 'JobYouGo connecting'
+      : 'JobYouGo disconnected';
+  quiet(chrome.action.setBadgeText({ text }));
+  quiet(chrome.action.setBadgeBackgroundColor({ color }));
+  quiet(chrome.action.setTitle({ title }));
+}
+
+function publishBridge() {
+  paintBadge();
+  const snap = { type: 'bridge-changed', ...bridgeSnapshot() };
+  for (const port of bridgePorts) {
+    try { port.postMessage(snap); } catch { bridgePorts.delete(port); }
+  }
+}
+
+function setPhase(phase, error) {
+  bridgePhase = phase;
+  if (typeof error === 'string') bridgeError = error;
+  if (phase === 'on') bridgeError = '';
+  publishBridge();
+}
 
 function connect() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  setPhase('connecting');
+  let socket;
   try {
-    ws = new WebSocket(BRIDGE_URL);
-  } catch {
+    socket = new WebSocket(BRIDGE_URL);
+  } catch (err) {
+    setPhase('off', err?.message || 'Could not open the socket');
     scheduleReconnect();
     return;
   }
-  ws.addEventListener('open', () => {
+  ws = socket;
+  const current = () => ws === socket;
+  socket.addEventListener('open', () => {
+    if (!current()) return;
     console.log('[jobyougo-bridge] connected to', BRIDGE_URL);
+    setPhase('on');
     send({
       type: 'hello',
       extension: 'jobyougo-apply-bridge-poc',
       version: chrome.runtime.getManifest().version,
       // Lets the bridge skip messages an older build would never answer.
-      capabilities: ['page-helper', 'read-options'],
+      capabilities: ['page-helper', 'read-options', 'apply-helper'],
     });
   });
-  ws.addEventListener('close', scheduleReconnect);
+  socket.addEventListener('close', () => {
+    if (!current()) return;
+    setPhase('off');
+    scheduleReconnect();
+  });
   // Connection refused is reported by Chrome on the WebSocket constructor
   // itself. It is not an exception: the server was not listening yet.
-  ws.addEventListener('error', () => { try { ws.close(); } catch { /* already closing */ } });
-  ws.addEventListener('message', onMessage);
+  socket.addEventListener('error', () => {
+    if (!current()) return;
+    bridgeError = 'Dashboard is not reachable on port 3210';
+    try { socket.close(); } catch { /* already closing */ }
+  });
+  socket.addEventListener('message', (event) => {
+    if (!current()) return;
+    onMessage(event);
+  });
 }
+
+function connectNow() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (ws && ws.readyState === WebSocket.CONNECTING) {
+    publishBridge();
+    return bridgeSnapshot();
+  }
+  if (ws) {
+    const old = ws;
+    ws = null;
+    try { old.close(); } catch { /* already closed */ }
+  }
+  connect();
+  return bridgeSnapshot();
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'bridge-ui') return;
+  bridgePorts.add(port);
+  port.onDisconnect.addListener(() => bridgePorts.delete(port));
+  port.onMessage.addListener((msg) => {
+    if (msg?.type === 'bridge-connect') connectNow();
+    else port.postMessage({ type: 'bridge-changed', ...bridgeSnapshot() });
+  });
+  port.postMessage({ type: 'bridge-changed', ...bridgeSnapshot() });
+});
 
 function scheduleReconnect() {
   ws = null;
@@ -200,12 +295,122 @@ async function onMessage(event) {
       return;
     }
 
+    if (msg.type === 'show-helper' && msg.tabId && msg.helper) {
+      await setHelper(msg.tabId, { ...msg.helper, minimized: false });
+      await injectHelper(msg.tabId);
+      reply(rid, 'helper-shown', true, { tabId: msg.tabId });
+      return;
+    }
+
     // The bridge matches replies by requestId only; the type is informative.
     reply(rid, `${msg.type || 'request'}-result`, false, { error: `unsupported message: ${msg.type}` });
   } catch (err) {
     reply(rid, `${msg.type || 'request'}-result`, false, { error: String(err?.message || err) });
   }
 }
+
+// ── Quick-fill helper over the offer tab ────────────────────────────────────
+// One helper per tab, in session storage so a service-worker restart keeps it.
+// A tab opened from a helper tab (Apply → ATS in a new tab) inherits it.
+
+const HELPER_KEY = (tabId) => `helper:${tabId}`;
+// Same pages as the dashboard-bridge.js content script in manifest.json.
+const DASHBOARD_URLS = ['http://127.0.0.1:3210/*', 'http://localhost:3210/*'];
+
+async function getHelper(tabId) {
+  const key = HELPER_KEY(tabId);
+  return (await chrome.storage.session.get(key))[key] || null;
+}
+
+function setHelper(tabId, helper) {
+  return chrome.storage.session.set({ [HELPER_KEY(tabId)]: helper });
+}
+
+async function injectHelper(tabId) {
+  const helper = await getHelper(tabId);
+  if (!helper) return;
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (data) => { self.__jobyougoHelperData = data; },
+      args: [helper],
+    });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['apply-helper-overlay.js'] });
+  } catch (err) {
+    // chrome:// pages, the Web Store, a tab closed meanwhile: nothing to draw on.
+    console.log('[jobyougo-bridge] helper not injected:', err?.message || err);
+  }
+}
+
+async function setHelperHidden(tabId, hidden) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (hide) => {
+        document.getElementById('jobyougo-apply-helper')?.style.setProperty('visibility', hide ? 'hidden' : 'visible');
+      },
+      args: [hidden],
+    });
+  } catch { /* no panel to move */ }
+}
+
+chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (info.status === 'complete') quiet(injectHelper(tabId));
+});
+
+chrome.tabs.onCreated.addListener(async (tab) => {
+  if (tab.openerTabId == null) return;
+  const helper = await getHelper(tab.openerTabId);
+  if (helper) await setHelper(tab.id, helper);
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  quiet(chrome.storage.session.remove(HELPER_KEY(tabId)));
+});
+
+// Buttons of the panel. "Fill" brings the dashboard forward and asks it to
+// open the auto-apply modal on this tab.
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  const tabId = sender.tab?.id;
+  if (tabId == null || !/^helper-/.test(msg?.type || '')) return false;
+  (async () => {
+    const helper = await getHelper(tabId);
+    if (!helper) return { ok: false };
+    if (msg.type === 'helper-close') {
+      await chrome.storage.session.remove(HELPER_KEY(tabId));
+      return { ok: true };
+    }
+    if (msg.type === 'helper-minimize' || msg.type === 'helper-restore') {
+      await setHelper(tabId, { ...helper, minimized: msg.type === 'helper-minimize' });
+      return { ok: true };
+    }
+    if (msg.type === 'helper-fill') {
+      // Looked up per click rather than through bridgePorts: a worker restart
+      // drops those ports and the dashboard page does not reopen its own.
+      const dashboards = await chrome.tabs.query({ url: DASHBOARD_URLS });
+      const request = {
+        type: 'helper-fill',
+        tabId,
+        company: helper.company || '',
+        role: helper.role || '',
+        report: helper.report || '',
+        num: helper.num || '',
+      };
+      for (const dash of dashboards) {
+        try {
+          const ack = await chrome.tabs.sendMessage(dash.id, request);
+          if (!ack?.ok) continue;
+          await chrome.tabs.update(dash.id, { active: true });
+          await chrome.windows.update(dash.windowId, { focused: true });
+          return { ok: true };
+        } catch { /* dashboard opened before the extension loaded: no listener */ }
+      }
+      return { ok: false };
+    }
+    return { ok: false };
+  })().then(sendResponse, () => sendResponse({ ok: false }));
+  return true;
+});
 
 function waitForTabComplete(tabId, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
@@ -792,6 +997,11 @@ async function fillFieldsInPage(updates) {
   // close over sibling module functions).
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const normText = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  // One option, whatever its case, accents, numbering ("3. Practitioner: …")
+  // or end punctuation.
+  const canonText = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+    .replace(/[‘’]/g, "'").replace(/[–—]/g, '-')
+    .replace(/^\s*(\(?\d{1,2}[.)]|[a-h][.)])\s+/, '').replace(/[.;:!?]+$/, '').replace(/\s+/g, ' ').trim();
   const PLACEHOLDER_OPT = /^(select\b|choose\b|--|please\b|s[ée]lectionn|aucun|loading|searching|chargement|recherche|no options|no results|aucun r[ée]sultat|start typing|type to search)/i;
   const OPTION_SEL = [
     '[role="option"]',
@@ -843,6 +1053,8 @@ async function fillFieldsInPage(updates) {
     '[class*="oneclick" i] [role="option"]',
     '[class*="v-list-item" i]',
     '.pac-item',
+    '.dropdown-location',
+    '[class*="dropdown-location"]',
   ].join(', ');
 
   const deepQueryAll = (root, sel) => {
@@ -939,9 +1151,32 @@ async function fillFieldsInPage(updates) {
     const low = t.toLowerCase();
     if (!t) return 0;
     if (low === wLow) return 100;
+    const canon = canonText;
+    if (canon(t) && canon(t) === canon(raw)) return 98;
+    // "Paris, France" against "Paris, Île-de-France, FRA": the same city, and
+    // the right country (or none) — never "Paris, TX, USA".
+    const wantParts = raw.split(',').map(canon).filter(Boolean);
+    const optParts = canon(t).split(',').map((p) => p.trim()).filter(Boolean);
+    if (wantParts.length === 2 && optParts.length >= 2 && optParts[0] === wantParts[0] && wantParts[0].length >= 3
+        && !/^(yes|no|oui|non)$/.test(wantParts[0]) && wantParts[1].split(' ').length <= 3) {
+      const ISO = {
+        france: ['fr', 'fra'], thailand: ['th', 'tha'], germany: ['de', 'deu'], spain: ['es', 'esp'],
+        'united kingdom': ['uk', 'gb', 'gbr'], 'united states': ['us', 'usa'], portugal: ['pt', 'prt'],
+        italy: ['it', 'ita'], netherlands: ['nl', 'nld'], belgium: ['be', 'bel'], austria: ['at', 'aut'],
+        switzerland: ['ch', 'che'], canada: ['ca', 'can'], ireland: ['ie', 'irl'], poland: ['pl', 'pol'],
+      };
+      const codes = [wantParts[1], ...(ISO[wantParts[1]] || [])];
+      const rest = optParts.slice(1);
+      if (rest.some((p) => codes.includes(p))) return 92;
+      const known = Object.entries(ISO).flatMap(([name, c]) => [name, ...c]);
+      if (rest.some((p) => known.includes(p))) return 0;
+      return 72;
+    }
     const yesHead = /^(yes|oui|y|yeah|true)\b/i;
     const noHead = /^(no|non|n|false)\b/i;
-    const kind = /^(yes|oui|y|true)$/i.test(raw) ? 'yes' : /^(no|non|n|false)$/i.test(raw) ? 'no' : null;
+    const kind = /^(yes|oui|y|true)\b/i.test(raw) && raw.length <= 80 ? 'yes'
+      : /^(no|non|n|false)\b/i.test(raw) && !/^non-?binary\b/i.test(raw) && !/^none\b/i.test(raw) && raw.length <= 80 ? 'no'
+      : null;
     if (kind === 'yes' && yesHead.test(t) && !noHead.test(t)) return 90;
     if (kind === 'no' && noHead.test(t) && !/^non-?binary\b/i.test(t) && !/^none\b/i.test(t)) return 90;
     if (kind) return 0;
@@ -978,11 +1213,6 @@ async function fillFieldsInPage(updates) {
       if (s > best) { best = s; hit = n; }
     }
     if (best >= 50) return hit;
-    if (nodes.length === 1 && normText(want).length >= 2) {
-      const only = normText(nodes[0].innerText || nodes[0].getAttribute?.('aria-label')).toLowerCase();
-      const q = normText(want).toLowerCase();
-      if (only && (only.includes(q) || q.includes(only) || only.startsWith(q.slice(0, 3)))) return nodes[0];
-    }
     return null;
   };
 
@@ -1118,14 +1348,14 @@ async function fillFieldsInPage(updates) {
   // typed ("Available upon request" in a Yes/No dropdown was the bug), and a
   // query that commits nothing is cleared again.
   const selectComboboxOption = async (el, want, {
-    alternates = [], typeQuery = '', prefer = null, rank = [], label = '', budgetMs = 9000, many = [],
+    alternates = [], typeQuery = '', prefer = null, rank = [], label = '', budgetMs = 9000, many = [], patient = false,
   } = {}) => {
     const wants = [want, ...alternates].map(normText).filter((x, k, all) => x && all.indexOf(x) === k);
     const out = { picked: null, listOpened: false, clicked: '', options: [], typed: false };
     if (!wants.length && !prefer && !rank.length) return out;
     const deadline = Date.now() + budgetMs;
     // Yes/No is never typed ("No" filters down to "None").
-    const binary = /^(yes|oui|y|true|no|non|n|false)$/i.test(wants[0] || '');
+    const binary = /^(yes|oui|y|true|no|non|n|false)\b/i.test(wants[0] || '');
 
     const matchIn = (nodes) => {
       for (const q of wants) {
@@ -1202,8 +1432,13 @@ async function fillFieldsInPage(updates) {
       out.options = [...new Set(shown.nodes.map(labelOfNode).filter(Boolean))].slice(0, 40);
     }
 
+    const WORK_POLICY = /travel frequently|move to (hamburg|berlin|munich|vienna|london)|only want to work remote|remote only|hamburg office/i;
+    const REMOTE_ONLY = /only want to work remote|remote only|fully remote|i only want to work remote/i;
+    const workPolicyNodes = (nodes) => (nodes || []).filter((n) => WORK_POLICY.test(labelOfNode(n)));
+    const remoteNodeOf = (nodes) => (nodes || []).find((n) => REMOTE_ONLY.test(labelOfNode(n)));
+
     // Multi-select: tick every chosen option, reopening if a pick closed it.
-    if (shown && many.length > 1) {
+    if (shown && many.length) {
       const picked = [];
       for (const target of many) {
         if (Date.now() >= deadline) break;
@@ -1239,8 +1474,8 @@ async function fillFieldsInPage(updates) {
       }
     }
 
-    if (shown && !(yesNoOnly(shown.nodes) && !binary)) {
-      const hit = matchIn(shown.nodes);
+    if (shown) {
+      const hit = matchIn(shown.nodes) || (workPolicyNodes(shown.nodes).length ? remoteNodeOf(shown.nodes) : null);
       if (hit) {
         const got = await clickAndCheck(hit);
         if (got) {
@@ -1263,16 +1498,21 @@ async function fillFieldsInPage(updates) {
       let hit = null;
       let lastSig = '';
       const typedAt = Date.now();
-      const until = Math.min(deadline, typedAt + 3200);
+      // Place searches (Lever, Google Places) answer after a geocoding call:
+      // the OLX run gave up on "Paris" while its suggestions were still coming.
+      const slow = patient || el.classList?.contains('location-input');
+      const until = Math.min(deadline, typedAt + (slow ? 6500 : 3200));
       while (Date.now() < until) {
         await sleep(160);
         const snap = optionSnapshot(el, true);
         if (!snap.count) continue;
+        out.listOpened = true;
+        out.options = [...new Set(snap.nodes.map(labelOfNode).filter(Boolean))].slice(0, 40);
         hit = matchIn(snap.nodes);
         if (!hit && snap.nodes.length === 1 && labelOfNode(snap.nodes[0]).toLowerCase().includes(query.toLowerCase())) {
           hit = snap.nodes[0];
         }
-        if (hit || (snap.sig === lastSig && Date.now() - typedAt > 900)) break;
+        if (hit || (snap.sig === lastSig && Date.now() - typedAt > (slow ? 2200 : 900))) break;
         lastSig = snap.sig;
       }
       if (hit) {
@@ -1482,6 +1722,13 @@ async function fillFieldsInPage(updates) {
           const wantYes = /^(yes|oui|y|true|1)$/i.test(want);
           const wantNo = /^(no|non|n|false|0)$/i.test(want);
           let hit = pool.find((o) => textOf(o).toLowerCase() === want || (o.value || '').toLowerCase() === want);
+          // Same row under other casing, accents or numbering: Plancraft's
+          // "3. Practitioner: …" radio was reported "not found".
+          if (!hit && want.length > 3) {
+            const target = canonText(want);
+            hit = pool.find((o) => [textOf(o), o.closest?.('label')?.innerText, o.parentElement?.innerText]
+              .some((t) => t && canonText(t) === target)) || null;
+          }
           if (!hit && wantYes) {
             hit = pool.find((o) => /^(yes|oui)\b/i.test(labelOf(o)) || o.getAttribute?.('data-option') === 'yes');
           }
@@ -1609,6 +1856,9 @@ async function fillFieldsInPage(updates) {
           if (yesNo && /\blocation\b|\bcity\b|\bville\b/i.test(lab) && !/relocat|hear|sponsor|visa|travel/i.test(lab)) {
             match = opts.find((o) => /^(yes|oui)\b/i.test(o.text || ''));
           }
+          if (!match && texts.some((t) => /only want to work remote|travel frequently|move to hamburg/i.test(t))) {
+            match = opts.find((o) => /only want to work remote|this doesn.?t work for me/i.test(o.text || ''));
+          }
         }
         if (!match) {
           // Leave the select alone: assigning a value it does not offer only
@@ -1646,30 +1896,50 @@ async function fillFieldsInPage(updates) {
         // form control, and its text becomes the choice once one is picked.
         || (tag === 'BUTTON' && el.getAttribute('aria-haspopup') === 'dialog')
         || (tag === 'BUTTON' && /select|choose|dropdown|country|location/i.test(el.getAttribute('aria-label') || el.innerText || ''));
+      const ownBits = `${el.name || ''} ${el.id || ''} ${el.className || ''} ${el.getAttribute('autocomplete') || ''}`.toLowerCase();
+      const placeSuggest = !!u.placeSuggest
+        || el.classList?.contains('location-input')
+        || /location-input|address-level/.test(ownBits)
+        || (/(^|[^a-z])(location|city)([^a-z]|$)/.test(ownBits) && !/phone|tel/.test(ownBits));
       const looksCombobox = strongCombobox
+        || placeSuggest
         || el.getAttribute('aria-autocomplete') === 'list'
         || el.getAttribute('aria-autocomplete') === 'both';
       if (looksCombobox) {
         const want = String(selectText || value || '');
+        const phoneLike = (s) => {
+          const digits = String(s || '').replace(/\D/g, '');
+          return digits.length >= 8 && digits.length >= String(s || '').replace(/\s/g, '').length * 0.5;
+        };
         // An older bridge sends no typeQuery: then only place / organisation
-        // lists may be searched.
-        const typeQuery = u.typeQuery !== undefined
+        // lists may be searched. A location box is searched with the city,
+        // never with the phone number.
+        let typeQuery = u.typeQuery !== undefined
           ? String(u.typeQuery || '')
           : (/\b(city|ville|country|pays|location|localisation|school|universit\w*|college|company|employer)\b/i.test(u.label || '') ? filterQuery(want) : '');
-        const res = await selectComboboxOption(el, want, {
+        if (placeSuggest) {
+          const city = String(u.typeQuery || want).split(',')[0].replace(/\(.*?\)/g, '').trim();
+          typeQuery = phoneLike(city) ? '' : city;
+        }
+        const res = await selectComboboxOption(el, phoneLike(want) && placeSuggest ? typeQuery : want, {
           alternates: Array.isArray(u.alternates) ? u.alternates : [],
           typeQuery,
           prefer: preferRe(u),
           rank: rankRes(u),
           label: u.label || '',
           many: Array.isArray(u.selectMany) ? u.selectMany : [],
-          budgetMs: 9000 + (Array.isArray(u.selectMany) ? u.selectMany.length * 1200 : 0),
+          budgetMs: (placeSuggest ? 12000 : 9000) + (Array.isArray(u.selectMany) ? u.selectMany.length * 1200 : 0),
+          patient: placeSuggest,
         });
         if (res.picked) {
           results.push({ i, frameId, ok: true, actualValue: res.picked });
           continue;
         }
-        if (strongCombobox) {
+        // A "location" box that never showed a single suggestion is a plain
+        // text input: the place is typed as text instead of left empty.
+        const plainPlaceBox = placeSuggest && !strongCombobox && !res.listOpened && !res.clicked
+          && !(res.options || []).length;
+        if ((strongCombobox || placeSuggest) && !plainPlaceBox) {
           // Closed-option widget: typed text is never a value. The trusted
           // CDP retry only helps when the list stayed shut or the click did
           // not stick — options that were on screen and did not match will
@@ -2151,6 +2421,19 @@ async function fillFieldsInTab(tabId, updates) {
   // react-select / Radix / SmartRecruiters. Retry with CDP
   // Input.dispatchMouseEvent (trusted hardware-like clicks) — only where that
   // can help: the list stayed shut, or the clicked option did not stick.
+  // Those clicks land at viewport coordinates: the quick-fill panel steps
+  // aside so it cannot catch one.
+  const cdpNeeded = outcomes.some((o) => !o.ok && o.cdpRetry);
+  if (cdpNeeded) await setHelperHidden(tabId, true);
+  try {
+    await retryCombosViaCdp(tabId, updates, outcomes);
+  } finally {
+    if (cdpNeeded) await setHelperHidden(tabId, false);
+  }
+  return outcomes;
+}
+
+async function retryCombosViaCdp(tabId, updates, outcomes) {
   for (let idx = 0; idx < outcomes.length; idx++) {
     const o = outcomes[idx];
     if (o.ok || !o.cdpRetry) continue;
@@ -2175,7 +2458,6 @@ async function fillFieldsInTab(tabId, updates) {
       outcomes[idx] = { ...o, reason: `${o.reason}; cdp: ${String(err?.message || err).slice(0, 80)}` };
     }
   }
-  return outcomes;
 }
 
 /** Trusted mouse click at viewport coordinates (CDP Input domain). */

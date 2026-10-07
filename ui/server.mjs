@@ -23,8 +23,10 @@ import {
   buildJevScanResponse,
   decideOfferWorthEvaluating,
   filterScanCandidatesWithJev,
+  isJevAccountError,
 } from '../lib/jev.mjs';
 import { aggregateUsageEvents, readAiUsageEvents } from '../lib/ai-usage-log.mjs';
+import { getContributionCalendar } from '../lib/github-contributions.mjs';
 import { loadCvTemplateData } from '../lib/cv-template-data.mjs';
 import { buildApplySpec, detectRegion } from '../lib/apply-spec.mjs';
 import { ApplyBridge, attachApplyBridge } from '../extension/apply-bridge-lib.mjs';
@@ -41,7 +43,7 @@ import {
   pinchtabSolveSucceeded,
 } from '../lib/pinchtab.mjs';
 import { loadApplicationVoice, extractQuestionReportContext } from '../lib/application-writing.mjs';
-import { assembleUiPrompt, candidateFacts, clipReportForWriting, compactCv, experienceIndex } from '../lib/prompt-budget.mjs';
+import { assembleUiPrompt, candidateFacts, compactCv, indexCareer } from '../lib/prompt-budget.mjs';
 import { writeFormAnswer } from '../lib/form-answer.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
@@ -53,10 +55,15 @@ import {
   parsePipeline,
   extractPipelineNoteParts,
   formatPipelineMarkdown,
+  formatPipelineNote,
   pipelineRecordFromEntry,
-  overlayPipelineRecord,
   removePipelineMarkdownUrls,
+  overlayPipelineRecord,
+  pipelineItemNeedsJevTriage,
+  pipelineItemReadyForEval,
+  pipelineItemToJevCandidate,
   insertPipelineMarkdownLines,
+  pipelineUrlsReadyForEval,
 } from '../lib/pipeline-record.mjs';
 import { withPipelineLock } from '../pipeline-lock.mjs';
 import { formatReportNumber, releaseReportNumbers, reserveReportNumbers } from '../reserve-report-num.mjs';
@@ -64,12 +71,16 @@ import { getScanAggregators, fetchJobBoard, jobBoardProviders } from '../lib/sca
 import { buildCountryEligibilityFilter, buildLocationFilter } from '../scan.mjs';
 import {
   appendDecisionLog,
+  assessFreshness,
   assessRemote,
   decisionLogRecord,
   collapseDuplicateTitles,
   dedupeCandidates,
   explainTitle,
+  internOrJuniorReason,
+  listingPageReason,
   partitionCandidates,
+  resolvePublishedDate,
   selectRoster,
   summarizeDecisions,
 } from '../lib/scan-decision.mjs';
@@ -105,6 +116,15 @@ const ROOT = join(__dirname, '..');
 const EXTENSION_ZIP_FILES = [
   'manifest.json',
   'background.js',
+  'popup.html',
+  'popup.css',
+  'popup.js',
+  'dashboard-bridge.js',
+  'apply-helper-overlay.js',
+  'icons/icon16.png',
+  'icons/icon32.png',
+  'icons/icon48.png',
+  'icons/icon128.png',
   'apply-upload-signals.mjs',
   'page-helper-registry.mjs',
   'page-helpers.mjs',
@@ -117,7 +137,9 @@ const EXTENSION_INSTALL_TXT = `JobYouGo Chrome plugin
 2. In Chrome, open chrome://extensions
 3. Turn on Developer mode.
 4. Click "Load unpacked" and select the unzipped folder.
-5. Keep the JobYouGo dashboard open. The plugin connects on its own.
+5. Click the JobYouGo icon in the toolbar and press Connect.
+   The dashboard must be running (npm run dev, port 3210).
+6. Reload the dashboard. Its top bar can also press Connect.
 `;
 
 function zipCrc32(buf) {
@@ -767,6 +789,10 @@ function normalizePipelineItem(entry = {}) {
   const company = String(entry.company || entry.Company || extracted.company || '').trim();
   const title = String(entry.title || entry.Title || entry.role || entry.Role || extracted.title || '').trim();
   const displayNote = String(entry.display_note || entry.displayNote || extracted.note || '').trim();
+  const jevKeepRaw = entry.jev_keep ?? entry.jevKeep ?? extracted.jev_keep;
+  const jevKeep = jevKeepRaw == null || jevKeepRaw === '' || !Number.isFinite(Number(jevKeepRaw))
+    ? null
+    : Number(jevKeepRaw);
 
   return {
     ...entry,
@@ -777,6 +803,11 @@ function normalizePipelineItem(entry = {}) {
     published_at: publishedAt,
     created_at: createdAt,
     display_note: displayNote,
+    source: String(entry.source || extracted.source || '').trim(),
+    jev_keep: jevKeep,
+    jev_status: String(entry.jev_status || entry.jevStatus || extracted.jev_status || '').trim(),
+    remote_verdict: String(entry.remote_verdict || entry.remoteVerdict || extracted.remote_verdict || '').trim(),
+    remote_reason: String(entry.remote_reason || entry.remoteReason || extracted.remote_reason || '').trim(),
   };
 }
 
@@ -1088,8 +1119,7 @@ async function updatePipelineRows(urls, patch, userId) {
 }
 
 function pipelineHistoryLine(url, portal, title, company, status) {
-  const cell = (value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim();
-  return [url, new Date().toISOString().slice(0, 10), portal, cell(title), cell(company), status].join('\t');
+  return [url, new Date().toISOString().slice(0, 10), portal, tsvSafe(title), tsvSafe(company), status].join('\t');
 }
 
 async function recordPipelineChange(records, historyRows) {
@@ -5665,6 +5695,8 @@ function inferProfileMatchingRules(profileData = {}, profileMarkdown = '') {
       archetypes,
       headline: normalizeInline(narrative.headline),
       superpowers: cleanList(narrative.superpowers),
+      yearsExperience: Number(candidate.years_experience) || '',
+      rejectInternships: true,
     },
     compensation: {
       targetRange: normalizeInline(compensation.target_range),
@@ -5967,6 +5999,210 @@ async function removeManyFromPipeline(urls = [], userId, { historyStatus = 'dele
 
 async function removeFromPipeline(url, userId, opts) {
   return removeManyFromPipeline([url], userId, opts);
+}
+
+function jevDecisionToRecord(decision = {}, existing = {}, scannedAt = new Date().toISOString()) {
+  return pipelineRecordFromEntry({
+    ...existing,
+    ...decision,
+    company: existing.company || decision.company,
+    title: existing.title || decision.title,
+    location: existing.location || decision.location,
+    publishedAt: existing.published_at || existing.posted_at || decision.publishedAt,
+    source: existing.source || decision.source,
+    remoteVerdict: existing.remote_verdict || decision.remoteVerdict,
+    remoteReason: existing.remote_reason || decision.remoteReason,
+    remoteConfidence: existing.remote_confidence ?? decision.remoteConfidence,
+    jevKeep: decision.jevKeep,
+    jevFit: decision.jevFit,
+    jevOutcome: decision.jevOutcome,
+    jevStatus: decision.jevOutcome === 'validated' ? 'kept' : decision.jevOutcome,
+  }, scannedAt);
+}
+
+async function updatePipelineJevScores(decisions = [], userId) {
+  const byKey = new Map(
+    (decisions || [])
+      .filter(item => item?.url)
+      .map(item => [normalizeUrlKey(item.url), item])
+  );
+  if (!byKey.size) return;
+
+  const records = await readLatestPipelineRecords();
+  const written = [];
+  await editPipelineMarkdown(raw => {
+    const next = raw.split('\n').map(line => {
+      const parsed = parsePipeline(line)[0];
+      if (!parsed?.url) return line;
+      const key = normalizeUrlKey(parsed.url);
+      const decision = byKey.get(key);
+      if (!decision) return line;
+      const existing = overlayPipelineRecord(normalizePipelineItem(parsed), records.get(key)) || normalizePipelineItem(parsed);
+      const record = jevDecisionToRecord(decision, existing, existing.scanned_at || new Date().toISOString());
+      written.push(record);
+      return formatPipelineMarkdown(record);
+    });
+    return `${next.join('\n').replace(/\n+$/, '')}\n`;
+  });
+
+  const fallback = [...byKey.values()]
+    .filter(decision => !written.some(record => normalizeUrlKey(record.url) === normalizeUrlKey(decision.url)))
+    .map(decision => jevDecisionToRecord(decision, records.get(normalizeUrlKey(decision.url)) || {}, new Date().toISOString()));
+  const allRecords = [...written, ...fallback];
+  await appendPipelineRecords(allRecords)
+    .catch(err => console.warn(`[pipeline] Failed to append Jev scores: ${err.message}`));
+
+  if (useSupabase && allRecords.length) {
+    for (const record of allRecords) {
+      let q = supabase.from('pipeline').update({ note: formatPipelineNote(record) }).eq('url', record.url);
+      if (userId) q = q.eq('user_id', userId);
+      const { error } = await q;
+      if (error) console.warn(`[pipeline] Failed to persist Jev score in Supabase: ${error.message}`);
+    }
+  }
+}
+
+function resolvePipelineItemPublishedAt(item = {}, today = '') {
+  const extracted = extractPipelineNoteParts(item.note || item.display_note || '');
+  return resolvePublishedDate({
+    url: item.url,
+    publishedAt: item.published_at || item.publishedAt || extracted.publishedAt,
+    postedAt: item.posted_at || item.postedAt,
+    title: item.title || extracted.title,
+    description: item.note || item.display_note || '',
+  }, today);
+}
+
+async function dropInternPipelineItems(items = [], userId) {
+  const rejected = [];
+  const current = [];
+  for (const item of items || []) {
+    if (!item?.url) continue;
+    const candidate = pipelineItemToJevCandidate(item);
+    const reason = internOrJuniorReason(candidate.title, candidate.url);
+    if (reason) rejected.push({ ...item, titleReason: reason });
+    else current.push(item);
+  }
+  if (rejected.length) {
+    await removeManyFromPipeline(rejected.map(item => item.url), userId, {
+      historyStatus: 'title_dropped',
+      historyPortal: 'pipeline-jev',
+    });
+    console.log(`[pipeline] title filter dropped ${rejected.length} intern/junior offer(s)`);
+  }
+  return { current, rejected };
+}
+
+async function dropListingPipelineItems(items = [], userId) {
+  const listings = [];
+  const current = [];
+  for (const item of items || []) {
+    if (!item?.url) continue;
+    const reason = listingPageReason(pipelineItemToJevCandidate(item));
+    if (reason) listings.push({ ...item, listingReason: reason });
+    else current.push(item);
+  }
+  if (listings.length) {
+    await removeManyFromPipeline(listings.map(item => item.url), userId, {
+      historyStatus: 'listing_dropped',
+      historyPortal: 'pipeline-jev',
+    });
+    console.log(`[pipeline] listing filter dropped ${listings.length} page(s) that are not job postings`);
+  }
+  return { current, listings };
+}
+
+async function dropStalePipelineItems(items = [], userId) {
+  const today = new Date().toISOString().slice(0, 10);
+  let maxAgeDays = DEFAULT_SCAN_MAX_AGE_DAYS;
+  try {
+    const { parsed } = await readPortalsYaml();
+    const configured = Number(parsed.scan_max_age_days);
+    if (Number.isFinite(configured) && configured > 0) maxAgeDays = configured;
+  } catch { /* keep default */ }
+
+  const stale = [];
+  const current = [];
+  for (const item of items || []) {
+    if (!item?.url) continue;
+    // Already-kept pipeline rows were accepted (or restored) for eval.
+    // Age belongs to scan ingest — do not purge them again on Process.
+    if (pipelineItemReadyForEval(item)) {
+      current.push(item);
+      continue;
+    }
+    const addedAt = String(item.scanned_at || item.created_at || '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(addedAt)) {
+      const addedFresh = assessFreshness({ publishedAt: addedAt, maxAgeDays, today });
+      if (addedFresh.ok) {
+        current.push(item);
+        continue;
+      }
+    }
+    const publishedAt = resolvePipelineItemPublishedAt(item, today);
+    const freshness = assessFreshness({ publishedAt, maxAgeDays, today });
+    if (!freshness.ok) stale.push({ ...item, publishedAt: freshness.publishedAt || publishedAt });
+    else current.push(item);
+  }
+
+  if (stale.length) {
+    await removeManyFromPipeline(stale.map(item => item.url), userId, {
+      historyStatus: 'age_dropped',
+      historyPortal: 'pipeline-jev',
+    });
+    console.log(`[pipeline] age filter dropped ${stale.length} offer(s) older than ${maxAgeDays}d`);
+  }
+
+  return { current, stale, maxAgeDays };
+}
+
+async function triagePipelineItemsWithJev(items = [], userId, profileRules = {}, { onProgress } = {}) {
+  const { current: notInterns, rejected: titleDropped } = await dropInternPipelineItems(items, userId);
+  const { current: notListings, listings } = await dropListingPipelineItems(notInterns, userId);
+  const { current, stale } = await dropStalePipelineItems(notListings, userId);
+  const pending = current.filter(item => pipelineItemNeedsJevTriage(item, { rescoreKept: false }));
+  const empty = {
+    considered: 0,
+    kept: [],
+    newlyKept: [],
+    alreadyKept: [],
+    dropped: [],
+    unverified: [],
+    stale,
+    listings,
+    titleDropped,
+    errors: [],
+    accountError: '',
+  };
+  if (!pending.length) return empty;
+
+  const result = await filterScanCandidatesWithJev(
+    pending.map(pipelineItemToJevCandidate),
+    profileRules,
+    { limit: pending.length, onProgress },
+  );
+  const accountError = result.errors.find(entry => isJevAccountError(entry.error))?.error || '';
+
+  if (result.dropped.length) {
+    await removeManyFromPipeline(result.dropped.map(item => item.url), userId, {
+      historyStatus: 'jev_dropped',
+      historyPortal: 'pipeline-jev',
+    });
+  }
+  if (result.kept.length && !accountError) {
+    await updatePipelineJevScores(result.kept, userId);
+  }
+
+  return {
+    ...result,
+    alreadyKept: [],
+    newlyKept: result.kept,
+    kept: result.kept,
+    stale,
+    listings,
+    titleDropped,
+    accountError,
+  };
 }
 
 // ─── Script runner ────────────────────────────────────────────────────────────
@@ -6910,6 +7146,14 @@ const server = createServer(async (req, res) => {
       return json(res, await getAiUsageToday({ force }));
     }
 
+    if (path === '/api/github-contributions' && method === 'GET') {
+      try {
+        return json(res, await getContributionCalendar());
+      } catch {
+        return json(res, { ok: false, error: 'GitHub contributions unavailable' }, 502);
+      }
+    }
+
     // Which paid placements are on, plus the active sponsor cards. Public: it
     // carries no user data and no keys.
     if (path === '/api/monetization' && method === 'GET') {
@@ -7175,6 +7419,59 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    if (path === '/api/pipeline/jev-triage' && method === 'POST') {
+      const body = await readBody(req).catch(() => ({}));
+      const requested = Array.isArray(body?.urls) ? body.urls.map(value => String(value || '').trim()).filter(value => value.startsWith('http')) : [];
+      const requestedKeys = new Set(requested.map(url => normalizeUrlKey(url)));
+      const pipe = await getPipeline(req.userId);
+      const items = requestedKeys.size
+        ? pipe.filter(item => requestedKeys.has(normalizeUrlKey(item.url)))
+        : pipe;
+      const profile = await getProfileContext(req.userId).catch(() => '');
+      let profileData = {};
+      if (useSupabase && req.userId) {
+        profileData = await getProfile(req.userId).catch(() => ({}));
+      }
+      if (!profileData?.target_roles) {
+        try {
+          profileData = yamlLoad(await readFile(join(ROOT, 'config/profile.yml'), 'utf-8')) || profileData;
+        } catch { /* keep whatever we have */ }
+      }
+      const profileRules = inferProfileMatchingRules(profileData || {}, profile);
+      const triage = await triagePipelineItemsWithJev(items, req.userId, profileRules);
+      const blockedUrls = [
+        ...(triage.dropped || []).map(item => item.url),
+        ...(triage.stale || []).map(item => item.url),
+        ...(triage.listings || []).map(item => item.url),
+        ...(triage.titleDropped || []).map(item => item.url),
+        ...(triage.unverified || []).map(item => item.url),
+      ];
+      const after = await getPipeline(req.userId);
+      const scoped = requestedKeys.size
+        ? after.filter(item => requestedKeys.has(normalizeUrlKey(item.url)))
+        : after;
+      const readyUrls = pipelineUrlsReadyForEval(scoped, blockedUrls);
+      return json(res, {
+        ok: !triage.accountError,
+        considered: triage.considered,
+        kept: triage.kept.length,
+        newlyKept: (triage.newlyKept || []).length,
+        dropped: triage.dropped.length,
+        unverified: triage.unverified.length,
+        staleDropped: (triage.stale || []).length,
+        listingDropped: (triage.listings || []).length,
+        titleDropped: (triage.titleDropped || []).length,
+        keptUrls: triage.kept.map(item => item.url),
+        readyUrls,
+        droppedUrls: triage.dropped.map(item => item.url),
+        unverifiedUrls: triage.unverified.map(item => item.url),
+        staleUrls: (triage.stale || []).map(item => item.url),
+        listingUrls: (triage.listings || []).map(item => item.url),
+        titleDroppedUrls: (triage.titleDropped || []).map(item => item.url),
+        accountError: triage.accountError || '',
+      });
+    }
+
     if (path === '/api/reports' && method === 'GET') {
       return json(res, await getReports(req.userId));
     }
@@ -7362,60 +7659,7 @@ const server = createServer(async (req, res) => {
       return json(res, result, result.ok ? 200 : 500);
     }
 
-    // ── Auto-apply (Playwright headed runner) ────────────────────────────────
-    // Older reports have no "F) Application Form Questions" section — generate
-    // standard answers on the fly from the report so the runner can still fill
-    // free-text questions. Best-effort: returns [] if no OpenRouter key.
-    async function generateFallbackAnswers(spec) {
-      let reportText = '';
-      try { reportText = await readFile(join(ROOT, 'reports', spec.report), 'utf-8'); } catch { return []; }
-      const candidateCv = await readFile(join(ROOT, 'cv.md'), 'utf-8').catch(() => '');
-      if (!candidateCv.trim()) return [];
-      const career = experienceIndex(candidateCv);
-      const voice = loadApplicationVoice(ROOT).slice(0, 700);
-      const regionLine = spec.region === 'asia'
-        ? 'The candidate is based in Bangkok, Thailand (ICT, UTC+7).'
-        : 'The candidate is based in Paris, France (CET/CEST).';
-      const reportSlice = clipReportForWriting(reportText, 4000).replace(/\s*[—–]\s*/g, ', ');
-      const facts = `${regionLine}\nSalary target: ${spec.identity.salary}. Availability: ${spec.identity.startDate}.`;
-      const offerContext = `Company: ${spec.company}\nRole: ${spec.role}\n\n${reportSlice}`;
-      const questions = [
-        'Why are you interested in this role?',
-        `Why do you want to work at ${spec.company}?`,
-        'Tell us about a relevant project or achievement',
-        'What makes you a good fit for this position?',
-        'Salary expectations',
-        'Notice period / availability',
-        'Cover letter',
-      ];
-      const complete = (req) => chat({
-        model: MODELS.QWEN,
-        messages: [{ role: 'user', content: req.user }],
-        systemPrompt: req.system,
-        temperature: req.temperature,
-        max_tokens: req.max_tokens,
-      });
-      const answers = [];
-      for (const question of questions) {
-        try {
-          const written = await writeFormAnswer({
-            question,
-            company: spec.company,
-            role: spec.role,
-            career,
-            voice,
-            facts,
-            offerContext,
-            complete,
-          });
-          if (written.answer) answers.push({ question, answer: written.answer });
-        } catch (err) {
-          console.warn('[apply] fallback answer failed:', err.message);
-        }
-      }
-      return answers;
-    }
-
+    // ── Auto-apply (Chrome plugin, Playwright fallback) ──────────────────────
     // Unpacked Chrome plugin. The dashboard offers this when the bridge is down.
     if (path === '/api/apply/extension.zip' && method === 'GET') {
       try {
@@ -7452,6 +7696,22 @@ const server = createServer(async (req, res) => {
       return opened.tabId
         ? json(res, { ok: true, tabId: opened.tabId, url: opened.url })
         : json(res, { ok: false, error: opened.error || 'plugin unavailable' });
+    }
+
+    // Quick-fill helper: drawn by the plugin over the offer tab it opened.
+    if (path === '/api/apply/show-helper' && method === 'POST') {
+      if (IS_VERCEL) return json(res, { error: 'The Chrome plugin needs the local server' }, 400);
+      const body = await readBody(req);
+      const tabId = Number(body.tabId);
+      if (!Number.isInteger(tabId) || !body.helper || typeof body.helper !== 'object') {
+        return json(res, { error: 'tabId and helper are required' }, 400);
+      }
+      try {
+        await applyBridge.showHelper(tabId, body.helper);
+        return json(res, { ok: true });
+      } catch (err) {
+        return json(res, { ok: false, error: err.message });
+      }
     }
 
     // Quick-fill helper: the answers, CV and region a run would use, without
@@ -7498,18 +7758,10 @@ const server = createServer(async (req, res) => {
           autoSubmit: body.autoSubmit !== false,
           solveChallenges: body.solveChallenges !== false,
         });
-        if (!spec.answers.length) {
-          spec.answers = await generateFallbackAnswers(spec);
-        }
-        const runId = `${Date.now().toString(36)}-${slugify(spec.company || 'offer').slice(0, 30)}`;
-        const runDir = join(ROOT, 'scratch/apply-runs', runId);
-        await mkdir(runDir, { recursive: true });
-        await writeFile(join(runDir, 'spec.json'), JSON.stringify(spec, null, 2), 'utf-8');
+        // Open the tab immediately. Section F answers from the report are used
+        // if present; missing free-text is written against the real form fields,
+        // not seven generic Qwen drafts before Chrome even opens.
 
-        // Plugin first: navigate + fill IN the user's Chrome tab (Apply / Next /
-        // ATS normalize → form → identity/answers). A tab the quick-fill helper
-        // already opened for this offer is reused; otherwise the plugin opens
-        // one. Playwright only if the extension can't.
         let tabId = null;
         const helperTabId = Number(body.tabId);
         if (Number.isInteger(helperTabId) && helperTabId > 0 && applyBridge.connected) {
@@ -7521,6 +7773,12 @@ const server = createServer(async (req, res) => {
           tabId = opened.tabId;
           pluginError = opened.error || '';
         }
+
+        const runId = `${Date.now().toString(36)}-${slugify(spec.company || 'offer').slice(0, 30)}`;
+        const runDir = join(ROOT, 'scratch/apply-runs', runId);
+        await mkdir(runDir, { recursive: true });
+        await writeFile(join(runDir, 'spec.json'), JSON.stringify(spec, null, 2), 'utf-8');
+
         if (tabId) {
           const statePath = join(runDir, 'state.json');
           const commandPath = join(runDir, 'command.json');
@@ -8261,11 +8519,60 @@ const server = createServer(async (req, res) => {
             return;
           }
           const selectedPipelineUrl = urlObj.searchParams.get('url')?.trim() || '';
-          pipelineTarget = selectedPipelineUrl
-            ? pipe.find(entry => entry.url === selectedPipelineUrl) || null
-            : pipe[0];
+          const selectedKey = selectedPipelineUrl ? normalizeUrlKey(selectedPipelineUrl) : '';
+          const profileRules = inferProfileMatchingRules(profileStruct, profile);
+          const triageQueue = selectedKey
+            ? pipe.filter(entry => normalizeUrlKey(entry.url) === selectedKey)
+            : pipe;
+          const needsTriage = triageQueue.filter(item => pipelineItemNeedsJevTriage(item, { rescoreKept: false }));
+          send('status', {
+            text: needsTriage.length
+              ? `Tri Jev (${JEV_MODEL}) sur ${needsTriage.length} offre(s) du pipeline, avant Claude…`
+              : 'Filtre d’âge du pipeline, avant Claude…',
+          });
+          const triage = await triagePipelineItemsWithJev(triageQueue, req.userId, profileRules, {
+            onProgress: ({ index, total, outcome, error }) => {
+              if ((index + 1) % 10 === 0 || index + 1 === total) {
+                send('status', { text: `Tri Jev ${index + 1}/${total}${error ? ` — ${error}` : outcome ? ` — ${outcome}` : ''}` });
+              }
+            },
+          });
+          console.log(`[pipeline] jev triage: considered=${triage.considered} kept=${triage.kept.length} dropped=${triage.dropped.length} unverified=${triage.unverified.length} stale=${(triage.stale || []).length} listings=${(triage.listings || []).length} intern=${(triage.titleDropped || []).length}`);
+          if (triage.accountError) {
+            send('warning', { text: `Jev indisponible (${triage.accountError}). Claude n’a pas été lancé.` });
+            send('done', { ok: false, saves: [`Jev triage stopped: ${triage.accountError}`] });
+            res.end();
+            return;
+          }
+          if ((triage.titleDropped || []).length) {
+            send('status', { text: `${triage.titleDropped.length} stage/junior écarté(s) avant Jev.` });
+          }
+          if ((triage.listings || []).length) {
+            send('status', { text: `${triage.listings.length} page(s) listing/profil écartée(s) avant Jev.` });
+          }
+          if ((triage.stale || []).length) {
+            send('status', { text: `${triage.stale.length} offre(s) trop anciennes écartées avant Jev.` });
+          }
+          if (triage.dropped.length) {
+            send('status', { text: `Jev a écarté ${triage.dropped.length} offre(s) avant Claude.` });
+          }
+
+          const remaining = (await getPipeline(req.userId)).filter(item => {
+            const candidate = pipelineItemToJevCandidate(item);
+            return pipelineItemReadyForEval(item)
+              && !listingPageReason(candidate)
+              && !internOrJuniorReason(candidate.title, candidate.url);
+          });
+          pipelineTarget = selectedKey
+            ? remaining.find(entry => normalizeUrlKey(entry.url) === selectedKey) || null
+            : remaining[0] || null;
           if (!pipelineTarget) {
-            throw new Error('Selected pipeline item was not found. Refresh and try again.');
+            const message = selectedPipelineUrl
+              ? 'Cette offre a été écartée par Jev. Claude n’a pas été lancé.'
+              : 'Jev n’a laissé aucune offre à évaluer.';
+            send('done', { ok: true, saves: [message] });
+            res.end();
+            return;
           }
           send('status', { text: `Fetching JD for: ${pipelineTarget.url}...` });
           const pipelineNoteParts = extractPipelineNoteParts(pipelineTarget.note || '');
@@ -8317,7 +8624,7 @@ const server = createServer(async (req, res) => {
                 url: pipelineTarget.url || '',
                 profileRules: inferProfileMatchingRules(profileStruct, profile),
               });
-              console.log(`[pipeline] jevGate: worth=${jevGate.worth} pass=${jevGate.pass} threshold=${jevGate.threshold}`);
+              console.log(`[pipeline] jevGate: worth=${jevGate.worth} pass=${jevGate.pass} threshold=${jevGate.threshold}${jevGate.override ? ` override=${jevGate.override}` : ''}`);
               profileGate.jev = jevGate;
               if (!jevGate.pass) {
                 profileGate.hardReject = true;
@@ -8331,8 +8638,10 @@ const server = createServer(async (req, res) => {
                 send('status', { text: 'Evaluating with Claude...' });
               }
             } catch (jevErr) {
-              console.warn(`[pipeline] Jev gate failed (continuing to text eval): ${jevErr.message}`);
-              send('status', { text: 'Evaluating with Claude...' });
+              send('warning', { text: `Jev indisponible (${jevErr.message}). Claude n’a pas été lancé.` });
+              send('done', { ok: false, saves: [`Jev gate stopped: ${jevErr.message}`] });
+              res.end();
+              return;
             }
           }
         } else if (mode === 'apply' || mode === 'coverletter' || mode === 'question') {
@@ -8618,12 +8927,15 @@ Contraintes : langue de l'annonce, pas de métrique inventée, pas de version lo
           const userQuestion = urlObj.searchParams.get('question')?.trim() || '';
           const companyLabel = urlObj.searchParams.get('company') || 'Company';
           const roleLabel = urlObj.searchParams.get('role') || 'Role';
+          const careerIndex = indexCareer(cv);
           const written = await writeFormAnswer({
             question: userQuestion,
             company: companyLabel,
             role: roleLabel,
-            career: experienceIndex(cv),
-            voice: loadApplicationVoice(ROOT).slice(0, 700),
+            career: careerIndex.text,
+            index: careerIndex,
+            digest: articleDigest,
+            voice: loadApplicationVoice(ROOT).slice(0, 1400),
             facts: profileCriteriaBlock || '',
             offerContext: [prefetchData, questionStories].filter(Boolean).join('\n\n'),
             complete: (req) => chat({
@@ -8736,10 +9048,10 @@ Contraintes : langue de l'annonce, pas de métrique inventée, pas de version lo
               .filter(Boolean)
           );
           const existingHistoryUrls = await getBlockingScanHistoryUrlSet().catch(() => new Set());
+          const processedPipelineKeys = await getProcessedPipelineUrlKeys(req.userId).catch(() => new Set());
           const existingReportUrls = await getReportUrlSet().catch(() => new Set());
           const companyRoleExclusions = await getCompanyRoleExclusions(req.userId).catch(() => new Map());
           const normalizedReportUrls = new Set([...existingReportUrls].map(url => normalizeUrlKey(url)).filter(Boolean));
-          const processedPipelineKeys = await getProcessedPipelineUrlKeys(req.userId).catch(() => new Set());
           const isKnown = (url, note = '') => {
             const key = normalizeUrlKey(url);
             if (existingPipelineUrls.has(key) || existingHistoryUrls.has(key) || normalizedReportUrls.has(key) || processedPipelineKeys.has(key)) return true;
@@ -8771,14 +9083,22 @@ Contraintes : langue de l'annonce, pas de métrique inventée, pas de version lo
               remoteConfidence: candidate.remoteConfidence,
             };
           };
-          const newEntries = validParsed.filter(({ url, note }) => !isKnown(url, note)).map(enrichScanEntry);
+          const rejectListingEntry = (entry) => listingPageReason({
+            url: entry.url,
+            title: entry.title || extractPipelineNoteParts(entry.note || '').title,
+            company: entry.company,
+          });
+          const newEntries = validParsed
+            .filter(({ url, note }) => !isKnown(url, note))
+            .map(enrichScanEntry)
+            .filter(entry => !rejectListingEntry(entry));
           const duplicateEntries = validParsed.filter(({ url, note }) => isKnown(url, note));
 
           const sideBucket = (list, tag, status) => (list || []).map(candidate => ({
             url: candidate.url,
             note: [candidate.company, candidate.title, tag, candidate.publishedAt].filter(Boolean).join(' | '),
             status,
-          })).filter(entry => entry.url && !isKnown(entry.url, entry.note));
+          })).filter(entry => entry.url && !isKnown(entry.url, entry.note) && !rejectListingEntry(entry));
           const reviewEntries = sideBucket(jevResult.reviewKept, 'remote:review', 'remote_review').map(enrichScanEntry);
           const unverifiedEntries = sideBucket(jevResult.unverified, 'jev:unverified', 'jev_unverified').map(enrichScanEntry);
 

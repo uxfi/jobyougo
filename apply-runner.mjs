@@ -22,7 +22,7 @@ import { loadCareerIndex } from './lib/form-answer.mjs';
 import { classifyField } from './lib/apply-classify.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, yesNoText } from './lib/apply-select.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice, loadCvSummary } from './lib/application-writing.mjs';
-import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isSubstantiveOptionalQuestion, isResumeFileField, shouldReplaceFilledValue, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
+import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isSubstantiveOptionalQuestion, isResumeFileField, shouldReplaceFilledValue, fieldHasCommittedValue, formHasPhoneDialPicker, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
 import {
   attachedLabels,
@@ -37,7 +37,7 @@ import {
 import { COLLECT_FIELDS } from './lib/apply-collect-fields.mjs';
 import { watchApplicationTransition, exploreApplicationInterface } from './lib/apply-navigation.mjs';
 import { ACTIVATE_MATCHED_OPTION, COMBOBOX_OPTION_QUERY, COMBOBOX_OPTION_SEL, LIST_SELECTION_STATE } from './lib/apply-combobox-dom.mjs';
-import { pickMatchingOption, choiceKind, listFilterText, selectionLooksCommitted } from './lib/apply-option-match.mjs';
+import { pickMatchingOption, choiceKind, listFilterText, selectionLooksCommitted, optionsLookLikeWorkPolicy, pickRemotePolicyOption } from './lib/apply-option-match.mjs';
 import {
   PINCHTAB_URL,
   pinchtabClose,
@@ -50,7 +50,7 @@ import {
 import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, LIST_VISIBLE_NAV_BUTTONS, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY, PAGE_STEP_SNAPSHOT } from './lib/form-detect.mjs';
 import { normalizeAtsUrl } from './extension/apply-ats.mjs';
 import { autofillLogLine, snapshotIdentityFields, waitForAutofill } from './extension/apply-autofill.mjs';
-import { forceResumeSlotInPage } from './extension/page-helper-registry.mjs';
+import { forceResumeSlotInPage, revealSfResumeInputInPage } from './extension/page-helper-registry.mjs';
 import { collectUploadSignals, judgeUploadSignals } from './extension/apply-upload-signals.mjs';
 import {
   APPLY_TEXT_RE,
@@ -1256,12 +1256,12 @@ async function scrapeComboboxOptions(frame, f) {
 // Open the list, click a real option. Typing is only a short filter once the
 // menu is already open — never the answer written into a closed field.
 // Known comboboxes retry once if the first open found nothing.
-async function selectComboboxOption(frame, f, query) {
-  const first = await selectComboboxOptionOnce(frame, f, query);
+async function selectComboboxOption(frame, f, query, opts = {}) {
+  const first = await selectComboboxOptionOnce(frame, f, query, '', opts);
   if (first.matched || first.hadOptions) return first;
   if (!isComboboxField(f)) return first;
   await sleep(rand(250, 500));
-  const second = await selectComboboxOptionOnce(frame, f, query);
+  const second = await selectComboboxOptionOnce(frame, f, query, '', opts);
   return { matched: second.matched, hadOptions: second.hadOptions || first.hadOptions };
 }
 
@@ -1299,11 +1299,12 @@ async function clickStampedComboboxOption(frame, f, loc, want, allowGlobal, filt
   return { ...result, clicked: false };
 }
 
-async function selectComboboxOptionOnce(frame, f, query, contains = '') {
+async function selectComboboxOptionOnce(frame, f, query, contains = '', opts = {}) {
   const loc = frame.locator(`[data-co-i="${f.i}"]`);
   const q = String(query).slice(0, 60);
   const known = isComboboxField(f);
   const binary = !!choiceKind(q);
+  const pickOnly = binary || /only want to work remote|remote only|travel frequently|move to hamburg|hamburg office/i.test(q);
   let filterTyped = '';
   try {
     await loc.scrollIntoViewIfNeeded({ timeout: 1200 }).catch(() => {});
@@ -1330,7 +1331,7 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
     // Skip <input type="button"> listboxes (Revolut): they are not editable
     // filters — fill/pressSequentially never narrow the menu and can wipe value.
     const domType = await loc.evaluate((el) => (el.type || '').toLowerCase()).catch(() => '');
-    if (!hadOptionsOnOpen && looksLikeTypeahead(f) && q.length >= 2 && !binary && domType !== 'button') {
+    if (!hadOptionsOnOpen && looksLikeTypeahead(f) && q.length >= 2 && !pickOnly && domType !== 'button') {
       filterTyped = listFilterText(q);
       await loc.fill('').catch(() => {});
       await loc.pressSequentially(filterTyped, { delay: rand(55, 130) }).catch(() => {});
@@ -1339,7 +1340,8 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
 
     const abandon = async () => {
       await loc.press('Escape').catch(() => {});
-      await clearField(loc);
+      // A failed later pick on a multi-select must not wipe earlier ticks.
+      if (!opts.preserveValue) await clearField(loc);
       return { matched: null, hadOptions: hadOptionsOnOpen };
     };
 
@@ -1352,6 +1354,10 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
       const listed = await listNearbyOptions(frame, f.i, known);
       const matchWant = contains || q;
       let picked = pickMatchingOption(listed, matchWant);
+      if (!picked && optionsLookLikeWorkPolicy(listed)) {
+        const remote = pickRemotePolicyOption(listed);
+        if (remote) picked = remote.text ? remote : { text: String(remote), value: String(remote) };
+      }
       if (!picked && contains) {
         const needle = String(contains).toLowerCase();
         const hit = listed.find((o) => String(o.text || o.value || '').toLowerCase().includes(needle));
@@ -1373,7 +1379,7 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
     }
 
     // Filter the open menu with a short prefix. Never type the whole answer.
-    if (!binary && !filterTyped && q.length >= 2 && domType !== 'button') {
+    if (!pickOnly && !filterTyped && q.length >= 2 && domType !== 'button') {
       filterTyped = listFilterText(q);
       await loc.fill('').catch(() => {});
       await loc.pressSequentially(filterTyped, { delay: rand(55, 130) }).catch(() => {});
@@ -1386,10 +1392,6 @@ async function selectComboboxOptionOnce(frame, f, query, contains = '') {
     }
 
     const listed = await listNearbyOptions(frame, f.i, known);
-    if (listed.length === 1) {
-      const stamped = await clickStampedComboboxOption(frame, f, loc, listed[0].text, known, filterTyped);
-      if (stamped.clicked) return { matched: stamped.matched, hadOptions: true };
-    }
     dbg(`combobox "${String(f.label).slice(0, 40)}" q="${q}" menu open but no committed option`);
     return abandon();
   } catch {
@@ -1648,7 +1650,7 @@ async function fillValueIntoField(frame, f, answer) {
     // actually landed on a real option (selectComboboxOption returns null else).
     const done = [];
     for (const v of values) {
-      const { matched } = await selectComboboxOption(frame, f, v);
+      const { matched } = await selectComboboxOption(frame, f, v, { preserveValue: multi && done.length > 0 });
       if (matched) done.push(matched);
     }
     if (!done.length) return false;
@@ -1704,6 +1706,16 @@ async function fillFields(frame, spec) {
   let resumeAlreadyUploaded = false;
   for (let pass = 0; pass < 4; pass++) {
     let fileFields = (await collectFields(frame)).filter(f => f.type === 'file');
+    // SuccessFactors hides the resume <input> until "Upload a CV" is clicked.
+    if (pass === 0 && spec.cvPath && !resumeAlreadyUploaded && !fileFields.some(f => isResumeFileField(f))) {
+      const revealed = await frame.evaluate(revealSfResumeInputInPage).catch(() => null);
+      if (revealed?.clicked && !revealed.ready) await sleep(600);
+      if (revealed?.clicked || revealed?.ready) {
+        await frame.evaluate(revealSfResumeInputInPage).catch(() => null);
+        fileFields = (await collectFields(frame)).filter(f => f.type === 'file');
+        if (fileFields.some(f => isResumeFileField(f))) log('Dialogue CV SuccessFactors ouvert.');
+      }
+    }
     // Ashby sometimes hides the resume input so hard that collect misses it:
     // stamp the likeliest raw file input (the plugin's own helper).
     if (!fileFields.length && pass === 0 && spec.cvPath && !resumeAlreadyUploaded) {
@@ -1764,6 +1776,7 @@ async function fillFields(frame, spec) {
 
   // Phase B — re-collect (fresh markers after any re-render) and fill the rest
   const fields = await collectFields(frame);
+  const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(fields) };
   const usedAnswers = new Set();
 
   let actedCount = 0;
@@ -1777,15 +1790,19 @@ async function fillFields(frame, spec) {
     // retyping those is what the heal pass after a refused Next or send is for.
     if (f.type === 'checkbox' && f.checked) continue;
     if (f.type === 'radio' && f.groupChecked) continue;
-    const alreadyFilled = f.value && f.type !== 'radio' && f.type !== 'checkbox';
-    if (alreadyFilled && !(f.ariaInvalid || f.invalid)) continue;
     const loc = frame.locator(`[data-co-i="${f.i}"]`);
-    const plan = classifyField(f, spec, usedAnswers);
+    const plan = classifyField(f, formSpec, usedAnswers);
     if (plan?.fromQuestion) usedAnswers.add(plan.fromQuestion);
+    const wantNow = String(plan?.value || plan?.selectText || '').trim();
+    const labelShort = fieldLabel(f);
+    if (f.type !== 'file' && fieldHasCommittedValue(f) && !(f.ariaInvalid || f.invalid)
+        && !shouldReplaceFilledValue(f, f.value, wantNow)) {
+      filled.push({ label: labelShort, value: f.value, kept: true });
+      continue;
+    }
     // brief pause between fields so the form isn't completed in one instant
     if (plan && !plan.skip && actedCount > 0) await jitter(rand(280, 950));
     if (plan && !plan.skip) actedCount++;
-    const labelShort = fieldLabel(f);
 
     try {
       if (!plan) {
@@ -1928,7 +1945,15 @@ async function fillFields(frame, spec) {
     const targets = [];
     for (const f of unresolved) {
       const ff = freshByKey.get(`${f.label}|${f.type}|${f.name}`)?.shift(); // consumed, so duplicate labels map 1:1
-      if (ff) { targets.push(ff); continue; }
+      if (ff) {
+        if (fieldHasCommittedValue(ff) && !(ff.ariaInvalid || ff.invalid)
+            && !shouldReplaceFilledValue(ff, ff.value, '')) {
+          filled.push({ label: fieldLabel(ff), value: ff.value, kept: true });
+          continue;
+        }
+        targets.push(ff);
+        continue;
+      }
       // No fresh match: a conditional hid the field, or its label changed on
       // re-render. Harmless for an optional field, but a REQUIRED one must
       // not vanish from both lists — that is exactly how a blank mandatory
@@ -1952,10 +1977,11 @@ async function fillFields(frame, spec) {
     let answers = {};
     try {
       answers = await resolveUnknownFields({
-        fields: llmTargets.map(f => ({ i: f.i, label: f.label, kind: llmKind(f), required: f.required, multiple: fieldIsMulti(f), options: f.options })),
+        fields: llmTargets.map(f => ({ i: f.i, label: f.label, kind: llmKind(f), required: f.required, multiple: fieldIsMulti(f), options: f.options, maxLength: f.maxLength })),
         spec,
         career: loadCareerIndex(ROOT),
         styleGuide: loadApplicationVoice(ROOT),
+        answered: filled,
       });
     } catch (err) {
       log(`LLM indisponible (${String(err.message || err).slice(0, 70)}) — champs laissés au humain.`);
@@ -1995,10 +2021,11 @@ async function reconcileProfileFields(frame, spec, filled) {
   if (!frameAlive(frame)) return;
   let fields;
   try { fields = await collectFields(frame); } catch { return; }
+  const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(fields) };
   for (const f of fields) {
     if (f.type === 'file' || f.type === 'checkbox' || f.type === 'radio') continue;
     if (!shouldFillField(f)) continue;
-    const plan = classifyField(f, spec);
+    const plan = classifyField(f, formSpec);
     if (!plan || plan.skip || plan.check || plan.resume) continue;
     const want = polishApplicationAnswer(plan.value || plan.selectText || yesNoText(plan));
     if (!want || !shouldReplaceFilledValue(f, f.value, want)) continue;

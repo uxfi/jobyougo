@@ -52,6 +52,71 @@ export function listActionLabelsInPage() {
 }
 
 /**
+ * SuccessFactors RCM keeps the resume file input out of the DOM until the
+ * candidate clicks "Upload a CV". That click opens "Upload from Device".
+ * Self-contained: chrome.scripting / Playwright serialize this function alone.
+ * Returns null when this frame has no such control, so another frame can win.
+ */
+export function revealSfResumeInputInPage() {
+  const RESUME_RE = /resume|\bcv\b|curriculum|lebenslauf/i;
+  const COVER_RE = /cover letter|lettre de motivation|anschreiben|lettre de couverture/i;
+  const deep = (root, sel) => {
+    const out = [];
+    const walk = (n) => {
+      if (!n?.querySelectorAll) return;
+      try { out.push(...n.querySelectorAll(sel)); } catch { /* invalid in this root */ }
+      for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+    };
+    walk(root);
+    return out;
+  };
+  const popupHtml = (el) => {
+    const pop = el.closest?.('.calloutPopupWrapper, .attachmentUploadOptions, .sfPanelComponent');
+    return pop ? pop.innerHTML : '';
+  };
+  const isCoverFile = (el) => {
+    const html = popupHtml(el);
+    return /COVERLETTER|coverLetter/i.test(html) && !/["']RESUME["']/.test(html);
+  };
+  const resumeFile = () => deep(document, 'input[type="file"]').find((el) => {
+    if (el.getAttribute('data-co-resume') === '1') return true;
+    if (isCoverFile(el)) return false;
+    if (/["']RESUME["']/.test(popupHtml(el))) return true;
+    return RESUME_RE.test(el.getAttribute('aria-label') || '');
+  }) || null;
+  const stamp = (el) => {
+    if (!el) return;
+    if (!RESUME_RE.test(el.getAttribute('aria-label') || '')) el.setAttribute('aria-label', 'Resume / CV');
+    el.setAttribute('data-co-resume', '1');
+  };
+
+  const deviceFile = () => deep(document, 'input.fileUpload, input[name="fileData1"]').find((el) => !isCoverFile(el)) || null;
+  const already = resumeFile() || deviceFile();
+  if (already) {
+    stamp(already);
+    return { ready: true, clicked: false };
+  }
+  const uploaded = document.getElementById('fbja_uploadedResumeId');
+  if (uploaded && String(uploaded.value || '').trim()) return null;
+
+  let button = null;
+  for (const field of deep(document, '.attachmentField')) {
+    const label = (field.querySelector('label, .rcmFormFieldLabel')?.innerText || '')
+      .replace(/\s+/g, ' ').trim();
+    if (!label || (COVER_RE.test(label) && !RESUME_RE.test(label)) || !RESUME_RE.test(label)) continue;
+    button = field.querySelector('.addAttachments, [id$="_attachIcon"]');
+    if (button) break;
+  }
+  if (!button) return null;
+  button.click();
+  const created = resumeFile()
+    || deep(document, 'input[type="file"]').find((el) => !isCoverFile(el))
+    || null;
+  if (created) stamp(created);
+  return { ready: !!created, clicked: true };
+}
+
+/**
  * Ashby sometimes hides the resume input so hard that COLLECT_FIELDS misses
  * it: stamp the likeliest raw file input so the upload can still target it.
  * The frame is filled in by the 'first-with-frame' merge.
@@ -109,6 +174,7 @@ export const PAGE_HELPERS = {
   IDENTITY_SNAPSHOT: { func: snapshotIdentityFields, frames: 'all', merge: 'concat' },
   ACTION_LABELS: { func: listActionLabelsInPage, frames: 'all', merge: 'concat', key: (t) => t, limit: 40 },
   FORCE_RESUME_SLOT: { func: forceResumeSlotInPage, frames: 'all', merge: 'first-with-frame' },
+  REVEAL_SF_RESUME: { func: revealSfResumeInputInPage, frames: 'all', merge: 'first-with-frame' },
   PAGE_HTML: { func: pageHtmlInPage, frames: 'main', merge: 'first' },
 };
 

@@ -26,10 +26,13 @@ import {
   listTypeQuery,
   fieldIsMulti,
   shouldReplaceFilledValue,
+  fieldHasCommittedValue,
+  formHasPhoneDialPicker,
+  isPlaceIdentityField,
   fieldLooksRequired,
   isApplicationGateConsent,
 } from '../lib/apply-fill-guards.mjs';
-import { choiceKind, optionsAreYesNo, placeWantedOnYesNoList } from '../lib/apply-option-match.mjs';
+import { choiceKind, optionsAreYesNo, optionsLookLikeWorkPolicy, placeWantedOnYesNoList, remotePolicyPlan } from '../lib/apply-option-match.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, DECLINE_RE } from '../lib/apply-select.mjs';
 import {
   fieldCompletionIssue,
@@ -132,6 +135,9 @@ function listPayload(f, { optionText = '', plan = {}, identity = {} } = {}) {
   if (plan.yesNo || choiceKind(optionText) || choiceKind(plan.selectText) || choiceKind(plan.value)) {
     return { list: true, typeQuery: '' };
   }
+  if (optionsLookLikeWorkPolicy(f.options) || /only want to work remote|remote only|travel frequently|move to hamburg|hamburg office/i.test(`${optionText} ${plan.selectText || ''} ${plan.value || ''}`)) {
+    return { list: true, typeQuery: '' };
+  }
   const text = String(optionText || '').trim();
   return { list: true, typeQuery: text ? (text.length <= 40 ? text : '') : listTypeQuery(f, plan, identity) };
 }
@@ -145,7 +151,8 @@ function listPayload(f, { optionText = '', plan = {}, identity = {} } = {}) {
 export function fillTimeoutMs(updates = []) {
   let ms = 20000;
   for (const u of updates || []) {
-    if (u.list) ms += 15000 + (u.selectMany?.length || 0) * 1500;
+    // A place search waits for its geocoding suggestions (up to ~12 s).
+    if (u.list || u.placeSuggest) ms += 15000 + (u.selectMany?.length || 0) * 1500;
     else if (u.check || u.choice || u.selectText != null || u.selectPrefer) ms += 2500;
     else ms += 1500 + Math.min(20000, String(u.value || '').length * 15);
   }
@@ -176,7 +183,10 @@ export function planToUpdate(f, plan, identity = {}) {
 
   if (tag === 'select' || type === 'radio' || isComboboxField(f)) {
     // Options already scraped as Yes|No: never ship a city string at them.
-    if (optionsAreYesNo(f.options) && placeWantedOnYesNoList(f.label, plan.selectText || plan.value)) {
+    if (optionsLookLikeWorkPolicy(f.options)
+        && /\blocation\b|hamburg|visit|office|hybrid|travel|relocat/i.test(String(f.label || ''))) {
+      plan = { ...plan, ...remotePolicyPlan(f.options) };
+    } else if (optionsAreYesNo(f.options) && placeWantedOnYesNoList(f.label, plan.selectText || plan.value)) {
       plan = { ...plan, yesNo: 'yes', selectText: 'Yes', value: 'Yes' };
     }
     const opt = (f.options && f.options.length) ? pickSelectOption(f.options, plan, f.label) : null;
@@ -233,6 +243,31 @@ export function planToUpdate(f, plan, identity = {}) {
   const raw = plan.value ?? plan.selectText ?? yesNoText(plan);
   const value = polishApplicationAnswer(String(raw || ''));
   if (!value || hasUnresolvedPlaceholder(value)) return null;
+  // Location typeaheads (Lever .location-input, Google Places) only commit
+  // when a suggestion is clicked. The city is the search text. The phone
+  // number is never that search.
+  const placeHead = `${f.name || ''} ${f.idAttr || ''} ${f.autocomplete || ''} ${String(f.label || '').slice(0, 48)}`.toLowerCase();
+  const mustPickSuggestion = isPlaceIdentityField(f) && !plan.yesNo && type !== 'tel'
+    && /location|city|ville|address-level/.test(placeHead)
+    && !/address line|street|postal|zip|code postal/.test(placeHead);
+  if (mustPickSuggestion) {
+    const city = String(plan.selectMatch || identity.city || value)
+      .split(',')[0]
+      .replace(/\(.*?\)/g, '')
+      .trim();
+    const query = city && !/^\+?\d[\d\s().-]{6,}$/.test(city) ? city : '';
+    return {
+      i: f.i,
+      frameId: f.frameId ?? 0,
+      value,
+      selectText: value,
+      label,
+      fromQuestion: plan.fromQuestion,
+      placeSuggest: true,
+      typeQuery: query,
+      alternates: [query, value].filter((v, k, all) => v && all.indexOf(v) === k),
+    };
+  }
   return {
     i: f.i,
     frameId: f.frameId ?? 0,
@@ -739,6 +774,17 @@ export class ApplyBridge {
       this.onLog(`openOffer failed: ${err.message}`);
       return { tabId: null, error: err.message };
     }
+  }
+
+  /**
+   * Draw the quick-fill helper over the offer tab (apply-helper-overlay.js).
+   * Throws when this build of the extension cannot.
+   */
+  async showHelper(tabId, helper) {
+    if (!this.capabilities.has('apply-helper')) {
+      throw new Error('the extension is too old for the on-page helper — reload it in chrome://extensions');
+    }
+    await this._request('show-helper', { tabId, helper }, 15000);
   }
 
   /**
@@ -1523,6 +1569,20 @@ export class ApplyBridge {
     const doneFiles = new Set();
     for (let pass = 0; pass < 4; pass++) {
       let fileFields = (await reCollect(fields)).filter((x) => x.type === 'file');
+      // SuccessFactors hides the resume <input> until "Upload a CV" is clicked.
+      if (pass === 0 && spec.cvPath && !resumeAlreadyUploaded && !fileFields.some((f) => isResumeFileField(f))) {
+        try {
+          const revealed = await this._pageHelper(tabId, 'REVEAL_SF_RESUME');
+          if (revealed?.clicked || revealed?.ready) {
+            if (revealed.clicked && !revealed.ready) await sleep(600);
+            await this._pageHelper(tabId, 'REVEAL_SF_RESUME');
+            fileFields = (await reCollect(fields)).filter((x) => x.type === 'file');
+            if (fileFields.some((f) => isResumeFileField(f))) {
+              await push('Dialogue CV SuccessFactors ouvert.');
+            }
+          }
+        } catch { /* keep the list we have */ }
+      }
       // Ashby sometimes hides the resume input so hard that collect misses it.
       // Probe raw file inputs and synthesize a resume field when needed.
       if (!fileFields.length && pass === 0 && spec.cvPath && !resumeAlreadyUploaded) {
@@ -1588,20 +1648,27 @@ export class ApplyBridge {
 
     // Re-collect after uploads (form may have re-rendered)
     const live = uploaded.length ? await reCollect(fields) : fields;
+    const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(live) };
 
     // Phase B — deterministic classify
     const updates = [];
     for (const f of live) {
       if (f.type === 'file') continue;
       if (!shouldFillField(f) && !(f.type === 'checkbox' && f.required)) continue;
-      const alreadyFilled = f.value && f.type !== 'radio' && f.type !== 'checkbox';
-      if (alreadyFilled && !(f.ariaInvalid || f.invalid)) continue;
       if (f.type === 'checkbox' && f.checked) continue;
       if (f.type === 'radio' && f.groupChecked) continue;
 
-      const plan = classifyField(f, spec, usedAnswers);
+      const plan = classifyField(f, formSpec, usedAnswers);
       if (plan?.fromQuestion) usedAnswers.add(plan.fromQuestion);
+      const wantNow = String(plan?.value || plan?.selectText || '').trim();
       const labelShort = fieldLabel(f);
+      // Keep a committed value that already answers the field. Resume parse
+      // junk (location policy sentence, salary 4000) still gets replaced.
+      if (f.type !== 'file' && fieldHasCommittedValue(f) && !(f.ariaInvalid || f.invalid)
+          && !shouldReplaceFilledValue(f, f.value, wantNow)) {
+        filled.push({ label: labelShort, value: f.value, kept: true });
+        continue;
+      }
 
       if (!plan) {
         if ((f.required || isSubstantiveOptionalQuestion(f)) && !f.value) unresolved.push(f);
@@ -1697,6 +1764,11 @@ export class ApplyBridge {
         const liveF = byKey.get(fieldKey(f)) || f;
         if (seen.has(slotKey(liveF))) continue;
         seen.add(slotKey(liveF));
+        if (fieldHasCommittedValue(liveF) && !(liveF.ariaInvalid || liveF.invalid)
+            && !shouldReplaceFilledValue(liveF, liveF.value, '')) {
+          filled.push({ label: fieldLabel(liveF), value: liveF.value, kept: true });
+          continue;
+        }
         targets.push(liveF);
       }
       await push(`Résolution intelligente de ${targets.length} champ(s)…`);
@@ -1761,7 +1833,7 @@ export class ApplyBridge {
           frameId: f.frameId ?? 0,
           value: selectText,
           selectText,
-          selectMany: many.length > 1 ? many : undefined,
+          selectMany: many.length ? many : undefined,
           label,
           llm: true,
           options: f.options,
@@ -1783,10 +1855,14 @@ export class ApplyBridge {
               required: f.required,
               multiple: fieldIsMulti(f),
               options: f.options,
+              maxLength: f.maxLength,
             })),
             spec,
             career: loadCareerIndex(ROOT),
             styleGuide: loadApplicationVoice(ROOT),
+            // What the form already says, so "Are you located in France?"
+            // agrees with the location typed two fields above.
+            answered: filled,
           });
         } catch (err) {
           await push(`LLM indisponible (${String(err.message || err).slice(0, 70)})`);
@@ -1837,7 +1913,7 @@ export class ApplyBridge {
         // sending the profile text again only typed it into the dropdown.
         const isList = f.tag === 'select' || isComboboxField(f);
         if (isList && !String(f.value || '').trim()) continue;
-        const plan = classifyField(f, spec);
+        const plan = classifyField(f, formSpec);
         if (!plan || plan.skip || plan.check || plan.resume) continue;
         const want = polishApplicationAnswer(plan.value || plan.selectText || yesNoText(plan));
         if (!want || !shouldReplaceFilledValue(f, f.value, want)) continue;
@@ -1879,7 +1955,11 @@ export class ApplyBridge {
     for (const f of live) {
       if (f.type !== 'checkbox' && f.role !== 'checkbox' && f.role !== 'switch') continue;
       if (f.checked || f.groupChecked) continue;
-      if (!isApplicationGateConsent(f) && !(/privacy|i agree|by submitting/i.test(`${f.label || ''}`))) continue;
+      // The loose "i agree / privacy" match only for boxes the form requires:
+      // an optional talent-pool or newsletter consent stays the candidate's
+      // choice (classifyField ticks it only with consentOptIn).
+      if (!isApplicationGateConsent(f)
+          && !((f.required || fieldLooksRequired(f)) && /privacy|i agree|by submitting/i.test(`${f.label || ''}`))) continue;
       consentUpdates.push({
         i: f.i,
         frameId: f.frameId ?? 0,

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { polishApplicationAnswer, sanitizeApplicationProse, loadApplicationVoice, extractQuestionReportContext, methodizeProofText, stripMetricClaimsFromProse } from '../lib/application-writing.mjs';
+import { polishApplicationAnswer, sanitizeApplicationProse, loadApplicationVoice, extractQuestionReportContext, methodizeProofText, stripMetricClaimsFromProse, stripKpiFromText } from '../lib/application-writing.mjs';
 
 test('editing preserves qualifications, technical terms and proper names', () => {
   for (const text of [
@@ -41,16 +41,20 @@ test('sanitizer follows copywriting/humanizer/stop-slop/copy-editing: dashes, st
     'I want to look at the hiring workflow, one flow, real users.',
   );
   assert.equal(
-    polishApplicationAnswer('On Creads.io, I used Claude via API for structured JSON.'),
+    polishApplicationAnswer('On Creads.io, I used Claude via API for structured JSON.', { sideNames: ['Creads.io'] }),
     'In a personal project (Creads.io), I used Claude via API for structured JSON.',
   );
   assert.equal(
-    polishApplicationAnswer('Chez Flemme OS, j\'ai branché un agent de validation.'),
+    polishApplicationAnswer('Chez Flemme OS, j\'ai branché un agent de validation.', { sideNames: ['Flemme OS'] }),
     'Dans un projet perso (Flemme OS), j\'ai branché un agent de validation.',
   );
   assert.equal(
     polishApplicationAnswer('At OneAsset I shipped compliance UX with one PO.'),
     'At OneAsset I shipped compliance UX with one PO.',
+  );
+  assert.equal(
+    polishApplicationAnswer('I built prototypes in Cursor and reviewed them in Figmol (my internal Figma-like tool).'),
+    'I built prototypes in Cursor and reviewed them in Figmol (my internal Figma-like tool).',
   );
 });
 
@@ -114,4 +118,20 @@ test('polish strips metric dumps from long free-text but keeps salary facts', ()
     stripMetricClaimsFromProse('Short note about Creads.'),
     'Short note about Creads.',
   );
+  assert.doesNotMatch(
+    polishApplicationAnswer('At Société Générale I designed the savings flows. Drove +12% investment activity. The path stayed usable.'),
+    /\+12%|12 percent/i,
+  );
+  assert.match(
+    stripKpiFromText('Designed savings flows. Drove +12% investment activity. Raised €100K seed.'),
+    /Designed savings flows/,
+  );
+  assert.doesNotMatch(
+    stripKpiFromText('Designed savings flows. Drove +12% investment activity. Raised €100K seed.'),
+    /\+12%|€100K/,
+  );
+  const keptTitle = stripKpiFromText('- Product Designer : UpViral (2024 – 2025): about 10,000 users. Led the overhaul.');
+  assert.match(keptTitle, /UpViral \(2024 – 2025\)/);
+  assert.match(keptTitle, /Led the overhaul/);
+  assert.doesNotMatch(keptTitle, /10,000/);
 });

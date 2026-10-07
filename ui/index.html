@@ -374,6 +374,13 @@
     background: var(--warn);
     box-shadow: 0 0 0 3px var(--warm-soft);
   }
+  .plugin-chip[data-state="checking"] .plugin-chip-dot { background: var(--blue); }
+  .plugin-connect-note {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: var(--warn);
+  }
+  .plugin-connect-note[hidden] { display: none; }
   .plugin-chip-label { white-space: nowrap; }
   .plugin-chip-btn { height: 24px; }
   .plugin-chip-btn-short { display: none; }
@@ -1413,10 +1420,8 @@
   .email-row { display: flex; gap: 12px; }
   .email-textarea { width: 100%; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.55; box-sizing: border-box; }
   .email-more {
-    border: 1px solid var(--border-s);
-    border-radius: 12px;
-    padding: 10px 12px;
-    background: rgba(255,255,255,0.02);
+    border-top: 1px solid var(--border-s);
+    padding-top: 10px;
   }
   .email-more summary { cursor: pointer; font-size: 12.5px; color: var(--text-3); }
   .email-more[open] summary { color: var(--text-1); margin-bottom: 2px; }
@@ -1640,108 +1645,90 @@
     align-items: center;
     justify-content: center;
     padding: 28px 20px;
-    background:
-      radial-gradient(ellipse 70% 46% at 50% 0%, rgba(45,212,160,0.10), transparent 58%),
-      rgba(3,5,6,0.78);
-    backdrop-filter: blur(14px) saturate(1.15);
-    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    background: rgba(3,5,6,0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     transition: opacity 180ms var(--ease-out), visibility 0s linear 180ms;
   }
   .modal-backdrop.open { opacity: 1; visibility: visible; pointer-events: all; transition: opacity 180ms var(--ease-out); }
-  #auto-apply-overlay { z-index: 160; }
+  #auto-apply-overlay, #apply-helper-overlay { z-index: 160; }
   .modal {
     position: relative;
     width: 100%;
-    max-width: 760px;
+    max-width: 560px;
     max-height: min(860px, calc(100dvh - 48px));
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid var(--border-strong);
-    border-radius: 22px;
-    background:
-      linear-gradient(180deg, rgba(45,212,160,0.07), transparent 120px),
-      linear-gradient(180deg, rgba(255,255,255,0.035), transparent 80px),
-      var(--panel);
-    box-shadow: var(--shadow-pop), 0 0 0 1px rgba(45,212,160,0.06);
-    transform: translateY(14px) scale(0.985);
-    transition: transform 240ms var(--ease-out);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+    transform: translateY(10px);
+    transition: transform 200ms var(--ease-out);
   }
-  .modal.is-sm { max-width: 460px; }
-  .modal.is-md { max-width: 560px; }
-  .modal.is-lg { max-width: 680px; }
-  .modal.is-xl { max-width: 920px; }
-  .modal.is-scan { max-width: 680px; }
+  .modal.is-sm { max-width: 420px; }
+  .modal.is-md { max-width: 520px; }
+  .modal.is-lg { max-width: 640px; }
+  .modal.is-xl { max-width: 880px; }
+  .modal.is-scan { max-width: 640px; }
   .modal-backdrop.open .modal { transform: none; }
-  .modal::before,
-  .confirm-card::before,
-  .cmd-panel::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 22px; right: 22px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(94,239,192,0.85), transparent);
-    pointer-events: none;
-    z-index: 2;
-  }
   .modal-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
-    padding: 18px 18px 16px 22px;
-    border-bottom: 1px solid var(--border-s);
+    gap: 12px;
+    padding: 16px 14px 14px 18px;
     flex-shrink: 0;
   }
-  .modal-heading { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-  .modal-kicker {
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--accent-h);
-  }
+  .modal-heading { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
   .modal-title {
     min-width: 0;
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--text-1);
     letter-spacing: -0.03em;
-    line-height: 1.15;
+    line-height: 1.2;
+    text-wrap: balance;
   }
   .modal-sub {
-    margin: 2px 0 0;
-    max-width: 52ch;
+    margin: 0;
+    max-width: 46ch;
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.45;
     color: var(--text-3);
+    text-wrap: pretty;
   }
+  .modal-sub:empty { display: none; }
   .modal-close {
-    width: 32px; height: 32px;
-    margin-top: 1px;
+    width: 28px; height: 28px;
     padding: 0;
     flex-shrink: 0;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: rgba(255,255,255,0.03);
-    color: var(--text-3);
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-4);
     display: inline-flex; align-items: center; justify-content: center;
     cursor: pointer;
-    transition: background 140ms var(--ease-out), color 140ms var(--ease-out), border-color 140ms var(--ease-out);
   }
-  .modal-close:hover { background: rgba(255,255,255,0.07); color: var(--text-1); border-color: var(--border-strong); }
+  .modal-close:hover { background: rgba(255,255,255,0.06); color: var(--text-1); }
+  .btn:focus-visible,
+  .modal-close:focus-visible,
+  .btn-icon:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
   .modal-toolbar {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 12px 22px;
+    gap: 8px;
+    padding: 0 18px 12px;
+    margin-bottom: 8px;
     border-bottom: 1px solid var(--border-s);
-    background: rgba(0,0,0,0.16);
     flex-shrink: 0;
   }
   .modal-toolbar-row {
@@ -1751,7 +1738,7 @@
     flex-wrap: wrap;
   }
   .modal-body {
-    padding: 18px 22px 22px;
+    padding: 2px 18px 18px;
     overflow-y: auto;
     flex: 1;
     min-height: 0;
@@ -1767,10 +1754,9 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 10px;
-    padding: 14px 22px;
+    gap: 8px;
+    padding: 12px 18px;
     border-top: 1px solid var(--border-s);
-    background: rgba(0,0,0,0.22);
     flex-shrink: 0;
   }
   .modal-footer.is-split { justify-content: space-between; }
@@ -1783,7 +1769,15 @@
   .modal .email-row > .add-form-field { flex: 1 1 0; width: auto; min-width: 0; }
   .modal .add-form-label { letter-spacing: 0.01em; }
   .field-optional { font-weight: 400; color: var(--text-5); }
-  .modal-hint { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-3); }
+  .modal-hint { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text-3); }
+  .modal-hint:empty { display: none; }
+  .modal-more {
+    border-top: 1px solid var(--border-s);
+    padding-top: 10px;
+  }
+  .modal-more summary { cursor: pointer; font-size: 13px; color: var(--text-3); }
+  .modal-more summary:hover, .modal-more[open] summary { color: var(--text-1); }
+  .modal-more-body { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
   .modal-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   .modal-empty { color: var(--text-4); font-size: 13px; padding: 8px 0; }
   .modal-pre {
@@ -1805,16 +1799,12 @@
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    padding: 12px 12px;
-    border: 1px solid var(--border-s);
-    border-radius: 12px;
-    background: rgba(255,255,255,0.025);
+    padding: 2px 0;
     cursor: pointer;
     font-size: 13px;
     line-height: 1.45;
     color: var(--text-2);
   }
-  .modal-check:hover { border-color: var(--border); background: rgba(255,255,255,0.04); }
   .modal-check input { margin-top: 2px; width: 15px; height: 15px; flex-shrink: 0; }
   .modal-check.is-compact {
     padding: 0;
@@ -2057,10 +2047,7 @@
   }
   .aa-meta { color: var(--text-4); font-size: 12px; font-family: var(--font-mono); }
   .aa-message {
-    padding: 12px 14px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border-s);
-    border-radius: 12px;
+    margin: 0;
     line-height: 1.5;
     color: var(--text-2);
   }
@@ -2082,6 +2069,15 @@
     color: var(--warn-ink);
     margin-bottom: 6px;
   }
+  .qf-section { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-3); margin: 16px 0 8px; }
+  .modal-body .qf-section:first-of-type { margin-top: 0; }
+  .qf-row { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; padding: 9px 12px;
+    border: 1px solid var(--border-s); border-radius: var(--radius-sm); background: var(--surface); margin-bottom: 6px; }
+  .qf-row > div { min-width: 0; }
+  .qf-label { font-size: 11px; color: var(--text-3); margin-bottom: 2px; }
+  .qf-value { white-space: pre-wrap; word-break: break-word; color: var(--text-1); }
+  .qf-value.is-answer { max-height: 9.5em; overflow: auto; color: var(--text-2); }
   .aa-list { margin: 0; padding-left: 18px; color: var(--text-2); line-height: 1.6; }
   .aa-list.is-muted { font-size: 12px; }
   .aa-details { border-top: 1px solid var(--border-s); padding-top: 8px; }
@@ -2101,11 +2097,12 @@
     color: var(--text-3);
     white-space: pre-wrap;
   }
-  .aa-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+  #aa-run-footer { flex-wrap: wrap; }
+  #aa-abort { margin-right: auto; }
 
   @media (max-width: 640px) {
     .modal-backdrop { padding: 10px; align-items: flex-end; }
-    .modal { max-height: calc(100dvh - 20px); border-radius: 18px; }
+    .modal { max-height: calc(100dvh - 20px); }
     .modal-header, .modal-body, .modal-footer, .modal-toolbar { padding-left: 16px; padding-right: 16px; }
     .modal-title { font-size: 18px; }
     .modal-grid, .email-row { grid-template-columns: 1fr; }
@@ -2114,32 +2111,19 @@
 
   /* ─── Native confirmation ──────────────────────────────────────── */
   .confirm-backdrop {
-    background:
-      radial-gradient(circle at 50% 44%, rgba(239,107,107,0.12), transparent 34%),
-      rgba(3,5,6,0.7);
-    backdrop-filter: blur(10px);
     z-index: 230;
   }
   .confirm-card {
     position: relative;
-    width: min(420px, calc(100vw - 40px));
-    padding: 20px;
+    width: min(400px, calc(100vw - 40px));
+    padding: 18px;
     overflow: hidden;
-    border: 1px solid var(--border-strong);
-    border-radius: 20px;
-    background:
-      linear-gradient(180deg, rgba(239,107,107,0.08), transparent 90px),
-      linear-gradient(180deg, rgba(255,255,255,0.035), transparent 80px),
-      var(--surface-2);
-    box-shadow: var(--shadow-pop);
-    transform: translateY(12px) scale(0.98);
-    transition: transform 200ms var(--ease-out), opacity 180ms;
-  }
-  .confirm-backdrop.is-neutral .confirm-card {
-    background:
-      linear-gradient(180deg, rgba(45,212,160,0.08), transparent 90px),
-      linear-gradient(180deg, rgba(255,255,255,0.035), transparent 80px),
-      var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+    transform: translateY(10px);
+    transition: transform 200ms var(--ease-out);
   }
   .confirm-backdrop.open .confirm-card { transform: none; }
   .confirm-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
@@ -2153,108 +2137,141 @@
     flex-shrink: 0;
   }
   /* Non-destructive confirms (danger: false) trade the red chrome for the accent */
-  .confirm-backdrop.is-neutral {
-    background:
-      radial-gradient(circle at 50% 44%, var(--accent-soft), transparent 34%),
-      rgba(3,5,6,0.7);
-  }
   .confirm-backdrop.is-neutral .confirm-icon {
     color: var(--accent-h);
     background: var(--accent-soft);
     box-shadow: inset 0 0 0 1px var(--accent-line);
-  }
-  .confirm-backdrop:not(.is-neutral) .confirm-card::before {
-    background: linear-gradient(90deg, transparent, rgba(244,138,138,0.9), transparent);
   }
   .confirm-copy { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .confirm-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text-1); letter-spacing: -0.03em; line-height: 1.2; }
   .confirm-message { margin: 0; color: var(--text-3); font-size: 13px; line-height: 1.5; }
   .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
 
-  /* ─── Command dock (Claude stream) ─────────────────────────────── */
+  /* ─── Command widget (topbar) ─────────────────────────────────── */
   .cmd-dock {
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    z-index: 120;
-    width: min(560px, calc(100vw - 40px));
-    max-height: min(720px, calc(100vh - 40px));
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(10px);
-    transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out), visibility 0s linear 200ms;
-  }
-  .cmd-dock.open {
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
-  }
-  .cmd-panel {
     position: relative;
-    width: 100%;
-    max-height: inherit;
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    overflow: hidden;
-    pointer-events: none;
-    border: 1px solid var(--border-strong);
-    border-radius: 20px;
-    background:
-      linear-gradient(180deg, rgba(45,212,160,0.08), transparent 110px),
-      linear-gradient(180deg, rgba(255,255,255,0.03), transparent 80px),
-      var(--panel);
-    box-shadow: var(--shadow-pop);
+    display: none;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: min(260px, 34vw);
+    z-index: 40;
   }
-  .cmd-dock.open .cmd-panel { pointer-events: auto; }
-  .cmd-dock.collapsed { width: min(380px, calc(100vw - 40px)); }
-  .cmd-dock.collapsed .cmd-panel { grid-template-rows: auto; }
-  .cmd-dock.collapsed .cmd-body,
-  .cmd-dock.collapsed .cmd-actions { display: none; }
+  .cmd-dock.open { display: block; }
   .cmd-head {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    padding: 12px 12px 12px 16px;
-    border-bottom: 1px solid var(--border-s);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 32px;
+    min-width: 0;
+    padding: 0 3px 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.03);
+    cursor: pointer;
   }
-  .cmd-dock.collapsed .cmd-head { border-bottom: none; }
-  .cmd-title-wrap { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .cmd-dock.open:not(.collapsed) .cmd-head {
+    border-color: var(--border-strong);
+    background: rgba(255,255,255,0.06);
+  }
+  .cmd-dock.is-notice .cmd-head {
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+  }
+  .cmd-dock.is-notice.is-error .cmd-head {
+    border-color: rgba(239,107,107,0.4);
+    background: rgba(239,107,107,0.1);
+  }
+  .cmd-title-wrap {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
   .cmd-title {
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 700;
+    min-width: 0;
+    font-size: 12.5px;
+    font-weight: 600;
     color: var(--text-1);
-    letter-spacing: -0.03em;
-    line-height: 1.25;
+    letter-spacing: -0.006em;
+    line-height: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .cmd-dock.is-chip .cmd-title,
+  .cmd-dock.is-notice .cmd-status { display: none; }
+  .cmd-dock.is-notice .cmd-title::before {
+    content: '';
+    display: inline-block;
+    width: 7px; height: 7px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(45,212,160,0.18);
+    vertical-align: 0;
+  }
+  .cmd-dock.is-notice.is-error .cmd-title::before {
+    background: var(--bad);
+    box-shadow: 0 0 0 3px rgba(239,107,107,0.16);
+  }
   .cmd-status {
-    min-height: 18px;
+    min-width: 0;
+    min-height: 0;
+    max-width: 180px;
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
-    color: var(--text-3);
+    font-size: 12.5px;
+    color: var(--text-2);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .cmd-controls { display: flex; align-items: flex-start; gap: 6px; }
+  .cmd-controls { display: flex; align-items: center; flex-shrink: 0; }
+  .cmd-dock .btn-icon {
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+  }
+  .cmd-dock .btn-icon:hover { background: rgba(255,255,255,0.06); }
   #cmd-modal-toggle svg { transition: transform 160ms; }
-  .cmd-dock.collapsed #cmd-modal-toggle svg { transform: rotate(180deg); }
-  .cmd-actions { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 16px 0; }
+  .cmd-dock.open:not(.collapsed) #cmd-modal-toggle svg { transform: rotate(180deg); }
+  .cmd-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 20px);
+    right: 0;
+    width: min(560px, calc(100vw - 32px));
+    max-height: min(70vh, 640px);
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-pop);
+  }
+  .cmd-dock.open:not(.collapsed) .cmd-panel { display: flex; }
+  .cmd-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    order: 2;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-s);
+  }
+  .cmd-actions:not(:has(button:not([style*="none"]))) { display: none; }
   .cmd-body {
-    min-height: 180px;
-    max-height: min(560px, calc(100vh - 152px));
+    min-height: 0;
+    max-height: min(560px, calc(100vh - var(--topbar-h) - 96px));
     padding: 14px 16px;
     overflow-y: auto;
     font-size: 13px;
     line-height: 1.65;
   }
+  .cmd-body > :first-child { margin-top: 0; }
 
   /* ─── Markdown render ──────────────────────────────────────────── */
   .md-content { font-size: 14px; line-height: 1.7; color: var(--text-2); }
@@ -3630,6 +3647,14 @@
     .add-form { flex-direction: column; align-items: stretch; }
     .report-item { grid-template-columns: 40px minmax(0, 1fr) auto 16px; }
     .report-item .report-status { display: none; }
+    .cmd-dock { max-width: min(168px, 42vw); }
+    .cmd-dock.open:not(.collapsed) .cmd-panel {
+      position: fixed;
+      top: calc(var(--topbar-h) + 8px);
+      left: 12px;
+      right: 12px;
+      width: auto;
+    }
   }
   @media (hover: none) {
     .search-kbd { display: none; }
@@ -3686,17 +3711,6 @@
     .dashboard-command-row .btn-action { flex: 1; justify-content: center; }
     .dashboard-command-row .cmd-beam-host { flex: 1; }
   }
-  @media (max-width: 720px) {
-    .cmd-dock,
-    .cmd-dock.collapsed {
-      right: 10px; left: 10px; bottom: 10px;
-      width: auto;
-      max-height: min(72vh, 620px);
-    }
-    .cmd-head { padding: 11px; }
-    .cmd-body { max-height: calc(72vh - 108px); min-height: 150px; }
-  }
-
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -3800,6 +3814,30 @@
       </button>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
       <div class="topbar-actions" id="topbar-actions">
+        <div class="cmd-dock" id="cmd-modal" aria-live="polite">
+          <div class="cmd-head">
+            <div class="cmd-title-wrap">
+              <span class="cmd-title" id="cmd-modal-title">Claude</span>
+              <span class="cmd-status" id="cmd-status"></span>
+            </div>
+            <div class="cmd-controls">
+              <button class="btn-icon" id="cmd-modal-toggle" title="Collapse">
+                <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M3 6l4.5 4L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button class="btn-icon" id="cmd-modal-close" title="Close">
+                <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="cmd-panel">
+            <div class="cmd-actions">
+              <button class="btn btn-ghost btn-sm" id="cmd-cv-pdf-btn" style="display:none">Generate CV</button>
+              <button class="btn btn-ghost btn-sm" id="cmd-cover-pdf-btn" style="display:none">Generate PDF</button>
+              <button class="btn btn-ghost btn-sm" id="cmd-copy-short-btn" style="display:none">Copy short version</button>
+            </div>
+            <div id="cmd-stream-output" class="md-content cmd-body"></div>
+          </div>
+        </div>
         <div class="plugin-chip" id="plugin-chip" data-state="checking">
           <span class="plugin-chip-dot" aria-hidden="true"></span>
           <span class="plugin-chip-label" id="plugin-chip-label">Checking plugin…</span>
@@ -3809,9 +3847,11 @@
           </button>
           <div class="plugin-panel" id="plugin-panel" hidden role="dialog" aria-label="Chrome plugin">
             <div class="plugin-panel-title">Chrome plugin</div>
-            <p class="plugin-panel-copy">Load it once in Chrome. It connects to this dashboard on its own, and applications then run in your own browser.</p>
+            <p class="plugin-panel-copy">Load it once in Chrome. Then press Connect here, or use the JobYouGo icon in the toolbar. Applications run in your own browser.</p>
+            <p class="plugin-connect-note" id="plugin-connect-note" hidden>This page cannot see the plugin yet. Reload it on chrome://extensions, reload this page, then press Connect. The toolbar icon does the same.</p>
             <div class="plugin-panel-actions">
-              <a class="btn btn-primary btn-sm" id="plugin-download" href="/api/apply/extension.zip" download="jobyougo-chrome-plugin.zip">Download</a>
+              <button type="button" class="btn btn-primary btn-sm" id="plugin-connect">Connect</button>
+              <a class="btn btn-ghost btn-sm" id="plugin-download" href="/api/apply/extension.zip" download="jobyougo-chrome-plugin.zip">Download</a>
               <button type="button" class="btn btn-ghost btn-sm" id="plugin-chip-retry">Check again</button>
             </div>
             <ol class="plugin-panel-steps">
@@ -3959,7 +3999,7 @@
     <div class="content view" id="view-pipeline">
       <div class="action-bar">
         <span class="action-bar-label">Actions</span>
-        <button class="btn-action claude is-primary" data-cmd="pipeline" data-desc="Evaluates the selected offers one after another, or the next pending offer when none is selected: loads the job description, scores fit, and writes the report.">
+        <button class="btn-action claude is-primary" data-cmd="pipeline" data-desc="Jev first triages the pipeline from the data already stored, drops the rejects, then Claude evaluates only the survivors.">
           <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 1.5L9.18 5.91l4.82.42-3.64 3.16 1.09 4.71L7.5 11.77l-3.95 2.43 1.09-4.71L1 6.33l4.82-.42z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
           Process offers
         </button>
@@ -4374,7 +4414,6 @@
   <div class="modal is-xl" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-header">
       <div class="modal-heading">
-        <span class="modal-kicker">Offer</span>
         <span class="modal-title" id="modal-title">Report</span>
       </div>
       <button class="modal-close" id="modal-close" aria-label="Close">
@@ -4393,9 +4432,8 @@
   <div class="modal is-sm" role="dialog" aria-modal="true" aria-labelledby="quick-modal-title">
     <div class="modal-header">
       <div class="modal-heading">
-        <span class="modal-kicker">Pipeline</span>
         <span class="modal-title" id="quick-modal-title">Add to pipeline</span>
-        <p class="modal-sub">Drop a job URL into the inbox. Evaluation stays a separate step.</p>
+        <p class="modal-sub">Evaluation stays a separate step.</p>
       </div>
       <button class="modal-close" id="quick-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -4405,7 +4443,7 @@
       <div class="modal-stack">
         <div class="add-form-field">
           <label class="add-form-label" for="quick-url">Job URL</label>
-          <input type="url" id="quick-url" placeholder="https://...">
+          <input type="url" id="quick-url" placeholder="https://…" spellcheck="false" autocomplete="off">
         </div>
         <div class="add-form-field">
           <label class="add-form-label" for="quick-note">Note <span class="field-optional">optional</span></label>
@@ -4414,7 +4452,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" id="quick-add-btn">Add to pipeline</button>
+      <button class="btn btn-primary" id="quick-add-btn">Add</button>
     </div>
   </div>
 </div>
@@ -4424,9 +4462,7 @@
   <div class="modal is-md" role="dialog" aria-modal="true" aria-labelledby="portal-modal-title">
     <div class="modal-header">
       <div class="modal-heading">
-        <span class="modal-kicker">Sources</span>
         <span class="modal-title" id="portal-modal-title">Add company</span>
-        <p class="modal-sub">A company board that the scanner can open on the next run.</p>
       </div>
       <button class="modal-close" id="portal-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -4434,36 +4470,39 @@
     </div>
     <div class="modal-body">
       <div class="modal-stack">
-        <div class="modal-grid">
-          <div class="add-form-field">
-            <label class="add-form-label" for="pf-name">Company name</label>
-            <input type="text" id="pf-name" placeholder="e.g. Mistral AI">
-          </div>
-          <div class="add-form-field">
-            <label class="add-form-label" for="pf-scan-method">Scan method</label>
-            <select id="pf-scan-method">
-              <option value="">playwright (default)</option>
-              <option value="websearch">websearch</option>
-              <option value="greenhouse_api">greenhouse_api</option>
-            </select>
-          </div>
+        <div class="add-form-field">
+          <label class="add-form-label" for="pf-name">Company</label>
+          <input type="text" id="pf-name" placeholder="Mistral AI" autocomplete="organization">
         </div>
         <div class="add-form-field">
           <label class="add-form-label" for="pf-careers-url">Careers URL</label>
-          <input type="url" id="pf-careers-url" placeholder="https://jobs.lever.co/company">
+          <input type="url" id="pf-careers-url" placeholder="https://jobs.lever.co/company" spellcheck="false" autocomplete="off">
         </div>
-        <div class="add-form-field">
-          <label class="add-form-label" for="pf-api">Greenhouse API URL <span class="field-optional">optional</span></label>
-          <input type="url" id="pf-api" placeholder="https://boards-api.greenhouse.io/v1/boards/slug/jobs">
-        </div>
-        <div class="add-form-field">
-          <label class="add-form-label" for="pf-scan-query">Search query <span class="field-optional">optional</span></label>
-          <input type="text" id="pf-scan-query" placeholder='site:jobs.ashbyhq.com/company "AI" OR "Solutions"'>
-        </div>
-        <div class="add-form-field">
-          <label class="add-form-label" for="pf-notes">Notes <span class="field-optional">optional</span></label>
-          <input type="text" id="pf-notes" placeholder="e.g. Paris FR. European AI lab.">
-        </div>
+        <details class="modal-more">
+          <summary>More</summary>
+          <div class="modal-more-body">
+            <div class="add-form-field">
+              <label class="add-form-label" for="pf-scan-method">Scan method</label>
+              <select id="pf-scan-method">
+                <option value="">Playwright</option>
+                <option value="websearch">Web search</option>
+                <option value="greenhouse_api">Greenhouse API</option>
+              </select>
+            </div>
+            <div class="add-form-field">
+              <label class="add-form-label" for="pf-api">Greenhouse API <span class="field-optional">optional</span></label>
+              <input type="url" id="pf-api" placeholder="https://boards-api.greenhouse.io/v1/boards/slug/jobs" spellcheck="false" autocomplete="off">
+            </div>
+            <div class="add-form-field">
+              <label class="add-form-label" for="pf-scan-query">Search query <span class="field-optional">optional</span></label>
+              <input type="text" id="pf-scan-query" placeholder="site:jobs.ashbyhq.com/company" spellcheck="false">
+            </div>
+            <div class="add-form-field">
+              <label class="add-form-label" for="pf-notes">Notes <span class="field-optional">optional</span></label>
+              <input type="text" id="pf-notes" placeholder="Paris, European AI lab">
+            </div>
+          </div>
+        </details>
       </div>
     </div>
     <div class="modal-footer is-split">
@@ -4481,9 +4520,7 @@
   <div class="modal is-md" role="dialog" aria-modal="true" aria-labelledby="query-modal-title">
     <div class="modal-header">
       <div class="modal-heading">
-        <span class="modal-kicker">Sources</span>
-        <span class="modal-title" id="query-modal-title">Add job board query</span>
-        <p class="modal-sub">A search the scanner runs across a board, not a single company.</p>
+        <span class="modal-title" id="query-modal-title">Add a search</span>
       </div>
       <button class="modal-close" id="query-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -4502,8 +4539,8 @@
         <div class="add-form-field">
           <label class="add-form-label" for="qf-section">Section</label>
           <select id="qf-section">
-            <option value="search_queries">General (search_queries)</option>
-            <option value="eu_job_boards">EU / Asia (eu_job_boards)</option>
+            <option value="search_queries">General</option>
+            <option value="eu_job_boards">EU / Asia</option>
           </select>
         </div>
       </div>
@@ -4523,9 +4560,8 @@
   <div class="modal is-scan" role="dialog" aria-modal="true" aria-labelledby="scan-modal-title">
     <div class="modal-header">
       <div class="modal-heading">
-        <span class="modal-kicker">Scan</span>
         <span class="modal-title" id="scan-modal-title">Choose sources</span>
-        <p class="modal-sub">Boards and companies to sweep. A green mark means the source was scanned in the last 24 hours.</p>
+        <p class="modal-sub">A green dot means scanned in the last 24 hours.</p>
       </div>
       <button class="modal-close" id="scan-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -4580,38 +4616,11 @@
   </div>
 </div>
 
-<!-- ─── Claude Stream Notification ─────────────────────────────── -->
-<div class="cmd-dock" id="cmd-modal" aria-live="polite">
-  <div class="cmd-panel">
-    <div class="cmd-head">
-      <div class="cmd-title-wrap">
-        <span class="cmd-title" id="cmd-modal-title">Claude</span>
-        <span class="cmd-status" id="cmd-status"></span>
-      </div>
-      <div class="cmd-controls">
-        <button class="btn-icon" id="cmd-modal-toggle" title="Collapse">
-          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M3 6l4.5 4L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <button class="btn-icon" id="cmd-modal-close" title="Close">
-          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </button>
-      </div>
-    </div>
-    <div class="cmd-actions">
-      <button class="btn btn-ghost btn-sm" id="cmd-cv-pdf-btn" style="display:none">Generate CV</button>
-      <button class="btn btn-ghost btn-sm" id="cmd-cover-pdf-btn" style="display:none">Generate PDF</button>
-      <button class="btn btn-ghost btn-sm" id="cmd-copy-short-btn" style="display:none">Copy short version</button>
-    </div>
-    <div id="cmd-stream-output" class="md-content cmd-body"></div>
-  </div>
-</div>
-
 <!-- ─── Script output Modal ──────────────────────────────────── -->
 <div class="modal-backdrop" id="run-modal">
   <div class="modal is-lg" role="dialog" aria-modal="true" aria-labelledby="run-modal-title">
     <div class="modal-header">
       <div class="modal-heading">
-        <span class="modal-kicker">Script</span>
         <span class="modal-title" id="run-modal-title">Result</span>
       </div>
       <button class="modal-close" id="run-modal-close" aria-label="Close">
@@ -4628,9 +4637,8 @@
   <div class="modal is-sm" role="dialog" aria-modal="true" aria-labelledby="question-input-modal-title">
     <div class="modal-header">
       <div class="modal-heading">
-        <span class="modal-kicker">Application</span>
         <span class="modal-title" id="question-input-modal-title">Answer a question</span>
-        <p class="modal-sub" id="question-input-modal-sub">Paste the form question. The answer is written in the first person from the offer report and your profile.</p>
+        <p class="modal-sub" id="question-input-modal-sub">From the report and your profile.</p>
       </div>
       <button class="modal-close" id="question-input-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -4652,9 +4660,8 @@
   <div class="modal is-lg" role="dialog" aria-modal="true" aria-labelledby="email-modal-title">
     <div class="modal-header">
       <div class="modal-heading">
-        <span class="modal-kicker">Outreach</span>
         <span class="modal-title" id="email-modal-title">Application email</span>
-        <p class="modal-sub">A draft adapted to the company and the role. Nothing is sent until you send it yourself.</p>
+        <p class="modal-sub">Draft only. You send it.</p>
       </div>
       <button class="modal-close" id="email-modal-close" aria-label="Close">
         <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -4664,15 +4671,15 @@
       <div class="email-row">
         <div class="add-form-field">
           <label class="add-form-label" for="email-to">Recipient email</label>
-          <input type="text" id="email-to" placeholder="marie.dupont@company.com" autocomplete="off">
+          <input type="email" id="email-to" placeholder="marie.dupont@company.com" autocomplete="off" spellcheck="false" inputmode="email">
         </div>
         <div class="add-form-field">
-          <label class="add-form-label" for="email-job-url">Offer link (optional)</label>
-          <input type="url" id="email-job-url" placeholder="https://...">
+          <label class="add-form-label" for="email-job-url">Offer link <span class="field-optional">optional</span></label>
+          <input type="url" id="email-job-url" placeholder="https://…" spellcheck="false" autocomplete="off">
         </div>
       </div>
       <details class="email-more">
-        <summary>More options</summary>
+        <summary>More</summary>
         <div class="email-more-body">
           <div class="add-form-field">
             <label class="add-form-label" for="email-job-text">Offer text (if the page can't be read)</label>
@@ -4694,10 +4701,6 @@
           </div>
         </div>
       </details>
-      <div class="email-actions">
-        <button class="btn btn-primary" id="email-generate-btn">Generate email</button>
-      </div>
-
       <div id="email-result" class="email-result" hidden>
         <div id="email-warnings" class="email-warnings"></div>
         <div class="add-form-field">
@@ -4715,6 +4718,9 @@
           <a class="btn btn-primary" id="email-mailto-btn">Open in mail app</a>
         </div>
       </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="email-generate-btn">Generate</button>
     </div>
   </div>
 </div>
@@ -6113,18 +6119,9 @@ async function runApplicationAction(action, num, trigger) {
   if (action === 'auto-apply') {
     openAutoApplyModal({ company, role, report, num: String(num) });
   } else if (action === 'open') {
-    // One window.open per click gets past the popup blocker: it goes to the
-    // helper, and the posting opens through the plugin (openApplyHelper).
-    const jobUrl = app.JobURL;
-    if (!jobUrl) { toast('No job URL found for this offer yet', true); return; }
-    const helperWin = window.open('', `apply-helper-${Date.now()}`, 'width=440,height=780');
-    if (!helperWin) {
-      window.open(jobUrl, '_blank', 'noopener,noreferrer');
-      toast('Offer opened. Allow popups for this site to also get the quick-fill helper.', true);
-      return;
-    }
-    renderApplyHelperLoading(helperWin, app);
-    openApplyHelper(helperWin, app, { company, role, report, num: String(num) });
+    // The plugin opens the posting and draws the quick-fill helper over it.
+    if (!app.JobURL) { toast('No job URL found for this offer yet', true); return; }
+    openApplyHelper(app, { company, role, report, num: String(num) });
   } else if (action === 'cover') {
     openCmdModal('coverletter', { company, role, report });
   } else if (action === 'email') {
@@ -6375,7 +6372,7 @@ const AUTO_APPLY_STATE_LABELS = {
   solving_challenge: { label: 'Auto verification…', tone: 'violet', spin: true },
   filling: { label: 'Filling the form…', tone: 'info', spin: true },
   needs_human: { label: 'Your input is needed', tone: 'warn', spin: false },
-  ready_to_review: { label: 'Ready — review, then confirm', tone: 'good', spin: false },
+  ready_to_review: { label: 'Review, then confirm', tone: 'good', spin: false },
   submitting: { label: 'Sending…', tone: 'info', spin: true },
   submitted: { label: 'Application sent', tone: 'good', spin: false },
   aborted: { label: 'Cancelled', tone: 'muted', spin: false },
@@ -6392,11 +6389,10 @@ function openAutoApplyModal(app) {
     <div class="modal is-md" role="dialog" aria-modal="true" aria-labelledby="aa-title">
       <div class="modal-header">
         <div class="modal-heading">
-          <span class="modal-kicker">Auto-apply</span>
           <span class="modal-title" id="aa-title">${escapeHtml(app.company)}</span>
-          <p class="modal-sub">${escapeHtml(app.role || 'Offer')}</p>
+          <p class="modal-sub">${escapeHtml(app.role || '')}</p>
         </div>
-        <button id="aa-close" class="modal-close" aria-label="Close" title="Close. The application keeps running in the background.">
+        <button id="aa-close" class="modal-close" aria-label="Close" title="Close. The run keeps going.">
           <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
       </div>
@@ -6404,23 +6400,22 @@ function openAutoApplyModal(app) {
       <div class="modal-body">
         <div id="aa-setup" class="aa-setup">
           <div class="add-form-field">
-            <label class="add-form-label" for="aa-region">Region — CV and declared details</label>
+            <label class="add-form-label" for="aa-region">CV</label>
             <select id="aa-region">
-              <option value="">Detect from the report</option>
-              <option value="europe">Europe → Paris CV, Paris details (CET)</option>
-              <option value="asia">Asia → Bangkok CV, Bangkok details (ICT)</option>
+              <option value="">From the report</option>
+              <option value="europe">Europe — Paris</option>
+              <option value="asia">Asia — Bangkok</option>
             </select>
           </div>
           <label class="modal-check">
             <input type="checkbox" id="aa-autosubmit" checked>
-            <span>Submit automatically, without a final confirmation<small>Uncheck to review the form before it is sent.</small></span>
+            <span>Send when the form is filled<small>Uncheck to review in Chrome first.</small></span>
           </label>
           <label class="modal-check" id="aa-solve-row" hidden>
             <input type="checkbox" id="aa-solve-challenges" checked>
-            <span>Try verifications PinchTab can handle<small>Cloudflare and Turnstile. You solve any other captcha.</small></span>
+            <span>Solve Cloudflare and Turnstile<small>You handle any other captcha.</small></span>
           </label>
-          <p id="aa-plugin" class="modal-hint">Checking the Chrome plugin…</p>
-          <p class="modal-hint">The run opens the offer, follows ATS redirects, fills the form from the report, and uploads the regional CV. If a sign-in is required or a field stays ambiguous, finish it in the tab, then click “Rescan the form”.</p>
+          <p id="aa-plugin" class="modal-hint">Checking Chrome…</p>
         </div>
 
         <div id="aa-run" class="aa-run" style="display:none">
@@ -6429,7 +6424,7 @@ function openAutoApplyModal(app) {
             <span id="aa-meta" class="aa-meta"></span>
           </div>
           <div id="aa-message" class="aa-message"></div>
-          <div id="aa-stale" class="aa-alert" style="display:none">Auto-apply looks stopped. “Confirm send” and “Rescan the form” no longer respond. “I sent it” still marks the application as sent.</div>
+          <div id="aa-stale" class="aa-alert" style="display:none">This run stopped. Confirm and Rescan won’t respond. I sent it still marks it Applied.</div>
           <div id="aa-pending-box" style="display:none">
             <div class="aa-pending-label">Fields to complete in Chrome</div>
             <ul id="aa-pending" class="aa-list"></ul>
@@ -6442,16 +6437,16 @@ function openAutoApplyModal(app) {
             <summary>Log</summary>
             <pre id="aa-log" class="aa-log"></pre>
           </details>
-          <div class="aa-actions">
-            <button id="aa-manual-sent" class="btn btn-primary" style="display:none" title="Use this after you click send in Chrome">I sent it</button>
-            <button id="aa-submit" class="btn btn-ghost" style="display:none" title="Ask Chrome to click the send button">Confirm send</button>
-            <button id="aa-rescan" class="btn btn-ghost" style="display:none">Rescan the form</button>
-            <button id="aa-abort" class="btn btn-danger">Abort</button>
-          </div>
         </div>
       </div>
       <div class="modal-footer" id="aa-setup-footer">
-        <button id="aa-start" class="btn btn-primary">Start in Chrome</button>
+        <button id="aa-start" class="btn btn-primary">Start</button>
+      </div>
+      <div class="modal-footer" id="aa-run-footer" style="display:none">
+        <button id="aa-abort" class="btn btn-danger">Abort</button>
+        <button id="aa-rescan" class="btn btn-ghost" style="display:none">Rescan</button>
+        <button id="aa-submit" class="btn btn-ghost" style="display:none" title="Ask Chrome to click send">Confirm send</button>
+        <button id="aa-manual-sent" class="btn btn-primary" style="display:none" title="After you send it in Chrome">I sent it</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -6472,8 +6467,8 @@ function openAutoApplyModal(app) {
     const connected = !!b?.connected;
     $('aa-solve-row').hidden = connected;
     $('aa-plugin').textContent = !connected
-      ? 'Chrome plugin not connected: a separate Chromium window will do the application. Reload the extension in chrome://extensions to use your own Chrome.'
-      : `Chrome plugin connected${b.version ? ` (v${b.version})` : ''}: the application runs in ${app.tabId ? 'the offer tab already open' : 'a new tab of your Chrome'}.${b.readOptions ? '' : ' Reload the extension to get the latest list handling.'}`;
+      ? 'Plugin off. A separate window will apply. Reload the extension to use your Chrome.'
+      : (app.tabId ? 'Runs in the open offer tab.' : 'Opens a new tab in your Chrome.');
   }).catch(() => {
     $('aa-solve-row').hidden = false;
     $('aa-plugin').textContent = '';
@@ -6500,16 +6495,15 @@ function openAutoApplyModal(app) {
       $('aa-setup').style.display = 'none';
       $('aa-setup-footer').style.display = 'none';
       $('aa-run').style.display = 'flex';
-      const mode = r.browserMode === 'extension'
-        ? 'Chrome plugin, your tab'
-        : `Separate window (plugin: ${r.pluginError || 'not connected'})`;
-      $('aa-meta').textContent = `${r.region === 'asia' ? '🌏 Asia → Bangkok' : '🇪🇺 Europe → Paris'} · CV: ${r.cv} · ${r.answersCount} pre-written answer(s) · ${mode}`;
+      $('aa-run-footer').style.display = 'flex';
+      const mode = r.browserMode === 'extension' ? 'Your Chrome' : 'Separate window';
+      $('aa-meta').textContent = `${r.region === 'asia' ? 'Asia · Bangkok' : 'Europe · Paris'} · ${r.cv} · ${r.answersCount} answers · ${mode}`;
       pollTimer = setInterval(poll, 1500);
       poll();
     } catch (err) {
       toast(`Could not start: ${err.message}`, true);
       $('aa-start').disabled = false;
-      $('aa-start').textContent = 'Start in Chrome';
+      $('aa-start').textContent = 'Start';
     }
   });
 
@@ -6537,17 +6531,10 @@ function openAutoApplyModal(app) {
       }
       finished = true;
       stopPolling();
-      const meta = AUTO_APPLY_STATE_LABELS.submitted;
-      $('aa-chip').dataset.tone = meta.tone;
-      $('aa-chip').textContent = meta.label;
-      $('aa-message').textContent = 'Send confirmed manually.';
-      $('aa-submit').style.display = 'none';
-      $('aa-rescan').style.display = 'none';
-      btn.style.display = 'none';
-      $('aa-abort').textContent = 'Close';
       toast(app.num
         ? `${app.company} — send confirmed, status → Applied`
         : 'Send confirmed.');
+      close();
     } catch (err) {
       toast(`Error: ${err.message}`, true);
       btn.disabled = false;
@@ -6598,7 +6585,6 @@ function openAutoApplyModal(app) {
     if (['submitted', 'aborted', 'error'].includes(s.state)) {
       finished = true;
       stopPolling();
-      $('aa-abort').textContent = 'Close';
       if (s.state === 'submitted' && !appliedMarked && app.num) {
         appliedMarked = true;
         try {
@@ -6608,71 +6594,26 @@ function openAutoApplyModal(app) {
           });
           await reloadApplications();
           toast(`🎉 ${app.company} — application sent, status → Applied`);
+          close();
+          return;
         } catch (err) {
           toast(`Application sent, but marking it Applied failed: ${err.message}`, true);
         }
+      } else if (s.state === 'submitted') {
+        close();
+        return;
       }
+      $('aa-abort').textContent = 'Close';
     }
   }
 }
 
-// Quick-fill helper window: profile values, the report's answers and the
-// regional CV one click away next to the offer. The page is written from the
-// dashboard and its buttons are wired from here, so it carries no script.
-const APPLY_HELPER_CSS = `
-  :root {
-    color-scheme: dark;
-    --bg: #07090a; --surface: #0e1112; --surface-2: #13171a;
-    --border: rgba(255,255,255,0.085);
-    --text-1: #f2f5f3; --text-2: #b9c2bd; --text-3: #8a948f;
-    --accent: #2dd4a0; --accent-ink: #03140d;
-    --accent-soft: rgba(45,212,160,0.10); --accent-line: rgba(45,212,160,0.30);
-    --warn: #e8b86d;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; padding: 16px; background: var(--bg); color: var(--text-1);
-    font: 13px/1.5 Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-  h1 { font-size: 16px; font-weight: 650; margin: 0; }
-  h2 { font: 500 11px/1 'Geist Mono', ui-monospace, Menlo, monospace; text-transform: uppercase;
-    letter-spacing: .08em; color: var(--text-3); margin: 18px 0 8px; }
-  .sub { color: var(--text-3); margin: 2px 0 12px; }
-  .status { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--surface); color: var(--text-2); margin-bottom: 12px; }
-  .status.is-warn { border-color: rgba(232,184,109,0.35); color: var(--warn); }
-  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .btn { font: inherit; font-weight: 600; border-radius: 8px; cursor: pointer; padding: 8px 12px;
-    border: 1px solid var(--border); background: var(--surface-2); color: var(--text-1); text-decoration: none; }
-  .btn:hover { border-color: var(--accent-line); }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .btn.copy { flex: none; padding: 5px 9px; font-size: 12px; color: var(--accent); background: var(--accent-soft); border-color: transparent; }
-  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .row { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; padding: 10px 12px;
-    border: 1px solid var(--border); border-radius: 10px; background: var(--surface); margin-bottom: 8px; }
-  .row > div { min-width: 0; }
-  .label { font-size: 11px; color: var(--text-3); margin-bottom: 2px; }
-  .value { white-space: pre-wrap; word-break: break-word; }
-  .answer { max-height: 9.5em; overflow: auto; color: var(--text-2); }
-  .loading { display: grid; place-items: center; min-height: 80vh; color: var(--text-2); text-align: center; }
-`;
-
-function writeApplyHelperPage(win, bodyHtml) {
-  if (!win || win.closed) return null;
-  win.document.open();
-  win.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Apply helper</title><style>${APPLY_HELPER_CSS}</style></head><body>${bodyHtml}</body></html>`);
-  win.document.close();
-  return win.document;
-}
-
-function renderApplyHelperLoading(win, app) {
-  writeApplyHelperPage(win, `<div class="loading"><div>Preparing the quick-fill helper…
-    <div class="sub">${escapeHtml(app.Company || 'Offer')} · ${escapeHtml(app.Role || '')}</div></div></div>`);
-}
-
-// The helper window already used this click's popup allowance: the posting
-// opens through the plugin, in a tab the plugin can then fill.
-async function openApplyHelper(win, app, { company, role, report, num }) {
+// Quick-fill helper: profile values, the report's answers and the regional CV
+// one click away while applying. With the plugin it is a panel drawn over the
+// offer tab (extension/apply-helper-overlay.js); without it, a dashboard modal
+// whose "Open the offer" link is a real click, so no popup blocker applies.
+async function openApplyHelper(app, { company, role, report, num }) {
+  toast(`Opening ${app.Company || 'the offer'} in Chrome…`);
   const [profile, preview, opened] = await Promise.all([
     profileData || api('/api/profile').then((p) => (profileData = p)).catch(() => ({})),
     report
@@ -6681,77 +6622,108 @@ async function openApplyHelper(win, app, { company, role, report, num }) {
     api('/api/apply/open-offer', { method: 'POST', body: JSON.stringify({ url: app.JobURL }) })
       .catch((err) => ({ ok: false, error: err.message })),
   ]);
-  renderApplyHelper(win, app, {
-    profile,
-    preview,
-    tabId: opened?.ok ? opened.tabId : null,
-    pluginError: opened?.ok ? '' : (opened?.error || 'plugin unavailable'),
-    company,
-    role,
-    report,
-    num,
+  const helper = {
+    company: app.Company || '',
+    role: app.Role || '',
+    report: report || '',
+    num: num || '',
+    canFill: !!report,
+    fields: buildApplyHelperFields(app, profile),
+    answers: (preview?.answers || [])
+      .filter((a) => a?.question && a?.answer)
+      .map((a) => ({ question: a.question, answer: a.answer })),
+    cv: preview?.cv || '',
+    cvLabel: preview?.region === 'asia' ? 'Asia → Bangkok' : 'Europe → Paris',
+  };
+  if (!opened?.ok) {
+    renderApplyHelperModal(app, helper, {
+      note: `The plugin could not open the offer (${opened?.error || 'plugin unavailable'}). Open it with the button below.`,
+    });
+    return;
+  }
+  const shown = await api('/api/apply/show-helper', {
+    method: 'POST',
+    body: JSON.stringify({ tabId: opened.tabId, helper }),
+  }).catch((err) => ({ ok: false, error: err.message }));
+  if (shown?.ok) return;
+  renderApplyHelperModal(app, helper, {
+    tabId: opened.tabId,
+    note: `Offer opened in your Chrome, but the helper could not be drawn on it (${shown?.error || 'unknown error'}).`,
   });
 }
 
-function renderApplyHelper(win, app, {
-  profile = {}, preview = null, tabId = null, pluginError = '', company, role, report, num,
-} = {}) {
-  const fields = buildApplyHelperFields(app, profile);
-  const answers = (preview?.answers || []).filter((a) => a?.question && a?.answer);
+// "Fill with the plugin" in the panel over the offer: the extension brought
+// this tab forward; the run fills the tab the plugin already opened.
+window.addEventListener('message', (event) => {
+  if (event.source !== window || event.data?.source !== 'jobyougo-extension') return;
+  if (event.data.type !== 'helper-fill' || !event.data.tabId) return;
+  const { company, role, report, num, tabId } = event.data;
+  if (!report) { toast('No report for this offer: the plugin needs one to fill the form', true); return; }
+  openAutoApplyModal({ company, role, report, num, tabId });
+});
+
+function renderApplyHelperModal(app, helper, { tabId = null, note = '' } = {}) {
+  document.getElementById('apply-helper-overlay')?.remove();
   const copyValues = [];
-  const copyButton = (value) => `<button class="btn copy" data-copy="${copyValues.push(value) - 1}">Copy</button>`;
-  const row = (label, value, extraClass = '') => `<div class="row"><div><div class="label">${escapeHtml(label)}</div>
-    <div class="value ${extraClass}">${escapeHtml(value)}</div></div>${copyButton(value)}</div>`;
-  const status = tabId
-    ? '<div class="status">Offer opened in your Chrome. The plugin can fill it in that tab.</div>'
-    : `<div class="status is-warn">The plugin could not open the offer (${escapeHtml(pluginError)}). Open it with the button below.</div>`;
-  const doc = writeApplyHelperPage(win, `
-    <h1>${escapeHtml(app.Company || 'Offer')}</h1>
-    <p class="sub">${escapeHtml(app.Role || '')}</p>
-    ${status}
-    <div class="actions">
-      ${tabId && report ? '<button class="btn primary" id="fill-btn">Fill with the plugin</button>' : ''}
-      <a class="btn ${tabId ? '' : 'primary'}" href="${escapeHtml(app.JobURL || '')}" target="_blank" rel="noopener noreferrer">${tabId ? 'Open the offer again' : 'Open the offer'}</a>
-      <button class="btn" id="copy-all-btn">Copy all fields</button>
-    </div>
-    ${preview?.cv ? `<h2>CV to attach</h2>${row(preview.region === 'asia' ? 'Asia → Bangkok' : 'Europe → Paris', preview.cv)}` : ''}
-    <h2>Profile</h2>
-    ${fields.map((f) => row(f.label, f.value)).join('') || '<p class="sub">No profile fields found.</p>'}
-    ${answers.length ? `<h2>Answers from the report</h2>${answers.map((a) => row(a.question, a.answer, 'answer')).join('')}` : ''}
-  `);
-  if (!doc) return;
+  const row = (label, value, extraClass = '') => `<div class="qf-row"><div><div class="qf-label">${escapeHtml(label)}</div>
+    <div class="qf-value ${extraClass}">${escapeHtml(value)}</div></div>
+    <button type="button" class="btn btn-ghost btn-sm" data-copy="${copyValues.push(value) - 1}">Copy</button></div>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'apply-helper-overlay';
+  overlay.className = 'modal-backdrop open';
+  overlay.innerHTML = `
+    <div class="modal is-md" role="dialog" aria-modal="true" aria-labelledby="qf-title">
+      <div class="modal-header">
+        <div class="modal-heading">
+          <span class="modal-title" id="qf-title">${escapeHtml(helper.company || 'Offer')}</span>
+          <p class="modal-sub">${escapeHtml(helper.role || '')}</p>
+        </div>
+        <button type="button" class="modal-close" id="qf-close" aria-label="Close" title="Close">
+          <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        ${note ? `<p class="modal-hint" style="margin-bottom:12px">${escapeHtml(note)}</p>` : ''}
+        ${helper.cv ? `<div class="qf-section">CV</div>${row(helper.cvLabel, helper.cv)}` : ''}
+        <div class="qf-section">Profile</div>
+        ${helper.fields.map((f) => row(f.label, f.value)).join('') || '<p class="modal-empty">No profile fields found.</p>'}
+        ${helper.answers.length ? `<div class="qf-section">Answers</div>${helper.answers.map((a) => row(a.question, a.answer, 'is-answer')).join('')}` : ''}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="qf-copy-all">Copy all</button>
+        <a class="btn ${tabId ? 'btn-ghost' : 'btn-primary'}" href="${escapeHtml(app.JobURL || '')}" target="_blank" rel="noopener noreferrer">${tabId ? 'Open again' : 'Open offer'}</a>
+        ${tabId && helper.canFill ? '<button type="button" class="btn btn-primary" id="qf-fill">Fill</button>' : ''}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.querySelector('#qf-close').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
   const flash = (btn, text) => {
     const original = btn.textContent;
     btn.textContent = text;
     setTimeout(() => { btn.textContent = original; }, 1200);
   };
-  // The helper's own clipboard: it is the focused window when its button is clicked.
   const copy = async (value, btn) => {
     try {
-      await win.navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(value);
+      flash(btn, 'Copied');
     } catch {
-      const area = doc.createElement('textarea');
-      area.value = value;
-      doc.body.appendChild(area);
-      area.select();
-      const ok = doc.execCommand('copy');
-      area.remove();
-      if (!ok) return flash(btn, 'Copy failed');
+      flash(btn, 'Copy failed');
     }
-    flash(btn, 'Copied');
   };
-  doc.querySelectorAll('[data-copy]').forEach((btn) => {
+  overlay.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', () => copy(copyValues[Number(btn.dataset.copy)] ?? '', btn));
   });
-  doc.getElementById('copy-all-btn').addEventListener('click', (e) => {
-    copy(fields.map((f) => `${f.label}: ${f.value}`).join('\n'), e.currentTarget);
+  overlay.querySelector('#qf-copy-all').addEventListener('click', (e) => {
+    copy(helper.fields.map((f) => `${f.label}: ${f.value}`).join('\n'), e.currentTarget);
   });
-  // The run starts from the dashboard, which shows its progress; the plugin
-  // fills the tab it already opened instead of opening a second one.
-  doc.getElementById('fill-btn')?.addEventListener('click', () => {
-    window.focus();
-    openAutoApplyModal({ company, role, report, num, tabId });
+  overlay.querySelector('#qf-fill')?.addEventListener('click', () => {
+    close();
+    openAutoApplyModal({ company: helper.company, role: helper.role, report: helper.report, num: helper.num, tabId });
   });
 }
 
@@ -6877,13 +6849,15 @@ function renderPipeline({ keepToolbar = false } = {}) {
     rows = rows.filter(r => [r.d.title, r.d.company, r.d.note, r.item.url, r.item.note]
       .some(value => String(value || '').toLowerCase().includes(q)));
   }
-  const getDate = it => it.published_at || it.publishedAt || it.publication_date || it.created_at || it.createdAt || '';
+  const getDate = it => it.created_at || it.createdAt || it.scanned_at || it.published_at || it.publishedAt || it.publication_date || '';
   rows.sort((a, b) => {
     const da = getDate(a.item), db = getDate(b.item);
     if (!da && !db) return 0;
     if (!da) return 1;
     if (!db) return -1;
-    return state.pipeSort === 'oldest' ? da.localeCompare(db) : db.localeCompare(da);
+    const byDate = state.pipeSort === 'oldest' ? da.localeCompare(db) : db.localeCompare(da);
+    if (byDate) return byDate;
+    return 0;
   });
   const limit = Math.max(PIPE_PAGE_SIZE, state.pipeLimit || PIPE_PAGE_SIZE);
   const shown = rows.slice(0, limit);
@@ -7640,6 +7614,8 @@ function openPortalModal(existing = null) {
   document.getElementById('pf-scan-query').value   = existing?.scan_query || '';
   document.getElementById('pf-notes').value        = existing?.notes || '';
   document.getElementById('pf-enabled').checked    = existing ? existing.enabled : true;
+  const portalMore = document.querySelector('#portal-modal .modal-more');
+  if (portalMore) portalMore.open = !!(existing?.api || existing?.scan_method || existing?.scan_query || existing?.notes);
   document.getElementById('portal-modal').classList.add('open');
   document.getElementById('pf-name').focus();
 }
@@ -7853,7 +7829,7 @@ let editingQueryName = null;
 
 function openQueryModal(existing = null) {
   editingQueryName = existing?.name || null;
-  document.getElementById('query-modal-title').textContent = existing ? `Edit — ${existing.name}` : 'Add job board query';
+  document.getElementById('query-modal-title').textContent = existing ? `Edit — ${existing.name}` : 'Add a search';
   document.getElementById('qf-name').value    = existing?.name    || '';
   document.getElementById('qf-query').value   = existing?.query   || '';
   document.getElementById('qf-section').value = existing?.section || 'search_queries';
@@ -8524,7 +8500,7 @@ function openQuestionModal(company, role, report) {
   _questionModalMeta = { company, role, report };
   document.getElementById('question-input-modal-title').textContent = 'Answer a question';
   const questionSub = document.getElementById('question-input-modal-sub');
-  if (questionSub) questionSub.textContent = [company, role].filter(Boolean).join(' — ') || 'Paste the form question. The answer is written from the offer report and your profile.';
+  if (questionSub) questionSub.textContent = [company, role].filter(Boolean).join(' — ');
   document.getElementById('question-input-text').value = '';
   document.getElementById('question-input-modal').classList.add('open');
   setTimeout(() => document.getElementById('question-input-text').focus(), 50);
@@ -8574,6 +8550,21 @@ let activeCmdFinish = null;
 let activeCmdKey = null;
 let activeCmdMarkdown = '';
 let activeCmdMeta = {};
+let cmdCompact = false;
+let cmdNoticeError = false;
+let cmdIgnoreOutside = false;
+
+function setCmdDockMode(mode, { error = false } = {}) {
+  const modal = document.getElementById('cmd-modal');
+  const toggleBtn = document.getElementById('cmd-modal-toggle');
+  modal.classList.remove('is-chip', 'is-notice', 'collapsed', 'is-error');
+  if (mode === 'chip' || mode === 'notice') {
+    modal.classList.add(mode === 'chip' ? 'is-chip' : 'is-notice', 'collapsed');
+    if (error) modal.classList.add('is-error');
+  }
+  modal.setAttribute('aria-expanded', mode === 'full' ? 'true' : 'false');
+  toggleBtn.title = mode === 'full' ? 'Collapse' : 'Expand';
+}
 
 function orbStateForCmd(cmdKey) {
   if (cmdKey === 'scan') return 'searching';
@@ -8692,6 +8683,7 @@ function openCmdModal(cmdKey, params = {}, { titleSuffix = '', onFinish } = {}) 
   const copyShortBtn = document.getElementById('cmd-copy-short-btn');
 
   closeBlockingModals();
+  cmdIgnoreOutside = true;
   finishActiveCmd({ cancelled: true });
   activeCmdFinish = typeof onFinish === 'function' ? onFinish : null;
 
@@ -8702,10 +8694,16 @@ function openCmdModal(cmdKey, params = {}, { titleSuffix = '', onFinish } = {}) 
   document.getElementById('cmd-modal-title').textContent = titleSuffix ? `${baseTitle} — ${titleSuffix}` : baseTitle;
   out.innerHTML = '';
   activeCmdKey = cmdKey;
+  cmdCompact = cmdKey === 'scan';
+  cmdNoticeError = false;
   setCmdStatus('Running…', { active: true, state: orbStateForCmd(cmdKey), cmdKey });
   modal.classList.add('open');
-  modal.classList.remove('collapsed');
-  toggleBtn.title = 'Collapse';
+  if (cmdCompact) setCmdDockMode('chip');
+  else {
+    modal.classList.remove('is-chip', 'is-notice', 'collapsed');
+    modal.setAttribute('aria-expanded', 'true');
+    toggleBtn.title = 'Collapse';
+  }
   activeCmdMarkdown = '';
   activeCmdMeta = { ...params };
   const canGenerateCvFromResponse = cmdKey === 'pdf';
@@ -8763,6 +8761,11 @@ function openCmdModal(cmdKey, params = {}, { titleSuffix = '', onFinish } = {}) 
       out.innerHTML += `\n<div style="margin-top:16px;padding:10px 14px;${saveTone};border-radius:6px;font-size:12px">${saves.map(s => `${blocked ? '!' : '✓'} ${s}`).join('<br>')}</div>`;
     }
     setCmdStatus(blocked ? '! Blocked' : '✓ Done', { active: false });
+    cmdNoticeError = blocked;
+    if (cmdCompact && modal.classList.contains('is-chip')) {
+      document.getElementById('cmd-modal-title').textContent = blocked ? 'Scan blocked' : 'Scan finished';
+      setCmdDockMode('notice', { error: blocked });
+    }
     if (canGenerateCvFromResponse) {
       cvPdfBtn.disabled = false;
     }
@@ -8778,6 +8781,11 @@ function openCmdModal(cmdKey, params = {}, { titleSuffix = '', onFinish } = {}) 
     if (activeStream !== es) return;
     const msg = e.data ? JSON.parse(e.data).message : 'Connection lost';
     setCmdStatus(`✗ ${msg}`, { active: false });
+    cmdNoticeError = true;
+    if (cmdCompact && modal.classList.contains('is-chip')) {
+      document.getElementById('cmd-modal-title').textContent = msg ? `Scan failed — ${msg}` : 'Scan failed';
+      setCmdDockMode('notice', { error: true });
+    }
     es.close(); activeStream = null;
     // The report/tracker write can succeed before a later step throws (e.g.
     // pipeline removal), so refresh state here too — otherwise a partially
@@ -8791,11 +8799,55 @@ function openCmdModal(cmdKey, params = {}, { titleSuffix = '', onFinish } = {}) 
 // the previous stream ends. Closing the dock stops the chain. An account error
 // (OpenRouter 401/402) or two failures in a row stop it too, since every
 // following offer would fail the same way.
+async function triagePipelineQueue(urls) {
+  const requested = [...new Set(urls)].filter(Boolean);
+  const triage = await api('/api/pipeline/jev-triage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requested.length ? { urls: requested } : {}),
+  });
+  await loadAll();
+  const dropped = new Set(triage.droppedUrls || []);
+  const unverified = new Set(triage.unverifiedUrls || []);
+  const stale = new Set(triage.staleUrls || []);
+  const listings = new Set(triage.listingUrls || []);
+  const interned = new Set(triage.titleDroppedUrls || []);
+  const ready = new Set(triage.readyUrls || triage.keptUrls || []);
+  const survivors = (requested.length ? requested : (state.pipeline || []).map(item => item.url))
+    .filter(url => ready.has(url) && !dropped.has(url) && !unverified.has(url) && !stale.has(url) && !listings.has(url) && !interned.has(url));
+  const parts = [];
+  if (triage.titleDropped) parts.push(`${triage.titleDropped} stage/junior`);
+  if (triage.listingDropped) parts.push(`${triage.listingDropped} listing/profil`);
+  if (triage.staleDropped) parts.push(`${triage.staleDropped} trop ancienne(s)`);
+  if (triage.dropped) parts.push(`${triage.dropped} écartée(s)`);
+  const readyCount = survivors.length;
+  if (readyCount) parts.push(`${readyCount} à évaluer`);
+  if (triage.unverified) parts.push(`${triage.unverified} sans score Jev`);
+  if (parts.length && !triage.accountError) toast(`Tri Jev : ${parts.join(', ')}`, Boolean(triage.unverified));
+  return { triage, survivors };
+}
+
 async function processSelectedOffers(urls) {
-  const queue = [...new Set(urls)].filter(Boolean);
-  if (!queue.length) return;
+  const requested = [...new Set(urls)].filter(Boolean);
+  if (!requested.length) return;
   if (state.pipelineChain) {
     toast(`Already processing offer ${state.pipelineChain.current}/${state.pipelineChain.total}`, true);
+    return;
+  }
+  let queue = requested;
+  try {
+    const prepared = await triagePipelineQueue(requested);
+    if (prepared.triage.accountError) {
+      toast(prepared.triage.accountError, true);
+      return;
+    }
+    queue = prepared.survivors;
+  } catch (err) {
+    toast(`Tri Jev impossible : ${err.message}`, true);
+    return;
+  }
+  if (!queue.length) {
+    toast('Jev n’a laissé aucune offre à envoyer à Claude.');
     return;
   }
   const chain = { total: queue.length, current: 0, done: 0, failed: 0, stopReason: '' };
@@ -8929,7 +8981,10 @@ document.getElementById('cmd-cover-pdf-btn').addEventListener('click', async () 
 
 function closeCmdDock({ cancelStream = true } = {}) {
   const modal = document.getElementById('cmd-modal');
-  modal.classList.remove('open', 'collapsed');
+  modal.classList.remove('open', 'collapsed', 'is-chip', 'is-notice', 'is-error');
+  modal.setAttribute('aria-expanded', 'false');
+  cmdCompact = false;
+  cmdNoticeError = false;
   document.getElementById('cmd-modal-toggle').title = 'Collapse';
   if (cancelStream && activeStream) {
     const es = activeStream;
@@ -8945,8 +9000,19 @@ function closeCmdDock({ cancelStream = true } = {}) {
 
 document.getElementById('cmd-modal-toggle').addEventListener('click', () => {
   const modal = document.getElementById('cmd-modal');
-  modal.classList.toggle('collapsed');
-  document.getElementById('cmd-modal-toggle').title = modal.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+  const compact = modal.classList.contains('is-chip') || modal.classList.contains('is-notice') || modal.classList.contains('collapsed');
+  if (compact) setCmdDockMode('full');
+  else if (cmdCompact) setCmdDockMode(activeStream ? 'chip' : 'notice', { error: cmdNoticeError });
+  else {
+    modal.classList.add('collapsed');
+    modal.setAttribute('aria-expanded', 'false');
+    document.getElementById('cmd-modal-toggle').title = 'Expand';
+  }
+});
+document.querySelector('#cmd-modal .cmd-head').addEventListener('click', (e) => {
+  if (e.target.closest('#cmd-modal-close, #cmd-modal-toggle')) return;
+  const modal = document.getElementById('cmd-modal');
+  if (modal.classList.contains('is-chip') || modal.classList.contains('is-notice')) setCmdDockMode('full');
 });
 
 document.getElementById('cmd-modal-close').addEventListener('click', () => {
@@ -8954,6 +9020,20 @@ document.getElementById('cmd-modal-close').addEventListener('click', () => {
 });
 document.getElementById('cmd-modal').addEventListener('click', e => {
   e.stopPropagation();
+});
+document.addEventListener('click', () => {
+  if (cmdIgnoreOutside) {
+    cmdIgnoreOutside = false;
+    return;
+  }
+  const modal = document.getElementById('cmd-modal');
+  if (!modal.classList.contains('open') || modal.classList.contains('collapsed')) return;
+  if (cmdCompact) setCmdDockMode(activeStream ? 'chip' : 'notice', { error: cmdNoticeError });
+  else {
+    modal.classList.add('collapsed');
+    modal.setAttribute('aria-expanded', 'false');
+    document.getElementById('cmd-modal-toggle').title = 'Expand';
+  }
 });
 
 // ─── Script runner (Node scripts) ────────────────────────────────────────────
@@ -9313,8 +9393,27 @@ document.addEventListener('click', e => {
     if (btnCmd.dataset.cmd === 'scan') { openScanModal(); return; }
     // In the pipeline view, "Process offers" runs the selection in a row;
     // with nothing selected it evaluates the next pending offer, as before.
-    if (btnCmd.dataset.cmd === 'pipeline' && btnCmd.closest('#view-pipeline') && state.selectedPipelineUrls.size) {
-      processSelectedOffers([...state.selectedPipelineUrls]);
+    if (btnCmd.dataset.cmd === 'pipeline' && btnCmd.closest('#view-pipeline')) {
+      if (state.selectedPipelineUrls.size) {
+        processSelectedOffers([...state.selectedPipelineUrls]);
+        return;
+      }
+      (async () => {
+        try {
+          const prepared = await triagePipelineQueue((state.pipeline || []).map(item => item.url));
+          if (prepared.triage.accountError) {
+            toast(prepared.triage.accountError, true);
+            return;
+          }
+          if (!prepared.survivors[0]) {
+            toast('Jev n’a laissé aucune offre à envoyer à Claude.');
+            return;
+          }
+          openCmdModal('pipeline', { url: prepared.survivors[0] });
+        } catch (err) {
+          toast(`Tri Jev impossible : ${err.message}`, true);
+        }
+      })();
       return;
     }
     openCmdModal(btnCmd.dataset.cmd);
@@ -9325,8 +9424,23 @@ document.addEventListener('click', e => {
   if (btnRun) { runScript(btnRun.dataset.run, btnRun.dataset.title); return; }
 });
 
-// Chrome plugin: live bridge status in the top bar. Disconnected offers a
-// download of the unpacked extension; the extension connects by itself.
+// Chrome plugin: the extension pushes socket state; the server says whether
+// that socket completed its hello. Either one is enough to show "on".
+let pluginExtensionHere = false;
+let pluginSocketPhase = '';
+let pluginApiConnected = false;
+let pluginApiVersion = '';
+
+function syncPluginButton() {
+  const long = document.querySelector('.plugin-chip-btn-long');
+  const short = document.querySelector('.plugin-chip-btn-short');
+  const chip = document.getElementById('plugin-chip');
+  if (!long || !short || !chip) return;
+  const canConnect = pluginExtensionHere && chip.dataset.state === 'off';
+  long.textContent = canConnect ? 'Connect' : 'Connect or download';
+  short.textContent = canConnect ? 'Connect' : 'Plugin';
+}
+
 function setPluginChip(state, label, title) {
   const chip = document.getElementById('plugin-chip');
   const text = document.getElementById('plugin-chip-label');
@@ -9336,12 +9450,27 @@ function setPluginChip(state, label, title) {
   chip.dataset.state = state;
   text.textContent = label;
   chip.title = title || label;
-  const off = state === 'off';
-  btn.hidden = !off;
-  if (!off && panel) {
+  btn.hidden = state !== 'off';
+  if (state === 'on' && panel) {
     panel.hidden = true;
     btn.setAttribute('aria-expanded', 'false');
   }
+  syncPluginButton();
+}
+
+function paintPluginChip() {
+  if (pluginApiConnected || pluginSocketPhase === 'on') {
+    const tag = pluginApiVersion ? `v${pluginApiVersion}` : '';
+    setPluginChip('on', 'Plugin on', tag ? `Chrome plugin connected (${tag})` : 'Chrome plugin connected');
+    return;
+  }
+  if (pluginSocketPhase === 'connecting') {
+    setPluginChip('checking', 'Connecting…', 'Chrome plugin is connecting');
+    return;
+  }
+  setPluginChip('off', 'Plugin off', pluginExtensionHere
+    ? 'Chrome plugin is installed but not connected'
+    : 'Chrome plugin is not connected');
 }
 
 async function refreshPluginChip() {
@@ -9349,29 +9478,83 @@ async function refreshPluginChip() {
     const res = await fetch('/api/apply/bridge-status');
     if (!res.ok) throw new Error(String(res.status));
     const status = await res.json();
-    if (status?.connected) {
-      const version = status.version ? `v${status.version}` : '';
-      setPluginChip('on', 'Plugin on', version ? `Chrome plugin connected (${version})` : 'Chrome plugin connected');
-      return;
-    }
-    setPluginChip('off', 'Plugin off', 'Chrome plugin is not connected');
+    pluginApiConnected = !!status?.connected;
+    pluginApiVersion = status?.version || pluginApiVersion;
   } catch {
-    setPluginChip('off', 'Plugin off', 'Chrome plugin is not connected');
+    pluginApiConnected = false;
   }
+  paintPluginChip();
+}
+
+function requestPluginMessage(type) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => finish(false), 1200);
+    function finish(ok) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      window.removeEventListener('message', onReply);
+      resolve(ok);
+    }
+    function onReply(event) {
+      if (event.source !== window || event.data?.source !== 'jobyougo-extension') return;
+      if (event.data.type === 'status') finish(true);
+    }
+    window.addEventListener('message', onReply);
+    window.postMessage({ source: 'jobyougo-dashboard', type }, window.location.origin);
+  });
+}
+
+async function triggerPluginConnect() {
+  pluginSocketPhase = 'connecting';
+  paintPluginChip();
+  const heard = await requestPluginMessage('connect');
+  const note = document.getElementById('plugin-connect-note');
+  if (!heard) {
+    pluginExtensionHere = false;
+    pluginSocketPhase = '';
+    if (note) note.hidden = false;
+    togglePluginPanel(true);
+    paintPluginChip();
+    return;
+  }
+  if (note) note.hidden = true;
+  refreshPluginChip();
 }
 
 function togglePluginPanel(force) {
   const panel = document.getElementById('plugin-panel');
   const btn = document.getElementById('plugin-chip-btn');
-  if (!panel || !btn || btn.hidden) return;
+  if (!panel) return;
   const open = typeof force === 'boolean' ? force : panel.hidden;
   panel.hidden = !open;
-  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
+
+window.addEventListener('message', (event) => {
+  if (event.source !== window || event.data?.source !== 'jobyougo-extension') return;
+  if (!event.data.installed) return;
+  pluginExtensionHere = true;
+  pluginSocketPhase = event.data.phase || 'off';
+  if (event.data.version) pluginApiVersion = event.data.version;
+  const note = document.getElementById('plugin-connect-note');
+  if (note) note.hidden = true;
+  paintPluginChip();
+});
 
 document.getElementById('plugin-chip-btn')?.addEventListener('click', (e) => {
   e.stopPropagation();
+  if (pluginExtensionHere) triggerPluginConnect();
+  else togglePluginPanel();
+});
+document.getElementById('plugin-chip')?.addEventListener('click', (e) => {
+  if (e.target.closest('#plugin-chip-btn, #plugin-panel, a, button')) return;
+  e.stopPropagation();
   togglePluginPanel();
+});
+document.getElementById('plugin-connect')?.addEventListener('click', () => {
+  triggerPluginConnect();
 });
 document.getElementById('plugin-chip-retry')?.addEventListener('click', () => {
   refreshPluginChip();

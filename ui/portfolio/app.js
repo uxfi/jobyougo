@@ -3456,6 +3456,195 @@ function renderClientsTable() {
     </tr>`).join('');
 }
 
+let githubActivity = null;
+
+function githubActivitySummary(data, lang) {
+  const count = Number(data?.total);
+  if (!Number.isFinite(count)) return lang === 'fr' ? 'Activité indisponible' : 'Activity unavailable';
+  const base = lang === 'fr'
+    ? `${count} contributions sur les 12 derniers mois`
+    : `${count} contributions in the last year`;
+  const agentDays = Number(data?.agentDays) || 0;
+  if (agentDays <= 0) return base;
+  const agentBit = lang === 'fr'
+    ? `${agentDays} jour${agentDays > 1 ? 's' : ''} d'agents`
+    : `${agentDays} agent day${agentDays > 1 ? 's' : ''}`;
+  return `${base} · ${agentBit}`;
+}
+
+function githubDayTitle(day, lang) {
+  const formatted = new Intl.DateTimeFormat(lang === 'fr' ? 'fr-FR' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${day.date}T00:00:00Z`));
+  const parts = [];
+  const contributions = Number(day.count) || 0;
+  const agents = Number(day.agents) || 0;
+  if (contributions > 0) {
+    const noun = contributions === 1 ? 'contribution' : 'contributions';
+    parts.push(`${contributions} ${noun}`);
+  }
+  if (agents > 0) {
+    const noun = lang === 'fr'
+      ? (agents === 1 ? 'appel agent' : 'appels agents')
+      : (agents === 1 ? 'agent call' : 'agent calls');
+    const providers = Array.isArray(day.providers) && day.providers.length ? ` · ${day.providers.join(', ')}` : '';
+    parts.push(`${agents} ${noun}${providers}`);
+  }
+  if (!parts.length) {
+    return lang === 'fr' ? `Aucune contribution le ${formatted}` : `No contributions on ${formatted}`;
+  }
+  return lang === 'fr'
+    ? `${parts.join(' · ')} le ${formatted}`
+    : `${parts.join(' · ')} on ${formatted}`;
+}
+
+function githubMonthLabels(weeks, lang) {
+  const names = lang === 'fr'
+    ? ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return weeks.map((week, index) => {
+    const days = (week.days || []).filter(Boolean);
+    const firstOfMonth = days.find(day => day.date.slice(8) === '01');
+    const ref = index === 0 ? (firstOfMonth || days[0]) : firstOfMonth;
+    if (!ref) return '';
+    return names[Number(ref.date.slice(5, 7)) - 1] || '';
+  });
+}
+
+function githubMonthSpans(weeks, lang) {
+  const labels = githubMonthLabels(weeks, lang);
+  const spans = [];
+  for (let i = 0; i < labels.length; i += 1) {
+    if (labels[i] || spans.length === 0) {
+      let span = 1;
+      while (i + span < labels.length && !labels[i + span]) span += 1;
+      spans.push({ label: labels[i] || '', span });
+      i += span - 1;
+    }
+  }
+  return spans;
+}
+
+function placeGithubTip(cell) {
+  const tip = document.getElementById('gh-tip');
+  const text = cell?.dataset?.tip;
+  if (!tip || !text) return;
+  const rect = cell.getBoundingClientRect();
+  tip.textContent = text;
+  tip.hidden = false;
+  tip.style.left = `${rect.left + rect.width / 2}px`;
+  tip.style.top = `${rect.top}px`;
+}
+
+function hideGithubTip() {
+  const tip = document.getElementById('gh-tip');
+  if (tip) tip.hidden = true;
+}
+
+window.addEventListener('scroll', hideGithubTip, { passive: true });
+
+function renderGithubActivity() {
+  const totalEl = document.getElementById('gh-activity-total');
+  const cal = document.getElementById('gh-cal');
+  if (!totalEl || !cal) return;
+  const lang = currentLang === 'fr' ? 'fr' : 'en';
+
+  if (!githubActivity) {
+    cal.replaceChildren();
+    cal.removeAttribute('aria-label');
+    totalEl.textContent = totalEl.dataset.state === 'error'
+      ? (lang === 'fr' ? 'Activité indisponible' : 'Activity unavailable')
+      : (lang === 'fr' ? 'Chargement…' : 'Loading activity…');
+    return;
+  }
+
+  hideGithubTip();
+  const summary = githubActivitySummary(githubActivity, lang);
+  const weekCount = githubActivity.weeks.length;
+  totalEl.textContent = summary;
+  cal.style.setProperty('--gh-weeks', String(weekCount));
+  cal.setAttribute('role', 'img');
+  cal.setAttribute('aria-label', summary);
+  cal.replaceChildren();
+
+  let monthColumn = 2;
+  for (const item of githubMonthSpans(githubActivity.weeks, lang)) {
+    const cell = document.createElement('span');
+    cell.className = 'gh-month';
+    cell.style.gridColumn = `${monthColumn} / span ${item.span}`;
+    cell.style.gridRow = '1';
+    cell.textContent = item.label;
+    cal.appendChild(cell);
+    monthColumn += item.span;
+  }
+
+  const dowLabels = lang === 'fr' ? ['', 'Lun', '', 'Mer', '', 'Ven', ''] : ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+  dowLabels.forEach((label, index) => {
+    if (!label) return;
+    const cell = document.createElement('span');
+    cell.className = 'gh-dow';
+    cell.style.gridColumn = '1';
+    cell.style.gridRow = String(index + 2);
+    cell.textContent = label;
+    cal.appendChild(cell);
+  });
+
+  githubActivity.weeks.forEach((week, weekIndex) => {
+    for (let index = 0; index < 7; index += 1) {
+      const day = week.days?.[index] || null;
+      const cell = document.createElement('span');
+      cell.className = 'gh-day';
+      cell.style.gridColumn = String(weekIndex + 2);
+      cell.style.gridRow = String(index + 2);
+      if (!day) {
+        cell.classList.add('is-empty');
+      } else {
+        cell.dataset.level = String(day.level);
+        cell.dataset.tip = githubDayTitle(day, lang);
+      }
+      cal.appendChild(cell);
+    }
+  });
+}
+
+const ghCal = document.getElementById('gh-cal');
+if (ghCal) {
+  ghCal.addEventListener('mouseover', (event) => {
+    const cell = event.target.closest('.gh-day');
+    if (!cell || !cell.dataset.tip) {
+      hideGithubTip();
+      return;
+    }
+    placeGithubTip(cell);
+  });
+  ghCal.addEventListener('mouseleave', hideGithubTip);
+}
+
+function loadGithubActivity() {
+  if (loadGithubActivity.started) return;
+  loadGithubActivity.started = true;
+  fetch('/api/github-contributions')
+    .then(response => response.ok ? response.json() : Promise.reject(new Error('unavailable')))
+    .then(data => {
+      if (!data?.ok || !Array.isArray(data.weeks) || !data.weeks.length || !Number.isFinite(Number(data.total))) {
+        throw new Error('empty');
+      }
+      githubActivity = data;
+      const totalEl = document.getElementById('gh-activity-total');
+      if (totalEl) totalEl.dataset.state = 'ready';
+      renderGithubActivity();
+    })
+    .catch(() => {
+      githubActivity = null;
+      const totalEl = document.getElementById('gh-activity-total');
+      if (totalEl) totalEl.dataset.state = 'error';
+      renderGithubActivity();
+    });
+}
+
 /* ═══════════════════════════════════════════
    INIT — Selected work + method 3D tags first; heavy sections wait.
 ═══════════════════════════════════════════ */
@@ -3469,6 +3658,7 @@ const deferSecondarySections = () => {
   renderAiBento();
   renderClientsTable();
   initWhenNearViewport('.ai-transformation', initNeuralVortexBackground);
+  initWhenNearViewport('.ai-transformation', loadGithubActivity);
   initWhenNearViewport('.ai-products-section', initAiProductsMatrix);
   initWhenNearViewport('.contact-section', () => {
     document.querySelector('.contact-section')?.classList.add('bg-loaded');
@@ -3892,6 +4082,7 @@ function setLang(lang) {
     if (names) el.setAttribute('aria-label', names);
   });
 
+  if (typeof renderGithubActivity === 'function') renderGithubActivity();
   if (typeof renderStoryModalContent === 'function') renderStoryModalContent();
   if (typeof updateIfaceGridHeight === 'function') updateIfaceGridHeight();
   document.documentElement.lang = lang;

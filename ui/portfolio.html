@@ -3333,39 +3333,121 @@
     }
     .skills-section.visible .skill-fill { transform: scaleX(1); }
 
-    /* ── CURSOR CARD ── */
-    .cursor-card {
-      margin-top: 8px;
-      border: 1px solid var(--rule);
-      border-radius: 12px;
-      padding: 20px 24px;
-      display: flex; flex-direction: column; gap: 16px;
-      background: rgba(12,11,9,.03);
+    /* ── GITHUB ACTIVITY ── */
+    .gh-activity {
+      width: max-content;
+      max-width: 100%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px 10px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px;
+      background: rgba(8,10,16,.55);
+      overflow-x: auto;
     }
-    .cursor-card-header {
-      display: flex; align-items: center; justify-content: space-between;
+    .gh-activity-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
     }
-    .cursor-logo-wrap { display: flex; align-items: center; gap: 10px; }
-    .cursor-logo-svg { width: 20px; height: 20px; flex-shrink: 0; }
-    .cursor-logo-label {
-      font-family: var(--font-display);
-      font-size: 13px; font-weight: 700; letter-spacing: -.3px; color: var(--ink);
+    .gh-activity-total {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0;
+      color: rgba(255,255,255,.78);
     }
-    .cursor-badge {
-      font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
-      color: var(--bg); background: var(--ink);
-      border-radius: 100px; padding: 4px 10px;
+    .gh-activity-link {
+      color: rgba(255,255,255,.42);
+      font-size: 11px;
+      text-decoration: none;
+      white-space: nowrap;
     }
-    .cursor-stats-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
-      background: var(--rule); border-radius: 8px; overflow: hidden;
+    .gh-activity-link:hover { color: #fff; }
+    .gh-cal {
+      display: grid;
+      grid-template-columns: 22px repeat(var(--gh-weeks, 53), 10px);
+      grid-template-rows: 13px repeat(7, 10px);
+      gap: 3px;
+      width: max-content;
     }
-    .cursor-stat { background: var(--bg); padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; }
-    .cursor-stat-val {
-      font-family: var(--font-display);
-      font-size: 18px; font-weight: 800; letter-spacing: -1px; color: var(--ink);
+    .gh-month {
+      align-self: end;
+      min-width: 0;
+      font-size: 11px;
+      line-height: 1;
+      color: rgba(255,255,255,.42);
+      white-space: nowrap;
+      overflow: hidden;
     }
-    .cursor-stat-lbl { font-size: 10px; color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; }
+    .gh-dow {
+      align-self: center;
+      font-size: 9px;
+      line-height: 1;
+      color: rgba(255,255,255,.38);
+    }
+    .gh-day {
+      display: block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      background: rgba(255,255,255,.08);
+    }
+    .gh-day.is-empty { background: transparent; }
+    .gh-day[data-level="1"] { background: #0e4429; }
+    .gh-day[data-level="2"] { background: #006d32; }
+    .gh-day[data-level="3"] { background: #26a641; }
+    .gh-day[data-level="4"] { background: #39d353; }
+    .gh-day:not(.is-empty):hover {
+      outline: 1px solid rgba(255,255,255,.9);
+      outline-offset: 1px;
+    }
+    .gh-legend {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      color: rgba(255,255,255,.42);
+    }
+    .gh-legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      background: rgba(255,255,255,.08);
+    }
+    .gh-legend i[data-level="1"] { background: #0e4429; }
+    .gh-legend i[data-level="2"] { background: #006d32; }
+    .gh-legend i[data-level="3"] { background: #26a641; }
+    .gh-legend i[data-level="4"] { background: #39d353; }
+    .gh-tip {
+      position: fixed;
+      z-index: 30;
+      pointer-events: none;
+      transform: translate(-50%, calc(-100% - 8px));
+      background: #1f242b;
+      color: #fff;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 12px;
+      line-height: 1.3;
+      white-space: nowrap;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+    .gh-tip::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -3px;
+      width: 6px;
+      height: 6px;
+      background: #1f242b;
+      transform: translateX(-50%) rotate(45deg);
+    }
+    .gh-tip[hidden] { display: none; }
 
     /* ── LANG SWITCHER ── */
     .lang-switcher { display: flex; align-items: center; gap: 6px; }
@@ -7470,11 +7552,14 @@
       color: rgba(112, 229, 255, .72);
     }
     .ait-body {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
       margin-bottom: 56px;
-      align-items: start;
+      min-width: 0;
     }
     .ait-desc {
+      max-width: 68ch;
       font-size: 16px; color: rgba(255,255,255,.74); line-height: 1.85;
     }
     .ait-skills {
@@ -8065,7 +8150,7 @@
       .ifaces-grid { grid-template-columns: 1fr; gap: 18px; }
       .ifaces-showmore-wrap,
       .ifaces-grid-wrap.is-collapsed .ifaces-showmore-wrap { margin-top: 16px; }
-      .cursor-stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .gh-activity-link { display: none; }
       .contact-headline { letter-spacing: -2px; }
 
       /* AI Transformation */
@@ -8812,33 +8897,22 @@
       <p class="ait-desc">
         <span data-i18n="ait_desc">I have worked with AI for 4 years and rebuilt my UX and design workflow around it. At OneAsset, I design the product, admin platform and marketing site, using interactive prototypes and agents on GitHub. Figmol is the internal review tool I built.</span>
       </p>
-      <!-- CURSOR CARD -->
-      <div class="cursor-card" style="margin-top: -32px; max-width: 500px; background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.1); backdrop-filter: blur(8px);">
-        <div class="cursor-card-header">
-          <div class="cursor-logo-wrap">
-            <img src="../images/cursor-logo.jpg" alt="Cursor" style="width:20px; height:20px; border-radius:4px;">
-            <span class="cursor-logo-label" style="color: #fff;">Cursor</span>
-          </div>
-          <span class="cursor-badge" style="background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.1);">Top 3% globally</span>
+      <div class="gh-activity" id="gh-activity">
+        <div class="gh-activity-head">
+          <p class="gh-activity-total" id="gh-activity-total">Loading activity…</p>
+          <a class="gh-activity-link" href="https://github.com/uxfi" target="_blank" rel="noopener noreferrer">github.com/uxfi</a>
         </div>
-        <div class="cursor-stats-grid">
-          <div class="cursor-stat" style="background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);">
-            <div class="cursor-stat-val" style="color: #fff;">22.1K</div>
-            <div class="cursor-stat-lbl" data-i18n="cursor_agents" style="color: rgba(255,255,255,0.6);">Agents run</div>
-          </div>
-          <div class="cursor-stat" style="background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);">
-            <div class="cursor-stat-val" style="color: #fff;">10.5B</div>
-            <div class="cursor-stat-lbl" data-i18n="cursor_tokens" style="color: rgba(255,255,255,0.6);">Tokens used</div>
-          </div>
-          <div class="cursor-stat" style="background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);">
-            <div class="cursor-stat-val" style="color: #fff;">63d</div>
-            <div class="cursor-stat-lbl" data-i18n="cursor_streak" style="color: rgba(255,255,255,0.6);">Streak</div>
-          </div>
-          <div class="cursor-stat" style="background: rgba(255,255,255,0.03); backdrop-filter: blur(10px);">
-            <div class="cursor-stat-val" style="color: #fff;">344d</div>
-            <div class="cursor-stat-lbl" data-i18n="cursor_active" style="color: rgba(255,255,255,0.6);">Active daily</div>
-          </div>
+        <div class="gh-cal" id="gh-cal"></div>
+        <div class="gh-legend" aria-hidden="true">
+          <span data-i18n="gh_less">Less</span>
+          <i data-level="0"></i>
+          <i data-level="1"></i>
+          <i data-level="2"></i>
+          <i data-level="3"></i>
+          <i data-level="4"></i>
+          <span data-i18n="gh_more">More</span>
         </div>
+        <div class="gh-tip" id="gh-tip" hidden></div>
       </div>
     </div>
     <div class="ait-stack-label" data-i18n="ait_products_label">AI stack I use daily.</div>

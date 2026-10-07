@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, formDialCode, nationalPhoneNumber, fileUploadPlan, shouldReplaceFilledValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, isCandidateFullNameField, isCoreApplicationIdentity } from '../lib/apply-fill-guards.mjs';
+import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, looksLikePhoneNumberField, formDialCode, nationalPhoneNumber, fileUploadPlan, shouldReplaceFilledValue, fieldHasCommittedValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, listTypeQuery, isCandidateFullNameField, isCoreApplicationIdentity, fieldIsMulti } from '../lib/apply-fill-guards.mjs';
 
 const field = (label, extra = {}) => ({ label, type: 'text', name: '', idAttr: '', ...extra });
 
@@ -53,6 +53,16 @@ test('looksLikeTypeahead: city/country/university/source, not identity or Yes/No
   assert.equal(looksLikeTypeahead(field('Are you authorized to work in this country?')), false);
   assert.equal(looksLikeTypeahead(field('Skills')), false);
   assert.equal(looksLikeTypeahead(field('Open source experience')), false);
+});
+
+test('fieldIsMulti: select-all labels and the multiple flag, not a single radio', () => {
+  assert.equal(fieldIsMulti(field('Select all that apply')), true);
+  assert.equal(fieldIsMulti(field('Choose up to 3 areas')), true);
+  assert.equal(fieldIsMulti(field('Tick all that apply')), true);
+  assert.equal(fieldIsMulti({ label: 'Skills', multiple: true }), true);
+  assert.equal(fieldIsMulti(field('How would you rate your English skills?')), false);
+  assert.equal(fieldIsMulti(field('How would you best describe your current use of AI in your work?')), false);
+  assert.equal(fieldIsMulti(field('Do you currently have the legal right to work in the EU?')), false);
 });
 
 test('normalizedFieldLabel strips required markers', () => {
@@ -134,12 +144,47 @@ test('dial code is +33 from a French number, not the full phone', () => {
   // Greenhouse intl-tel country combobox (Bitpanda / job-boards.eu)
   assert.equal(looksLikeDialCodeField({ label: 'Country', type: 'text', name: '', idAttr: 'country', role: 'combobox' }), true);
   assert.equal(looksLikeDialCodeField(field('Country of residence')), false);
+  assert.equal(looksLikeDialCodeField({ label: 'Phone', type: 'text', name: '', idAttr: '', role: 'combobox' }), true);
+  assert.equal(looksLikePhoneNumberField({ label: 'Phone', type: 'text', name: '', idAttr: '', role: 'combobox' }), false);
+  assert.equal(looksLikeDialCodeField(field('Phone', { type: 'tel' })), false);
+  assert.equal(listTypeQuery(
+    { label: 'Phone', type: 'text', role: 'combobox', name: '', idAttr: '' },
+    { selectMatch: '+66', selectText: 'Thailand +66' },
+    { country: 'Thailand' },
+  ), 'Thailand');
+  assert.equal(listTypeQuery(
+    { label: 'Location', type: 'text', role: 'combobox', name: '', idAttr: '', options: [] },
+    { value: 'Paris, France', selectText: 'Paris, France', selectMatch: 'Paris' },
+    { city: 'Paris', location: 'Paris, France' },
+  ), 'Paris');
+  assert.equal(listTypeQuery(
+    {
+      label: 'Location',
+      type: 'text',
+      role: 'combobox',
+      name: '',
+      idAttr: '',
+      options: [
+        { text: 'Yes, I would also consider to move to Hamburg' },
+        { text: "No, this doesn't work for me I only want to work remote" },
+      ],
+    },
+    { value: 'Paris, France', selectText: 'Paris, France' },
+    { city: 'Paris' },
+  ), '');
+  assert.equal(looksLikeTypeahead({
+    label: 'Location',
+    options: [{ text: "No, this doesn't work for me I only want to work remote" }],
+  }), false);
+  assert.equal(looksLikeTypeahead({ label: 'Location' }), true);
 });
 
 test('nationalPhoneNumber strips the dial code for intl-tel Phone inputs', () => {
   assert.equal(nationalPhoneNumber('+33 6 95 65 91 31', '+33'), '6 95 65 91 31');
   assert.equal(nationalPhoneNumber('+66 62 784 2137', '+66'), '62 784 2137');
   assert.equal(nationalPhoneNumber('6 95 65 91 31', '+33'), '6 95 65 91 31');
+  assert.equal(nationalPhoneNumber('+33 6 95 65 91 31', '+33', { keepTrunkZero: true }), '06 95 65 91 31');
+  assert.equal(nationalPhoneNumber('+66 62 784 2137', '+66', { keepTrunkZero: true }), '062 784 2137');
 });
 
 test('fileUploadPlan never dumps the CV into employment-reference / other', () => {
@@ -229,15 +274,41 @@ test('required monthly travel / relocation answers No, not availability prose', 
   assert.equal(trips?.value, 'No');
   assert.equal(travelOrRelocatePlan(field('Are you open to relocating to Doha?'))?.yesNo, 'no');
   assert.equal(travelOrRelocatePlan(field('Are you currently based in, or willing to relocate to, Vienna?'))?.yesNo, 'no');
+  assert.equal(
+    travelOrRelocatePlan(field('If offered this position would you be able to fill the position in one of the countries listed on the job posting without relocation assistance from Mozilla?'))?.yesNo,
+    'yes',
+  );
   assert.equal(travelOrRelocatePlan(field('Are you happy to make yourself available for the required hybrid model of 3 days in office per week?'))?.yesNo, 'no');
+  assert.match(
+    String(travelOrRelocatePlan(field('Location', {
+      options: [
+        { text: 'Yes, I would also consider to move to Hamburg' },
+        { text: "No, this doesn't work for me I only want to work remote" },
+      ],
+    }))?.selectText || ''),
+    /only want to work remote/i,
+  );
+  assert.equal(
+    travelOrRelocatePlan(field("If you're not based in Hamburg: this role includes visiting our Hamburg office a week per month"))?.yesNo,
+    'no',
+  );
   assert.equal(travelOrRelocatePlan(field('First name')), null);
 });
 
 test('shouldReplaceFilledValue overwrites salary autofill junk, not essays', () => {
+  assert.equal(shouldReplaceFilledValue(field('Current location'), 'Full remote · Paris (CET) or Thailand (ICT), depending on the role', 'Bangkok, Thailand'), true);
+  assert.equal(shouldReplaceFilledValue(field('Current location', { name: 'location' }), 'Paris or Bangkok, depending on the offer', 'Paris, France'), true);
+  assert.equal(shouldReplaceFilledValue(field('Current location'), 'Bangkok, Thailand', 'Bangkok, Thailand'), false);
   assert.equal(shouldReplaceFilledValue(field('Expected salary'), '4000', '60000'), true);
   assert.equal(shouldReplaceFilledValue(field('Email', { type: 'email' }), 'wrong@x.com', 'hugo@x.com'), true);
   assert.equal(shouldReplaceFilledValue(field('Email', { type: 'email' }), 'hugo@x.com', 'hugo@x.com'), false);
   assert.equal(shouldReplaceFilledValue({ ...field('Cover letter'), tag: 'textarea' }, 'Long enough essay from the ATS', 'A different draft'), false);
+  assert.equal(shouldReplaceFilledValue(field('Expected salary'), '60,000', '60000'), false);
+  assert.equal(shouldReplaceFilledValue(field('LinkedIn'), 'https://www.linkedin.com/in/hugo/', 'https://linkedin.com/in/hugo'), false);
+  assert.equal(shouldReplaceFilledValue(field('Country', { tag: 'select' }), 'Select…', 'France'), true);
+  assert.equal(shouldReplaceFilledValue(field('Why are you interested in this role?', { tag: 'textarea' }), 'I want this role because the product maps to work I shipped at Edenred.', 'Another draft'), false);
+  assert.equal(fieldHasCommittedValue(field('Cover letter', { tag: 'textarea', value: 'Already written by the ATS.' })), true);
+  assert.equal(fieldHasCommittedValue(field('Country', { tag: 'select', value: 'Select one' })), false);
 });
 
 const job = {
@@ -257,6 +328,10 @@ test('employmentHistoryPlan fills Greenhouse work-history block', () => {
   assert.equal(employmentHistoryPlan(field('End date month*'), job)?.currentRoleEnd, true);
   assert.equal(employmentHistoryPlan(field('End date year*'), job)?.currentRoleEnd, true);
   assert.equal(employmentHistoryPlan(field('Current role', { type: 'checkbox' }), job)?.check, true);
+  assert.equal(employmentHistoryPlan(field('What is your current role?'), job)?.value, 'Senior Product Designer / Product Lead');
+  assert.equal(employmentHistoryPlan(field('What is your current role?'), job)?.check, undefined);
+  assert.equal(employmentHistoryPlan(field('What is your notice period to your current employer?*'), job), null);
+  assert.equal(employmentHistoryPlan(field('Do you have a non-compete in place with your previous or current employer?'), job), null);
   assert.equal(monthLabel(2), 'February');
 });
 
@@ -265,12 +340,22 @@ test('isAvailabilityStartField ignores employment month/year dropdowns', () => {
   assert.equal(isAvailabilityStartField(field('Start date year*')), false);
   assert.equal(isAvailabilityStartField(field('When can you start?')), true);
   assert.equal(isAvailabilityStartField(field('When could you start?')), true);
+  assert.equal(isAvailabilityStartField(field('How quickly would you be able to start if we were to make you an offer?')), true);
   assert.equal(isAvailabilityStartField(field('Start date')), true);
 });
 
 test('screeningChoicePlan: 18+, previously worked, state, postal', () => {
   assert.equal(screeningChoicePlan(field('Are you 18 or older?*'))?.yesNo, 'yes');
   assert.equal(screeningChoicePlan(field('Have you previously worked at Natera?*'), { company: 'Natera' })?.yesNo, 'no');
+  assert.equal(screeningChoicePlan(field('Have you been employed by Mozilla before?*'), { company: 'Mozilla' })?.yesNo, 'no');
+  assert.equal(screeningChoicePlan(field('To avoid actual or perceived impairment of our parent company’s independent auditor'))?.yesNo, 'no');
+  assert.equal(screeningChoicePlan(field('Are you a current/an ex-employee of Deloitte (or its Subsidiary companies)?'))?.yesNo, 'no');
+  assert.equal(screeningChoicePlan(field('Are you currently located in France?*'), { identity: { country: 'France', city: 'Paris' } })?.yesNo, 'yes');
+  assert.equal(screeningChoicePlan(field('Are you currently located in France?*'), { identity: { country: 'Thailand', city: 'Bangkok' } })?.yesNo, 'no');
+  assert.equal(screeningChoicePlan(field('Are you currently located in Thailand?*'), { identity: { country: 'Thailand', city: 'Bangkok' } })?.yesNo, 'yes');
+  assert.equal(looksLikePhoneNumberField(field('Phone')), true);
+  assert.equal(looksLikePhoneNumberField(field('Tell us about one mobile feature you shipped', { tag: 'textarea' })), false);
+  assert.equal(looksLikePhoneNumberField(field('Which best describes your experience shipping consumer mobile apps?')), false);
   const state = screeningChoicePlan(field('What state do you currently live in?*'), {
     identity: { country: 'France' },
   });
@@ -280,7 +365,10 @@ test('screeningChoicePlan: 18+, previously worked, state, postal', () => {
   assert.equal(screeningChoicePlan(field('Postal Code'), { identity: {} })?.leaveBlank, true);
   assert.equal(screeningChoicePlan(field('Postal Code*'), { identity: {} })?.value, 'N/A');
   assert.equal(screeningChoicePlan(field('Postal Code*'), { identity: { postal: '75011' } })?.value, '75011');
-  assert.equal(screeningChoicePlan(field('Do you have experience working with Agentic AI Products/ Systems? *'))?.yesNo, 'yes');
+  assert.equal(screeningChoicePlan(field('Do you have experience working with Agentic AI Products/ Systems? *')), null);
+  assert.equal(screeningChoicePlan(field('Do you have experience working with Agentic AI Products/ Systems? *'), {
+    practice: { evidence: 'Agentic AI, LLM orchestration' },
+  })?.yesNo, 'yes');
   // bare "employer" must not hijack EEO / equal-opportunity copy
   assert.equal(employmentHistoryPlan(field('Equal Opportunity Employer acknowledgement'), {
     company: 'OneAsset', title: 'X', startMonth: 2, startYear: '2026', current: true,

@@ -20,6 +20,7 @@ install-browsers.mjs
 invite-match.test.mjs
 jd-similarity.test.mjs
 lib/ai-usage-log.mjs
+lib/application-email.mjs
 lib/application-writing.mjs
 lib/apply-blocker-probe.mjs
 lib/apply-classify.mjs
@@ -32,6 +33,8 @@ lib/apply-llm.mjs
 lib/apply-nav-llm.mjs
 lib/apply-navigation.mjs
 lib/apply-option-match.mjs
+lib/apply-places.mjs
+lib/apply-policy.mjs
 lib/apply-progression.mjs
 lib/apply-runtime.mjs
 lib/apply-salary.mjs
@@ -41,6 +44,7 @@ lib/ats-jd.mjs
 lib/challenge-detect.mjs
 lib/cv-template-data.mjs
 lib/eval-draft.mjs
+lib/form-answer.mjs
 lib/form-detect.mjs
 lib/himalayas-apply.mjs
 lib/jev.mjs
@@ -74,6 +78,7 @@ remote-eligibility.mjs
 reply-matcher.test.mjs
 scripts/capture-creads.mjs
 scripts/capture-oneasset-light.mjs
+scripts/compare-application-emails.mjs
 scripts/sync-extension-page-helpers.mjs
 supabase/
 sync-supabase.mjs

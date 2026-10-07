@@ -89,7 +89,10 @@ test('pipeline markdown is generated from the record and keeps the remote reason
   assert.equal(parts.company, 'Acme / Labs');
   assert.equal(parts.title, 'AI PM');
   assert.equal(parts.publishedAt, '2026-08-25');
-  assert.match(parts.note, /remote_verdict: compatible — opened by JD phrase/);
+  assert.equal(parts.jev_keep, 0.72);
+  assert.equal(parts.jev_status, 'kept');
+  assert.equal(parts.remote_verdict, 'compatible');
+  assert.match(parts.remote_reason, /opened by JD phrase/);
   assert.equal(record.remote_confidence, 0.8);
   assert.equal(record.scanned_at, '2026-09-24T03:00:00.000Z');
 });
