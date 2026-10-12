@@ -129,6 +129,30 @@ try {
     fail(`jobicy.fetch() normalized row = ${JSON.stringify(fetched[0])}`);
   }
 
+  // Server-side narrowing: industry / tag / geo / count from a `jobicy:` block
+  // (or flat keys) land on the feed URL; the bare entry keeps the old URL.
+  const { buildJobicyUrl } = jobicyModule;
+  const narrowed = buildJobicyUrl({ provider: 'jobicy', jobicy: { industry: 'design-multimedia', geo: 'europe', count: 500 } });
+  if (narrowed === 'https://jobicy.com/api/v2/remote-jobs?count=100&industry=design-multimedia&geo=europe') {
+    pass('buildJobicyUrl() applies industry/geo and clamps count to 100');
+  } else {
+    fail(`buildJobicyUrl() returned ${narrowed}`);
+  }
+  const flat = buildJobicyUrl({ provider: 'jobicy', tag: ' product ' });
+  if (flat === 'https://jobicy.com/api/v2/remote-jobs?count=50&tag=product') pass('buildJobicyUrl() accepts flat keys and trims the tag');
+  else fail(`buildJobicyUrl() flat returned ${flat}`);
+  let shortTagThrew = false;
+  try { buildJobicyUrl({ jobicy: { tag: 'ux' } }); } catch { shortTagThrew = true; }
+  if (shortTagThrew) pass('buildJobicyUrl() rejects a tag shorter than 3 characters (server 400)');
+  else fail('buildJobicyUrl() should reject a 2-character tag');
+  const detected = jobicy.detect({ provider: 'jobicy', jobicy: { industry: 'design-multimedia' } });
+  if (detected?.url === 'https://jobicy.com/api/v2/remote-jobs?count=50&industry=design-multimedia') pass('jobicy.detect() reports the narrowed feed URL');
+  else fail(`jobicy.detect() narrowed returned ${JSON.stringify(detected)}`);
+  let narrowedUrl = null;
+  await jobicy.fetch({ name: 'Jobicy Design', provider: 'jobicy', jobicy: { industry: 'design-multimedia' } }, { fetchJson: async (url) => { narrowedUrl = url; return sample; } });
+  if (narrowedUrl === 'https://jobicy.com/api/v2/remote-jobs?count=50&industry=design-multimedia') pass('jobicy.fetch() requests the narrowed feed URL');
+  else fail(`jobicy.fetch() narrowed requested ${JSON.stringify(narrowedUrl)}`);
+
 } catch (e) {
   fail(`jobicy provider tests crashed: ${e.message}`);
 }

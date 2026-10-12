@@ -19,6 +19,7 @@ images/
 install-browsers.mjs
 invite-match.test.mjs
 jd-similarity.test.mjs
+lib/agence-site.mjs
 lib/ai-usage-log.mjs
 lib/application-email.mjs
 lib/application-writing.mjs
@@ -38,6 +39,7 @@ lib/apply-policy.mjs
 lib/apply-progression.mjs
 lib/apply-runtime.mjs
 lib/apply-salary.mjs
+lib/apply-submit.mjs
 lib/apply-select.mjs
 lib/apply-spec.mjs
 lib/ats-jd.mjs
@@ -68,6 +70,7 @@ lib/verify-offer-geo.mjs
 migrate-admin.mjs
 modes/coverletter.md
 modes/hrhv.md
+modes/agence.md
 modes/question.md
 outputs/
 package-lock.json

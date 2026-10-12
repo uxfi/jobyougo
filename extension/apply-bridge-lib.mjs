@@ -24,16 +24,22 @@ import {
   isResumeFileField,
   isComboboxField,
   listTypeQuery,
+  listTypeQueryAlt,
   fieldIsMulti,
   shouldReplaceFilledValue,
   fieldHasCommittedValue,
   formHasPhoneDialPicker,
+  formHasSurnameField,
+  formHasGivenNameField,
+  looksLikeDialCodeField,
+  looksLikePhoneNumberField,
+  isCoreApplicationIdentity,
   isPlaceIdentityField,
   fieldLooksRequired,
   isApplicationGateConsent,
 } from '../lib/apply-fill-guards.mjs';
 import { choiceKind, optionsAreYesNo, optionsLookLikeWorkPolicy, placeWantedOnYesNoList, remotePolicyPlan } from '../lib/apply-option-match.mjs';
-import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, DECLINE_RE } from '../lib/apply-select.mjs';
+import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, DECLINE_RE, isDemographicLabel } from '../lib/apply-select.mjs';
 import {
   fieldCompletionIssue,
   looksReadyToSubmit,
@@ -42,10 +48,45 @@ import {
   completionIssues,
   mergeFilled,
   mergePending,
+  settleCheckboxGroups,
 } from '../lib/apply-completion.mjs';
+import {
+  rankSubmitCandidates,
+  askSubmitPick,
+  classifyApplyPage,
+  pageStateMessage,
+  pageShowsIdentity,
+  waitsForHuman,
+} from '../lib/apply-submit.mjs';
 import { COMMAND_IDLE_MS, UI_BUTTONS } from '../lib/apply-runtime.mjs';
 import { computeStartDateISO as toIsoDate } from '../lib/apply-spec.mjs';
 import { extractEmbeddedApplyUrl } from '../lib/apply-navigation.mjs';
+import {
+  MAX_FIELD_ATTEMPTS,
+  createRunMemory,
+  displayValue,
+  ensureOrdinals,
+  hasShownValue,
+  failedAttempts,
+  fieldKey,
+  forgetAnswer,
+  knownAnswer,
+  knownOptions,
+  listNeedsChange,
+  listShowsAnswer,
+  noteFailedAttempt,
+  planWant,
+  readBackMatches,
+  reconCandidates,
+  rematchFields,
+  rememberAnswer,
+  rememberOptions,
+  retryTargets,
+  stillContradicted,
+  slotKey,
+  stableKey,
+  withOrdinals,
+} from '../lib/apply-refill.mjs';
 import {
   APPLY_TEXT_RE,
   PROGRESS_TEXT_RE,
@@ -87,12 +128,6 @@ export function classifySimpleField(f, identity) {
 const isTabGone = (err) => /No tab with id/i.test(String(err?.message || err || ''));
 const isTimeout = (err) => /timed out/i.test(String(err?.message || err || ''));
 
-/** One control on the page: frame + collect index (data-co-i restarts per frame). */
-const slotKey = (x) => `${x?.frameId ?? 0}:${x?.i}`;
-
-/** Same field across re-collects, when the collect index may have moved. */
-const fieldKey = (f) => `${f?.frameId ?? 0}:${String(f?.label || f?.name || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 80)}`;
-
 const RESUME_LABEL_RE = /resume|\bcv\b|curriculum|autofill|_systemfield_resume|choose a file|drop (it|file) here|attach/i;
 const resumeUploaded = (labels = []) => labels.some((l) => RESUME_LABEL_RE.test(String(l)));
 
@@ -101,6 +136,12 @@ const FILL_GRACE_MS = 60000;
 // Dashboard button names, quoted in the messages that tell the user what to click.
 const RESCAN_BTN = UI_BUTTONS.rescan;
 const SEND_BTN = UI_BUTTONS.send;
+
+// Fields that read as an application: a candidate identity slot or a file
+// input. A listing page's filter selects (country, category) are not.
+function looksLikeApplicationFields(fields = []) {
+  return (fields || []).some((f) => f && (f.type === 'file' || isCoreApplicationIdentity(f)));
+}
 
 /** Serialize a RegExp (or string) for the extension fill payload. */
 export function serializePrefer(re) {
@@ -139,7 +180,11 @@ function listPayload(f, { optionText = '', plan = {}, identity = {} } = {}) {
     return { list: true, typeQuery: '' };
   }
   const text = String(optionText || '').trim();
-  return { list: true, typeQuery: text ? (text.length <= 40 ? text : '') : listTypeQuery(f, plan, identity) };
+  if (text) return { list: true, typeQuery: text.length <= 40 ? text : '' };
+  const typeQuery = listTypeQuery(f, plan, identity);
+  // Dial-code lists: the code first, the country name if the code found nothing.
+  const typeQueryAlt = listTypeQueryAlt(f, plan, identity);
+  return { list: true, typeQuery, ...(typeQueryAlt ? { typeQueryAlt } : {}) };
 }
 
 /**
@@ -423,7 +468,8 @@ export class ApplyBridge {
       let value = '';
       if (same && f.type === 'checkbox') value = f.checked ? 'checked' : '';
       else if (same && f.type === 'radio') value = f.groupChecked ? String(f.value || 'checked') : '';
-      else if (same) value = String(f.value || '').trim();
+      // Text and lists count only when they show what was sent.
+      else if (same && readBackMatches(f, u)) value = displayValue(f);
       return value
         ? { i: u.i, frameId: u.frameId ?? 0, ok: true, actualValue: value }
         : { i: u.i, frameId: u.frameId ?? 0, ok: false, reason: 'remplissage interrompu (délai dépassé)' };
@@ -456,8 +502,44 @@ export class ApplyBridge {
     }, 90000);
   }
 
-  clickSubmit(tabId) {
-    return this._request('click-submit', { tabId, reSrc: SUBMIT_TEXT_RE.source });
+  /** Click `pick` (a SUBMIT_CANDIDATES row) when given, else the Submit regex. */
+  clickSubmit(tabId, pick = null) {
+    const chosen = pick && this.capabilities.has('submit-pick') ? { n: pick.n, frameId: pick.frameId ?? 0 } : null;
+    return this._request('click-submit', { tabId, reSrc: SUBMIT_TEXT_RE.source, ...(chosen ? { pick: chosen } : {}) });
+  }
+
+  /** Every frame's controls with their place (SUBMIT_CANDIDATES), or null on an older extension. */
+  async submitCandidates(tabId) {
+    if (!this.capabilities.has('submit-pick')) return null;
+    try {
+      const frames = await this._pageHelper(tabId, 'SUBMIT_CANDIDATES');
+      return Array.isArray(frames) ? frames : null;
+    } catch (err) {
+      if (isTabGone(err)) throw err;
+      return null;
+    }
+  }
+
+  /**
+   * What the page shows around the application (classifyApplyPage): captcha,
+   * e-mail code, closed offer, confirmation… `{ kind: 'none' }` when the
+   * extension predates the helper or the read fails.
+   */
+  async pageState(tabId, stage = 'navigate', jobUrl = '') {
+    const frames = await this.pageSignals(tabId);
+    return frames ? classifyApplyPage(frames, { stage, jobUrl }) : { kind: 'none', evidence: '' };
+  }
+
+  /** APPLY_PAGE_SIGNALS of every frame, or null (older extension, failed read). */
+  async pageSignals(tabId) {
+    if (!this.capabilities.has('submit-pick')) return null;
+    try {
+      const frames = await this._pageHelper(tabId, 'APPLY_PAGE_SIGNALS');
+      return Array.isArray(frames) ? frames : null;
+    } catch (err) {
+      if (isTabGone(err)) throw err;
+      return null;
+    }
   }
 
   /**
@@ -521,8 +603,14 @@ export class ApplyBridge {
     return this.clickProgression(tabId, exactControlPattern(text), [], { scrollFirst: false });
   }
 
-  /** Prefer an AI-chosen send label, then the Submit regex. */
-  async clickSend(tabId, exactText) {
+  /** The chosen control first, then an AI-chosen send label, then the Submit regex. */
+  async clickSend(tabId, exactText, pick = null) {
+    if (pick) {
+      const res = await this.clickSubmit(tabId, pick).catch(() => null);
+      // Clicked, or the chosen control is disabled: that answer stands. A
+      // control that left the page falls through to the label search.
+      if (res?.clicked || res?.disabled) return res;
+    }
     if (exactText) {
       const exact = await this.clickExactLabel(tabId, exactText).catch(() => null);
       if (exact?.clicked) return exact;
@@ -630,7 +718,7 @@ export class ApplyBridge {
   async _refillInvalid(run) {
     let fields = [];
     try {
-      fields = (await this.detectFieldsInTab(run.tabId)).fields || [];
+      fields = withOrdinals((await this.detectFieldsInTab(run.tabId)).fields || []);
     } catch (err) {
       if (isTabGone(err)) throw err;
       return false;
@@ -643,11 +731,25 @@ export class ApplyBridge {
     const resumeDone = resumeUploaded(run.uploaded);
     const targets = fields.filter((f) => bad.has(slotKey(f))
       || (f.type === 'file' && shouldUploadFileField(f, { uploadedLabels: run.uploaded, resumeAlreadyUploaded: resumeDone })));
-    const result = await this._fillOnce(run.tabId, run.spec, targets, { push: run.push, uploadedLabels: run.uploaded });
+    run.memory = run.memory || createRunMemory();
+    const result = await this._fillOnce(run.tabId, run.spec, targets, {
+      push: run.push,
+      uploadedLabels: run.uploaded,
+      memory: run.memory,
+      scoped: true,
+      answered: run.filled,
+    });
     run.filled = mergeFilled(run.filled, result.filled);
+    // What this pass could not fix stays reported: dropping it let a retry
+    // Next or Send go ahead over an empty required field.
+    run.pending = mergePending(run.pending, result.pending, run.filled);
     run.uploaded = [...new Set([...run.uploaded, ...result.uploaded])];
     await this._tickConsents(run);
-    return true;
+    // A retry click is only worth it when something new was written and no
+    // required field is left blocking.
+    const wroteSomething = result.filled.some((r) => !r.kept && !r.same) || result.uploaded.length > 0;
+    const blocked = result.pending.some((p) => isBlockingApplyPending(p.reason));
+    return wroteSomething && !blocked;
   }
 
   /** Tick missing application-gate consents and record them as filled. */
@@ -828,7 +930,7 @@ export class ApplyBridge {
     for (;;) {
       if (phase === 'navigate') {
         const reached = await this._navigateToForm(run, { maxHops });
-        if (reached === 'aborted') return this._abort(run);
+        if (reached === 'aborted' || run.abortRequested) return this._abort(run);
         phase = reached === 'form' ? 'fill' : 'wait';
       }
       if (phase === 'fill') {
@@ -903,6 +1005,56 @@ export class ApplyBridge {
   async _abort(run) {
     await run.push('Annulé.', { state: 'aborted', message: 'Application cancelled.' });
     return { ok: false, aborted: true };
+  }
+
+  /**
+   * Hand a page state to the user (closed offer, e-mail link, sign-in…):
+   * log line, dashboard message, one pending row. A closed offer gets its own
+   * state, so the dashboard can offer to discard it.
+   */
+  async _reportPageState(run, page) {
+    const info = pageStateMessage(page.kind, page.evidence);
+    if (page.kind === 'closed') run.closedSeen = true;
+    await run.push(info.log, {
+      state: page.kind === 'closed' ? 'closed' : 'needs_human',
+      message: info.message,
+      pending: info.pending ? mergePending(run.pending, [info.pending], run.filled) : run.pending,
+    });
+  }
+
+  /**
+   * A captcha, bot check or e-mail code only the user can clear: say so, then
+   * watch the tab until it is gone. Returns { status, page } where status is
+   * 'resolved' (the run goes on alone), 'aborted', 'command' (a dashboard
+   * command is queued), 'timeout' or 'gone' (tab closed).
+   */
+  async _waitHuman(run, page, stage, { timeoutMs = 15 * 60 * 1000 } = {}) {
+    const info = pageStateMessage(page.kind, page.evidence);
+    await this._reportPageState(run, page);
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      await sleep(2500);
+      if (await run.aborted()) return { status: 'aborted', page };
+      if (run.queued) return { status: 'command', page };
+      let now;
+      try {
+        now = await this.pageState(run.tabId, stage, run.originUrl);
+      } catch (err) {
+        if (isTabGone(err)) return { status: 'gone', page };
+        continue;
+      }
+      if (now.kind !== page.kind) {
+        run.pending = run.pending.filter((p) => p.label !== info.pending?.label);
+        await run.push(`${info.pending?.label || 'Blocage'} réglé — reprise automatique.`, {
+          state: stage === 'navigate' ? 'navigating' : 'filling',
+          message: 'Resuming…',
+        });
+        return { status: 'resolved', page: now };
+      }
+      await run.heartbeat();
+    }
+    await run.push(`${info.pending?.label || 'Blocage'} toujours là après ${Math.round(timeoutMs / 60000)} min — à toi de jouer.`);
+    return { status: 'timeout', page };
   }
 
   _adoptContext(run, { expectedHref = '', deadTabId = null } = {}) {
@@ -1048,6 +1200,26 @@ export class ApplyBridge {
       }
       await push(`Hop ${hop + 1}: pas encore de form (probe=${probe.verdict} score=${probe.score || 0}, fields=${fields.length})`);
 
+      // No form yet: the page may say why. A closed offer ends the search; a
+      // captcha, bot check or e-mail code waits for the user, then goes on.
+      let page = { kind: 'none' };
+      try {
+        page = await this.pageState(run.tabId, 'navigate', run.originUrl);
+      } catch {
+        if (await this._recoverRunTab(run)) continue;
+        return noTab();
+      }
+      if (page.kind === 'closed' && !run.ignoreClosed) {
+        await this._reportPageState(run, page);
+        return 'closed';
+      }
+      if (waitsForHuman(page.kind)) {
+        const waited = await this._waitHuman(run, page, 'navigate');
+        if (waited.status === 'aborted') return 'aborted';
+        if (waited.status === 'resolved') continue;
+        return 'human';
+      }
+
       let url = '';
       try { url = (await this.getTab(run.tabId)).url || ''; } catch { /* read as unknown */ }
 
@@ -1113,10 +1285,16 @@ export class ApplyBridge {
       } else {
         clicked = null;
         if (await followEmbeddedApplyLink()) continue;
-        // Last resort: if we saw ANY text inputs, try filling anyway.
-        if (fields.length >= 2) {
+        // Last resort: if we saw text inputs that read as an application
+        // (a name / e-mail / phone slot or a file input), try filling anyway.
+        // A job board's filter bar is not one: uiuxjobsboard's "COUNTRY"
+        // select got "Thailand" and the run ended as "1 field filled".
+        if (fields.length >= 2 && looksLikeApplicationFields(fields)) {
           await push(`Aucun CTA — tentative de fill sur ${fields.length} champ(s) détectés`);
           return 'form';
+        }
+        if (fields.length >= 2) {
+          await push(`Aucun CTA — ${fields.length} champ(s) sans identité (filtres ?) — pas de fill`);
         }
         // SPA still spinning (SmartRecruiters oneclick-ui): wait once before
         // declaring "no Apply/Next" — scrolling during load finds nothing.
@@ -1127,7 +1305,7 @@ export class ApplyBridge {
             timeoutMs: identifyAts(url)?.behaviors?.includes('wait-spa') ? 18000 : 12000,
           });
           if (waited.aborted) return 'aborted';
-          if (waited.ready || (waited.fields || []).length >= 2) return 'form';
+          if (waited.ready || ((waited.fields || []).length >= 2 && looksLikeApplicationFields(waited.fields))) return 'form';
         }
         const ai = await this.askNavAi(run, { phase: 'navigate', url, skipTexts: skipOn(url), fields });
         if (ai?.log && !ai.skipped) await push(ai.log);
@@ -1222,15 +1400,22 @@ export class ApplyBridge {
       pending: [],
     });
     run.uploaded = [];
+    // Options read, answers given and failed writes, shared by every pass on
+    // this step so a field is not re-opened, re-asked or retried forever.
+    run.memory = createRunMemory();
 
     let lastMark = '';
     let noopMark = '';
+    let applyNoopMark = '';
     let healUsed = false;
-    // A new wizard step or tab: its fields start unanswered.
+    // A new wizard step or tab: its fields start unanswered. The same label
+    // on the next step can be another question, so the memory starts over.
     const newStep = () => {
       run.pending = [];
+      run.memory = createRunMemory();
       lastMark = '';
       noopMark = '';
+      applyNoopMark = '';
       healUsed = false;
     };
     const followOpened = async (click, label) => {
@@ -1238,9 +1423,17 @@ export class ApplyBridge {
       newStep();
       return true;
     };
-    const liveFields = async () => (await this.detectFieldsInTab(run.tabId)).fields || [];
-    const fillAndRecord = async (fields) => {
-      const { filled, pending, uploaded } = await this._fillOnce(run.tabId, spec, fields, { push, uploadedLabels: run.uploaded });
+    // Ranked among same-label fields (see withOrdinals) on the WHOLE page, so
+    // a subset passed on later keeps the keys the run memory uses.
+    const liveFields = async () => withOrdinals((await this.detectFieldsInTab(run.tabId)).fields || []);
+    const fillAndRecord = async (fields, { scoped = false } = {}) => {
+      const { filled, pending, uploaded } = await this._fillOnce(run.tabId, spec, fields, {
+        push,
+        uploadedLabels: run.uploaded,
+        memory: run.memory,
+        scoped,
+        answered: run.filled,
+      });
       run.filled = mergeFilled(run.filled, filled);
       run.pending = mergePending(run.pending, pending, run.filled);
       run.uploaded = [...new Set([...run.uploaded, ...uploaded])];
@@ -1249,8 +1442,9 @@ export class ApplyBridge {
     // The live DOM is the judge: a field the ATS still flags is pending, even
     // when a fill reported it typed (that hid the fields behind "envoi refusé").
     const noteIssues = (issues) => {
-      const flagged = new Set(issues.map((x) => x.label));
-      run.filled = run.filled.filter((f) => !flagged.has(f.label));
+      const flaggedKeys = new Set(issues.map((x) => x.key).filter(Boolean));
+      const flaggedLabels = new Set(issues.map((x) => x.label));
+      run.filled = run.filled.filter((f) => (f.key ? !flaggedKeys.has(f.key) && !(flaggedLabels.has(f.label) && !issues.some((x) => x.key && x.label === f.label)) : !flaggedLabels.has(f.label)));
       run.pending = mergePending(run.pending, issues, run.filled);
     };
     // Click Next and wait for the step to change: 'moved', 'none' or { stuck }.
@@ -1273,17 +1467,92 @@ export class ApplyBridge {
 
       const fields = await liveFields();
       await push(`Detect: ${fields.length} champ(s) (page ${page + 1}, frames incluses)`);
+      // A "no longer accepting applications" banner over the form, or a step
+      // that asks for an e-mail code: nothing to fill until that is settled.
+      // A captcha widget inside the form waits for the send.
+      const shown = await this.pageState(run.tabId, 'form', run.originUrl);
+      if (shown.kind === 'closed' && !run.ignoreClosed) {
+        await this._reportPageState(run, shown);
+        return { submitted: false, closed: true };
+      }
+      if (shown.kind === 'email_code' || shown.kind === 'challenge') {
+        const waited = await this._waitHuman(run, shown, 'form');
+        if (waited.status === 'aborted') return { aborted: true };
+        if (waited.status !== 'resolved') return { submitted: false };
+        newStep();
+        continue;
+      }
       await fillAndRecord(fields);
 
-      // Retry what failed for a reason a second try can fix (window runner parity).
+      // Retry what failed for a reason a second try can fix — only those
+      // fields. Re-running the whole page re-opened every list, asked the
+      // model again and retyped what had landed.
       let after = await liveFields();
       let issues = completionIssues(after, run.uploaded);
-      const retryable = run.pending.filter((p) => RETRYABLE_PENDING_RE.test(String(p.reason || '')));
-      if (retryable.length || issues.some((x) => /fichier requis|CV manquant/i.test(x.reason))) {
-        await push(`Relance auto: ${retryable.length || 1} échec(s) de remplissage…`);
+      const isRetryable = (reason) => RETRYABLE_PENDING_RE.test(reason);
+      const retryFields = retryTargets(run.pending, after, { retryable: isRetryable, hasValue: hasShownValue })
+        .filter((f) => failedAttempts(run.memory, f) < MAX_FIELD_ATTEMPTS);
+      const cvRetry = issues.some((x) => /fichier requis|CV manquant/i.test(x.reason))
+        && !run.pending.some((p) => /CV introuvable|fichier non géré/i.test(String(p.reason || '')))
+        ? after.filter((f) => f.type === 'file' && failedAttempts(run.memory, f) < MAX_FIELD_ATTEMPTS
+          && shouldUploadFileField(f, { uploadedLabels: run.uploaded, resumeAlreadyUploaded: resumeUploaded(run.uploaded) }))
+        : [];
+      // Settle every retryable row now. A field that shows a value since (a
+      // pick that landed after the read-back) is filled; a retried field
+      // loses its row, which the retry re-adds if it fails again; a field out
+      // of attempts keeps its row. A stale row used to block Next and the
+      // send on a form that was complete.
+      const staleRows = run.pending.filter((p) => isRetryable(String(p.reason || '')));
+      if (staleRows.length) {
+        const retryKeys = new Set(retryFields.map(stableKey));
+        // The row's field: by key, else (ranks moved when a same-label field
+        // appeared, or a label-only row) by label, the still-empty one first.
+        const rowField = (p) => {
+          const exact = p.key ? after.find((f) => stableKey(f) === p.key) : null;
+          if (exact) return exact;
+          const sameLabel = after.filter((f) => fieldLabel(f) === p.label);
+          return sameLabel.find((f) => !hasShownValue(f)) || sameLabel[0] || null;
+        };
+        const settled = [];
+        const stillPending = [];
+        for (const p of staleRows) {
+          const f = rowField(p);
+          // The field left the page (a conditional box hidden again): no
+          // ghost row may keep blocking the send. An upload row stays: a
+          // forced resume slot never shows up in a collect, and dropping its
+          // failure would let the form go without a CV.
+          if (!f) {
+            if (/upload|\bcv\b|fichier|resume/i.test(`${p.label} ${p.reason}`)) stillPending.push(p);
+            continue;
+          }
+          if (retryKeys.has(stableKey(f))) continue;
+          // A value the plan contradicts (an ATS default "Yes") whose
+          // replacement failed is not an answer, even though it shows.
+          if (stillContradicted(run.memory, f)) {
+            const reason = `valeur pré-remplie contraire au profil (« ${displayValue(f).slice(0, 40)} ») — à corriger`;
+            stillPending.push({ ...p, reason: /^requis —/.test(String(p.reason || '')) ? `requis — ${reason}` : reason });
+            continue;
+          }
+          if (hasShownValue(f) && !(f.ariaInvalid || f.invalid)) {
+            if (f.type === 'file') {
+              // An upload reported failed that did attach: record it as a CV,
+              // or "CV manquant" would block a form whose CV is there.
+              settled.push({ label: fieldLabel(f), value: `📎 ${String(f.fileChip || '').trim() || 'fichier joint'}` });
+              run.uploaded = [...new Set([...run.uploaded, fieldLabel(f)])];
+            } else {
+              settled.push({ label: fieldLabel(f), key: stableKey(f), value: displayValue(f), kept: true });
+            }
+            continue;
+          }
+          stillPending.push(p);
+        }
+        run.pending = [...run.pending.filter((p) => !isRetryable(String(p.reason || ''))), ...stillPending];
+        if (settled.length) run.filled = mergeFilled(run.filled, settled);
+      }
+      if (retryFields.length || cvRetry.length) {
+        await push(`Relance auto: ${retryFields.length + cvRetry.length} champ(s) en échec…`);
         await sleep(700);
-        run.pending = run.pending.filter((p) => !RETRYABLE_PENDING_RE.test(String(p.reason || '')));
-        await fillAndRecord(await liveFields());
+        await fillAndRecord([...retryFields, ...cvRetry], { scoped: true });
         after = await liveFields();
         issues = completionIssues(after, run.uploaded);
       }
@@ -1337,24 +1606,45 @@ export class ApplyBridge {
         run.pending = run.pending.filter((p) => isBlockingApplyPending(p.reason));
       }
 
-      // Nothing left to fill but an Apply entry is still on screen: open the form.
-      if (!run.pending.length && applyEntryVisible) {
+      // Nothing left to fill but an Apply entry is still on screen: open the
+      // form. Greenhouse keeps "Apply for this job" next to the inline form; a
+      // click that only scrolls must not start a full refill of the same page.
+      if (!run.pending.length && applyEntryVisible && applyNoopMark !== lastMark) {
+        const markBefore = lastMark;
         const apply = await this.clickProgression(run.tabId, APPLY_TEXT_RE, [], { scrollFirst: true });
         if (apply?.clicked) {
           await push(`Ouverture formulaire: « ${apply.text || 'Apply'} »`);
-          if (!(await followOpened(apply, '(Apply)'))) await sleep(1200);
-          continue;
+          if (await followOpened(apply, '(Apply)')) continue;
+          if (await this._waitStepChange(run.tabId, markBefore)) {
+            newStep();
+            continue;
+          }
+          applyNoopMark = markBefore;
+          applyEntryVisible = false;
         }
       }
 
+      // One required question asked as several boxes: one ticked box answers
+      // it, and five "requis — sans réponse" rows blocked a complete form (Mews).
+      run.pending = settleCheckboxGroups(run.pending, after);
       const hardBlock = run.pending.some((p) => isBlockingApplyPending(p.reason));
       const sawResumeSlot = run.uploaded.length > 0
         || after.some((f) => f.type === 'file' && (f.required || isResumeFileField(f)));
       const cvBlocksSubmit = sawResumeSlot && !run.filled.some((f) => /📎/.test(String(f.value || '')));
       const requiredEmpty = run.pending.some((p) => isRequiredEmptyReason(p.reason));
 
+      // Every control with its place (null on an older extension). Its labels
+      // in or after the form go first: the 40 labels read from the top of a
+      // page (a board's header and menus) could miss the form's own Next.
+      const sendView = await this.submitCandidates(run.tabId);
       let actionLabels = [];
       try { actionLabels = await this.listVisibleActionLabels(run.tabId); } catch { /* controls unknown */ }
+      if (sendView) {
+        const near = sendView.flatMap((fr) => (fr.candidates || [])
+          .filter((c) => !c.disabled && !c.inBanner && !c.inChrome && (c.inFieldForm || c.afterFields))
+          .map((c) => c.text || c.aria)).filter(Boolean);
+        actionLabels = [...new Set([...near, ...actionLabels])];
+      }
       const controlsKnown = wizardControlsKnown(actionLabels);
       const submitPick = submitChoice(actionLabels);
       // A review screen blocks Next only when Continue is not also on screen:
@@ -1416,7 +1706,15 @@ export class ApplyBridge {
           run.pending = mergePending(run.pending, [{ label: 'Resume/CV', reason: 'CV manquant — upload non confirmé' }], run.filled);
         }
       }
-      const ready = looksReadyToSubmit({ filled: run.filled, pending: run.pending, applyEntryVisible });
+      // An e-mail the ATS copied from the CV counts as the identity too, and
+      // so does what a signed-in platform already shows: a locked e-mail box
+      // the collect skips, or the account e-mail written on the page.
+      let liveEmail = after.some((f) => (f.type === 'email' || /e-?mail/i.test(fieldLabel(f))) && hasShownValue(f));
+      if (!liveEmail && !run.pending.length && !applyEntryVisible) {
+        liveEmail = pageShowsIdentity(await this.pageSignals(run.tabId), spec.identity?.email || '');
+      }
+      const ready = looksReadyToSubmit({ filled: run.filled, pending: run.pending, applyEntryVisible })
+        || (!run.pending.length && !applyEntryVisible && liveEmail);
       const filledCount = run.filled.length;
       let message;
       if (run.pending.length) message = `Form — ${filledCount} filled, ${run.pending.length} left${cvBlocksSubmit ? ' (CV required)' : ''}.`;
@@ -1425,28 +1723,77 @@ export class ApplyBridge {
       else message = `Form — ${filledCount} field(s) filled.`;
       await run.set({ state: run.pending.length ? 'needs_human' : 'ready_to_review', message });
 
+      if (!spec.autoSubmit) return { submitted: false };
+
       // Review step OR ready form → auto-submit (identity from earlier steps counts).
-      // A failed Next must not become a send, and an ambiguous label never auto-sends.
-      let canSubmit = !!spec.autoSubmit
-        && !run.pending.length
-        && !cvBlocksSubmit
-        && (ready || (treatAsFinalReview && filledCount >= 1));
-      if (canSubmit && nextHadNoEffect && !shouldAttemptSubmitAfterNoopNext({
-        submitButtonVisible: submitPick.allow && submitPick.confidence === 'high',
+      // A failed Next must not become a send. Every reason not to send is
+      // logged: a run that stopped silently on a filled form looked stuck.
+      const whyNot = [];
+      if (run.pending.length) {
+        whyNot.push(`${run.pending.length} champ(s) à compléter (${run.pending.slice(0, 3).map((p) => `« ${String(p.label).slice(0, 40)} »`).join(', ')}${run.pending.length > 3 ? '…' : ''})`);
+      }
+      if (cvBlocksSubmit) whyNot.push('CV non joint');
+      if (!run.pending.length && !(ready || (treatAsFinalReview && filledCount >= 1))) {
+        whyNot.push(applyEntryVisible ? 'un bouton « Apply » est encore affiché (formulaire pas ouvert ?)' : 'aucun email rempli sur ce formulaire');
+      }
+      const rank = sendView ? rankSubmitCandidates(sendView) : null;
+      const sendSeen = rank
+        ? (rank.confidence === 'high' || rank.confidence === 'medium')
+        : (submitPick.allow && submitPick.confidence === 'high');
+      if (nextHadNoEffect && !shouldAttemptSubmitAfterNoopNext({
+        submitButtonVisible: sendSeen,
         reviewConfidence: treatAsFinalReview ? 'high' : 'none',
         requiredEmpty,
         hardBlock: hardBlock || cvBlocksSubmit,
         progressStillVisible: true,
       })) {
-        canSubmit = false;
+        whyNot.push('Next sans effet (le site refuse sans doute un champ)');
       }
-      if (canSubmit && controlsKnown && submitPick.ambiguous) {
-        await push(`Libellé ambigu « ${submitPick.ambiguousText} » — pas d’envoi automatique.`);
-        canSubmit = false;
-      } else if (controlsKnown && !submitPick.allow && !treatAsFinalReview) {
-        canSubmit = false;
+
+      // Which control sends: the ranked candidates, the model when they leave
+      // a doubt, else (older extension) the label vocabulary.
+      let pick = null;
+      if (!whyNot.length && rank) {
+        if (rank.disabled && !rank.pick) {
+          pick = rank.disabled; // _sendApplication reports the disabled button
+        } else if (aiSubmitText && rank.pick && rank.confidence !== 'high') {
+          pick = null; // the review AI named the send label; clickSend uses it
+        } else if (rank.confidence === 'high' || rank.confidence === 'medium') {
+          pick = rank.pick;
+          await push(`Bouton d’envoi: « ${pick.text || pick.aria || 'submit'} » (${rank.confidence === 'high' ? 'sûr' : 'probable'})`);
+        } else if ((run.navAi.submit || 0) < 2) {
+          run.navAi.submit = (run.navAi.submit || 0) + 1;
+          let url = '';
+          try { url = (await this.getTab(run.tabId))?.url || ''; } catch { /* unknown */ }
+          const ai = await askSubmitPick({
+            ranked: rank.ranked,
+            url,
+            heading: inspected.heading,
+            bodySnippet: inspected.bodySnippet,
+          });
+          if (ai.pick) {
+            pick = ai.pick;
+            await push(`IA envoi: « ${pick.text || pick.aria || 'submit'} »${ai.reason ? ` (${ai.reason})` : ''}`);
+          } else {
+            whyNot.push(`aucun bouton d’envoi identifié${ai.reason ? ` (IA: ${ai.reason})` : ''}`);
+          }
+        } else {
+          whyNot.push('aucun bouton d’envoi identifié');
+        }
+      } else if (!whyNot.length && !aiSubmitText) {
+        if (controlsKnown && submitPick.ambiguous) whyNot.push(`libellé ambigu « ${submitPick.ambiguousText} »`);
+        else if (controlsKnown && !submitPick.allow && !treatAsFinalReview) whyNot.push('aucun bouton d’envoi reconnu');
       }
-      if (!canSubmit) return { submitted: false };
+      if (whyNot.length) {
+        await push(`Pas d’envoi automatique : ${whyNot.join(' · ')}.`);
+        if (!run.pending.length && !cvBlocksSubmit) {
+          await run.set({
+            state: 'ready_to_review',
+            message: `Form filled (${filledCount} field(s)) but not sent automatically: the log says why. Send it in Chrome, then ${UI_BUTTONS.sent}, or ${SEND_BTN}.`,
+          });
+        }
+        return { submitted: false };
+      }
 
       // Last look before sending: fix what the ATS still flags, or hand over.
       await this._tickConsents(run);
@@ -1464,7 +1811,7 @@ export class ApplyBridge {
         });
         return { submitted: false };
       }
-      return { submitted: await this._sendApplication(run, { exactText: aiSubmitText }) };
+      return { submitted: await this._sendApplication(run, { exactText: aiSubmitText, pick }) };
     }
 
     await run.set({
@@ -1480,22 +1827,60 @@ export class ApplyBridge {
    * clicked only if it reads as a send label. Shared by auto-submit and the
    * dashboard's "Confirm send". Returns true once a send went through.
    */
-  async _sendApplication(run, { exactText = '' } = {}) {
+  async _sendApplication(run, { exactText = '', pick = null } = {}) {
     const { push } = run;
     await push('Envoi de la candidature…', { state: 'submitting', message: 'Sending the application…' });
     await this._tickConsents(run);
-    let clicked = await this.clickSend(run.tabId, exactText).catch((err) => {
+    // "Confirm send" from the dashboard: rank the controls now (the user may
+    // have changed the page). A low-confidence guess is left to the regex.
+    if (!pick && !exactText) {
+      await this.detectFieldsInTab(run.tabId).catch(() => null); // stamps the fields the ranking reads
+      const view = await this.submitCandidates(run.tabId).catch(() => null);
+      const rank = view ? rankSubmitCandidates(view) : null;
+      if (rank?.pick && rank.confidence !== 'low') pick = rank.pick;
+      else if (rank?.disabled) pick = rank.disabled;
+    }
+    // A captcha inside the form is solved by the user first; the send then
+    // goes on by itself.
+    const before = await this.pageState(run.tabId, 'form', run.originUrl);
+    if (before.kind === 'captcha') {
+      const waited = await this._waitHuman(run, before, 'form');
+      if (waited.status !== 'resolved') return false;
+      await push('Envoi de la candidature…', { state: 'submitting', message: 'Sending the application…' });
+    }
+    let clicked = await this.clickSend(run.tabId, exactText, pick).catch((err) => {
       this.onLog(`clickSubmit failed: ${err.message}`);
       return null;
     });
+    // What the page says right after the click: a captcha or an e-mail code
+    // waits for the user, a confirmation ends the run, a closed offer or an
+    // e-mail link is handed over. null = nothing said, read the form as before.
+    if (clicked?.clicked) {
+      const said = await this._readAfterSend(run, clicked, { exactText });
+      if (said !== null) return said;
+    }
+    // The real send button is on the page but disabled: a required field is
+    // still missing. Clicking anything else (Kraken: the cookie banner's
+    // "Manage Cookie Settings") would be reported as a send.
+    if (clicked?.disabled) {
+      await push(`Bouton « ${clicked.text} » désactivé — le formulaire attend encore un champ.`, {
+        state: 'needs_human',
+        message: `⚠️ The send button “${clicked.text}” is disabled: the form still misses something. Fix it in Chrome, then ${SEND_BTN} or ${RESCAN_BTN}.`,
+      });
+      return false;
+    }
     if (clicked?.rejected) {
-      await this._refillInvalid(run).catch((err) => {
+      const fixed = await this._refillInvalid(run).catch((err) => {
         if (isTabGone(err)) throw err;
         return false;
       });
-      await sleep(500);
-      const retry = await this.clickSubmit(run.tabId).catch(() => null);
-      if (retry?.clicked) clicked = retry;
+      // Send again only when the fix wrote something; the same refused form
+      // clicked twice proves nothing.
+      if (fixed) {
+        await sleep(500);
+        const retry = await this.clickSubmit(run.tabId).catch(() => null);
+        if (retry?.clicked) clicked = retry;
+      }
     }
     if (!clicked?.clicked) {
       const fields = (await this.detectFieldsInTab(run.tabId).catch(() => null))?.fields || [];
@@ -1519,6 +1904,25 @@ export class ApplyBridge {
     }
 
     if (clicked?.clicked && !clicked.rejected) {
+      // A button matched by the loose label regex only, with the form still
+      // on screen afterwards, is not a send we can vouch for.
+      if (clicked.tier === 0 && clicked.stillForm) {
+        await push(`Clic sur « ${clicked.text} » sans effet visible — confirme dans l’onglet.`, {
+          state: 'needs_human',
+          message: `❓ “${clicked.text}” was clicked but the form is still there. Check the tab, then ${SEND_BTN} or ${RESCAN_BTN}.`,
+        });
+        return false;
+      }
+      // A real send button, but the form is still on screen after ~8 s with
+      // no confirmation and the same URL: sent is likely, not certain.
+      if (clicked.stillForm && clicked.urlChanged === false && !clicked.confirmed) {
+        await push(`Envoyé: « ${clicked.text || 'Submit'} » — formulaire encore affiché, vérifie l’onglet`, {
+          state: 'submitted',
+          message: '📨 Sent? The form is still on screen: check the confirmation in the tab.',
+          pending: [],
+        });
+        return true;
+      }
       await push(`Envoyé: « ${clicked.text || 'Submit'} »`, {
         state: 'submitted',
         message: 'Application sent. Check the confirmation in the tab.',
@@ -1543,26 +1947,130 @@ export class ApplyBridge {
   }
 
   /**
+   * Read the page after a send click. Returns true (sent), false (handed to
+   * the user) or null (the page says nothing: the caller reads the form).
+   */
+  async _readAfterSend(run, clicked, { exactText = '' } = {}) {
+    const { push } = run;
+    const read = async () => {
+      try {
+        return await this.pageState(run.tabId, 'sent', run.originUrl);
+      } catch (err) {
+        if (isTabGone(err)) throw err;
+        return { kind: 'none', evidence: '' };
+      }
+    };
+    const sent = async (text, evidence = '') => {
+      await push(`Envoyé: « ${text || 'Submit'} »${evidence ? ` — confirmation lue (« ${String(evidence).slice(0, 60)} »)` : ''}`, {
+        state: 'submitted',
+        message: 'Application sent. Check the confirmation in the tab.',
+        pending: [],
+      });
+      return true;
+    };
+    let page = await read();
+    if (waitsForHuman(page.kind)) {
+      const waited = await this._waitHuman(run, page, 'sent');
+      if (waited.status !== 'resolved') return false;
+      // A solved captcha or a typed code often sends the form by itself.
+      await sleep(2500);
+      page = await read();
+      if (page.kind === 'none') {
+        const fields = (await this.detectFieldsInTab(run.tabId).catch(() => null))?.fields || [];
+        if (!this.fieldsLookLikeForm(fields)) return sent(clicked.text, 'formulaire disparu');
+        await push('Formulaire toujours affiché après la vérification — nouvel envoi.');
+        const view = await this.submitCandidates(run.tabId).catch(() => null);
+        const rank = view ? rankSubmitCandidates(view) : null;
+        const again = await this.clickSend(run.tabId, exactText, rank?.confidence === 'high' || rank?.confidence === 'medium' ? rank.pick : null)
+          .catch(() => null);
+        if (!again?.clicked) {
+          await push('Nouvel envoi impossible — à confirmer dans l’onglet.', {
+            state: 'needs_human',
+            message: `The check is done, but the form is still there. Send it in Chrome, then ${UI_BUTTONS.sent}.`,
+          });
+          return false;
+        }
+        clicked = again;
+        page = await read();
+        if (waitsForHuman(page.kind)) {
+          await this._reportPageState(run, page);
+          return false;
+        }
+        if (page.kind === 'none') {
+          if (!again.stillForm || again.confirmed || again.urlChanged) return sent(again.text);
+          await push(`« ${again.text || 'Submit'} » recliqué, formulaire toujours là — à vérifier dans l’onglet.`, {
+            state: 'needs_human',
+            message: `“${again.text || 'Submit'}” was clicked again but the form is still there. Check the tab, then ${UI_BUTTONS.sent} or ${SEND_BTN}.`,
+          });
+          return false;
+        }
+      }
+    }
+    if (page.kind === 'confirmed') return sent(clicked.text, page.evidence);
+    if (page.kind === 'email_link' || (page.kind === 'closed' && !run.ignoreClosed) || page.kind === 'login') {
+      await this._reportPageState(run, page);
+      return false;
+    }
+    return null;
+  }
+
+  /**
    * One fill of `fields`: A) CV uploads, B) deterministic answers from the
    * spec, C) the model for required fields B could not answer, then a
    * reconcile of profile fields the ATS autofill got wrong.
    * Returns this pass's { filled, pending, uploaded }.
    */
-  async _fillOnce(tabId, spec, fields, { push, uploadedLabels = [] }) {
+  /**
+   * One fill of `fields`: uploads, the deterministic plan, the resolver for
+   * what is left, then a recon of profile text. `memory` (run.memory) keeps
+   * options, answers and failures across passes. `scoped` means the caller
+   * passed only some fields (Relance, ATS error fix): nothing outside them
+   * is written, while form-wide flags still come from the whole page.
+   */
+  async _fillOnce(tabId, spec, fields, { push, uploadedLabels = [], memory = null, scoped = false, answered = [] }) {
+    memory = memory || createRunMemory();
     const usedAnswers = new Set();
     const filled = [];
     const pending = [];
     const unresolved = [];
     const uploaded = [];
+    // Slots this call wrote or tried to write: recon must not retype them
+    // (a failed write retyped at once was a third, uncounted attempt).
+    const written = new Set();
     let resumeAlreadyUploaded = resumeUploaded(uploadedLabels);
     const reCollect = async (fallback) => {
       try {
-        return (await this.detectFieldsInTab(tabId)).fields || fallback;
+        const got = (await this.detectFieldsInTab(tabId)).fields || [];
+        return got.length ? withOrdinals(got) : fallback;
       } catch (err) {
         if (isTabGone(err)) throw err;
         return fallback;
       }
     };
+    const callerFields = ensureOrdinals(fields);
+    const scopeKeys = scoped ? new Set(callerFields.map(stableKey)) : null;
+    // Rows carry the field's stable key so two fields with one label stay
+    // two rows (mergeFilled / mergePending used to collapse them).
+    const row = (f, extra) => ({ label: fieldLabel(f), key: stableKey(f), ...extra });
+    // A field that already failed MAX_FIELD_ATTEMPTS passes is left to the
+    // user. One pass counts once, however many phases tried it (Phase B and
+    // the resolver used to spend both attempts in a single pass, so Relance
+    // never retried a list that was merely slow to open).
+    const exhausted = (f) => failedAttempts(memory, f) >= MAX_FIELD_ATTEMPTS;
+    const failedThisCall = new Set();
+    const noteFail = (f) => {
+      if (!f) return 1;
+      const key = stableKey(f);
+      if (!failedThisCall.has(key)) {
+        failedThisCall.add(key);
+        noteFailedAttempt(memory, f);
+      }
+      return failedAttempts(memory, f);
+    };
+    // Lists Phase B found showing a value the plan contradicts: if the
+    // replacement fails, Phase C must not keep that value as answered.
+    // Kept in the run memory: Relance and later passes must see it too.
+    const contradicted = memory.contradicted || (memory.contradicted = new Map());
 
     // Phase A — file uploads first (Ashby autofill from resume). Re-collect
     // after each upload: ATS re-render invalidates data-co-i markers.
@@ -1598,7 +2106,11 @@ export class ApplyBridge {
         await push('Aucun champ fichier détecté — CV non tenté sur cette page.');
       }
       const knownUploaded = [...uploadedLabels, ...uploaded];
+      // A scoped pass only uploads into its own slots, and a slot that
+      // failed twice is not retried (each attempt also waits for autofill).
       const todo = fileFields.find((f) => !doneFiles.has(fieldLabel(f))
+        && (!scopeKeys || scopeKeys.has(stableKey(f)))
+        && !exhausted(f)
         && shouldUploadFileField(f, { uploadedLabels: knownUploaded, resumeAlreadyUploaded }));
       if (!todo) break;
       const labelShort = fieldLabel(todo);
@@ -1637,18 +2149,23 @@ export class ApplyBridge {
         } else {
           const reason = `upload échoué: ${result?.error || 'unknown'}`;
           await push(`CV non attaché — ${reason}`);
+          noteFail(todo);
           pending.push({ label: labelShort, reason });
         }
       } catch (err) {
         const reason = `upload échoué: ${String(err.message || err).slice(0, 80)}`;
         await push(`CV non attaché — ${reason}`);
+        noteFail(todo);
         pending.push({ label: labelShort, reason });
       }
     }
 
-    // Re-collect after uploads (form may have re-rendered)
-    const live = uploaded.length ? await reCollect(fields) : fields;
-    const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(live) };
+    // Re-collect after uploads (form may have re-rendered). A scoped call
+    // reads the whole page for the form-wide flags ("Nombre" next to
+    // "Apellidos", a dial picker) but only writes its own fields.
+    const wholeForm = (uploaded.length || scoped) ? await reCollect(callerFields) : callerFields;
+    const live = scopeKeys ? wholeForm.filter((f) => scopeKeys.has(stableKey(f))) : wholeForm;
+    const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(wholeForm), formHasSurnameField: formHasSurnameField(wholeForm), formHasGivenNameField: formHasGivenNameField(wholeForm) };
 
     // Phase B — deterministic classify
     const updates = [];
@@ -1663,15 +2180,47 @@ export class ApplyBridge {
       const wantNow = String(plan?.value || plan?.selectText || '').trim();
       const labelShort = fieldLabel(f);
       // Keep a committed value that already answers the field. Resume parse
-      // junk (location policy sentence, salary 4000) still gets replaced.
-      if (f.type !== 'file' && fieldHasCommittedValue(f) && !(f.ariaInvalid || f.invalid)
-          && !shouldReplaceFilledValue(f, f.value, wantNow)) {
-        filled.push({ label: labelShort, value: f.value, kept: true });
+      // junk (location policy sentence, salary 4000) still gets replaced. A
+      // native select is read by its option text, and a list keeps the option
+      // the plan would pick — but not an ATS default the plan contradicts.
+      const shown = displayValue(f);
+      const invalid = Boolean(f.ariaInvalid || f.invalid);
+      if (hasShownValue(f) && !invalid) {
+        const listPlan = plan && !plan.skip ? plan : null;
+        // A closed react-select is collected without options: the ones this
+        // run already saw decide whether its value is the plan's answer.
+        const seen = knownOptions(memory, f);
+        const isList = f.tag === 'select' || isComboboxField(f);
+        const contradicts = isList && listNeedsChange(f, planWant(listPlan), listPlan, seen);
+        const keep = isList
+          ? listShowsAnswer(f, planWant(listPlan), listPlan, seen)
+            || (!contradicts && !shouldReplaceFilledValue(f, shown, wantNow))
+          : !shouldReplaceFilledValue(f, shown, wantNow);
+        if (keep) {
+          contradicted.delete(stableKey(f));
+          filled.push(row(f, { value: shown, kept: true }));
+          continue;
+        }
+        if (contradicts) contradicted.set(stableKey(f), shown);
+      }
+      // A scoped pass (ATS error fix) re-sends a value the form still
+      // rejects: that counts as a try, or the same rejected value would be
+      // typed again before every Next and every send. A field that is only
+      // "invalid" because it is empty (a required box) is counted when its
+      // write fails, not before.
+      if (scoped && invalid && hasShownValue(f)) noteFail(f);
+      if (exhausted(f)) {
+        if (f.required) pending.push(row(f, { reason: `requis — non rempli après ${MAX_FIELD_ATTEMPTS} essais` }));
         continue;
       }
 
       if (!plan) {
-        if ((f.required || isSubstantiveOptionalQuestion(f)) && !f.value) unresolved.push(f);
+        // Empty (a placeholder option counts as empty), or a resolver answer
+        // the form rejected: the resolver answers again, without reusing it.
+        if ((f.required || isSubstantiveOptionalQuestion(f)) && (!hasShownValue(f) || invalid)) {
+          if (invalid) forgetAnswer(memory, f);
+          unresolved.push(f);
+        }
         continue;
       }
       if (plan.skip) {
@@ -1679,6 +2228,7 @@ export class ApplyBridge {
         if (plan.declinePreferred && f.required && (f.tag === 'select' || f.type === 'radio' || isComboboxField(f))) {
           const decline = pickDeclineOption(f.options || []);
           if (decline) {
+            written.add(stableKey(f));
             updates.push({
               i: f.i,
               frameId: f.frameId ?? 0,
@@ -1693,6 +2243,7 @@ export class ApplyBridge {
           }
           // Options not scraped yet — hand DECLINE_RE to the extension to open
           // the list and pick (stronger than window when stamps are empty).
+          written.add(stableKey(f));
           updates.push({
             i: f.i,
             frameId: f.frameId ?? 0,
@@ -1708,24 +2259,23 @@ export class ApplyBridge {
         }
         if (plan.currentRoleEnd) continue;
         if (plan.leaveBlank) {
-          if (f.required) pending.push({ label: labelShort, reason: plan.skip || 'requis — pas de donnée profil' });
+          if (f.required) pending.push(row(f, { reason: plan.skip || 'requis — pas de donnée profil' }));
           continue;
         }
-        if (f.required) unresolved.push(f);
+        // Phone and dial-code slots are identity, never a question for the model.
+        if (f.required && !looksLikeDialCodeField(f) && !looksLikePhoneNumberField(f)) unresolved.push(f);
         continue;
       }
 
       const update = planToUpdate(f, plan, spec.identity || {});
       if (!update) {
-        if (f.required) unresolved.push(f);
+        // Phone and dial-code slots are identity, never a question for the model.
+        if (f.required && !looksLikeDialCodeField(f) && !looksLikePhoneNumberField(f)) unresolved.push(f);
         continue;
       }
+      written.add(stableKey(f));
       updates.push(update);
     }
-
-    // Options a failed list pick saw once it was open: the resolver gets the
-    // real list without opening the dropdown a second time.
-    const seenOptions = new Map();
 
     if (updates.length) {
       await push(`Fill: envoi de ${updates.length} valeur(s)…`);
@@ -1739,14 +2289,31 @@ export class ApplyBridge {
         // checkbox as "checked": an empty or "unchecked" read-back did not land.
         const landed = String(o.actualValue ?? '').trim();
         if (!o.ok && Array.isArray(o.options) && o.options.length && field) {
-          seenOptions.set(fieldKey(field), o.options);
+          // The resolver gets the real list without opening it again.
+          rememberOptions(memory, field, o.options);
         }
         if (o.ok && landed && !/^unchecked$/i.test(landed)) {
-          filled.push({ label: lab, value: o.actualValue || '' });
-        } else if (fieldLooksRequired(field) || field?.required) {
+          // `kept`: the page left the list as it was (it already showed the
+          // answer); `same`: the value typed equals what was there. Neither is
+          // a fix, so _refillInvalid does not click Next / Send again for it.
+          const sameText = (a, b) => String(a || '').replace(/\s+/g, ' ').trim().toLowerCase() === String(b || '').replace(/\s+/g, ' ').trim().toLowerCase();
+          const same = Boolean(field && hasShownValue(field) && sameText(displayValue(field), o.actualValue));
+          const flags = { ...(o.kept ? { kept: true } : {}), ...(same ? { same: true } : {}) };
+          filled.push(field ? row(field, { value: o.actualValue || '', ...flags }) : { label: lab, value: o.actualValue || '', ...flags });
+          if (field) {
+            written.add(stableKey(field));
+            contradicted.delete(stableKey(field));
+          }
+          continue;
+        }
+        if (field) noteFail(field);
+        if ((fieldLooksRequired(field) || field?.required) && !(field && looksLikeDialCodeField(field))) {
+          // A dial-code list is identity, never a question for the model: the
+          // resolver answered "Australia +61" (the widget's geo default) on Agoda.
           unresolved.push(field || { label: lab, required: true, i: o.i, frameId: o.frameId ?? 0, type: 'text' });
         } else {
-          pending.push({ label: lab, reason: o.reason || (o.ok ? 'valeur non retenue par le formulaire' : 'échec fill') });
+          const reason = o.reason || (o.ok ? 'valeur non retenue par le formulaire' : 'échec fill');
+          pending.push(field ? row(field, { reason }) : { label: lab, reason });
         }
       }
       await push(`Rempli ${filled.length} champ(s) (pass déterministe)`);
@@ -1756,38 +2323,62 @@ export class ApplyBridge {
     if (unresolved.length) {
       // Re-collect so data-co-i / data-co-opt markers (and option lists) are fresh
       // after Phase B fills — Ashby remounts wipe stamps and broke radio clicks.
+      // Matched by label + rank among same-label fields: by label alone, two
+      // "Year" boxes collapsed into one and the empty one was never answered.
       const freshFields = await reCollect(live);
-      const byKey = new Map(freshFields.map((f) => [fieldKey(f), f]));
       const targets = [];
       const seen = new Set();
-      for (const f of unresolved) {
-        const liveF = byKey.get(fieldKey(f)) || f;
-        if (seen.has(slotKey(liveF))) continue;
-        seen.add(slotKey(liveF));
-        if (fieldHasCommittedValue(liveF) && !(liveF.ariaInvalid || liveF.invalid)
-            && !shouldReplaceFilledValue(liveF, liveF.value, '')) {
-          filled.push({ label: fieldLabel(liveF), value: liveF.value, kept: true });
+      for (const liveF of rematchFields(unresolved, freshFields)) {
+        if (seen.has(stableKey(liveF))) continue;
+        seen.add(stableKey(liveF));
+        const shownNow = displayValue(liveF);
+        if (hasShownValue(liveF) && !(liveF.ariaInvalid || liveF.invalid)) {
+          // Phase B tried to replace a value the plan contradicts (an ATS
+          // default "Yes" to sponsorship) and failed: that value is not an
+          // answer. The user corrects it; it is never reported as filled.
+          if (stillContradicted(memory, liveF)) {
+            const reason = `valeur pré-remplie contraire au profil (« ${shownNow.slice(0, 40)} ») — à corriger`;
+            pending.push(row(liveF, { reason: liveF.required ? `requis — ${reason}` : reason }));
+            continue;
+          }
+          filled.push(row(liveF, { value: shownNow, kept: true }));
+          continue;
+        }
+        if (exhausted(liveF)) {
+          if (liveF.required) pending.push(row(liveF, { reason: `requis — non rempli après ${MAX_FIELD_ATTEMPTS} essais` }));
           continue;
         }
         targets.push(liveF);
       }
+      for (const f of targets) written.add(stableKey(f));
       await push(`Résolution intelligente de ${targets.length} champ(s)…`);
 
-      // Lists collected without options: read them first (or reuse what a
-      // failed Phase B pick saw), so the model picks a real entry.
+      // Lists collected without options: reuse what this run already read
+      // (a failed pick, an earlier pass), else read them once, so the model
+      // picks a real entry without the list being opened on every pass.
+      const asOptions = (f, texts) => texts.map((t, k) => ({ value: t, text: t, key: `${f.i}:${k}` }));
       const blind = targets.filter((f) => !(f.options || []).length && (isComboboxField(f) || f.tag === 'select'));
-      const toRead = blind.filter((f) => !seenOptions.get(fieldKey(f))?.length);
-      const read = toRead.length ? await this.readListOptions(tabId, toRead) : new Map();
       for (const f of blind) {
-        const texts = seenOptions.get(fieldKey(f)) || read.get(slotKey(f));
-        if (texts?.length) f.options = texts.map((t, k) => ({ value: t, text: t, key: `${f.i}:${k}` }));
+        const known = knownOptions(memory, f);
+        if (known?.length) f.options = asOptions(f, known);
+      }
+      const toRead = blind.filter((f) => !(f.options || []).length);
+      const read = toRead.length ? await this.readListOptions(tabId, toRead) : new Map();
+      for (const f of toRead) {
+        const texts = read.get(slotKey(f));
+        if (texts?.length) {
+          f.options = asOptions(f, texts);
+          rememberOptions(memory, f, texts);
+        }
       }
 
       // A "prefer not to say" option answers sensitive questions without the model.
       const declineUpdates = [];
       const llmTargets = [];
       for (const f of targets) {
-        const opt = pickDeclineOption(f.options || []);
+        // Only a demographic question takes its "prefer not to say" row; on
+        // "Are you authorized…?" the same pre-pass picked "No, I do not…".
+        const opt = isDemographicLabel(fieldLabel(f)) ? pickDeclineOption(f.options || []) : null;
         if (!opt) {
           llmTargets.push(f);
           continue;
@@ -1809,15 +2400,19 @@ export class ApplyBridge {
         const label = fieldLabel(f);
         const text = Array.isArray(ans) ? ans[0] : ans;
         if (!text) {
-          if (f.required) pending.push({ label, reason: 'sans réponse — à remplir manuellement' });
+          if (f.required) pending.push(row(f, { reason: 'requis — sans réponse, à remplir manuellement' }));
           return null;
         }
         if (hasUnresolvedPlaceholder(String(text))) {
-          if (f.required) pending.push({ label, reason: 'réponse LLM avec placeholder' });
+          if (f.required) pending.push(row(f, { reason: 'requis — réponse LLM avec placeholder' }));
           return null;
         }
+        // The model's exact option text goes out as is: polishing turned
+        // "Team of 5+ people" into "" and "Senior – 5 to 8 years" into a
+        // comma, and the pick then matched nothing.
+        const exactRow = (f.options || []).find((o) => String(o?.text || '').trim().toLowerCase() === String(text).trim().toLowerCase());
         // Prefer a listed option text when the LLM paraphrases Yes/No.
-        let selectText = polishApplicationAnswer(String(text));
+        let selectText = exactRow ? String(exactRow.text).trim() : polishApplicationAnswer(String(text));
         let optionText = '';
         if (f.options?.length) {
           const yesNo = /^(yes|oui)\b/i.test(selectText) ? 'yes' : /^(no|non)\b/i.test(selectText) ? 'no' : null;
@@ -1843,13 +2438,18 @@ export class ApplyBridge {
           ...listPayload(f, { optionText, identity: spec.identity || {} }),
         };
       };
+      // A field answered earlier in this run gets the same answer back: the
+      // model is not asked again (it gave "No" then "Yes" to one question).
+      // Fields are keyed by their position in this call, not by collect
+      // index, which restarts in every frame.
       const answer = async (fieldsToAnswer) => {
         if (!fieldsToAnswer.length) return [];
+        const ask = fieldsToAnswer.filter((f) => knownAnswer(memory, f) == null);
         let answers = {};
-        try {
+        if (ask.length) try {
           answers = await resolveUnknownFields({
-            fields: fieldsToAnswer.map((f) => ({
-              i: f.i,
+            fields: ask.map((f, k) => ({
+              i: k,
               label: f.label,
               kind: llmKind(f),
               required: f.required,
@@ -1861,13 +2461,24 @@ export class ApplyBridge {
             career: loadCareerIndex(ROOT),
             styleGuide: loadApplicationVoice(ROOT),
             // What the form already says, so "Are you located in France?"
-            // agrees with the location typed two fields above.
-            answered: filled,
+            // agrees with the location typed two fields above — earlier
+            // passes included.
+            answered: mergeFilled(answered, filled),
           });
         } catch (err) {
           await push(`LLM indisponible (${String(err.message || err).slice(0, 70)})`);
         }
-        return fieldsToAnswer.map((f) => updateFor(f, answers[String(f.i)])).filter(Boolean);
+        // Only a usable answer is kept for later passes: an empty or
+        // placeholder one is asked again next time, not replayed.
+        ask.forEach((f, k) => {
+          const a = answers[String(k)];
+          const text = Array.isArray(a) ? a[0] : a;
+          if (text && !hasUnresolvedPlaceholder(String(text))) rememberAnswer(memory, f, a);
+        });
+        return fieldsToAnswer.map((f) => {
+          const k = ask.indexOf(f);
+          return updateFor(f, k >= 0 ? answers[String(k)] : knownAnswer(memory, f));
+        }).filter(Boolean);
       };
       // Fill; return the blind lists whose real options the widget showed.
       const fillAnswers = async (llmUpdates, blindBySlot) => {
@@ -1878,61 +2489,77 @@ export class ApplyBridge {
         for (const o of result.outcomes || []) {
           const u = bySlot.get(slotKey(o));
           if (!u) continue;
+          const target = targetBySlot.get(slotKey(o));
           const landed = String(o.actualValue ?? '').trim();
           if (o.ok && landed && !/^unchecked$/i.test(landed)) {
-            filled.push({ label: u.label, value: o.actualValue || '', llm: true });
+            const flags = { llm: true, ...(o.kept ? { kept: true } : {}) };
+            filled.push(target ? row(target, { value: o.actualValue || '', ...flags }) : { label: u.label, value: o.actualValue || '', ...flags });
+            if (target) written.add(stableKey(target));
             continue;
           }
           const f = blindBySlot.get(slotKey(o));
           if (f && Array.isArray(o.options) && o.options.length) {
+            // The list showed its real options: the earlier answer was made
+            // without them, so it is dropped and asked again among them.
+            rememberOptions(memory, f, o.options);
+            forgetAnswer(memory, f);
             again.push({ ...f, options: o.options.map((t, k) => ({ value: t, text: t, key: `${f.i}:${k}` })) });
-          } else {
-            pending.push({ label: u.label, reason: `réponse suggérée — ${o.reason || 'option introuvable'}` });
+            continue;
           }
+          const tries = target ? noteFail(target) : 1;
+          const why = o.reason || 'option introuvable';
+          // The answer matched no option of the list: never replay it.
+          if (target && /introuvable/i.test(why)) forgetAnswer(memory, target);
+          const reason = tries >= MAX_FIELD_ATTEMPTS
+            ? `réponse suggérée non retenue après ${tries} essais (${why})`
+            : `réponse suggérée — ${why}`;
+          const required = target?.required || u.required;
+          const entry = { reason: required ? `requis — ${reason}` : reason };
+          pending.push(target ? row(target, entry) : { label: u.label, ...entry });
         }
         return again;
       };
+      const targetBySlot = new Map(targets.map((f) => [slotKey(f), f]));
 
       const stillBlind = new Map(llmTargets.filter((f) => !(f.options || []).length).map((f) => [slotKey(f), f]));
       const again = await fillAnswers([...declineUpdates, ...(await answer(llmTargets))], stillBlind);
       if (again.length) {
         // The list opened during the fill: answer once more, among its real options.
         await push(`${again.length} liste(s) lue(s) pendant le remplissage — nouvelle réponse avec leurs options…`);
+        for (const f of again) targetBySlot.set(slotKey(f), f);
         await fillAnswers(await answer(again), new Map());
       }
     }
 
-    // Reconcile profile fields that ATS autofill may have wrong
+    // Recon: profile TEXT the ATS autofill may have changed after Phase B
+    // (an async CV parse). Not what this call just wrote, not lists (Phase B
+    // owns them; a recon pick re-opened them and could undo a resolver
+    // answer), and nothing outside a scoped caller's fields.
     try {
       const fresh = await reCollect([]);
       const recon = [];
-      for (const f of fresh) {
-        if (f.type === 'file' || f.type === 'checkbox' || f.type === 'radio') continue;
-        if (!shouldFillField(f)) continue;
-        // An empty list already had its pick above (or went to the resolver):
-        // sending the profile text again only typed it into the dropdown.
-        const isList = f.tag === 'select' || isComboboxField(f);
-        if (isList && !String(f.value || '').trim()) continue;
+      const reconField = new Map();
+      for (const f of reconCandidates(fresh, { written, scope: scopeKeys })) {
+        if (!shouldFillField(f) || exhausted(f)) continue;
         const plan = classifyField(f, formSpec);
         if (!plan || plan.skip || plan.check || plan.resume) continue;
         const want = polishApplicationAnswer(plan.value || plan.selectText || yesNoText(plan));
         if (!want || !shouldReplaceFilledValue(f, f.value, want)) continue;
+        reconField.set(slotKey(f), f);
         recon.push({
           i: f.i,
           frameId: f.frameId ?? 0,
           value: want,
           selectText: want,
           label: fieldLabel(f),
-          ...(isCustomList(f) ? { list: true, typeQuery: '' } : {}),
         });
       }
-      const labelBySlot = new Map(recon.map((u) => [slotKey(u), u.label]));
       const result = await this.fillFields(tabId, recon);
       for (const o of result.outcomes || []) {
-        const lab = o.ok && labelBySlot.get(slotKey(o));
-        if (!lab) continue;
-        const rec = { label: lab, value: o.actualValue || '', reconciled: true };
-        const idx = filled.findIndex((x) => x.label === lab);
+        const f = o.ok && reconField.get(slotKey(o));
+        if (!f) continue;
+        const rec = row(f, { value: o.actualValue || '', reconciled: true });
+        const idx = filled.findIndex((x) => (x.key || x.label) === rec.key);
         if (idx >= 0) filled[idx] = rec;
         else filled.push(rec);
       }
@@ -1940,10 +2567,9 @@ export class ApplyBridge {
       if (isTabGone(err)) throw err; // otherwise best-effort
     }
 
-    const filledLabels = new Set(filled.map((f) => f.label));
     return {
       filled,
-      pending: pending.filter((p) => !filledLabels.has(p.label)),
+      pending: mergePending([], pending, filled),
       uploaded,
     };
   }
@@ -2016,6 +2642,9 @@ export class ApplyBridge {
       }
       if (action === 'rescan') {
         await push('Re-scan demandé…', { state: 'finding_form', message: 'Rescanning the form…' });
+        // A rescan after "offer closed" means the user sees it open: the
+        // closed reading no longer stops this run.
+        if (run.closedSeen) run.ignoreClosed = true;
         run.navAi = { nav: 0, review: 0 };
         let probe = { verdict: 'none' };
         try {

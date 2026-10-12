@@ -11,8 +11,9 @@
     "dev": "node ui/server.mjs",
     "build:effects": "npm --prefix ui/effects run build",
     "test:writing": "node --test tests/application-writing.test.mjs",
-    "test:apply": "node --test tests/apply-completion.test.mjs tests/apply-blocker-probe.test.mjs tests/apply-collect-fields.test.mjs tests/apply-combobox-dom.test.mjs tests/apply-fill-guards.test.mjs tests/apply-navigation.test.mjs tests/apply-option-match.test.mjs tests/apply-runtime.test.mjs tests/apply-salary.test.mjs tests/form-detect.test.mjs tests/himalayas-apply.test.mjs tests/pinchtab-config.test.mjs tests/extension-page-helpers.test.mjs",
-    "test:monetization": "node --test lib/monetization.test.mjs",
+    "test:email": "node --test tests/application-email.test.mjs tests/contact-finder.test.mjs",
+    "test:apply": "node --test tests/apply-completion.test.mjs tests/apply-blocker-probe.test.mjs tests/apply-collect-fields.test.mjs tests/apply-combobox-dom.test.mjs tests/apply-fill-guards.test.mjs tests/apply-navigation.test.mjs tests/apply-option-match.test.mjs tests/apply-runtime.test.mjs tests/apply-salary.test.mjs tests/form-detect.test.mjs tests/himalayas-apply.test.mjs tests/pinchtab-config.test.mjs tests/extension-page-helpers.test.mjs tests/apply-submit.test.mjs",
+    "test:monetization": "node --test tests/monetization.test.mjs",
     "sync:extension": "node scripts/sync-extension-page-helpers.mjs",
     "doctor": "node doctor.mjs",
     "or": "node openrouter-runner.mjs",
@@ -27,6 +28,7 @@
     "reconcile": "node reconcile-pipeline.mjs",
     "pdf": "node generate-pdf.mjs",
     "jd:similarity": "node jd-similarity.mjs",
+    "jd-archive": "node check-jd-archive.mjs",
     "img-to-pdf": "node img-to-pdf.mjs",
     "cover-letter": "node generate-cover-letter.mjs --payload",
     "cv:verify-facts": "node verify-cv-facts.mjs",
@@ -65,7 +67,7 @@
     "application:init": "node application-artifacts.mjs --init",
     "build:dashboard": "node build-dashboard.mjs",
     "serve:dashboard": "cd dashboard && go run . --path ..",
-    "postinstall": "node install-browsers.mjs"
+    "postinstall": "node -e \"process.exit(process.env.VERCEL ? 0 : 1)\" || npx playwright install chromium || npx playwright install chromium"
   },
   "keywords": [
     "ai",

@@ -29,14 +29,17 @@ import { existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { supabase, isEnabled as useSupabase } from './lib/supabase.mjs';
-import { tsvSafe, loadPortals } from './lib/scan-filters.mjs';
+import { loadPortals } from './lib/scan-filters.mjs';
+import { tsvSafe } from './lib/tracker-addition.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
 const DRY = process.argv.includes('--dry-run');
 const daysArg = process.argv.find(a => a.startsWith('--days='));
 let RETENTION_DAYS = 20;
 try {
-  const portals = loadPortals(join(ROOT, 'portals.yml'));
+  const portals = loadPortals(join(DATA_ROOT, 'portals.yml'));
   if (Number.isFinite(portals.retention_days) && portals.retention_days > 0) {
     RETENTION_DAYS = portals.retention_days;
   }
@@ -48,12 +51,12 @@ const cutoff = new Date(today.getTime() - RETENTION_DAYS * 864e5);
 const cutoffIso = cutoff.toISOString().slice(0, 10);
 
 const P = {
-  apps: join(ROOT, 'data/applications.md'),
-  pipeline: join(ROOT, 'data/pipeline.md'),
-  history: join(ROOT, 'data/scan-history.tsv'),
-  deleted: join(ROOT, 'data/deleted-applications.tsv'),
-  dateCache: join(ROOT, 'data/published-dates-cache.json'),
-  reports: join(ROOT, 'reports'),
+  apps: join(DATA_ROOT, 'data/applications.md'),
+  pipeline: join(DATA_ROOT, 'data/pipeline.md'),
+  history: join(DATA_ROOT, 'data/scan-history.tsv'),
+  deleted: join(DATA_ROOT, 'data/deleted-applications.tsv'),
+  dateCache: join(DATA_ROOT, 'data/published-dates-cache.json'),
+  reports: join(DATA_ROOT, 'reports'),
 };
 
 const stats = {

@@ -130,6 +130,7 @@ npx playwright install chromium
 | Process pending URLs | `/jobyougo pipeline` or ask the agent to run `pipeline` |
 | Generate a PDF | `/jobyougo pdf` or ask the agent to run `pdf` |
 | Draft application email | `/jobyougo email` or ask the agent to run `email`; draft-only, never sends, submits, or clicks |
+| Find who to write to, then draft | In the web UI, row menu → **Find contact & write email** — hiring inbox, recruiter, team lead or founder with a confidence tag, then the draft ([docs/CONTACT_FINDER.md](CONTACT_FINDER.md)); never sends |
 | Batch evaluate | `/jobyougo batch` or use `codex exec "Run JobYouGo batch mode ..."` |
 | Check tracker status | `/jobyougo tracker` or ask the agent to run `tracker` |
 | Fill application form | `/jobyougo apply` or ask the agent to run `apply` |
@@ -147,3 +148,27 @@ node verify-pipeline.mjs     # Check pipeline integrity
 npm run serve:dashboard     # Opens TUI pipeline viewer
 npm run build:dashboard     # Optional: build the standalone binary
 ```
+
+## Hosted accounts (Supabase, optional)
+
+With `USE_SUPABASE=true` in `.env` (plus `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY`), the web UI gets sign-in, sign-up, password reset and a guided
+profile onboarding; each account's profile and CV live in `public.profiles`.
+
+1. Run `supabase/schema.sql` once in the Supabase SQL editor, then every file in
+   `supabase/migrations/` in date order (currently `20261007_profile_onboarding.sql`, which adds
+   the `candidate`, `availability`, `preferences` and `onboarding_completed_at` columns the
+   onboarding writes). The server keeps working without them but drops those fields on save
+   and says so in its log.
+2. In Authentication → URL Configuration, set the Site URL to your domain and add
+   `<domain>/login` and `<domain>/reset-password` to the Redirect URLs (and the same two on
+   `http://localhost:3210` for local runs). Confirmation and password-reset emails land on
+   those pages.
+3. Email confirmation can stay on or off: the login page handles both — a "check your inbox"
+   state with a resend button, or an immediate sign-in.
+4. Set `ADMIN_EMAIL` to your own account. The admin keeps rendering CVs from
+   `data/cv-profiles.yml` + `config/profile.yml`; every other account renders from its own
+   profile and CV markdown.
+
+Pages: `/login`, `/reset-password`, `/onboarding` (8 steps, re-runnable from the dashboard
+banner), and the Profile view of the dashboard.

@@ -19,6 +19,8 @@ import {
   PAGE_SHOWS_APPLY_ENTRY,
   PAGE_STEP_SNAPSHOT,
   snapshotIdentityFields,
+  SUBMIT_CANDIDATES,
+  APPLY_PAGE_SIGNALS,
 } from './page-helpers.mjs';
 
 /** Visible, enabled control labels: the wizard's Next / Submit / Review. */
@@ -176,6 +178,10 @@ export const PAGE_HELPERS = {
   FORCE_RESUME_SLOT: { func: forceResumeSlotInPage, frames: 'all', merge: 'first-with-frame' },
   REVEAL_SF_RESUME: { func: revealSfResumeInputInPage, frames: 'all', merge: 'first-with-frame' },
   PAGE_HTML: { func: pageHtmlInPage, frames: 'main', merge: 'first' },
+  // Every frame's controls / page facts, each tagged with its frame: the send
+  // button and the captcha often live in the ATS iframe.
+  SUBMIT_CANDIDATES: { func: SUBMIT_CANDIDATES, frames: 'all', merge: 'frames' },
+  APPLY_PAGE_SIGNALS: { func: APPLY_PAGE_SIGNALS, frames: 'all', merge: 'frames' },
 };
 
 const NO_PROBE = { verdict: 'none', score: 0, signals: [], blockers: [] };
@@ -190,6 +196,7 @@ const NO_PROBE = { verdict: 'none', score: 0, signals: [], blockers: [] };
  *   concat            arrays joined, de-duplicated by `key`, capped at `limit`
  *   first             the first frame's result
  *   first-with-frame  the first result, tagged with the frame it came from
+ *   frames            every frame's result, each tagged with its frame
  */
 export function mergeFrameResults(spec, entries = []) {
   const rows = (entries || [])
@@ -223,6 +230,8 @@ export function mergeFrameResults(spec, entries = []) {
       }
       return out;
     }
+    case 'frames':
+      return rows.map((r) => ({ ...r.result, frameId: r.frameId ?? 0 }));
     case 'first-with-frame':
       return rows.length ? { ...rows[0].result, frameId: rows[0].frameId ?? 0 } : null;
     default:

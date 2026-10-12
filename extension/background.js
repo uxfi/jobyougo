@@ -53,6 +53,8 @@ let reconnectTimer = null;
 let bridgePhase = 'off';
 let bridgeError = '';
 const bridgePorts = new Set();
+const runBadges = new Map();
+const runBadgeTimers = new Map();
 
 function quiet(result) {
   if (result && typeof result.then === 'function') result.catch(() => {});
@@ -119,7 +121,7 @@ function connect() {
       extension: 'jobyougo-apply-bridge-poc',
       version: chrome.runtime.getManifest().version,
       // Lets the bridge skip messages an older build would never answer.
-      capabilities: ['page-helper', 'read-options', 'apply-helper'],
+      capabilities: ['page-helper', 'read-options', 'apply-helper', 'submit-pick'],
     });
   });
   socket.addEventListener('close', () => {
@@ -163,8 +165,25 @@ chrome.runtime.onConnect.addListener((port) => {
   bridgePorts.add(port);
   port.onDisconnect.addListener(() => bridgePorts.delete(port));
   port.onMessage.addListener((msg) => {
+    if (msg?.type === 'ui-role') {
+      port.jygRole = msg.role === 'popup' ? 'popup' : '';
+      return;
+    }
     if (msg?.type === 'bridge-connect') connectNow();
-    else port.postMessage({ type: 'bridge-changed', ...bridgeSnapshot() });
+    else if (msg?.type === 'scan-apply-tab') quiet(runScanApplyOnTab(port, msg));
+    else if (msg?.type === 'scan-apply-progress') {
+      quiet(paintRunBadge(msg.tabId, { phase: msg.phase, text: msg.text }));
+    } else if (msg?.type === 'scan-apply-status') {
+      const badge = runBadges.get(Number(msg.tabId));
+      try {
+        port.postMessage({
+          type: 'scan-apply-progress',
+          tabId: Number(msg.tabId),
+          phase: badge?.phase || '',
+          text: badge?.text || '',
+        });
+      } catch { /* popup closed */ }
+    } else port.postMessage({ type: 'bridge-changed', ...bridgeSnapshot() });
   });
   port.postMessage({ type: 'bridge-changed', ...bridgeSnapshot() });
 });
@@ -256,8 +275,8 @@ async function onMessage(event) {
       return;
     }
 
-    if (msg.type === 'click-submit' && msg.tabId && msg.reSrc) {
-      const result = await clickSubmitInTab(msg.tabId, msg.reSrc);
+    if (msg.type === 'click-submit' && msg.tabId && (msg.reSrc || msg.pick)) {
+      const result = await clickSubmitInTab(msg.tabId, msg.reSrc, msg.pick || null);
       reply(rid, 'click-result', true, { tabId: msg.tabId, ...result });
       return;
     }
@@ -355,7 +374,9 @@ async function setHelperHidden(tabId, hidden) {
 }
 
 chrome.tabs.onUpdated.addListener((tabId, info) => {
-  if (info.status === 'complete') quiet(injectHelper(tabId));
+  if (info.status !== 'complete') return;
+  quiet(injectHelper(tabId));
+  if (runBadges.has(tabId)) quiet(paintRunBadge(tabId, runBadges.get(tabId), { force: true }));
 });
 
 chrome.tabs.onCreated.addListener(async (tab) => {
@@ -366,6 +387,10 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   quiet(chrome.storage.session.remove(HELPER_KEY(tabId)));
+  runBadges.delete(tabId);
+  const timer = runBadgeTimers.get(tabId);
+  if (timer) clearTimeout(timer);
+  runBadgeTimers.delete(tabId);
 });
 
 // Buttons of the panel. "Fill" brings the dashboard forward and asks it to
@@ -414,18 +439,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 function waitForTabComplete(tabId, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    };
     const timer = setTimeout(() => {
       chrome.tabs.onUpdated.removeListener(listener);
-      reject(new Error('tab did not finish loading in time'));
+      if (!settled) reject(new Error('tab did not finish loading in time'));
+      settled = true;
     }, timeoutMs);
     function listener(id, info) {
-      if (id === tabId && info.status === 'complete') {
-        clearTimeout(timer);
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
-      }
+      if (id === tabId && info.status === 'complete') finish();
     }
     chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.get(tabId).then((tab) => {
+      if (tab.status === 'complete') finish();
+    }).catch(() => {});
   });
 }
 
@@ -447,6 +480,148 @@ async function currentWindowId() {
   const windows = await chrome.windows.getAll({ windowTypes: ['normal'] });
   const focused = windows.find((w) => w.focused) || windows[0];
   return focused?.id;
+}
+
+const DASHBOARD_OPEN_URL = 'http://127.0.0.1:3210/dashboard';
+
+function offerTextFromPage() {
+  const root = document.querySelector('main, [role="main"], article') || document.body;
+  const text = (root?.innerText || '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 20000);
+  return { text, title: document.title || '' };
+}
+
+async function readOfferText(tabId) {
+  const [injected] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: offerTextFromPage,
+  });
+  return injected?.result || { text: '', title: '' };
+}
+
+function tellPopup(port, payload) {
+  try { port.postMessage({ type: 'scan-apply-result', ...payload }); } catch { /* popup already closed */ }
+}
+
+function tellPopups(payload) {
+  for (const port of bridgePorts) {
+    if (port.jygRole !== 'popup') continue;
+    try { port.postMessage(payload); } catch { /* popup closed */ }
+  }
+}
+
+// Drawn on the offer tab. Kept off <body> so a later read of the posting
+// does not scrape this label back into the scan.
+function drawRunBadge(state) {
+  const id = 'jobyougo-run-status';
+  document.getElementById(id)?.remove();
+  if (!state?.text) return;
+  const phase = state.phase || 'run';
+  const tone = phase === 'bad' ? '#ef6b6b' : (phase === 'wait' || phase === 'warn') ? '#e8b86d' : '#2dd4a0';
+  const host = document.createElement('div');
+  host.id = id;
+  host.setAttribute('role', 'status');
+  host.style.cssText = `all:initial;position:fixed;z-index:2147483646;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:min(520px,calc(100vw - 32px));padding:9px 14px;border-radius:999px;background:#07090a;color:#f2f5f3;border:1px solid ${tone};box-shadow:0 12px 32px rgba(0,0,0,.5);font:600 13px/1.35 Inter,system-ui,sans-serif;pointer-events:none;`;
+  const mark = document.createElement('span');
+  if (phase === 'run') {
+    const style = document.createElement('style');
+    style.textContent = '@keyframes jobyougo-run-spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){#jobyougo-run-status span{animation:none !important}}';
+    host.appendChild(style);
+    mark.style.cssText = 'all:initial;width:12px;height:12px;box-sizing:border-box;border-radius:50%;border:2px solid rgba(45,212,160,.35);border-top-color:#2dd4a0;display:inline-block;flex:none;animation:jobyougo-run-spin .7s linear infinite;';
+  } else {
+    mark.style.cssText = `all:initial;width:8px;height:8px;border-radius:50%;background:${tone};display:inline-block;flex:none;`;
+  }
+  const label = document.createElement('span');
+  label.textContent = state.text;
+  label.style.cssText = 'all:initial;font:inherit;color:#f2f5f3;';
+  host.append(mark, label);
+  document.documentElement.appendChild(host);
+}
+
+async function paintRunBadge(tabId, status, { force = false } = {}) {
+  const id = Number(tabId);
+  if (!id) return;
+  const next = status?.text
+    ? { phase: status.phase || 'run', text: String(status.text).slice(0, 160) }
+    : null;
+  const prev = runBadges.get(id);
+  if (!force && prev && next && prev.phase === next.phase && prev.text === next.text) return;
+  if (next) runBadges.set(id, next);
+  else runBadges.delete(id);
+  const pending = runBadgeTimers.get(id);
+  if (pending) {
+    clearTimeout(pending);
+    runBadgeTimers.delete(id);
+  }
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: id }, func: drawRunBadge, args: [next] });
+  } catch { /* closed tab, or a page the extension cannot script */ }
+  tellPopups({ type: 'scan-apply-progress', tabId: id, phase: next?.phase || '', text: next?.text || '' });
+  if (next && next.phase !== 'run' && next.phase !== 'wait') {
+    runBadgeTimers.set(id, setTimeout(() => {
+      runBadgeTimers.delete(id);
+      const cur = runBadges.get(id);
+      if (cur && cur.text === next.text) paintRunBadge(id, null, { force: true });
+    }, 8000));
+  }
+}
+
+// The click happened on `tabId`. Read that page, then ask the dashboard to
+// evaluate it and apply on the same tab. The dashboard is not focused: the
+// offer tab stays the one the user is looking at.
+async function runScanApplyOnTab(port, msg) {
+  const tabId = msg?.tabId;
+  const url = String(msg?.url || '');
+  if (!tabId || !/^https?:\/\//i.test(url)) {
+    tellPopup(port, { ok: false, error: 'Open a job offer, then click the button.' });
+    return;
+  }
+  await paintRunBadge(tabId, { phase: 'run', text: 'Reading this offer…' });
+  let page;
+  try {
+    page = await readOfferText(tabId);
+  } catch (err) {
+    await paintRunBadge(tabId, { phase: 'bad', text: 'This tab cannot be read.' });
+    tellPopup(port, { ok: false, error: 'This tab cannot be read.' });
+    return;
+  }
+  const text = String(page?.text || '');
+  if (text.length < 400) {
+    await paintRunBadge(tabId, { phase: 'bad', text: 'This tab does not have enough offer text to scan.' });
+    tellPopup(port, { ok: false, error: 'This tab does not have enough offer text to scan.' });
+    return;
+  }
+  let dashboards = await chrome.tabs.query({ url: DASHBOARD_URLS });
+  if (!dashboards.length) {
+    const opened = await chrome.tabs.create({ url: DASHBOARD_OPEN_URL, active: false });
+    await waitForTabComplete(opened.id).catch(() => {});
+    dashboards = await chrome.tabs.query({ url: DASHBOARD_URLS });
+  }
+  const request = {
+    type: 'scan-apply-tab',
+    tabId,
+    url,
+    title: msg.title || page.title || '',
+    text,
+  };
+  for (let attempt = 0; attempt < 8; attempt++) {
+    for (const dash of dashboards) {
+      try {
+        const ack = await chrome.tabs.sendMessage(dash.id, request);
+        if (ack?.ok) {
+          await paintRunBadge(tabId, { phase: 'run', text: 'Scanning this offer…' });
+          tellPopup(port, { ok: true });
+          return;
+        }
+      } catch { /* content script not in yet */ }
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  await paintRunBadge(tabId, { phase: 'bad', text: 'Open the JobYouGo dashboard in this Chrome, then try again.' });
+  tellPopup(port, { ok: false, error: 'Open the JobYouGo dashboard in this Chrome, then try again.' });
 }
 
 async function openTab(url) {
@@ -833,19 +1008,54 @@ function markSubmitCandidateInPage(reSrc) {
     visit(root);
     return out;
   };
+  // Never a send: cookie / consent / settings / navigation / auth / chat
+  // buttons. Kraken's "Submit Application" was disabled, and the last
+  // type=submit on the page — the cookie banner's "Manage Cookie Settings" —
+  // got clicked and reported as sent.
+  const never = /cookie|consent|pr[ée]f[ée]rences?|preferences|settings|param[èe]tres|\bmanage\b|g[ée]rer|search|rechercher|filtr|log ?in|sign ?(in|up)|connexion|se connecter|register|inscription|\bmenu\b|close|fermer|cancel|annuler|\bback\b|retour|previous|pr[ée]c[ée]dent|clear|reset|skip|dismiss|share|partager|print|imprimer|download|t[ée]l[ée]charger|subscribe|newsletter|send (a )?message|envoyer un message|\bchat\b|\breply\b|r[ée]pondre|\bconnect\b|\bfollow\b|upload|attach|\badd\b|ajouter|remove|supprimer/i;
+  const bannerSel = '[id*="cookie" i], [class*="cookie" i], [id*="consent" i], [class*="consent" i], [id*="gdpr" i], [class*="gdpr" i], [id*="onetrust" i], [class*="onetrust" i], [id*="cybot" i], [class*="cc-window" i]';
   const txt = (el) => ((el.innerText || el.value || '')).replace(/\s+/g, ' ').trim();
   const visible = (el) => {
     const r = el.getBoundingClientRect();
-    return r.width > 5 && r.height > 5 && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+    return r.width > 5 && r.height > 5;
   };
-  const all = deepQueryAll(document, 'button, input[type="submit"], input[type="button"], [role="button"]')
+  const enabled = (el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+  const candidates = deepQueryAll(document, 'button, input[type="submit"], input[type="button"], [role="button"]')
     .filter(visible)
-    .filter((el) => !/apply for this (job|position|role)/i.test(txt(el)));
-  const target = all.find((el) => strong.test(txt(el)))
-    || [...all].reverse().find((el) => (el.type || '').toLowerCase() === 'submit')
+    .filter((el) => !/apply for this (job|position|role)/i.test(txt(el)))
+    .filter((el) => !never.test(txt(el)));
+  const isSubmitType = (el) => (el.type || '').toLowerCase() === 'submit';
+  // The form that holds the fields just filled: its own buttons come first,
+  // and a cookie banner that happens to wrap it is not a banner to exclude.
+  const fieldForm = deepQueryAll(document, '[data-co-i]').map((f) => f.closest?.('form')).find(Boolean) || null;
+  const inBanner = (el) => {
+    const banner = el.closest?.(bannerSel);
+    return !!banner && !(fieldForm && banner.contains(fieldForm));
+  };
+  const inForm = (el) => !fieldForm || fieldForm.contains(el);
+  const usable = candidates.filter((el) => !inBanner(el));
+  const all = usable.filter(enabled);
+  // The real send is on the page but disabled: the form still misses
+  // something, and no other button stands in for it — not even a "Send"
+  // outside the form (a chat widget's).
+  const strongInForm = all.find((el) => strong.test(txt(el)) && inForm(el));
+  let strongEnabled = strongInForm;
+  if (!strongInForm) {
+    const disabled = usable.find((el) => !enabled(el) && inForm(el) && (strong.test(txt(el)) || re.test(txt(el))))
+      || (!fieldForm ? usable.find((el) => !enabled(el) && strong.test(txt(el))) : null);
+    if (disabled) return { tier: -1, disabled: true, text: txt(disabled).slice(0, 60) || 'submit' };
+    strongEnabled = all.find((el) => strong.test(txt(el)));
+  }
+  const submitTyped = [...all].reverse().filter(isSubmitType);
+  const target = strongEnabled
+    // Any <button> inside a form is type=submit by default: a tag chip
+    // ("Industrial Design") was clicked as the send. Blank or send-like only.
+    || (fieldForm ? submitTyped.find((el) => fieldForm.contains(el) && (!txt(el) || re.test(txt(el)))) : null)
+    || submitTyped.find((el) => inForm(el) && (!txt(el) || re.test(txt(el))))
+    || all.find((el) => inForm(el) && re.test(txt(el)))
     || all.find((el) => re.test(txt(el)));
   if (!target) return null;
-  const tier = strong.test(txt(target)) ? 2 : ((target.type || '').toLowerCase() === 'submit' ? 1 : 0);
+  const tier = strong.test(txt(target)) ? 2 : (isSubmitType(target) ? 1 : 0);
   target.setAttribute('data-co-submit', '1');
   return { tier, text: txt(target).slice(0, 60) || 'submit' };
 }
@@ -895,55 +1105,117 @@ function detectSubmitRejectionInPage() {
   const errorCount = textErrs.length + invalidFields.length + (banner ? 1 : 0);
   const files = [...document.querySelectorAll('input[type="file"]')];
   const otherFillable = [...document.querySelectorAll('textarea, select, [role="combobox"]')];
-  const stillForm = files.length > 0 || otherFillable.some(visible);
+  // A form made of text boxes only (name, e-mail, phone) is still a form:
+  // the fields this run filled (data-co-i) are still on screen. A
+  // confirmation page's newsletter or search boxes are not.
+  const filledStill = [...document.querySelectorAll('[data-co-i]')].filter(visible);
+  const stillForm = files.length > 0 || otherFillable.some(visible) || filledStill.length >= 2;
+  const confirmed = /thank you for (applying|your application|your interest)|application (has been |was )?(submitted|received|sent|complete)|successfully (submitted|applied|sent)|we('ve| have) received your application|candidature (envoy[ée]e|re[çc]ue|transmise|enregistr[ée]e)|merci (pour|de) (votre|ta) candidature|gracias por (tu|su) (candidatura|solicitud)|vielen dank f[üu]r (ihre|deine) bewerbung|grazie per (la tua|la sua) candidatura/i.test(bodyText);
   let sample = (textErrs[0]?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80);
   if (!sample && banner) sample = bodyText.slice(banner.index, banner.index + 120).trim();
-  return { errorCount, stillForm, sample };
+  return { errorCount, stillForm, confirmed, sample };
 }
 
-async function clickSubmitInTab(tabId, reSrc) {
-  const injected = await chrome.scripting.executeScript({
-    target: { tabId, allFrames: true },
-    func: markSubmitCandidateInPage,
-    args: [reSrc],
-  });
-  let best = null;
-  for (const entry of injected) {
-    const r = entry.result;
-    if (r && (!best || r.tier > best.tier)) best = { ...r, frameId: entry.frameId };
-  }
-  if (!best) return { clicked: false };
-  await chrome.scripting.executeScript({
-    target: { tabId, frameIds: [best.frameId] },
-    func: clickMarkedSubmitInPage,
-  });
-
-  await new Promise((r) => setTimeout(r, 1800));
-  let rejection = { errorCount: 0, stillForm: false, sample: '' };
-  try {
-    const rejInjected = await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: detectSubmitRejectionInPage,
-    });
-    // Aggregate across frames: whichever frame the click landed in, error
-    // banners or a still-present form could show up in the main frame, the
-    // iframe, or both.
-    for (const entry of rejInjected) {
-      const r = entry.result;
-      if (!r) continue;
-      rejection = {
-        errorCount: rejection.errorCount + (r.errorCount || 0),
-        stillForm: rejection.stillForm || r.stillForm,
-        sample: rejection.sample || r.sample,
-      };
+// The control the bridge chose (SUBMIT_CANDIDATES stamps data-co-sc). Null
+// when it left the page or became disabled since the listing.
+function clickStampedSubmitInPage(n) {
+  const visit = (node) => {
+    if (!node?.querySelector) return null;
+    const hit = node.querySelector(`[data-co-sc="${n}"]`);
+    if (hit) return hit;
+    for (const el of node.querySelectorAll('*')) {
+      if (el.shadowRoot) {
+        const nested = visit(el.shadowRoot);
+        if (nested) return nested;
+      }
     }
-  } catch {
-    // Page likely navigated to a confirmation page mid-evaluate — no form
-    // left to reject anything, which is the good outcome.
+    return null;
+  };
+  const el = visit(document);
+  if (!el) return null;
+  const text = ((el.innerText || el.value || el.getAttribute('aria-label') || '')).replace(/\s+/g, ' ').trim().slice(0, 60) || 'submit';
+  if (el.disabled || el.getAttribute('aria-disabled') === 'true') return { disabled: true, text };
+  try { el.scrollIntoView({ block: 'center' }); } catch { /* detached */ }
+  el.click();
+  return { clicked: true, text };
+}
+
+async function clickSubmitInTab(tabId, reSrc, pick = null) {
+  let best = null;
+  const urlBefore = (await chrome.tabs.get(tabId).catch(() => null))?.url || '';
+  if (pick && Number.isInteger(pick.n)) {
+    const [entry] = await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [pick.frameId ?? 0] },
+      func: clickStampedSubmitInPage,
+      args: [pick.n],
+    }).catch(() => [null]);
+    const r = entry?.result;
+    if (!r) return { clicked: false, lost: true };
+    if (r.disabled) return { clicked: false, disabled: true, text: r.text };
+    best = { tier: 2, text: r.text, frameId: pick.frameId ?? 0 };
+  } else {
+    const injected = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: markSubmitCandidateInPage,
+      args: [reSrc],
+    });
+    for (const entry of injected) {
+      const r = entry.result;
+      if (r && (!best || r.tier > best.tier)) best = { ...r, frameId: entry.frameId };
+    }
+    if (!best) return { clicked: false };
+    // Only a disabled send button was found: nothing to click yet.
+    if (best.tier < 0) return { clicked: false, disabled: true, text: best.text };
+    await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [best.frameId] },
+      func: clickMarkedSubmitInPage,
+    });
+  }
+
+  // Slow validation (Workday, Ashby) shows its errors seconds after the
+  // click: keep reading while the form is still there and nothing says
+  // either way, up to ~8 s.
+  const readRejection = async () => {
+    let rejection = { errorCount: 0, stillForm: false, confirmed: false, sample: '' };
+    try {
+      const rejInjected = await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        func: detectSubmitRejectionInPage,
+      });
+      // Aggregate across frames: whichever frame the click landed in, error
+      // banners or a still-present form could show up in the main frame, the
+      // iframe, or both.
+      for (const entry of rejInjected) {
+        const r = entry.result;
+        if (!r) continue;
+        rejection = {
+          errorCount: rejection.errorCount + (r.errorCount || 0),
+          stillForm: rejection.stillForm || r.stillForm,
+          confirmed: rejection.confirmed || !!r.confirmed,
+          sample: rejection.sample || r.sample,
+        };
+      }
+    } catch {
+      // Page likely navigated to a confirmation page mid-evaluate — no form
+      // left to reject anything, which is the good outcome.
+    }
+    return rejection;
+  };
+  await new Promise((r) => setTimeout(r, 1800));
+  let rejection = await readRejection();
+  let urlChanged = ((await chrome.tabs.get(tabId).catch(() => null))?.url || '') !== urlBefore;
+  for (let k = 0; k < 4 && rejection.stillForm && !rejection.errorCount && !rejection.confirmed && !urlChanged; k++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    rejection = await readRejection();
+    urlChanged = ((await chrome.tabs.get(tabId).catch(() => null))?.url || '') !== urlBefore;
   }
   return {
     clicked: true,
     text: best.text,
+    tier: best.tier,
+    stillForm: rejection.stillForm,
+    confirmed: rejection.confirmed,
+    urlChanged,
     rejected: rejection.stillForm && rejection.errorCount > 0,
     errorCount: rejection.errorCount,
     sample: rejection.sample,
@@ -1000,9 +1272,12 @@ async function fillFieldsInPage(updates) {
   // One option, whatever its case, accents, numbering ("3. Practitioner: …")
   // or end punctuation.
   const canonText = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
-    .replace(/[‘’]/g, "'").replace(/[–—]/g, '-')
+    .replace(/[‘’]/g, "'").replace(/[“”«»]/g, '"').replace(/[–—]/g, '-')
     .replace(/^\s*(\(?\d{1,2}[.)]|[a-h][.)])\s+/, '').replace(/[.;:!?]+$/, '').replace(/\s+/g, ' ').trim();
-  const PLACEHOLDER_OPT = /^(select\b|choose\b|--|please\b|s[ée]lectionn|aucun|loading|searching|chargement|recherche|no options|no results|aucun r[ée]sultat|start typing|type to search)/i;
+  // Rows that are not choices. "Aucune restriction", "Recherche et
+  // développement" and "Loading dock operator" are: the busy words only
+  // match a whole row.
+  const PLACEHOLDER_OPT = /^(select\b|choose\b|--|please\b|s[ée]lectionn|selecci[oó]n|elij?[ae]\b|elige\b|w[äa]hlen|bitte\b|scegli|selezion|kies\b|selecteer|aucun(e)? (r[ée]sultat|option|choix)|(loading|searching|chargement|recherche)(\s*(\.\.\.|…))?$|recherche en cours|no options|no results|start typing|type to search)/i;
   const OPTION_SEL = [
     '[role="option"]',
     '[role="menuitem"]',
@@ -1094,6 +1369,12 @@ async function fillFieldsInPage(updates) {
       const ids = `${fieldEl.getAttribute('aria-controls') || ''} ${fieldEl.getAttribute('aria-owns') || ''}`
         .trim().split(/\s+/).filter(Boolean);
       const boxes = ids.map((id) => document.getElementById(id)).filter(Boolean);
+      // A list that holds its own rows (Google Forms div[role=listbox]): only
+      // those. Every closed Google list shows its chosen row, so a "Yes" from
+      // the list above sat inside the ±420 px window and could be clicked.
+      const selfList = (fieldEl.getAttribute('role') || '').toLowerCase() === 'listbox'
+        && !!fieldEl.querySelector('[role="option"]');
+      if (selfList) return cands.filter((n) => fieldEl.contains(n));
       const owned = boxes.length ? cands.filter((n) => boxes.some((b) => b.contains(n))) : [];
       const visibleBox = (b) => {
         const r = b.getBoundingClientRect();
@@ -1153,6 +1434,18 @@ async function fillFieldsInPage(updates) {
     if (low === wLow) return 100;
     const canon = canonText;
     if (canon(t) && canon(t) === canon(raw)) return 98;
+    // Long rows (a whole sentence per option) are compared word for word:
+    // the resolver hands the option's own text back, spacing, quotes or
+    // numbering aside (Agoda's Deloitte statement never matched by equality).
+    if (raw.length > 80) {
+      const words = (s) => new Set(canon(s).split(/[^a-z0-9+]+/).filter((w) => w.length >= 3));
+      const a = words(raw);
+      const b = words(t);
+      if (!a.size || !b.size) return 0;
+      let shared = 0;
+      for (const w of a) if (b.has(w)) shared++;
+      return shared / Math.max(a.size, b.size) >= 0.85 ? 88 : 0;
+    }
     // "Paris, France" against "Paris, Île-de-France, FRA": the same city, and
     // the right country (or none) — never "Paris, TX, USA".
     const wantParts = raw.split(',').map(canon).filter(Boolean);
@@ -1172,10 +1465,12 @@ async function fillFieldsInPage(updates) {
       if (rest.some((p) => known.includes(p))) return 0;
       return 72;
     }
-    const yesHead = /^(yes|oui|y|yeah|true)\b/i;
-    const noHead = /^(no|non|n|false)\b/i;
-    const kind = /^(yes|oui|y|true)\b/i.test(raw) && raw.length <= 80 ? 'yes'
-      : /^(no|non|n|false)\b/i.test(raw) && !/^non-?binary\b/i.test(raw) && !/^none\b/i.test(raw) && raw.length <= 80 ? 'no'
+    // (?![a-zà-ÿ]) rather than \b: "í" is no word character to \b, so "Sí"
+    // never ended on a boundary.
+    const yesHead = /^(yes|oui|y|yeah|true|s[ií]|ja|sim)(?![a-zà-ÿ])/i;
+    const noHead = /^(no|non|n|false|nein|n[aã]o)(?![a-zà-ÿ])/i;
+    const kind = /^(yes|oui|y|true|s[ií]|ja|sim)(?![a-zà-ÿ])/i.test(raw) && raw.length <= 80 ? 'yes'
+      : /^(no|non|n|false|nein|n[aã]o)(?![a-zà-ÿ])/i.test(raw) && !/^non-?binary\b/i.test(raw) && !/^none\b/i.test(raw) && raw.length <= 80 ? 'no'
       : null;
     if (kind === 'yes' && yesHead.test(t) && !noHead.test(t)) return 90;
     if (kind === 'no' && noHead.test(t) && !/^non-?binary\b/i.test(t) && !/^none\b/i.test(t)) return 90;
@@ -1188,6 +1483,51 @@ async function fillFieldsInPage(updates) {
       germany: ['germany', 'deutschland', 'de'],
       singapore: ['singapore', 'sg'],
     };
+    // Country-code rows ("Francia +33", "France (+33)"): the code decides,
+    // the name only breaks a tie (United States +1 / Canada +1). A bare
+    // "France" against such rows must hit a whole word — by substring it
+    // landed on "Guayana Francesa +594".
+    const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const DIAL_RE = /(^|[\s(])(\+\d{1,4})(?=[\s)]|$)/;
+    const dialIn = (s) => (String(s || '').match(DIAL_RE) || [])[2] || '';
+    const wantCode = dialIn(raw);
+    const optCode = dialIn(t);
+    // The code and its brackets go: "Canada (+1)" is the name "canada".
+    const DIAL_STRIP_RE = /[\s(]*\+\d{1,4}(?=[\s)]|$)[\s)]*/g;
+    if (wantCode && optCode) {
+      if (wantCode !== optCode) return 0;
+      const name = canon(raw.replace(DIAL_STRIP_RE, ' ')).trim();
+      if (!name) return 92;
+      return new RegExp(`(^|\\W)${escapeRe(name)}(\\W|$)`, 'i').test(canon(t)) ? 97 : 92;
+    }
+    if (wantCode) {
+      const name = normText(raw.replace(DIAL_STRIP_RE, ' '));
+      return name ? scoreOption(node, name) : 0;
+    }
+    // Month lists ("February", "Feb", "02", "2") answer by alias, as in lib —
+    // only when a month NAME is on one side: "10" against "10+" is a count,
+    // not October.
+    const MONTHS = {
+      january: ['jan', '01', '1'], february: ['feb', '02', '2'], march: ['mar', '03', '3'], april: ['apr', '04', '4'],
+      may: ['05', '5'], june: ['jun', '06', '6'], july: ['jul', '07', '7'], august: ['aug', '08', '8'],
+      september: ['sep', 'sept', '09', '9'], october: ['oct', '10'], november: ['nov', '11'], december: ['dec', '12'],
+    };
+    const monthOf = (s) => Object.keys(MONTHS).find((m) => s === m || MONTHS[m].includes(s)) || '';
+    const wantMonth = monthOf(wLow);
+    const optMonth = monthOf(low);
+    if (wantMonth && optMonth && (/[a-z]/.test(wLow) || /[a-z]/.test(low))) return wantMonth === optMonth ? 96 : 0;
+    if (wantMonth && /[a-z]/.test(wLow)) return 0;
+    if (/^\d{1,2}$/.test(wLow) && /^\d{1,2}$/.test(low)) return Number(wLow) === Number(low) ? 96 : 0;
+    if (optCode) {
+      const optName = canon(t.replace(DIAL_STRIP_RE, ' ')).trim();
+      const aliases = Object.values(COUNTRY).find((a) => a.includes(wLow)) || [wLow];
+      for (const a of aliases) {
+        if (optName === a) return 95;
+        if (a.length < 4) continue;
+        if (new RegExp(`(^|\\W)${escapeRe(a)}(\\W|$)`, 'i').test(low)) return 85;
+      }
+      return 0;
+    }
     for (const aliases of Object.values(COUNTRY)) {
       if (!aliases.includes(wLow)) continue;
       for (const a of aliases) {
@@ -1201,7 +1541,9 @@ async function fillFieldsInPage(updates) {
       const bounded = new RegExp(`(^|\\W)${raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\W|$)`, 'i');
       if (bounded.test(t)) return raw.length >= 4 ? 70 : 55;
     }
-    if (wLow.length >= 4 && (low.includes(wLow) || (low.length >= 4 && wLow.includes(low)))) return 55;
+    // Substring is a hint, never a pick (same 40 as lib): "Niger" took
+    // "Nigeria" and "Oman" took "Romania" at 55.
+    if (wLow.length >= 4 && (low.includes(wLow) || (low.length >= 4 && wLow.includes(low)))) return 40;
     return 0;
   };
 
@@ -1216,35 +1558,47 @@ async function fillFieldsInPage(updates) {
     return null;
   };
 
-  const committedText = (fieldEl) => {
+  // What the widget shows as its value, and where it was read: a chip or a
+  // shadow input is the widget's own word; the box's .value may just be
+  // what we typed.
+  const committedTextWithSource = (fieldEl) => {
     let node = fieldEl.parentElement;
     // Stay inside the field's own wrapper. Searched from the <form>, the
     // first hidden input belongs to some other control — a Radix checkbox's
     // bubble input reads "on" — and every eRecruiter pick was judged failed.
     for (let d = 0; d < 6 && node && node.tagName !== 'FORM'; d++, node = node.parentElement) {
       const shown = node.querySelector?.('[class*="singleValue" i], [class*="single-value" i]');
-      if (shown) return normText(shown.textContent);
+      if (shown) return { text: normText(shown.textContent), source: 'widget' };
       const shadow = node.querySelector?.('input[aria-hidden="true"]:not([type="checkbox"]):not([type="radio"])');
-      if (shadow && String(shadow.value || '').trim()) return normText(shadow.value);
+      if (shadow && String(shadow.value || '').trim()) return { text: normText(shadow.value), source: 'widget' };
     }
     if (fieldEl.tagName === 'BUTTON' || fieldEl.getAttribute('aria-haspopup')) {
       // <input type="button" aria-haspopup="listbox"> (Revolut) keeps the pick
       // in .value; native <button> pickers use innerText.
-      return normText(fieldEl.innerText || fieldEl.textContent || fieldEl.value || '');
+      return { text: normText(fieldEl.innerText || fieldEl.textContent || fieldEl.value || ''), source: 'widget' };
     }
-    return normText(fieldEl.value || '');
+    return { text: normText(fieldEl.value || ''), source: 'box' };
   };
+  const committedText = (fieldEl) => committedTextWithSource(fieldEl).text;
 
   // A typed filter ("Ban") is not a selection of "Bangkok". The visible value
-  // has to be the option, not a prefix still sitting in the box.
-  const selectionMatches = (fieldEl, pickedText) => {
+  // has to be the option, not a prefix still sitting in the box — and when
+  // the query IS the option's text ("Remote" typed into a plain input), the
+  // box's own value proves nothing: the list has to have gone.
+  const selectionMatches = (fieldEl, pickedText, { typedQuery = '', optionNode = null } = {}) => {
     const want = normText(pickedText).toLowerCase();
     // Multi-select lists show each pick as a chip beside the input, not as one value.
     const valueBox = fieldEl.closest?.('[class*="value-container" i], [class*="valueContainer" i]');
     const chips = valueBox ? [...valueBox.querySelectorAll('[class*="multi-value" i], [class*="multiValue" i]')] : [];
     if (chips.length) return chips.some((c) => normText(c.textContent).toLowerCase() === want);
-    const got = committedText(fieldEl).toLowerCase();
+    const read = committedTextWithSource(fieldEl);
+    const got = read.text.toLowerCase();
     if (!got || !want || PLACEHOLDER_OPT.test(got) || got === 'select...') return false;
+    if (read.source === 'box' && typedQuery && got === normText(typedQuery).toLowerCase()) {
+      const listGone = fieldEl.getAttribute('aria-expanded') !== 'true'
+        && !(optionNode && optionNode.isConnected && optionNode.getBoundingClientRect().height > 0);
+      if (!listGone) return false;
+    }
     if (got === want) return true;
     if (want.startsWith(got) && got.length < want.length) return false;
     if (want.length >= 4 && got.includes(want)) return true;
@@ -1281,9 +1635,19 @@ async function fillFieldsInPage(updates) {
   };
 
   const openCombobox = (fieldEl) => {
-    const control = fieldEl.closest?.(
+    let control = fieldEl.closest?.(
       '[class*="select__control"], [class*="Select-control"], [class*="control" i], [class*="select-shell"], spl-select, [class*="dropdown" i]',
     ) || fieldEl;
+    // The wrapper must be the field's own. A shared section matched by
+    // "control" / "dropdown" holds other fields, and its first chevron opened
+    // a neighbour's list: Ashby's "Location (city)" read the English-level
+    // rows and "Which country" the French-level ones.
+    if (control !== fieldEl) {
+      const others = [...(control.querySelectorAll?.('input:not([type="hidden"]), select, textarea, [role="combobox"], [role="listbox"], button[aria-haspopup]') || [])]
+        .filter((n) => n !== fieldEl && !fieldEl.contains(n) && !n.contains(fieldEl)
+          && n.getAttribute('aria-hidden') !== 'true' && !/^(checkbox|radio)$/i.test(n.type || ''));
+      if (others.length) control = fieldEl;
+    }
     const chevron = control.querySelector?.(
       '[class*="indicatorContainer" i], [class*="dropdown-indicator" i], [class*="arrow" i], [aria-haspopup="listbox"]',
     );
@@ -1348,18 +1712,25 @@ async function fillFieldsInPage(updates) {
   // typed ("Available upon request" in a Yes/No dropdown was the bug), and a
   // query that commits nothing is cleared again.
   const selectComboboxOption = async (el, want, {
-    alternates = [], typeQuery = '', prefer = null, rank = [], label = '', budgetMs = 9000, many = [], patient = false,
+    alternates = [], typeQuery = '', typeQueryAlt = '', prefer = null, rank = [], label = '', budgetMs = 9000, many = [], patient = false,
   } = {}) => {
     const wants = [want, ...alternates].map(normText).filter((x, k, all) => x && all.indexOf(x) === k);
     const out = { picked: null, listOpened: false, clicked: '', options: [], typed: false };
+    let activeQuery = '';
     if (!wants.length && !prefer && !rank.length) return out;
     const deadline = Date.now() + budgetMs;
     // Yes/No is never typed ("No" filters down to "None").
-    const binary = /^(yes|oui|y|true|no|non|n|false)\b/i.test(wants[0] || '');
+    const binary = /^(yes|oui|y|true|s[ií]|ja|sim|no|non|n|false|nein|n[aã]o)(?![a-zà-ÿ])/i.test(wants[0] || '');
 
+    // A place row the main answer rules out ("Paris, TX, USA" for "Paris,
+    // France") is not picked through a looser alternate ("Paris") either:
+    // async suggestions arrive in batches, and the first batch may hold only
+    // the wrong Paris.
+    const primaryPlace = /,/.test(wants[0] || '');
+    const vetoed = (n) => primaryPlace && /,/.test(labelOfNode(n)) && scoreOption(n, wants[0]) === 0;
     const matchIn = (nodes) => {
-      for (const q of wants) {
-        const hit = pickBestOption(nodes, q);
+      for (const [k, q] of wants.entries()) {
+        const hit = pickBestOption(k === 0 ? nodes : nodes.filter((n) => !vetoed(n)), q);
         if (hit) return hit;
       }
       for (const re of rank) {
@@ -1374,8 +1745,8 @@ async function fillFieldsInPage(updates) {
       let yes = false;
       let no = false;
       for (const t of texts) {
-        if (/^(yes|oui)\b/i.test(t)) yes = true;
-        else if (/^(no|non)\b/i.test(t) && !/^non-?binary/i.test(t) && !/^none\b/i.test(t)) no = true;
+        if (/^(yes|oui|s[ií]|ja|sim)(?![a-zà-ÿ])/i.test(t)) yes = true;
+        else if (/^(no|non|nein|n[aã]o)(?![a-zà-ÿ])/i.test(t) && !/^non-?binary/i.test(t) && !/^none\b/i.test(t)) no = true;
         else return false;
       }
       return yes && no;
@@ -1397,7 +1768,7 @@ async function fillFieldsInPage(updates) {
       // React commits the pick after the click handler returns.
       for (let k = 0; k < 4; k++) {
         await sleep(k ? 150 : 220);
-        if (ticked(node) || selectionMatches(el, label)) return label;
+        if (ticked(node) || selectionMatches(el, label, { typedQuery: out.typed ? activeQuery : '', optionNode: node })) return label;
       }
       return null;
     };
@@ -1485,13 +1856,46 @@ async function fillFieldsInPage(updates) {
       }
     }
 
-    // 2) Search lists: type the query, pick among the results.
-    const query = normText(typeQuery).slice(0, 40);
+    // 2) Search lists: type the query, pick among the results. A second
+    // query (dial lists: the code, then the country name) runs only when the
+    // first one showed nothing usable.
     const typable = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
-    if (!out.clicked && query.length >= 2 && !binary && typable && Date.now() < deadline
-        && !(shown && listIsComplete(shown.nodes))) {
-      await typeIntoFilter(el, query);
+    // Pickers whose search box lives inside the open list (intl-tel-input,
+    // select2, Keka): the box is the input the widget focused, or an input
+    // next to the rows. Never another form field, never the page's search bar.
+    const listSearchBox = () => {
+      const isText = (n) => !!n && n !== el && n.tagName === 'INPUT'
+        && !/^(hidden|checkbox|radio|button|submit|file|number|tel|email|password)$/i.test(n.type || '')
+        && !n.disabled && !n.hasAttribute('data-co-i')
+        && n.getBoundingClientRect().width > 0 && n.getBoundingClientRect().height > 0;
+      // No open list, no search box: the focused input would be the page's own.
+      const nodes = optionSnapshot(el, true).nodes;
+      if (!nodes.length) return null;
+      const active = document.activeElement;
+      if (isText(active)) return active;
+      const host = nodes[0].closest?.('[role="listbox"], [role="menu"], [role="dialog"], [class*="dropdown" i], [class*="menu" i], [class*="popover" i], [class*="select" i], [class*="iti" i]');
+      const listTop = nodes[0].getBoundingClientRect().top;
+      for (let d = 0, box = host; d < 3 && box && box !== document.body; d++, box = box.parentElement) {
+        const inp = box.querySelector?.('input[type="search"], input[type="text"], input:not([type])');
+        if (isText(inp) && Math.abs(inp.getBoundingClientRect().top - listTop) < 320) return inp;
+      }
+      return null;
+    };
+    const queries = [typeQuery, typeQueryAlt].map((q) => normText(q).slice(0, 40))
+      .filter((q, k, all) => q.length >= 2 && all.indexOf(q) === k);
+    for (const query of queries) {
+      if (out.clicked || binary || Date.now() >= deadline) break;
+      if (shown && listIsComplete(shown.nodes)) break;
+      const box = typable ? el : listSearchBox();
+      if (!box) break;
+      if (out.typed) {
+        clearFilter(out.typedBox || box);
+        await sleep(160);
+      }
+      await typeIntoFilter(box, query);
       out.typed = true;
+      out.typedBox = box;
+      activeQuery = query;
       // Async lists (Greenhouse location) answer after a network round trip:
       // wait for results, stop once they hold still (not before the search
       // had time to replace what was on screen).
@@ -1509,8 +1913,12 @@ async function fillFieldsInPage(updates) {
         out.listOpened = true;
         out.options = [...new Set(snap.nodes.map(labelOfNode).filter(Boolean))].slice(0, 40);
         hit = matchIn(snap.nodes);
+        // One row holding the query is the answer — unless it is a place
+        // every want scores 0 on ("Paris, TX, USA" for "Paris, France").
         if (!hit && snap.nodes.length === 1 && labelOfNode(snap.nodes[0]).toLowerCase().includes(query.toLowerCase())) {
-          hit = snap.nodes[0];
+          const lone = snap.nodes[0];
+          const foreignPlace = /,/.test(labelOfNode(lone)) && wants.length && wants.every((w) => scoreOption(lone, w) === 0);
+          if (!foreignPlace) hit = lone;
         }
         if (hit || (snap.sig === lastSig && Date.now() - typedAt > (slow ? 2200 : 900))) break;
         lastSig = snap.sig;
@@ -1525,7 +1933,7 @@ async function fillFieldsInPage(updates) {
     }
 
     // 3) Nothing committed: leave the box as it was found.
-    if (out.typed) clearFilter(el);
+    if (out.typed) clearFilter(out.typedBox || el);
     else pressEscape(el);
     await sleep(120);
     return out;
@@ -1630,11 +2038,19 @@ async function fillFieldsInPage(updates) {
     return hit ? normText(hit.innerText || hit.getAttribute?.('aria-label') || '') : '';
   };
 
+  // Native <select>: the exact row, else a Yes/No by its head, else a whole
+  // word. "No" by substring took "Yes, I will need sponsorship now".
   const pickOption = (options, want) => {
     const w = String(want || '').toLowerCase().trim();
     if (!w) return null;
-    return options.find((o) => (o.text || '').toLowerCase() === w || (o.value || '').toLowerCase() === w)
-      || options.find((o) => (o.text || '').toLowerCase().includes(w) || (o.value || '').toLowerCase().includes(w))
+    const exact = options.find((o) => (o.text || '').toLowerCase().trim() === w || (o.value || '').toLowerCase().trim() === w);
+    if (exact) return exact;
+    const kind = /^(yes|oui|y|true|s[ií]|ja|sim)$/.test(w) ? 'yes' : /^(no|non|n|false|nein|n[aã]o)$/.test(w) ? 'no' : null;
+    if (kind === 'yes') return options.find((o) => /^(yes|oui|s[ií]|ja|sim)(?![a-zà-ÿ])/i.test((o.text || '').trim())) || null;
+    if (kind === 'no') return options.find((o) => /^(no|non|nein|n[aã]o)(?![a-zà-ÿ])/i.test((o.text || '').trim()) && !/^non-?binary|^none\b/i.test((o.text || '').trim())) || null;
+    const bounded = new RegExp(`(^|\\W)${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\W|$)`, 'i');
+    return options.find((o) => bounded.test(o.text || '') || bounded.test(o.value || ''))
+      || (w.length >= 4 ? options.find((o) => (o.text || '').toLowerCase().includes(w) || (o.value || '').toLowerCase().includes(w)) : null)
       || null;
   };
 
@@ -1685,8 +2101,16 @@ async function fillFieldsInPage(updates) {
         const findChoicePool = () => {
           let pool = deepQueryAll(document, `[data-co-opt^="${i}:"]`);
           if (pool.length >= 2) return pool;
+          // The widget has to be the field's own: once an ancestor holds
+          // another collected field, its buttons are a neighbour's question
+          // (a consent checkbox clicked the previous question's "Yes"). The
+          // ancestor is tested, not the buttons' box: Ashby keeps its hidden
+          // checkbox next to the Yes/No box, not inside it.
+          const holdsOtherField = (node) => [...(node.querySelectorAll?.('[data-co-i]') || [])]
+            .some((n) => n !== el && !el.contains(n) && !n.contains(el));
           let node = el;
           for (let d = 0; d < 7 && node; d++, node = node.parentElement) {
+            if (holdsOtherField(node)) break;
             const ashby = node.matches?.('.ashby-application-form-input-yesno, [class*="yesno" i], [class*="YesNo"]')
               ? node
               : node.querySelector?.('.ashby-application-form-input-yesno, [class*="yesno" i]');
@@ -1719,8 +2143,8 @@ async function fillFieldsInPage(updates) {
           ).replace(/\s+/g, ' ').trim().toLowerCase();
           const textOf = (o) => normText(o.labels?.[0]?.innerText || o.innerText || o.getAttribute?.('aria-label')
             || o.getAttribute?.('data-option') || o.value || '');
-          const wantYes = /^(yes|oui|y|true|1)$/i.test(want);
-          const wantNo = /^(no|non|n|false|0)$/i.test(want);
+          const wantYes = /^(yes|oui|y|true|1|s[ií]|ja|sim)$/i.test(want);
+          const wantNo = /^(no|non|n|false|0|nein|n[aã]o)$/i.test(want);
           let hit = pool.find((o) => textOf(o).toLowerCase() === want || (o.value || '').toLowerCase() === want);
           // Same row under other casing, accents or numbering: Plancraft's
           // "3. Practitioner: …" radio was reported "not found".
@@ -1730,10 +2154,10 @@ async function fillFieldsInPage(updates) {
               .some((t) => t && canonText(t) === target)) || null;
           }
           if (!hit && wantYes) {
-            hit = pool.find((o) => /^(yes|oui)\b/i.test(labelOf(o)) || o.getAttribute?.('data-option') === 'yes');
+            hit = pool.find((o) => /^(yes|oui|s[ií]|ja|sim)(?![a-zà-ÿ])/i.test(labelOf(o)) || o.getAttribute?.('data-option') === 'yes');
           }
           if (!hit && wantNo) {
-            hit = pool.find((o) => (/^(no|non)\b/i.test(labelOf(o)) && !/^non-?binary/i.test(labelOf(o)) && !/^none\b/i.test(labelOf(o)))
+            hit = pool.find((o) => (/^(no|non|nein|n[aã]o)(?![a-zà-ÿ])/i.test(labelOf(o)) && !/^non-?binary/i.test(labelOf(o)) && !/^none\b/i.test(labelOf(o)))
               || o.getAttribute?.('data-option') === 'no');
           }
           // Whole words only: "no" must not pick "Yes, I know".
@@ -1817,8 +2241,14 @@ async function fillFieldsInPage(updates) {
           const own = String(u.label || '').split(/[—–]/).pop().trim();
           const same = own.length > 2 && val.length > 2 && own.toLowerCase() === val.toLowerCase();
           const wantOn = /^(1|true|yes|oui|on|checked)$/i.test(val) || same;
-          if (el.checked !== wantOn) el.click();
-          const on = !!el.checked;
+          // A <button role="checkbox"> has no .checked: its state is aria-checked.
+          const isOn = () => (el.tagName === 'INPUT' ? !!el.checked
+            : el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-pressed') === 'true');
+          if (isOn() !== wantOn) {
+            el.click();
+            await sleep(120);
+          }
+          const on = isOn();
           results.push({
             i,
             frameId,
@@ -1917,18 +2347,54 @@ async function fillFieldsInPage(updates) {
         let typeQuery = u.typeQuery !== undefined
           ? String(u.typeQuery || '')
           : (/\b(city|ville|country|pays|location|localisation|school|universit\w*|college|company|employer)\b/i.test(u.label || '') ? filterQuery(want) : '');
-        if (placeSuggest) {
-          const city = String(u.typeQuery || want).split(',')[0].replace(/\(.*?\)/g, '').trim();
+        // The city is derived from the answer only when the bridge sent no
+        // query at all; an empty one means pick-only ("Yes", "Remote" were
+        // typed into a location list).
+        if (placeSuggest && u.typeQuery === undefined) {
+          const city = String(want).split(',')[0].replace(/\(.*?\)/g, '').trim();
           typeQuery = phoneLike(city) ? '' : city;
+        } else if (placeSuggest && typeQuery) {
+          typeQuery = typeQuery.split(',')[0].replace(/\(.*?\)/g, '').trim();
         }
-        const res = await selectComboboxOption(el, phoneLike(want) && placeSuggest ? typeQuery : want, {
+        const typeQueryAlt = String(u.typeQueryAlt || '');
+        // A list that already shows the wanted answer is not opened again:
+        // every pass used to re-open it, and a multi list un-picks a chip
+        // clicked a second time. Only a committed display counts (a widget
+        // value or chips), never text sitting in the filter box.
+        // Exact text only ("Female" must not pass for "Male"), never a regex
+        // pick (selectPrefer chooses by rule, not by literal), and never an
+        // input's own value, which can be filter text left by a failed pass.
+        const askedMany = Array.isArray(u.selectMany) ? u.selectMany.map(String).filter(Boolean) : [];
+        const wantedAll = askedMany.length ? askedMany : [want].filter(Boolean);
+        const sameText = (a, b) => normText(a).toLowerCase() === normText(b).toLowerCase();
+        const chipBox = el.closest?.('[class*="value-container" i], [class*="valueContainer" i]');
+        const chipTexts = chipBox
+          ? [...chipBox.querySelectorAll('[class*="multi-value" i], [class*="multiValue" i]')]
+            .filter((c) => !/label|remove/i.test(String(c.getAttribute('class') || '')))
+            .map((c) => normText(c.textContent).replace(/[×✕]/g, '').trim())
+            .filter(Boolean)
+          : [];
+        const hasChips = chipTexts.length > 0;
+        const read = committedTextWithSource(el);
+        const ownInputText = el.tagName === 'INPUT' && sameText(read.text, el.value || '');
+        const shows = (w) => (hasChips ? chipTexts.some((c) => sameText(c, w)) : sameText(read.text, w));
+        if (wantedAll.length && !placeSuggest && !u.selectPrefer
+            && (hasChips || (read.source === 'widget' && !ownInputText))
+            && wantedAll.every(shows)) {
+          results.push({ i, frameId, ok: true, actualValue: hasChips ? wantedAll.join(', ') : read.text, kept: true });
+          continue;
+        }
+        const many = hasChips ? askedMany.filter((w) => !shows(w)) : askedMany;
+        const pickWant = askedMany.length && many.length ? many[0] : want;
+        const res = await selectComboboxOption(el, phoneLike(pickWant) && placeSuggest ? typeQuery : pickWant, {
           alternates: Array.isArray(u.alternates) ? u.alternates : [],
           typeQuery,
+          typeQueryAlt,
           prefer: preferRe(u),
           rank: rankRes(u),
           label: u.label || '',
-          many: Array.isArray(u.selectMany) ? u.selectMany : [],
-          budgetMs: (placeSuggest ? 12000 : 9000) + (Array.isArray(u.selectMany) ? u.selectMany.length * 1200 : 0),
+          many,
+          budgetMs: (placeSuggest ? 12000 : 9000) + many.length * 1200,
           patient: placeSuggest,
         });
         if (res.picked) {
@@ -1939,6 +2405,16 @@ async function fillFieldsInPage(updates) {
         // text input: the place is typed as text instead of left empty.
         const plainPlaceBox = placeSuggest && !strongCombobox && !res.listOpened && !res.clicked
           && !(res.options || []).length;
+        // The box already holds a suggestion for this city ("Paris,
+        // Île-de-France, FRA" picked in an earlier pass): the plain city text
+        // must not overwrite it.
+        const held = normText(el.value || '');
+        const cityWord = normText(typeQuery || want).split(/[\s,]+/)[0].toLowerCase();
+        if (plainPlaceBox && held && cityWord.length >= 3 && held.toLowerCase().startsWith(cityWord)
+            && held.length > normText(typeQuery || '').length && /,/.test(held)) {
+          results.push({ i, frameId, ok: true, actualValue: held, kept: true });
+          continue;
+        }
         if ((strongCombobox || placeSuggest) && !plainPlaceBox) {
           // Closed-option widget: typed text is never a value. The trusted
           // CDP retry only helps when the list stayed shut or the click did
@@ -1948,7 +2424,7 @@ async function fillFieldsInPage(updates) {
           let reason = `option introuvable — liste non ouverte pour « ${want} »`;
           if (res.clicked) reason = `option introuvable — « ${res.clicked} » cliquée mais non retenue`;
           else if (res.listOpened) reason = `option introuvable pour « ${want} »${seen ? ` (liste : ${seen})` : ''}`;
-          else if (res.typed) reason = `option introuvable — aucun résultat pour « ${typeQuery} »`;
+          else if (res.typed) reason = `option introuvable — aucun résultat pour « ${[typeQuery, typeQueryAlt].filter(Boolean).join(' » / « ')} »`;
           results.push({
             i,
             frameId,
@@ -1957,6 +2433,7 @@ async function fillFieldsInPage(updates) {
             cdpRetry: !!res.clicked || !res.listOpened,
             want,
             typeQuery,
+            typeQueryAlt,
             options: res.options.length ? res.options : undefined,
           });
           continue;
@@ -2448,6 +2925,8 @@ async function retryCombosViaCdp(tabId, updates, outcomes) {
         want,
         alternates: Array.isArray(u.alternates) ? u.alternates : [],
         typeQuery: String(o.typeQuery || ''),
+        typeQueryAlt: String(o.typeQueryAlt || u.typeQueryAlt || ''),
+        patient: !!u.placeSuggest,
       });
       if (cdp?.ok) {
         outcomes[idx] = { i: o.i, frameId: o.frameId ?? 0, ok: true, actualValue: cdp.actualValue || want };
@@ -2483,7 +2962,7 @@ async function cdpMouseClick(session, x, y) {
  * when nothing got committed — this path used to type the whole answer and
  * leave it in the box.
  */
-async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = [], typeQuery = '' }) {
+async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = [], typeQuery = '', typeQueryAlt = '', patient = false }) {
   const target = { tabId };
   let attached = false;
   const iframeSessions = [];
@@ -2518,7 +2997,9 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
 
   const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
   const wants = [want, ...alternates].map(norm).filter((s, k, all) => s && all.indexOf(s) === k);
-  const query = /^(yes|oui|y|true|no|non|n|false)$/i.test(norm(want)) ? '' : norm(typeQuery).slice(0, 40);
+  const binaryWant = /^(yes|oui|y|true|s[ií]|ja|sim|no|non|n|false|nein|n[aã]o)$/i.test(norm(want));
+  const query = binaryWant ? '' : norm(typeQuery).slice(0, 40);
+  const queryAlt = binaryWant ? '' : norm(typeQueryAlt).slice(0, 40);
   const FIND_FIELD = `const visit = (node, sel) => {
       if (!node?.querySelectorAll) return null;
       const hit = node.querySelector(sel);
@@ -2608,8 +3089,8 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
     const wants = ${JSON.stringify(wants)};
     const typedQuery = ${JSON.stringify(typed ? query.toLowerCase() : '')};
     const norm = (s) => String(s || '').replace(/\\s+/g, ' ').trim();
-    const PLACEHOLDER = /^(select\\b|choose\\b|--|please\\b|s[ée]lectionn|aucun|loading|searching|chargement|recherche|no options|no results|aucun r[ée]sultat|start typing|type to search)/i;
-    const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="treeitem"], [id*="-option-"], [part="option"], [class*="select__option"], [class*="SelectOption"], [class*="Select-option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *, [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], mat-option, .ng-option, [cmdk-item], [data-radix-collection-item], [data-highlighted], [class*="dropdown-item" i], [class*="DropdownMenuItem" i], .select2-results__option, [class*="select2-results__option"], .choices__item--choice, .vs__dropdown-option, .el-select-dropdown__item, [class*="el-select-dropdown__item"], [data-automation-id*="promptOption" i], [data-automation-id*="option" i], spl-option, oc-option, [class*="spl-option" i], [class*="v-list-item" i], [role="listbox"] li, .pac-item, [class*="-option" i], [class*="menu-item" i]';
+    const PLACEHOLDER = /^(select\\b|choose\\b|--|please\\b|s[ée]lectionn|selecci[oó]n|elij?[ae]\\b|elige\\b|w[äa]hlen|bitte\\b|scegli|selezion|kies\\b|selecteer|aucun(e)? (r[ée]sultat|option|choix)|(loading|searching|chargement|recherche)(\\s*(\\.\\.\\.|…))?$|recherche en cours|no options|no results|start typing|type to search)/i;
+    const SEL = '[role="option"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="treeitem"], [id*="-option-"], [part="option"], [class*="select__option"], [class*="SelectOption"], [class*="Select-option"], li[class*="option"], [class*="-menu"] li, [class*="menuList" i] > *, [class*="menu-list" i] > *, [class*="MuiMenuItem"], [class*="MuiAutocomplete-option"], [class*="ant-select-item-option"], mat-option, .ng-option, [cmdk-item], [data-radix-collection-item], [data-highlighted], [class*="dropdown-item" i], [class*="DropdownMenuItem" i], .select2-results__option, [class*="select2-results__option"], .choices__item--choice, .vs__dropdown-option, .el-select-dropdown__item, [class*="el-select-dropdown__item"], [data-automation-id*="promptOption" i], [data-automation-id*="option" i], spl-option, oc-option, [class*="spl-option" i], [class*="v-list-item" i], [role="listbox"] li, .pac-item, [class*="-option" i], [class*="menu-item" i], .dropdown-location, li[id*="option"], ul[id*="listbox"] li, [class*="option-" i]';
     const deepAll = (root, sel) => {
       const out = [];
       const visit = (node) => {
@@ -2643,7 +3124,12 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
       const ids = ((field.getAttribute('aria-controls') || '') + ' ' + (field.getAttribute('aria-owns') || '')).trim().split(/\\s+/).filter(Boolean);
       const boxes = ids.map((id) => document.getElementById(id)).filter(Boolean);
       const owned = boxes.length ? cands.filter((n) => boxes.some((b) => b.contains(n))) : [];
-      if (owned.length) {
+      // A list holding its own rows (Google Forms): only those, never a
+      // neighbour list's chosen row.
+      const selfList = (field.getAttribute('role') || '').toLowerCase() === 'listbox' && !!field.querySelector('[role="option"]');
+      if (selfList) {
+        cands = cands.filter((n) => field.contains(n));
+      } else if (owned.length) {
         cands = owned;
       } else {
         const fr = field.getBoundingClientRect();
@@ -2660,11 +3146,32 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
       const low = t.toLowerCase();
       const wLow = want.toLowerCase();
       if (low === wLow) return 100;
-      const kind = /^(yes|oui|y|true)$/i.test(want) ? 'yes' : /^(no|non|n|false)$/i.test(want) ? 'no' : null;
-      if (kind === 'yes' && /^(yes|oui)\\b/i.test(t) && !/^(no|non)\\b/i.test(t)) return 90;
-      if (kind === 'no' && /^(no|non)\\b/i.test(t) && !/^non-?binary\\b/i.test(t) && !/^none\\b/i.test(t)) return 90;
+      // Long rows: the option's own text, compared word for word.
+      if (wLow.length > 80) {
+        const words = (s) => new Set(s.toLowerCase().normalize('NFD').replace(/\\p{M}/gu, '').split(/[^a-z0-9+]+/).filter((w) => w.length >= 3));
+        const a = words(want);
+        const b = words(t);
+        let shared = 0;
+        for (const w of a) if (b.has(w)) shared++;
+        return a.size && b.size && shared / Math.max(a.size, b.size) >= 0.85 ? 88 : 0;
+      }
+      const kind = /^(yes|oui|y|true|s[ií]|ja|sim)$/i.test(want) ? 'yes' : /^(no|non|n|false|nein|n[aã]o)$/i.test(want) ? 'no' : null;
+      if (kind === 'yes' && /^(yes|oui|s[ií]|ja|sim)(?![a-zà-ÿ])/i.test(t) && !/^(no|non|nein|n[aã]o)(?![a-zà-ÿ])/i.test(t)) return 90;
+      if (kind === 'no' && /^(no|non|nein|n[aã]o)(?![a-zà-ÿ])/i.test(t) && !/^non-?binary\\b/i.test(t) && !/^none\\b/i.test(t)) return 90;
       if (kind) return 0;
-      if (wLow.length >= 4 && (low.includes(wLow) || (low.length >= 4 && wLow.includes(low)))) return 55;
+      // Country-code rows: the code decides; a bare name needs a whole word.
+      const DIAL_RE = /(^|[\\s(])(\\+\\d{1,4})(?=[\\s)]|$)/;
+      const wantCode = (want.match(DIAL_RE) || [])[2] || '';
+      const optCode = (t.match(DIAL_RE) || [])[2] || '';
+      if (wantCode && optCode) return wantCode === optCode ? 92 : 0;
+      if (wantCode || optCode) {
+        const name = (wantCode ? want.replace(DIAL_RE, ' ') : want).replace(/\\s+/g, ' ').trim();
+        if (name.length < 4) return 0;
+        const esc = name.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
+        return new RegExp('(^|\\\\W)' + esc + '(\\\\W|$)', 'i').test(t) ? 85 : 0;
+      }
+      // A hint, never a pick (same 40 as lib and the in-page score).
+      if (wLow.length >= 4 && (low.includes(wLow) || (low.length >= 4 && wLow.includes(low)))) return 40;
       return 0;
     };
     let best = 0; let hit = null;
@@ -2677,14 +3184,22 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
     }
     if ((!hit || best < 50) && typedQuery && cands.length === 1
         && norm(cands[0].innerText).toLowerCase().includes(typedQuery)) {
-      hit = cands[0];
-      best = 50;
+      // A lone place row has to name the wanted country (or its 3-letter
+      // code): "Paris, Texas, USA" is not "Paris, France".
+      const rowLow = norm(cands[0].innerText).toLowerCase();
+      const wantCountry = String((wants[0] || '').split(',')[1] || '').trim().toLowerCase();
+      const placeOk = !wantCountry || !/,/.test(rowLow) || rowLow.includes(wantCountry) || rowLow.includes(wantCountry.slice(0, 3));
+      if (placeOk) {
+        hit = cands[0];
+        best = 50;
+      }
     }
     if (!hit || best < 50) return { ok: false, count: cands.length, seen: cands.slice(0, 8).map((n) => norm(n.innerText).slice(0, 40)) };
     const r = hit.getBoundingClientRect();
     return { ok: true, text: norm(hit.innerText || (hit.getAttribute && hit.getAttribute('aria-label'))), x: r.x, y: r.y, width: r.width, height: r.height, count: cands.length };
   })()`;
 
+  let cleanup = async () => {};
   try {
     chrome.debugger.onEvent.addListener(onEvent);
     await chrome.debugger.attach(target, '1.3');
@@ -2731,7 +3246,7 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
     let typed = false;
     // Leave the box as it was: empty what was typed (trusted Backspace on the
     // selected text, then the value setter) and close the list.
-    const cleanup = async () => {
+    cleanup = async () => {
       if (typed) {
         const left = await evalInSession(fieldSession, SELECT_TEXT_FN);
         if (typeof left === 'string' && left) {
@@ -2744,8 +3259,42 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
       await pressKey(fieldSession, 'Escape', 27);
     };
 
+    // Search lists only: the server's queries, never the answer.
+    const typeQueryViaCdp = async (text) => {
+      await evalInSession(fieldSession, `(() => { ${FIND_FIELD} if (field) field.focus(); return !!field; })()`);
+      for (const ch of text) {
+        await chrome.debugger.sendCommand(fieldSession, 'Input.dispatchKeyEvent', {
+          type: 'keyDown', text: ch, key: ch,
+        }).catch(() => {});
+        await chrome.debugger.sendCommand(fieldSession, 'Input.dispatchKeyEvent', {
+          type: 'keyUp', key: ch,
+        }).catch(() => {});
+        await sleep(35);
+      }
+      typed = true;
+      await sleep(500);
+    };
+    // Empty the box between two queries (trusted Backspace on the selected
+    // text, then the value setter) without closing the list.
+    const clearTypedViaCdp = async () => {
+      const left = await evalInSession(fieldSession, SELECT_TEXT_FN);
+      if (typeof left === 'string' && left) {
+        await pressKey(fieldSession, 'Backspace', 8);
+        await sleep(150);
+        const still = await evalInSession(fieldSession, FIELD_VALUE_FN);
+        if (typeof still === 'string' && still) await evalInSession(fieldSession, FORCE_CLEAR_FN);
+      }
+    };
+
     let option = null;
-    for (let attempt = 0; attempt < 6; attempt++) {
+    const queries = [query, queryAlt].filter((q, k, all) => q.length >= 2 && all.indexOf(q) === k);
+    let queried = 0;
+    // Place searches (Lever, Google Places) answer a second or two after the
+    // keystrokes: the OLX retry gave up on "Paris" before its suggestions came.
+    const perQuery = patient ? 10 : 3;
+    const altAt = 1 + perQuery;
+    const maxAttempts = 2 + perQuery * (queries.length > 1 ? 2 : 1);
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       for (const session of [fieldSession, ...sessions.filter((s) => s !== fieldSession)]) {
         const found = await evalInSession(session, optionRectFn(typed));
         if (found?.ok && found.width > 0) {
@@ -2754,23 +3303,19 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
         }
       }
       if (option) break;
-      // Search lists only: the server's query, never the answer.
-      if (attempt === 1 && query.length >= 2 && !typed) {
-        await evalInSession(fieldSession, `(() => { ${FIND_FIELD} if (field) field.focus(); return !!field; })()`);
-        for (const ch of query) {
-          await chrome.debugger.sendCommand(fieldSession, 'Input.dispatchKeyEvent', {
-            type: 'keyDown', text: ch, key: ch,
-          }).catch(() => {});
-          await chrome.debugger.sendCommand(fieldSession, 'Input.dispatchKeyEvent', {
-            type: 'keyUp', key: ch,
-          }).catch(() => {});
-          await sleep(35);
-        }
-        typed = true;
-        await sleep(500);
+      if (attempt === 1 && queries.length && !typed) {
+        await typeQueryViaCdp(queries[0]);
+        queried = 1;
         continue;
       }
-      await sleep(typed ? 400 : 200);
+      // The first query showed nothing usable: try the second one.
+      if (attempt === altAt && queries.length > 1 && queried === 1) {
+        await clearTypedViaCdp();
+        await typeQueryViaCdp(queries[1]);
+        queried = 2;
+        continue;
+      }
+      await sleep(typed ? (patient ? 550 : 400) : 200);
     }
 
     if (!option) {
@@ -2794,6 +3339,8 @@ async function fillComboboxViaCdp(tabId, { i, frameId = 0, want, alternates = []
     }
     return { ok: true, actualValue: option.text || want };
   } catch (err) {
+    // A typed filter must not stay in the box when the retry itself failed.
+    try { await cleanup(); } catch { /* ignore */ }
     return { ok: false, error: String(err?.message || err) };
   } finally {
     chrome.debugger.onEvent.removeListener(onEvent);

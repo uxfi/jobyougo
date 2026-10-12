@@ -2651,6 +2651,18 @@
       opacity: 1;
       pointer-events: all;
     }
+    #story-modal .story-modal-panel {
+      transform: translateY(18px) scale(.985);
+      transition: transform 420ms cubic-bezier(.22,1,.36,1);
+    }
+    #story-modal.open .story-modal-panel { transform: none; }
+    #story-modal:focus, #iface-modal:focus { outline: none; }
+    .story-modal-close:focus-visible,
+    .iface-modal-close:focus-visible,
+    .iface-modal-copy:focus-visible {
+      outline: 2px solid rgba(77,184,138,.9);
+      outline-offset: 2px;
+    }
     .story-modal-shell {
       position: relative;
       height: 100%;
@@ -2692,8 +2704,9 @@
     .story-modal-close:hover {
       background: rgba(255,255,255,.08);
       color: #fff;
-      transform: scale(1.04);
+      transform: rotate(90deg);
     }
+    .story-modal-close:active { transform: rotate(90deg) scale(.92); }
     .story-modal-stage {
       position: relative;
       height: 100%;
@@ -3152,23 +3165,31 @@
       transition: opacity 240ms;
     }
     #iface-modal.open { opacity: 1; pointer-events: all; }
+    #iface-modal.open .iface-modal-browser { transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      #story-modal .story-modal-panel, .iface-modal-browser { transform: none !important; transition: none; }
+    }
     .iface-modal-close {
-      width: 26px; height: 26px; border-radius: 6px;
+      width: 34px; height: 34px; border-radius: 50%;
       background: #1a1a1a; border: 1px solid rgba(255,255,255,.08);
       
       display: flex; align-items: center; justify-content: center;
       color: rgba(255,255,255,.6);
-      transition: background 150ms, color 150ms, border-color 150ms;
+      transition: background 150ms, color 150ms, border-color 150ms, transform 220ms cubic-bezier(.16,1,.3,1);
       flex-shrink: 0;
     }
     .iface-modal-close:hover {
-      background: rgba(255,255,255,.04);
-      border-color: rgba(255,255,255,.15);
-      color: rgba(255,255,255,.88);
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.18);
+      color: #fff;
+      transform: rotate(90deg);
     }
     .iface-modal-browser {
       flex: 1; margin: 16px;
-      border-radius: 10px; overflow: hidden;
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 32px 80px -12px rgba(0,0,0,.7);
+      transform: translateY(16px) scale(.98);
+      transition: transform 380ms cubic-bezier(.22,1,.36,1);
       border: 1px solid rgba(255,255,255,.08);
       display: flex; flex-direction: column;
       background: #1a1a1a;
@@ -3181,7 +3202,7 @@
     }
     .iface-modal-dot { width: 10px; height: 10px; border-radius: 50%; }
     .iface-modal-urlbar {
-      flex: 1; height: 26px; border-radius: 6px;
+      flex: 1; height: 32px; border-radius: 999px;
       background: #1a1a1a; margin: 0 8px;
       display: flex; align-items: center; gap: 5px; padding: 0 10px;
       font-size: 12px; color: rgba(255,255,255,.35);
@@ -3197,9 +3218,9 @@
     .url-host { color: rgba(255,255,255,.5); }
     .url-path { color: rgba(255,255,255,.25); }
     .iface-modal-copy {
-      height: 26px;
-      padding: 0 10px;
-      border-radius: 6px;
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 999px;
       border: 1px solid rgba(255,255,255,.08);
       background: #1a1a1a;
       color: rgba(255,255,255,.6);
@@ -9543,7 +9564,7 @@
 </script>
 
 <!-- INTERFACE MODAL -->
-<div id="iface-modal" role="dialog" aria-modal="true">
+<div id="iface-modal" role="dialog" aria-modal="true" aria-label="Interface preview">
   <div class="iface-modal-browser">
     <div class="iface-modal-chrome">
       <div class="iface-modal-dot" style="background:#ff5f57"></div>

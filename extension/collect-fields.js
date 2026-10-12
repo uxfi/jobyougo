@@ -193,6 +193,17 @@ function collectFields() {
     }
     if (!nonempty() && el.placeholder) parts.push(el.placeholder);
     let out = [...new Set(parts.filter(Boolean).map(p => p.replace(/\s+/g, ' ').trim()))].join(' ').slice(0, 300);
+    // A fake placeholder drawn next to the box and hidden from screen readers
+    // (Google Forms "Your answer", in the page's language) is not the question.
+    {
+      // Google draws it beside an input and two levels above a textarea, and
+      // names it in the box's aria-labelledby.
+      const scope = el.closest('label') || el.parentElement?.parentElement || el.parentElement;
+      for (const ghost of scope ? [...scope.querySelectorAll('[aria-hidden="true"]')] : []) {
+        const g = (ghost.innerText || ghost.textContent || '').replace(/\s+/g, ' ').trim();
+        if (g && g.length < 40 && out.length > g.length + 3 && !ghost.contains(el)) out = out.replace(g, ' ').replace(/\s+/g, ' ').trim();
+      }
+    }
     const firstQ = out.indexOf('?');
     if (firstQ > 10 && out.indexOf('?', firstQ + 1) > firstQ) out = out.slice(0, firstQ + 1);
     // Revolut (and similar) float the prompt "Select one" inside <label> /
@@ -203,6 +214,7 @@ function collectFields() {
     const listPrompt = /^(select(\s+(one|an?\s+option))?|choose(\s+one)?|pick(\s+one)?|please\s+select|s[ée]lectionn(ez|er).{0,24}|--)$/i;
     const popupKind = (el.getAttribute('aria-haspopup') || '').toLowerCase();
     const isListPicker = popupKind === 'listbox' || popupKind === 'menu' || popupKind === 'true'
+      || (el.getAttribute('role') || '').toLowerCase() === 'listbox'
       || ((el.tagName || '').toLowerCase() === 'input' && (el.type || '').toLowerCase() === 'button' && !!popupKind);
     const groupHeading = () => {
       const group = el.closest(
@@ -265,9 +277,20 @@ function collectFields() {
   const isRequiredNode = (node, text) =>
     /(^|[^a-z])required/i.test((node?.className || '').toString()) || /[*✱]/.test(text || '');
 
+  // A question's ARIA container (Google Forms: div[role=list] labelled by the
+  // question, its boxes several levels down): its own boxes are the group.
+  const ariaGroupOf = (el) => el.closest('[role="list"][aria-labelledby], [role="group"][aria-labelledby], [role="radiogroup"][aria-labelledby]');
+  const ariaQuestion = (box) => (box?.getAttribute('aria-labelledby') || '').split(/\s+/)
+    .map((id) => (id && document.getElementById(id)?.innerText) || '')
+    .map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' ').slice(0, 300);
   const groupMeta = (members) => {
     const none = { question: '', required: false };
     if (!members.length) return none;
+    const box = ariaGroupOf(members[0]);
+    if (box && members.every(m => box.contains(m))) {
+      const q = ariaQuestion(box);
+      if (q) return { question: q, required: (box.getAttribute('aria-required') || '').toLowerCase() === 'true' || /[*✱]/.test(q) };
+    }
     let container = members[0].parentElement;
     while (container) {
       if (members.every(m => container.contains(m))) break;
@@ -336,6 +359,12 @@ function collectFields() {
   for (const [key, members] of radiosByKey) radioGroupMeta.set(key, groupMeta(members));
 
   const checkboxGroupOf = (el) => {
+    const box = ariaGroupOf(el);
+    if (box && ariaQuestion(box)) {
+      const inBox = [...box.querySelectorAll(fieldSelector)].filter(c => controlVisible(c));
+      const mates = inBox.filter(c => c !== el && isCheckEl(c));
+      if (mates.length && inBox.every(isCheckEl)) return [el, ...mates];
+    }
     let node = el.parentElement;
     for (let d = 0; d < 4 && node; d++, node = node.parentElement) {
       const fields = [...node.querySelectorAll(fieldSelector)];
@@ -370,10 +399,17 @@ function collectFields() {
   let i = 0;
   const out = [];
   for (const el of deepQueryAll(document,
-    'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"], [role="checkbox"], [role="radio"], [role="switch"], button[aria-haspopup="listbox"], button[aria-haspopup="menu"], [role="button"][aria-haspopup="listbox"], button[aria-haspopup="dialog"]',
+    'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"], [role="checkbox"], [role="radio"], [role="switch"], button[aria-haspopup="listbox"], button[aria-haspopup="menu"], [role="button"][aria-haspopup="listbox"], button[aria-haspopup="dialog"], [role="listbox"][aria-expanded]',
   )) {
     const tag = el.tagName.toLowerCase();
-    if (el.matches(':disabled') || el.readOnly || el.closest('[aria-disabled="true"], [inert], [hidden]')) continue;
+    // A dropdown that is its own listbox (Google Forms: div[role=listbox]
+    // holding its role=option rows). Google marks it aria-disabled="true"
+    // while it works, so the disabled check skips it.
+    const isListboxRole = (el.getAttribute('role') || '').toLowerCase() === 'listbox';
+    const ariaListbox = isListboxRole && !!el.querySelector('[role="option"]');
+    if (isListboxRole && !ariaListbox) continue;
+    if (el.matches(':disabled') || el.readOnly || el.closest('[inert], [hidden]')
+      || (!ariaListbox && el.closest('[aria-disabled="true"]'))) continue;
     // A careers-site job search ("Search by Location" on Capgemini's job page)
     // is no application field: the run typed the candidate's city into it and
     // counted it as filled.
@@ -386,7 +422,7 @@ function collectFields() {
     // its own <label for> or aria-required — never a plain "open modal" button.
     const isDialogPicker = popup === 'dialog'
       && (!!labelByFor(el) || (el.getAttribute('aria-required') || '').toLowerCase() === 'true');
-    const isPopupList = popup === 'listbox' || popup === 'menu' || popup === 'true' || isDialogPicker;
+    const isPopupList = popup === 'listbox' || popup === 'menu' || popup === 'true' || isDialogPicker || ariaListbox;
     if (role === 'combobox' && tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
       const inner = el.querySelector('input:not([type="hidden"]):not([type="file"]), textarea, select');
       if (inner && visible(inner)) continue;
@@ -404,6 +440,9 @@ function collectFields() {
     else if (role === 'radio') type = 'radio';
     else if (role === 'combobox' || isPopupList) type = 'text';
     else type = isCE ? 'textarea' : (el.type || tag).toLowerCase();
+    // A menu button outside the page's form ("Help and feedback" under a
+    // Google Form, an account menu) is page chrome, not a question.
+    if (popup === 'menu' && !el.closest('form') && document.querySelector('form input:not([type="hidden"]), form textarea, form select')) continue;
     if (isPopupList && (tag === 'button' || role === 'button')) {
       const blob = (el.innerText || el.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim();
       if (/^(apply|submit|next|continue|postuler|candidater|sign[\s-]?in|log[\s-]?in)\b/i.test(blob)) continue;
@@ -531,6 +570,17 @@ function collectFields() {
       // does reflect the actual committed selection.
       const shown = selectWrapper.querySelector('[class*="singleValue" i], [class*="single-value" i]');
       if (shown && shown.textContent.trim()) value = shown.textContent.trim();
+      // A multi list shows its picks as chips, not a single value: read as
+      // empty, it was re-picked every pass (and a second click un-picks).
+      if (!value) {
+        // The chip itself, not its inner label / remove parts (emotion builds
+        // may hash the label class away, so the chip's own text is read).
+        const chips = [...selectWrapper.querySelectorAll('[class*="multiValue" i], [class*="multi-value" i]')]
+          .filter((c) => !/label|remove/i.test(String(c.className || '')))
+          .map((c) => c.textContent.replace(/[×✕]/g, '').trim())
+          .filter(Boolean);
+        if (chips.length) value = chips.join(', ');
+      }
     }
     // A menu picker keeps its rows in the element it controls, often hidden
     // until opened (Teamtailor "Select one or more options": role=menu of
@@ -553,6 +603,16 @@ function collectFields() {
       }
     }
     if (menuChecked && !value) value = menuChecked;
+    if (ariaListbox) {
+      // Its own rows: data-value is the option, and the empty-valued first
+      // row is the "Choose" prompt. The chosen row is aria-selected.
+      const rows = [...el.querySelectorAll('[role="option"]')];
+      const textOf = (r) => (r.getAttribute('data-value') ?? r.textContent ?? '').replace(/\s+/g, ' ').trim();
+      const texts = rows.map(textOf).filter(t => t && t.length < 160);
+      if (texts.length) menuOptions = texts.map(t => ({ value: t, text: t }));
+      const picked = rows.find(r => r.getAttribute('aria-selected') === 'true' && textOf(r));
+      if (picked && !value) value = textOf(picked);
+    }
     // A picker button has no .value: its label IS the committed choice
     // ("Within 2 weeks"), or a prompt while nothing is chosen yet. Without
     // this a filled required picker still read "requis et vide".
@@ -582,7 +642,7 @@ function collectFields() {
       radioKey,
       role: el.getAttribute('role') || '',
       ariaAutocomplete: el.getAttribute('aria-autocomplete') || '',
-      ariaHaspopup: el.getAttribute('aria-haspopup') || '',
+      ariaHaspopup: el.getAttribute('aria-haspopup') || (ariaListbox ? 'listbox' : ''),
       multiple: !!el.multiple || el.getAttribute('aria-multiselectable') === 'true'
         || !!el.closest('[class*="multi-value"],[class*="is-multi"],[class*="multiselect" i]')
         || menuMulti,

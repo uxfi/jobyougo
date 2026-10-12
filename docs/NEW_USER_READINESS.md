@@ -201,3 +201,100 @@ isoler les données (phase 1) avant une alpha fermée.
   `https://jobyougo.xyz` ; SMTP personnalisé ; limites de débit des emails.
 - Contraintes uniques réelles des tables `applications` et `reports` (créées hors
   `schema.sql`).
+
+## Mise à jour 2026-10-08 — compte, onboarding, profil
+
+Fait dans cette passe (voir `git diff` sur `ui/`, `lib/`, `supabase/`) :
+
+- **Login / signup** refaits sur le design system JobYouGo (`ui/login.html`) : mot de passe oublié
+  et page `/reset-password` (`ui/reset-password.html`), renvoi de l'email de confirmation,
+  détection "compte déjà existant" à l'inscription, messages d'erreur lisibles, retour après
+  confirmation (`/login?confirmed=1`), paramètre `?next=` limité aux chemins locaux, indicateur
+  de force du mot de passe, afficher/masquer le mot de passe. Point 15 (reset) et 19 fermés.
+- **Onboarding** refait (`ui/onboarding.html`) : 8 étapes avec rail de progression,
+  préremplissage depuis le profil déjà en base (rejouable sans perte), brouillon local, bouton
+  "Save & finish later" (sauvegarde partielle côté serveur), champs ajoutés pour que scan /
+  notation / CV / apply aient ce qu'il leur faut : années d'expérience, langues, pays où le
+  candidat est autorisé (`authorized_in`), besoin de sponsorship, politique remote
+  (liste + texte), disponibilité sur site, type d'engagement, préavis, date de début, situation
+  actuelle, langue de sortie, niveau d'évaluation (`spend_tier`). Détection des PDF scannés,
+  squelette de CV markdown généré depuis les réponses, flag `onboarding_completed`. Point 20 fermé.
+- **Serveur** : la ligne `profiles` est normalisée en forme imbriquée à la lecture
+  (`lib/profile-shape.mjs`, `normalizeProfileRow`), donc localisation, remote, autorisation de
+  travail et critères arrivent enfin dans l'évaluation (point 9 fermé). Sauvegarde fusionnée
+  section par section (`mergeProfileSections`) : le dashboard ne peut plus effacer ce que
+  l'onboarding a écrit, et l'onboarding n'efface plus `profile_context`. Nouvelles colonnes
+  `candidate`, `availability`, `preferences`, `onboarding_completed_at`
+  (`supabase/migrations/20261007_profile_onboarding.sql`) avec repli automatique sur les
+  colonnes historiques tant que la migration n'est pas passée. `/api/profile`,
+  `/api/profile/cv`, `/api/profile/context` ne renvoient plus les fichiers du propriétaire en
+  mode view-only (point 3 fermé). "Thailand" retiré du bloc d'enforcement : l'exception sur site vient
+  de `onsite_availability` du profil (à défaut, la ville/pays du profil), ce qui garde la règle
+  Thaïlande du propriétaire (point 10, partie prompt). Le compte admin est reconnu par l'email
+  vérifié du jeton comparé à `ADMIN_EMAIL`, pas par `getAdminUserId`. `/api/cv-pdf`, l'aperçu de gabarit et le mode `pdf` rendent le CV
+  du compte connecté depuis son profil + `cv_markdown` (`buildCvTemplateDataFromProfile`) ;
+  seul l'admin (`ADMIN_EMAIL`) garde `data/cv-profiles.yml` (point 10, partie CV). Cache de 60 s
+  des jetons (`getRequestUser`). `cv-parse` : 12 imports / heure / compte, nouvel essai si le
+  JSON est invalide, 200 caractères minimum, sortie typée (`coerceParsedProfile`).
+- **Tests** : `tests/profile-shape.test.mjs` (forme, fusion, statut, parseur CV markdown, données
+  de gabarit) et `tests/auth-pages.test.mjs` (placeholders uniques, routes, flux).
+
+À faire dans le dashboard Supabase (pas automatisable d'ici) :
+
+- Exécuter `supabase/migrations/20261007_profile_onboarding.sql` dans le SQL editor (sinon
+  téléphone, liens, langues, disponibilité ne sont pas persistés — le serveur le signale dans
+  ses logs).
+- Authentication → URL Configuration : Site URL `https://jobyougo.xyz` ; Redirect URLs
+  `https://jobyougo.xyz/login`, `https://jobyougo.xyz/reset-password`,
+  `http://localhost:3210/login`, `http://localhost:3210/reset-password`.
+- Vérifier "Confirm email" et le SMTP : le flux gère les deux réglages.
+
+Toujours ouvert : points 1, 2, 4 à 8, 11 à 14, 16 à 18, 21 (fuites view-only sur reports /
+applications / pipeline, numérotation partagée, runtime hébergé, quotas, CGU, états vides).
+
+## Mise à jour 2026-10-09 — lectures view-only par compte
+
+- **Garde** (`ui/server.mjs`) : un jeton envoyé à n'importe quel GET view-only est résolu (jeton
+  invalide → 401) et `req.isAdmin` vient de `isAdminUser` (email du jeton vs `ADMIN_EMAIL`).
+  `viewOnlyScope(req)` donne la portée des lignes : l'admin et l'appel anonyme lisent sans filtre,
+  exactement comme avant ; tout autre compte ne lit que ses lignes (`/api/applications`,
+  `/api/pipeline`, `/api/reports`, `/api/reports/*`, `/api/monetization/affiliates`).
+  `/api/cvs` renvoie `[]` et `/api/cvs/*` 404 à un compte non admin (le dossier `output/` est
+  celui du propriétaire). `portals.yml`, scan-state, scan-sources, bridge-status et le zip du
+  plugin restent une config partagée, identique pour tous.
+- **Accès aux données** : `ownsLocalData(userId)` réserve les fichiers locaux et les lignes
+  Supabase sans `user_id` à la lecture sans filtre et à l'admin. Pour un autre compte,
+  `getApplications` ne lit ni ne fusionne `data/applications.md` (et ne s'y replie plus en cas
+  d'erreur), `getPipeline` ne superpose plus `data/pipeline.jsonl` ni l'historique de scan,
+  `enrichApplicationsWithJobUrl` n'utilise plus l'index des rapports du propriétaire, et
+  `getReport` répond 404 au lieu de la requête sans filtre et de la lecture disque (point 4
+  fermé pour les comptes connectés, y compris via `/api/claude/{apply,coverletter,question}`).
+- **Écritures** : `syncLocalApplicationsToSupabase` pousse toujours le tracker local sous l'id
+  admin ; sous l'id d'un autre compte, l'upsert sur `num` lui attribuait toutes les lignes du
+  propriétaire (point 8, partie sync). Sur Vercel le rapport est enregistré sous `req.userId`
+  comme sa ligne de tracker (point 7 fermé).
+- **Apply** : en mode Supabase, `/api/apply/*` (hors bridge-status et extension.zip) répond 403
+  à tout compte non admin : `buildApplySpec` lit `config/profile.yml`, `cv.md` et le PDF du
+  propriétaire, et le plugin pilote son Chrome (point 10, partie apply : verrou seulement).
+- **Admin** : `getAdminUserId` compare `ADMIN_EMAIL` sans tenir compte de la casse, comme
+  `isAdminUser`, et lit 1000 comptes au lieu des 50 par défaut. `getRequestUser` mutualise les
+  vérifications de jeton parallèles.
+- **Tests** : `tests/server-view-only-routes.test.mjs`.
+
+Conséquences et reste à faire :
+
+- Point 1 inchangé par choix : sans jeton, la lecture reste globale (mode démo « View only »).
+  Il faut trancher : exiger un jeton sur reports / applications / pipeline, ou servir un jeu de
+  démo, ou limiter l'anonyme aux lignes de l'admin.
+- Le dashboard admin lit toujours sans filtre : dès qu'un autre compte a des lignes, l'admin
+  les voit dans ses listes (cohérent avec la RLS « own or admin »).
+- Serveur local : l'évaluation d'un compte non admin s'écrit dans le tracker et `reports/` du
+  propriétaire et reste attribuée à l'admin ; ce compte ne la voit donc pas (le mode pipeline
+  garde l'URL avec un avertissement). Il faut la numérotation et le stockage par utilisateur
+  (points 6 et 8).
+- `getAdminUserId` retombe encore sur le `user_id` de la première ligne `applications` si
+  `ADMIN_EMAIL` est absent, introuvable ou si `listUsers` échoue : avec plusieurs comptes, ce
+  repli peut désigner le mauvais compte (et `ownsLocalData` lui ouvrirait les fichiers locaux).
+- Toujours ouverts : points 2 (PDF anonymes), 5 (`/api/run/*`, PATCH portals / queries /
+  scan-selection sans contrôle admin), 6 (collision des numéros), `user_id` encore renvoyé dans
+  les JSON applications / pipeline.

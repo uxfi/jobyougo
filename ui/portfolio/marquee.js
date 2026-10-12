@@ -3,7 +3,19 @@
   const track = document.getElementById('marquee-track');
   if (!track) return;
 
-  const items = [
+  // Host page (window.SITE.marqueeExclude): drop each logo whose file path or alt contains one of
+  // the substrings, case-insensitive. Without SITE the list is returned as is.
+  function marqueeSiteFilter(list) {
+    const site = window.SITE && typeof window.SITE === 'object' ? window.SITE : null;
+    const exclude = site && Array.isArray(site.marqueeExclude)
+      ? site.marqueeExclude.filter(s => typeof s === 'string' && s).map(s => s.toLowerCase())
+      : [];
+    if (!exclude.length) return list;
+    return list.filter(item => !exclude.some(s =>
+      item.src.toLowerCase().includes(s) || item.alt.toLowerCase().includes(s)));
+  }
+
+  const items = marqueeSiteFilter([
     { alt: 'UpViral', src: '../images/marquee-white/upviral.png' },
     { alt: 'LVMH', src: '../images/marquee-white/lvmh.png' },
     { alt: 'BMW', src: '../images/marquee-white/bmw.svg' },
@@ -16,7 +28,7 @@
     { alt: 'SNCF', src: '../images/marquee-white/sncf.png' },
     { alt: 'Publicis', src: '../images/marquee-white/publicis.png' },
     { alt: 'France Télévisions', src: '../images/marquee-white/francetv.png' },
-  ];
+  ]);
 
   const ITEM_PADDING = 72;
   const PIXELS_PER_FRAME = 1.2;
@@ -92,6 +104,8 @@
 
   function play() {
     if (!isVisible || !hovered || rafId) return;
+    // Host page (window.SITE): honour reduced motion; /portfolio keeps its behaviour.
+    if (window.SITE && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     rafId = requestAnimationFrame(animate);
   }
 
@@ -154,10 +168,26 @@
   let mouseX = 0;
   let mouseY = 0;
 
-  window.openContactModal = function() {
+  // opts: optional {offer: 'refonte'|'creation'|'accompagnement'|...}. On a host page
+  // (window.SITE) the offer id may also be passed as a plain string: openContactModal('refonte').
+  // Anything else (an Event from an inline handler, a string without SITE) is ignored.
+  window.openContactModal = function(opts) {
+    const isPlain = opts && Object.prototype.toString.call(opts) === '[object Object]';
+    let offer = isPlain && typeof opts.offer === 'string' ? opts.offer : '';
+    const hasSite = !!(window.SITE && typeof window.SITE === 'object');
+    if (!offer && hasSite && typeof opts === 'string') offer = opts;
+    if (offer) modal.dataset.offer = offer;
+    else delete modal.dataset.offer;
+    const offerSelect = modal.querySelector('#contact-offer');
+    if (offerSelect) offerSelect.value = offer;
     modal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
   };
+  // A visitor who changes the offer select by hand overrides the offer the modal was opened with
+  // (including a reset to the empty placeholder).
+  modal.querySelector('#contact-offer')?.addEventListener('change', () => {
+    delete modal.dataset.offer;
+  });
 
   window.closeContactModal = function() {
     modal.classList.remove('is-open');
@@ -188,24 +218,63 @@
   window.handleContactSubmit = function(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button');
-    const originalText = btn.textContent;
-    btn.textContent = 'Opening email app...';
+    // Host page (window.SITE): write into the label span so its data-i18n and the ripple span survive.
+    const btnLabel = (window.SITE && typeof window.SITE === 'object' && btn.querySelector('.btn-text')) || btn;
+    const originalText = btnLabel.textContent;
+    const lang = typeof currentLang === 'string' ? currentLang : 'en';
+    const dict = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS && TRANSLATIONS[lang]) || {};
+    btnLabel.textContent = dict.contact_sending !== undefined ? dict.contact_sending : 'Opening email app...';
     btn.disabled = true;
-    
+
     const name = document.getElementById('contact-name').value;
     const email = document.getElementById('contact-email').value;
     const message = document.getElementById('contact-message').value;
-    
+
+    // Optional offer picked on a host page (window.SITE): #contact-offer select, else the
+    // offer passed to openContactModal({offer}).
+    const site = window.SITE && typeof window.SITE === 'object' ? window.SITE : null;
+    const contactCfg = site && site.contact ? site.contact : null;
+    const recipient = (contactCfg && typeof contactCfg.email === 'string' && contactCfg.email) || 'chilka.v@gmail.com';
+    const offerSelect = modal.querySelector('#contact-offer');
+    // dataset.offer survives when the select has no option for it (e.g. {offer:'audit'}).
+    const offer = (offerSelect && offerSelect.value) || modal.dataset.offer || '';
+    let offerLabel = '';
+    if (offerSelect && offerSelect.value && offerSelect.selectedIndex >= 0) {
+      offerLabel = (offerSelect.options[offerSelect.selectedIndex].text || '').trim();
+    }
+    if (offer && !offerLabel) offerLabel = offer;
+    // Optional <input id="contact-link"> on a host page. '' when the modal has none (/portfolio).
+    const linkInput = modal.querySelector('#contact-link');
+    const link = linkInput ? String(linkInput.value || '').trim() : '';
+
     // Direct mailto link as requested, but also could be an API call
-    const subject = `Portfolio Contact from ${name}`;
-    const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
-    
+    let subject = `Portfolio Contact from ${name}`;
+    if (contactCfg && typeof contactCfg.subject === 'function') {
+      try {
+        const custom = contactCfg.subject({ name, offer, offerLabel, link, lang });
+        if (typeof custom === 'string' && custom) subject = custom;
+      } catch (err) {
+        console.error('SITE.contact.subject failed', err);
+      }
+    }
+    const offerLine = offer ? `Offer: ${offerLabel}\n` : '';
+    const linkLine = link ? `Link: ${link}\n` : '';
+    let body = `Name: ${name}\nEmail: ${email}\n${offerLine}${linkLine}\nMessage:\n${message}`;
+    if (contactCfg && typeof contactCfg.body === 'function') {
+      try {
+        const custom = contactCfg.body({ name, email, link, message, offer, offerLabel, lang });
+        if (typeof custom === 'string' && custom) body = custom;
+      } catch (err) {
+        console.error('SITE.contact.body failed', err);
+      }
+    }
+
     // Simulate a bit of delay for effect
     setTimeout(() => {
-      window.location.href = `mailto:chilka.v@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      btn.textContent = 'Send your message from your email app';
+      window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      btnLabel.textContent = dict.contact_sent !== undefined ? dict.contact_sent : 'Send your message from your email app';
       setTimeout(() => {
-        btn.textContent = originalText;
+        btnLabel.textContent = originalText;
         btn.disabled = false;
         closeContactModal();
       }, 2000);

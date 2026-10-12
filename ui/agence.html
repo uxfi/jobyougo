@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="/images/favicon.png">
+  <title>v2 studio · AI design agency for redesign, UX and AI products</title>
+  <meta name="description" content="Fixed-price redesign, UX, AI product prototypes and coaching from $490. Led by a founder with 12 years in product and UX. Every delivery passes the same 12-point detail check.">
+  <link rel="canonical" href="https://jobyougo.xyz/agence">
+  <meta name="theme-color" content="#0b100a">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="v2 studio">
+  <meta property="og:url" content="https://jobyougo.xyz/agence">
+  <meta property="og:title" content="v2 studio · Built with AI, finished by hand">
+  <meta property="og:description" content="Redesign for $490, delivered in 5 business days. Prices on the page, and a full refund if you’re not convinced by the Day 2 direction.">
+  <meta property="og:image" content="https://jobyougo.xyz/images/agence-fox-close.jpg">
+  <meta property="og:image:width" content="1920">
+  <meta property="og:image:height" content="1080">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="fr_FR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="v2 studio · Built with AI, finished by hand">
+  <meta name="twitter:description" content="Redesign for $490, delivered in 5 business days. Prices on the page, and a full refund if you’re not convinced by the Day 2 direction.">
+  <meta name="twitter:image" content="https://jobyougo.xyz/images/agence-fox-close.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="preload" as="font" type="font/woff2" href="/portfolio/fonts/cabinet-grotesk-var.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="/portfolio/fonts/boska-var-italic.woff2" crossorigin>
+  <link rel="preload" as="image" href="/images/agence-dive-poster.jpg?v=3" media="(min-width: 721px)">
+  <link rel="preload" as="image" href="/images/agence-dive-poster-m.jpg?v=3" media="(max-width: 720px)">
+  <link rel="stylesheet" href="/portfolio/agence-story.css?v=20261012j">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+  </script>
+  <script>
+    /* window.SITE base fields (agence-data.js extends it). Language: ?lang=, then the saved choice, then the browser. */
+    (function () {
+      var KEY = 'v2studio-lang';
+      var lang = null;
+      try {
+        var q = new URLSearchParams(window.location.search).get('lang');
+        if (q === 'fr' || q === 'en') lang = q;
+      } catch (e) { /* ignore */ }
+      if (!lang) {
+        try {
+          var saved = window.localStorage.getItem(KEY);
+          if (saved === 'fr' || saved === 'en') lang = saved;
+        } catch (e) { /* storage blocked */ }
+      }
+      if (!lang) lang = /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
+      window.SITE = { id: 'agency', base: '/agence', initialLang: lang, langStorageKey: KEY };
+      var root = document.documentElement;
+      root.lang = lang;
+      if (lang === 'fr') root.classList.add('i18n-pending');
+    })();
+  </script>
+</head>
+<body>
+
+<a class="skip" href="#main" data-t="ag_skip_link">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+
+<!-- NAV -->
+<header class="nav" id="nav">
+  <a class="wordmark" href="#top" data-ta="aria-label:ag_nav_home_aria" aria-label="v2 studio, back to the top">v2 studio<i aria-hidden="true"></i></a>
+  <nav class="nav-links" id="nav-links" aria-label="v2 studio">
+    <a href="/agence/showcase" data-page="showcase" data-t="nav_showcase">Showcase</a>
+    <a href="/agence/services" data-page="services" data-t="nav_services">Services</a>
+    <a href="/agence/pricing" data-page="pricing" data-t="nav_pricing">Pricing</a>
+    <a href="/agence/secret-touch" data-page="secret-touch" data-t="nav_secret">Secret touch</a>
+  </nav>
+  <button class="nav-burger" type="button" aria-expanded="false" aria-controls="nav-links" data-ta="aria-label:nav_menu_aria" aria-label="Open menu"><span></span></button>
+  <div class="nav-right">
+    <div class="lang" role="group" data-ta="aria-label:s_lang" aria-label="Language">
+      <button type="button" data-lang="en" lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="fr" lang="fr" aria-pressed="false">FR</button>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" data-offer="" data-t="nav_contact">Start a project</button>
+  </div>
+</header>
+
+<!-- The thread: the fox's palette as a vertical rail. One paint dab per chapter, the line fills as you read. -->
+<nav class="rail" id="rail" data-ta="aria-label:s_palette_aria" aria-label="Chapters">
+  <span class="rail-line" aria-hidden="true"><i class="rail-fill"></i></span>
+  <ol class="rail-list" id="rail-list"></ol>
+  <span class="rail-label" id="rail-label" aria-hidden="true"></span>
+</nav>
+
+<main id="main" tabindex="-1">
+
+  <!-- 0. PROLOGUE: the surface, the islands, then the dive -->
+  <section class="hero pin" id="top" data-scene="hero" data-chapter="forest" aria-labelledby="hero-title">
+    <div class="pin-stage">
+      <div class="stage-media hero-media">
+        <img class="stage-poster" src="/images/agence-dive-poster.jpg?v=3" data-src-m="/images/agence-dive-poster-m.jpg?v=3" width="1920" height="1080" alt="" fetchpriority="high" decoding="async">
+        <video class="scrub" data-src="/images/agence-dive.mp4?v=4" data-src-m="/images/agence-dive-m.mp4?v=4" muted playsinline preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1" aria-hidden="true"></video>
+      </div>
+      <div class="hero-island" id="hero-island" aria-hidden="true"></div>
+      <canvas class="hero-motes" aria-hidden="true"></canvas>
+      <div class="hero-scrim" aria-hidden="true"></div>
+
+      <div class="hero-beat hero-beat--1">
+        <h1 class="display" id="hero-title" data-th="hero_headline">The details<br>AI skips are<br>the ones your<br><em>customers notice.</em></h1>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#pricing" data-t="hero_cta_primary">See the packages</a>
+          <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="hero_cta_secondary">Book a 30-min call</a>
+        </div>
+      </div>
+      <script>
+        /* French visitors see the first screen before the deferred scripts run. */
+        (function () {
+          if (document.documentElement.lang !== 'fr') return;
+          var h = document.getElementById('hero-title');
+          if (h) h.innerHTML = 'Les détails<br>que l’IA oublie,<br>vos clients<br><em>les remarquent.</em>';
+          var a = document.querySelectorAll('.hero-beat--1 .btn');
+          if (a[0]) a[0].textContent = 'Voir les formules';
+          if (a[1]) a[1].textContent = 'Réserver un appel de 30 min';
+        })();
+      </script>
+
+      <div class="hero-beat hero-beat--2">
+        <p class="beat-line display" data-th="s_dive_a">A pretty hero<br>is the surface.</p>
+      </div>
+
+      <div class="hero-beat hero-beat--3">
+        <p class="beat-title display" data-th="s_dive_b">The details live<br><em>underneath.</em></p>
+        <p class="beat-sub" data-t="s_beat3_line">An AI design agency. Redesign, build or coaching, at fixed prices from $490.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. THE FOREST OF LOOKALIKES -->
+  <section class="same pin" data-tone="light" id="forest" data-scene="same" data-chapter="forest" aria-labelledby="same-title">
+    <div class="pin-stage">
+      <div class="same-copy">
+        <span class="dab" aria-hidden="true"></span>
+        <h2 class="display h2" id="same-title" data-th="s_same_title" data-reveal>AI is fast.<br><em>Fast to look like everyone else, too.</em></h2>
+        <p class="lede" data-t="s_same_lede">AI tools reach for the same gradient hero and the same “Get started” button. We use AI for speed, then the founder finishes every screen by hand.</p>
+      </div>
+      <div class="same-visual">
+        <div class="tiles" id="tiles" aria-hidden="true"></div>
+        <p class="same-caption" data-t="s_same_caption">One of these sites went through the 12 checks.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. THE PAINTER: the fox walks out of the forest and hands the page its palette -->
+  <section class="fox pin" id="atelier" data-scene="fox" data-chapter="forest" aria-labelledby="fox-title">
+    <div class="pin-stage">
+      <div class="stage-media fox-media">
+        <img class="stage-poster" src="/images/agence-fox-poster.jpg" data-src-m="/images/agence-fox-poster-m.jpg" width="1920" height="1080" alt="" data-ta="alt:s_hero_alt" loading="lazy" decoding="async">
+        <video class="scrub" data-src="/images/agence-fox.mp4" data-src-m="/images/agence-fox-m.mp4" data-lazy muted playsinline preload="none" disablepictureinpicture disableremoteplayback tabindex="-1" aria-hidden="true"></video>
+      </div>
+      <div class="hero-scrim fox-scrim" aria-hidden="true"></div>
+      <div class="hero-spots"></div>
+      <div class="hero-beat fox-beat--1">
+        <p class="beat-line display" data-th="s_fox_a">Someone still has<br>to finish the work.</p>
+      </div>
+      <div class="hero-beat fox-beat--2">
+        <p class="beat-title display" id="fox-title" data-th="s_beat3">Ours are still<br><em>finished by hand.</em></p>
+        <p class="beat-sub" data-t="s_fox_line">The founder checks every screen. One paint colour per chapter, from here on.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. PROOF -->
+  <section class="proof" id="proof" data-chapter="proof" aria-labelledby="proof-title">
+    <span id="work" aria-hidden="true"></span>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="dab" aria-hidden="true"></span>
+        <h2 class="display h2" id="proof-title" data-th="proof_headline" data-reveal>Three projects,<br><em>before v2 studio.</em></h2>
+      </div>
+      <div class="cases" id="cases"></div>
+      <div class="proof-foot">
+        <p class="proof-note" data-t="s_proof_note">Figures reported by the founder for projects before v2 studio. Your results will depend on your product and your traffic.</p>
+        <a class="link-arrow" href="/portfolio"><span data-t="founder_portfolio_btn">Founder’s portfolio</span><span aria-hidden="true">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. SERVICES (lateral on desktop) -->
+  <section class="services pin" data-tone="light" id="services" data-scene="services" data-chapter="services" aria-labelledby="services-title">
+    <div class="pin-stage">
+      <div class="svc-head">
+        <div>
+          <span class="dab" aria-hidden="true"></span>
+          <h2 class="display h2" id="services-title" data-th="services_title" data-reveal>Four ways<br><em>to work with us.</em></h2>
+          <a class="link-arrow svc-cta" href="#pricing"><span data-t="hero_cta_primary">See the packages</span><span aria-hidden="true">→</span></a>
+        </div>
+        <div class="svc-dots" id="svc-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="svc-rail">
+        <div class="svc-track" id="svc-track"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. THE 12 CHECKS (the peak: the scroll paints each line) -->
+  <section class="checks" id="details" data-scene="checks" data-chapter="checks" aria-labelledby="details-title">
+    <div class="wrap checks-grid">
+      <div class="checks-aside">
+        <span class="dab" aria-hidden="true"></span>
+        <h2 class="display h2" id="details-title" data-th="details_headline" data-reveal>Every delivery passes the<br><em>same 12 checks.</em></h2>
+        <div class="tally" aria-hidden="true"><span class="tally-n" id="tally-n">00</span><span class="tally-of">/12</span></div>
+        <p class="tally-lbl" data-t="s_checks_painted">checks painted</p>
+        <div class="tally-board" id="tally-board" aria-hidden="true"></div>
+      </div>
+      <div class="checks-main">
+        <div class="tally-pill" aria-hidden="true"><b id="tally-pill-n">00</b>/12</div>
+        <ol class="checks-list" id="checks-list"></ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. PACKAGES: no motion, so the numbers stay still -->
+  <section class="pricing" data-tone="light" id="pricing" data-chapter="pricing" aria-labelledby="pricing-title">
+    <div class="wrap">
+      <div class="sec-head sec-head--split">
+        <div>
+          <span class="dab" aria-hidden="true"></span>
+          <h2 class="display h2" id="pricing-title" data-th="pricing_title" data-reveal>Three packages.<br><em>Prices on the page.</em></h2>
+        </div>
+        <p class="lede" data-t="pricing_sub">Each package has a fixed price, a written scope and a delivery date. You see all of it before you pay.</p>
+      </div>
+      <div class="pick" role="group" aria-labelledby="pick-title">
+        <p class="pick-title" id="pick-title" data-t="s_pick_title">Where are you starting from?</p>
+        <div class="pick-opts" id="pick-opts"></div>
+        <p class="pick-line sr-only" id="pick-line" aria-live="polite"></p>
+      </div>
+      <div class="prices" id="prices"></div>
+      <noscript><p>Redesign $490, 5 business days · Build $590, 7 business days · Coaching $490/month · Custom projects from $2,500. Write to chilka.v@gmail.com.</p></noscript>
+      <div class="extras">
+        <div class="addons">
+          <h3 data-t="addons_label">Add-ons, at posted prices</h3>
+          <ul id="addons"></ul>
+          <p class="addons-note" id="addons-note"></p>
+        </div>
+        <a class="custom" id="custom" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer">
+          <span data-th="custom_line"><strong>Custom project:</strong> several pages, a full product, a design system or an AI feature built end to end. Scoped on a 30-min call, fixed quote, from $2,500.</span>
+          <span class="link-arrow"><span data-t="custom_cta">Book a call</span><span aria-hidden="true">→</span></span>
+        </a>
+      </div>
+      <div class="pricing-small">
+        <a class="pricing-refund" href="#guarantee"><span class="dab dab--inline" aria-hidden="true"></span><span data-t="s_pricing_refund">Redesign and Build: on Day 2, approve, ask for changes, or stop with a full refund.</span></a>
+        <p data-t="pricing_payment_line">Prices in US dollars, excluding applicable taxes. One-time packages are paid upfront; coaching is billed monthly.</p>
+        <a href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="pricing_unsure">If two packages look close, book a 30-min call and we’ll tell you which one fits.</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. DAY 2: the clearing opens on the fox's face -->
+  <section class="day2 pin" id="guarantee" data-scene="day2" data-chapter="day2" aria-labelledby="guar-title">
+    <div class="pin-stage">
+      <div class="iris" aria-hidden="true"><img src="/images/agence-fox-close.jpg" data-src-m="/images/agence-fox-close-m.jpg" width="1920" height="1080" alt="" loading="lazy" decoding="async"></div>
+      <div class="iris-ring" aria-hidden="true"></div>
+      <div class="day2-copy">
+        <span class="dab" aria-hidden="true"></span>
+        <h2 class="display h2" id="guar-title" data-th="guar_headline">Judge the work<br><em>on Day 2.</em></h2>
+        <div class="day2-more">
+          <p class="day2-body" data-t="s_guar_short">On Day 2 you see the structure, one key screen and the tone. If it doesn’t convince you, we refund 100%, with no form and no reason to give.</p>
+          <p class="day2-date" data-t="s_guar_date">The delivery date is our commitment, and we tell you before it slips.</p>
+          <details class="day2-terms">
+            <summary data-t="s_terms">The guarantee in detail</summary>
+            <p data-t="guar_body">On Day 2 you see the structure, one key screen and the tone. If that direction doesn’t convince you, tell us and we refund 100% of the package, with no form and no reason to give. Once you approve the direction, 2 revision rounds are included within the agreed brief, to be used within 14 days of delivery. The delivery date is our commitment, and we tell you before it slips.</p>
+            <p data-t="guar_coaching">Coaching: if the first session isn’t useful to you, tell us within 48 hours of that session and the first month is refunded.</p>
+            <p data-t="guar_acceptance">The refund option ends when you approve the Day 2 direction. Work counts as accepted when you approve it in writing, or 14 days after delivery if no change request is still open.</p>
+          </details>
+        </div>
+      </div>
+      <div class="day2-stamp" aria-hidden="true">
+        <strong data-t="guar_card_val">Day 2</strong>
+        <span data-t="guar_card_label">100% refund</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. FOUNDER -->
+  <section class="founder" data-tone="light" id="founder" data-chapter="founder" aria-labelledby="founder-title">
+    <div class="wrap">
+      <div class="founder-grid">
+        <div class="founder-side">
+          <span class="dab" aria-hidden="true"></span>
+          <h2 class="display h2" id="founder-title" data-th="founder_headline" data-reveal>You work<br>with the<br><em>founder.</em></h2>
+          <figure class="portrait">
+            <img src="/images/hugo_vermot.optimized.jpg" width="320" height="320" alt="Hugo Vermot, founder of v2 studio" data-ta="alt:founder_photo_alt" loading="lazy" decoding="async">
+            <svg class="portrait-ring" id="portrait-ring" viewBox="0 0 100 100" aria-hidden="true"></svg>
+            <figcaption data-t="founder_sign">Hugo Vermot, founder</figcaption>
+          </figure>
+        </div>
+        <div class="founder-body">
+          <p data-th="founder_p1">I’m <strong>Hugo Vermot</strong>. I’ve worked in product and UX for 12 years, and I’ve built AI products since 2022.</p>
+          <p data-th="founder_p2">From 2020 to 2024 I founded and ran a product design agency. I managed up to 7 junior freelance designers, and we delivered <strong>20+ client projects</strong> in enterprise, retail, finance, SaaS and mobility.</p>
+          <p data-th="founder_p3"><strong>Creads.io</strong>, my AI advertising SaaS, is launched: 1,200 registered users and 20 paying clients. Flemme OS works, UXfi is a live prototype, and Jarvos is in progress.</p>
+          <p data-t="founder_p5">v2 studio is how I take on short projects with a fixed scope. I run each one myself, from the first call to the last check.</p>
+          <ul class="facts" id="facts">
+            <li><strong data-count data-t="stat_1_val">12</strong><span data-t="stat_1">years in product and UX</span></li>
+            <li><strong data-count data-t="stat_2_val">20+</strong><span data-t="stat_2">client projects at the founder’s previous agency</span></li>
+            <li><strong data-count data-t="stat_3_val">4</strong><span data-t="stat_3">years building AI products</span></li>
+            <li><strong data-count data-t="founder_fact_4_val">1,200</strong><span data-t="founder_fact_4_label">registered users on Creads.io</span></li>
+          </ul>
+          <div class="founder-actions">
+            <a class="btn btn-ghost" href="https://linkedin.com/in/hugovermot" target="_blank" rel="noopener noreferrer" data-t="founder_linkedin_btn">LinkedIn</a>
+            <a class="btn btn-ghost" href="/portfolio" data-t="founder_portfolio_btn">Founder’s portfolio</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. FAQ -->
+  <section class="faq" data-tone="light" id="faq" data-chapter="faq" aria-labelledby="faq-title">
+    <div class="wrap faq-grid">
+      <div class="faq-aside">
+        <span class="dab" aria-hidden="true"></span>
+        <h2 class="display h2" id="faq-title" data-th="faq_headline" data-reveal>Questions<br><em>before you book.</em></h2>
+        <p class="lede" data-t="faq_sub">If your question isn’t here, the 30-min call is free, or write to chilka.v@gmail.com.</p>
+        <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="faq_cta">Book a 30-min call</a>
+      </div>
+      <div class="faq-list" id="faq-list"></div>
+    </div>
+  </section>
+
+  <!-- 11. EPILOGUE: the fox, at dusk, waits for your page -->
+  <section class="contact" id="contact" data-scene="contact" data-chapter="contact" aria-labelledby="contact-title">
+    <div class="contact-bg" aria-hidden="true"><img src="/images/agence-fox-close.jpg" data-src-m="/images/agence-fox-close-m.jpg" width="1920" height="1080" alt="" loading="lazy" decoding="async"></div>
+    <div class="wrap">
+      <span class="dab" aria-hidden="true"></span>
+      <h2 class="display h2" id="contact-title" data-th="contact_headline" data-reveal>Show us the page<br>your customers<br><em>see first.</em></h2>
+      <p class="contact-sub lede" data-t="contact_sub">Send a link and one line of context. We reply within one business day with the package that fits, or we tell you none does.</p>
+      <div class="contact-actions">
+        <button type="button" class="btn btn-primary" data-offer="" data-t="contact_primary">Describe your project</button>
+        <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="contact_link_call">Book a 30-min call</a>
+      </div>
+      <p class="contact-else"><span data-t="s_or_write">Or write to</span> <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a> · <a href="https://linkedin.com/in/hugovermot" target="_blank" rel="noopener noreferrer">LinkedIn</a></p>
+      <footer class="footer">
+        <span data-t="footer_copy">© 2026 v2 studio · Founded by Hugo Vermot</span>
+        <span data-t="footer_prices_note">Prices in US dollars. Scope confirmed in writing before payment.</span>
+      </footer>
+    </div>
+  </section>
+</main>
+
+<!-- Contact: opens a draft in the visitor's email app, nothing is sent from the page -->
+<dialog class="dlg" id="contact-dialog" aria-labelledby="dlg-title">
+  <form class="dlg-inner" id="contact-form" novalidate>
+    <div class="dlg-head">
+      <div>
+        <h2 id="dlg-title" data-t="contact_modal_title">Tell us about your project</h2>
+        <p class="dlg-sub" data-t="contact_modal_subtitle">Pick a package and add a few lines. This opens a draft in your email app; nothing is sent until you press send there.</p>
+      </div>
+      <button type="button" class="dlg-x" id="dlg-close" data-ta="aria-label:contact_close_aria" aria-label="Close">×</button>
+    </div>
+    <div class="field"><label for="f-link" data-t="contact_label_link">Link to your site or product (optional)</label><input id="f-link" name="link" type="url" inputmode="url" autocomplete="url" placeholder="https://"></div>
+    <div class="field"><label for="f-offer" data-t="contact_label_offer">Package</label><select id="f-offer" name="offer"></select></div>
+    <div class="field"><label for="f-msg" data-t="contact_label_message">Your project</label><textarea id="f-msg" name="message" required data-ta="placeholder:contact_ph_message" placeholder="What should change, for whom, and by when?"></textarea></div>
+    <div class="field-row">
+      <div class="field"><label for="f-name" data-t="contact_label_name">Name</label><input id="f-name" name="name" autocomplete="name" required data-ta="placeholder:contact_ph_name" placeholder="Your name"></div>
+      <div class="field"><label for="f-email" data-t="contact_label_email">Email</label><input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" required data-ta="placeholder:contact_ph_email" placeholder="you@company.com"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="submit" class="btn btn-primary" id="f-send" data-t="contact_btn_send">Open email draft</button>
+      <button type="button" class="btn btn-line" id="f-copy" data-t="contact_btn_copy">Copy the message</button>
+    </div>
+    <p class="dlg-status" id="f-status" role="status" aria-live="polite"></p>
+  </form>
+</dialog>
+
+<!-- Assistant (shared /api/hrhv endpoint, persona 'agency') -->
+<button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="false" aria-controls="chat" data-ta="aria-label:chat_toggle_aria" aria-label="Ask the v2 studio assistant"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5a8 8 0 0 1-11.7 7.1L4 19.8l1.2-4.4a8 8 0 1 1 15.3-3.9z"/><circle cx="8.6" cy="11.6" r=".6" fill="currentColor"/><circle cx="12.5" cy="11.6" r=".6" fill="currentColor"/><circle cx="16.4" cy="11.6" r=".6" fill="currentColor"/></svg><span data-t="s_chat_btn">Ask a question</span></button>
+<section class="chat" id="chat" role="dialog" data-ta="aria-label:chat_panel_aria" aria-label="v2 studio assistant, an AI" hidden>
+  <div class="chat-head"><strong data-t="chat_name">v2 studio · Assistant</strong><span data-t="chat_sub">AI answers on packages, prices and timing</span></div>
+  <div class="chat-msgs" id="chat-msgs" aria-live="polite"></div>
+  <div class="chat-suggs" id="chat-suggs"></div>
+  <form class="chat-form" id="chat-form">
+    <textarea id="chat-input" rows="1" maxlength="600" data-ta="placeholder:chat_placeholder;aria-label:chat_placeholder" placeholder="Ask about a package, a price, a date…" aria-label="Ask about a package, a price, a date…"></textarea>
+    <button type="submit" id="chat-send" data-ta="aria-label:ag_chat_send_aria" aria-label="Send" disabled>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+    </button>
+  </form>
+</section>
+
+<script src="/portfolio/agence-data.js" defer></script>
+<script src="/portfolio/agence-i18n.js" defer></script>
+<script src="/portfolio/agence-story.js?v=20261012j" defer></script>
+<script type="module" src="/portfolio/agence-island.js?v=20261012"></script>
+<script type="module" src="/effects/dist/landing-figures.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, looksLikePhoneNumberField, formDialCode, nationalPhoneNumber, fileUploadPlan, shouldReplaceFilledValue, fieldHasCommittedValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, listTypeQuery, isCandidateFullNameField, isCoreApplicationIdentity, fieldIsMulti } from '../lib/apply-fill-guards.mjs';
+import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, looksLikePhoneNumberField, formDialCode, nationalPhoneNumber, fileUploadPlan, shouldReplaceFilledValue, fieldHasCommittedValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, listTypeQuery, listTypeQueryAlt, isCandidateFullNameField, isCoreApplicationIdentity, fieldIsMulti } from '../lib/apply-fill-guards.mjs';
 
 const field = (label, extra = {}) => ({ label, type: 'text', name: '', idAttr: '', ...extra });
 
@@ -147,11 +147,23 @@ test('dial code is +33 from a French number, not the full phone', () => {
   assert.equal(looksLikeDialCodeField({ label: 'Phone', type: 'text', name: '', idAttr: '', role: 'combobox' }), true);
   assert.equal(looksLikePhoneNumberField({ label: 'Phone', type: 'text', name: '', idAttr: '', role: 'combobox' }), false);
   assert.equal(looksLikeDialCodeField(field('Phone', { type: 'tel' })), false);
+  // Dial lists are searched with the code (every picker shows it, names are
+  // localised); the country name is the second query.
   assert.equal(listTypeQuery(
     { label: 'Phone', type: 'text', role: 'combobox', name: '', idAttr: '' },
     { selectMatch: '+66', selectText: 'Thailand +66' },
     { country: 'Thailand' },
+  ), '+66');
+  assert.equal(listTypeQueryAlt(
+    { label: 'Phone', type: 'text', role: 'combobox', name: '', idAttr: '' },
+    { selectMatch: '+66', selectText: 'Thailand +66' },
+    { country: 'Thailand' },
   ), 'Thailand');
+  assert.equal(listTypeQueryAlt(
+    { label: 'City', type: 'text', role: 'combobox', name: '', idAttr: '' },
+    { value: 'Paris' },
+    { country: 'France', city: 'Paris' },
+  ), '');
   assert.equal(listTypeQuery(
     { label: 'Location', type: 'text', role: 'combobox', name: '', idAttr: '', options: [] },
     { value: 'Paris, France', selectText: 'Paris, France', selectMatch: 'Paris' },

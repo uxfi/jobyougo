@@ -7,6 +7,20 @@
 import { identifyAts, isAggregatorAts } from './apply-ats.mjs';
 
 const NOISE_HOST = /(^|\.)((google|bing|duckduckgo|facebook|instagram|youtube|doubleclick|googlesyndication|googleadservices)\.[a-z.]+|taboola\.com|outbrain\.com|adnxs\.com)$/i;
+// Form builders an offer can send its application to: a Google Form is on a
+// google host, which NOISE_HOST rejects as search or ads.
+const FORM_APP_RE = /^(docs\.google\.com\/forms\/|forms\.gle\/|forms\.office\.com\/|forms\.microsoft\.com\/|([a-z0-9-]+\.)?typeform\.com\/|tally\.so\/|([a-z0-9-]+\.)?jotform\.com\/|airtable\.com\/(app[^/]+\/)?shr|([a-z0-9-]+\.)?fillout\.com\/|([a-z0-9-]+\.)?formstack\.com\/|([a-z0-9-]+\.)?paperform\.co\/|([a-z0-9-]+\.)?notion\.(so|site)\/)/i;
+
+/** A Google Form, Typeform, Tally… page (host + path, no scheme). */
+export function isFormAppUrl(url) {
+  try {
+    const u = new URL(String(url || ''));
+    return FORM_APP_RE.test(`${u.hostname.replace(/^www\./, '')}${u.pathname}`);
+  } catch {
+    return false;
+  }
+}
+
 const LOGIN_PATH = /\/(login|signin|sign-in|log-in|sso|oauth)(\/|$|\?)/i;
 const LOGIN_HOST = /^(accounts\.google\.|login\.microsoftonline\.|login\.live\.)/i;
 
@@ -64,7 +78,8 @@ export function scoreAdoptCandidate(candidate, ctx = {}) {
   if (!/^https?:$/i.test(u.protocol)) {
     return { score: -100, hardReject: 'pas-http', reasons: ['pas-http'] };
   }
-  if (NOISE_HOST.test(u.hostname) || /(^|\.)google\./i.test(u.hostname)) {
+  const formApp = isFormAppUrl(raw);
+  if (!formApp && (NOISE_HOST.test(u.hostname) || /(^|\.)google\./i.test(u.hostname))) {
     return { score: -100, hardReject: 'page-bruit', reasons: ['page-google-ou-pub'] };
   }
 
@@ -112,6 +127,7 @@ export function scoreAdoptCandidate(candidate, ctx = {}) {
       reasons.push('autre-agrégateur');
     }
   }
+  if (formApp) { score += 40; reasons.push('formulaire-externe'); }
   if (candidate.hasForm) { score += 30; reasons.push('formulaire'); }
   if (titleHits(candidate.title, ctx.role)) { score += 15; reasons.push('titre'); }
   if (companyHits(candidate.title, ctx.company)) { score += 10; reasons.push('entreprise'); }

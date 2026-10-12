@@ -20,9 +20,9 @@ import { chromium } from 'playwright';
 import { resolveUnknownFields } from './lib/apply-llm.mjs';
 import { loadCareerIndex } from './lib/form-answer.mjs';
 import { classifyField } from './lib/apply-classify.mjs';
-import { pickDeclineOption, pickSelectOption, llmKind, yesNoText } from './lib/apply-select.mjs';
+import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, isDemographicLabel } from './lib/apply-select.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice, loadCvSummary } from './lib/application-writing.mjs';
-import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isSubstantiveOptionalQuestion, isResumeFileField, shouldReplaceFilledValue, fieldHasCommittedValue, formHasPhoneDialPicker, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
+import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isSubstantiveOptionalQuestion, isResumeFileField, shouldReplaceFilledValue, fieldHasCommittedValue, formHasPhoneDialPicker, formHasSurnameField, formHasGivenNameField, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
 import {
   attachedLabels,
@@ -86,8 +86,10 @@ import {
   postApplyMessage,
   UI_BUTTONS,
 } from './lib/apply-runtime.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
 
 const runDirArg = process.argv.indexOf('--run-dir');
 if (runDirArg === -1 || !process.argv[runDirArg + 1]) {
@@ -404,7 +406,7 @@ async function screenshot(page, label) {
 // ── Browser ───────────────────────────────────────────────────────────────────
 
 async function launchBrowser() {
-  const mainProfile = join(ROOT, 'data', 'chrome-profile');
+  const mainProfile = join(DATA_ROOT, 'data', 'chrome-profile');
   // The shared profile keeps logins/cookies between runs, but Chrome locks it:
   // a concurrent run falls back to an isolated per-run profile.
   const profiles = [mainProfile, join(RUN_DIR, 'chrome-profile')];
@@ -1422,6 +1424,8 @@ async function comboboxSelectionRegistered(frame, f, extra = {}) {
 // required-but-sensitive field on Greenhouse/Ashby/Lever. Returns the option
 // text now shown, or null.
 async function applyDeclineOption(frame, f) {
+  // Only a demographic question takes its "prefer not to say" row.
+  if (!isDemographicLabel(String(f.label || ''))) return null;
   if (f.type === 'radio') {
     const opt = pickDeclineOption(f.options || []);
     return opt && await clickRadioOption(frame, f, opt.text) ? opt.text : null;
@@ -1776,7 +1780,7 @@ async function fillFields(frame, spec) {
 
   // Phase B — re-collect (fresh markers after any re-render) and fill the rest
   const fields = await collectFields(frame);
-  const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(fields) };
+  const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(fields), formHasSurnameField: formHasSurnameField(fields), formHasGivenNameField: formHasGivenNameField(fields) };
   const usedAnswers = new Set();
 
   let actedCount = 0;
@@ -2021,7 +2025,7 @@ async function reconcileProfileFields(frame, spec, filled) {
   if (!frameAlive(frame)) return;
   let fields;
   try { fields = await collectFields(frame); } catch { return; }
-  const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(fields) };
+  const formSpec = { ...spec, formHasDialPicker: formHasPhoneDialPicker(fields), formHasSurnameField: formHasSurnameField(fields), formHasGivenNameField: formHasGivenNameField(fields) };
   for (const f of fields) {
     if (f.type === 'file' || f.type === 'checkbox' || f.type === 'radio') continue;
     if (!shouldFillField(f)) continue;

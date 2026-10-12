@@ -30,7 +30,14 @@
     <button type="button" class="btn" id="dashboard">Open dashboard</button>
   </div>
 
-  <p class="hint">The plugin fills applications in this Chrome. The dashboard has to be running on port 3210.</p>
+  <button type="button" class="btn primary scan" id="scan-apply" disabled>Scan &amp; apply this tab</button>
+  <p class="progress" id="progress" hidden data-phase="">
+    <span class="pip" aria-hidden="true"></span>
+    <span id="progress-text"></span>
+  </p>
+  <p class="tab" id="tab"></p>
+
+  <p class="hint">Scan and apply run on the tab that was open when you clicked. The dashboard has to be running on port 3210.</p>
   <script src="popup.js"></script>
 </body>
 </html>

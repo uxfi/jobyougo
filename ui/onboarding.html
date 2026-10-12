@@ -4,789 +4,844 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JobYouGo — Set up your profile</title>
+<meta name="theme-color" content="#07090a">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%233ee6b0'/%3E%3Cstop offset='1' stop-color='%231b9b72'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Ctext x='16' y='22.5' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-size='18' font-weight='700' fill='%2303140d'%3EJ%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Syne:wght@600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* JobYouGo — Command Center design system (same tokens as index.html) */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
 
   :root {
-    --bg:        #08090a;
-    --panel:     #0f1011;
-    --surface:   #191a1b;
-    --surface-2: #28282c;
-    --text-1:    #f7f8f8;
-    --text-2:    #d0d6e0;
-    --text-3:    #8a8f98;
-    --text-4:    #62666d;
-    --brand:     #5e6ad2;
-    --accent:    #7170ff;
-    --accent-h:  #828fff;
-    --border:    rgba(255,255,255,0.08);
-    --border-s:  rgba(255,255,255,0.05);
-    --red:       #ef4444;
-    --green:     #27a644;
+    color-scheme: dark;
+    --bg:            #07090a;
+    --bg-2:          #0a0d0e;
+    --surface:       #0e1112;
+    --surface-2:     #13171a;
+    --surface-3:     #1a1f22;
+    --panel:         #0b0e0f;
+    --border-s:      rgba(255,255,255,0.055);
+    --border:        rgba(255,255,255,0.085);
+    --border-strong: rgba(255,255,255,0.14);
+    --text-1:        #f2f5f3;
+    --text-2:        #b9c2bd;
+    --text-3:        #8a948f;
+    --text-4:        #77817c;
+    --text-5:        #545c58;
+    --accent:        #2dd4a0;
+    --accent-h:      #5eefc0;
+    --accent-ink:    #03140d;
+    --accent-soft:   rgba(45,212,160,0.10);
+    --accent-line:   rgba(45,212,160,0.30);
+    --good:          #2dd4a0;
+    --warn:          #e8b86d;
+    --bad:           #ef6b6b;
+    --font-sans:     'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-display:  'Syne', 'Inter', system-ui, sans-serif;
+    --font-mono:     'Geist Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+    --radius-xs:     6px;
+    --radius-sm:     8px;
+    --radius:        12px;
+    --radius-lg:     16px;
+    --radius-xl:     20px;
+    --ease-out:      cubic-bezier(.16,1,.3,1);
+    --topbar-h:      56px;
   }
 
   html, body {
-    height: 100%;
+    min-height: 100%;
     background: var(--bg);
     color: var(--text-1);
-    font-family: 'Inter', -apple-system, system-ui, sans-serif;
-    font-feature-settings: "cv01","ss03";
-    font-size: 15px;
+    font-family: var(--font-sans);
+    font-size: 14px;
     line-height: 1.5;
+    letter-spacing: -0.006em;
+    font-feature-settings: "cv11";
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-
-  body {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 32px 24px 80px;
+  body { background: radial-gradient(ellipse 60% 42% at 18% -8%, rgba(45,212,160,0.07), transparent 60%), var(--bg); }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 70% 45% at 30% 0%, #000 0%, transparent 72%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 45% at 30% 0%, #000 0%, transparent 72%);
   }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-h); }
+  button, input, select, textarea { font-family: inherit; }
+  :focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; border-radius: var(--radius-xs); }
 
-  .shell {
-    width: 100%;
-    max-width: 720px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-
+  /* ── Topbar ─────────────────────────────────────────────────────────── */
   .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    position: sticky; top: 0; z-index: 20; height: var(--topbar-h);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 0 24px; background: rgba(7,9,10,0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-s);
   }
+  .logo { display: inline-flex; align-items: center; gap: 10px; color: var(--text-1); }
+  .logo-icon {
+    width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #3ee6b0, #1b9b72);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--accent-ink);
+    box-shadow: 0 0 0 1px rgba(45,212,160,0.25);
+  }
+  .logo-name { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+  .topbar-mid { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-4); }
+  .topbar-right { display: flex; align-items: center; gap: 14px; min-width: 0; font-size: 12.5px; color: var(--text-3); }
+  .topbar-right .email { min-width: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-right button { flex-shrink: 0; background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 12.5px; }
+  .topbar-right button:hover { color: var(--text-1); }
 
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  .shell {
+    position: relative; z-index: 1;
+    max-width: 1120px; margin: 0 auto; padding: 28px 24px 120px;
+    display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 28px; align-items: start;
   }
-  .brand-icon {
-    width: 28px; height: 28px;
-    background: var(--brand);
-    border-radius: 7px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: #fff;
-  }
-  .brand-name {
-    font-size: 15px;
-    font-weight: 590;
-    letter-spacing: -0.2px;
-  }
+  .rail { position: sticky; top: calc(var(--topbar-h) + 24px); }
+  .rail-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -0.015em; }
+  .rail-sub { margin-top: 4px; font-size: 12.5px; color: var(--text-3); }
+  .rail-progress { margin: 16px 0 18px; }
+  .rail-track { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .rail-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-h)); transition: width .4s var(--ease-out); }
+  .rail-meta { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-4); }
 
-  .topbar-meta {
-    font-size: 12px;
-    color: var(--text-3);
+  .stepper { display: grid; gap: 2px; }
+  .step-link {
+    display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: center;
+    padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; background: none; text-align: left;
+    color: var(--text-3); cursor: pointer; transition: background .15s, color .15s;
   }
-  .topbar-meta a {
-    color: var(--text-3);
-    text-decoration: none;
-    border-bottom: 1px dashed var(--border);
-    padding-bottom: 1px;
+  .step-link:hover { background: rgba(255,255,255,0.03); color: var(--text-1); }
+  .step-link[aria-current="step"] { background: var(--surface-2); border-color: var(--border); color: var(--text-1); }
+  .step-link:disabled { cursor: default; opacity: .55; }
+  .step-dot {
+    width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center;
+    background: var(--surface-2); border: 1px solid var(--border); font-family: var(--font-mono); font-size: 10.5px; color: var(--text-4);
   }
-  .topbar-meta a:hover { color: var(--text-1); }
+  .step-link[aria-current="step"] .step-dot { border-color: var(--accent-line); color: var(--accent); background: var(--accent-soft); }
+  .step-link.is-done .step-dot { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+  .step-link.is-done .step-dot::before { content: '✓'; }
+  .step-link.is-done .step-dot span { display: none; }
+  .step-name { font-size: 13px; font-weight: 500; }
+  .step-hint { display: block; font-size: 11px; color: var(--text-5); margin-top: 1px; }
+  .rail-note { margin-top: 18px; padding: 12px; border: 1px solid var(--border-s); border-radius: var(--radius); font-size: 12px; color: var(--text-3); background: rgba(255,255,255,0.015); }
+  .rail-note strong { color: var(--text-2); font-weight: 600; }
+  .draft-state { margin-top: 10px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-5); }
+  .draft-state.is-saved { color: var(--accent); }
 
-  .progress {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .progress-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--text-3);
-    font-weight: 500;
-  }
-  .progress-track {
-    height: 4px;
-    background: var(--surface);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    background: var(--brand);
-    transition: width 0.3s ease;
-    width: 0%;
-  }
+  .mobile-progress { display: none; }
 
+  /* ── Card ───────────────────────────────────────────────────────────── */
   .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 32px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-xl);
+    padding: 30px 32px 28px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 24px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
   }
-
-  .step-header {
-    margin-bottom: 24px;
-  }
-  .step-eyebrow {
-    font-size: 11px;
-    color: var(--accent);
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .step-title {
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--text-1);
-    letter-spacing: -0.4px;
-    margin-bottom: 6px;
-  }
-  .step-sub {
-    font-size: 13px;
-    color: var(--text-3);
-    line-height: 1.55;
-  }
-
   .step { display: none; }
-  .step.active { display: block; }
+  .step.active { display: block; animation: rise .35s var(--ease-out); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .step-header { margin-bottom: 22px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+  }
+  .eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px rgba(45,212,160,0.14); }
+  .step-title { margin-top: 10px; font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+  .step-sub { margin-top: 8px; font-size: 14px; color: var(--text-2); max-width: 620px; }
+  .step-sub code { font-family: var(--font-mono); font-size: 12px; color: var(--text-1); background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 5px; }
 
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-  .grid .full { grid-column: 1 / -1; }
+  .why { margin-top: 10px; display: inline-flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--text-3); padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.025); border: 1px solid var(--border-s); max-width: 640px; }
+  .why svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--accent); }
 
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  /* ── Fields ─────────────────────────────────────────────────────────── */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+  .field { display: flex; flex-direction: column; }
+  .field.full { grid-column: 1 / -1; }
+  .field > label, .field-label {
+    font-family: var(--font-sans); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none;
+    color: var(--text-2); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
   }
-  .field label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-3);
-    letter-spacing: 0.01em;
+  .req { color: var(--accent); }
+  .opt { color: var(--text-5); letter-spacing: 0; text-transform: none; font-family: var(--font-sans); font-size: 11px; }
+  input[type="text"], input[type="email"], input[type="url"], input[type="tel"], input[type="number"], input[type="date"], select, textarea {
+    width: 100%; min-height: 40px; padding: 9px 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text-1); font-size: 14px; outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
   }
-  .field .hint {
-    font-size: 11px;
-    color: var(--text-4);
-    margin-top: 2px;
-  }
-  .field .err {
-    font-size: 11px;
-    color: #fca5a5;
-    margin-top: 2px;
-    display: none;
-  }
+  textarea { resize: vertical; line-height: 1.55; }
+  select { appearance: none; -webkit-appearance: none; padding-right: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 15 15' fill='none'%3E%3Cpath d='M3.5 6l4 4 4-4' stroke='%238a948f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
+  select option { background: var(--surface-2); color: var(--text-1); }
+  input::placeholder, textarea::placeholder { color: var(--text-5); }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--surface-2); }
+  input:disabled { color: var(--text-3); background: rgba(255,255,255,0.02); cursor: not-allowed; }
+  .field .hint { margin-top: 6px; font-size: 12px; color: var(--text-4); }
+  .field .err { display: none; margin-top: 6px; font-size: 12px; color: var(--bad); }
+  .field.invalid input, .field.invalid textarea, .field.invalid .tags, .field.invalid select { border-color: rgba(239,107,107,0.55); }
   .field.invalid .err { display: block; }
-  .field.invalid input,
-  .field.invalid select,
-  .field.invalid textarea,
-  .field.invalid .tags {
-    border-color: rgba(239,68,68,0.5);
-  }
 
-  input, select, textarea {
-    width: 100%;
-    padding: 9px 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    color: var(--text-1);
-    font-size: 14px;
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.15s;
-    line-height: 1.4;
-  }
-  textarea {
-    resize: vertical;
-    min-height: 96px;
-    line-height: 1.5;
-  }
-  input:focus, select:focus, textarea:focus {
-    border-color: var(--accent);
-  }
-  input::placeholder, textarea::placeholder { color: var(--text-4); }
-  input:disabled { opacity: 0.6; cursor: not-allowed; }
-
+  /* Tags */
   .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 7px 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    min-height: 38px;
-    align-items: center;
-    cursor: text;
-    transition: border-color 0.15s;
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    min-height: 42px; padding: 6px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; cursor: text;
+    transition: border-color .15s, box-shadow .15s;
   }
-  .tags:focus-within { border-color: var(--accent); }
+  .tags:focus-within { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
   .tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 6px 3px 9px;
-    background: var(--surface-2);
-    border-radius: 5px;
-    font-size: 13px;
-    color: var(--text-1);
+    display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px 0 10px;
+    background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 999px; color: var(--text-1); font-size: 12.5px; font-weight: 500;
   }
-  .tag button {
-    background: none;
-    border: none;
-    color: var(--text-3);
-    cursor: pointer;
-    font-size: 14px;
-    padding: 0 2px;
-    line-height: 1;
+  .tag button { width: 18px; height: 18px; border: none; border-radius: 50%; background: transparent; color: var(--text-3); cursor: pointer; display: grid; place-items: center; font-size: 13px; line-height: 1; }
+  .tag button:hover { background: rgba(255,255,255,0.1); color: var(--text-1); }
+  .tags input { flex: 1; min-width: 160px; min-height: 26px; padding: 2px 4px; border: none; background: transparent; box-shadow: none; }
+  .tags input:focus { box-shadow: none; background: transparent; }
+  .suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .suggest-label { font-size: 11.5px; color: var(--text-4); align-self: center; margin-right: 2px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px;
+    border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text-2);
+    font-size: 12.5px; cursor: pointer; transition: background .15s, border-color .15s, color .15s;
   }
-  .tag button:hover { color: var(--text-1); }
-  .tags input.tag-input {
-    flex: 1;
-    min-width: 80px;
-    background: transparent;
-    border: none;
-    padding: 4px 4px;
-    font-size: 13px;
-    outline: none;
-  }
+  .chip:hover { border-color: var(--border-strong); color: var(--text-1); background: rgba(255,255,255,0.06); }
+  .chip.is-on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text-1); }
+  .chip.is-on::before { content: '✓'; font-size: 11px; color: var(--accent); }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
 
-  .repeater {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .repeater-row {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    display: grid;
-    gap: 8px;
-  }
-  .repeater-row .row-grid {
-    display: grid;
-    gap: 8px;
-  }
-  .repeater-row .row-3 { grid-template-columns: 2fr 1fr 1fr; }
-  .repeater-row .row-2 { grid-template-columns: 1fr 1fr; }
-  .repeater-row input { padding: 7px 10px; font-size: 13px; }
-  .repeater-actions {
-    display: flex;
-    justify-content: flex-end;
-  }
-  .btn-tiny {
-    padding: 5px 9px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-3);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .btn-tiny:hover {
-    background: rgba(255,255,255,0.04);
-    color: var(--text-1);
-    border-color: rgba(255,255,255,0.15);
-  }
+  /* Switch */
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  .switch-row strong { display: block; font-size: 13.5px; font-weight: 600; }
+  .switch-row span { font-size: 12px; color: var(--text-3); }
+  .switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+  .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; min-height: 0; }
+  .switch i { position: absolute; inset: 0; border-radius: 999px; background: rgba(255,255,255,0.1); border: 1px solid var(--border); transition: background .15s; }
+  .switch i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-2); transition: transform .15s, background .15s; }
+  .switch input:checked + i { background: var(--accent-soft); border-color: var(--accent-line); }
+  .switch input:checked + i::after { transform: translateX(18px); background: var(--accent); }
+
+  /* Repeater */
+  .repeater { display: grid; gap: 10px; }
+  .repeater-row { padding: 12px; border: 1px solid var(--border-s); border-radius: 12px; background: rgba(255,255,255,0.02); display: grid; gap: 8px; }
+  .row-grid { display: grid; gap: 8px; }
+  .row-3 { grid-template-columns: 2fr 1fr 1fr; }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .repeater-actions { display: flex; justify-content: flex-end; }
+  .btn-tiny { height: 26px; padding: 0 10px; font-size: 12px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--text-3); cursor: pointer; }
+  .btn-tiny:hover { color: var(--bad); border-color: rgba(239,107,107,0.4); }
   .btn-add {
-    padding: 8px 12px;
-    background: transparent;
-    border: 1px dashed var(--border);
-    border-radius: 7px;
-    color: var(--text-3);
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
+    width: 100%; height: 38px; border-radius: 10px; border: 1px dashed var(--border-strong); background: transparent;
+    color: var(--text-2); font-size: 13px; font-weight: 500; cursor: pointer; transition: background .15s, border-color .15s;
   }
-  .btn-add:hover {
-    border-color: var(--accent);
-    color: var(--text-1);
-  }
+  .btn-add:hover { background: rgba(255,255,255,0.03); border-color: var(--accent-line); color: var(--text-1); }
+  .group { margin-top: 22px; }
+  .group-title { font-family: var(--font-sans); font-size: 13.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-2); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
 
+  /* Buttons */
   .btn {
-    padding: 10px 16px;
-    background: var(--brand);
-    border: none;
-    border-radius: 7px;
-    color: #fff;
-    font-size: 14px;
-    font-weight: 590;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s, opacity 0.15s;
-    letter-spacing: -0.1px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid transparent;
+    font-size: 13.5px; font-weight: 600; cursor: pointer; letter-spacing: -0.005em; white-space: nowrap;
+    transition: background .15s, color .15s, border-color .15s, transform .12s, box-shadow .2s;
   }
-  .btn:hover { background: var(--accent-h); }
-  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-  .btn-ghost {
-    padding: 10px 16px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    color: var(--text-2);
-    font-size: 14px;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .btn-ghost:hover {
-    background: rgba(255,255,255,0.04);
-    border-color: rgba(255,255,255,0.15);
-    color: var(--text-1);
-  }
-  .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 8px;
-  }
-  .nav-right { display: flex; gap: 8px; align-items: center; }
-
-  .alert {
-    padding: 10px 12px;
-    border-radius: 7px;
-    font-size: 13px;
-    margin-top: 14px;
-    display: none;
-  }
-  .alert.error { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; display: block; }
-  .alert.success { background: rgba(39,166,68,0.12); border: 1px solid rgba(39,166,68,0.25); color: #86efac; display: block; }
-  .alert.info { background: rgba(94,106,210,0.12); border: 1px solid rgba(94,106,210,0.25); color: #c0c8ff; display: block; }
-
-  /* CV import step */
-  .cv-options {
-    display: grid;
-    gap: 12px;
-  }
-  .dropzone {
-    border: 1.5px dashed var(--border);
-    border-radius: 10px;
-    padding: 28px 20px;
-    text-align: center;
-    cursor: pointer;
-    background: var(--surface);
-    transition: all 0.15s;
-  }
-  .dropzone:hover {
-    border-color: var(--accent);
-    background: rgba(94,106,210,0.05);
-  }
-  .dropzone.drag {
-    border-color: var(--accent);
-    background: rgba(94,106,210,0.08);
-  }
-  .dropzone-icon {
-    width: 32px; height: 32px;
-    margin: 0 auto 10px;
-    color: var(--text-3);
-  }
-  .dropzone-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-1);
-    margin-bottom: 4px;
-  }
-  .dropzone-sub {
-    font-size: 12px;
-    color: var(--text-3);
-  }
-  .dropzone-file {
-    margin-top: 10px;
-    font-size: 12px;
-    color: var(--accent);
-  }
-
-  .or-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: var(--text-4);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-  .or-divider::before, .or-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  .cv-textarea {
-    min-height: 200px;
-    font-family: 'SF Mono', Menlo, monospace;
-    font-size: 13px;
-  }
-
-  .spinner {
-    display: inline-block;
-    width: 13px; height: 13px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-    vertical-align: middle;
-  }
+  .btn:active { transform: translateY(0.5px); }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .btn svg { width: 14px; height: 14px; }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 1px rgba(94,239,192,0.35), 0 10px 30px -12px rgba(45,212,160,0.8), inset 0 1px 0 rgba(255,255,255,0.35); }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-h); }
+  .btn-secondary { background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--text-2); }
+  .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.07); border-color: var(--border-strong); color: var(--text-1); }
+  .btn-ghost { background: transparent; color: var(--text-3); }
+  .btn-ghost:hover:not(:disabled) { color: var(--text-1); background: rgba(255,255,255,0.04); }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(3,20,13,0.25); border-top-color: currentColor; animation: spin .7s linear infinite; }
+  .btn-secondary .spinner, .btn-ghost .spinner { border-color: rgba(255,255,255,0.2); border-top-color: var(--text-1); }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .review-summary {
-    background: var(--surface);
-    border: 1px solid var(--border-s);
-    border-radius: 8px;
-    padding: 14px 16px;
-    font-size: 13px;
-    color: var(--text-2);
-    line-height: 1.7;
-  }
-  .review-summary strong { color: var(--text-1); font-weight: 590; }
-  .review-summary .muted { color: var(--text-4); }
+  .alert { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.45; border: 1px solid transparent; }
+  .alert.is-error { display: block; background: rgba(239,107,107,0.10); border-color: rgba(239,107,107,0.28); color: #f8b4b4; }
+  .alert.is-success { display: block; background: var(--accent-soft); border-color: var(--accent-line); color: #a8f3d8; }
+  .alert.is-info { display: block; background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--text-2); }
+  .alert.is-warn { display: block; background: rgba(232,184,109,0.10); border-color: rgba(232,184,109,0.3); color: #f3d9a4; }
+  #top-alert { margin: 0 0 20px; }
+  #top-alert.alert { display: none; }
+  #top-alert.is-info, #top-alert.is-error, #top-alert.is-success, #top-alert.is-warn { display: block; }
 
-  @media (max-width: 600px) {
-    body { padding: 20px 12px 60px; }
-    .card { padding: 22px; }
-    .grid { grid-template-columns: 1fr; }
-    .repeater-row .row-3, .repeater-row .row-2 { grid-template-columns: 1fr; }
-    .step-title { font-size: 19px; }
+  /* Nav dock */
+  .nav {
+    position: sticky; bottom: 0; z-index: 10; margin: 26px -32px -28px; padding: 14px 32px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: rgba(11,14,15,0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border-s); border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   }
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+  .nav-status { font-size: 12px; color: var(--text-4); }
+
+  /* Step 0: import */
+  .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .dropzone {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px;
+    min-height: 220px; padding: 24px; border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg);
+    background: var(--surface); cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent-line); background: var(--accent-soft); }
+  .dropzone-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--border); color: var(--accent); margin-bottom: 6px; }
+  .dropzone-icon svg { width: 20px; height: 20px; }
+  .dropzone-title { font-size: 14px; font-weight: 600; }
+  .dropzone-sub { font-size: 12px; color: var(--text-3); }
+  .dropzone-file { margin-top: 8px; max-width: 100%; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
+  .cv-textarea { min-height: 220px; font-family: var(--font-mono); font-size: 12.5px; }
+  .import-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; align-items: center; }
+  .import-actions .spacer { flex: 1; }
+  .parsed-summary { margin-top: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .parsed-kpi { padding: 10px 12px; border: 1px solid var(--border-s); border-radius: 10px; background: rgba(255,255,255,0.02); }
+  .parsed-kpi b { display: block; font-size: 16px; font-weight: 600; color: var(--text-1); }
+  .parsed-kpi span { font-size: 11.5px; color: var(--text-4); }
+
+  /* Import: progress, result, provenance */
+  .import-hint { margin-top: 10px; font-size: 12px; color: var(--text-4); }
+  /* The busy zone keeps its pointer events: a file dropped on it must reach
+     the handler (which refuses it), not the browser, which would open it. */
+  .dropzone.is-busy, .dropzone.is-busy:hover { opacity: .55; cursor: progress; border-color: var(--border-strong); background: var(--surface); }
+  textarea:disabled { color: var(--text-3); background: rgba(255,255,255,0.02); cursor: not-allowed; }
+  .replace-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border-s); border-radius: 10px; background: rgba(255,255,255,0.02); font-size: 13px; color: var(--text-2); cursor: pointer; }
+  .replace-row input { width: 16px; height: 16px; min-height: 0; margin-top: 2px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
+  .replace-row small { display: block; margin-top: 2px; font-size: 12px; color: var(--text-4); }
+  .import-progress { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px 12px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--accent-line); border-radius: 12px; background: var(--accent-soft); }
+  .import-progress .spinner { width: 18px; height: 18px; border-color: rgba(255,255,255,0.14); border-top-color: var(--accent); }
+  .import-progress strong { display: block; font-size: 13.5px; font-weight: 600; color: var(--text-1); }
+  .import-progress-meta { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--text-3); }
+  .import-progress .rail-track { grid-column: 1 / -1; }
+  .import-progress .btn { height: 32px; padding: 0 12px; font-size: 12.5px; }
+  .import-result { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--accent-line); border-radius: 12px; background: rgba(45,212,160,0.05); }
+  #cv-result-step1 { margin: 0 0 20px; }
+  .import-result-head { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+  .import-result-icon { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent); font-size: 12px; }
+  .import-result-head strong { display: block; font-size: 14px; font-weight: 600; color: var(--text-1); }
+  .import-result-head span { font-size: 12.5px; color: var(--text-3); }
+  .import-result .parsed-summary { margin-top: 12px; }
+  .import-warnings { list-style: none; display: grid; gap: 6px; margin-top: 12px; }
+  .import-warnings li { padding: 8px 10px; border-radius: 9px; font-size: 12.5px; line-height: 1.45; background: rgba(232,184,109,0.10); border: 1px solid rgba(232,184,109,0.3); color: #f3d9a4; }
+  .import-todo { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .import-todo-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-4); margin-right: 4px; }
+  .import-result-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+  .from-cv { display: inline-flex; align-items: center; height: 18px; padding: 0 7px; margin-left: 2px; border-radius: 999px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); font-family: var(--font-sans); font-size: 10.5px; font-weight: 500; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+  .draft-suggest { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--border-strong); border-radius: 10px; font-size: 12.5px; color: var(--text-2); }
+  .draft-suggest-label { font-size: 11.5px; color: var(--text-4); }
+  .draft-suggest q { flex: 1 1 240px; min-width: 0; color: var(--text-1); quotes: '“' '”'; overflow-wrap: anywhere; }
+  .btn-link { background: none; border: none; padding: 0; color: var(--accent); font-size: 12.5px; font-weight: 500; cursor: pointer; }
+  .btn-link:hover { color: var(--accent-h); text-decoration: underline; }
+  .cv-version { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--border-s); border-radius: 10px; background: rgba(255,255,255,0.02); font-size: 12.5px; color: var(--text-3); }
+  .cv-version span { flex: 1 1 260px; }
+  .top-alert-action { margin-left: 8px; height: 28px; padding: 0 10px; font-size: 12px; }
+
+  /* Review */
+  .review { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .review-item { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--border-s); border-radius: 10px; background: rgba(255,255,255,0.02); }
+  .review-item .mark { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; background: rgba(255,255,255,0.06); color: var(--text-4); }
+  .review-item.is-ok .mark { background: var(--accent-soft); color: var(--accent); }
+  .review-item.is-missing .mark { background: rgba(239,107,107,0.14); color: var(--bad); }
+  .review-item strong { display: block; font-size: 13px; font-weight: 600; }
+  .review-item span { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .review-item a { font-size: 12px; }
+  .next-steps { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--accent-line); border-radius: 12px; background: var(--accent-soft); }
+  .next-steps strong { display: block; font-size: 13.5px; margin-bottom: 6px; }
+  .next-steps ol { padding-left: 18px; font-size: 13px; color: var(--text-2); display: grid; gap: 4px; }
+
+  @media (max-width: 920px) {
+    .shell { grid-template-columns: minmax(0, 1fr); padding: 16px 14px 110px; gap: 14px; }
+    .rail { position: static; }
+    .stepper, .rail-note, .rail-progress, .rail-title, .rail-sub, .draft-state { display: none; }
+    .mobile-progress { display: block; padding: 12px 14px; border: 1px solid var(--border-s); border-radius: 12px; background: var(--surface); }
+    .mobile-progress .rail-track { margin-top: 8px; }
+    .mobile-progress .rail-meta { margin-top: 6px; }
+    .mobile-progress .rail-fill { background: linear-gradient(90deg, var(--accent), var(--accent-h)); }
+    .card { padding: 22px 18px 18px; }
+    .nav { margin: 20px -18px -18px; padding: 12px 18px; }
+    .grid, .import-grid, .review, .parsed-summary { grid-template-columns: minmax(0, 1fr); }
+    .row-3, .row-2 { grid-template-columns: 1fr; }
+    .step-title { font-size: 22px; }
+    .topbar { padding: 0 14px; }
+    .topbar-mid { display: none; }
+    .import-result .parsed-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .nav-right { flex-wrap: wrap; justify-content: flex-end; }
+    .nav-status { flex-basis: 100%; text-align: right; }
+    .nav-status:empty { display: none; }
+    .field-label { flex-wrap: wrap; row-gap: 6px; }
+    #cv-skeleton { white-space: normal; text-align: left; height: auto !important; min-height: 28px; }
+  }
+  @media (max-width: 480px) {
+    .nav .btn { padding: 0 12px; }
+    #back-btn { padding: 0 10px; }
+    #back-btn .nav-label { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
 
+<header class="topbar">
+  <a href="/" class="logo" aria-label="JobYouGo home"><span class="logo-icon" aria-hidden="true">J</span><span class="logo-name">JobYouGo</span></a>
+  <div class="topbar-mid">Profile setup</div>
+  <div class="topbar-right">
+    <span class="email" id="topbar-email"></span>
+    <button type="button" id="signout-link">Sign out</button>
+  </div>
+</header>
+
 <div class="shell">
 
-  <div class="topbar">
-    <div class="brand">
-      <div class="brand-icon">C</div>
-      <span class="brand-name">JobYouGo</span>
-    </div>
-    <div class="topbar-meta" id="topbar-meta">
-      <span id="topbar-email"></span>
-      &nbsp;·&nbsp;
-      <a href="#" id="signout-link">Sign out</a>
-    </div>
-  </div>
+  <!-- ── Left rail ───────────────────────────────────────────────────── -->
+  <aside class="rail">
+    <div class="rail-title">Set up your profile</div>
+    <div class="rail-sub">About 10 minutes. Everything can be edited later from the dashboard.</div>
 
-  <div class="progress">
-    <div class="progress-label">
-      <span id="step-label">Step 1 of 8</span>
-      <span id="step-name">Import your CV</span>
+    <div class="rail-progress">
+      <div class="rail-track"><div class="rail-fill" id="rail-fill"></div></div>
+      <div class="rail-meta"><span id="rail-step">Step 1 of 8</span><span id="rail-pct">0%</span></div>
     </div>
-    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-  </div>
 
-  <div class="card">
+    <nav class="stepper" id="stepper" aria-label="Setup steps"></nav>
 
-    <!-- ── Step 0: CV Import ─────────────────────────────────────── -->
+    <div class="mobile-progress">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+        <strong id="mobile-step-name" style="font-size:14px">Import your CV</strong>
+        <span id="mobile-step" style="font-family:var(--font-mono);font-size:11px;color:var(--text-4)">1 / 8</span>
+      </div>
+      <div class="rail-track"><div class="rail-fill" id="mobile-fill"></div></div>
+    </div>
+
+    <div class="rail-note">
+      <strong>Why so many questions?</strong> The scanner filters offers on your location and remote policy, the evaluator scores against your target roles and criteria, and the CV generator reuses your narrative and proof points. Empty fields mean looser filters and vaguer CVs.
+    </div>
+    <div class="draft-state" id="draft-state">Draft not saved yet</div>
+  </aside>
+
+  <!-- ── Content ─────────────────────────────────────────────────────── -->
+  <main class="card" id="card">
+    <div class="alert" id="top-alert" role="status" aria-live="polite"></div>
+
+    <!-- Step 0: Import -->
     <section class="step active" data-step="0">
       <div class="step-header">
-        <div class="step-eyebrow">Get started</div>
-        <h1 class="step-title">Import your CV to auto-fill</h1>
-        <p class="step-sub">Upload a PDF or paste your CV text — we'll extract your profile and pre-fill the next steps. You can review and edit everything.</p>
+        <span class="eyebrow">Get started</span>
+        <h1 class="step-title">Import your CV and let us pre-fill the rest</h1>
+        <p class="step-sub">Drop your CV (PDF, Word or a photo) or paste the text. We read your identity, current role, languages, narrative and contact links so the next steps are mostly a review. Nothing is invented: what the CV does not say stays empty.</p>
       </div>
 
-      <div class="cv-options">
-        <label class="dropzone" id="dropzone">
-          <input type="file" id="cv-file" accept="application/pdf,.pdf,.txt,.md" hidden>
-          <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 15V3m0 0L8 7m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <div class="dropzone-title">Drop a PDF or click to upload</div>
-          <div class="dropzone-sub">PDF, .txt or .md — up to 5 MB</div>
+      <div class="import-grid">
+        <label class="dropzone" id="dropzone" for="cv-file">
+          <input type="file" id="cv-file" accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,image/jpeg,image/png,image/webp" hidden>
+          <div class="dropzone-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></div>
+          <div class="dropzone-title">Drop your CV here, or click to choose</div>
+          <div class="dropzone-sub">PDF, Word, text or a photo · up to 5 MB</div>
           <div class="dropzone-file" id="dropzone-file"></div>
         </label>
-
-        <div class="or-divider">or</div>
-
-        <div class="field full">
-          <label for="cv-text">Paste CV text</label>
-          <textarea class="cv-textarea" id="cv-text" placeholder="# Jane Smith&#10;## Experience&#10;- Senior Engineer at..."></textarea>
+        <div class="field">
+          <label for="cv-text">Or paste the text</label>
+          <textarea class="cv-textarea" id="cv-text" placeholder="# Jane Smith&#10;&#10;## Summary&#10;Senior backend engineer…&#10;&#10;## Experience&#10;### Acme&#10;**Staff Engineer**&#10;2021 – Present&#10;- Led the migration to…"></textarea>
+          <div class="hint">Plain text, Markdown or a LinkedIn export all work.</div>
         </div>
+      </div>
+      <p class="import-hint">The file is opened in your browser. Only its text, its links and, for a scan or a photo, images of its first pages are sent for analysis.</p>
 
-        <div class="alert" id="cv-alert"></div>
+      <label class="replace-row" id="cv-replace-row" hidden>
+        <input type="checkbox" id="cv-replace">
+        <span>Replace what I already entered
+          <small>Unticked, the CV only fills empty fields and the ones it filled last time.</small></span>
+      </label>
+
+      <div class="import-progress" id="cv-progress" role="status" aria-live="polite" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <div><strong id="cv-stage">Reading your file…</strong><span class="import-progress-meta" id="cv-elapsed" aria-hidden="true">0 s</span></div>
+        <button type="button" class="btn btn-secondary" id="cv-cancel">Cancel</button>
+        <div class="rail-track" aria-hidden="true"><div class="rail-fill" id="cv-progress-fill"></div></div>
       </div>
 
-      <div class="nav">
-        <button class="btn-ghost" id="cv-skip">Fill manually</button>
-        <button class="btn" id="cv-parse-btn">
-          <span id="cv-parse-label">Auto-fill profile</span>
+      <div class="alert" id="cv-alert" role="status" aria-live="polite" tabindex="-1"></div>
+      <div class="import-result" id="cv-result" hidden></div>
+
+      <div class="import-actions">
+        <button type="button" class="btn btn-ghost" id="cv-skip">Skip and fill the steps by hand</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-primary" id="cv-parse-btn">
+          <span id="cv-parse-label">Analyze and pre-fill</span>
         </button>
       </div>
     </section>
 
-    <!-- ── Step 1: Identity ──────────────────────────────────────── -->
+    <!-- Step 1: Identity -->
     <section class="step" data-step="1">
       <div class="step-header">
-        <div class="step-eyebrow">Step 1</div>
-        <h1 class="step-title">Your identity</h1>
-        <p class="step-sub">Used in the header of every tailored CV and cover letter.</p>
+        <span class="eyebrow">Step 1 · Identity</span>
+        <h1 class="step-title">Who you are</h1>
+        <p class="step-sub">Header of every tailored CV and cover letter, and the contact details application forms ask for.</p>
       </div>
-
+      <div class="import-result" id="cv-result-step1" hidden></div>
       <div class="grid">
-        <div class="field full">
-          <label for="full_name">Full name *</label>
-          <input id="full_name" data-required type="text" placeholder="Jane Doe">
-          <div class="err">Required</div>
+        <div class="field">
+          <label for="full_name">Full name <span class="req">*</span></label>
+          <input id="full_name" data-required type="text" placeholder="Jane Doe" autocomplete="name">
+          <div class="err">Your name is required.</div>
         </div>
         <div class="field">
-          <label for="email">Email *</label>
-          <input id="email" data-required type="email" disabled>
-          <div class="hint">From your account</div>
+          <label for="email">Email</label>
+          <input id="email" data-email type="email" placeholder="you@example.com" autocomplete="email">
+          <div class="hint">Used on applications and your CV. Defaults to your sign-in email.</div>
+          <div class="err">That email address does not look valid.</div>
         </div>
         <div class="field">
-          <label for="phone">Phone</label>
-          <input id="phone" type="tel" placeholder="+33 6 12 34 56 78">
+          <label for="phone">Phone <span class="opt">optional</span></label>
+          <input id="phone" type="tel" placeholder="+33 6 12 34 56 78" autocomplete="tel">
+          <div class="hint">International format: forms abroad reject local numbers.</div>
         </div>
         <div class="field">
-          <label for="location">Current location *</label>
-          <input id="location" data-required type="text" placeholder="Paris, France">
-          <div class="err">Required</div>
+          <label for="location">Where you are based <span class="req">*</span></label>
+          <input id="location" data-required type="text" placeholder="Paris, France" autocomplete="address-level2">
+          <div class="err">Required: the scanner filters on it.</div>
         </div>
         <div class="field">
-          <label for="linkedin">LinkedIn</label>
-          <input id="linkedin" type="text" placeholder="linkedin.com/in/hugo">
+          <label for="current_title">Current title <span class="opt">optional</span></label>
+          <input id="current_title" type="text" placeholder="Senior Product Designer" autocomplete="organization-title">
+          <div class="hint">Asked on most application forms.</div>
         </div>
         <div class="field">
-          <label for="portfolio_url">Portfolio URL</label>
-          <input id="portfolio_url" type="url" placeholder="https://yourname.dev">
+          <label for="current_company">Current company <span class="opt">optional</span></label>
+          <input id="current_company" type="text" placeholder="Acme" autocomplete="organization">
+          <div class="hint">Asked on most application forms. Leave both empty if you are between jobs.</div>
         </div>
         <div class="field">
-          <label for="github">GitHub</label>
-          <input id="github" type="text" placeholder="github.com/hugo">
+          <label for="linkedin">LinkedIn <span class="opt">recommended</span></label>
+          <input id="linkedin" type="text" placeholder="linkedin.com/in/janedoe" autocomplete="url">
+        </div>
+        <div class="field">
+          <label for="portfolio_url">Portfolio or website <span class="opt">optional</span></label>
+          <input id="portfolio_url" type="url" placeholder="https://janedoe.dev">
+        </div>
+        <div class="field">
+          <label for="github">GitHub <span class="opt">optional</span></label>
+          <input id="github" type="text" placeholder="github.com/janedoe">
+        </div>
+        <div class="field">
+          <label for="years_experience">Years of experience <span class="opt">optional</span></label>
+          <input id="years_experience" type="number" min="0" max="60" step="1" placeholder="8" inputmode="numeric">
+          <div class="hint">Asked on most application forms.</div>
+        </div>
+        <div class="field full" data-tags-for="candidate.languages">
+          <label>Languages you work in <span class="opt">optional</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="French (native), English (C1)… press Enter"></div>
+          <div class="hint">Include the level when you know it. Used on the CV and in form answers.</div>
         </div>
       </div>
     </section>
 
-    <!-- ── Step 2: Target Roles ──────────────────────────────────── -->
+    <!-- Step 2: Roles -->
     <section class="step" data-step="2">
       <div class="step-header">
-        <div class="step-eyebrow">Step 2</div>
-        <h1 class="step-title">Target roles</h1>
-        <p class="step-sub">The North Star for the scanner — offers will be filtered against these titles and archetypes.</p>
+        <span class="eyebrow">Step 2 · Target roles</span>
+        <h1 class="step-title">What you are looking for</h1>
+        <p class="step-sub">The north star of the evaluator: every offer is scored against these titles. Be specific — "Senior Backend Engineer" beats "Engineer".</p>
       </div>
-
-      <div class="field" data-tags-for="primary">
-        <label>Primary target roles *</label>
-        <div class="tags" data-tags-input data-required>
-          <input class="tag-input" type="text" placeholder="Type a role and press Enter — e.g. Senior AI Engineer">
-        </div>
-        <div class="hint">1–3 specific job titles you're optimizing for</div>
-        <div class="err">Add at least one role</div>
+      <div class="field" data-tags-for="target_roles.primary">
+        <label>Primary target roles <span class="req">*</span></label>
+        <div class="tags" data-tags-input data-required><input class="tag-input" type="text" placeholder="Type a title and press Enter — e.g. Senior Product Designer"></div>
+        <div class="suggest" id="role-suggest" style="display:none"></div>
+        <div class="hint">1 to 3 titles you are optimizing for.</div>
+        <div class="err">Add at least one role.</div>
       </div>
-
-      <div style="margin-top: 18px;">
-        <label style="font-size:12px;font-weight:500;color:var(--text-3);display:block;margin-bottom:8px;">Role archetypes (optional)</label>
+      <div class="group">
+        <div class="group-title"><span id="archetypes-title">Role families <span class="opt">optional</span></span></div>
         <div class="repeater" id="archetypes-list"></div>
-        <button class="btn-add" id="add-archetype" style="margin-top:8px;width:100%;">+ Add archetype</button>
-        <div class="hint" style="font-size:11px;color:var(--text-4);margin-top:6px;">Family of roles to score against (e.g. "AI/ML Engineer", level "Senior", fit "primary")</div>
+        <button type="button" class="btn-add" id="add-archetype" style="margin-top:8px">+ Add a role family</button>
+        <div class="hint" style="margin-top:6px;font-size:12px;color:var(--text-4)">Broader families to score against, with the level you target and how good a fit they are. Example: "Product Designer · Senior · primary", "Design Manager · Lead · adjacent".</div>
       </div>
     </section>
 
-    <!-- ── Step 3: Narrative ─────────────────────────────────────── -->
+    <!-- Step 3: Narrative -->
     <section class="step" data-step="3">
       <div class="step-header">
-        <div class="step-eyebrow">Step 3</div>
-        <h1 class="step-title">Your narrative</h1>
-        <p class="step-sub">Used by the LLM to pitch you in cover letters and tailor the CV summary.</p>
+        <span class="eyebrow">Step 3 · Narrative</span>
+        <h1 class="step-title">How to pitch you</h1>
+        <p class="step-sub">Reused word for word in cover letters, the CV summary and recruiter outreach. Write it the way you would say it in an interview.</p>
       </div>
-
       <div class="grid">
         <div class="field full">
-          <label for="headline">Professional headline</label>
-          <input id="headline" type="text" placeholder="ML Engineer turned AI product builder" maxlength="100">
-          <div class="hint">One line, max 100 chars</div>
+          <label for="headline">Professional headline <span class="opt">recommended</span></label>
+          <input id="headline" type="text" placeholder="Product designer turned AI builder — 10 years shipping B2B software" maxlength="120">
+          <div class="hint">One line, under 120 characters. Appears under your name on the CV.</div>
+          <div class="draft-suggest" id="headline-draft" hidden></div>
         </div>
         <div class="field full">
-          <label for="exit_story">Exit story / what makes you unique</label>
-          <textarea id="exit_story" placeholder="Built and sold my SaaS after 5 years. Now focused on applied AI at scale." rows="3"></textarea>
+          <label for="exit_story">Your story in two sentences <span class="opt">recommended</span></label>
+          <textarea id="exit_story" rows="3" placeholder="Built and sold a SaaS after five years. Now focused on applied AI products at scale."></textarea>
+          <div class="hint">What makes you different, and why you are looking now.</div>
+          <div class="draft-suggest" id="exit-story-draft" hidden></div>
         </div>
-        <div class="field full" data-tags-for="superpowers">
-          <label>Superpowers</label>
-          <div class="tags" data-tags-input>
-            <input class="tag-input" type="text" placeholder="Press Enter — e.g. End-to-end ML pipelines">
-          </div>
-          <div class="hint">3–5 short capabilities</div>
+        <div class="field full" data-tags-for="narrative.superpowers">
+          <label>Superpowers <span class="opt">3 to 5</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="End-to-end ML pipelines… press Enter"></div>
+          <div class="suggest" id="superpower-suggest" style="display:none"></div>
         </div>
       </div>
-
-      <div style="margin-top: 18px;">
-        <label style="font-size:12px;font-weight:500;color:var(--text-3);display:block;margin-bottom:8px;">Proof points</label>
+      <div class="group">
+        <div class="group-title"><span id="proofs-title">Proof points <span class="opt">projects, articles, outcomes with a number</span></span></div>
         <div class="repeater" id="proof-list"></div>
-        <button class="btn-add" id="add-proof" style="margin-top:8px;width:100%;">+ Add proof point</button>
-        <div class="hint" style="font-size:11px;color:var(--text-4);margin-top:6px;">Projects, articles, case studies with a hard metric or outcome</div>
+        <button type="button" class="btn-add" id="add-proof" style="margin-top:8px">+ Add a proof point</button>
       </div>
     </section>
 
-    <!-- ── Step 4: Compensation ──────────────────────────────────── -->
+    <!-- Step 4: Location & authorization -->
     <section class="step" data-step="4">
       <div class="step-header">
-        <div class="step-eyebrow">Step 4</div>
-        <h1 class="step-title">Compensation</h1>
-        <p class="step-sub">Used to filter offers and as your anchor in negotiation prompts.</p>
+        <span class="eyebrow">Step 4 · Location &amp; work authorization</span>
+        <h1 class="step-title">Where you can work</h1>
+        <p class="step-sub">Hard filters for the scanner and the evaluator. An offer that contradicts them is scored 1/5 and skipped, so be precise.</p>
       </div>
-
       <div class="grid">
         <div class="field">
-          <label for="target_range">Target total comp</label>
-          <input id="target_range" type="text" placeholder="$150K–200K">
+          <label for="loc_country">Country <span class="req">*</span></label>
+          <input id="loc_country" data-required type="text" placeholder="France" autocomplete="country-name">
+          <div class="err">Required.</div>
+        </div>
+        <div class="field">
+          <label for="loc_city">City <span class="opt">optional</span></label>
+          <input id="loc_city" type="text" placeholder="Paris">
+        </div>
+        <div class="field">
+          <label for="loc_postal">Postal code <span class="opt">optional</span></label>
+          <input id="loc_postal" type="text" placeholder="75011" autocomplete="postal-code">
+          <div class="hint">Some application forms ask for it.</div>
+        </div>
+        <div class="field">
+          <label for="loc_timezone">Timezone</label>
+          <input id="loc_timezone" type="text" list="tz-list" placeholder="CET (Paris, Berlin)">
+          <datalist id="tz-list">
+            <option value="UTC"></option><option value="GMT / BST (London, Lisbon)"></option><option value="CET / CEST (Paris, Berlin, Madrid)"></option>
+            <option value="EET (Athens, Helsinki, Kyiv)"></option><option value="GST (Dubai, UTC+4)"></option><option value="IST (India, UTC+5:30)"></option>
+            <option value="ICT (Bangkok, UTC+7)"></option><option value="SGT (Singapore, UTC+8)"></option><option value="JST (Tokyo, UTC+9)"></option>
+            <option value="AEST (Sydney, UTC+10)"></option><option value="EST / EDT (New York, UTC-5)"></option><option value="CST / CDT (Chicago, UTC-6)"></option>
+            <option value="MST / MDT (Denver, UTC-7)"></option><option value="PST / PDT (San Francisco, UTC-8)"></option><option value="BRT (São Paulo, UTC-3)"></option>
+          </datalist>
+        </div>
+        <div class="field full">
+          <label for="loc_remote_select">Remote policy <span class="req">*</span></label>
+          <select id="loc_remote_select">
+            <option value="">Choose…</option>
+            <option value="Full remote only (required); no relocation">Full remote only</option>
+            <option value="Full remote preferred; occasional on-site sessions acceptable">Remote preferred, occasional on-site OK</option>
+            <option value="Hybrid acceptable (2-3 days on-site per week)">Hybrid is fine</option>
+            <option value="On-site acceptable">On-site is fine</option>
+            <option value="__custom">Something else…</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label for="loc_remote">Remote policy details</label>
+          <input id="loc_remote" data-required type="text" placeholder="Full remote preferred, hybrid OK in Paris">
+          <div class="hint">Saved as written. "Full remote only" makes hybrid and on-site offers a hard fail.</div>
+          <div class="err">Pick a remote policy.</div>
+        </div>
+        <div class="field full">
+          <label for="loc_onsite">On-site availability <span class="opt">optional</span></label>
+          <input id="loc_onsite" type="text" placeholder="1 week per month in any EU city">
+          <div class="hint">For remote roles that still ask for occasional presence.</div>
+        </div>
+        <div class="field full">
+          <label for="loc_visa">Work authorization <span class="opt">recommended</span></label>
+          <input id="loc_visa" type="text" placeholder="EU citizen — no sponsorship needed">
+        </div>
+        <div class="field full" data-tags-for="location.authorized_in">
+          <label>Countries where you can already work <span class="opt">recommended</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="France, European Union, United States… press Enter"></div>
+          <div class="suggest" id="auth-suggest"></div>
+          <div class="hint">Offers requiring US work authorization are skipped unless "United States" is listed here.</div>
+        </div>
+        <div class="field full">
+          <div class="switch-row">
+            <div>
+              <strong>I need visa sponsorship outside those countries</strong>
+              <span>When an offer says it will not sponsor, it becomes a hard blocker.</span>
+            </div>
+            <label class="switch"><input type="checkbox" id="loc_sponsorship"><i></i></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 5: Compensation & availability -->
+    <section class="step" data-step="5">
+      <div class="step-header">
+        <span class="eyebrow">Step 5 · Compensation &amp; availability</span>
+        <h1 class="step-title">Your terms</h1>
+        <p class="step-sub">Filters offers that advertise below your floor, anchors negotiation prompts, and answers the salary and start-date fields on application forms.</p>
+      </div>
+      <div class="grid">
+        <div class="field">
+          <label for="target_range">Target compensation <span class="opt">recommended</span></label>
+          <input id="target_range" type="text" placeholder="70K–90K / year, or 600–800 per day">
         </div>
         <div class="field">
           <label for="currency">Currency</label>
           <select id="currency">
-            <option value="EUR">EUR</option>
-            <option value="USD">USD</option>
-            <option value="GBP">GBP</option>
-            <option value="CHF">CHF</option>
-            <option value="CAD">CAD</option>
-            <option value="AUD">AUD</option>
-            <option value="other">Other</option>
+            <option value="">Choose…</option>
+            <option value="EUR">EUR €</option><option value="USD">USD $</option><option value="GBP">GBP £</option><option value="CHF">CHF</option>
+            <option value="CAD">CAD</option><option value="AUD">AUD</option><option value="SGD">SGD</option><option value="JPY">JPY ¥</option>
+            <option value="INR">INR ₹</option><option value="THB">THB ฿</option><option value="AED">AED</option><option value="SEK">SEK</option>
+            <option value="NOK">NOK</option><option value="DKK">DKK</option><option value="PLN">PLN</option><option value="BRL">BRL</option><option value="other">Other</option>
           </select>
         </div>
         <div class="field">
-          <label for="minimum">Walk-away minimum</label>
-          <input id="minimum" type="text" placeholder="$120K">
+          <label for="minimum">Walk-away minimum <span class="opt">optional</span></label>
+          <input id="minimum" type="text" placeholder="60K">
+          <div class="hint">Offers advertised below this are flagged.</div>
         </div>
         <div class="field">
-          <label for="location_flexibility">Location flexibility</label>
-          <input id="location_flexibility" type="text" placeholder="Remote preferred, 1 week/month on-site">
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Step 5: Location ──────────────────────────────────────── -->
-    <section class="step" data-step="5">
-      <div class="step-header">
-        <div class="step-eyebrow">Step 5</div>
-        <h1 class="step-title">Location & mobility</h1>
-        <p class="step-sub">Geographic filter for the scanner — offers outside this scope will be excluded.</p>
-      </div>
-
-      <div class="grid">
-        <div class="field">
-          <label for="loc_country">Country *</label>
-          <input id="loc_country" data-required type="text" placeholder="France">
-          <div class="err">Required</div>
-        </div>
-        <div class="field">
-          <label for="loc_city">City</label>
-          <input id="loc_city" type="text" placeholder="Paris">
-        </div>
-        <div class="field">
-          <label for="loc_timezone">Timezone</label>
-          <input id="loc_timezone" type="text" placeholder="CET">
-        </div>
-        <div class="field">
-          <label for="loc_visa">Visa status</label>
-          <input id="loc_visa" type="text" placeholder="EU citizen — no sponsorship needed">
+          <label for="employment_type">Engagement</label>
+          <select id="employment_type">
+            <option value="">Choose…</option>
+            <option value="Full-time salaried">Full-time salaried</option>
+            <option value="Freelance / contractor">Freelance or contractor</option>
+            <option value="Full-time or freelance">Full-time or freelance</option>
+            <option value="Part-time">Part-time</option>
+            <option value="Internship / apprenticeship">Internship or apprenticeship</option>
+          </select>
         </div>
         <div class="field full">
-          <label for="loc_remote">Remote policy</label>
-          <input id="loc_remote" type="text" placeholder="Full remote preferred, hybrid OK in Paris">
+          <label for="location_flexibility">Location flexibility <span class="opt">optional</span></label>
+          <input id="location_flexibility" type="text" placeholder="Remote preferred, 1 week per month on-site possible">
+        </div>
+        <div class="field">
+          <label for="notice_period">Notice period <span class="opt">optional</span></label>
+          <input id="notice_period" type="text" placeholder="1 month">
+        </div>
+        <div class="field">
+          <label for="start_date">Earliest start <span class="opt">optional</span></label>
+          <input id="start_date" type="text" placeholder="Immediately, or 2026-11-01">
+        </div>
+        <div class="field full">
+          <label for="current_employment">Current situation <span class="opt">optional</span></label>
+          <select id="current_employment">
+            <option value="">Choose…</option>
+            <option value="Employed, looking discreetly">Employed, looking discreetly</option>
+            <option value="Employed, actively looking">Employed, actively looking</option>
+            <option value="Freelancing">Freelancing</option>
+            <option value="Between jobs, available now">Between jobs, available now</option>
+            <option value="Student / graduating">Student or graduating</option>
+          </select>
         </div>
       </div>
     </section>
 
-    <!-- ── Step 6: Search Preferences ────────────────────────────── -->
+    <!-- Step 6: Criteria -->
     <section class="step" data-step="6">
       <div class="step-header">
-        <div class="step-eyebrow">Step 6</div>
-        <h1 class="step-title">Search preferences</h1>
-        <p class="step-sub">Hard and soft filters applied during scan and pipeline evaluation.</p>
+        <span class="eyebrow">Step 6 · Search criteria</span>
+        <h1 class="step-title">What you want, and what you refuse</h1>
+        <p class="step-sub">Soft preferences nudge the score; deal breakers are hard fails. Short phrases work best.</p>
       </div>
-
       <div class="grid">
-        <div class="field full" data-tags-for="contract_types">
+        <div class="field full" data-tags-for="search.contract_types">
           <label>Contract types</label>
-          <div class="tags" data-tags-input>
-            <input class="tag-input" type="text" placeholder="Salaried, Freelance, Contractor…">
-          </div>
+          <div class="chip-row" id="contract-chips" style="margin-bottom:8px"></div>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="Other contract type… press Enter"></div>
         </div>
-        <div class="field full" data-tags-for="sector_preferences">
-          <label>Sector preferences</label>
-          <div class="tags" data-tags-input>
-            <input class="tag-input" type="text" placeholder="AI / SaaS, Fintech, Climate…">
-          </div>
+        <div class="field full" data-tags-for="search.sector_preferences">
+          <label>Sectors you like <span class="opt">optional</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="AI / SaaS, Fintech, Climate… press Enter"></div>
         </div>
-        <div class="field full" data-tags-for="geography_preferences">
-          <label>Geography preferences</label>
-          <div class="tags" data-tags-input>
-            <input class="tag-input" type="text" placeholder="EU, US (if remote)…">
-          </div>
+        <div class="field full" data-tags-for="search.geography_preferences">
+          <label>Geographies <span class="opt">optional</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="EU, UK, US (if remote)… press Enter"></div>
         </div>
-        <div class="field full" data-tags-for="must_haves">
-          <label>Must-haves</label>
-          <div class="tags" data-tags-input>
-            <input class="tag-input" type="text" placeholder="Strong AI/ML stack, remote-friendly…">
-          </div>
+        <div class="field full" data-tags-for="search.must_haves">
+          <label>Must-haves <span class="opt">recommended</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="Remote-friendly, product-led team… press Enter"></div>
         </div>
-        <div class="field full" data-tags-for="nice_to_haves">
-          <label>Nice-to-haves</label>
-          <div class="tags" data-tags-input>
-            <input class="tag-input" type="text" placeholder="Equity, builder culture, growth path…">
-          </div>
+        <div class="field full" data-tags-for="search.nice_to_haves">
+          <label>Nice-to-haves <span class="opt">optional</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="Equity, builder culture, growth path… press Enter"></div>
         </div>
-        <div class="field full" data-tags-for="deal_breakers">
-          <label>Deal breakers</label>
-          <div class="tags" data-tags-input>
-            <input class="tag-input" type="text" placeholder="4+ days on-site, no AI focus…">
-          </div>
+        <div class="field full" data-tags-for="search.deal_breakers">
+          <label>Deal breakers <span class="opt">recommended</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="4+ days on-site, no AI focus, agency work… press Enter"></div>
+          <div class="hint">An offer matching a deal breaker is scored 1/5.</div>
         </div>
       </div>
     </section>
 
-    <!-- ── Step 7: CV Review ────────────────────────────────────── -->
+    <!-- Step 7: Review -->
     <section class="step" data-step="7">
       <div class="step-header">
-        <div class="step-eyebrow">Step 7</div>
-        <h1 class="step-title">Review your CV</h1>
-        <p class="step-sub">This markdown is the source of truth for tailored PDFs. Edit anything that's wrong.</p>
+        <span class="eyebrow">Step 7 · Review &amp; finish</span>
+        <h1 class="step-title">Your CV, the source of truth</h1>
+        <p class="step-sub">Tailored PDFs, form answers and cover letters only ever use facts from this document. Keep it in Markdown with the sections <code>Summary</code>, <code>Experience</code>, <code>Projects</code>, <code>Education</code>, <code>Skills</code>.</p>
       </div>
+
+      <div class="review" id="review"></div>
 
       <div class="field full">
-        <label for="cv_markdown">CV (markdown) *</label>
-        <textarea id="cv_markdown" data-required class="cv-textarea" style="min-height:380px;" placeholder="# Your Name&#10;&#10;## Summary&#10;&#10;## Experience&#10;..."></textarea>
-        <div class="hint">Standard sections: Summary, Experience, Projects, Education, Skills</div>
-        <div class="err">Required</div>
+        <div class="field-label" style="justify-content:space-between">
+          <label for="cv_markdown" style="margin:0">CV in Markdown <span class="req">*</span></label>
+          <button type="button" class="btn btn-ghost" id="cv-skeleton" style="height:28px;font-size:12px;padding:0 10px">Generate a skeleton from my answers</button>
+        </div>
+        <div class="cv-version" id="cv-version" hidden>
+          <span id="cv-version-text"></span>
+          <button type="button" class="btn-link" id="cv-use-original">Use the original text instead</button>
+          <button type="button" class="btn-link" id="cv-use-structured">Use the structured version</button>
+        </div>
+        <textarea id="cv_markdown" data-required class="cv-textarea" style="min-height:380px" placeholder="# Your Name&#10;&#10;## Summary&#10;&#10;## Experience&#10;### Company&#10;**Role**&#10;2021 – Present&#10;- Achievement with a number&#10;&#10;## Projects&#10;&#10;## Education&#10;&#10;## Skills"></textarea>
+        <div class="hint">Experience as <code>### Company</code>, then <code>**Role**</code>, a date line, and bullets. That shape is what the CV generator reads.</div>
+        <div class="err">Your CV is required: every evaluation and generated document is grounded in it.</div>
       </div>
 
-      <div class="alert" id="submit-alert"></div>
+      <div class="grid" style="margin-top:18px">
+        <div class="field">
+          <label for="pref_language">Output language</label>
+          <select id="pref_language">
+            <option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="es">Español</option>
+            <option value="it">Italiano</option><option value="pt">Português</option><option value="nl">Nederlands</option><option value="ja">日本語</option><option value="zh-CN">中文</option>
+          </select>
+          <div class="hint">Reports, cover letters and form answers are written in this language.</div>
+        </div>
+        <div class="field">
+          <label for="pref_spend">Evaluation depth</label>
+          <select id="pref_spend">
+            <option value="economy">Economy — fastest, cheapest</option>
+            <option value="standard" selected>Standard — balanced</option>
+            <option value="premium">Premium — most thorough</option>
+          </select>
+          <div class="hint">Which model tier scores your offers.</div>
+        </div>
+      </div>
+
+      <div class="next-steps">
+        <strong>What happens after you finish</strong>
+        <ol>
+          <li>Pick your scan sources (company boards, job boards) and run the first scan.</li>
+          <li>Each new offer is scored out of 5 against this profile — 4.0 and above is worth applying to.</li>
+          <li>For strong matches, generate a tailored CV and cover letter. You always press Submit yourself.</li>
+        </ol>
+      </div>
+
+      <div class="alert" id="submit-alert" role="alert" aria-live="polite"></div>
     </section>
 
-    <!-- ── Nav (shared) ─────────────────────────────────────────── -->
-    <div class="nav" id="main-nav" style="display:none;">
-      <button class="btn-ghost" id="back-btn">← Back</button>
+    <!-- Nav -->
+    <div class="nav" id="main-nav" style="display:none">
+      <button type="button" class="btn btn-ghost" id="back-btn" aria-label="Back">
+        <svg viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M9.5 3L5 7.5 9.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="nav-label">Back</span>
+      </button>
       <div class="nav-right">
-        <span id="nav-status" style="font-size:12px;color:var(--text-4);"></span>
-        <button class="btn" id="next-btn">Continue →</button>
+        <span class="nav-status" id="nav-status"></span>
+        <button type="button" class="btn btn-secondary" id="save-later-btn">Save &amp; finish later</button>
+        <button type="button" class="btn btn-primary" id="next-btn">Continue</button>
       </div>
     </div>
-
-  </div>
+  </main>
 </div>
-
-<!-- pdf.js for client-side PDF text extraction -->
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.js"></script>
-<script>
-  if (window.pdfjsLib) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.js';
-  }
-</script>
 
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
@@ -794,547 +849,1697 @@
   const SUPABASE_URL  = '__SUPABASE_URL__';
   const SUPABASE_ANON = '__SUPABASE_ANON_KEY__';
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+  const $ = (id) => document.getElementById(id);
 
-  // ── Auth gate ──────────────────────────────────────────────────
+  // PDF and Word files are opened in the browser; the readers load on demand.
+  // The classic pdf.js 4.x build this page used to load is gone from the CDN,
+  // so every PDF import failed before reaching the server. The legacy ESM
+  // build also runs on older Safari.
+  const PDFJS_BASE = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/legacy/build/';
+  const MAMMOTH_URL = 'https://cdn.jsdelivr.net/npm/mammoth@1.12.3/mammoth.browser.min.js';
+  const MAX_FILE_BYTES = 5 * 1024 * 1024;
+  const MIN_CV_CHARS = 200;
+  const MAX_PDF_PAGES = 20;
+  const MAX_IMAGE_PAGES = 4;
+  const MAX_IMAGE_CHARS = 4_500_000;
+  const IMAGE_PASSES = [[1600, 0.8], [1280, 0.7], [1000, 0.6]];
+  const MAX_LINKS = 40;
+  const IMPORT_TIMEOUT_MS = 240_000;
+  const DEFER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const DEGRADED_MESSAGE = 'Some details could not be saved yet (server update pending): phone, links, languages, availability.';
+
+  // ── Auth gate ──────────────────────────────────────────────────────
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) { window.location.href = '/login'; }
-  const userEmail = session.user.email;
-  document.getElementById('topbar-email').textContent = userEmail;
-  document.getElementById('email').value = userEmail;
-
-  document.getElementById('signout-link').addEventListener('click', async (e) => {
-    e.preventDefault();
-    await supabase.auth.signOut();
-    window.location.href = '/login';
+  if (!session) { window.location.replace('/login?next=/onboarding'); throw new Error('no session'); }
+  let accessToken = session.access_token;
+  const userEmail = session.user.email || '';
+  const userId = session.user.id;
+  // Nothing may write the draft before boot has hydrated the state: the empty
+  // shell would replace a real draft (an early 401 used to do exactly that).
+  let booted = false;
+  let leaving = false;
+  $('topbar-email').textContent = userEmail;
+  supabase.auth.onAuthStateChange((_event, s) => {
+    accessToken = s?.access_token || accessToken;
+    if (!s && !leaving) window.location.replace('/login?next=/onboarding');
   });
 
-  // Authed fetch helper
   async function authFetch(url, opts = {}) {
-    const headers = { ...(opts.headers || {}), Authorization: `Bearer ${session.access_token}` };
+    const headers = { ...(opts.headers || {}), Authorization: `Bearer ${accessToken}` };
     if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    return fetch(url, { ...opts, headers });
+    const res = await fetch(url, { ...opts, headers });
+    if (res.status === 401) {
+      if (booted) saveDraft();
+      window.location.replace('/login?next=/onboarding');
+      throw new Error('Session expired');
+    }
+    return res;
   }
 
-  // ── State ──────────────────────────────────────────────────────
-  const TOTAL_STEPS = 8;
-  const STEP_NAMES = [
-    'Import your CV', 'Identity', 'Target roles', 'Narrative',
-    'Compensation', 'Location & mobility', 'Search preferences', 'Review CV'
+  // ── Steps ──────────────────────────────────────────────────────────
+  const STEPS = [
+    { name: 'Import your CV',      hint: 'PDF, Word or photo, pre-fills the rest' },
+    { name: 'Identity',            hint: 'Name, contact, current role' },
+    { name: 'Target roles',        hint: 'What the evaluator scores against' },
+    { name: 'Narrative',           hint: 'Headline, story, proof points' },
+    { name: 'Location & authorization', hint: 'Remote policy, visa, countries' },
+    { name: 'Compensation & availability', hint: 'Range, floor, start date' },
+    { name: 'Search criteria',     hint: 'Must-haves and deal breakers' },
+    { name: 'Review & finish',     hint: 'CV markdown, preferences' },
   ];
-  const DRAFT_KEY = `jobyougo:onboarding-draft:${session.user.id}`;
+  const TOTAL_STEPS = STEPS.length;
+  const DRAFT_KEY = `jobyougo:onboarding-draft:v2:${userId}`;
+  const LEGACY_DRAFT_KEY = `jobyougo:onboarding-draft:${userId}`;
+  const DEFER_KEY = `jobyougo:onboarding-deferred:${userId}`;
+  const CONTRACT_PRESETS = ['Permanent (CDI)', 'Fixed-term (CDD)', 'Freelance', 'Contractor (B2B)', 'Part-time', 'Internship / apprenticeship'];
+  const AUTH_PRESETS = ['France', 'European Union', 'United Kingdom', 'Switzerland', 'United States', 'Canada', 'Thailand', 'Singapore', 'Australia'];
+  const LEVELS = ['Junior', 'Mid', 'Senior', 'Lead', 'Staff', 'Principal', 'Director'];
+  const OUTPUT_LANGUAGES = ['en', 'fr', 'de', 'es', 'it', 'pt', 'nl'];
+
+  const emptyRole = () => ({ title: '', company: '', start_month: '', start_year: '', current: false });
+  // needs_sponsorship is deliberately absent: it is sent only once the user
+  // touched the switch or a stored value exists, never as a default false.
+  // language.output '' means "not chosen yet" (the select shows English, which
+  // is also what the server assumes when the key is absent).
+  const emptyProfile = () => ({
+    candidate: { full_name: '', email: userEmail, phone: '', location: '', linkedin: '', portfolio_url: '', github: '', twitter: '', years_experience: '', languages: [] },
+    target_roles: { primary: [], archetypes: [] },
+    narrative: { headline: '', exit_story: '', superpowers: [], proof_points: [] },
+    compensation: { target_range: '', currency: '', minimum: '', employment_type: '', location_flexibility: '' },
+    location: { country: '', city: '', postal_code: '', timezone: '', visa_status: '', authorized_in: [], remote_policy: '' },
+    search: { current_role: emptyRole(), contract_types: [], sector_preferences: [], geography_preferences: [], onsite_availability: '', must_haves: [], nice_to_haves: [], deal_breakers: [] },
+    availability: { notice_period: '', start_date: '', current_employment: '' },
+    language: { output: '' },
+    spend_tier: 'standard',
+  });
 
   const state = {
     step: 0,
+    loaded: false,        // the stored profile and CV were read: saving cannot erase them
+    baseline: '',         // what is stored, to tell whether leaving needs a save
     cvImported: false,
-    profile: {
-      candidate: { full_name: '', email: userEmail, phone: '', location: '', linkedin: '', portfolio_url: '', github: '' },
-      target_roles: { primary: [], archetypes: [] },
-      narrative: { headline: '', exit_story: '', superpowers: [], proof_points: [] },
-      compensation: { target_range: '', currency: 'EUR', minimum: '', location_flexibility: '' },
-      location: { country: '', city: '', timezone: '', visa_status: '', remote_policy: '' },
-      search: { contract_types: [], sector_preferences: [], geography_preferences: [], must_haves: [], nice_to_haves: [], deal_breakers: [] },
-    },
+    profile: emptyProfile(),
     cv_markdown: '',
+    imported: {},         // path → value the last CV import applied (provenance)
+    cvSource: '',         // text the last import parsed (the OCR transcript for a scan)
+    cvStructured: '',     // structured rendering of it, when the server produced one
+    keptExtracted: '',    // text a failed import left as the step-7 CV
+    serverUpdatedAt: null, // updated_at of the stored profile the answers are based on
+    suggestions: { roles: [], superpowers: [], headline: '', exit_story: '' },
+    importSummary: null,
+    importSummaryDismissed: false,
+    visited: new Set([0]),
   };
 
-  // Restore draft if any
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (raw) {
-      const draft = JSON.parse(raw);
-      if (draft && draft.profile) {
-        Object.assign(state.profile, draft.profile);
-        state.profile.candidate.email = userEmail;
-        state.cv_markdown = draft.cv_markdown || '';
-        state.step = Math.min(draft.step || 0, TOTAL_STEPS - 1);
-        state.cvImported = !!draft.cvImported;
+  const isObj = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+  const str = (v) => (v === null || v === undefined) ? '' : String(v);
+  const list = (v) => Array.isArray(v) ? v.map(x => typeof x === 'string' ? x.trim() : x).filter(Boolean) : [];
+  const hasOwn = (o, k) => Boolean(o) && Object.prototype.hasOwnProperty.call(o, k);
+  const clone = (v) => v === undefined ? undefined : JSON.parse(JSON.stringify(v));
+  const nonSpace = (s) => str(s).replace(/\s+/g, '').length;
+  const sameText = (a, b) => str(a).trim().toLowerCase() === str(b).trim().toLowerCase();
+  const sameCv = (a, b) => str(a).replace(/\r\n/g, '\n').trim() === str(b).replace(/\r\n/g, '\n').trim();
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  // Same rule as languageLabel() in lib/profile-shape.mjs: the owner's YAML
+  // stores languages as { name, level } objects.
+  function languageLabel(entry) {
+    if (typeof entry === 'string') return entry.trim().slice(0, 60);
+    if (!isObj(entry)) return '';
+    const name = str(entry.name || entry.language).trim();
+    if (!name) return '';
+    const level = str(entry.level || entry.proficiency).trim();
+    return (level ? `${name} (${level})` : name).slice(0, 60);
+  }
+  const tagText = (v) => typeof v === 'string' ? v.trim() : (isObj(v) ? languageLabel(v) : str(v).trim());
+  const strList = (v) => list(v).map(tagText).filter(Boolean);
+  const uniq = (values) => { const seen = new Set(); return values.filter(v => { const k = str(v).toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; }); };
+  function isEmptyValue(v) {
+    if (v === null || v === undefined) return true;
+    if (typeof v === 'string') return !v.trim();
+    if (typeof v === 'number') return !Number.isFinite(v);
+    if (typeof v === 'boolean') return false;
+    if (Array.isArray(v)) return v.length === 0;
+    // An object (the current role) is empty when all its strings are.
+    if (isObj(v)) return Object.values(v).every(x => typeof x === 'boolean' || isEmptyValue(x));
+    return false;
+  }
+  // A role family or proof point without a name is dropped on save
+  // (cleanProfileForSave), so a list of only such rows ("+ Add" clicked, never
+  // filled) holds nothing yet and must not block the CV's values.
+  const NAMED_ROW_PATHS = new Set(['target_roles.archetypes', 'narrative.proof_points']);
+  function isEmptyField(path, v) {
+    if (NAMED_ROW_PATHS.has(path) && Array.isArray(v)) return !v.some(x => isObj(x) && str(x.name).trim());
+    return isEmptyValue(v);
+  }
+  const canonical = (v) => JSON.stringify(v ?? '', (_k, x) => typeof x === 'number' ? String(x) : (typeof x === 'string' ? x.trim() : x));
+  const sameValue = (a, b) => canonical(a) === canonical(b);
+  const getIn = (obj, path) => path.split('.').reduce((o, k) => (isObj(o) ? o[k] : undefined), obj);
+  const canonicalLevel = (v) => { const s = str(v).trim(); return LEVELS.find(l => l.toLowerCase() === s.toLowerCase()) || s; };
+
+  const TAG_PATHS = new Set([
+    'target_roles.primary', 'narrative.superpowers', 'location.authorized_in',
+    'search.contract_types', 'search.sector_preferences', 'search.geography_preferences',
+    'search.must_haves', 'search.nice_to_haves', 'search.deal_breakers',
+  ]);
+  function normalizeRole(v) {
+    if (typeof v === 'string') return { ...emptyRole(), title: v.trim(), current: Boolean(v.trim()) };
+    if (!isObj(v)) return emptyRole();
+    const month = str(v.start_month).trim();
+    const year = str(v.start_year).trim();
+    return {
+      ...v,
+      title: str(v.title).trim(), company: str(v.company).trim(),
+      start_month: /^\d{1,2}$/.test(month) && Number(month) >= 1 && Number(month) <= 12 ? month.padStart(2, '0') : '',
+      start_year: /^\d{4}$/.test(year) ? year : '',
+      current: v.current === true || v.current === 'true',
+    };
+  }
+  function normalizeYears(v) {
+    if (typeof v === 'number') return Number.isFinite(v) && v >= 0 ? Math.round(v) : '';
+    const m = str(v).match(/\d+/);
+    return m ? Number(m[0]) : '';
+  }
+  // One normalization for every source (server, draft, CV import), so the
+  // provenance comparisons see the same shapes.
+  function normalizeField(path, value) {
+    if (path === 'candidate.languages') return list(value).map(languageLabel).filter(Boolean);
+    if (TAG_PATHS.has(path)) return strList(value);
+    if (path === 'candidate.years_experience') return normalizeYears(value);
+    if (path === 'search.current_role') return normalizeRole(value);
+    if (path === 'target_roles.archetypes') {
+      return list(value).filter(isObj).map(a => {
+        const fit = str(a.fit).trim().toLowerCase();
+        return { ...a, name: str(a.name).trim(), level: canonicalLevel(a.level), fit: ['primary', 'secondary', 'adjacent'].includes(fit) ? fit : str(a.fit) };
+      });
+    }
+    if (path === 'narrative.proof_points') {
+      return list(value).filter(isObj).map(p => ({ ...p, name: str(p.name).trim(), url: str(p.url).trim(), hero_metric: str(p.hero_metric).trim() }));
+    }
+    return value;
+  }
+
+  // Merge a nested profile (server or draft) into state.profile, keeping the
+  // known shape. Unknown keys inside a section are preserved so a save never
+  // drops something another client wrote. skipEmpty only lays the non-empty
+  // values over what is there (a draft written while the stored profile could
+  // not be loaded must not blank it out). The defaults of that empty shell (the
+  // sign-in email, the standard spend tier) are skipped too: they are not
+  // answers, and would replace a stored contact email or tier.
+  const SECTIONS = ['candidate', 'target_roles', 'narrative', 'compensation', 'location', 'search', 'availability'];
+  function absorbProfile(src, { skipEmpty = false } = {}) {
+    if (!isObj(src)) return;
+    const p = state.profile;
+    const defaults = emptyProfile();
+    for (const section of SECTIONS) {
+      if (!isObj(src[section])) continue;
+      for (const [key, raw] of Object.entries(src[section])) {
+        if (raw === null || raw === undefined) continue;
+        const value = normalizeField(`${section}.${key}`, raw);
+        if (skipEmpty && (isEmptyField(`${section}.${key}`, value) || sameValue(value, defaults[section][key]))) continue;
+        const current = p[section][key];
+        if (Array.isArray(current) || Array.isArray(value)) p[section][key] = Array.isArray(value) ? value : list(value);
+        else if (typeof current === 'boolean' || typeof value === 'boolean') p[section][key] = value === true || value === 'true';
+        else if (typeof value === 'number') p[section][key] = value;
+        else p[section][key] = isObj(value) ? value : str(value);
       }
     }
-  } catch {}
+    if (isObj(src.language) && (!skipEmpty || str(src.language.output).trim())) {
+      p.language = { ...p.language, ...src.language, output: str(src.language.output ?? p.language.output).trim() };
+    }
+    if (typeof src.spend_tier === 'string' && src.spend_tier && !(skipEmpty && src.spend_tier === defaults.spend_tier)) p.spend_tier = src.spend_tier;
+    if (!isObj(p.search.current_role)) p.search.current_role = emptyRole();
+    if (!str(p.candidate.email).trim()) p.candidate.email = userEmail;
+  }
 
-  function saveDraft() {
+  // Legacy flat row (pre-normalization server) → nested.
+  function nestedFromAny(data) {
+    if (!isObj(data)) return {};
+    if (data.candidate || data.full_name === undefined) return data;
+    return {
+      candidate: { full_name: data.full_name, email: data.email, location: data.location, linkedin: data.linkedin, ...(isObj(data.candidate) ? data.candidate : {}) },
+      target_roles: data.target_roles, narrative: data.narrative, compensation: data.compensation,
+      location: data.location_prefs, search: data.search_prefs, availability: data.availability,
+      ...(isObj(data.preferences) ? data.preferences : {}),
+    };
+  }
+
+  // ── Draft ──────────────────────────────────────────────────────────
+  let draftTimer = null;
+  // The draft records the stored profile's updated_at it was based on
+  // (serverUpdatedAt), so boot can tell whether the stored copy changed since.
+  // A synced draft (written once the answers are on the server) keeps only
+  // where the user was and what the last import filled, never the answers.
+  function saveDraft({ synced = false } = {}) {
+    if (!booted || leaving) return;
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        step: state.step,
-        cvImported: state.cvImported,
-        profile: state.profile,
-        cv_markdown: state.cv_markdown,
-      }));
+      const provenance = {
+        savedAt: Date.now(), step: state.step, cvImported: state.cvImported, serverUpdatedAt: state.serverUpdatedAt,
+        imported: state.imported, cvSource: state.cvSource, cvStructured: state.cvStructured, keptExtracted: state.keptExtracted,
+        suggestions: state.suggestions, visited: [...state.visited],
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(synced
+        ? { ...provenance, synced: true }
+        : { ...provenance, loadFailed: !state.loaded, profile: state.profile, cv_markdown: state.cv_markdown }));
+      const el = $('draft-state'); el.textContent = `Draft saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`; el.classList.add('is-saved');
     } catch {}
   }
-
-  // ── Tag inputs ─────────────────────────────────────────────────
-  function getTagsField(name) {
-    return document.querySelector(`[data-tags-for="${name}"]`);
+  function scheduleDraft() { clearTimeout(draftTimer); draftTimer = setTimeout(saveDraft, 400); refreshBadges(); }
+  function loadDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return null;
+      const draft = JSON.parse(raw);
+      return isObj(draft) ? draft : null;
+    } catch { return null; }
   }
-  function renderTags(name, values) {
-    const field = getTagsField(name);
-    if (!field) return;
+
+  /* draft-helpers:start */
+  // Server timestamps are compared as instants: the PUT answer and the GET
+  // may format the same one differently. A missing one matches only another
+  // missing one (an account that has no stored row yet).
+  function sameStamp(a, b) {
+    const x = a === null || a === undefined ? '' : String(a).trim();
+    const y = b === null || b === undefined ? '' : String(b).trim();
+    if (!x || !y) return x === y;
+    if (x === y) return true;
+    const tx = Date.parse(x);
+    return Number.isFinite(tx) && tx === Date.parse(y);
+  }
+  // What a stored draft may restore on boot. Its answers win over the stored
+  // profile only when that profile is still the one the draft was based on;
+  // otherwise (edited on the dashboard, in another tab or device) only the
+  // provenance comes back and the page says why. Nothing is compared while
+  // the stored profile cannot be loaded (saving is off then anyway).
+  function draftRestore(draft, { loaded, serverStamp }) {
+    const hasAnswers = Boolean(draft) && typeof draft === 'object' && draft.synced !== true
+      && Boolean(draft.profile) && typeof draft.profile === 'object';
+    if (!hasAnswers) return { answers: false, stale: false };
+    if (!loaded) return { answers: true, stale: false };
+    let fresh;
+    if (draft.loadFailed !== true && Object.prototype.hasOwnProperty.call(draft, 'serverUpdatedAt')) {
+      fresh = sameStamp(draft.serverUpdatedAt, serverStamp);
+    } else {
+      // Answers typed while the profile could not be loaded, or a draft from
+      // before the stamp existed: only the time of the last edit can tell.
+      const at = Date.parse(serverStamp === null || serverStamp === undefined ? '' : String(serverStamp));
+      fresh = !Number.isFinite(at) || (Number(draft.savedAt) || 0) >= at;
+    }
+    return { answers: fresh, stale: !fresh };
+  }
+  // A value longer than its field (a CV tagline in the 120-character
+  // headline) is cut at the last word boundary, without a dangling separator.
+  function fitText(text, max) {
+    const t = (text === null || text === undefined ? '' : String(text)).replace(/\s+/g, ' ').trim();
+    if (t.length <= max) return t;
+    const space = t.lastIndexOf(' ', max);
+    let out = space > 0 ? t.slice(0, space) : t.slice(0, max);
+    let end = out.length;
+    while (end > 0 && ' |—–-,;:·/&+('.includes(out[end - 1])) end--;
+    out = out.slice(0, end);
+    return out || t.slice(0, max);
+  }
+  /* draft-helpers:end */
+  function removeDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+
+  // ── Server prefill ─────────────────────────────────────────────────
+  // An account without a profile row answers 200 with an empty body (or an
+  // empty shape): that is "nothing yet". Any other answer is a failed load,
+  // and a profile built from a failed load must never be saved over the real one.
+  async function loadExisting() {
+    try {
+      const [profileRes, cvRes, statusRes] = await Promise.all([
+        authFetch('/api/profile'), authFetch('/api/profile/cv'), authFetch('/api/profile/status').catch(() => null),
+      ]);
+      if (!profileRes.ok) throw new Error(`GET /api/profile answered ${profileRes.status}`);
+      if (!cvRes.ok) throw new Error(`GET /api/profile/cv answered ${cvRes.status}`);
+      const profileText = await profileRes.text();
+      const profile = profileText.trim() ? nestedFromAny(JSON.parse(profileText)) : {};
+      const cvText = await cvRes.text();
+      const cv = cvText.trim() ? str(JSON.parse(cvText)?.markdown) : '';
+      const status = statusRes?.ok ? await statusRes.json().catch(() => null) : null;
+      return { ok: true, profile: isObj(profile) ? profile : {}, cv, status };
+    } catch (err) {
+      if (err?.message === 'Session expired') throw err;
+      console.warn('[onboarding] could not load the existing profile:', err);
+      return { ok: false, profile: {}, cv: '', status: null };
+    }
+  }
+
+  function showTopAlert(message, type = 'info', action = null) {
+    const el = $('top-alert'); el.className = `alert is-${type}`; el.textContent = message;
+    if (action) {
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'btn btn-secondary top-alert-action'; btn.textContent = action.label;
+      btn.addEventListener('click', action.onClick);
+      el.appendChild(btn);
+    }
+  }
+
+  // ── Path helpers ───────────────────────────────────────────────────
+  function getByPath(path) { return path.split('.').reduce((o, k) => (o || {})[k], state.profile); }
+  function setByPath(path, value) {
+    const keys = path.split('.'); const last = keys.pop();
+    const target = keys.reduce((o, k) => (o[k] = isObj(o[k]) ? o[k] : {}), state.profile);
+    target[last] = value;
+  }
+  const fieldValue = (path) => path === 'cv_markdown' ? state.cv_markdown : getByPath(path);
+  function isFromImport(path) {
+    if (!hasOwn(state.imported, path)) return false;
+    const current = fieldValue(path);
+    if (isEmptyField(path, current)) return false;
+    return path === 'cv_markdown' ? sameCv(current, state.imported[path]) : sameValue(current, state.imported[path]);
+  }
+
+  // ── Tag inputs ─────────────────────────────────────────────────────
+  function tagField(path) { return document.querySelector(`[data-tags-for="${path}"]`); }
+  function renderTags(path) {
+    const field = tagField(path); if (!field) return;
     const container = field.querySelector('.tags');
     container.querySelectorAll('.tag').forEach(el => el.remove());
     const input = container.querySelector('input');
+    const raw = getByPath(path);
+    const values = strList(raw);
+    if (!Array.isArray(raw) || values.length !== raw.length || values.some((v, i) => v !== raw[i])) setByPath(path, values);
     values.forEach((val, idx) => {
       const tag = document.createElement('span');
       tag.className = 'tag';
-      tag.textContent = val;
+      tag.appendChild(document.createTextNode(val));
       const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = '×';
-      btn.addEventListener('click', () => {
-        const list = readTagsState(name);
-        list.splice(idx, 1);
-        writeTagsState(name, list);
-        renderTags(name, list);
-      });
+      btn.type = 'button'; btn.textContent = '×'; btn.setAttribute('aria-label', `Remove ${val}`);
+      btn.addEventListener('click', () => { const next = strList(getByPath(path)); next.splice(idx, 1); setByPath(path, next); renderTags(path); scheduleDraft(); });
       tag.appendChild(btn);
       container.insertBefore(tag, input);
     });
+    renderChipRow(path);
   }
-  function readTagsState(name) {
-    if (name === 'primary') return [...state.profile.target_roles.primary];
-    if (name === 'superpowers') return [...state.profile.narrative.superpowers];
-    if (state.profile.search[name]) return [...state.profile.search[name]];
-    return [];
+  function addTag(path, raw) {
+    const v = tagText(raw).replace(/,$/, '').trim();
+    if (!v) return false;
+    const current = strList(getByPath(path));
+    if (current.some(x => sameText(x, v))) return false;
+    current.push(v); setByPath(path, current); renderTags(path); scheduleDraft();
+    tagField(path)?.classList.remove('invalid');
+    return true;
   }
-  function writeTagsState(name, list) {
-    if (name === 'primary') state.profile.target_roles.primary = list;
-    else if (name === 'superpowers') state.profile.narrative.superpowers = list;
-    else if (state.profile.search[name] !== undefined) state.profile.search[name] = list;
-    saveDraft();
+  function removeTag(path, value) {
+    setByPath(path, strList(getByPath(path)).filter(x => !sameText(x, tagText(value))));
+    renderTags(path); scheduleDraft();
   }
-  function setupTagsInput(field) {
-    const name = field.getAttribute('data-tags-for');
+  document.querySelectorAll('[data-tags-for]').forEach(field => {
+    const path = field.getAttribute('data-tags-for');
     const container = field.querySelector('.tags');
     const input = container.querySelector('input');
-    container.addEventListener('click', () => input.focus());
+    container.addEventListener('click', (e) => { if (e.target === container) input.focus(); });
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ',') {
-        e.preventDefault();
-        const v = input.value.trim().replace(/,$/, '').trim();
-        if (!v) return;
-        const list = readTagsState(name);
-        if (!list.includes(v)) {
-          list.push(v);
-          writeTagsState(name, list);
-          renderTags(name, list);
-        }
-        input.value = '';
-        field.classList.remove('invalid');
+      if (e.key === 'Enter' || e.key === ',' || (e.key === 'Tab' && input.value.trim())) {
+        e.preventDefault(); addTag(path, input.value); input.value = '';
       } else if (e.key === 'Backspace' && !input.value) {
-        const list = readTagsState(name);
-        if (list.length) {
-          list.pop();
-          writeTagsState(name, list);
-          renderTags(name, list);
-        }
+        const current = strList(getByPath(path)); if (current.length) { current.pop(); setByPath(path, current); renderTags(path); scheduleDraft(); }
       }
     });
-  }
-  document.querySelectorAll('[data-tags-for]').forEach(f => setupTagsInput(f));
+    input.addEventListener('blur', () => { if (input.value.trim()) { addTag(path, input.value); input.value = ''; } });
+    input.addEventListener('paste', (e) => {
+      const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+      if (text.includes(',') || text.includes('\n')) { e.preventDefault(); text.split(/[,\n]/).forEach(part => addTag(path, part)); }
+    });
+  });
 
-  // ── Repeater: archetypes ───────────────────────────────────────
+  // Preset chips (contract types, authorized countries) toggle tags.
+  function renderChipRow(path) {
+    const rowId = path === 'search.contract_types' ? 'contract-chips' : path === 'location.authorized_in' ? 'auth-suggest' : null;
+    if (!rowId) return;
+    const presets = path === 'search.contract_types' ? CONTRACT_PRESETS : AUTH_PRESETS;
+    const row = $(rowId); row.innerHTML = '';
+    const current = strList(getByPath(path)).map(x => x.toLowerCase());
+    presets.forEach(label => {
+      const chip = document.createElement('button');
+      chip.type = 'button'; chip.className = 'chip' + (current.includes(label.toLowerCase()) ? ' is-on' : ''); chip.textContent = label;
+      chip.addEventListener('click', () => { if (chip.classList.contains('is-on')) removeTag(path, label); else addTag(path, label); });
+      row.appendChild(chip);
+    });
+  }
+
+  // Suggestions from the CV parse: one-click chips, never applied on their own.
+  function renderSuggestions() {
+    const render = (id, path, values) => {
+      const box = $(id); box.innerHTML = '';
+      const current = strList(getByPath(path)).map(x => x.toLowerCase());
+      const left = strList(values).filter(v => !current.includes(v.toLowerCase()));
+      if (!left.length) { box.style.display = 'none'; return; }
+      box.style.display = '';
+      const label = document.createElement('span'); label.className = 'suggest-label'; label.textContent = 'From your CV:'; box.appendChild(label);
+      left.forEach(v => {
+        const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'chip'; chip.textContent = `+ ${v}`;
+        chip.addEventListener('click', () => { addTag(path, v); renderSuggestions(); });
+        box.appendChild(chip);
+      });
+    };
+    render('role-suggest', 'target_roles.primary', state.suggestions.roles);
+    render('superpower-suggest', 'narrative.superpowers', state.suggestions.superpowers);
+  }
+  // Drafted headline and story: model-written prose, so they are offered and
+  // never applied without a click.
+  function renderDraftSuggestions() {
+    [['headline', 'headline-draft', 'narrative.headline', 120], ['exit_story', 'exit-story-draft', 'narrative.exit_story', 600]].forEach(([key, hostId, path, max]) => {
+      const host = $(hostId); host.innerHTML = '';
+      const text = fitText(state.suggestions[key], max);
+      if (!text || sameText(getByPath(path), text)) { host.hidden = true; return; }
+      host.hidden = false;
+      const label = document.createElement('span'); label.className = 'draft-suggest-label'; label.textContent = 'Suggested from your CV:';
+      const quote = document.createElement('q'); quote.textContent = text;
+      const use = document.createElement('button'); use.type = 'button'; use.className = 'btn-link'; use.textContent = 'Use';
+      use.setAttribute('aria-label', `Use the suggested ${key === 'headline' ? 'headline' : 'story'}`);
+      use.addEventListener('click', () => {
+        setByPath(path, text); $(key).value = text; $(key).closest('.field')?.classList.remove('invalid');
+        scheduleDraft(); renderDraftSuggestions();
+      });
+      host.append(label, quote, use);
+    });
+  }
+
+  // ── Repeaters ──────────────────────────────────────────────────────
+  function escapeHtml(s) { return str(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  // A stored level outside the list (owner's YAML: "Senior/Head") stays
+  // selected as its own option instead of being silently dropped on save.
+  function levelOptions(current) {
+    const value = str(current).trim();
+    const known = LEVELS.find(l => l.toLowerCase() === value.toLowerCase());
+    const options = LEVELS.map(l => `<option value="${l}"${known === l ? ' selected' : ''}>${l}</option>`);
+    if (value && !known) options.push(`<option value="${escapeHtml(value)}" selected>${escapeHtml(value)}</option>`);
+    return `<option value="">Level</option>${options.join('')}`;
+  }
   function renderArchetypes() {
-    const list = document.getElementById('archetypes-list');
-    list.innerHTML = '';
+    const host = $('archetypes-list'); host.innerHTML = '';
     state.profile.target_roles.archetypes.forEach((arch, idx) => {
-      const row = document.createElement('div');
-      row.className = 'repeater-row';
+      const row = document.createElement('div'); row.className = 'repeater-row';
+      const fit = str(arch.fit).toLowerCase();
       row.innerHTML = `
         <div class="row-grid row-3">
-          <input type="text" placeholder="Role family" value="${escapeHtml(arch.name || '')}" data-key="name">
-          <select data-key="level">
-            <option value="">Level</option>
-            ${['Junior','Mid','Senior','Staff','Principal'].map(l =>
-              `<option value="${l}" ${arch.level===l?'selected':''}>${l}</option>`).join('')}
-          </select>
-          <select data-key="fit">
-            <option value="">Fit</option>
-            ${['primary','secondary','adjacent'].map(f =>
-              `<option value="${f}" ${arch.fit===f?'selected':''}>${f}</option>`).join('')}
-          </select>
+          <input type="text" placeholder="Role family, e.g. Product Designer" value="${escapeHtml(arch.name)}" data-key="name" aria-label="Role family">
+          <select data-key="level" aria-label="Level">${levelOptions(arch.level)}</select>
+          <select data-key="fit" aria-label="Fit"><option value="">Fit</option>${[['primary', 'Primary — dream role'], ['secondary', 'Secondary — good fit'], ['adjacent', 'Adjacent — stretch']].map(([v, l]) => `<option value="${v}" ${fit === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
         </div>
-        <div class="repeater-actions"><button class="btn-tiny" type="button">Remove</button></div>
-      `;
-      row.querySelectorAll('[data-key]').forEach(input => {
-        input.addEventListener('input', () => {
-          arch[input.dataset.key] = input.value;
-          saveDraft();
-        });
-        input.addEventListener('change', () => {
-          arch[input.dataset.key] = input.value;
-          saveDraft();
-        });
-      });
-      row.querySelector('.btn-tiny').addEventListener('click', () => {
-        state.profile.target_roles.archetypes.splice(idx, 1);
-        renderArchetypes();
-        saveDraft();
-      });
-      list.appendChild(row);
+        <div class="repeater-actions"><button class="btn-tiny" type="button">Remove</button></div>`;
+      row.querySelectorAll('[data-key]').forEach(el => ['input', 'change'].forEach(evt => el.addEventListener(evt, () => { arch[el.dataset.key] = el.value; scheduleDraft(); })));
+      row.querySelector('.btn-tiny').addEventListener('click', () => { state.profile.target_roles.archetypes.splice(idx, 1); renderArchetypes(); scheduleDraft(); });
+      host.appendChild(row);
     });
   }
-  document.getElementById('add-archetype').addEventListener('click', () => {
-    state.profile.target_roles.archetypes.push({ name: '', level: '', fit: '' });
-    renderArchetypes();
-    saveDraft();
-  });
+  $('add-archetype').addEventListener('click', () => { state.profile.target_roles.archetypes.push({ name: '', level: '', fit: 'secondary' }); renderArchetypes(); scheduleDraft(); $('archetypes-list').querySelector('.repeater-row:last-child input')?.focus(); });
 
-  // ── Repeater: proof points ─────────────────────────────────────
   function renderProofs() {
-    const list = document.getElementById('proof-list');
-    list.innerHTML = '';
+    const host = $('proof-list'); host.innerHTML = '';
     state.profile.narrative.proof_points.forEach((p, idx) => {
-      const row = document.createElement('div');
-      row.className = 'repeater-row';
+      const row = document.createElement('div'); row.className = 'repeater-row';
       row.innerHTML = `
-        <input type="text" placeholder="Project name" value="${escapeHtml(p.name || '')}" data-key="name">
+        <input type="text" placeholder="Project, article or outcome" value="${escapeHtml(p.name)}" data-key="name" aria-label="Proof point name">
         <div class="row-grid row-2">
-          <input type="text" placeholder="URL (optional)" value="${escapeHtml(p.url || '')}" data-key="url">
-          <input type="text" placeholder="Hero metric (e.g. 40% latency cut)" value="${escapeHtml(p.hero_metric || '')}" data-key="hero_metric">
+          <input type="text" placeholder="Hero metric — 40% latency cut, 2K stars, €1M ARR" value="${escapeHtml(p.hero_metric)}" data-key="hero_metric" aria-label="Hero metric">
+          <input type="text" placeholder="URL (optional)" value="${escapeHtml(p.url)}" data-key="url" aria-label="URL">
         </div>
-        <div class="repeater-actions"><button class="btn-tiny" type="button">Remove</button></div>
-      `;
-      row.querySelectorAll('[data-key]').forEach(input => {
-        input.addEventListener('input', () => {
-          p[input.dataset.key] = input.value;
-          saveDraft();
-        });
-      });
-      row.querySelector('.btn-tiny').addEventListener('click', () => {
-        state.profile.narrative.proof_points.splice(idx, 1);
-        renderProofs();
-        saveDraft();
-      });
-      list.appendChild(row);
+        <div class="repeater-actions"><button class="btn-tiny" type="button">Remove</button></div>`;
+      row.querySelectorAll('[data-key]').forEach(el => el.addEventListener('input', () => { p[el.dataset.key] = el.value; scheduleDraft(); }));
+      row.querySelector('.btn-tiny').addEventListener('click', () => { state.profile.narrative.proof_points.splice(idx, 1); renderProofs(); scheduleDraft(); });
+      host.appendChild(row);
     });
   }
-  document.getElementById('add-proof').addEventListener('click', () => {
-    state.profile.narrative.proof_points.push({ name: '', url: '', hero_metric: '' });
-    renderProofs();
-    saveDraft();
-  });
+  $('add-proof').addEventListener('click', () => { state.profile.narrative.proof_points.push({ name: '', url: '', hero_metric: '' }); renderProofs(); scheduleDraft(); $('proof-list').querySelector('.repeater-row:last-child input')?.focus(); });
 
-  function escapeHtml(s) {
-    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-
-  // ── Bind simple inputs to state ───────────────────────────────
-  const SIMPLE_BINDINGS = [
-    ['full_name', 'profile.candidate.full_name'],
-    ['phone', 'profile.candidate.phone'],
-    ['location', 'profile.candidate.location'],
-    ['linkedin', 'profile.candidate.linkedin'],
-    ['portfolio_url', 'profile.candidate.portfolio_url'],
-    ['github', 'profile.candidate.github'],
-    ['headline', 'profile.narrative.headline'],
-    ['exit_story', 'profile.narrative.exit_story'],
-    ['target_range', 'profile.compensation.target_range'],
-    ['currency', 'profile.compensation.currency'],
-    ['minimum', 'profile.compensation.minimum'],
-    ['location_flexibility', 'profile.compensation.location_flexibility'],
-    ['loc_country', 'profile.location.country'],
-    ['loc_city', 'profile.location.city'],
-    ['loc_timezone', 'profile.location.timezone'],
-    ['loc_visa', 'profile.location.visa_status'],
-    ['loc_remote', 'profile.location.remote_policy'],
-    ['cv_markdown', 'cv_markdown'],
+  // ── Simple bindings ────────────────────────────────────────────────
+  const BINDINGS = [
+    ['full_name', 'candidate.full_name'], ['email', 'candidate.email'], ['phone', 'candidate.phone'], ['location', 'candidate.location'],
+    ['current_title', 'search.current_role.title'], ['current_company', 'search.current_role.company'],
+    ['linkedin', 'candidate.linkedin'], ['portfolio_url', 'candidate.portfolio_url'], ['github', 'candidate.github'],
+    ['years_experience', 'candidate.years_experience'],
+    ['headline', 'narrative.headline'], ['exit_story', 'narrative.exit_story'],
+    ['target_range', 'compensation.target_range'], ['currency', 'compensation.currency'], ['minimum', 'compensation.minimum'],
+    ['employment_type', 'compensation.employment_type'], ['location_flexibility', 'compensation.location_flexibility'],
+    ['loc_country', 'location.country'], ['loc_city', 'location.city'], ['loc_postal', 'location.postal_code'], ['loc_timezone', 'location.timezone'],
+    ['loc_visa', 'location.visa_status'], ['loc_remote', 'location.remote_policy'], ['loc_onsite', 'search.onsite_availability'],
+    ['notice_period', 'availability.notice_period'], ['start_date', 'availability.start_date'], ['current_employment', 'availability.current_employment'],
+    ['pref_language', 'language.output'], ['pref_spend', 'spend_tier'],
   ];
-  function getByPath(obj, path) {
-    return path.split('.').reduce((o, k) => (o || {})[k], obj);
+  // Typing a current title or company makes it the current role; clearing both
+  // also drops the start date the import kept, so the role reads as empty.
+  function syncCurrentRole() {
+    const role = normalizeRole(state.profile.search.current_role);
+    if (!role.title && !role.company) Object.assign(role, { start_month: '', start_year: '', current: false });
+    else role.current = true;
+    state.profile.search.current_role = role;
   }
-  function setByPath(obj, path, value) {
-    const keys = path.split('.');
-    const last = keys.pop();
-    const target = keys.reduce((o, k) => (o[k] = o[k] || {}), obj);
-    target[last] = value;
-  }
-  SIMPLE_BINDINGS.forEach(([id, path]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('input', () => {
-      const ctx = { state };
-      setByPath(ctx, `state.${path}`, el.value);
+  BINDINGS.forEach(([id, path]) => {
+    const el = $(id); if (!el) return;
+    const handler = () => {
+      const value = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
+      setByPath(path, value);
+      if (path.startsWith('search.current_role.')) syncCurrentRole();
       el.closest('.field')?.classList.remove('invalid');
-      saveDraft();
-    });
+      if (path === 'narrative.headline' || path === 'narrative.exit_story') renderDraftSuggestions();
+      scheduleDraft();
+    };
+    el.addEventListener('input', handler); el.addEventListener('change', handler);
+  });
+  $('email').addEventListener('blur', () => {
+    if (!$('email').value.trim() && userEmail) { $('email').value = userEmail; setByPath('candidate.email', userEmail); scheduleDraft(); }
+  });
+  $('cv_markdown').addEventListener('input', () => { state.cv_markdown = $('cv_markdown').value; $('cv_markdown').closest('.field')?.classList.remove('invalid'); renderCvVersion(); scheduleDraft(); });
+  $('loc_sponsorship').addEventListener('change', () => { state.profile.location.needs_sponsorship = $('loc_sponsorship').checked; scheduleDraft(); });
+  $('loc_remote_select').addEventListener('change', () => {
+    const v = $('loc_remote_select').value;
+    if (v && v !== '__custom') { $('loc_remote').value = v; state.profile.location.remote_policy = v; $('loc_remote').closest('.field').classList.remove('invalid'); }
+    if (v === '__custom') { $('loc_remote').value = ''; state.profile.location.remote_policy = ''; $('loc_remote').focus(); }
+    scheduleDraft();
   });
 
-  // ── Hydrate UI from state ─────────────────────────────────────
   function hydrate() {
-    SIMPLE_BINDINGS.forEach(([id, path]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const v = getByPath({ state }, `state.${path}`);
-      if (typeof v === 'string') el.value = v;
+    BINDINGS.forEach(([id, path]) => {
+      const el = $(id); if (!el) return;
+      const value = str(getByPath(path));
+      if (el.tagName !== 'SELECT') { el.value = value; return; }
+      if (!value && id === 'pref_language') { el.value = 'en'; return; }
+      const known = [...el.options].find(o => o.value.toLowerCase() === value.toLowerCase());
+      if (known) { el.value = known.value; return; }
+      if (value) {
+        // Unknown option (e.g. a currency not in the list): add it rather than lose it.
+        const opt = document.createElement('option'); opt.value = value; opt.textContent = value; el.appendChild(opt); el.value = value;
+      } else el.value = '';
     });
-    renderTags('primary', state.profile.target_roles.primary);
-    renderTags('superpowers', state.profile.narrative.superpowers);
-    ['contract_types','sector_preferences','geography_preferences','must_haves','nice_to_haves','deal_breakers']
-      .forEach(name => renderTags(name, state.profile.search[name]));
-    renderArchetypes();
-    renderProofs();
+    const remote = state.profile.location.remote_policy;
+    const match = [...$('loc_remote_select').options].find(o => o.value === remote);
+    $('loc_remote_select').value = match ? remote : (remote ? '__custom' : '');
+    $('loc_sponsorship').checked = state.profile.location.needs_sponsorship === true;
+    $('cv_markdown').value = state.cv_markdown || '';
+    document.querySelectorAll('[data-tags-for]').forEach(f => renderTags(f.getAttribute('data-tags-for')));
+    renderArchetypes(); renderProofs(); renderSuggestions(); renderDraftSuggestions(); renderCvVersion();
+    refreshBadges();
   }
 
-  // ── Step navigation ────────────────────────────────────────────
-  function showStep(n) {
-    state.step = n;
-    document.querySelectorAll('.step').forEach(el => {
-      el.classList.toggle('active', Number(el.dataset.step) === n);
+  // ── "From your CV" badges ──────────────────────────────────────────
+  // A field keeps its badge while its value is still the one the last import
+  // wrote; the first edit removes it (compared against state.imported).
+  const IMPORT_PATHS = [
+    'candidate.full_name', 'candidate.email', 'candidate.phone', 'candidate.location', 'candidate.linkedin', 'candidate.portfolio_url',
+    'candidate.github', 'candidate.twitter', 'candidate.years_experience', 'candidate.languages',
+    'target_roles.primary', 'target_roles.archetypes',
+    'narrative.headline', 'narrative.exit_story', 'narrative.superpowers', 'narrative.proof_points',
+    'compensation.currency', 'compensation.employment_type', 'compensation.target_range', 'compensation.minimum', 'compensation.location_flexibility',
+    'location.country', 'location.city', 'location.postal_code', 'location.timezone', 'location.visa_status', 'location.authorized_in', 'location.remote_policy',
+    'search.current_role', 'search.contract_types', 'search.sector_preferences', 'search.geography_preferences',
+    'search.must_haves', 'search.nice_to_haves', 'search.deal_breakers',
+    'availability.notice_period', 'availability.start_date', 'availability.current_employment',
+    'language.output',
+  ];
+  const FIELD_PATHS = [...IMPORT_PATHS.filter(p => p !== 'search.current_role'), 'search.current_role.title', 'search.current_role.company', 'cv_markdown'];
+  function badgeHost(path) {
+    if (path === 'cv_markdown') return document.querySelector('label[for="cv_markdown"]');
+    if (path === 'target_roles.archetypes') return $('archetypes-title');
+    if (path === 'narrative.proof_points') return $('proofs-title');
+    const binding = BINDINGS.find(([, p]) => p === path);
+    if (binding) return document.querySelector(`label[for="${binding[0]}"]`);
+    return tagField(path)?.querySelector(':scope > label') || null;
+  }
+  function refreshBadges() {
+    for (const path of FIELD_PATHS) {
+      const host = badgeHost(path); if (!host) continue;
+      let badge = host.querySelector(':scope > .from-cv');
+      const on = isFromImport(path);
+      if (!badge && !on) continue;
+      if (!badge) {
+        badge = document.createElement('span'); badge.className = 'from-cv'; badge.textContent = 'From your CV';
+        badge.title = 'Filled from your CV. Check it; the badge goes away once you edit the field.';
+        host.appendChild(badge);
+      }
+      badge.hidden = !on;
+    }
+  }
+
+  // ── Stepper & navigation ───────────────────────────────────────────
+  function renderStepper() {
+    const host = $('stepper'); host.innerHTML = '';
+    STEPS.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'step-link' + (i < state.step && state.visited.has(i) && (i === 0 || stepValid(i)) ? ' is-done' : '');
+      if (i === state.step) btn.setAttribute('aria-current', 'step');
+      btn.disabled = !state.visited.has(i) && i > state.step;
+      btn.innerHTML = `<span class="step-dot"><span>${String(i + 1).padStart(2, '0')}</span></span><span><span class="step-name">${s.name}</span><span class="step-hint">${s.hint}</span></span>`;
+      btn.addEventListener('click', () => { if (!btn.disabled) showStep(i); });
+      host.appendChild(btn);
     });
-    document.getElementById('progress-fill').style.width = `${((n + 1) / TOTAL_STEPS) * 100}%`;
-    document.getElementById('step-label').textContent = `Step ${n + 1} of ${TOTAL_STEPS}`;
-    document.getElementById('step-name').textContent = STEP_NAMES[n];
-    document.getElementById('main-nav').style.display = n === 0 ? 'none' : 'flex';
-    document.getElementById('back-btn').disabled = n <= 1;
-    document.getElementById('next-btn').textContent = n === TOTAL_STEPS - 1 ? 'Finish' : 'Continue →';
+    const pct = Math.round((state.step / (TOTAL_STEPS - 1)) * 100);
+    $('rail-fill').style.width = `${pct}%`; $('mobile-fill').style.width = `${pct}%`;
+    $('rail-step').textContent = `Step ${state.step + 1} of ${TOTAL_STEPS}`; $('rail-pct').textContent = `${pct}%`;
+    $('mobile-step').textContent = `${state.step + 1} / ${TOTAL_STEPS}`; $('mobile-step-name').textContent = STEPS[state.step].name;
+  }
+
+  function showStep(n, { focusSummary = false } = {}) {
+    state.step = n; state.visited.add(n);
+    document.querySelectorAll('.step').forEach(el => el.classList.toggle('active', Number(el.dataset.step) === n));
+    $('main-nav').style.display = n === 0 ? 'none' : 'flex';
+    $('back-btn').disabled = n <= 0;
+    $('next-btn').textContent = n === TOTAL_STEPS - 1 ? 'Finish setup' : 'Continue';
+    $('next-btn').disabled = n === TOTAL_STEPS - 1 && !state.loaded;
+    $('nav-status').textContent = '';
+    if (n === 0) refreshReplaceRow();
+    if (n === 1) renderImportResult($('cv-result-step1'), { dismissible: true });
+    if (n === TOTAL_STEPS - 1) { renderReview(); renderCvVersion(); }
+    if (n === 2 || n === 3) renderSuggestions();
+    if (n === 3) renderDraftSuggestions();
+    renderStepper();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    const first = document.querySelector(`.step[data-step="${n}"] input:not([disabled]):not([type=hidden]), .step[data-step="${n}"] textarea`);
+    // After the automatic jump from a finished import, focus follows the
+    // import summary (shown again on step 1) instead of the first field.
+    const summary = focusSummary && n === 1 ? $('cv-result-step1').querySelector('.import-result-title') : null;
+    if (summary) setTimeout(() => summary.focus({ preventScroll: true }), 50);
+    else if (first && n > 0 && window.matchMedia('(min-width: 920px)').matches) setTimeout(() => first.focus({ preventScroll: true }), 50);
     saveDraft();
   }
 
-  function validateStep(n) {
+  function fieldInvalid(el) {
+    if (el.classList.contains('tags')) return strList(getByPath(el.closest('[data-tags-for]').getAttribute('data-tags-for'))).length === 0;
+    if (el.hasAttribute('data-email')) return Boolean(el.value.trim()) && !EMAIL_RE.test(el.value.trim());
+    return !str(el.value).trim();
+  }
+  function stepValid(n) {
+    const section = document.querySelector(`.step[data-step="${n}"]`);
+    if (!section) return true;
     let ok = true;
-    document.querySelector(`.step[data-step="${n}"]`)?.querySelectorAll('[data-required]').forEach(el => {
+    section.querySelectorAll('[data-required], [data-email]').forEach(el => { if (fieldInvalid(el)) ok = false; });
+    return ok;
+  }
+  function validateStep(n) {
+    const section = document.querySelector(`.step[data-step="${n}"]`);
+    let firstInvalid = null; let ok = true;
+    section?.querySelectorAll('[data-required], [data-email]').forEach(el => {
       const field = el.closest('.field');
-      let invalid = false;
-      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-        invalid = !el.value.trim();
-      } else if (el.classList.contains('tags')) {
-        const name = field.getAttribute('data-tags-for');
-        invalid = readTagsState(name).length === 0;
-      }
-      if (invalid) {
-        field.classList.add('invalid');
-        ok = false;
-      } else {
-        field.classList.remove('invalid');
-      }
+      const invalid = fieldInvalid(el);
+      field?.classList.toggle('invalid', invalid);
+      if (invalid) { ok = false; firstInvalid = firstInvalid || (el.classList.contains('tags') ? el.querySelector('input') : el); }
     });
+    if (firstInvalid) { firstInvalid.focus(); firstInvalid.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
     return ok;
   }
 
-  document.getElementById('back-btn').addEventListener('click', () => {
-    if (state.step > 1) showStep(state.step - 1);
+  $('back-btn').addEventListener('click', () => { if (state.step > 0) showStep(state.step - 1); });
+  $('next-btn').addEventListener('click', async () => {
+    if (!validateStep(state.step)) { $('nav-status').textContent = 'Fill the required fields to continue.'; return; }
+    if (state.step < TOTAL_STEPS - 1) showStep(state.step + 1); else await submit();
   });
-  document.getElementById('next-btn').addEventListener('click', async () => {
-    if (!validateStep(state.step)) return;
-    if (state.step < TOTAL_STEPS - 1) {
-      showStep(state.step + 1);
-    } else {
-      await submit();
-    }
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && state.step > 0) { e.preventDefault(); $('next-btn').click(); }
   });
 
-  // ── Step 0: CV import logic ────────────────────────────────────
-  const dropzone = document.getElementById('dropzone');
-  const cvFile = document.getElementById('cv-file');
-  const cvText = document.getElementById('cv-text');
-  const cvAlert = document.getElementById('cv-alert');
-  const cvParseBtn = document.getElementById('cv-parse-btn');
-  const cvParseLabel = document.getElementById('cv-parse-label');
-  const dropzoneFile = document.getElementById('dropzone-file');
-
-  function showCvAlert(msg, type = 'error') {
-    cvAlert.className = `alert ${type}`;
-    cvAlert.textContent = msg;
-  }
-  function clearCvAlert() {
-    cvAlert.className = 'alert';
-    cvAlert.textContent = '';
-  }
-
-  ['dragover', 'dragenter'].forEach(evt =>
-    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
-  ['dragleave', 'drop'].forEach(evt =>
-    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
-  dropzone.addEventListener('drop', async (e) => {
-    const file = e.dataTransfer?.files?.[0];
-    if (file) await handleFile(file);
-  });
-  cvFile.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (file) await handleFile(file);
-  });
-
-  async function handleFile(file) {
-    if (file.size > 5 * 1024 * 1024) {
-      showCvAlert('File too large (max 5 MB)');
-      return;
-    }
-    dropzoneFile.textContent = `${file.name} — ${(file.size/1024).toFixed(0)} KB`;
-    clearCvAlert();
+  // Save what is there so far (no completion flag) and leave. The deferral is
+  // stored per account and for 7 days, so another tab or the next sign-in does
+  // not bounce the user straight back here.
+  $('save-later-btn').addEventListener('click', async () => {
+    if (!state.loaded) return;
+    const btn = $('save-later-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
+    saveDraft();
     try {
-      const text = await extractText(file);
-      cvText.value = text;
-      showCvAlert('Text extracted — click "Auto-fill profile" to continue.', 'info');
+      const { degraded } = await pushProfile({ complete: false });
+      // The server copy is now the reference: an edit made on the dashboard
+      // before the next visit must not be overwritten by these answers.
+      clearTimeout(draftTimer);
+      saveDraft({ synced: true });
+      try { localStorage.setItem(DEFER_KEY, String(Date.now())); } catch {}
+      $('nav-status').textContent = degraded ? DEGRADED_MESSAGE : 'Progress saved. You can come back any time.';
+      leaving = true;
+      setTimeout(() => { window.location.href = '/dashboard'; }, degraded ? 2500 : 600);
     } catch (err) {
-      showCvAlert(`Could not read file: ${err.message}`);
-    }
-  }
-
-  async function extractText(file) {
-    const ext = file.name.toLowerCase().split('.').pop();
-    if (ext === 'txt' || ext === 'md' || file.type.startsWith('text/')) {
-      return await file.text();
-    }
-    if (ext === 'pdf' || file.type === 'application/pdf') {
-      if (!window.pdfjsLib) throw new Error('PDF reader not loaded');
-      const buf = await file.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
-      let out = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        out += content.items.map(it => it.str).join(' ') + '\n\n';
-      }
-      return out.trim();
-    }
-    throw new Error('Unsupported file type');
-  }
-
-  document.getElementById('cv-skip').addEventListener('click', () => {
-    state.cvImported = false;
-    showStep(1);
-  });
-
-  cvParseBtn.addEventListener('click', async () => {
-    const text = cvText.value.trim();
-    if (!text) {
-      showCvAlert('Upload a PDF or paste your CV text first.');
-      return;
-    }
-    cvParseBtn.disabled = true;
-    cvParseLabel.innerHTML = '<span class="spinner"></span> Parsing…';
-    clearCvAlert();
-    try {
-      const res = await authFetch('/api/profile/cv-parse', {
-        method: 'POST',
-        body: JSON.stringify({ markdown: text }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Parse failed (${res.status})`);
-      }
-      const data = await res.json();
-      mergeParsedProfile(data.profile, text);
-      state.cvImported = true;
-      saveDraft();
-      hydrate();
-      showStep(1);
-    } catch (err) {
-      showCvAlert(err.message || 'Parse failed');
-    } finally {
-      cvParseBtn.disabled = false;
-      cvParseLabel.textContent = 'Auto-fill profile';
-    }
-  });
-
-  function mergeParsedProfile(parsed, originalText) {
-    if (!parsed) return;
-    const c = parsed.candidate || {};
-    Object.entries(c).forEach(([k, v]) => {
-      if (v && state.profile.candidate[k] !== undefined) {
-        // Don't overwrite the locked email
-        if (k === 'email') return;
-        if (!state.profile.candidate[k]) state.profile.candidate[k] = v;
-      }
-    });
-    if (parsed.target_roles) {
-      const t = parsed.target_roles;
-      if (Array.isArray(t.primary) && !state.profile.target_roles.primary.length) {
-        state.profile.target_roles.primary = t.primary.filter(Boolean).slice(0, 5);
-      }
-      if (Array.isArray(t.archetypes) && !state.profile.target_roles.archetypes.length) {
-        state.profile.target_roles.archetypes = t.archetypes
-          .filter(a => a && a.name)
-          .map(a => ({ name: a.name || '', level: a.level || '', fit: a.fit || '' }));
-      }
-    }
-    if (parsed.narrative) {
-      const n = parsed.narrative;
-      if (n.headline && !state.profile.narrative.headline) state.profile.narrative.headline = n.headline;
-      if (n.exit_story && !state.profile.narrative.exit_story) state.profile.narrative.exit_story = n.exit_story;
-      if (Array.isArray(n.superpowers) && !state.profile.narrative.superpowers.length) {
-        state.profile.narrative.superpowers = n.superpowers.filter(Boolean).slice(0, 6);
-      }
-      if (Array.isArray(n.proof_points) && !state.profile.narrative.proof_points.length) {
-        state.profile.narrative.proof_points = n.proof_points
-          .filter(p => p && p.name)
-          .map(p => ({ name: p.name || '', url: p.url || '', hero_metric: p.hero_metric || '' }));
-      }
-    }
-    if (parsed.compensation) {
-      Object.entries(parsed.compensation).forEach(([k, v]) => {
-        if (v && state.profile.compensation[k] !== undefined && !state.profile.compensation[k]) {
-          state.profile.compensation[k] = v;
-        }
-      });
-      if (state.profile.compensation.currency === 'EUR' && parsed.compensation.currency) {
-        state.profile.compensation.currency = parsed.compensation.currency;
-      }
-    }
-    if (parsed.location) {
-      Object.entries(parsed.location).forEach(([k, v]) => {
-        if (v && state.profile.location[k] !== undefined && !state.profile.location[k]) {
-          state.profile.location[k] = v;
-        }
-      });
-    }
-    if (parsed.search) {
-      Object.entries(parsed.search).forEach(([k, v]) => {
-        if (Array.isArray(v) && state.profile.search[k] !== undefined && !state.profile.search[k].length) {
-          state.profile.search[k] = v.filter(Boolean);
-        }
-      });
-    }
-    if (originalText && !state.cv_markdown) {
-      state.cv_markdown = originalText;
-    }
-  }
-
-  // ── Submit ─────────────────────────────────────────────────────
-  async function submit() {
-    const submitAlert = document.getElementById('submit-alert');
-    submitAlert.className = 'alert';
-    const btn = document.getElementById('next-btn');
-    btn.disabled = true;
-    const original = btn.textContent;
-    btn.innerHTML = '<span class="spinner"></span> Saving…';
-
-    try {
-      const profileRes = await authFetch('/api/profile', {
-        method: 'PUT',
-        body: JSON.stringify({
-          profile: state.profile,
-          context_markdown: '',
-        }),
-      });
-      if (!profileRes.ok) {
-        const err = await profileRes.json().catch(() => ({}));
-        throw new Error(err.error || `Save profile failed (${profileRes.status})`);
-      }
-
-      const cvRes = await authFetch('/api/profile/cv', {
-        method: 'PUT',
-        body: JSON.stringify({ markdown: state.cv_markdown }),
-      });
-      if (!cvRes.ok) {
-        const err = await cvRes.json().catch(() => ({}));
-        throw new Error(err.error || `Save CV failed (${cvRes.status})`);
-      }
-
-      localStorage.removeItem(DRAFT_KEY);
-      window.location.href = '/dashboard';
-    } catch (err) {
-      submitAlert.className = 'alert error';
-      submitAlert.textContent = err.message || 'Could not save your profile';
+      $('nav-status').textContent = `Saved locally only: ${err.message}`;
       btn.disabled = false;
-      btn.textContent = original;
+    } finally { btn.innerHTML = 'Save &amp; finish later'; }
+  });
+
+  // Explicit sign-out: push what changed first, so nothing lives only in this
+  // browser. If that fails, the answers (CV text, contact details) stay on
+  // this device only when the user says so: it may be a shared computer.
+  $('signout-link').addEventListener('click', async () => {
+    const btn = $('signout-link');
+    if (btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'Signing out…';
+    let saved = false;
+    if (booted && state.loaded) {
+      if (hasChanges()) {
+        try { await pushProfile({ complete: false }); saved = true; } catch (err) { console.warn('[onboarding] save before sign-out failed:', err); }
+      } else saved = true;
+    }
+    clearTimeout(draftTimer);
+    if (saved) removeDraft();
+    else if (booted || loadDraft()) {
+      if (confirm('Keep an unsaved copy of your answers on this device?')) saveDraft(); else removeDraft();
+    }
+    leaving = true;
+    await supabase.auth.signOut().catch(() => {});
+    window.location.replace('/login?reason=signed-out');
+  });
+
+  // ── Step 0: import ─────────────────────────────────────────────────
+  const dropzone = $('dropzone'); const cvFile = $('cv-file'); const cvText = $('cv-text');
+  const cvAlert = $('cv-alert'); const parseBtn = $('cv-parse-btn');
+  let currentImport = null;
+  // The last file read in the browser, kept so that a retry from the paste box
+  // after a failed analysis still sends the file name (the server structures
+  // a document differently) and the links hidden behind PDF or Word labels.
+  let lastFilePayload = null;
+  function showCvAlert(message, type = 'error') { cvAlert.className = `alert is-${type}`; cvAlert.textContent = message; }
+  function clearCvAlert() { cvAlert.className = 'alert'; cvAlert.textContent = ''; }
+
+  class ImportError extends Error {
+    constructor(message, { tone = 'error', server = false } = {}) { super(message); this.tone = tone; this.server = server; }
+  }
+  const abortError = () => new DOMException('The import was stopped.', 'AbortError');
+  function throwIfAborted(signal) { if (signal?.aborted) throw abortError(); }
+
+  ['dragover', 'dragenter'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); if (!currentImport) dropzone.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+  dropzone.addEventListener('drop', (e) => {
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (currentImport) { showCvAlert('An import is already running. Cancel it first to import another file.', 'info'); return; }
+    importFile(file);
+  });
+  // A file dropped anywhere else would be opened by the browser in place of
+  // this page, losing a running import and the last unsaved keystrokes.
+  // Text dragged into a field keeps its default behaviour.
+  ['dragover', 'drop'].forEach(evt => document.addEventListener(evt, (e) => {
+    if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault();
+  }));
+  cvFile.addEventListener('change', (e) => { const file = e.target.files?.[0]; e.target.value = ''; if (file) importFile(file); });
+
+  const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  function fileKind(file) {
+    const name = str(file.name).toLowerCase();
+    const ext = name.includes('.') ? name.split('.').pop() : '';
+    const type = str(file.type).toLowerCase();
+    if (ext === 'pdf' || type === 'application/pdf') return 'pdf';
+    if (ext === 'docx' || type === DOCX_MIME) return 'docx';
+    if (ext === 'doc' || type === 'application/msword') return 'doc';
+    if (['jpg', 'jpeg', 'png', 'webp'].includes(ext) || ['image/jpeg', 'image/png', 'image/webp'].includes(type)) return 'image';
+    if (['heic', 'heif'].includes(ext) || /^image\/hei[cf]/.test(type)) return 'heic';
+    if (['txt', 'md', 'markdown'].includes(ext) || type.startsWith('text/')) return 'text';
+    return '';
+  }
+  const formatSize = (bytes) => bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+  // Upload → read in the browser → analysis, with no extra click.
+  async function importFile(file) {
+    if (currentImport) return;
+    clearCvAlert();
+    const kind = fileKind(file);
+    if (kind === 'doc') { showCvAlert('Old Word files (.doc) cannot be read here. In Word, use File › Save As and pick Word Document (.docx) or PDF, then upload that file.'); return; }
+    if (kind === 'heic') { showCvAlert('HEIC photos cannot be read here. Export the photo as JPEG (or take a screenshot of it) and upload that.'); return; }
+    if (!kind) { showCvAlert('Unsupported file type. Use a PDF, a Word file (.docx), a .txt or .md file, or a JPEG, PNG or WebP photo.'); return; }
+    if (file.size > MAX_FILE_BYTES) { showCvAlert(`That file is ${formatSize(file.size)}; the limit is 5 MB. Export a lighter PDF, use a smaller photo, or paste the text.`); return; }
+    if (!file.size) { showCvAlert('That file is empty.'); return; }
+    $('dropzone-file').textContent = `${file.name} · ${formatSize(file.size)}`;
+    lastFilePayload = null;
+    await runImport(async (signal, run) => {
+      const read = await readCvFile(file, kind, signal);
+      run.extracted = read.markdown;
+      if (read.markdown.trim()) cvText.value = read.markdown;
+      if (!read.images.length && read.markdown.trim().length < MIN_CV_CHARS) {
+        throw new ImportError(kind === 'pdf'
+          ? 'We could read almost no text in this PDF. Paste the text of your CV in the box instead.'
+          : 'We could read almost no text in this file. Check that it is your CV, or paste its text in the box instead.', { tone: 'warn' });
+      }
+      lastFilePayload = { markdown: read.markdown, links: read.links, images: read.images, file_name: file.name };
+      return lastFilePayload;
+    }, { fromFile: true });
+  }
+
+  async function readCvFile(file, kind, signal) {
+    if (kind === 'pdf') return readPdf(file, signal);
+    if (kind === 'docx') return readDocx(file, signal);
+    if (kind === 'image') return readImage(file, signal);
+    const text = (await file.text()).replace(/^﻿/, '').replace(/\r\n?/g, '\n').trim();
+    return { markdown: text, links: [], images: [] };
+  }
+
+  function collectLinks(values) {
+    const seen = new Set(); const out = [];
+    for (const raw of values) {
+      let url = str(raw).trim();
+      if (/^www\./i.test(url)) url = `https://${url}`;
+      if (!/^(https?:|mailto:)/i.test(url) || url.length > 500) continue;
+      const key = url.toLowerCase().replace(/\/+$/, '');
+      if (seen.has(key)) continue;
+      seen.add(key); out.push(url);
+      if (out.length >= MAX_LINKS) break;
+    }
+    return out;
+  }
+
+  let pdfjsPromise = null;
+  function loadPdfJs() {
+    if (!pdfjsPromise) {
+      pdfjsPromise = import(PDFJS_BASE + 'pdf.min.mjs').then((lib) => {
+        lib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.mjs';
+        return lib;
+      }).catch((err) => {
+        pdfjsPromise = null;
+        console.warn('[onboarding] pdf.js did not load:', err);
+        throw new ImportError('The PDF reader did not load. Check your connection and try again, or paste the text of your CV.');
+      });
+    }
+    return pdfjsPromise;
+  }
+
+  // One read of the file: the same PDFDocumentProxy gives the text, the link
+  // annotations (a "LinkedIn" label often hides the real URL) and, for a scan,
+  // the page images.
+  async function readPdf(file, signal) {
+    const pdfjs = await loadPdfJs();
+    throwIfAborted(signal);
+    const buf = await file.arrayBuffer();
+    const task = pdfjs.getDocument({ data: new Uint8Array(buf), isEvalSupported: false });
+    const onAbort = () => { Promise.resolve(task.destroy()).catch(() => {}); };
+    signal.addEventListener('abort', onAbort, { once: true });
+    try {
+      let pdf;
+      try {
+        pdf = await task.promise;
+      } catch (err) {
+        throwIfAborted(signal);
+        if (err?.name === 'PasswordException') throw new ImportError('This PDF is password-protected. Save a copy without the password, or paste the text of your CV.');
+        if (err?.name === 'InvalidPDFException') throw new ImportError('This file is not a readable PDF. Export it again from your editor, or paste the text of your CV.');
+        throw new ImportError(`We could not open this PDF (${err?.message || 'unknown error'}). Paste the text of your CV instead.`);
+      }
+      const texts = []; const rawLinks = [];
+      const pages = Math.min(pdf.numPages, MAX_PDF_PAGES);
+      for (let i = 1; i <= pages; i++) {
+        throwIfAborted(signal);
+        const page = await pdf.getPage(i);
+        texts.push(await pdfPageText(page));
+        try {
+          (await page.getAnnotations()).filter(a => a.subtype === 'Link' && (a.url || a.unsafeUrl)).forEach(a => rawLinks.push(a.url || a.unsafeUrl));
+        } catch {}
+      }
+      const markdown = texts.filter(Boolean).join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+      // A scan has no text layer: send images of the first pages instead.
+      const images = nonSpace(markdown) < MIN_CV_CHARS ? await renderPdfPages(pdf, signal) : [];
+      return { markdown, links: collectLinks(rawLinks), images };
+    } finally {
+      signal.removeEventListener('abort', onAbort);
+      Promise.resolve(task.destroy()).catch(() => {});
     }
   }
 
-  // ── Initial render ─────────────────────────────────────────────
+  // Lines rebuilt from positions: items sorted top to bottom, then left to
+  // right. A wide horizontal gap (a right-aligned date) becomes " | " instead
+  // of gluing two unrelated phrases into one.
+  async function pdfPageText(page) {
+    const content = await page.getTextContent();
+    const items = [];
+    for (const it of content.items) {
+      if (typeof it.str !== 'string' || !it.str.trim()) continue;
+      const t = it.transform || [1, 0, 0, 1, 0, 0];
+      const h = Math.abs(it.height) || Math.hypot(t[2], t[3]) || 10;
+      const w = Math.abs(it.width) || it.str.length * h * 0.5;
+      items.push({ str: it.str, x: t[4], y: t[5], w, h, eol: it.hasEOL === true });
+    }
+    const { width, height } = page.getViewport({ scale: 1 });
+    return splitColumns(items, width, height).map(itemsToLines).filter(Boolean).join('\n\n');
+  }
+
+  /* columns:start */
+  // Self-contained (tests/onboarding-columns.test.mjs runs this block on its
+  // own): no helper from the rest of the page may be used in here.
+
+  // Text items grouped into rows (same baseline), top to bottom.
+  function rowsOf(items) {
+    const sorted = [...items].sort((a, b) => (b.y - a.y) || (a.x - b.x));
+    const rows = [];
+    for (const it of sorted) {
+      const row = rows[rows.length - 1];
+      if (row && Math.abs(row.y - it.y) <= Math.max(2, Math.min(row.h, it.h) * 0.5)) { row.items.push(it); row.h = Math.max(row.h, it.h); }
+      else rows.push({ y: it.y, h: it.h, items: [it] });
+    }
+    return rows;
+  }
+
+  // A label/value table (Europass labels, moderncv dates, dates on the right
+  // margin) leaves a clean gutter too, but each of its rows reads across it.
+  // Its tell: nearly every row on the label side sits on the baseline of a row
+  // on the other side, and the labels are short or right-aligned. Values are
+  // long lines on the right, so right alignment only counts on the left side
+  // (justified body text on the right would look aligned too).
+  function readsAcross(side, other, { rightAligned }) {
+    const rows = rowsOf(side);
+    if (!rows.length) return false;
+    const others = rowsOf(other);
+    const shared = rows.filter(r => others.some(o => Math.abs(o.y - r.y) <= Math.max(1, Math.min(r.h, o.h) * 0.3))).length;
+    if (shared < rows.length * 0.8) return false;
+    const median = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+    if (median(rows.map(r => r.items.reduce((n, it) => n + it.str.trim().length, 0))) < 30) return true;
+    if (!rightAligned) return false;
+    const edges = rows.map(r => Math.max(...r.items.map(it => it.x + it.w)));
+    const edge = median(edges);
+    return edges.filter(e => Math.abs(e - edge) <= 3).length >= rows.length * 0.8;
+  }
+
+  // A sidebar CV read row by row interleaves the two columns ("Skills: design |
+  // Product designer with 9 years…"), which splits phrases and breaks the
+  // server's check that every line comes from the CV. Find a vertical gutter
+  // that almost no text crosses, with real content on both sides running down
+  // the page, and read each column on its own. Dates or labels beside their
+  // entries stay rows: too little text to qualify, or readsAcross() says so.
+  function splitColumns(items, pageWidth, pageHeight) {
+    const chars = (list) => list.reduce((sum, it) => sum + it.str.length, 0);
+    const total = chars(items);
+    if (items.length < 20 || !pageWidth) return [items];
+    const span = (list) => list.length ? Math.max(...list.map(it => it.y)) - Math.min(...list.map(it => it.y)) : 0;
+    let best = null;
+    for (let x = pageWidth * 0.2; x <= pageWidth * 0.8; x += 4) {
+      const crossing = items.filter(it => it.x < x - 1 && it.x + it.w > x + 1);
+      const crossChars = chars(crossing);
+      if (crossChars > total * 0.06) continue;
+      const left = items.filter(it => it.x + it.w <= x + 1);
+      const right = items.filter(it => it.x >= x - 1);
+      const lc = chars(left); const rc = chars(right);
+      if (lc < total * 0.15 || rc < total * 0.15) continue;
+      if (span(left) < pageHeight * 0.35 || span(right) < pageHeight * 0.35) continue;
+      const score = Math.min(lc, rc) - crossChars * 5;
+      if (best && score <= best.score) continue;
+      if (readsAcross(left, right, { rightAligned: true }) || readsAcross(right, left, { rightAligned: false })) continue;
+      best = { x, score, left, right };
+    }
+    if (!best) return [items];
+    // Above the point where both columns have started, a line that crosses
+    // the gutter or sits in it (a centred contact line) marks a full-width
+    // header: that band is read first, as rows. Without such a line the band
+    // is only the first lines of the column that starts higher.
+    const crosses = (it) => it.x < best.x - 1 && it.x + it.w > best.x + 1;
+    const top = (list) => Math.max(...list.map(it => it.y));
+    const columnsTop = Math.min(top(best.left), top(best.right));
+    const inBand = (it) => it.y > columnsTop + Math.max(2, it.h * 0.5);
+    const band = items.filter(inBand);
+    const body = items.filter(it => !inBand(it));
+    const rightStart = Math.min(...body.filter(it => it.x >= best.x).map(it => it.x));
+    const leftEnd = Math.max(...body.filter(it => it.x + it.w <= best.x + 1).map(it => it.x + it.w));
+    const header = band.some(it => crosses(it)
+      || (it.x >= best.x && it.x < rightStart - 2)
+      || (it.x + it.w <= best.x + 1 && it.x + it.w > leftEnd + 2));
+    const rest = header ? body : items;
+    // Lower down, text crossing the gutter goes with the column it starts in.
+    return [header ? band : [], rest.filter(it => it.x < best.x), rest.filter(it => it.x >= best.x)]
+      .filter(list => list.length);
+  }
+
+  function itemsToLines(items) {
+    const lines = [];
+    let prev = null;
+    for (const row of rowsOf(items)) {
+      row.items.sort((a, b) => a.x - b.x);
+      let line = ''; let last = null;
+      for (const it of row.items) {
+        if (last) {
+          const gap = it.x - (last.x + last.w);
+          if (gap > Math.max(row.h * 2.5, 28) || (last.eol && gap > row.h)) line += ' | ';
+          else if (gap > row.h * 0.12 && !/\s$/.test(line) && !/^\s/.test(it.str)) line += ' ';
+        }
+        line += it.str; last = it;
+      }
+      line = line.replace(/\s+/g, ' ').trim();
+      if (!line) continue;
+      if (prev && prev.y - row.y > Math.max(prev.h, row.h) * 1.9) lines.push('');
+      lines.push(line); prev = row;
+    }
+    return lines.join('\n');
+  }
+  /* columns:end */
+
+  function canvasToJpeg(width, height, quality, draw) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width)); canvas.height = Math.max(1, Math.round(height));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    return Promise.resolve(draw(canvas, ctx)).then(() => {
+      const url = canvas.toDataURL('image/jpeg', quality);
+      canvas.width = 0; canvas.height = 0;
+      return url;
+    });
+  }
+  const totalChars = (images) => images.reduce((sum, url) => sum + url.length, 0);
+
+  async function renderPdfPages(pdf, signal) {
+    const count = Math.min(pdf.numPages, MAX_IMAGE_PAGES);
+    let images = [];
+    for (const [maxSide, quality] of IMAGE_PASSES) {
+      images = [];
+      for (let i = 1; i <= count; i++) {
+        throwIfAborted(signal);
+        const page = await pdf.getPage(i);
+        const base = page.getViewport({ scale: 1 });
+        const scale = Math.min(maxSide / Math.max(base.width, base.height), 4);
+        const viewport = page.getViewport({ scale });
+        images.push(await canvasToJpeg(viewport.width, viewport.height, quality,
+          // intent 'print': the display intent paces rendering with
+          // requestAnimationFrame, which never fires while the tab is in the
+          // background, so a user who switched tabs waited forever.
+          (canvas, ctx) => page.render({ canvas, canvasContext: ctx, viewport, background: '#ffffff', intent: 'print' }).promise));
+      }
+      if (totalChars(images) <= MAX_IMAGE_CHARS) return images;
+    }
+    while (images.length > 1 && totalChars(images) > MAX_IMAGE_CHARS) images.pop();
+    return totalChars(images) <= MAX_IMAGE_CHARS ? images : [];
+  }
+
+  async function readImage(file, signal) {
+    let bitmap;
+    try {
+      // Older Safari rejects the options bag; retry without it.
+      bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(file));
+    } catch {
+      throw new ImportError('This image could not be opened. Use a JPEG, PNG or WebP photo, or paste the text of your CV.');
+    }
+    try {
+      for (const [maxSide, quality] of IMAGE_PASSES) {
+        throwIfAborted(signal);
+        const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+        const url = await canvasToJpeg(bitmap.width * scale, bitmap.height * scale, quality,
+          (canvas, ctx) => ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height));
+        if (url.length <= MAX_IMAGE_CHARS) return { markdown: '', links: [], images: [url] };
+      }
+    } finally { bitmap.close?.(); }
+    throw new ImportError('This photo is too large to send. Crop it or use a smaller one.');
+  }
+
+  let mammothPromise = null;
+  function loadMammoth() {
+    if (window.mammoth) return Promise.resolve(window.mammoth);
+    if (!mammothPromise) {
+      mammothPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = MAMMOTH_URL; script.async = true;
+        script.onload = () => (window.mammoth ? resolve(window.mammoth) : reject(new Error('mammoth missing')));
+        script.onerror = () => { script.remove(); reject(new Error('mammoth did not load')); };
+        document.head.appendChild(script);
+      }).catch((err) => {
+        mammothPromise = null;
+        console.warn('[onboarding] the Word reader did not load:', err);
+        throw new ImportError('The Word reader did not load. Check your connection and try again, or paste the text of your CV.');
+      });
+    }
+    return mammothPromise;
+  }
+
+  async function readDocx(file, signal) {
+    const mammoth = await loadMammoth();
+    throwIfAborted(signal);
+    const arrayBuffer = await file.arrayBuffer();
+    let result;
+    try {
+      // Images are dropped (empty src): only the text and links matter here.
+      result = await mammoth.convertToHtml({ arrayBuffer }, { convertImage: mammoth.images.imgElement(() => Promise.resolve({ src: '' })) });
+    } catch (err) {
+      console.warn('[onboarding] docx conversion failed:', err);
+      throw new ImportError('This Word file could not be read. Save it again as .docx or PDF, or paste the text of your CV.');
+    }
+    throwIfAborted(signal);
+    return { ...docxHtmlToText(result?.value || ''), images: [] };
+  }
+
+  // The converted HTML is parsed with DOMParser (an inert document: no script
+  // runs, nothing loads) and never inserted into the page.
+  function docxHtmlToText(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const links = collectLinks([...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href')).filter(h => /^(https?:|mailto:)/i.test(str(h).trim())));
+    const lines = [];
+    const clean = (s) => str(s).replace(/[ \t ]+/g, ' ').replace(/ *\n */g, '\n').trim();
+    const inline = (el) => {
+      let out = '';
+      el.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) out += node.nodeValue;
+        else if (node.nodeType === Node.ELEMENT_NODE && !/^(UL|OL)$/.test(node.tagName)) out += node.tagName === 'BR' ? '\n' : inline(node);
+      });
+      return out;
+    };
+    const walk = (el, depth) => {
+      for (const child of el.children) {
+        const tag = child.tagName;
+        if (/^H[1-6]$/.test(tag)) { const text = clean(inline(child)); if (text) lines.push('', `${'#'.repeat(Number(tag[1]))} ${text}`); }
+        else if (tag === 'P') { const text = clean(inline(child)); if (text) lines.push(...text.split('\n')); }
+        else if (tag === 'UL' || tag === 'OL') walk(child, depth + 1);
+        else if (tag === 'LI') {
+          const text = clean(inline(child)).replace(/\n+/g, ' ');
+          if (text) lines.push(`${'  '.repeat(Math.max(0, depth - 1))}- ${text}`);
+          [...child.children].filter(c => c.tagName === 'UL' || c.tagName === 'OL').forEach(sub => walk(sub, depth + 1));
+        } else walk(child, depth);
+      }
+    };
+    walk(doc.body, 0);
+    const markdown = lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    return { markdown, links };
+  }
+
+  $('cv-skip').addEventListener('click', () => { if (!currentImport) showStep(1); });
+
+  parseBtn.addEventListener('click', () => {
+    if (currentImport) return;
+    const text = cvText.value.trim();
+    if (!text) { showCvAlert('Upload your CV or paste its text first.'); return; }
+    if (text.length < MIN_CV_CHARS) { showCvAlert('That is too short to be a CV. Paste the full text.'); return; }
+    clearCvAlert();
+    const file = lastFilePayload && sameCv(text, lastFilePayload.markdown) ? lastFilePayload : null;
+    runImport(async () => file || { markdown: text }, { fromFile: Boolean(file) });
+  });
+  $('cv-cancel').addEventListener('click', () => {
+    if (!currentImport) return;
+    currentImport.reason = 'cancel';
+    currentImport.controller.abort();
+  });
+
+  const STAGES = [[6, 'Extracting your details…'], [25, 'Structuring your CV…'], [70, 'Almost done…']];
+  function setImportBusy(run) {
+    $('cv-progress').hidden = false;
+    $('cv-result').hidden = true;
+    dropzone.classList.add('is-busy'); dropzone.setAttribute('aria-disabled', 'true');
+    [cvFile, cvText, parseBtn, $('cv-skip'), $('cv-replace')].forEach(el => { el.disabled = true; });
+    const tick = () => {
+      const secs = Math.floor((Date.now() - run.started) / 1000);
+      let label = run.fromFile ? 'Reading your file…' : 'Reading your CV…';
+      for (const [at, text] of STAGES) if (secs >= at) label = text;
+      // #cv-progress is a live region: rewriting the same stage every tick
+      // would be read out again each time. Only a new stage is announced; the
+      // seconds counter is aria-hidden.
+      if ($('cv-stage').textContent !== label) $('cv-stage').textContent = label;
+      $('cv-elapsed').textContent = `${secs} s`;
+      $('cv-progress-fill').style.width = `${Math.min(92, Math.round((secs / 90) * 100))}%`;
+    };
+    tick();
+    run.ticker = setInterval(tick, 500);
+  }
+  function setImportIdle(run) {
+    clearInterval(run.ticker);
+    $('cv-progress').hidden = true;
+    dropzone.classList.remove('is-busy'); dropzone.removeAttribute('aria-disabled');
+    [cvFile, cvText, parseBtn, $('cv-skip'), $('cv-replace')].forEach(el => { el.disabled = false; });
+  }
+  function importStatusMessage(status) {
+    if (status === 413) return 'That CV is too large to analyze.';
+    if (status === 429) return 'Too many CV imports in the last hour. Try again later.';
+    if (status >= 500) return 'The analysis service did not answer.';
+    return `The analysis failed (${status}).`;
+  }
+  const sentence = (s) => { const t = str(s).trim(); return t && !/[.!?…]$/.test(t) ? `${t}.` : t; };
+  // During an import the control that had focus is disabled or hidden, so
+  // focus falls to the page: bring it to what the user needs to read next,
+  // unless they already moved on to something else.
+  function focusAfterImport(target) {
+    const active = document.activeElement;
+    const lost = !active || active === document.body || $('cv-progress').contains(active)
+      || [cvFile, cvText, parseBtn, $('cv-skip'), $('cv-replace')].includes(active);
+    if (lost && target) target.focus();
+  }
+
+  async function runImport(prepare, { fromFile }) {
+    const run = { controller: new AbortController(), reason: '', started: Date.now(), extracted: '', fromFile, ticker: null };
+    currentImport = run;
+    const timeout = setTimeout(() => { run.reason = 'timeout'; run.controller.abort(); }, IMPORT_TIMEOUT_MS);
+    setImportBusy(run);
+    try {
+      const payload = await prepare(run.controller.signal, run);
+      throwIfAborted(run.controller.signal);
+      run.extracted = payload.markdown || run.extracted;
+      const res = await authFetch('/api/profile/cv-parse', { method: 'POST', body: JSON.stringify(payload), signal: run.controller.signal });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok !== true) throw new ImportError(str(data?.error) || importStatusMessage(res.status), { server: true });
+      clearTimeout(timeout);
+      setImportIdle(run);
+      currentImport = null;
+      const summary = applyImport(data, payload.markdown || '');
+      if (fromFile && str(data.source_text).trim()) cvText.value = data.source_text;
+      clearCvAlert();
+      refreshReplaceRow();
+      renderImportResult($('cv-result'), { dismissible: false });
+      focusAfterImport($('cv-result').querySelector('.import-result-title'));
+      // Warnings (or nothing changed) need reading: no automatic jump then,
+      // the user clicks Continue.
+      if (summary.changed && !summary.warnings.length) {
+        setTimeout(() => {
+          if (state.step !== 0 || currentImport) return;
+          const followFocus = $('cv-result').contains(document.activeElement);
+          showStep(1, { focusSummary: followFocus });
+        }, 900);
+      }
+    } catch (err) {
+      if (err?.message === 'Session expired') return;
+      if (run.reason === 'cancel') showCvAlert('Import cancelled. Upload the file again, paste the text, or continue and fill the steps by hand.', 'info');
+      else if (run.reason === 'timeout') showCvAlert('The analysis took more than 4 minutes, so we stopped it. Try again in a moment or paste the text of your CV. You can still continue and fill the steps by hand.');
+      else if (err instanceof ImportError) showCvAlert(`${sentence(err.message)} You can still continue and fill the steps by hand.`, err.tone);
+      else if (err?.name === 'TypeError') showCvAlert('We could not reach the server. Check your connection and try again. You can still continue and fill the steps by hand.');
+      else showCvAlert(`${sentence(err?.message || 'The import failed')} You can still continue and fill the steps by hand.`);
+      keepExtractedText(run.extracted, run.reason);
+      focusAfterImport(cvAlert);
+    } finally {
+      clearTimeout(timeout);
+      if (currentImport === run) { setImportIdle(run); currentImport = null; }
+    }
+  }
+
+  // A failed analysis still leaves the text that was read: in the paste box,
+  // and as the step-7 CV when that one is empty (or still holds what an
+  // earlier failed import left), so the user is not left with nothing to save.
+  // A CV from a successful import or typed by the user is never replaced, and
+  // a cancelled import (often the wrong file) only fills the paste box.
+  function keepExtractedText(text, reason) {
+    const t = str(text).trim();
+    if (!t) return;
+    if (!cvText.value.trim()) cvText.value = t;
+    if (reason === 'cancel' || t.length < MIN_CV_CHARS) return;
+    const current = state.cv_markdown;
+    if (current.trim() && !(state.keptExtracted && sameCv(current, state.keptExtracted))) return;
+    state.cv_markdown = t;
+    state.keptExtracted = t;
+    state.imported = { ...state.imported, cv_markdown: t };
+    $('cv_markdown').value = t;
+    renderCvVersion(); scheduleDraft();
+  }
+
+  // ── Applying an import ─────────────────────────────────────────────
+  const emptyValueOf = (path) => clone(getIn(emptyProfile(), path) ?? '');
+  function importValue(path, raw) {
+    if (raw === null || raw === undefined) return emptyValueOf(path);
+    const v = normalizeField(path, raw);
+    if (path === 'target_roles.archetypes') return v.filter(a => a.name).map(a => ({ name: a.name, level: a.level, fit: a.fit || 'secondary' }));
+    if (path === 'narrative.proof_points') return v.filter(p => p.name).map(p => ({ name: p.name, url: p.url, hero_metric: p.hero_metric }));
+    if (path === 'search.current_role') { const role = { ...emptyRole(), ...v }; return isEmptyValue(role) ? emptyRole() : role; }
+    if (path === 'language.output') { const code = str(v).trim().toLowerCase(); return OUTPUT_LANGUAGES.includes(code) ? code : ''; }
+    if (path === 'narrative.headline') return fitText(v, 120);
+    if (typeof v === 'string') return v.trim();
+    return v;
+  }
+  function snapshotFields() {
+    const out = {};
+    for (const path of FIELD_PATHS) out[path] = canonical(fieldValue(path));
+    return out;
+  }
+  // A field is the user's own when it holds something the last import did not write.
+  function hasUserData() {
+    const skip = new Set(['candidate.email', 'candidate.full_name', 'language.output']);
+    const own = IMPORT_PATHS.some(path => !skip.has(path) && !isEmptyField(path, getByPath(path)) && !isFromImport(path));
+    const cv = state.cv_markdown.trim();
+    const ownCv = Boolean(cv) && !isFromImport('cv_markdown') && !sameCv(cv, state.cvSource) && !sameCv(cv, state.cvStructured);
+    return own || ownCv;
+  }
+  function refreshReplaceRow() {
+    const show = hasUserData();
+    $('cv-replace-row').hidden = !show;
+    if (!show) $('cv-replace').checked = false;
+  }
+
+  // Write rule per field: the CV value goes in when the field is empty, still
+  // holds what the previous import wrote (the user did not edit it), or the
+  // user ticked "Replace what I already entered". A fact the new CV does not
+  // state only clears a value the previous import wrote, never a typed one.
+  function applyImport(data, sentMarkdown) {
+    const parsed = isObj(data.profile) ? data.profile : {};
+    const replace = !$('cv-replace-row').hidden && $('cv-replace').checked;
+    const previous = state.imported || {};
+    const next = {};
+    const before = snapshotFields();
+
+    for (const path of IMPORT_PATHS) {
+      const incoming = importValue(path, getIn(parsed, path));
+      const current = getByPath(path);
+      const untouched = hasOwn(previous, path) && sameValue(current, previous[path]);
+      if (isEmptyValue(incoming)) {
+        if (untouched && path !== 'candidate.email') setByPath(path, emptyValueOf(path));
+        continue;
+      }
+      const write = path === 'candidate.email'
+        ? !str(current).trim() || sameText(current, userEmail) || untouched || replace
+        : isEmptyField(path, current) || untouched || replace || sameValue(current, incoming);
+      if (!write) continue;
+      setByPath(path, clone(incoming));
+      next[path] = clone(incoming);
+    }
+    if (next['search.current_role']) {
+      next['search.current_role.title'] = next['search.current_role'].title;
+      next['search.current_role.company'] = next['search.current_role'].company;
+    }
+
+    const source = str(data.source_text).trim() ? str(data.source_text) : str(sentMarkdown);
+    const structured = data.structured === true ? str(data.cv_markdown) : '';
+    const incomingCv = str(data.cv_markdown).trim() ? str(data.cv_markdown) : source;
+    const currentCv = state.cv_markdown;
+    const cvUntouched = (hasOwn(previous, 'cv_markdown') && sameCv(currentCv, previous.cv_markdown))
+      || (state.cvSource && sameCv(currentCv, state.cvSource)) || (state.cvStructured && sameCv(currentCv, state.cvStructured));
+    if (incomingCv.trim() && (!currentCv.trim() || cvUntouched || replace || sameCv(currentCv, incomingCv))) {
+      state.cv_markdown = incomingCv;
+      next.cv_markdown = incomingCv;
+      state.keptExtracted = '';
+    }
+    state.cvSource = source;
+    state.cvStructured = structured.trim() && !sameCv(structured, source) ? structured : '';
+
+    const sug = isObj(data.suggestions) ? data.suggestions : {};
+    state.suggestions = {
+      roles: uniq([...strList(parsed.target_roles?.primary), ...strList(sug.roles), ...list(parsed.target_roles?.archetypes).map(a => str(a?.name).trim())]).slice(0, 8),
+      superpowers: uniq([...strList(parsed.narrative?.superpowers), ...strList(sug.superpowers)]).slice(0, 8),
+      headline: str(sug.headline).trim(),
+      exit_story: str(sug.exit_story).trim(),
+    };
+    state.imported = next;
+    state.cvImported = true;
+    $('cv-replace').checked = false;
+
+    const after = snapshotFields();
+    const changed = FIELD_PATHS.filter(path => before[path] !== after[path] && !isEmptyField(path, fieldValue(path))).length;
+    state.importSummary = { changed, warnings: importWarnings(data), replaceOffered: replace || hasUserData() };
+    state.importSummaryDismissed = false;
+    hydrate();
+    saveDraft();
+    return state.importSummary;
+  }
+
+  const FIELD_LABELS = {
+    'candidate.full_name': 'your name', 'candidate.email': 'your email', 'candidate.phone': 'your phone', 'candidate.location': 'where you are based',
+    'candidate.linkedin': 'your LinkedIn', 'candidate.github': 'your GitHub', 'candidate.portfolio_url': 'your website', 'candidate.years_experience': 'your years of experience',
+    'candidate.languages': 'some languages', 'target_roles.primary': 'some target roles', 'narrative.headline': 'the headline', 'narrative.exit_story': 'your story',
+    'narrative.superpowers': 'some superpowers', 'narrative.proof_points': 'some proof points', 'location.authorized_in': 'work authorization',
+    'location.visa_status': 'visa status', 'location.postal_code': 'the postal code', 'availability.notice_period': 'the notice period',
+    'availability.start_date': 'the start date', 'compensation.employment_type': 'the engagement type', 'search.current_role': 'the current role', 'location.nationality': 'your nationality',
+    'narrative.proof_points.hero_metric': 'a proof-point metric', 'candidate.twitter': 'your X/Twitter', 'location.city': 'your city', 'location.country': 'your country',
+  };
+  const fieldLabel = (path) => FIELD_LABELS[path] || str(path).split('.').pop().replace(/_/g, ' ');
+  const listText = (items) => items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+  // The server's own sentences come first; the flags only add a line when no
+  // server warning already says the same thing.
+  function importWarnings(data) {
+    const server = strList(data.warnings);
+    const covers = (re) => server.some(w => re.test(w));
+    const out = [...server];
+    if (data.ocr === true && !covers(/scan|photo|image|ocr/i)) out.push('Your CV was read from an image, so double-check names, dates and numbers.');
+    if (data.truncated === true && !covers(/long|truncat|first part|cut/i)) out.push('Your CV is longer than we can analyze at once, so only its first part was read.');
+    const droppedLines = Number(data.dropped?.lines) || 0;
+    if (droppedLines > 0 && !covers(/removed|could not (be )?f(ou|i)nd|not found/i)) out.push(`We removed ${droppedLines} line${droppedLines === 1 ? '' : 's'} we could not find in your CV.`);
+    const droppedFields = uniq(strList(data.dropped?.fields).map(fieldLabel));
+    if (droppedFields.length && !covers(/left out|could not confirm|not stated/i)) {
+      out.push(`Left out because your CV does not say so clearly: ${listText(droppedFields)}.`);
+    }
+    return out;
+  }
+
+  function importTodo() {
+    const p = state.profile;
+    return [
+      [!str(p.candidate.full_name).trim(), 'Your name', 1],
+      [!strList(p.target_roles.primary).length, 'Target roles', 2],
+      [!str(p.location.country).trim(), 'Country', 4],
+      [!str(p.location.remote_policy).trim(), 'Remote policy', 4],
+      [!str(p.compensation.target_range).trim() && !str(p.compensation.minimum).trim(), 'Salary', 5],
+      [!strList(p.search.deal_breakers).length, 'Deal breakers', 6],
+    ].filter(([missing]) => missing).map(([, label, step]) => ({ label, step }));
+  }
+
+  function renderImportResult(host, { dismissible }) {
+    const s = state.importSummary;
+    host.innerHTML = '';
+    if (!s || (dismissible && state.importSummaryDismissed)) { host.hidden = true; return; }
+    host.hidden = false;
+    const todo = importTodo();
+    const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = text; return node; };
+
+    const head = el('div', 'import-result-head');
+    head.appendChild(el('span', 'import-result-icon', '✓'));
+    const copy = el('div');
+    // Focus target once an import ends, so a screen reader hears the outcome.
+    const title = el('strong', 'import-result-title', s.changed
+      ? `${s.changed} field${s.changed === 1 ? '' : 's'} pre-filled from your CV`
+      : 'No field changed');
+    title.tabIndex = -1;
+    copy.appendChild(title);
+    copy.appendChild(el('span', '', s.changed
+      ? 'Check each step: only you can confirm what is accurate. Fields marked “From your CV” came from this import.'
+      : (s.replaceOffered ? 'What you already entered was kept. Tick “Replace what I already entered” and import again to use the CV instead.' : 'We could not find details to pre-fill in this CV.')));
+    head.appendChild(copy);
+    if (dismissible) {
+      const close = el('button', 'btn-tiny', '×'); close.type = 'button'; close.setAttribute('aria-label', 'Dismiss the import summary');
+      close.addEventListener('click', () => { state.importSummaryDismissed = true; host.hidden = true; });
+      head.appendChild(close);
+    } else head.appendChild(el('span'));
+    host.appendChild(head);
+
+    if (!dismissible) {
+      const kpis = el('div', 'parsed-summary');
+      [[s.changed, 'fields pre-filled'], [strList(state.profile.target_roles.primary).length, 'target roles'], [todo.length, 'important fields left']].forEach(([n, label]) => {
+        const kpi = el('div', 'parsed-kpi'); kpi.append(el('b', '', String(n)), el('span', '', label)); kpis.appendChild(kpi);
+      });
+      host.appendChild(kpis);
+    }
+    if (s.warnings.length) {
+      const ul = el('ul', 'import-warnings');
+      s.warnings.forEach(w => ul.appendChild(el('li', '', w)));
+      host.appendChild(ul);
+    }
+    if (todo.length) {
+      const row = el('div', 'import-todo');
+      row.appendChild(el('span', 'import-todo-label', 'Still to fill'));
+      todo.forEach(({ label, step }) => {
+        const chip = el('button', 'chip', label); chip.type = 'button';
+        chip.addEventListener('click', () => showStep(step));
+        row.appendChild(chip);
+      });
+      host.appendChild(row);
+    }
+    if (!dismissible) {
+      const actions = el('div', 'import-result-actions');
+      const go = el('button', 'btn btn-primary', 'Continue'); go.type = 'button';
+      go.addEventListener('click', () => showStep(1));
+      actions.appendChild(go);
+      host.appendChild(actions);
+    }
+  }
+
+  // ── Step 7: review, CV version, skeleton, submit ───────────────────
+  function renderCvVersion() {
+    const box = $('cv-version');
+    if (!state.cvStructured.trim() || !state.cvSource.trim()) { box.hidden = true; return; }
+    box.hidden = false;
+    const isStructured = sameCv(state.cv_markdown, state.cvStructured);
+    const isSource = sameCv(state.cv_markdown, state.cvSource);
+    $('cv-version-text').textContent = isStructured
+      ? 'We reorganized your CV into the sections the CV generator reads. Compare it with your file.'
+      : isSource ? 'This is the text exactly as read from your file.' : 'You edited the CV text.';
+    $('cv-use-original').hidden = isSource;
+    $('cv-use-structured').hidden = isStructured;
+  }
+  function useCvVersion(text) {
+    const edited = state.cv_markdown.trim() && !sameCv(state.cv_markdown, state.cvStructured) && !sameCv(state.cv_markdown, state.cvSource);
+    if (edited && !confirm('Replace your edited CV text? Your changes will be lost.')) return;
+    state.cv_markdown = text;
+    state.imported = { ...state.imported, cv_markdown: text };
+    $('cv_markdown').value = text; $('cv_markdown').closest('.field')?.classList.remove('invalid');
+    renderCvVersion(); scheduleDraft();
+  }
+  $('cv-use-original').addEventListener('click', () => useCvVersion(state.cvSource));
+  $('cv-use-structured').addEventListener('click', () => useCvVersion(state.cvStructured));
+
+  function renderReview() {
+    const p = state.profile; const c = p.candidate; const role = normalizeRole(p.search.current_role);
+    const sponsorship = p.location.needs_sponsorship === true ? 'needs sponsorship elsewhere' : p.location.needs_sponsorship === false ? 'no sponsorship needed' : '';
+    const auth = [p.location.visa_status, strList(p.location.authorized_in).join(', '), sponsorship].filter(Boolean).join(' · ');
+    const items = [
+      ['Identity', c.full_name ? [c.full_name, c.location, c.email].filter(Boolean).join(' · ') : 'Missing name', c.full_name ? 'ok' : 'missing', 1],
+      ['Current role', [role.title, role.company].filter(Boolean).join(' at ') || 'Not set — most forms ask for it', role.title || role.company ? 'ok' : 'neutral', 1],
+      ['Target roles', strList(p.target_roles.primary).join(', ') || 'None yet', strList(p.target_roles.primary).length ? 'ok' : 'missing', 2],
+      ['Narrative', p.narrative.headline || p.narrative.exit_story || 'No headline or story — cover letters will be generic', p.narrative.headline || p.narrative.exit_story ? 'ok' : 'missing', 3],
+      ['Location & remote', [p.location.country, p.location.city, p.location.postal_code, p.location.remote_policy].filter(Boolean).join(' · ') || 'Missing', p.location.country && p.location.remote_policy ? 'ok' : 'missing', 4],
+      ['Work authorization', auth || 'Not set — sponsorship questions stay unanswered', auth ? 'ok' : 'missing', 4],
+      ['Compensation', [p.compensation.target_range, p.compensation.minimum ? `floor ${p.compensation.minimum}` : '', p.compensation.currency].filter(Boolean).join(' · ') || 'Not set — salary filters off', p.compensation.target_range || p.compensation.minimum ? 'ok' : 'missing', 5],
+      ['Criteria', `${strList(p.search.must_haves).length} must-haves · ${strList(p.search.deal_breakers).length} deal breakers`, strList(p.search.must_haves).length + strList(p.search.deal_breakers).length > 0 ? 'ok' : 'missing', 6],
+    ];
+    $('review').innerHTML = items.map(([title, text, level, step]) => `
+      <div class="review-item ${level === 'ok' ? 'is-ok' : level === 'missing' ? 'is-missing' : ''}">
+        <span class="mark">${level === 'ok' ? '✓' : level === 'missing' ? '!' : '–'}</span>
+        <div><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span> <a href="#" data-goto="${step}">Edit</a></div>
+      </div>`).join('');
+    $('review').querySelectorAll('[data-goto]').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); showStep(Number(a.dataset.goto)); }));
+  }
+
+  // Same H2 dialect as the structured import (and what
+  // parseCvMarkdownForTemplate in lib/cv-template-data.mjs reads). Only the
+  // answers given in the steps are used; everything else is a visible placeholder.
+  function cvSkeleton() {
+    const p = state.profile; const c = p.candidate; const role = normalizeRole(p.search.current_role);
+    const contact = [
+      c.email && `**Email:** ${c.email}`, c.phone && `**Phone:** ${c.phone}`, c.location && `**Location:** ${c.location}`,
+      c.linkedin && `**LinkedIn:** ${c.linkedin}`, c.github && `**GitHub:** ${c.github}`, c.portfolio_url && `**Portfolio:** ${c.portfolio_url}`,
+    ].filter(Boolean).join('  \n');
+    const summary = str(p.narrative.exit_story).trim() || '_Two or three sentences on what you do and what you are looking for._';
+    const since = role.start_year ? `${role.start_month ? `${role.start_month}/` : ''}${role.start_year}` : 'Start';
+    const experience = role.title || role.company
+      ? [`### ${role.company || 'Company'}`, `**${role.title || 'Role'}**`, `${since} – Present`, '- What you achieved, with a number']
+      : ['### Company', '**Role**', 'Start – End', '- What you achieved, with a number', '- Scope: team, budget, users'];
+    const proofs = list(p.narrative.proof_points).filter(x => isObj(x) && str(x.name).trim());
+    const projects = proofs.length
+      ? proofs.flatMap(x => [`### ${x.url ? `[${str(x.name).trim()}](${str(x.url).trim()})` : str(x.name).trim()}`, ...(str(x.hero_metric).trim() ? [str(x.hero_metric).trim()] : []), ''])
+      : ['### Project name', 'One line on what it is and its outcome', ''];
+    const superpowers = strList(p.narrative.superpowers);
+    const skills = superpowers.length ? `- **Core:** ${superpowers.join(', ')}` : '- **Core:** _skill, skill, skill_';
+    const languages = strList(c.languages).map(l => `- ${l}`).join('\n');
+    const headline = str(p.narrative.headline).trim();
+    return [
+      `# ${str(c.full_name).trim() || 'Your Name'}`, ...(headline ? [headline] : []), '', contact, '',
+      '## Summary', '', summary, '',
+      '## Experience', '', ...experience, '',
+      '## Projects', '', ...projects, '',
+      '## Education', '', '### Degree', 'School, Year', '',
+      '## Skills', '', skills, '',
+      ...(languages ? ['## Languages', '', languages, ''] : []),
+    ].join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+  $('cv-skeleton').addEventListener('click', () => {
+    const current = $('cv_markdown').value.trim();
+    if (current && !confirm('Replace the current CV text with a generated skeleton? Your existing text will be lost.')) return;
+    $('cv_markdown').value = cvSkeleton(); state.cv_markdown = $('cv_markdown').value;
+    renderCvVersion(); scheduleDraft();
+    $('cv_markdown').closest('.field').classList.remove('invalid'); $('cv_markdown').focus();
+  });
+
+  function cleanProfileForSave() {
+    const p = JSON.parse(JSON.stringify(state.profile));
+    p.candidate.email = str(p.candidate.email).trim() || userEmail;
+    p.candidate.years_experience = normalizeYears(p.candidate.years_experience);
+    p.candidate.languages = strList(p.candidate.languages);
+    p.target_roles.archetypes = list(p.target_roles.archetypes).filter(a => isObj(a) && str(a.name).trim()).map(a => ({ ...a, name: str(a.name).trim(), level: str(a.level), fit: a.fit || 'secondary' }));
+    p.narrative.proof_points = list(p.narrative.proof_points).filter(x => isObj(x) && str(x.name).trim()).map(x => ({ ...x, name: str(x.name).trim(), url: str(x.url).trim(), hero_metric: str(x.hero_metric).trim() }));
+    p.search.current_role = isEmptyValue(normalizeRole(p.search.current_role)) ? emptyRole() : normalizeRole(p.search.current_role);
+    p.compensation.currency = str(p.compensation.currency).trim();
+    if (typeof p.location.needs_sponsorship !== 'boolean') delete p.location.needs_sponsorship;
+    // No language chosen yet: leave the stored one (or the server default) alone.
+    if (!str(p.language?.output).trim()) delete p.language;
+    return p;
+  }
+  const savePayloadKey = () => canonical({ profile: cleanProfileForSave(), cv: state.cv_markdown.trim() });
+  const hasChanges = () => state.loaded && savePayloadKey() !== state.baseline;
+
+  async function pushProfile({ complete }) {
+    if (!state.loaded) throw new Error('Your saved profile did not load, so saving now could overwrite it. Reload the page and try again.');
+    const profileRes = await authFetch('/api/profile', {
+      method: 'PUT',
+      body: JSON.stringify({ profile: cleanProfileForSave(), ...(complete ? { onboarding_completed: true } : {}) }),
+    });
+    const result = await profileRes.json().catch(() => ({}));
+    if (!profileRes.ok) throw new Error(result?.error || `Saving the profile failed (${profileRes.status})`);
+    // The draft is now based on this save. Taken before the CV request so a
+    // failed CV save still leaves a draft that matches the stored profile; an
+    // answer without a stamp leaves it unknown, so the draft cannot win later.
+    state.serverUpdatedAt = str(result?.updated_at).trim() || null;
+    if (state.cv_markdown.trim() || complete) {
+      const cvRes = await authFetch('/api/profile/cv', { method: 'PUT', body: JSON.stringify({ markdown: state.cv_markdown }) });
+      if (!cvRes.ok) { const err = await cvRes.json().catch(() => ({})); throw new Error(err.error || `Saving the CV failed (${cvRes.status})`); }
+    }
+    state.baseline = savePayloadKey();
+    return { degraded: result?.degraded === true };
+  }
+
+  async function submit() {
+    const alertEl = $('submit-alert'); alertEl.className = 'alert';
+    for (let i = 1; i < TOTAL_STEPS - 1; i++) {
+      if (!stepValid(i)) {
+        showStep(i);
+        validateStep(i);
+        $('nav-status').textContent = `"${STEPS[i].name}" still has a required field to fill.`;
+        return;
+      }
+    }
+    const btn = $('next-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
+    try {
+      const { degraded } = await pushProfile({ complete: true });
+      removeDraft();
+      try { localStorage.removeItem(DEFER_KEY); } catch {}
+      leaving = true;
+      if (degraded) {
+        alertEl.className = 'alert is-warn'; alertEl.textContent = `${DEGRADED_MESSAGE} Opening your dashboard…`;
+        await sleep(2500);
+      }
+      window.location.replace('/dashboard?welcome=1');
+    } catch (err) {
+      alertEl.className = 'alert is-error'; alertEl.textContent = err.message || 'Could not save your profile.';
+      btn.disabled = false; btn.textContent = 'Finish setup';
+    }
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────────
+  try { localStorage.removeItem(LEGACY_DRAFT_KEY); } catch {}
+  // Older versions also deferred with a tab-wide flag tied to no account, so
+  // the next account signing in on the same tab skipped this walkthrough.
+  try { sessionStorage.removeItem('jobyougo:onboarding-deferred'); } catch {}
+  const existing = await loadExisting();
+  state.loaded = existing.ok;
+  const serverStamp = existing.ok ? str(existing.profile?.account?.updated_at).trim() : '';
+  state.serverUpdatedAt = serverStamp || null;
+  const draft = loadDraft();
+  const restore = draftRestore(draft, { loaded: existing.ok, serverStamp });
+  absorbProfile(existing.profile);
+  state.cv_markdown = existing.cv || '';
+  state.baseline = existing.ok ? savePayloadKey() : '';
+
+  // Returning users start at identity only when they finished the walkthrough
+  // before; a new account (the signup already stored its name and email)
+  // starts with the CV import.
+  const status = existing.status;
+  const completedBefore = Boolean(status?.onboarding_completed_at || existing.profile?.account?.onboarding_completed_at
+    || (!existing.profile?.account?.id && status?.complete === true));
+  const MISSING = {
+    identity: ['your name', 1], target_roles: ['your target roles', 2],
+    location: ['where you are based', !str(state.profile.candidate.location).trim() ? 1 : 4], cv: ['your CV', 7],
+  };
+  const missing = strList(status?.missing).filter(key => MISSING[key]);
+  const substantial = Boolean(strList(state.profile.target_roles.primary).length || state.cv_markdown.trim());
+
+  // A stale or synced draft still brings back where the user was and what the
+  // last import filled (badges, suggestions, CV versions); only its answers
+  // stay out.
+  if (draft) {
+    if (restore.answers) {
+      absorbProfile(draft.profile, { skipEmpty: draft.loadFailed === true });
+      if (str(draft.cv_markdown).trim()) state.cv_markdown = draft.cv_markdown;
+    }
+    state.step = Math.min(Math.max(Number(draft.step) || 0, 0), TOTAL_STEPS - 1);
+    state.cvImported = Boolean(draft.cvImported);
+    state.imported = isObj(draft.imported) ? draft.imported : {};
+    state.cvSource = str(draft.cvSource);
+    state.cvStructured = str(draft.cvStructured);
+    state.keptExtracted = str(draft.keptExtracted);
+    if (isObj(draft.suggestions)) state.suggestions = { ...state.suggestions, ...draft.suggestions };
+    (Array.isArray(draft.visited) ? draft.visited : []).forEach(n => state.visited.add(n));
+  } else if (completedBefore) {
+    for (let i = 0; i < TOTAL_STEPS; i++) state.visited.add(i);
+    state.step = missing.length ? Math.min(...missing.map(key => MISSING[key][1])) : 1;
+  } else {
+    state.step = 0;
+    if (substantial) for (let i = 0; i < TOTAL_STEPS; i++) state.visited.add(i);
+  }
+
+  if (!existing.ok) {
+    showTopAlert('We could not load your saved profile, so saving is turned off to avoid overwriting it. Check your connection, then retry.', 'error',
+      { label: 'Retry', onClick: () => window.location.reload() });
+  } else if (restore.stale) {
+    showTopAlert('Your profile was updated elsewhere since your last visit, so we loaded the saved version instead of the old draft.', 'info');
+  } else if (completedBefore && missing.length && !restore.answers) {
+    showTopAlert(`Your profile is missing: ${listText(missing.map(key => MISSING[key][0]))}. Add it to keep scans and evaluations running.`, 'warn');
+  } else if (status?.complete && !restore.answers) {
+    showTopAlert('Your profile is already complete. This walkthrough updates it — nothing is lost if you stop halfway.', 'info');
+  } else if (restore.answers && draft.savedAt) {
+    showTopAlert(`Welcome back — we restored your draft from ${new Date(draft.savedAt).toLocaleString()}.`, 'info');
+  }
+  if (!existing.ok) {
+    $('save-later-btn').disabled = true;
+    $('save-later-btn').title = 'Your saved profile did not load. Retry first.';
+  }
+
   hydrate();
   showStep(state.step || 0);
+  booted = true;
+  // The old answers of a stale draft are replaced at once (stored values,
+  // current stamp), so they neither linger on the device nor come back.
+  if (restore.stale) saveDraft();
 </script>
 </body>
 </html>

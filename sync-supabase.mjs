@@ -15,8 +15,10 @@ import { existsSync } from 'fs';
 import { join, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { supabase, isEnabled } from './lib/supabase.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
 const [, , mode, arg] = process.argv;
 
 if (!isEnabled) {
@@ -44,7 +46,7 @@ async function getAdminUserId() {
 // ─── Pipeline sync ────────────────────────────────────────────────────────────
 
 async function syncPipeline() {
-  const filepath = join(ROOT, 'data/pipeline.md');
+  const filepath = join(DATA_ROOT, 'data/pipeline.md');
   if (!existsSync(filepath)) {
     console.log('⚠️  data/pipeline.md not found — skipping pipeline sync.');
     return;
@@ -152,7 +154,7 @@ function parseApplications(content) {
 }
 
 async function syncApplications() {
-  const filepath = join(ROOT, 'data/applications.md');
+  const filepath = join(DATA_ROOT, 'data/applications.md');
   if (!existsSync(filepath)) {
     console.log('⚠️  data/applications.md not found — skipping applications sync.');
     return;

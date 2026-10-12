@@ -16,9 +16,11 @@
 import { readFileSync, readdirSync, existsSync, unlinkSync, appendFileSync } from 'fs';
 import { join, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
-const REPORTS_DIR = join(JOBYOUGO, 'reports');
+const DATA_ROOT = getJobYouGoRoot();
+const REPORTS_DIR = join(DATA_ROOT, 'reports');
 const FIX_MODE = process.argv.includes('--fix');
 
 let errors = 0;

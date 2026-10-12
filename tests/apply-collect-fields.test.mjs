@@ -492,3 +492,34 @@ test('SuccessFactors resume upload appears only after Upload a CV is clicked', a
   assert.equal(again.clicked, false);
   assert.equal(again.ready, true);
 });
+
+test('Google Forms: a div[role=listbox] dropdown is a list with its question and options', async () => {
+  const fields = await collect(`<form><div role="list">
+    <div role="listitem"><div role="heading" id="q1">Are you an Immediate Joiner? <span>*</span></div>
+      <div role="listbox" aria-expanded="false" aria-disabled="true" aria-required="true" aria-labelledby="q1 r1" style="width:200px;height:40px">
+        <div role="option" data-value="" aria-selected="true" style="width:180px;height:30px">Choose</div>
+        <div role="option" data-value="Yes" aria-selected="false" style="width:180px;height:0;overflow:hidden">Yes</div>
+        <div role="option" data-value="No" aria-selected="false" style="width:180px;height:0;overflow:hidden">No</div>
+      </div><div id="r1"></div></div>
+  </div></form>`);
+  const list = fields.find((f) => /Immediate Joiner/.test(f.label));
+  assert.ok(list, JSON.stringify(fields));
+  assert.equal(list.ariaHaspopup, 'listbox');
+  assert.equal(list.required, true);
+  assert.deepEqual(list.options.map((o) => o.text), ['Yes', 'No']);
+  assert.equal(list.value, '');
+});
+
+test('Google Forms: boxes deep under a role=list take its question; the hidden "Your answer" is no label', async () => {
+  const box = (v) => `<div role="listitem"><label><div><div role="checkbox" aria-label="${v}" aria-checked="false" style="width:20px;height:20px"></div></div><span>${v}</span></label></div>`;
+  const fields = await collect(`<form>
+    <div role="heading" id="t1">Which design tools are you proficient in? *</div>
+    <div><div><div role="list" aria-labelledby="t1">${box('Figma')}${box('Adobe Photoshop')}</div></div></div>
+    <div role="heading" id="t2">Notice Period</div>
+    <div><div><input type="text" aria-labelledby="t2 g2" style="width:200px;height:20px"><div id="g2" aria-hidden="true">Your answer</div></div></div>
+  </form>`);
+  const tools = fields.filter((f) => f.type === 'checkbox');
+  assert.deepEqual(tools.map((f) => f.label), ['Which design tools are you proficient in? * — Figma', 'Which design tools are you proficient in? * — Adobe Photoshop']);
+  assert.equal(tools[0].required, true);
+  assert.equal(fields.find((f) => f.type === 'text').label, 'Notice Period');
+});

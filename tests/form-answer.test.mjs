@@ -1,7 +1,7 @@
 import { pass, fail } from './helpers.mjs';
 import { bestAnswerFor } from '../lib/apply-classify.mjs';
 import { usesSideProjectAsProof } from '../lib/application-writing.mjs';
-import { answerMissesProof, claimsUnworkedBrand, extractAnswerBody, extractProofNames, formAnswerRequest, isToolDump, opensWithDenial, writeFormAnswer } from '../lib/form-answer.mjs';
+import { answerMissesProof, claimsUnworkedBrand, extractAnswerBody, extractProofNames, formAnswerRequest, isStoryShapedMotivation, isToolDump, namesCompany, opensWithDenial, writeFormAnswer } from '../lib/form-answer.mjs';
 
 function ok(label, cond) {
   if (cond) pass(label);
@@ -192,3 +192,28 @@ const firefoxWritten = await writeFormAnswer({
   complete: async () => firefoxStory,
 });
 ok('an invented Firefox draft is replaced by the employer', /Edenred/.test(firefoxWritten.answer) && !/Firefox|Mozilla/i.test(firefoxWritten.answer));
+
+// Why-us answers: about the company and the candidate's next step, not a
+// Renault case study ending in "This experience directly matches your need".
+const renewStory = 'At Renault Group, I led the end-to-end redesign of Renew as the sole design lead. I made the decision to align a fragmented organization. The result was a clearer experience. This experience directly matches your need for international scale.';
+const whyIhsan = 'Ihsan is building an ethical investing app for people banks overlook, and that mix of trust and complex money flows is where I want to grow next. I have spent years on regulated investment journeys, most recently leading product and UX at OneAsset. I want to help Ihsan make every decision feel clear on mobile.';
+ok('a case-study why-us answer is story-shaped', isStoryShapedMotivation(renewStory, { company: 'Ihsan', allowed: ['Renault Group'] }) && !namesCompany(renewStory, 'Ihsan'));
+ok('a company-first why-us answer passes', !isStoryShapedMotivation(whyIhsan, { company: 'Ihsan', allowed: ['OneAsset'] }) && namesCompany(whyIhsan, 'Ihsan'));
+const ihsanQ = 'Why you are interested in joining our team and think you could be a strong match';
+const ihsanReq = formAnswerRequest({
+  question: ihsanQ,
+  company: 'Ihsan',
+  role: 'Product Designer',
+  career: '- Renault: sole design lead on Renew\n- OneAsset: leads Product and UX on investor journeys',
+  ambition: 'Move into senior product design with ownership of UX and delivery',
+});
+ok('a why-us request is motivation and carries the ambition', ihsanReq.kind === 'motivation' && /## Ambition\n[\s\S]*senior product design/.test(ihsanReq.user));
+let ihsanCalls = 0;
+const ihsanWritten = await writeFormAnswer({
+  question: ihsanQ,
+  company: 'Ihsan',
+  role: 'Product Designer',
+  career: '- OneAsset: leads Product and UX on investor journeys',
+  complete: async ({ user }) => (ihsanCalls++ === 0 ? renewStory : (/case study about a past employer/.test(user) ? whyIhsan : renewStory)),
+});
+ok('a story-shaped why-us draft is rewritten company-first', ihsanCalls === 2 && /^Ihsan is building/.test(ihsanWritten.answer));

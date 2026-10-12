@@ -258,12 +258,53 @@ function mountStoryFigures(root) {
   });
 }
 
+/** Optional host-page config (window.SITE). null on /portfolio. */
+function storySiteCfg() {
+  const site = window.SITE;
+  return site && typeof site === 'object' ? site : null;
+}
+
+/** window.SITE[name](...args), or undefined when unset or when the hook throws. */
+function storySiteHook(name, ...args) {
+  const site = storySiteCfg();
+  if (!site || typeof site[name] !== 'function') return undefined;
+  try {
+    return site[name](...args);
+  } catch (err) {
+    console.error(`SITE.${name} failed`, err);
+    return undefined;
+  }
+}
+
+/** True for a chapters array renderStoryModalContent can draw (the STORY_CHAPTERS shape). */
+function isStoryChapterList(list) {
+  return Array.isArray(list) && list.length > 0 && list.every(ch => ch
+    && typeof ch.id === 'string' && typeof ch.label === 'string' && typeof ch.title === 'string'
+    && Array.isArray(ch.figStatus) && Array.isArray(ch.paragraphs));
+}
+
+/** Contact address for the story modal: window.SITE.contact.email when a host page sets it. */
+function storyContactEmail() {
+  const email = window.SITE && window.SITE.contact && window.SITE.contact.email;
+  return typeof email === 'string' && email ? email : 'chilka.v@gmail.com';
+}
+
 function renderStoryModalContent() {
-  const chapters = STORY_CHAPTERS[currentLang] || STORY_CHAPTERS.en;
+  let chapters = STORY_CHAPTERS[currentLang] || STORY_CHAPTERS.en;
+  // Host page: SITE.storyChapters gets a copy (it may edit it freely) and returns the chapters to draw.
+  if (storySiteCfg() && chapters) {
+    const custom = storySiteHook('storyChapters', JSON.parse(JSON.stringify(chapters)), currentLang);
+    if (isStoryChapterList(custom)) chapters = custom;
+  }
   const scroller = document.getElementById('story-modal-scroller');
   const track = document.getElementById('story-modal-track');
   if (!track || !chapters) return;
-  const heroTitle = currentLang === 'fr' ? 'Mon parcours' : 'My background';
+  let heroTitle = currentLang === 'fr' ? 'Mon parcours' : 'My background';
+  const siteStoryTitle = storySiteCfg()?.storyTitle;
+  if (siteStoryTitle && typeof siteStoryTitle === 'object') {
+    const t = siteStoryTitle[currentLang] || siteStoryTitle.en;
+    if (typeof t === 'string' && t) heroTitle = t;
+  }
   const scrollLabel = currentLang === 'fr' ? 'Défiler' : 'Scroll';
   const chaptersLabel = currentLang === 'fr' ? 'Chapitres' : 'Chapters';
 
@@ -323,17 +364,19 @@ function renderStoryModalContent() {
     </nav>
   `;
 
-  const contactHtml = `
+  const contactEmail = escapeHTML(storyContactEmail());
+  const siteContactHtml = storySiteHook('renderStoryContact', currentLang);
+  const contactHtml = typeof siteContactHtml === 'string' && siteContactHtml ? siteContactHtml : `
     <div class="story-contact-wrap">
       <div class="story-contact-stack">
-        <a class="story-contact-email" href="mailto:chilka.v@gmail.com">
+        <a class="story-contact-email" href="mailto:${contactEmail}">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="2" y="3.5" width="12" height="9" rx="1.8"></rect>
             <path d="M3.5 5l4.5 3.8L12.5 5"></path>
           </svg>
-          <span>chilka.v@gmail.com</span>
+          <span>${contactEmail}</span>
         </a>
-        <a class="story-contact-btn" href="mailto:chilka.v@gmail.com">
+        <a class="story-contact-btn" href="mailto:${contactEmail}">
           <span>Contact me</span>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 12L12 4"></path>
@@ -450,6 +493,45 @@ function scrollStoryDown() {
   scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
 
+// Focus for the two full-screen dialogs: move it in on open, keep Tab inside,
+// give it back to the trigger on close.
+const modalFocus = (() => {
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, iframe, [tabindex]:not([tabindex="-1"])';
+  const returnTo = new Map();
+  const isOpen = el => el.classList.contains('open');
+  const items = modal => [...modal.querySelectorAll(FOCUSABLE)].filter(el => el.getClientRects().length > 0);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const modal = [...returnTo.keys()].reverse().find(isOpen);
+    if (!modal) return;
+    const list = items(modal);
+    if (!list.length) { e.preventDefault(); modal.focus(); return; }
+    const first = list[0];
+    const last = list[list.length - 1];
+    const active = document.activeElement;
+    if (!modal.contains(active)) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && (active === first || active === modal)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+  });
+  return {
+    open(modal, initial) {
+      if (!modal) return;
+      if (!returnTo.has(modal)) {
+        const active = document.activeElement;
+        returnTo.set(modal, active && active !== document.body && !modal.contains(active) ? active : null);
+      }
+      if (!modal.hasAttribute('tabindex')) modal.setAttribute('tabindex', '-1');
+      window.requestAnimationFrame(() => (initial || modal).focus({ preventScroll: true }));
+    },
+    close(modal) {
+      if (!modal || !returnTo.has(modal)) return;
+      const target = returnTo.get(modal);
+      returnTo.delete(modal);
+      if (target && target.isConnected) target.focus({ preventScroll: true });
+    },
+  };
+})();
+
 function openStoryModal() {
   const modal = document.getElementById('story-modal');
   const scroller = document.getElementById('story-modal-scroller');
@@ -467,6 +549,7 @@ function openStoryModal() {
   }
   scroller.scrollTop = 0;
   syncPageLock();
+  modalFocus.open(modal, modal.querySelector('.story-modal-close'));
   updateStoryScrollCue();
   refreshStoryParallax();
   window.setTimeout(() => {
@@ -487,13 +570,14 @@ function closeStoryModal() {
     try { storyVideo.load(); } catch {}
   }
   syncPageLock();
+  modalFocus.close(modal);
 }
 
-document.getElementById('story-modal-scroller').addEventListener('scroll', () => {
+document.getElementById('story-modal-scroller')?.addEventListener('scroll', () => {
   scheduleStoryPrompterRefresh();
   updateStoryScrollCue();
 }, { passive: true });
-document.getElementById('story-modal-scroller').addEventListener('click', (event) => {
+document.getElementById('story-modal-scroller')?.addEventListener('click', (event) => {
   if (event.target.closest('#story-scroll-cue')) {
     event.preventDefault();
     scrollStoryDown();
@@ -512,7 +596,7 @@ document.getElementById('story-modal-scroller').addEventListener('click', (event
   const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - offset;
   scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 });
-document.getElementById('story-modal').addEventListener('click', (event) => {
+document.getElementById('story-modal')?.addEventListener('click', (event) => {
   if (event.target === event.currentTarget) closeStoryModal();
 });
 
@@ -778,13 +862,31 @@ function getIfaceInitials(name) {
 /* ═══════════════════════════════════════════
    RENDER INTERFACE GRID
 ═══════════════════════════════════════════ */
+/** SITE.ifaceHiddenIds, or [] (no SITE / not an array). */
+function siteIfaceHiddenIds() {
+  const ids = storySiteCfg()?.ifaceHiddenIds;
+  return Array.isArray(ids) ? ids : [];
+}
+
+/** Playground entries shown in the grid: not hidden in data, not hidden by the host page. */
+function visibleInterfaces() {
+  const siteHidden = siteIfaceHiddenIds();
+  return INTERFACES.filter(iface => !iface.hidden && !siteHidden.includes(iface.id));
+}
+
+/** Extra card tag from SITE.ifaceBadge(iface, lang), e.g. "Concept". '' on /portfolio. */
+function siteIfaceBadgeHtml(iface) {
+  const text = storySiteHook('ifaceBadge', iface, currentLang);
+  return typeof text === 'string' && text ? `<span class="iface-card-badge">${escapeHTML(text)}</span>` : '';
+}
+
 function renderIfaceGrid() {
   const el = document.getElementById('ifaces-grid-el');
   if (!el) return;
-  el.innerHTML = INTERFACES.filter(iface => !iface.hidden).map(iface => `
-    <div class="iface-card" onclick="openIfaceModal('${iface.id}')" title="${escapeHTML(iface.name)}">
+  el.innerHTML = visibleInterfaces().map(iface => `
+    <div class="iface-card" onclick="openIfaceModal('${iface.id}')" title="${escapeHTML(iface.name)}">${siteIfaceBadgeHtml(iface)}
       ${iface.thumb
-        ? `<img class="iface-card-thumb" src="${iface.thumb}" alt="${escapeHTML(iface.name)}" loading="lazy" decoding="async">`
+        ? `<img class="iface-card-thumb" src="${ifaceThumbSrc(iface.thumb)}" alt="${escapeHTML(iface.name)}" loading="lazy" decoding="async">`
         : `<div class="iface-card-thumb--empty"><span class="iface-card-initials">${escapeHTML(getIfaceInitials(iface.name))}</span></div>`
       }
       <div class="iface-card-open">
@@ -827,11 +929,13 @@ function updateIfaceGridHeight() {
 
   const gap = parseFloat(window.getComputedStyle(grid).rowGap) || 0;
   const isCollapsed = wrap.classList.contains('is-collapsed');
-  
+  const showcase = !!wrap.closest('.ag-showcase');
+  const collapsedRows = showcase ? 2 : IFACE_COLLAPSED_ROWS;
+
   if (isCollapsed) {
-    const overlap = 140; // Must match the negative margin-top in CSS
-    const padding = 60; // Total vertical padding (30px top + 30px bottom)
-    const h = Math.ceil((cardHeight * IFACE_COLLAPSED_ROWS) + (gap * (IFACE_COLLAPSED_ROWS - 1)) - (overlap * (IFACE_COLLAPSED_ROWS - 1)) + padding);
+    const overlap = showcase ? 0 : 140; // 140 matches the playground's negative margin-top
+    const padding = showcase ? 8 : 60; // playground: 30px top + 30px bottom
+    const h = Math.ceil((cardHeight * collapsedRows) + (gap * (collapsedRows - 1)) - (overlap * (collapsedRows - 1)) + padding);
     limiter.style.maxHeight = h + 'px';
   } else {
     limiter.style.maxHeight = grid.scrollHeight + 'px';
@@ -841,7 +945,9 @@ function updateIfaceGridHeight() {
     || (isCollapsed ? 'Show all interfaces' : 'Show fewer interfaces');
 
   const columns = Math.max(1, getIfaceColumnCount(grid));
-  const shouldCollapse = INTERFACES.length > columns * IFACE_COLLAPSED_ROWS;
+  // A host page counts only the cards it shows; /portfolio keeps counting every entry.
+  const ifaceCount = storySiteCfg() ? visibleInterfaces().length : INTERFACES.length;
+  const shouldCollapse = ifaceCount > columns * collapsedRows;
   button.hidden = !shouldCollapse;
   button.setAttribute('aria-expanded', String(!isCollapsed));
 }
@@ -871,13 +977,30 @@ function getIfacePreviewSrc(iface) {
   return '';
 }
 
+/** Path the page lives at: window.SITE.base on a host page (e.g. /agence), else /portfolio. No trailing slash. */
+function ifaceBasePath() {
+  const base = (window.SITE && window.SITE.base) || '/portfolio';
+  let path = String(base).replace(/\/+$/, '');
+  // A base without its leading slash ('agence') would make pushState relative and never match pathname.
+  if (path && path[0] !== '/') path = '/' + path;
+  return path;
+}
+
+/** Covers are served from /covers/: a relative 'covers/...' 404s under /<base>/layout-<id>. */
+function ifaceThumbSrc(thumb) {
+  return /^covers\//.test(thumb) ? '/' + thumb : thumb;
+}
+
 function getIfaceSharePath(iface) {
-  return '/portfolio/layout-' + iface.id;
+  return ifaceBasePath() + '/layout-' + iface.id;
 }
 
 function getIfaceFromLocation(pathname = window.location.pathname) {
-  const match = pathname.match(/^\/portfolio\/layout-([a-z0-9-]+)$/i);
+  const baseRe = ifaceBasePath().replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const match = pathname.match(new RegExp('^' + baseRe + '\\/layout-([a-z0-9-]+)$', 'i'));
   if (!match) return null;
+  // A host page's hidden entries do not open from a /<base>/layout-<id> URL either.
+  if (siteIfaceHiddenIds().includes(match[1])) return null;
   return INTERFACES.find(iface => iface.id === match[1]) || null;
 }
 
@@ -962,12 +1085,14 @@ function openIfaceModal(id) {
   const options = arguments[1] || {};
   if (!iface) return;
   const modal = document.getElementById('iface-modal');
+  if (!modal) return;
 
   const isMobile = iface.type === 'mobile';
   modal.classList.toggle('mobile', isMobile);
   setModalUrl(getAbsolutePreviewUrl(getIfaceSharePath(iface)));
 
-  if (options.updateHistory !== false) {
+  // Subpages stay on their own URL. /agence/layout-* is the homepage, not this preview.
+  if (options.updateHistory !== false && !(window.SITE && window.SITE.page)) {
     const nextUrl = getIfaceSharePath(iface);
     if (window.location.pathname !== nextUrl) {
       window.history.pushState({ ifaceId: iface.id }, '', nextUrl);
@@ -1006,18 +1131,22 @@ function openIfaceModal(id) {
 
   modal.classList.add('open');
   syncPageLock();
+  modalFocus.open(modal, modal.querySelector('.iface-modal-close'));
 }
 
 function closeIfaceModal() {
   const options = arguments[0] || {};
+  if (!document.getElementById('iface-modal')) return;
   document.getElementById('iface-modal').classList.remove('open', 'mobile', 'two-screens');
   document.getElementById('iface-modal-frame').src = 'about:blank';
   document.getElementById('iface-phones-row').innerHTML = '';
   setModalUrl('');
-  if (options.updateHistory !== false && window.location.pathname.startsWith('/portfolio/layout-')) {
-    window.history.pushState({}, '', '/portfolio');
+  if (options.updateHistory !== false && window.location.pathname.startsWith(ifaceBasePath() + '/layout-')) {
+    // A host page keeps its query (e.g. ?lang=fr) when the playground modal closes.
+    window.history.pushState({}, '', (ifaceBasePath() || '/') + (storySiteCfg() ? window.location.search : ''));
   }
   syncPageLock();
+  modalFocus.close(document.getElementById('iface-modal'));
 }
 
 renderIfaceGrid();
@@ -1031,11 +1160,11 @@ document.addEventListener('keydown', e => {
     closeStoryModal();
   }
 });
-document.getElementById('iface-modal').addEventListener('click', e => {
+document.getElementById('iface-modal')?.addEventListener('click', e => {
   if (e.target === e.currentTarget) closeIfaceModal();
 });
 window.addEventListener('popstate', () => {
-  if (!window.location.pathname.startsWith('/portfolio/layout-')) {
+  if (!window.location.pathname.startsWith(ifaceBasePath() + '/layout-')) {
     closeStoryModal();
   }
   const iface = getIfaceFromLocation();

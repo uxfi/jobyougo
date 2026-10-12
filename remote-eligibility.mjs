@@ -35,16 +35,19 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { dirname, join } from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { fileURLToPath } from 'url';
 import * as yaml from 'js-yaml';
 import { hasFlag } from './lib/cli-flags.mjs';
 import { sanitizeMarkdownField } from './scan.mjs';
 import { withPipelineLock } from './pipeline-lock.mjs';
 import { classifyLocation } from './remote-eligibility-core.mjs';
+import { isMainModule } from './lib/is-main-module.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
-const PIPELINE_PATH = join(JOBYOUGO, 'data', 'pipeline.md');
-const PROFILE_PATH = join(JOBYOUGO, 'config', 'profile.yml');
+const DATA_ROOT = getJobYouGoRoot();
+const PIPELINE_PATH = join(DATA_ROOT, 'data', 'pipeline.md');
+const PROFILE_PATH = join(DATA_ROOT, 'config', 'profile.yml');
 
 const LABEL = '| location: ';
 const REASON_MAX = 140;
@@ -324,7 +327,7 @@ function selfTest() {
   return fail === 0 ? 0 : 1;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMainModule(import.meta.url)) {
   const args = process.argv.slice(2);
   if (args.includes('--self-test')) {
     process.exit(selfTest());

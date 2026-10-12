@@ -290,3 +290,171 @@ export function snapshotIdentityFields() {
     value: String(el.value || '').trim().slice(0, 160),
   }));
 }
+
+// from lib/apply-submit.mjs
+export function SUBMIT_CANDIDATES() {
+  const deep = (root, sel) => {
+    const out = [];
+    const walk = (n) => {
+      if (!n || !n.querySelectorAll) return;
+      try { out.push(...n.querySelectorAll(sel)); } catch { /* invalid in this root */ }
+      for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+    };
+    walk(root);
+    return out;
+  };
+  deep(document, '[data-co-sc]').forEach((el) => el.removeAttribute('data-co-sc'));
+  const shown = (el) => {
+    if (!el || (el.closest && el.closest('[hidden], [aria-hidden="true"]'))) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 6 || r.height < 6) return false;
+    const st = getComputedStyle(el);
+    return st.visibility !== 'hidden' && st.display !== 'none' && Number(st.opacity || 1) > 0.05;
+  };
+  const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  const fields = deep(document, '[data-co-i]').filter((el) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 || r.height > 0 || el.type === 'file';
+  });
+  const fieldForms = new Set(fields.map((f) => f.form || (f.closest && f.closest('form'))).filter(Boolean));
+  const dialogSel = '[role="dialog"], dialog, [aria-modal="true"]';
+  const fieldDialog = fields.map((f) => f.closest && f.closest(dialogSel)).find(Boolean) || null;
+  const lastField = fields[fields.length - 1] || null;
+  let lastBottom = 0;
+  for (const f of fields) {
+    const r = f.getBoundingClientRect();
+    if (r.height > 0) lastBottom = Math.max(lastBottom, r.bottom + window.scrollY);
+  }
+  const bannerSel = '[id*="cookie" i], [class*="cookie" i], [id*="consent" i], [class*="consent" i], [id*="gdpr" i], [class*="gdpr" i], [id*="onetrust" i], [class*="onetrust" i], [id*="cybot" i], [class*="cc-window" i], [id*="didomi" i], [class*="didomi" i], [id*="axeptio" i], [class*="axeptio" i]';
+  const chromeSel = 'header, nav, footer, aside, [role="navigation"], [role="banner"], [role="contentinfo"]';
+  const out = [];
+  let n = 0;
+  for (const el of deep(document, 'button, input[type="submit"], input[type="button"], input[type="image"], [role="button"], a')) {
+    if (n >= 80) break;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'a') {
+      // A link that goes somewhere is navigation; a script link can be a send.
+      const href = (el.getAttribute('href') || '').trim();
+      if (href && !/^(#|javascript:)/i.test(href)) continue;
+    }
+    if (!shown(el)) continue;
+    const text = clean(el.innerText || el.value || '');
+    const aria = clean(el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('alt') || '');
+    if ((text || aria).length > 90) continue;
+    const form = el.form || (el.closest && el.closest('form')) || null;
+    const btnType = tag === 'button' ? String(el.type || 'submit').toLowerCase()
+      : tag === 'input' ? String(el.type || '').toLowerCase()
+        : tag === 'a' ? 'link' : 'role';
+    const submitType = !!form && (btnType === 'submit' || btnType === 'image');
+    const inFieldForm = !!form && fieldForms.has(form);
+    const banner = el.closest && el.closest(bannerSel);
+    const inBanner = !!banner && ![...fieldForms].some((f) => banner.contains(f));
+    const chromeBox = el.closest && el.closest(chromeSel);
+    const inChrome = !!chromeBox && !inFieldForm && !fields.some((f) => chromeBox.contains(f));
+    const disabled = !!(el.disabled || el.getAttribute('aria-disabled') === 'true'
+      || (el.closest && el.closest('fieldset[disabled], [aria-disabled="true"], [inert]')));
+    const afterFields = !!lastField && lastField !== el
+      && !!(lastField.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const r = el.getBoundingClientRect();
+    const dialog = el.closest && el.closest(dialogSel);
+    el.setAttribute('data-co-sc', String(n));
+    out.push({
+      n,
+      text: text.slice(0, 80),
+      aria: aria.slice(0, 80),
+      tag,
+      type: btnType,
+      submitType,
+      disabled,
+      inForm: !!form,
+      inFieldForm,
+      afterFields,
+      dy: lastField ? Math.round(r.top + window.scrollY - lastBottom) : null,
+      inChrome,
+      inBanner,
+      inDialog: !!dialog,
+      outsideFieldDialog: !!fieldDialog && !fieldDialog.contains(el),
+      hint: clean(`${el.id || ''} ${typeof el.className === 'string' ? el.className : ''} ${el.getAttribute('data-testid') || ''} ${el.getAttribute('name') || ''}`).slice(0, 140),
+    });
+    n++;
+  }
+  return { candidates: out, fieldCount: fields.length, hasFieldForm: fieldForms.size > 0 };
+}
+
+// from lib/apply-submit.mjs
+export function APPLY_PAGE_SIGNALS() {
+  const shown = (el) => {
+    if (!el || (el.closest && el.closest('[hidden], [aria-hidden="true"], [inert]'))) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 10 || r.height < 10) return false;
+    const st = getComputedStyle(el);
+    return st.visibility !== 'hidden' && st.display !== 'none' && st.opacity !== '0';
+  };
+  const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  // Active challenges only: the floating reCAPTCHA badge is not one.
+  const widgets = [
+    ['recaptcha', 'iframe[src*="recaptcha"], .g-recaptcha'],
+    ['hcaptcha', 'iframe[src*="hcaptcha"], [class*="h-captcha"]'],
+    ['turnstile', 'iframe[src*="turnstile"], [class*="cf-turnstile"]'],
+    ['datadome', 'iframe[src*="datadome"], [id*="datadome"]'],
+    ['perimeterx', 'iframe[src*="perimeterx"], #px-captcha, [class*="px-captcha"]'],
+    ['arkose', 'iframe[src*="arkoselabs"], #FunCaptcha, [class*="funcaptcha"]'],
+    ['awswaf', 'iframe[src*="captcha.awswaf"], [id*="awswaf-captcha"]'],
+    ['friendlycaptcha', 'iframe[src*="friendlycaptcha"], .frc-captcha'],
+    ['geetest', '.geetest_holder, iframe[src*="geetest"]'],
+  ];
+  let captcha = '';
+  for (const [kind, sel] of widgets) {
+    const hit = [...document.querySelectorAll(sel)].some((el) => !el.closest('.grecaptcha-badge') && shown(el));
+    if (hit) { captcha = kind; break; }
+  }
+  // A checkbox widget stays on screen once solved; only its token changes.
+  const solved = [...document.querySelectorAll('textarea[name="g-recaptcha-response"], input[name="h-captcha-response"], textarea[name="h-captcha-response"], input[name="cf-turnstile-response"], input[name="frc-captcha-solution"]')]
+    .some((el) => String(el.value || '').trim().length > 10);
+  // The image challenge invisible reCAPTCHA opens after a send click.
+  const challengeOpen = [...document.querySelectorAll('iframe[src*="recaptcha/api2/bframe"], iframe[src*="recaptcha/enterprise/bframe"], iframe[src*="hcaptcha.com"][src*="frame=challenge"], iframe[title*="challenge" i]')]
+    .some(shown);
+  const inputs = [...document.querySelectorAll('input, textarea, select')].filter((el) => {
+    const t = String(el.type || '').toLowerCase();
+    return !['hidden', 'submit', 'button', 'image', 'reset'].includes(t) && shown(el);
+  });
+  const codeRe = /otp|one.?time|verification.?code|verify.?code|security.?code|confirmation.?code|access.?code|passcode|\bpin\b|2fa|mfa|code de (v[ée]rification|confirmation|s[ée]curit[ée])|best[äa]tigungscode|verifizierungscode|c[óo]digo/i;
+  const describe = (el) => `${el.name || ''} ${el.id || ''} ${el.getAttribute('autocomplete') || ''} ${el.getAttribute('aria-label') || ''} ${el.getAttribute('placeholder') || ''}`;
+  const codeInputs = inputs.filter((el) => el.getAttribute('autocomplete') === 'one-time-code' || codeRe.test(describe(el)));
+  // Split code boxes: four to eight one-character inputs side by side.
+  const single = inputs.filter((el) => Number(el.maxLength) === 1 && /^(text|tel|number|password)$/i.test(el.type || 'text'));
+  const otpBoxes = single.length >= 4 && single.length <= 8;
+  const passwords = inputs.filter((el) => String(el.type || '').toLowerCase() === 'password').length;
+  // What a signed-in platform already filled, read-only or disabled boxes
+  // included (the collect skips those): the account's e-mail is often one.
+  const prefilled = [...document.querySelectorAll('input, textarea')]
+    .filter((el) => !['hidden', 'password', 'file', 'checkbox', 'radio', 'submit', 'button'].includes(String(el.type || '').toLowerCase()))
+    .map((el) => String(el.value || '').trim())
+    .filter((v) => v && v.length < 120);
+  const emailValues = prefilled.filter((v) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v)).slice(0, 3);
+  const main = document.querySelector('main, [role="main"], article') || document.body;
+  const text = clean(main ? main.innerText : '').slice(0, 6000);
+  const bodyText = clean(document.body ? document.body.innerText : '');
+  const headings = [...document.querySelectorAll('h1, h2, [role="heading"], [role="alert"], [aria-live="assertive"], [aria-live="polite"]')]
+    .filter(shown)
+    .map((el) => clean(el.innerText))
+    .filter((t) => t && t.length < 200)
+    .slice(0, 8);
+  return {
+    url: location.href,
+    title: clean(document.title).slice(0, 160),
+    headings,
+    text,
+    bodyLength: bodyText.length,
+    shortBody: bodyText.length < 1500 ? bodyText.slice(0, 1500) : '',
+    captcha: captcha && !solved ? captcha : '',
+    captchaSolved: !!captcha && solved,
+    challengeOpen,
+    codeInputs: codeInputs.length,
+    otpBoxes,
+    passwords,
+    emailValues,
+    fieldCount: inputs.length,
+    filledMarks: document.querySelectorAll('[data-co-i]').length,
+  };
+}

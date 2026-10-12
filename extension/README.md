@@ -23,14 +23,14 @@ Même moteur de décision côté serveur :
 ## Installation
 
 1. `chrome://extensions` → Mode développeur → Charger non empaquetée → ce dossier
-2. Recharger l’extension après chaque changement (`manifest` **0.0.33**)
+2. Recharger l’extension après chaque changement (`manifest` **0.0.40**)
 3. Lancer le dashboard (`npm run dev`) — le pont WS est sur `ws://127.0.0.1:3210/apply-bridge`
 4. Cliquer l’icône JobYouGo dans la barre Chrome, puis **Connect**. Le dashboard peut aussi lancer cette connexion une fois la page rechargée.
 5. Le pont standalone `node extension/dev-bridge.mjs` (port 8934) n’est plus contacté par l’extension
 
 ## Interface
 
-`popup.html` est l’écran de l’icône : état du pont, bouton Connect / Reconnect, ouverture du dashboard. Un `!` sur l’icône veut dire que le socket n’est pas ouvert. `dashboard-bridge.js` tourne sur `http://127.0.0.1:3210` et `http://localhost:3210` pour que la barre du dashboard puisse demander la même connexion.
+`popup.html` est l’écran de l’icône : état du pont, bouton Connect / Reconnect, ouverture du dashboard. **Scan & apply this tab** lit l’offre de l’onglet ouvert au moment du clic, lance l’évaluation, puis le parcours d’apply sur ce même onglet. Un `!` sur l’icône veut dire que le socket n’est pas ouvert. `dashboard-bridge.js` tourne sur `http://127.0.0.1:3210` et `http://localhost:3210` pour que la barre du dashboard puisse demander la même connexion.
 
 `apply-helper-overlay.js` est le helper quick-fill (valeurs du profil, réponses du rapport, CV régional) : le bouton « Apply » du dashboard ouvre l’offre via le plugin, puis le message `show-helper` le dessine en panneau flottant par-dessus l’offre (shadow root fermé, invisible pour la collecte des champs). Il est réinjecté après chaque navigation de l’onglet et suit un onglet ouvert depuis celui-ci ; « Fill with the plugin » ramène le dashboard sur la modale auto-apply de cet onglet.
 

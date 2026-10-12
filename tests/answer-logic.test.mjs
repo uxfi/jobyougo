@@ -88,7 +88,7 @@ ok('AI closest uses the employer workflow', aiHits.some((line) => /OneAsset/i.te
 ok('scale questions keep the documented counts only', isScaleQuestion(scaleQ) && /10,000/.test(scaleReq.user) && /millions/.test(scaleReq.user));
 ok('scale instructions name SG or UpViral, not Creads as the proof', /Société Générale/.test(scaleReq.user) && /UpViral/.test(scaleReq.user) && /employer-scale proof/.test(scaleReq.user) && !/Creads/.test((scaleReq.user.match(/## Facts\n[\s\S]*?(?=\n\n## |\n\nAnswer|\n\nLANGUAGE)/) || [''])[0]) && !/\+12%/.test((scaleReq.user.match(/## Facts\n[\s\S]*?(?=\n\n## |\n\nAnswer|\n\nLANGUAGE)/) || [''])[0]));
 ok('a ceased employer is not an allowed proof name', !(mobileReq.allowedNames || []).some((name) => /Vloggy/i.test(name)));
-ok('why-us is a motivation question, not a product dump', isMotivationQuestion(whyQ) && /One detail from the offer/.test(whyReq.user) && !/4 to 6 sentences/.test(whyReq.user));
+ok('why-us is a motivation question, not a product dump', isMotivationQuestion(whyQ) && /What specifically draws you to/.test(whyReq.user) && !/4 to 6 sentences/.test(whyReq.user));
 ok('why-us uses the eval match to pick proof', formAnswerRequest({
   question: whyQ,
   company: 'Mozilla',

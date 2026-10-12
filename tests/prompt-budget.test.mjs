@@ -16,6 +16,7 @@ import {
   experienceIndex,
   indexCareer,
   languagesFromText,
+  normalizeCvDialect,
   roleTenureYears,
   isFactualQuestion,
   isMotivationQuestion,
@@ -24,6 +25,7 @@ import {
   questionPromptEn,
   questionPromptFr,
 } from '../lib/prompt-budget.mjs';
+import { emptyStructuredCv, renderCvMarkdown } from '../lib/cv-import.mjs';
 
 function ok(label, cond) {
   if (cond) pass(label);
@@ -190,7 +192,8 @@ ok('career index carries spoken languages', indexCareer(cv).languages.some((l) =
 ok('a user-count question is a scale question', isScaleQuestion('What was the scale of the product you manage—approximately how many active users or customers does it serve?') && !isScaleQuestion('Tell us about one mobile feature you shipped'));
 ok('why-us is a motivation question', isMotivationQuestion('Why are you interested in this role?') && !isMotivationQuestion('Tell us about a product you designed'));
 ok('fit and cover letter are motivation questions', isMotivationQuestion('What makes you a good fit for this position?') && isMotivationQuestion('Cover letter'));
-ok('motivation instructions start from the offer, not a canned employer opener', /One detail from the offer/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })) && !/First sentence: an employer/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })));
+ok('a "why you are interested … strong match" label is a motivation question', isMotivationQuestion('Why you are interested in joining our team and think you could be a strong match', 'Ihsan') && isMotivationQuestion('What draws you to Ihsan?', 'Ihsan') && isMotivationQuestion('Pourquoi souhaitez-vous nous rejoindre ?') && !isMotivationQuestion('What motivated you to become a designer?'));
+ok('motivation instructions start from the offer, not a canned employer opener', /What specifically draws you to Acme/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })) && /Ambition/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })) && /Do not open with a past employer/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })) && !/First sentence: an employer/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })));
 
 const enQuestion = 'Tell us about the product you are most proud of designing. What problem were you solving?';
 const frQuestion = 'Décrivez une expérience dont vous êtes fier et le problème que vous résolviez.';
@@ -227,3 +230,41 @@ const pdf = assembleUiPrompt({
 });
 ok('pdf system is the marker contract', pdf.systemPrompt.includes('### SUMMARY_TEXT') && !pdf.systemPrompt.includes('Block E'));
 ok('pdf uses the compact CV', pdf.parts.join('\n').includes('Prompt engineering') && pdf.afterChars < cv.length + 8000);
+
+// An H2 CV written by hand puts the whole job in its "###" heading, or in a
+// bold line: it reaches compactCv as "#### Role : Company (dates)".
+const roleHeads = (md) => normalizeCvDialect(md).split('\n').filter((line) => line.startsWith('#### '));
+const qontoCv = '# Camille Martin\n\n## Expérience professionnelle\n### Chef de produit — Qonto (2021 – aujourd’hui)\n- Lancé le compte pro.\n';
+ok('an H2 "Role — Company (dates)" heading becomes the role line',
+  roleHeads(qontoCv).join('\n') === '#### Chef de produit : Qonto (2021 – aujourd’hui)');
+ok('compactCv carries the hand-written role and company',
+  /^#### Chef de produit : Qonto \(2021 – aujourd’hui\)$/m.test(compactCv(qontoCv)) && indexCareer(qontoCv).employerNames.includes('Qonto'));
+ok('an H2 "Role : Company (dates)" heading is not split twice',
+  roleHeads('# Jo\n\n## Experience\n### Product Designer : Beta Bank (2016 – 2019)\n- Designed the app.\n').join('\n')
+    === '#### Product Designer : Beta Bank (2016 – 2019)');
+const boldJobs = normalizeCvDialect([
+  '# Al', '', '## Experience',
+  '**Senior Product Designer — Acme Pay (2021 – Present)**', '- Led checkout.', '',
+  '**Product Designer, Beta Bank**', '*2016 – 2019*', '- Designed the app.',
+  '**Tools:** Figma', '',
+].join('\n'));
+ok('bold job lines under Experience become role lines',
+  /^#### Senior Product Designer : Acme Pay \(2021 – Present\)\n- Led checkout\.$/m.test(boldJobs)
+  && /^#### Product Designer : Beta Bank \(2016 – 2019\)\n- Designed the app\.$/m.test(boldJobs)
+  && /^\*\*Tools:\*\* Figma$/m.test(boldJobs));
+const importedCv = renderCvMarkdown({
+  ...emptyStructuredCv(),
+  summary: ['Backend engineer on payment platforms.'],
+  experience: [
+    { company: 'Acme Payments', title: 'Staff Engineer', start: 'Mar 2021', end: 'Present', location: 'Lyon', bullets: ['Built the ledger.'] },
+    { company: 'Beta Bank', title: 'Senior Engineer', start: '2017', end: '2021', location: '', bullets: ['Ran the card platform.'] },
+    { company: 'Freelance', title: 'Freelance', start: '2015', end: '2017', location: '', bullets: ['Shipped client sites.'] },
+  ],
+}, { name: 'Jane Doe' });
+ok('the onboarding import ("### Company" + "**Role**" + dates line) renders as before',
+  normalizeCvDialect(importedCv) === [
+    '# Jane Doe', '', '### Summary', '', 'Backend engineer on payment platforms.', '', '### Experience', '',
+    '#### Staff Engineer : Acme Payments (Mar 2021 – Present · Lyon)', '- Built the ledger.', '',
+    '#### Senior Engineer : Beta Bank (2017 – 2021)', '- Ran the card platform.', '',
+    '#### Freelance : — (2015 – 2017)', '- Shipped client sites.', '',
+  ].join('\n'));

@@ -142,3 +142,10 @@ create policy "reports_own" on reports
     auth.uid() = user_id
     or exists (select 1 from public.profiles where id = auth.uid() and is_admin = true)
   );
+
+-- ── 7. Onboarding columns (2026-10-07, see migrations/20261007_profile_onboarding.sql)
+alter table public.profiles
+  add column if not exists candidate               jsonb,
+  add column if not exists availability            jsonb,
+  add column if not exists preferences             jsonb,
+  add column if not exists onboarding_completed_at timestamptz;

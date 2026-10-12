@@ -19,12 +19,20 @@ window.addEventListener('message', (event) => {
   if (event.source !== window || event.data?.source !== 'jobyougo-dashboard') return;
   if (event.data.type === 'connect') port.postMessage({ type: 'bridge-connect' });
   else if (event.data.type === 'hello') port.postMessage({ type: 'bridge-status' });
+  else if (event.data.type === 'scan-apply-progress' && event.data.tabId) {
+    port.postMessage({
+      type: 'scan-apply-progress',
+      tabId: event.data.tabId,
+      phase: event.data.phase || 'run',
+      text: event.data.text || '',
+    });
+  }
 });
 
 // "Fill with the plugin" clicked in the helper over an offer tab. No
 // `installed` flag: the page's status listener must not read it as a phase.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type !== 'helper-fill') return false;
+  if (msg?.type !== 'helper-fill' && msg?.type !== 'scan-apply-tab') return false;
   window.postMessage({ ...msg, source: 'jobyougo-extension' }, window.location.origin);
   sendResponse({ ok: true });
   return false;

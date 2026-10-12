@@ -353,6 +353,30 @@ function PulseButtonIsland({ host }: { host: HTMLElement }) {
   );
 }
 
+function StarMark() {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const [paused, setPaused] = useState(reduce);
+
+  useEffect(() => {
+    if (paused) return;
+    const id = window.setTimeout(() => setPaused(true), 4800);
+    return () => window.clearTimeout(id);
+  }, [paused]);
+
+  return createElement(BotAvatar, {
+    type: 'star',
+    state: 'working',
+    size: 64,
+    paused,
+    'aria-label': paused ? 'Revenue agent, stopped' : 'Revenue agent, scanning',
+    onClick: () => setPaused((value) => !value),
+  });
+}
+
+export function mountBriefingStage(_chart: HTMLElement, avatar: HTMLElement) {
+  renderInto(avatar, createElement(StarMark));
+}
+
 export function mountPulseButton(host: HTMLElement) {
   if (!(host instanceof HTMLElement) || !host.parentNode) return;
   const mount = document.createElement('div');
