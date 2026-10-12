@@ -425,7 +425,7 @@
         const guar = String(t('guar_headline') || '').replace(/<br\s*\/?>/g, ' ');
         const rail = CHAPTERS.map((c) => '<i style="background:' + c.color + '"></i>').join('');
         const paint = '<div class="tile-paint"><div class="t-nav p-nav"><b>v2 studio<i class="t-dab"></i></b><span><i>' + esc(t('nav_showcase')) + '</i><i>' + esc(t('nav_services')) + '</i><i>' + esc(t('nav_pricing')) + '</i><i>' + esc(t('nav_secret')) + '</i></span><em>' + esc(t('nav_contact')) + '</em></div>'
-          + '<div class="p-hero" style="background-image:url(/images/agence-dive-poster.jpg?v=3)"><img class="p-island" src="/images/3d/floating-island/island-still.png?v=5" alt="" loading="lazy" decoding="async">'
+          + '<div class="p-hero" style="background-image:url(/images/agence-dive-poster.jpg?v=3)"><img class="p-island" src="/images/3d/floating-island/island-tile.png?v=1" alt="" loading="lazy" decoding="async">'
           + '<div class="p-copy"><h4>' + head + '</h4><div class="t-cta"><em>' + esc(t('hero_cta_primary')) + '</em><i>' + esc(t('hero_cta_secondary')) + '</i></div></div><div class="p-rail">' + rail + '</div></div>'
           + '<div class="p-row"><div class="p-fox" style="background-image:url(/images/agence-fox-close-m.jpg)"><b>' + guar + '</b></div>'
           + '<div class="p-checks">' + [1, 2, 4].map((n, k) => '<div><i style="background:' + CHECK_COLORS[k % CHECK_COLORS.length] + '"></i><b>' + esc(t('check_' + n + '_title')) + '</b><s>✓</s></div>').join('') + '</div></div></div>';
@@ -491,16 +491,16 @@
         <div class="svc-side">
           <p class="svc-gets">${esc(t('s_svc_gets'))}</p>
           <ul class="svc-list">${dels.join('')}</ul>
-          ${ev ? `<div class="proof">
-            <button type="button" class="proof-btn" aria-expanded="false" aria-controls="proof-${n}">
-              <span class="proof-ico" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/><path class="proof-ico-check" d="M5 7.1l1.4 1.4L9 5.8"/></svg></span>
-              <span class="proof-lbl">${esc(t('s_more_proof'))}</span>
-              <span class="proof-chev" aria-hidden="true"><svg viewBox="0 0 10 10"><path d="M2.5 4l2.5 2.5L7.5 4"/></svg></span>
+          ${ev ? `<div class="svcp">
+            <button type="button" class="svcp-btn" aria-expanded="false" aria-controls="svcp-${n}">
+              <span class="svcp-ico" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/><path class="svcp-ico-check" d="M5 7.1l1.4 1.4L9 5.8"/></svg></span>
+              <span class="svcp-lbl">${esc(t('s_more_proof'))}</span>
+              <span class="svcp-chev" aria-hidden="true"><svg viewBox="0 0 10 10"><path d="M2.5 4l2.5 2.5L7.5 4"/></svg></span>
             </button>
-            <div class="proof-pop" id="proof-${n}" role="region" aria-label="${esc(proofTag)}" inert>
-              <p class="proof-head"><span class="proof-dot" aria-hidden="true"></span>${esc(proofTag)}</p>
+            <div class="svcp-pop" id="svcp-${n}" role="region" aria-label="${esc(proofTag)}" inert>
+              <p class="svcp-head"><span class="svcp-dot" aria-hidden="true"></span>${esc(proofTag)}</p>
               <p class="svc-evidence">${esc(ev)}</p>
-              <button type="button" class="proof-close" aria-label="${esc(t('s_proof_close'))}"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg></button>
+              <button type="button" class="svcp-close" aria-label="${esc(t('s_proof_close'))}"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg></button>
             </div>
           </div>` : ''}
         </div>
@@ -1179,8 +1179,8 @@
   function setProof(el, open) {
     if (!el) return;
     if (open && openProof && openProof !== el) setProof(openProof, false);
-    const btn = el.querySelector('.proof-btn');
-    const pop = el.querySelector('.proof-pop');
+    const btn = el.querySelector('.svcp-btn');
+    const pop = el.querySelector('.svcp-pop');
     if (open) {
       const r = btn.getBoundingClientRect();
       const need = pop.offsetHeight + 28;
@@ -1679,10 +1679,10 @@
     if (open) panel.removeAttribute('inert'); else panel.setAttribute('inert', '');
   }
   d.addEventListener('click', (e) => {
-    const proofBtn = e.target.closest('.proof-btn');
-    if (proofBtn) { const el = proofBtn.closest('.proof'); setProof(el, !el.classList.contains('is-open')); return; }
-    const proofClose = e.target.closest('.proof-close');
-    if (proofClose) { const el = proofClose.closest('.proof'); setProof(el, false); el.querySelector('.proof-btn').focus({ preventScroll: true }); return; }
+    const proofBtn = e.target.closest('.svcp-btn');
+    if (proofBtn) { const el = proofBtn.closest('.svcp'); setProof(el, !el.classList.contains('is-open')); return; }
+    const proofClose = e.target.closest('.svcp-close');
+    if (proofClose) { const el = proofClose.closest('.svcp'); setProof(el, false); el.querySelector('.svcp-btn').focus({ preventScroll: true }); return; }
     if (openProof && !openProof.contains(e.target)) setProof(openProof, false);
     const moreBtn = e.target.closest('.more-btn');
     if (moreBtn) { toggleDisclosure(moreBtn, '.more', '.more-panel'); return; }
@@ -1763,7 +1763,7 @@
   });
   d.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (openProof) { const el = openProof; setProof(el, false); el.querySelector('.proof-btn').focus({ preventScroll: true }); }
+    if (openProof) { const el = openProof; setProof(el, false); el.querySelector('.svcp-btn').focus({ preventScroll: true }); }
     closeSpots();
     if (chat && !chat.hidden) { setChat(false); chatToggle.focus(); }
     closeMenu();
