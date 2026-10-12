@@ -658,17 +658,17 @@ body.page main > section::before, body.page main > section > .pin-stage::before 
 .r-card b { position: absolute; left: 2cqw; bottom: 4.4cqw; font-size: 2.3cqw; letter-spacing: .12em; font-weight: 500; }
 .r-holder { position: absolute; left: 2cqw; bottom: 1.8cqw; font-size: 1.4cqw; letter-spacing: .14em; opacity: .85; }
 .r-card em { position: absolute; right: 2cqw; bottom: 1.8cqw; font-style: normal; font-weight: 700; letter-spacing: -.04em; font-size: 2.2cqw; }
-.r-toast { position: absolute; left: 2%; bottom: 10%; display: flex; align-items: center; gap: 1.2cqw; padding: 1.2cqw 1.6cqw 1.2cqw 1.2cqw; border-radius: 1.6cqw; background: #fff; box-shadow: 0 2cqw 4cqw rgba(16, 32, 29, .2); font-size: 1.6cqw; opacity: 0; transform: translateY(30%); }
+.r-toast { position: absolute; left: -4%; bottom: 7%; display: flex; align-items: center; gap: 1.2cqw; padding: 1.2cqw 1.6cqw 1.2cqw 1.2cqw; border-radius: 1.6cqw; background: #fff; box-shadow: 0 2cqw 4cqw rgba(16, 32, 29, .2); font-size: 1.6cqw; opacity: 0; transform: translateY(30%); }
 .r-toast i { display: grid; place-items: center; width: 3.6cqw; height: 3.6cqw; border-radius: 50%; background: var(--mint); color: var(--teal); }
 .r-toast svg { width: 2.2cqw; height: 2.2cqw; }
 .r-toast b { display: block; font-weight: 600; } .r-toast span { color: var(--ink-2); font-size: 1.4cqw; }
-.r-feats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.6cqw; padding: 2cqw 3.8cqw 2.6cqw; border-top: 1px solid rgba(16, 32, 29, .1); background: #fbf9f4; }
+.r-feats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.6cqw; padding: 1.8cqw 3.8cqw 2.2cqw; border-top: 1px solid rgba(16, 32, 29, .1); background: #fbf9f4; }
 .r-feats > div { display: flex; gap: 1.4cqw; align-items: flex-start; font-size: 1.7cqw; }
 .r-feats i { flex: none; display: grid; place-items: center; width: 4.4cqw; height: 4.4cqw; border-radius: 1.3cqw; background: var(--mint); color: var(--teal); }
 .r-feats svg { width: 2.6cqw; height: 2.6cqw; }
 .r-feats b { display: block; font-weight: 600; margin-bottom: .3cqw; }
-.r-feats span { color: var(--ink-2); font-size: 1.5cqw; line-height: 1.3; }
-.r-tag { position: absolute; right: 3cqw; top: 2.2cqw; display: inline-flex; align-items: center; gap: .9cqw; font-size: 1.6cqw; font-weight: 600; color: var(--teal); }
+.r-feats span { display: block; color: var(--ink-2); font-size: 1.45cqw; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-tag { display: inline-flex; align-items: center; gap: .8cqw; margin-left: .4cqw; padding: .5cqw 1.3cqw; border-radius: 999px; background: var(--mint); font-size: 1.5cqw; font-weight: 600; color: var(--teal); white-space: nowrap; }
 .r-tag .t-dab { background: var(--teal); }
 /* Life: the card floats and catches the light, the chart draws itself, the notification arrives. */
 .is-live .r-card { animation: r-float 6s ease-in-out infinite; }
