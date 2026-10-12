@@ -105,6 +105,9 @@
       s_svc_gets: 'What you get',
       s_soon: 'Soon',
       s_proof_close: 'Close the proof',
+      s_proof_img_1: 'The redesigned BMW homepage',
+      s_proof_img_2: 'The redesigned UpViral campaign builder',
+      s_proof_img_3: 'The Creads.io dashboard',
       s_fig_svc_1: 'A brush repainting a web page',
       s_fig_svc_2: 'A customer journey that drops its detour',
       s_fig_svc_3: 'A prompt turning into a working screen',
@@ -169,6 +172,9 @@
       s_svc_gets: 'Ce que vous recevez',
       s_soon: 'Bientôt',
       s_proof_close: 'Fermer la preuve',
+      s_proof_img_1: 'La page d’accueil BMW repensée',
+      s_proof_img_2: 'L’éditeur de campagne UpViral repensé',
+      s_proof_img_3: 'Le tableau de bord de Creads.io',
       s_fig_svc_1: 'Un pinceau qui repeint une page web',
       s_fig_svc_2: 'Un parcours client qui abandonne son détour',
       s_fig_svc_3: 'Un prompt qui devient un écran fonctionnel',
@@ -181,6 +187,28 @@
     },
   };
 
+  /* The picture in each proof bubble: the cited project, or the founder for coaching (no project to cite).
+     Loaded on first hover or open (data-src), not with the page. */
+  const SVC_PROOF_MEDIA = {
+    1: { src: '/images/bmw-homepage.webp', name: 'BMW', pos: '50% 3%' },
+    2: { src: '/images/after-upviral.png', name: 'UpViral', pos: '50% 6%' },
+    3: { src: '/images/creads-v2-dashboard.webp', name: 'Creads.io', pos: '0% 40%' },
+    4: { src: '/images/hugo_vermot.optimized.jpg', person: true },
+  };
+  function proofMedia(n) {
+    const m = SVC_PROOF_MEDIA[n];
+    if (!m) return '';
+    if (m.person) {
+      return `<div class="svcp-person"><img data-src="${esc(m.src)}" alt="" width="44" height="44" decoding="async"><span>${esc(t('founder_sign'))}</span></div>`;
+    }
+    return `<figure class="svcp-media"><img data-src="${esc(m.src)}" alt="${esc(t('s_proof_img_' + n))}" decoding="async" style="object-position:${esc(m.pos)}"><figcaption>${esc(m.name)}</figcaption></figure>`;
+  }
+  function loadProofMedia(el) {
+    const img = el && el.querySelector('img[data-src]');
+    if (!img) return;
+    img.src = img.dataset.src;
+    img.removeAttribute('data-src');
+  }
   /* Offers not open yet (coaching and its extra session): a 'Soon' tag wherever they are listed. */
   const SOON = new Set(['accompagnement', 'session']);
   const soonTag = (id) => (SOON.has(id) ? `<span class="soon">${esc(t('s_soon'))}</span>` : '');
@@ -364,74 +392,114 @@
   /* ── Renderers ── */
   /* The forest of lookalikes: eight small landing pages that could be anyone's. Same nav, same gradient hero,
      same "Get started", same three feature cards. One of them gets painted into the page's own site. */
+  /* Six kinds of generated site, the defaults an AI builder reaches for. Shared copy first, then one voice per kind. */
   const SITES = {
     en: {
-      brands: ['Nexora', 'Fluxly', 'Orbitly', 'Zentrix', 'Lumen AI', 'Pulsewave', 'Stackly', 'Quanta'],
-      heads: ['Build faster|with AI', 'Supercharge|your workflow', 'The future of|productivity', 'Unlock your|team’s potential', 'Automate|everything', 'Ship 10x|faster', 'Scale|without limits', 'Your AI copilot|for work'],
-      subs: ['The all-in-one platform to streamline your business and grow faster.', 'Seamless collaboration, powered by next-gen AI.', 'Smarter decisions, instantly. No code required.', 'Join 10,000+ teams already working smarter.'],
+      signin: 'Sign in', logos: ['Acme', 'Globex', 'Initech', 'Hooli', 'Vandelay'],
       feats: [['Lightning fast', 'Secure by design', 'Works everywhere'], ['AI insights', 'Real-time sync', '24/7 support'], ['Smart automation', 'Easy integrations', 'Built to scale']],
-      links: ['Product', 'Pricing', 'Docs', 'Blog'],
-      signin: 'Sign in',
-      learn: 'Watch demo',
-      badge: '✦ New · AI 2.0 is here',
-      trusted: 'Trusted by 10,000+ teams',
-      logos: ['Acme', 'Globex', 'Initech', 'Hooli', 'Vandelay'],
       stats: [['99.9%', 'uptime'], ['10x', 'faster'], ['2M+', 'users']],
-      kpis: [['12.4k', '+24%'], ['$84k', '+8%'], ['98%', '+2%']],
+      quote: ['“We set it up in an afternoon and never looked back.”', 'Sarah K.', 'Head of Ops'],
+      kinds: {
+        dash: { brand: 'Nexora', badge: '✦ New · AI 2.0 is here', head: 'Build faster|with AI', sub: 'The all-in-one platform to streamline your business and grow faster.', cta: 'Get started', alt: 'Watch demo', links: ['Product', 'Pricing', 'Docs', 'Blog'], trust: 'Trusted by 10,000+ teams', kpis: [['12.4k', '+24%'], ['$84k', '+8%'], ['98%', '+2%']] },
+        shop: { brand: 'Maison Lumi', badge: 'Spring drop · Free shipping', head: 'Everyday pieces,|made to last', sub: 'Thoughtfully designed essentials in natural fabrics.', cta: 'Shop now', alt: 'See the lookbook', links: ['New in', 'Women', 'Men', 'Sale'], trust: 'Free returns within 30 days', cart: 'Cart · 2', products: [['Linen shirt', '$68'], ['Canvas tote', '$42'], ['Wool cap', '$36']], perks: ['Free shipping', '30-day returns', 'Secure checkout'], add: 'Add' },
+        chat: { brand: 'Replyly', badge: 'Powered by GPT', head: 'Answer every customer|in seconds', sub: 'An AI assistant trained on your help center, live in one click.', cta: 'Try it free', alt: 'Book a demo', links: ['Features', 'Pricing', 'Docs'], trust: 'No credit card required', name: 'Assistant', status: 'Online', msgs: [['Hi! How can I help you today?', 0], ['Where is my order #4821?', 1], ['It shipped this morning and arrives Friday 🎉', 0]], placeholder: 'Ask anything…' },
+        chart: { brand: 'Metrix', badge: 'Analytics 3.0', head: 'See what actually|moves revenue', sub: 'Every metric, every team, one source of truth.', cta: 'Start free trial', alt: 'View live demo', links: ['Product', 'Customers', 'Pricing'], trust: 'SOC 2 · GDPR · ISO 27001', legend: ['Revenue', 'Churn'], period: 'Last 30 days', total: '$248,920' },
+        phone: { brand: 'Pocket', badge: '#1 finance app', head: 'Your money,|finally simple', sub: 'Budgets, savings and cards in one calm place.', cta: 'Download the app', alt: 'Learn more', links: ['Features', 'Security', 'Help'], trust: '4.9 ★ on the App Store', balance: '$12,480.20', balanceLabel: 'Total balance', rows: [['Groceries', '-$42.10'], ['Salary', '+$3,200'], ['Coffee', '-$4.50']], send: 'Send money' },
+        redo: { eyebrow: 'Banking, without the noise', head: 'Know where|every euro goes.', sub: 'One account, one card and a clear view of your month. No fees you didn’t ask for.', cta: 'Open an account', alt: 'See how it works', trust: '4.9 · 120k reviews', links: ['Product', 'Cards', 'Savings', 'Help'], balance: 'Balance', amount: '€4,218.40', delta: '+€3,200 this week', cats: [['Groceries', '€312'], ['Transport', '€64'], ['Eating out', '€128']], holder: 'SARAH KOVACS', toast: ['Salary received', '+€3,200.00 · just now'], feats: [['Deposits protected', 'Up to €100,000, by law.'], ['Instant transfers', 'To anyone, in seconds.'], ['Spending sorted', 'Every purchase in its place.']], tag: 'Redesign · 12 checks' },
+        kanban: { brand: 'Taskflow', badge: 'Now with AI planning', head: 'Plan the work,|skip the chaos', sub: 'Boards, timelines and docs for teams that ship.', cta: 'Get started free', alt: 'Watch the video', links: ['Product', 'Solutions', 'Pricing', 'Changelog'], trust: 'Loved by 4,000+ teams', cols: [['To do', 3], ['In progress', 2], ['Done', 4]] },
+      },
     },
     fr: {
-      brands: ['Nexora', 'Fluxly', 'Orbitly', 'Zentrix', 'Lumen AI', 'Pulsewave', 'Stackly', 'Quanta'],
-      heads: ['Construisez plus vite|avec l’IA', 'Boostez|votre productivité', 'Le futur|du travail', 'Libérez le potentiel|de votre équipe', 'Automatisez|tout', 'Livrez 10x|plus vite', 'Passez à l’échelle|sans limite', 'Votre copilote IA|au travail'],
-      subs: ['La plateforme tout-en-un pour simplifier votre activité et grandir plus vite.', 'Une collaboration fluide, propulsée par l’IA de nouvelle génération.', 'Des décisions plus intelligentes, instantanément. Sans code.', 'Rejoignez plus de 10 000 équipes qui travaillent mieux.'],
+      signin: 'Connexion', logos: ['Acme', 'Globex', 'Initech', 'Hooli', 'Vandelay'],
       feats: [['Ultra rapide', 'Sécurisé par design', 'Partout avec vous'], ['Insights IA', 'Synchro en temps réel', 'Support 24/7'], ['Automatisation', 'Intégrations faciles', 'Conçu pour grandir']],
-      links: ['Produit', 'Tarifs', 'Docs', 'Blog'],
-      signin: 'Connexion',
-      learn: 'Voir la démo',
-      badge: '✦ Nouveau · IA 2.0',
-      trusted: 'Adopté par plus de 10 000 équipes',
-      logos: ['Acme', 'Globex', 'Initech', 'Hooli', 'Vandelay'],
       stats: [['99,9 %', 'disponibilité'], ['10x', 'plus rapide'], ['2M+', 'utilisateurs']],
-      kpis: [['12,4k', '+24 %'], ['84 k€', '+8 %'], ['98 %', '+2 %']],
+      quote: ['« Installé en une après-midi, et on n’est jamais revenus en arrière. »', 'Sarah K.', 'Directrice des opérations'],
+      kinds: {
+        dash: { brand: 'Nexora', badge: '✦ Nouveau · IA 2.0', head: 'Construisez plus vite|avec l’IA', sub: 'La plateforme tout-en-un pour simplifier votre activité et grandir plus vite.', cta: 'Commencer', alt: 'Voir la démo', links: ['Produit', 'Tarifs', 'Docs', 'Blog'], trust: 'Adopté par plus de 10 000 équipes', kpis: [['12,4k', '+24 %'], ['84 k€', '+8 %'], ['98 %', '+2 %']] },
+        shop: { brand: 'Maison Lumi', badge: 'Collection printemps · Livraison offerte', head: 'Des pièces du quotidien,|faites pour durer', sub: 'Des essentiels pensés avec soin, en matières naturelles.', cta: 'Découvrir', alt: 'Voir le lookbook', links: ['Nouveautés', 'Femme', 'Homme', 'Soldes'], trust: 'Retours gratuits sous 30 jours', cart: 'Panier · 2', products: [['Chemise en lin', '68 €'], ['Tote en toile', '42 €'], ['Bonnet en laine', '36 €']], perks: ['Livraison offerte', 'Retours 30 jours', 'Paiement sécurisé'], add: 'Ajouter' },
+        chat: { brand: 'Replyly', badge: 'Propulsé par GPT', head: 'Répondez à chaque client|en quelques secondes', sub: 'Un assistant IA entraîné sur votre centre d’aide, en ligne en un clic.', cta: 'Essayer gratuitement', alt: 'Réserver une démo', links: ['Fonctions', 'Tarifs', 'Docs'], trust: 'Sans carte bancaire', name: 'Assistant', status: 'En ligne', msgs: [['Bonjour ! Comment puis-je vous aider ?', 0], ['Où en est ma commande #4821 ?', 1], ['Expédiée ce matin, livrée vendredi 🎉', 0]], placeholder: 'Posez votre question…' },
+        chart: { brand: 'Metrix', badge: 'Analytics 3.0', head: 'Voyez ce qui fait|vraiment bouger le CA', sub: 'Chaque métrique, chaque équipe, une seule source de vérité.', cta: 'Essai gratuit', alt: 'Voir la démo', links: ['Produit', 'Clients', 'Tarifs'], trust: 'SOC 2 · RGPD · ISO 27001', legend: ['Revenu', 'Churn'], period: '30 derniers jours', total: '248 920 €' },
+        phone: { brand: 'Pocket', badge: 'App finance n°1', head: 'Votre argent,|enfin simple', sub: 'Budgets, épargne et cartes dans un seul endroit calme.', cta: 'Télécharger l’app', alt: 'En savoir plus', links: ['Fonctions', 'Sécurité', 'Aide'], trust: '4,9 ★ sur l’App Store', balance: '12 480,20 €', balanceLabel: 'Solde total', rows: [['Courses', '-42,10 €'], ['Salaire', '+3 200 €'], ['Café', '-4,50 €']], send: 'Envoyer' },
+        redo: { eyebrow: 'La banque, sans le bruit', head: 'Sachez où va|chaque euro.', sub: 'Un compte, une carte et une vue claire de votre mois. Aucun frais que vous n’avez pas demandé.', cta: 'Ouvrir un compte', alt: 'Voir comment ça marche', trust: '4,9 · 120k avis', links: ['Produit', 'Cartes', 'Épargne', 'Aide'], balance: 'Solde', amount: '4 218,40 €', delta: '+3 200 € cette semaine', cats: [['Courses', '312 €'], ['Transports', '64 €'], ['Restaurants', '128 €']], holder: 'SARAH KOVACS', toast: ['Salaire reçu', '+3 200,00 € · à l’instant'], feats: [['Dépôts protégés', 'Jusqu’à 100 000 €, par la loi.'], ['Virements instantanés', 'À n’importe qui, en secondes.'], ['Dépenses classées', 'Chaque achat à sa place.']], tag: 'Refonte · 12 contrôles' },
+        kanban: { brand: 'Taskflow', badge: 'Avec planification IA', head: 'Planifiez le travail,|sans le chaos', sub: 'Tableaux, plannings et docs pour les équipes qui livrent.', cta: 'Commencer gratuitement', alt: 'Voir la vidéo', links: ['Produit', 'Solutions', 'Tarifs', 'Nouveautés'], trust: 'Adopté par plus de 4 000 équipes', cols: [['À faire', 3], ['En cours', 2], ['Terminé', 4]] },
+      },
     },
   };
-  /* Six generated landings, the kind an AI builder ships by default: gradient word in the headline, "Get started"
-     pill, glowing dashboard mock, logo strip, three feature cards, big numbers. One of them is painted into
-     this page in miniature: the real hero poster, the islands, the aurora line, the rail, the fox and the checks. */
+  /* One of them is painted into this page in miniature: the real hero poster, an island, the aurora line, the rail, the fox and the checks. */
   function renderTiles() {
     const host = $('tiles');
     if (!host) return;
     const small = window.innerWidth <= 720;
-    const count = small ? 4 : 6;
+    const KINDS = small ? ['dash', 'shop', 'chat', 'phone'] : ['dash', 'shop', 'chat', 'chart', 'phone', 'kanban'];
+    const HUES = { dash: 262, shop: 18, chat: 172, chart: 212, phone: 332, kanban: 138 };
+    const count = KINDS.length;
     const chosen = small ? 3 : 4;
-    const before = unquote(t('check_12_before')) || 'Get started';
     const site = SITES[lang] || SITES.en;
-    const hues = [262, 248, 232, 286, 270, 214, 254, 300];
     const bars = (seed) => Array.from({ length: 9 }, (_, k) => '<i style="--v:' + (0.25 + ((seed * 7 + k * 13) % 11) / 14).toFixed(2) + '"></i>').join('');
-    const feat = (names) => '<div class="t-feats">' + names.map((n) => '<div><i class="t-ico"></i><b>' + esc(n) + '</b><s></s><s></s></div>').join('') + '</div>';
+    const feats = (names) => '<div class="t-feats">' + names.map((n) => '<div><i class="t-ico"></i><b>' + esc(n) + '</b><s></s><s></s></div>').join('') + '</div>';
+    const logos = '<div class="t-logos">' + site.logos.map((l) => '<span>' + esc(l) + '</span>').join('') + '</div>';
+    const stats = '<div class="t-stats">' + site.stats.map((k) => '<div><b>' + esc(k[0]) + '</b><span>' + esc(k[1]) + '</span></div>').join('') + '</div>';
+    const quote = '<div class="t-quote"><p>' + esc(site.quote[0]) + '</p><span><i></i><b>' + esc(site.quote[1]) + '</b> · ' + esc(site.quote[2]) + '</span></div>';
+    const art = {
+      dash: (c, i) => '<div class="t-art"><div class="t-blob"></div><div class="t-app"><div class="t-side"><i></i><i></i><i></i><i></i><i></i></div><div class="t-main"><div class="t-kpis">' + c.kpis.map((k) => '<div><b>' + esc(k[0]) + '</b><s>' + esc(k[1]) + '</s></div>').join('') + '</div><div class="t-chart">' + bars(i) + '</div></div></div></div>',
+      shop: (c) => '<div class="t-shelf">' + c.products.map((p, k) => '<div class="t-prod"><i class="t-img p' + k + '"></i><b>' + esc(p[0]) + '</b><span>' + esc(p[1]) + '</span><em>' + esc(c.add) + '</em></div>').join('') + '</div>',
+      chat: (c) => '<div class="t-convo"><div class="t-chat-h"><i></i><b>' + esc(c.name) + '</b><s>' + esc(c.status) + '</s></div><div class="t-msgs">' + c.msgs.map((m) => '<p class="m' + m[1] + '">' + esc(m[0]) + '</p>').join('') + '<p class="m0 typing"><i></i><i></i><i></i></p></div><div class="t-input"><span>' + esc(c.placeholder) + '</span><i></i></div></div>',
+      chart: (c, i) => '<div class="t-chartbox"><div class="t-chart-h"><div><small>' + esc(c.period) + '</small><b>' + esc(c.total) + '</b></div><div class="t-legend"><span><i></i>' + esc(c.legend[0]) + '</span><span><i class="b"></i>' + esc(c.legend[1]) + '</span></div></div>'
+        + '<svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="tg' + i + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--g1);stop-opacity:.45"/><stop offset="1" style="stop-color:var(--g1);stop-opacity:0"/></linearGradient></defs>'
+        + '<path class="area" fill="url(#tg' + i + ')" d="M0,30 C10,28 14,22 22,24 S36,14 46,16 S60,8 70,10 S86,4 100,6 L100,40 L0,40 Z"/><path class="line" d="M0,30 C10,28 14,22 22,24 S36,14 46,16 S60,8 70,10 S86,4 100,6"/><path class="line b" d="M0,22 C12,24 20,30 32,28 S50,32 62,30 S80,34 100,33"/></svg></div>',
+      phone: (c) => '<div class="t-device"><i class="t-notch"></i><div class="t-screen"><small>' + esc(c.balanceLabel) + '</small><b>' + esc(c.balance) + '</b><div class="t-rows">' + c.rows.map((r) => '<div><i></i><span>' + esc(r[0]) + '</span><s>' + esc(r[1]) + '</s></div>').join('') + '</div><em>' + esc(c.send) + '</em></div></div>',
+      kanban: (c) => '<div class="t-board">' + c.cols.map((col, k) => '<div class="t-col"><b>' + esc(col[0]) + '<s>' + col[1] + '</s></b>' + Array.from({ length: col[1] }, (_, n) => '<i class="c' + ((k + n) % 3) + '"></i>').join('') + '</div>').join('') + '</div>',
+    };
+    const below = {
+      dash: () => logos + feats(site.feats[0]),
+      shop: (c) => '<div class="t-perks">' + c.perks.map((p) => '<span>✓ ' + esc(p) + '</span>').join('') + '</div>' + feats(site.feats[2]),
+      chat: () => feats(site.feats[1]) + stats,
+      chart: () => stats + feats(site.feats[0]),
+      phone: () => quote + stats,
+      kanban: () => logos + feats(site.feats[2]),
+    };
     let html = '';
     for (let i = 0; i < count; i++) {
-      const v = i % 4;
-      const [h1, h2] = site.heads[i % site.heads.length].split('|');
-      const generic = '<div class="t-nav"><b><i class="t-logo"></i>' + esc(site.brands[i % site.brands.length]) + '</b><span>' + site.links.map((l) => '<i>' + esc(l) + '</i>').join('') + '</span><u>' + esc(site.signin) + '</u><em>' + esc(before) + '</em></div>'
-        + '<div class="t-hero"><div class="t-copy"><small>' + esc(site.badge) + '</small><h4>' + esc(h1) + ' <span>' + esc(h2 || '') + '</span></h4><p>' + esc(site.subs[i % site.subs.length]) + '</p>'
-        + '<div class="t-cta"><em>' + esc(before) + '</em><i>▶ ' + esc(site.learn) + '</i></div>'
-        + '<div class="t-social"><span class="t-avs"><i></i><i></i><i></i><i></i></span><span class="t-stars">★★★★★</span><b>' + esc(site.trusted) + '</b></div></div>'
-        + '<div class="t-art"><div class="t-blob"></div><div class="t-app"><div class="t-side"><i></i><i></i><i></i><i></i><i></i></div><div class="t-main"><div class="t-kpis">' + site.kpis.map((k) => '<div><b>' + esc(k[0]) + '</b><s>' + esc(k[1]) + '</s></div>').join('') + '</div><div class="t-chart">' + bars(i) + '</div></div></div></div></div>'
-        + '<div class="t-logos">' + site.logos.map((l) => '<span>' + esc(l) + '</span>').join('') + '</div>'
-        + feat(site.feats[i % site.feats.length])
-        + '<div class="t-stats">' + site.stats.map((k) => '<div><b>' + esc(k[0]) + '</b><span>' + esc(k[1]) + '</span></div>').join('') + '</div>';
+      const kind = KINDS[i];
+      const c = site.kinds[kind];
+      const [h1, h2] = c.head.split('|');
+      const right = kind === 'shop' ? '<u class="t-cart">' + esc(c.cart) + '</u>' : '<u>' + esc(site.signin) + '</u>';
+      const generic = '<div class="t-nav"><b><i class="t-logo"></i>' + esc(c.brand) + '</b><span>' + c.links.map((l) => '<i>' + esc(l) + '</i>').join('') + '</span>' + right + '<em>' + esc(c.cta) + '</em></div>'
+        + '<div class="t-hero"><div class="t-copy"><small>' + esc(c.badge) + '</small><h4>' + esc(h1) + ' <span>' + esc(h2 || '') + '</span></h4><p>' + esc(c.sub) + '</p>'
+        + '<div class="t-cta"><em>' + esc(c.cta) + '</em><i>' + esc(c.alt) + '</i></div>'
+        + '<div class="t-social"><span class="t-avs"><i></i><i></i><i></i><i></i></span><span class="t-stars">★★★★★</span><b>' + esc(c.trust) + '</b></div></div>'
+        + art[kind](c, i) + '</div>' + below[kind](c);
       if (i === chosen) {
-        const head = String(t('hero_headline') || '').replace(/<br\s*\/?>/g, ' ');
-        const guar = String(t('guar_headline') || '').replace(/<br\s*\/?>/g, ' ');
-        const rail = CHAPTERS.map((c) => '<i style="background:' + c.color + '"></i>').join('');
-        const paint = '<div class="tile-paint"><div class="t-nav p-nav"><b>v2 studio<i class="t-dab"></i></b><span><i>' + esc(t('nav_showcase')) + '</i><i>' + esc(t('nav_services')) + '</i><i>' + esc(t('nav_pricing')) + '</i><i>' + esc(t('nav_secret')) + '</i></span><em>' + esc(t('nav_contact')) + '</em></div>'
-          + '<div class="p-hero" style="background-image:url(/images/agence-dive-poster.jpg?v=3)"><img class="p-island" src="/images/3d/floating-island/island-tile.png?v=1" alt="" loading="lazy" decoding="async">'
-          + '<div class="p-copy"><h4>' + head + '</h4><div class="t-cta"><em>' + esc(t('hero_cta_primary')) + '</em><i>' + esc(t('hero_cta_secondary')) + '</i></div></div><div class="p-rail">' + rail + '</div></div>'
-          + '<div class="p-row"><div class="p-fox" style="background-image:url(/images/agence-fox-close-m.jpg)"><b>' + guar + '</b></div>'
-          + '<div class="p-checks">' + [1, 2, 4].map((n, k) => '<div><i style="background:' + CHECK_COLORS[k % CHECK_COLORS.length] + '"></i><b>' + esc(t('check_' + n + '_title')) + '</b><s>✓</s></div>').join('') + '</div></div></div>';
-        html += '<div class="tile is-chosen t-v' + v + '" style="--h:' + hues[i] + '">' + generic + paint + '</div>';
+        const r = site.kinds.redo;
+        const [rh1, rh2] = r.head.split('|');
+        const ICON = {
+          shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>',
+          bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"/></svg>',
+          pie: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9V3z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15V3.5z"/></svg>',
+          check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>',
+          nfc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 8.5a6 6 0 0 1 0 7"/><path d="M9.5 6a9.5 9.5 0 0 1 0 12"/><path d="M13 3.5a13 13 0 0 1 0 17"/></svg>',
+          star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/></svg>',
+        };
+        const icons = [ICON.shield, ICON.bolt, ICON.pie];
+        const paint = '<div class="tile-paint r-pocket">'
+          + '<div class="r-nav"><b>pocket<i>.</i></b><span>' + r.links.map((l) => '<i>' + esc(l) + '</i>').join('') + '</span><em>' + esc(r.cta) + '</em></div>'
+          + '<div class="r-hero"><div class="r-copy"><small>' + esc(r.eyebrow) + '</small><h4>' + esc(rh1) + '<br>' + esc(rh2 || '') + '</h4><p>' + esc(r.sub) + '</p>'
+          + '<div class="r-cta"><em>' + esc(r.cta) + '</em><i>' + esc(r.alt) + '</i></div>'
+          + '<div class="r-trust"><span>' + ICON.star + ICON.star + ICON.star + ICON.star + ICON.star + '</span>' + esc(r.trust) + '</div></div>'
+          + '<div class="r-scene"><div class="r-phone"><div class="r-screen">'
+          + '<div class="r-bal"><small>' + esc(r.balance) + '</small><b>' + esc(r.amount) + '</b><s>' + esc(r.delta) + '</s></div>'
+          + '<svg class="r-chart" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><path class="a" d="M0,30 C8,29 14,26 22,25 S36,27 44,22 S58,12 68,13 S84,8 100,5 L100,36 L0,36 Z"/><path class="l" d="M0,30 C8,29 14,26 22,25 S36,27 44,22 S58,12 68,13 S84,8 100,5"/><circle class="d" cx="100" cy="5" r="1.8"/></svg>'
+          + '<div class="r-cats">' + r.cats.map((c, k) => '<span><i class="c' + k + '"></i>' + esc(c[0]) + '<b>' + esc(c[1]) + '</b></span>').join('') + '</div>'
+          + '</div></div>'
+          + '<div class="r-card"><i class="r-chip"></i><span class="r-nfc">' + ICON.nfc + '</span><b>•••• 4821</b><span class="r-holder">' + esc(r.holder) + '</span><em>pocket.</em></div>'
+          + '<div class="r-toast"><i>' + ICON.check + '</i><div><b>' + esc(r.toast[0]) + '</b><span>' + esc(r.toast[1]) + '</span></div></div>'
+          + '</div></div>'
+          + '<div class="r-feats">' + r.feats.map((f, k) => '<div><i>' + icons[k] + '</i><div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div></div>').join('') + '</div>'
+          + '<span class="r-tag"><i class="t-dab"></i>' + esc(r.tag) + '</span>'
+          + '</div>';
+        html += '<div class="tile is-chosen k-' + kind + '" style="--h:' + HUES[kind] + '">' + generic + paint + '</div>';
       } else {
-        html += '<div class="tile t-v' + v + '" style="--h:' + hues[i] + '">' + generic + '</div>';
+        html += '<div class="tile k-' + kind + '" style="--h:' + HUES[kind] + '">' + generic + '</div>';
       }
     }
     host.innerHTML = html;
@@ -495,9 +563,9 @@
             <button type="button" class="svcp-btn" aria-expanded="false" aria-controls="svcp-${n}">
               <span class="svcp-ico" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/><path class="svcp-ico-check" d="M5 7.1l1.4 1.4L9 5.8"/></svg></span>
               <span class="svcp-lbl">${esc(t('s_more_proof'))}</span>
-              <span class="svcp-chev" aria-hidden="true"><svg viewBox="0 0 10 10"><path d="M2.5 4l2.5 2.5L7.5 4"/></svg></span>
             </button>
             <div class="svcp-pop" id="svcp-${n}" role="region" aria-label="${esc(proofTag)}" inert>
+              ${proofMedia(n)}
               <p class="svcp-head"><span class="svcp-dot" aria-hidden="true"></span>${esc(proofTag)}</p>
               <p class="svc-evidence">${esc(ev)}</p>
               <button type="button" class="svcp-close" aria-label="${esc(t('s_proof_close'))}"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg></button>
@@ -1136,7 +1204,9 @@
     const n = sameTiles.length;
     sameTiles.forEach((tile, i) => {
       if (tile.classList.contains('is-chosen')) {
-        tile.style.setProperty('--paint', (reduced ? 1 : easeInOut(seg(p, 0.5, 0.78))).toFixed(3));
+        const k = reduced ? 1 : easeInOut(seg(p, 0.5, 0.78));
+        tile.style.setProperty('--paint', k.toFixed(3));
+        tile.classList.toggle('is-live', k > 0.9);
         return;
       }
       const o = sameOrder[i] / n;
@@ -1182,6 +1252,7 @@
     const btn = el.querySelector('.svcp-btn');
     const pop = el.querySelector('.svcp-pop');
     if (open) {
+      loadProofMedia(pop);
       const r = btn.getBoundingClientRect();
       const need = pop.offsetHeight + 28;
       const below = window.innerHeight - r.bottom;
@@ -1755,6 +1826,9 @@
     if (!horizontal || !track || !track.contains(e.target)) return;
     centerService(e.target.closest('.svc'), 'instant');
   });
+  // Warm the proof picture as soon as the pointer or the focus reaches its button.
+  d.addEventListener('pointerover', (e) => { const b = e.target.closest && e.target.closest('.svcp-btn'); if (b) loadProofMedia(b.closest('.svcp')); });
+  d.addEventListener('focusin', (e) => { const b = e.target.closest && e.target.closest('.svcp-btn'); if (b) loadProofMedia(b.closest('.svcp')); });
   // A click on a waiting card brings it to the middle and makes it the active one.
   if (track) track.addEventListener('click', (e) => {
     const card = e.target.closest('.svc');

@@ -57,7 +57,7 @@ button { font: inherit; }
 @keyframes drawLine { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes donutSpin { from { stroke-dasharray: 0 440; } to { stroke-dasharray: var(--dash) 440; } }
 
-.app { display: flex; height: 100vh; overflow: hidden; }
+.app { display: flex; height: 100%; min-height: 0; overflow: hidden; }
 
 /* Sidebar */
 .sidebar {
@@ -180,11 +180,11 @@ button { font: inherit; }
 .sb-user-role { font-size: 11px; color: #8a8378; margin-top: 1px; }
 
 /* Main */
-.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
 
 .topbar {
-  height: 64px;
-  padding: 0 24px;
+  height: 52px;
+  padding: 0 20px;
   background: rgba(255,252,248,.86);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
@@ -196,12 +196,12 @@ button { font: inherit; }
 }
 .tb-title {
   font-family: var(--display);
-  font-size: 34px;
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: -.03em;
-  line-height: .9;
+  letter-spacing: -.02em;
+  line-height: 1;
 }
-.tb-sub { font-size: 12px; color: var(--t2); margin-top: 3px; }
+.tb-sub { font-size: 11px; color: var(--t2); margin-top: 1px; }
 .tb-left { display: flex; flex-direction: column; }
 .tb-period {
   display: flex;
@@ -209,11 +209,11 @@ button { font: inherit; }
   gap: 6px;
   margin-left: 16px;
   padding: 0 12px;
-  height: 34px;
+  height: 28px;
   border: 0;
   border-radius: 4px;
   font-family: var(--display);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--t1);
   background: rgba(26,24,20,.05);
@@ -224,8 +224,8 @@ button { font: inherit; }
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 12px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
@@ -235,23 +235,43 @@ button { font: inherit; }
 }
 .tb-btn:active { transform: scale(.97); }
 .tb-btn-ghost {
-  background: var(--white);
+  background: rgba(255,252,248,.45);
   border: 1px solid var(--border);
   color: var(--t2);
 }
 .tb-btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
 .tb-btn-primary {
+  height: 36px;
+  padding: 0 12px 0 4px;
+  gap: 8px;
   background: var(--ink);
   color: #f6f1e7;
-  box-shadow: 0 8px 18px rgba(20,18,16,.16);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1;
 }
 .tb-btn-primary:hover { background: #2a241c; }
+.tb-plus {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brass);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+}
+.tb-btn-primary:hover .tb-plus { background: #d7bc8e; }
 .tb-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
 
 .content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 20px 24px 28px;
+  padding: 20px 24px 40px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -267,7 +287,7 @@ button { font: inherit; }
   gap: 12px;
 }
 .kpi {
-  background: var(--white);
+  background: rgba(255,252,248,.78);
   border-radius: var(--radius);
   padding: 16px 18px 15px;
   box-shadow: var(--shadow);
@@ -277,8 +297,8 @@ button { font: inherit; }
 }
 .kpi:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); }
 .kpi-hero {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: rgba(20,18,16,.88);
+  border-color: transparent;
   color: #f6f1e7;
 }
 .kpi-hero .kpi-label,
@@ -342,7 +362,7 @@ button { font: inherit; }
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
-  background: var(--white);
+  background: rgba(255,252,248,.62);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
@@ -370,10 +390,9 @@ button { font: inherit; }
 /* Grid layout */
 .kpi-row,
 .kpi-row-sm,
-.summary-strip,
 .grid-2-1,
 .grid-1-1,
-.content > .card { flex-shrink: 0; }
+.content > .card { flex: 0 0 auto; overflow: visible; }
 
 .grid-2-1 {
   display: grid;
@@ -390,7 +409,7 @@ button { font: inherit; }
 .grid-1-1:has(> [hidden]) { grid-template-columns: minmax(0, 1fr); }
 
 .card {
-  background: var(--white);
+  background: rgba(255,252,248,.7);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 18px;
@@ -579,6 +598,7 @@ button { font: inherit; }
 
 /* Transactions table */
 .tx-table { width: 100%; border-collapse: collapse; }
+.tx-wrap { overflow: visible; }
 .tx-table th {
   text-align: left;
   font-size: 10px;
@@ -647,54 +667,6 @@ button { font: inherit; }
 .inv-status.pending { background: var(--amber-l); color: var(--amber); }
 .inv-status.sent { background: var(--blue-l); color: var(--blue); }
 .inv-status.overdue { background: var(--red-l); color: var(--red); }
-
-/* Summary strip */
-.summary-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  animation: fadeUp .4s .28s ease both;
-}
-.summary-box {
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.summary-box { background: var(--white); border: 1px solid var(--border); }
-.summary-box.income { background: var(--white); }
-.summary-box.expense { background: var(--white); }
-.summary-box.net { background: var(--ink); border-color: var(--ink); color: #f6f1e7; }
-.summary-box.net .summary-label { color: rgba(246,241,231,.62); }
-.summary-box.net .summary-value { color: #f6f1e7; }
-.summary-box.net .summary-pct { color: var(--brass); }
-.summary-box.net .summary-icon { color: var(--brass); background: rgba(196,165,116,.12); }
-.summary-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  background: rgba(255,255,255,.7);
-}
-.summary-icon svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
-.summary-box.income .summary-icon { color: var(--teal); }
-.summary-box.expense .summary-icon { color: var(--red); }
-.summary-box.net .summary-icon { color: var(--blue); }
-.summary-label { font-size: 11px; color: var(--t2); font-weight: 500; }
-.summary-value {
-  font-family: var(--display);
-  font-size: 32px;
-  font-weight: 650;
-  letter-spacing: -.03em;
-  margin-top: 2px;
-  font-variant-numeric: tabular-nums;
-}
-.summary-pct { font-size: 11px; font-weight: 600; margin-top: 2px; }
-.summary-box.income .summary-pct { color: var(--green); }
-.summary-box.expense .summary-pct { color: var(--red); }
-.summary-box.net .summary-pct { color: var(--blue); }
 
 /* Tooltip */
 .chart-tip {
@@ -815,7 +787,7 @@ button { font: inherit; }
           Export
         </button>
         <button class="tb-btn tb-btn-primary" id="newInvoiceBtn" type="button">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span class="tb-plus" aria-hidden="true">+</span>
           New invoice
         </button>
       </div>
@@ -877,8 +849,6 @@ const DATA = {
   ]
 };
 
-const totalIncome = DATA.monthly.reduce((s, m) => s + m.income, 0);
-const totalExpense = DATA.monthly.reduce((s, m) => s + m.expense, 0);
 const maxBar = Math.max(...DATA.monthly.flatMap(m => [m.income, m.expense]));
 const totalExpBreakdown = DATA.expenses.reduce((s, e) => s + e.amount, 0);
 
@@ -1001,33 +971,6 @@ function render() {
       <div class="kpi-sm" data-pane="dashboard vat"><div class="kpi-sm-label">VAT to remit</div><div class="kpi-sm-value">${fmt(DATA.kpis.vatDue.value)}</div><div class="kpi-sm-sub">Due 24 Jul</div></div>
     </div>
 
-    <div class="summary-strip" data-pane="dashboard">
-      <div class="summary-box income">
-        <div class="summary-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg></div>
-        <div>
-          <div class="summary-label">Cash collected (6 months)</div>
-          <div class="summary-value">${fmt(totalIncome)}</div>
-          <div class="summary-pct">+14.2% vs. prior year</div>
-        </div>
-      </div>
-      <div class="summary-box expense">
-        <div class="summary-icon"><svg viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg></div>
-        <div>
-          <div class="summary-label">Expenses incurred (6 months)</div>
-          <div class="summary-value">${fmt(totalExpense)}</div>
-          <div class="summary-pct">+8.6% vs. prior year</div>
-        </div>
-      </div>
-      <div class="summary-box net">
-        <div class="summary-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
-        <div>
-          <div class="summary-label">Net balance (income − expenses)</div>
-          <div class="summary-value">${fmt(totalIncome - totalExpense)}</div>
-          <div class="summary-pct">Net margin ${((totalIncome - totalExpense) / totalIncome * 100).toFixed(1)}%</div>
-        </div>
-      </div>
-    </div>
-
     <div class="grid-2-1">
       <div class="card" data-pane="dashboard expenses">
         <div class="card-head">
@@ -1128,6 +1071,7 @@ function render() {
           <div class="card-sub">Recent inflows and outflows</div>
         </div>
       </div>
+      <div class="tx-wrap">
       <table class="tx-table">
         <thead>
           <tr>
@@ -1150,6 +1094,7 @@ function render() {
           `).join('')}
         </tbody>
       </table>
+      </div>
     </div>
   `;
 
@@ -1284,7 +1229,6 @@ document.getElementById('newInvoiceBtn').addEventListener('click', () => {
 
 function mountLedgerEffects() {
   const word = document.getElementById('ledger-word');
-  const button = document.getElementById('newInvoiceBtn');
   const script = document.createElement('script');
   script.src = '/effects/dist/effects.js';
   script.onload = () => {
@@ -1299,7 +1243,6 @@ function mountLedgerEffects() {
           theme: 'dark',
         });
       }
-      if (button && fx.mountPulseButton) fx.mountPulseButton(button);
     };
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(paint);
     else paint();
