@@ -10,6 +10,7 @@
           "templates/**",
           "data/**",
           "images/**",
+          "!images/3d/floating-island/source/**",
           "modes/**",
           "fonts/**",
           "config/monetization.yml",

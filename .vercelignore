@@ -13,6 +13,9 @@ node_modules
 scratch
 data/chrome-profile
 
+# Meshy source exports. The site serves the compressed glbs next to this folder.
+images/3d/floating-island/source
+
 # ── Local-only artifacts not needed by ui/server.mjs ──
 reports
 outputs
