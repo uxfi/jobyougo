@@ -28,6 +28,12 @@ const ALLOWED_FEED_HOSTS = new Set([
   'www.blockchainjobs.uk',
   'jobscollider.com',
   'www.jobscollider.com',
+  // Design boards with a public jobs feed (both verified live 2026-10-09:
+  // dribbble.com/jobs.rss ~57 items, awwwards.com/jobs/feed/ ~15 items).
+  'dribbble.com',
+  'www.dribbble.com',
+  'awwwards.com',
+  'www.awwwards.com',
 ]);
 
 /**
@@ -108,14 +114,26 @@ function isHttpsUrl(value) {
   }
 }
 
+// "Acme is hiring for a position of Product Designer in Berlin" — the shape
+// Dribbble's jobs feed uses for every item (the company also arrives as
+// dc:creator). The trailing " in {place}" is optional and becomes the location.
+const HIRING_TITLE_RE = /^(.+?)\s+is\s+hiring\s+(?:for\s+)?(?:an?\s+)?(?:(?:the\s+)?position\s+of\s+|role\s+of\s+)?(.+?)(?:\s+in\s+([^()]+?))?\s*$/i;
+
 /**
  * Heuristic company extraction from common title shapes.
  * @param {string} rawTitle
  * @param {string} fallback
- * @returns {{ title: string, company: string }}
+ * @returns {{ title: string, company: string, location?: string }}
  */
 export function splitTitle(rawTitle, fallback = '') {
   const text = rawTitle.trim();
+  const hiring = text.match(HIRING_TITLE_RE);
+  if (hiring) {
+    const company = hiring[1].trim();
+    const title = hiring[2].trim();
+    const location = (hiring[3] || '').trim();
+    if (company && title) return location ? { title, company, location } : { title, company };
+  }
   const at = text.toLowerCase().lastIndexOf(' at ');
   if (at > 0) {
     const title = text.slice(0, at).trim();
@@ -155,13 +173,18 @@ export function parseGenericRssFeed(xml, defaultCompany = '') {
     const rawTitle = tagText(item, 'title');
     if (!rawTitle) continue;
 
-    const { title, company } = splitTitle(rawTitle, fallback);
+    const split = splitTitle(rawTitle, fallback);
+    const { title } = split;
+    // Company precedence: named in the title > dc:creator (Dribbble, WordPress
+    // job boards) > the entry's own name.
+    const creator = tagText(item, 'dc:creator');
+    const company = (split.company && split.company !== fallback) ? split.company : (creator || split.company);
     const location = [
       tagText(item, 'region'),
       tagText(item, 'country'),
       tagText(item, 'job:location'),
       tagText(item, 'location'),
-    ].filter(Boolean).join(', ');
+    ].filter(Boolean).join(', ') || split.location || '';
 
     const description =
       tagText(item, 'content:encoded') ||

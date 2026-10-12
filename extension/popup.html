@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JobYouGo</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <span class="mark" aria-hidden="true">J</span>
+    <div>
+      <div class="name">JobYouGo</div>
+      <div class="ver" id="ver"></div>
+    </div>
+  </header>
+
+  <section class="status" id="status" data-phase="off">
+    <span class="dot" aria-hidden="true"></span>
+    <div>
+      <div class="label" id="label">Checking…</div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </section>
+
+  <p class="error" id="error" hidden></p>
+
+  <div class="actions">
+    <button type="button" class="btn primary" id="connect">Connect</button>
+    <button type="button" class="btn" id="dashboard">Open dashboard</button>
+  </div>
+
+  <button type="button" class="btn primary scan" id="scan-apply" disabled>Scan &amp; apply this tab</button>
+  <p class="progress" id="progress" hidden data-phase="">
+    <span class="pip" aria-hidden="true"></span>
+    <span id="progress-text"></span>
+  </p>
+  <p class="tab" id="tab"></p>
+
+  <p class="hint">Scan and apply run on the tab that was open when you clicked. The dashboard has to be running on port 3210.</p>
+  <script src="popup.js"></script>
+</body>
+</html>

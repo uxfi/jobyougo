@@ -521,7 +521,7 @@
 <div class="cv-container">
   <aside class="sidebar">
     <div class="profile-header">
-      <div class="profile-pic"></div>
+      {{#if profile.portrait}}<div class="profile-pic"></div>{{/if}}
       <div class="stats-grid">
         {{#each profile.stats}}
         <div class="stat-card">
@@ -595,6 +595,7 @@
       </div>
       {{/each}}
 
+      {{#if profile.tool_logos_hidden}}{{else}}
       <div class="skill-group" style="margin-top:20px;">
         <div class="tools-grid">
           <img src="../images/figma.png" class="tool-logo" alt="Figma">
@@ -608,6 +609,7 @@
           <img src="../images/slack.png" class="tool-logo" alt="Slack">
         </div>
       </div>
+      {{/if}}
     </div>
 
     {{#if shared.languages}}

@@ -4389,13 +4389,21 @@ if (upskillModeDoc.includes('regenerated fresh every run, never diffed')) {
   fail('upskill trust rule 3 (ephemeral / non-versioned resources) missing');
 }
 
-// Rule 4 — write-time URL liveness via the check-liveness pattern; dead links excluded.
+// Rule 4 — resource-specific URL liveness; job-posting heuristics excluded.
 if (
   upskillModeDoc.includes('Write-time URL liveness') &&
-  upskillModeDoc.includes('liveness-core.mjs') &&
-  upskillModeDoc.includes('dead links never enter the report')
+  upskillModeDoc.includes('successful HTTP response') &&
+  upskillModeDoc.includes('non-error title') &&
+  upskillModeDoc.includes('substantive page content') &&
+  upskillModeDoc.includes('reject 4xx/5xx responses') &&
+  upskillModeDoc.includes('error/challenge pages') &&
+  upskillModeDoc.includes('empty bodies') &&
+  upskillModeDoc.includes('redirects to unrelated destinations') &&
+  upskillModeDoc.includes('job-posting-only') &&
+  upskillModeDoc.includes('must not classify learning resources') &&
+  upskillModeDoc.includes('Dead links never enter the report')
 ) {
-  pass('upskill trust rule 4: write-time URL liveness via check-liveness pattern; dead links excluded');
+  pass('upskill trust rule 4: resource-specific URL liveness; job-posting heuristic excluded');
 } else {
   fail('upskill trust rule 4 (write-time URL liveness) missing');
 }
@@ -5729,7 +5737,8 @@ try {
     [{ name: 'Nimbus Data', careers_url: 'https://job-boards.greenhouse.io/nimbusdata' }],
     { fetchJson: bareFetch },
   );
-  if (bare.status === 'missing' && !bare.suggested) {
+  if (bare.status === 'missing' && !bare.suggested?.ats && !bare.suggested?.slug
+      && bare.suggested?.rejectedAlternate?.ownerReason === 'owner-mismatch') {
     pass('verify-portals refuses a live board whose Greenhouse owner is a different company');
   } else {
     fail(`verify-portals adopted a mismatched owner: ${JSON.stringify(bare.suggested)}`);
@@ -5840,7 +5849,9 @@ try {
     [{ name: 'Nimbus Data', careers_url: 'https://job-boards.greenhouse.io/nimbusdata' }],
     { fetchJson: leverJson, fetchText: leverText },
   );
-  if (leverMismatch.status === 'missing' && !leverMismatch.suggested) {
+  if (leverMismatch.status === 'missing' && !leverMismatch.suggested?.ats
+      && !leverMismatch.suggested?.slug
+      && leverMismatch.suggested?.rejectedAlternate?.ownerReason === 'owner-mismatch') {
     pass('verify-portals refuses a Lever board whose page title names a different company');
   } else {
     fail(`verify-portals adopted a mismatched Lever owner: ${JSON.stringify(leverMismatch.suggested)}`);

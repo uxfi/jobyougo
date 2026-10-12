@@ -9,6 +9,9 @@ import {
   dedupeCandidates,
   evaluateCandidate,
   explicitDateFromText,
+  internOrJuniorReason,
+  jevDropOverrideReason,
+  jevEvalOverrideReason,
   relativeDateFromText,
   resolvePublishedDate,
   runTitleDryRun,
@@ -114,6 +117,28 @@ const futureTitle = resolvePublishedDate(
 if (!futureTitle) pass('a future month in the title is not a publication date');
 else fail(`future title date became ${futureTitle}`);
 
+const narrative = resolvePublishedDate(
+  { title: 'Senior Product Manager', description: 'Il y a 3 mois, nous avons lance la plateforme.' },
+  '2026-10-06',
+);
+if (!narrative) pass('a narrative "il y a 3 mois," is not a publication date');
+else fail(`narrative French date became ${narrative}`);
+
+const publishedAgo = resolvePublishedDate(
+  { title: 'Senior Product Manager', description: 'We published 3 months ago a new design system.' },
+  '2026-10-06',
+);
+if (!publishedAgo) pass('a sentence about something published months ago is not the posting date');
+else fail(`published-ago sentence became ${publishedAgo}`);
+
+const version = explicitDateFromText('Senior Product Manager t1/2026', '2026-10-06');
+if (!version) pass('a version token t1/2026 is not a Vietnamese posting month');
+else fail(`version token became ${version}`);
+
+const postedComma = relativeDateFromText('Posted 20 days ago, remote EU', '2026-10-06');
+if (postedComma === '2026-09-16') pass('a posted badge stays a date when a comma follows');
+else fail(`posted badge with comma became ${postedComma}`);
+
 const fresh = assessFreshness({ publishedAt: '', firstSeen: '', maxAgeDays: 7, today });
 if (fresh.ok && fresh.source === 'proxy' && fresh.freshness < 0.5) pass('undated offer uses a first_seen proxy and is downranked');
 else fail(`expected proxy downrank, got ${JSON.stringify(fresh)}`);
@@ -174,3 +199,63 @@ const extracted = extractScanEntriesFromResponse(response).map(entry => entry.ur
 if (extracted.length === 1 && extracted[0] === 'https://example.com/keep' && response.includes('URLs_NON_QUALIFIEES')) {
   pass('unverified and review URLs stay out of the validated add list');
 } else fail(`validated extract leaked: ${extracted.join(', ')}`);
+
+if (internOrJuniorReason('Product Manager - Stage de fin d\'études', 'https://www.welcometothejungle.com/en/companies/galadrim/jobs/product-manager-stage-de-fin-d-etudes_paris')) {
+  pass('a French internship title is rejected before Jev');
+} else fail('stage de fin d\'études should be intern/junior');
+
+if (internOrJuniorReason('Product Designer Intern', 'https://jobs.example.com/intern')) {
+  pass('an intern title is rejected before Jev');
+} else fail('intern title should be intern/junior');
+
+if (internOrJuniorReason('Senior Product Designer', 'https://jobs.example.com/spd')) {
+  fail('a senior title must not be treated as intern/junior');
+} else pass('a senior title is not intern/junior');
+
+if (internOrJuniorReason('Early-stage Product Designer', '')) {
+  fail('early-stage in a title must not be treated as an internship');
+} else pass('early-stage is not an internship');
+
+if (internOrJuniorReason('', 'https://www.welcometothejungle.com/en/companies/galadrim/jobs/product-manager-stage-de-fin-d-etudes_paris')) {
+  pass('a WTTJ internship slug is rejected even without a title');
+} else fail('URL slug stage-de-fin should be intern/junior');
+
+if (jevDropOverrideReason({ title: 'Product Design', url: 'https://jobs.ashbyhq.com/axle-careers/c0bc06e2-6e73-486d-ac83-3fe1059b327e' }) === 'target role family') {
+  pass('a Product Design title is a keep even without Senior in the name');
+} else fail('Product Design must override a Jev drop');
+
+if (jevDropOverrideReason({ title: 'Senior Product Manager B2C', url: 'https://careers.dayuse.com/jobs/8468369-senior-product-manager-b2c-h-f' }) === 'target role family') {
+  pass('a senior PM title overrides a Jev drop');
+} else fail('Senior Product Manager must override a Jev drop');
+
+if (!jevDropOverrideReason({ title: 'Product Design Intern', url: 'https://jobs.example.com/intern' })) {
+  pass('an intern Product Design title is still dropped');
+} else fail('intern Product Design should not override');
+
+if (!jevDropOverrideReason({ title: 'Product Designer', url: 'https://yoailabs.careers-page.com/jobs/6e74bd57-3dee-4402-a921-2cb264549dfb/apply' })) {
+  pass('an /apply URL is left for Jev to drop');
+} else fail('/apply pages must not be force-kept');
+
+if (!jevEvalOverrideReason({ title: 'Senior Product Designer', url: 'https://www.welcometothejungle.com/en/companies/lemlist/jobs/senior-product-designer_paris', jdText: '' })) {
+  pass('eval override waits for a real job description');
+} else fail('empty JD must not force Claude');
+
+if (!jevEvalOverrideReason({
+  title: 'Senior Product Designer',
+  url: 'https://www.welcometothejungle.com/en/companies/lemlist/jobs/senior-product-designer_paris',
+  jdText: 'Hybrid role, 3 days on-site in Paris. Relocation required.',
+})) {
+  pass('eval override does not force a hybrid/onsite JD');
+} else fail('verbatim attendance must still skip eval');
+
+if (jevEvalOverrideReason({
+  title: 'Senior Staff Product Designer',
+  url: 'https://www.welcometothejungle.com/en/companies/omnidoc/jobs/senior-staff-product-designer-full-time',
+  jdText: 'Senior Staff Product Designer. Fully remote, Europe.',
+}) === 'role family, no verbatim attendance lock') {
+  pass('a designer JD without an attendance lock can pass the eval gate');
+} else fail('designer JD without attendance lock should override a timid eval score');
+
+if (explainTitle('Product Manager - Stage de fin d\'études', portals.title_filter).ok) {
+  fail('title filter should drop a stage de fin d\'études');
+} else pass('title filter drops French internships');

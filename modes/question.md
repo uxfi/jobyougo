@@ -64,7 +64,7 @@ If a question touches a topic in those files, cite the documented fact. NEVER sa
 - Products / projects → `cv.md` Independent products + Professional Experience, and `_profile.md` Evidence order
 - Management / leadership → `article-digest.md` **Management, agents, and 1-to-100**, then `cv.md` Agence V0 and OneAsset (one PO)
 - Agents / AI flows → employer methods first (OneAsset Git/Cursor hand-off, GitHub). Do not use Jarvos, Creads, or Flemme as the reference. Figmol is the candidate's own internal review tool, not a tool to name beside GitHub or Cursor.
-- 1-to-100 / startup product → Agence V0, Vloggy, OneAsset (+ OTC). Creads.io is not the reference. Arlequin is help only: no dates or metrics.
+- 1-to-100 / startup product → Agence V0, OneAsset (+ OTC). Creads.io is not the reference. Vloggy is not the reference. Arlequin is help only: no dates or metrics.
 - Strategy / UX method / AI facilitation → `article-digest.md` **Strategy, UX method, AI facilitation, collaboration**. Prototypes in Cursor/Claude Code. GitHub flow. Figmol is the candidate's own internal review tool, not a tool in that list. Marcel Sprint Design / Lean UX. UpViral interviews.
 - Collaboration → OneAsset (PO + engineering PRs), UpViral (CPO + developers), LVMH (15+ maisons), Renault (workshops)
 - Compliance → OneAsset (VARA, KYB/KYC, reporting, OTC). Société Générale MIF2 is adjacent.
@@ -83,10 +83,10 @@ If a tool, project, or metric is asked about and you cannot find it, say so. Do 
 | Type | Examples | Primary source |
 |------|----------|---------------|
 | **Motivation** | "Why us?", "Pourquoi ce rôle ?" | Report A (JD detail) + one proof from B / digest / cv |
-| **Experience / project** | "Describe a project", "Parlez d'une réalisation" | One employer or client. Prefer brand weight (LVMH, Renault, Société Générale) and tenure (multi-year over a 6-month role). Not a personal project. |
+| **Experience / project** | "Describe a project", "Parlez d'une réalisation" | One employer or client from Professional Experience / Closest matches. Longer role before a short current one. Not an Independent product unless the question names it. |
 | **Leadership / management** | "Have you managed people?", "How do you lead a team?" | Agence V0 (up to 7 designers, 2020–2024) then OneAsset with one PO. No engineering line-management claim |
 | **Agents / AI flow** | "Experience with agents?", "AI workflows", "LLMs" | Employer workflow only (OneAsset Cursor/Claude, GitHub). Figmol is the candidate's own internal tool, not part of this tool list. Personal tools are not the reference. |
-| **1-to-100 / startup** | "0-to-1", "scale a product", "startup experience" | Agence V0, Vloggy, OneAsset (+ OTC). Not Creads as the credential. Arlequin as product/design help only |
+| **1-to-100 / startup** | "0-to-1", "scale a product", "startup experience" | Agence V0, OneAsset (+ OTC). Not Creads. Not Vloggy. Arlequin as product/design help only |
 | **Strategy / UX method** | "How do you work?", "product strategy", "UX process" | OneAsset strategy + UpViral interviews + Marcel Sprint Design / Lean UX. Users and journeys first |
 | **AI facilitation / new process** | "How do you use AI in design?", "prototyping", "GitHub" | Prototypes in Cursor and Claude Code. GitHub PRs with engineering. If the question is about OneAsset, Figmol is the candidate's own internal review tool, not a peer of GitHub or Cursor. |
 | **Collaboration** | "How do you work with PMs / engineers / stakeholders?" | OneAsset PO + GitHub; UpViral CPO + developers; LVMH maisons; Renault workshops |
@@ -115,15 +115,15 @@ Then read `modes/_profile.md` → **Writing Style** and `modes/_custom.md` → *
 **Hard rules:**
 
 1. Answer the question first. Then stop. No motivational coda. No "that's the work I do / that's what I'd bring".
-2. First person, active. Lead with a documented action or method: "I [did X with Y]", not "I'm great at X", and not a product-name open.
-3. If the question has sub-questions, cover them in the same order.
+2. First person, active. First sentence: an employer from Closest matches / the career, then the capability shipped there. Not a product from the offer. Not "I'm great at X".
+3. If the question has sub-questions, answer each part from that same career reference. A "measurable impact" part stays in words. Do not invent a number or a result at the hiring company.
 4. Default: 2–4 short sentences. Longer only if the form asks for a narrative. Still one idea per sentence, max ~25 words.
 5. One JD detail + one real proof point. Describe the method and scope. Do not catalogue projects. Do not paste headcounts, %, revenue, month counts, or year ranges into free-text answers.
-6. Experience: one employer or client reference. Rank by **brand importance** (LVMH, Renault, Société Générale before smaller names) and **tenure** (multi-year before a 6-month role or a prototype). OneAsset is the current job, not the automatic lead. Describe the method inside that job. Never invent users, metrics, emotion, or employers.
-6b. **Personal projects (UXfi, Flemme OS, Creads.io, Panfy, Jarvos, Ancient World, JobYouGo) are not references.** Do not use them to answer experience, skill, or AI/LLM questions. Motivation only: one short clause of interest, not a brand drop ("On Creads.io…", "At Flemme OS…"). If the question is not about motivation, leave them out.
+6. Experience: one employer or client from Closest matches (Professional Experience). If several fit, prefer tenure. Current work is not the automatic lead. Never invent users, metrics, emotion, employers, or work at the hiring company.
+6b. **Independent / personal products** (the CV Independent products section) are not references unless the question names that product. Do not use them to answer experience, skill, or AI/LLM questions. Motivation only: one short clause of interest, not a brand drop. If the question is not about motivation, leave them out.
 7. Never open with a denial ("I have not", "Je n'ai pas") when the full career already contains a relevant product, role, or skill. Read the whole history before answering, including later roles. One closest real match. A true gap stays one short positive clause about the nearest shipped work, without recasting it as the missing thing.
 8. No vague bridges: "maps closely to", "this experience translates to", "similar infrastructure field".
-9. If the form asks product + users + problem + impact together → method/what you built first, then users/problem in plain terms. Still no famous-brand framing for side projects. Skip numeric impact unless the field is explicitly about metrics or salary.
+9. If the form asks product + users + problem + impact together → name the career product first, then the user problem, the role, one decision, the outcome in words. Skip numeric impact unless Facts already document that count.
 10. Language of the question (FR or EN). An English question gets an English answer, even when the notes around it are in French.
 11. **No em dash (—). No en dash as a pause.** Period or comma. Numeric ranges use a hyphen (`70-110K`) only on salary/comp fields. No semicolon as a fancy comma.
 12. No not-X-but-Y. No forced triads. No staged openers ("I'm excited to", "Throughout my career", "Here's the thing").
@@ -142,14 +142,14 @@ Then read `modes/_profile.md` → **Writing Style** and `modes/_custom.md` → *
 - [ ] No sentence over ~25 words without a period
 - [ ] No banned word, staged opener, or restating closer
 - [ ] Every claim is in cv.md / article-digest.md / _profile.md / profile.yml
-- [ ] The reference is an employer or client, weighted by brand and tenure
+- [ ] The reference is an employer or client from Professional Experience / Closest matches
 - [ ] Personal projects appear only as motivation support, never as the proof
 - [ ] The question is actually answered
 
 **Shapes (facts only, not slogans):**
 
 - **Motivation:** "[JD detail]. At [employer] I [method]. [Optional one clause: I also practice this on personal tools.]"
-- **Experience:** "At [strongest fitting brand / longest relevant role] I [action]. [Method / collaboration]."
+- **Experience:** "[Product / employer] had [user problem]. I [role + one decision]. [Outcome in words]."
 - **Skill / LLM:** "At [employer] I [concrete practice]. [What the step did]."
 - **Work style:** "At [employer] I [how I work]."
 - **Open-ended:** "I'm a [archetype]. At [employer] I [one proof]. This role [one JD fact]."

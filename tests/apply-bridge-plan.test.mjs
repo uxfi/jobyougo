@@ -71,6 +71,31 @@ test('planToUpdate: a city list may be searched; relocation and prose lists are 
   assert.equal(refs.typeQuery, '');
 });
 
+test('planToUpdate: Location Hamburg/remote list picks remote-only and does not type', () => {
+  const opts = [
+    { text: 'Yes' },
+    { text: 'No' },
+    { text: 'Yes, no problem I am open to travel frequently' },
+    { text: 'Yes, I would also consider to move to Hamburg' },
+    { text: "No, this doesn't work for me I only want to work remote" },
+  ];
+  const u = planToUpdate(
+    {
+      i: 8,
+      type: 'text',
+      tag: 'input',
+      label: 'Location',
+      role: 'combobox',
+      ariaHaspopup: 'listbox',
+      options: opts,
+    },
+    { value: 'Paris, France', selectText: 'Paris, France', selectMatch: 'Paris' },
+    { city: 'Paris', location: 'Paris, France' },
+  );
+  assert.match(String(u.selectText || ''), /only want to work remote/i);
+  assert.equal(u.typeQuery, '');
+});
+
 test('planToUpdate: Location Yes|No does not send the city', () => {
   const u = planToUpdate(
     {
@@ -107,6 +132,51 @@ test('planToUpdate: how did you hear sends a ranked source and the rank list', (
   );
   assert.equal(u.selectText, 'LinkedIn');
   assert.equal(u.selectRank?.[0]?.source, '\\blinkedin\\b');
+});
+
+test('planToUpdate: current location searches the city and must pick a suggestion', () => {
+  const u = planToUpdate(
+    { i: 4, type: 'text', tag: 'input', label: 'Current location', name: 'location', idAttr: 'location-input' },
+    { value: 'Bangkok, Thailand', selectText: 'Bangkok, Thailand', selectMatch: 'Bangkok' },
+    { city: 'Bangkok', location: 'Bangkok, Thailand' },
+  );
+  assert.equal(u.placeSuggest, true);
+  assert.equal(u.typeQuery, 'Bangkok');
+  const phone = planToUpdate(
+    { i: 5, type: 'tel', tag: 'input', label: 'Phone', name: 'phone' },
+    { value: '6 95 65 91 31' },
+  );
+  assert.equal(phone.placeSuggest, undefined);
+  assert.equal(phone.value, '6 95 65 91 31');
+});
+
+test('planToUpdate: residence country is a list, phone with code is not a location search', () => {
+  const country = planToUpdate(
+    {
+      i: 1,
+      type: 'select-one',
+      tag: 'select',
+      label: 'Country/Region of Residence:*',
+      name: 'fbclc_country',
+      options: [{ text: 'France' }, { text: 'Thailand' }],
+    },
+    { value: 'France', selectText: 'France', selectMatch: 'France' },
+    { city: 'Paris', country: 'France', location: 'Paris, France' },
+  );
+  assert.equal(country.placeSuggest, undefined);
+  assert.equal(country.selectText, 'France');
+  const phone = planToUpdate(
+    {
+      i: 2,
+      type: 'text',
+      tag: 'input',
+      label: 'Primary Contact Number (including the country code)',
+      name: 'tor__fcellPhone',
+    },
+    { value: '+33 6 95 65 91 31' },
+  );
+  assert.equal(phone.placeSuggest, undefined);
+  assert.equal(phone.value, '+33 6 95 65 91 31');
 });
 
 test('planToUpdate: long text marks humanType', () => {

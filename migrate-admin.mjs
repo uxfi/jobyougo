@@ -17,8 +17,10 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { load as yamlLoad } from 'js-yaml';
 import { createClient } from '@supabase/supabase-js';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = getJobYouGoRoot();
 
 const url  = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -61,7 +63,7 @@ async function main() {
   console.log('\n  Career-Ops — Migration Admin\n');
 
   // 1. Lire profile.yml
-  const profileYml = await readFile(join(__dirname, 'config/profile.yml'), 'utf-8');
+  const profileYml = await readFile(join(DATA_ROOT, 'config/profile.yml'), 'utf-8');
   const profile = yamlLoad(profileYml);
   const candidate = profile?.candidate || {};
 
@@ -95,7 +97,7 @@ async function main() {
 
   // 3. Upsert le profil dans la table profiles
   log('Lecture cv.md et modes/_profile.md...');
-  const cvMarkdown     = await readFile(join(__dirname, 'cv.md'), 'utf-8').catch(() => '');
+  const cvMarkdown     = await readFile(join(DATA_ROOT, 'cv.md'), 'utf-8').catch(() => '');
   const profileContext = await readFile(join(__dirname, 'modes/_profile.md'), 'utf-8').catch(() => '');
   if (cvMarkdown)     ok('cv.md trouvé — sera seedé dans cv_markdown');
   else                log('cv.md absent — cv_markdown sera vide');

@@ -14,7 +14,7 @@ try {
   else fail(`himalayas.id is ${JSON.stringify(himalayas.id)}`);
 
   const hit = himalayas.detect({ name: 'Himalayas', provider: 'himalayas' });
-  if (hit && hit.url === 'https://himalayas.app/jobs/api?limit=50') {
+  if (hit && hit.url === 'https://himalayas.app/jobs/api?limit=20') {
     pass('himalayas.detect() claims explicit provider config');
   } else {
     fail(`himalayas.detect() returned ${JSON.stringify(hit)}`);
@@ -125,7 +125,7 @@ try {
     { fetchJson: async (url, opts) => { capturedUrl = url; capturedOpts = opts; return sample; } },
   );
 
-  if (capturedUrl === 'https://himalayas.app/jobs/api?limit=50') {
+  if (capturedUrl === 'https://himalayas.app/jobs/api?limit=20') {
     pass('himalayas.fetch() requests the pinned API URL');
   } else {
     fail(`himalayas.fetch() requested ${JSON.stringify(capturedUrl)}`);
@@ -142,6 +142,44 @@ try {
   } else {
     fail(`himalayas.fetch() normalized row = ${JSON.stringify(fetched[0])}`);
   }
+
+  // Cursor pagination: walks nextCursor newest-first, stops at max_pages or
+  // when the cursor repeats / a page is empty, dedups across pages.
+  const { buildHimalayasUrl } = himalayasModule;
+  if (buildHimalayasUrl('abc def') === 'https://himalayas.app/jobs/api?limit=20&cursor=abc%20def') {
+    pass('buildHimalayasUrl() appends an encoded cursor');
+  } else {
+    fail(`buildHimalayasUrl() returned ${buildHimalayasUrl('abc def')}`);
+  }
+  const row = (n) => ({ title: `Role ${n}`, companyName: `Co ${n}`, locationRestrictions: ['Worldwide'], applicationLink: `https://himalayas.app/companies/co/jobs/role-${n}` });
+  const pageByCursor = {
+    '': { jobs: [row(1), row(2)], nextCursor: 'c2' },
+    c2: { jobs: [row(2), row(3)], nextCursor: 'c3' },
+    c3: { jobs: [row(4)], nextCursor: 'c4' },
+    c4: { jobs: [row(5)], nextCursor: 'c5' },
+  };
+  const urls = [];
+  const pagingCtx = {
+    fetchJson: async (url) => { urls.push(url); return pageByCursor[new URL(url).searchParams.get('cursor') || '']; },
+    sleep: async () => {},
+  };
+  const paged = await himalayas.fetch({ name: 'Himalayas', provider: 'himalayas', max_pages: 3 }, pagingCtx);
+  if (urls.length === 3 && paged.length === 4) {
+    pass('himalayas.fetch() walks 3 cursor pages and dedups the overlapping row');
+  } else {
+    fail(`himalayas.fetch() paging made ${urls.length} requests, returned ${paged.length} jobs`);
+  }
+  urls.length = 0;
+  const hinted = await himalayas.fetch({ name: 'Himalayas', provider: 'himalayas', max_pages: 3 }, { ...pagingCtx, maxPages: 1 });
+  if (urls.length === 1 && hinted.length === 2) pass('himalayas.fetch() honours the ctx.maxPages probe hint');
+  else fail(`himalayas.fetch() with maxPages hint made ${urls.length} requests, returned ${hinted.length} jobs`);
+  urls.length = 0;
+  const exhausted = await himalayas.fetch({ name: 'Himalayas', provider: 'himalayas', max_pages: 5 }, {
+    fetchJson: async (url) => { urls.push(url); return { jobs: [row(9)], nextCursor: 'same' }; },
+    sleep: async () => {},
+  });
+  if (urls.length === 2 && exhausted.length === 1) pass('himalayas.fetch() stops when the cursor repeats');
+  else fail(`himalayas.fetch() repeated-cursor run made ${urls.length} requests, returned ${exhausted.length} jobs`);
 } catch (e) {
   fail(`himalayas provider tests crashed: ${e.message}`);
 }

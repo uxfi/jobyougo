@@ -116,6 +116,14 @@ test('required empty text / choice / file are completion blockers', () => {
   assert.equal(fieldCompletionIssue({ type: 'text', required: true, value: 'OneAsset' }), null);
 });
 
+test('looksReadyToSubmit: a signed-in form without e-mail field, name + CV is enough', () => {
+  assert.equal(looksReadyToSubmit({
+    filled: [{ label: 'Prénom', value: 'Hugo' }, { label: 'Nom', value: 'Vermot' }, { label: 'CV', value: '📎 cv.pdf' }],
+    pending: [],
+  }), true);
+  assert.equal(looksReadyToSubmit({ filled: [{ label: 'First name', value: 'Hugo' }], pending: [] }), false);
+});
+
 test('looksReadyToSubmit blocks when required pending remain', () => {
   assert.equal(looksReadyToSubmit({
     filled: [{ label: 'Email', value: 'hugo@example.com' }],

@@ -66,7 +66,7 @@ test('the service worker only imports files inside extension/', () => {
 });
 
 test('every registered helper is a function with a known frame scope and merge', () => {
-  const merges = new Set(['probe', 'any', 'concat', 'first', 'first-with-frame']);
+  const merges = new Set(['probe', 'any', 'concat', 'first', 'first-with-frame', 'frames']);
   for (const [name, spec] of Object.entries(PAGE_HELPERS)) {
     assert.equal(typeof spec.func, 'function', name);
     assert.ok(['main', 'all'].includes(spec.frames), `${name}: frames ${spec.frames}`);
@@ -109,6 +109,10 @@ test('any / concat / first merges put the main frame first whatever Chrome retur
   assert.deepEqual(
     mergeFrameResults({ merge: 'first-with-frame' }, [{ frameId: 0, result: null }, { frameId: 6, result: { i: 9901, frameId: 0 } }]),
     { i: 9901, frameId: 6 },
+  );
+  assert.deepEqual(
+    mergeFrameResults({ merge: 'frames' }, [{ frameId: 4, result: { a: 1 } }, { frameId: 0, result: { a: 0 } }, { frameId: 2, result: null }]),
+    [{ a: 0, frameId: 0 }, { a: 1, frameId: 4 }],
   );
 });
 

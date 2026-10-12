@@ -48,6 +48,53 @@ try {
     fail(`splitTitle unexpected: ${JSON.stringify(splitTitle('Senior PM at Acme', 'Board'))}`);
   }
 
+  // Dribbble's feed shape: "{Company} is hiring for a position of {Role} in {Place}".
+  const hiring = splitTitle('Phillips & Associates is hiring for a position of In House Web Developer in Miami or New York', 'Dribbble');
+  if (hiring.company === 'Phillips & Associates' && hiring.title === 'In House Web Developer' && hiring.location === 'Miami or New York') {
+    pass('splitTitle parses the "is hiring for a position of … in …" shape');
+  } else {
+    fail(`splitTitle hiring shape: ${JSON.stringify(hiring)}`);
+  }
+  const hiringNoPlace = splitTitle('Acme is hiring a Senior Product Designer', 'Board');
+  if (hiringNoPlace.company === 'Acme' && hiringNoPlace.title === 'Senior Product Designer' && !hiringNoPlace.location) {
+    pass('splitTitle parses "is hiring a {Role}" without a place');
+  } else {
+    fail(`splitTitle hiring (no place): ${JSON.stringify(hiringNoPlace)}`);
+  }
+
+  if (rss.detect({ provider: 'rss', api: 'https://dribbble.com/jobs.rss' })?.url === 'https://dribbble.com/jobs.rss' &&
+      rss.detect({ provider: 'rss', api: 'https://www.awwwards.com/jobs/feed/' })?.url === 'https://www.awwwards.com/jobs/feed/') {
+    pass('rss.detect() allowlists the Dribbble and Awwwards job feeds');
+  } else {
+    fail('rss.detect() should allowlist dribbble.com and www.awwwards.com');
+  }
+
+  const dribbble = `<?xml version="1.0"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/"><channel>
+    <item>
+      <title>Phillips &amp; Associates is hiring for a position of In House Web Developer in Miami or New York</title>
+      <description><![CDATA[]]></description>
+      <dc:creator>Phillips &amp; Associates</dc:creator>
+      <pubDate>Thu, 08 Oct 2026 15:54:04 -0400</pubDate>
+      <link>https://dribbble.com/jobs/311033-In-House-Web-Developer?source=feed</link>
+    </item>
+    <item>
+      <title>Digital Brand Designer</title>
+      <dc:creator>Roboto Studio</dc:creator>
+      <link>https://www.awwwards.com/jobs/digital-brand-designer</link>
+    </item>
+  </channel></rss>`;
+  const designJobs = parseGenericRssFeed(dribbble, 'Dribbble');
+  if (designJobs[0]?.title === 'In House Web Developer' && designJobs[0]?.company === 'Phillips & Associates' && designJobs[0]?.location === 'Miami or New York') {
+    pass('parseGenericRssFeed splits the Dribbble title into role, company and location');
+  } else {
+    fail(`parseGenericRssFeed dribbble row0 = ${JSON.stringify(designJobs[0])}`);
+  }
+  if (designJobs[1]?.company === 'Roboto Studio' && designJobs[1]?.title === 'Digital Brand Designer') {
+    pass('parseGenericRssFeed uses dc:creator as the company when the title names none');
+  } else {
+    fail(`parseGenericRssFeed dc:creator row1 = ${JSON.stringify(designJobs[1])}`);
+  }
+
   const sample = `<?xml version="1.0"?><rss><channel>
     <item>
       <title><![CDATA[Product Designer at SafetyWing]]></title>

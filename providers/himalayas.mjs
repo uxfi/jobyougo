@@ -2,14 +2,55 @@
 /** @typedef {import('./_types.js').Provider} Provider */
 
 // Himalayas provider - board-wide remote jobs API
-// (https://himalayas.app/jobs/api?limit=50). Returns { jobs: [...] }. The
-// full feed is fetched so scan.mjs's title_filter / location_filter can do
-// the local gating consistently with other zero-token board providers.
+// (https://himalayas.app/jobs/api?limit=20). Returns { jobs: [...] }. The
+// feed is fetched unfiltered so scan.mjs's title_filter / location_filter can
+// do the local gating consistently with other zero-token board providers
+// (the API's `search` parameter does not narrow the result — measured
+// 2026-10-09: identical totalCount with and without it).
 //
-// Wire in via a `job_boards:` entry with `provider: himalayas`.
+// The server caps a page at 20 jobs whatever `limit` says (limit=50 and
+// limit=100 both returned 20, measured 2026-10-09), and the board holds
+// ~117k postings, so one page is a very thin slice of a day's inflow. Pages
+// are walked newest-first with the documented `cursor` pagination
+// (`nextCursor` in each response) up to `max_pages` (default 5 = 100 newest
+// postings; hard cap 50).
+//
+// Wire in via a `job_boards:` entry with `provider: himalayas`:
+//
+//   - name: Himalayas Jobs API - Remote
+//     provider: himalayas
+//     max_pages: 10          # optional (20 jobs/page, default 5, max 50)
+//     enabled: true
 
-const FEED_URL = 'https://himalayas.app/jobs/api?limit=50';
+import { sleep } from './_http.mjs';
+
 const TRUSTED_HOST = 'himalayas.app';
+const PAGE_SIZE = 20;            // server cap — larger limits still return 20
+const DEFAULT_MAX_PAGES = 5;
+const HARD_MAX_PAGES = 50;
+const PAGE_DELAY_MS = 300;
+const FEED_URL = `https://${TRUSTED_HOST}/jobs/api?limit=${PAGE_SIZE}`;
+
+/**
+ * Feed URL for one page. Exported for unit tests.
+ * @param {string} [cursor] - `nextCursor` from the previous page; empty for page 1.
+ * @returns {string}
+ */
+export function buildHimalayasUrl(cursor = '') {
+  return cursor ? `${FEED_URL}&cursor=${encodeURIComponent(cursor)}` : FEED_URL;
+}
+
+/**
+ * @param {any} entry
+ * @param {any} ctx
+ * @returns {number}
+ */
+function resolveMaxPages(entry, ctx) {
+  const raw = Number(entry?.himalayas?.max_pages ?? entry?.max_pages);
+  const entryMax = Number.isFinite(raw) && raw > 0 ? Math.min(Math.floor(raw), HARD_MAX_PAGES) : DEFAULT_MAX_PAGES;
+  const hint = Number(ctx?.maxPages);
+  return Number.isFinite(hint) && hint > 0 ? Math.min(entryMax, Math.floor(hint)) : entryMax;
+}
 
 /** @param {string} url */
 function assertHimalayasUrl(url) {
@@ -75,20 +116,39 @@ export default {
   },
 
   /**
-   * Fetches and normalizes postings from the Himalayas public feed.
-   * @param {{ provider?: string }} entry - The job_boards entry being processed.
-   * @param {{ fetchJson: (url: string, opts?: { redirect?: 'error'|'follow'|'manual' }) => Promise<any> }} ctx - HTTP context.
+   * Fetches and normalizes postings from the Himalayas public feed, walking
+   * the cursor pagination newest-first up to `max_pages`.
+   * @param {{ provider?: string, max_pages?: number, himalayas?: { max_pages?: number } }} entry - The job_boards entry being processed.
+   * @param {{ fetchJson: (url: string, opts?: { redirect?: 'error'|'follow'|'manual' }) => Promise<any>, maxPages?: number, sleep?: (ms: number) => Promise<void> }} ctx - HTTP context.
    * @returns {Promise<Array<{title: string, url: string, company: string, location: string, postedAt?: number}>>}
    */
   async fetch(entry, ctx) {
-    const feedUrl = assertHimalayasUrl(FEED_URL);
-    // redirect:'error' prevents SSRF via server-side redirects; combined with
-    // assertHimalayasUrl above it keeps the request pinned to himalayas.app.
-    const json = await ctx.fetchJson(feedUrl, { redirect: 'error' });
-    if (!json || !Array.isArray(json.jobs)) {
-      throw new Error(`himalayas: unexpected API response - expected { jobs: [...] }, got keys: [${json ? Object.keys(json).join(', ') : 'null'}]`);
+    const maxPages = resolveMaxPages(entry, ctx);
+    const seen = new Set();
+    const out = [];
+    let cursor = '';
+    for (let page = 1; page <= maxPages; page += 1) {
+      const feedUrl = assertHimalayasUrl(buildHimalayasUrl(cursor));
+      // redirect:'error' prevents SSRF via server-side redirects; combined with
+      // assertHimalayasUrl above it keeps the request pinned to himalayas.app.
+      const json = await ctx.fetchJson(feedUrl, { redirect: 'error' });
+      if (!json || !Array.isArray(json.jobs)) {
+        throw new Error(`himalayas: unexpected API response - expected { jobs: [...] }, got keys: [${json ? Object.keys(json).join(', ') : 'null'}]`);
+      }
+      const jobs = parseHimalayasResponse(json);
+      for (const job of jobs) {
+        if (seen.has(job.url)) continue;
+        seen.add(job.url);
+        out.push(job);
+      }
+      const next = typeof json.nextCursor === 'string' ? json.nextCursor.trim() : '';
+      // A repeated cursor or an empty page means the feed is exhausted; stop
+      // rather than re-reading the same slice until max_pages.
+      if (!next || next === cursor || jobs.length === 0) break;
+      cursor = next;
+      if (page < maxPages) await sleep(PAGE_DELAY_MS, ctx);
     }
-    return parseHimalayasResponse(json);
+    return out;
   },
 };
 

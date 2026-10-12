@@ -31,6 +31,23 @@
 # scan_history:
 #   recheck_after_days: 30
 
+# -- Web search engines (optional; UI scan) --
+# search_queries / eu_job_boards / freelance_portals run through PinchTab
+# against several engines and the hits are MERGED per query (dedup by URL).
+#   engines:     ordered engine ids — brave | duckduckgo | google | bing
+#                (default brave, duckduckgo, google; bing is opt-in — it
+#                challenges bursts of site: queries and returned off-topic
+#                pages when it did answer, measured 2026-10-09)
+#   min_results: stop calling further engines once this many distinct URLs
+#                were found for a query (default 15; 0 = always run them all)
+#   freshness:   auto | day | week | month | none — the engine's own recency
+#                operator; auto derives it from scan_max_age_days (7 → week)
+#
+# web_search:
+#   engines: [brave, duckduckgo, google]
+#   min_results: 15
+#   freshness: auto
+
 # -- Location-aware duplicate roles (optional, opt-in) --
 # By default two postings that share a company and a title are ONE role, however
 # many cities they name: an employer that opens one req per city would otherwise
@@ -1480,6 +1497,24 @@ search_queries:
 #
 # - name: Jobicy
 #   provider: jobicy
+#   jobicy:                               # optional server-side narrowing
+#     industry: design-multimedia         # slug from ?get=industries
+#     tag: product                        # free text, 3–50 characters
+#     geo: europe                         # anywhere / europe / apac / …
+#     count: 50                           # 1–100
+#   enabled: true
+#
+# - name: Jobgether — Design (Europe)     # remote aggregator, documented AI-agent endpoint
+#   provider: jobgether
+#   jobgether:
+#     keywords: ["product designer", "ux designer"]   # REQUIRED
+#     locations: [europe, anywhere]       # country / continent slugs, or anywhere
+#     max_pages: 2                        # 25 jobs per page, default 2, max 10
+#   enabled: true
+#
+# - name: Dribbble Jobs                   # design board, public RSS (provider: rss allowlist)
+#   provider: rss
+#   api: https://dribbble.com/jobs.rss
 #   enabled: true
 #
 # - name: getManfred                      # Spanish/EU tech roles, salary ranges published

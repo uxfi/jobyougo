@@ -21,7 +21,7 @@
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { buildIdentity } from '../lib/apply-spec.mjs';
 import { ApplyBridge, createStandaloneApplyBridge, classifySimpleField } from './apply-bridge-lib.mjs';
 

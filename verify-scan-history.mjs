@@ -39,10 +39,12 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { tsvSafe, slugify } from './lib/scan-filters.mjs';
 import { SCAN_HISTORY_HEADER } from './scan.mjs';
+import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const HISTORY = join(ROOT, 'data/scan-history.tsv');
-const DELETED = join(ROOT, 'data/deleted-applications.tsv');
+const DATA_ROOT = getJobYouGoRoot();
+const HISTORY = join(DATA_ROOT, 'data/scan-history.tsv');
+const DELETED = join(DATA_ROOT, 'data/deleted-applications.tsv');
 const FIX = process.argv.includes('--fix');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

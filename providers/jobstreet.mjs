@@ -29,6 +29,8 @@ import { sleep } from './_http.mjs';
 //   ID-Main  → id.jobstreet.com (Indonesia)
 //   SG-Main  → sg.jobstreet.com (Singapore)
 //   MY-Main  → my.jobstreet.com (Malaysia)
+//   PH-Main  → ph.jobstreet.com (Philippines)
+//   TH-Main  → th.jobsdb.com    (Thailand, JobsDB brand)
 //   AU-Main  → www.seek.com.au  (Australia — set api: https://www.seek.com.au/api/jobsearch/v5/search)
 //   NZ-Main  → www.seek.co.nz   (New Zealand)
 //   HK-Main  → hk.jobsdb.com    (Hong Kong)
@@ -50,7 +52,9 @@ const ALLOWED_JOBSTREET_HOSTS = new Set([
   'jobstreet.co.id',
   'sg.jobstreet.com',
   'my.jobstreet.com',
-  // SEEK's Hong Kong property keeps the JobsDB brand; same v5 search API.
+  'ph.jobstreet.com',
+  // Thailand keeps the JobsDB brand, same v5 search API as Hong Kong.
+  'th.jobsdb.com',
   'hk.jobsdb.com',
   'www.seek.com.au',
   'www.seek.co.nz',

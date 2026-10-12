@@ -2,13 +2,18 @@
 // Pure string math: no network, no tokens, no filesystem. The band annotates
 // discovery cards; the assertions pin the CONTRACT (recommendation layer,
 // bands not percentages in the UI) as much as the arithmetic.
-import { pass, fail, ROOT } from './helpers.mjs';
+import { pass, fail, warn, ROOT } from './helpers.mjs';
+import { existsSync } from 'fs';
 import { join } from 'path';
 import { pathToFileURL } from 'url';
 
 console.log('\ntitle-fit.mjs — free banded title/profile overlap hint (#3260)');
-try {
-  const m = await import(pathToFileURL(join(ROOT, 'web', 'src', 'lib', 'title-fit.mjs')).href);
+const TITLE_FIT = join(ROOT, 'web', 'src', 'lib', 'title-fit.mjs');
+// title-fit.mjs lives in the web/ app, which a core-only checkout does not carry.
+if (!existsSync(TITLE_FIT)) {
+  warn('web/ not present in this checkout — skipping the title-fit checks');
+} else try {
+  const m = await import(pathToFileURL(TITLE_FIT).href);
   const { titleFit } = m;
 
   // Word order + punctuation insensitivity — exactly what firstMatch()'s

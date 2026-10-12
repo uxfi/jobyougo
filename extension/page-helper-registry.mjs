@@ -19,6 +19,8 @@ import {
   PAGE_SHOWS_APPLY_ENTRY,
   PAGE_STEP_SNAPSHOT,
   snapshotIdentityFields,
+  SUBMIT_CANDIDATES,
+  APPLY_PAGE_SIGNALS,
 } from './page-helpers.mjs';
 
 /** Visible, enabled control labels: the wizard's Next / Submit / Review. */
@@ -49,6 +51,71 @@ export function listActionLabelsInPage() {
     labels.push(t);
   }
   return [...new Set(labels)].slice(0, 40);
+}
+
+/**
+ * SuccessFactors RCM keeps the resume file input out of the DOM until the
+ * candidate clicks "Upload a CV". That click opens "Upload from Device".
+ * Self-contained: chrome.scripting / Playwright serialize this function alone.
+ * Returns null when this frame has no such control, so another frame can win.
+ */
+export function revealSfResumeInputInPage() {
+  const RESUME_RE = /resume|\bcv\b|curriculum|lebenslauf/i;
+  const COVER_RE = /cover letter|lettre de motivation|anschreiben|lettre de couverture/i;
+  const deep = (root, sel) => {
+    const out = [];
+    const walk = (n) => {
+      if (!n?.querySelectorAll) return;
+      try { out.push(...n.querySelectorAll(sel)); } catch { /* invalid in this root */ }
+      for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+    };
+    walk(root);
+    return out;
+  };
+  const popupHtml = (el) => {
+    const pop = el.closest?.('.calloutPopupWrapper, .attachmentUploadOptions, .sfPanelComponent');
+    return pop ? pop.innerHTML : '';
+  };
+  const isCoverFile = (el) => {
+    const html = popupHtml(el);
+    return /COVERLETTER|coverLetter/i.test(html) && !/["']RESUME["']/.test(html);
+  };
+  const resumeFile = () => deep(document, 'input[type="file"]').find((el) => {
+    if (el.getAttribute('data-co-resume') === '1') return true;
+    if (isCoverFile(el)) return false;
+    if (/["']RESUME["']/.test(popupHtml(el))) return true;
+    return RESUME_RE.test(el.getAttribute('aria-label') || '');
+  }) || null;
+  const stamp = (el) => {
+    if (!el) return;
+    if (!RESUME_RE.test(el.getAttribute('aria-label') || '')) el.setAttribute('aria-label', 'Resume / CV');
+    el.setAttribute('data-co-resume', '1');
+  };
+
+  const deviceFile = () => deep(document, 'input.fileUpload, input[name="fileData1"]').find((el) => !isCoverFile(el)) || null;
+  const already = resumeFile() || deviceFile();
+  if (already) {
+    stamp(already);
+    return { ready: true, clicked: false };
+  }
+  const uploaded = document.getElementById('fbja_uploadedResumeId');
+  if (uploaded && String(uploaded.value || '').trim()) return null;
+
+  let button = null;
+  for (const field of deep(document, '.attachmentField')) {
+    const label = (field.querySelector('label, .rcmFormFieldLabel')?.innerText || '')
+      .replace(/\s+/g, ' ').trim();
+    if (!label || (COVER_RE.test(label) && !RESUME_RE.test(label)) || !RESUME_RE.test(label)) continue;
+    button = field.querySelector('.addAttachments, [id$="_attachIcon"]');
+    if (button) break;
+  }
+  if (!button) return null;
+  button.click();
+  const created = resumeFile()
+    || deep(document, 'input[type="file"]').find((el) => !isCoverFile(el))
+    || null;
+  if (created) stamp(created);
+  return { ready: !!created, clicked: true };
 }
 
 /**
@@ -109,7 +176,12 @@ export const PAGE_HELPERS = {
   IDENTITY_SNAPSHOT: { func: snapshotIdentityFields, frames: 'all', merge: 'concat' },
   ACTION_LABELS: { func: listActionLabelsInPage, frames: 'all', merge: 'concat', key: (t) => t, limit: 40 },
   FORCE_RESUME_SLOT: { func: forceResumeSlotInPage, frames: 'all', merge: 'first-with-frame' },
+  REVEAL_SF_RESUME: { func: revealSfResumeInputInPage, frames: 'all', merge: 'first-with-frame' },
   PAGE_HTML: { func: pageHtmlInPage, frames: 'main', merge: 'first' },
+  // Every frame's controls / page facts, each tagged with its frame: the send
+  // button and the captcha often live in the ATS iframe.
+  SUBMIT_CANDIDATES: { func: SUBMIT_CANDIDATES, frames: 'all', merge: 'frames' },
+  APPLY_PAGE_SIGNALS: { func: APPLY_PAGE_SIGNALS, frames: 'all', merge: 'frames' },
 };
 
 const NO_PROBE = { verdict: 'none', score: 0, signals: [], blockers: [] };
@@ -124,6 +196,7 @@ const NO_PROBE = { verdict: 'none', score: 0, signals: [], blockers: [] };
  *   concat            arrays joined, de-duplicated by `key`, capped at `limit`
  *   first             the first frame's result
  *   first-with-frame  the first result, tagged with the frame it came from
+ *   frames            every frame's result, each tagged with its frame
  */
 export function mergeFrameResults(spec, entries = []) {
   const rows = (entries || [])
@@ -157,6 +230,8 @@ export function mergeFrameResults(spec, entries = []) {
       }
       return out;
     }
+    case 'frames':
+      return rows.map((r) => ({ ...r.result, frameId: r.frameId ?? 0 }));
     case 'first-with-frame':
       return rows.length ? { ...rows[0].result, frameId: rows[0].frameId ?? 0 } : null;
     default:

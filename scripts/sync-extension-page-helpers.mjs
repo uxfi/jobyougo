@@ -15,9 +15,10 @@
  */
 
 import { readFileSync, writeFileSync } from 'fs';
-import { dirname, join, resolve } from 'path';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { COLLECT_FIELDS } from '../lib/apply-collect-fields.mjs';
+import { isMainModule } from '../lib/is-main-module.mjs';
 import {
   APPLICATION_FORM_PROBE,
   LIST_VISIBLE_NAV_BUTTONS,
@@ -25,6 +26,7 @@ import {
   PAGE_STEP_SNAPSHOT,
 } from '../lib/form-detect.mjs';
 import { snapshotIdentityFields } from '../extension/apply-autofill.mjs';
+import { SUBMIT_CANDIDATES, APPLY_PAGE_SIGNALS } from '../lib/apply-submit.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -35,6 +37,8 @@ const PAGE_HELPER_SOURCES = [
   ['LIST_VISIBLE_NAV_BUTTONS', LIST_VISIBLE_NAV_BUTTONS, 'lib/form-detect.mjs'],
   ['PAGE_STEP_SNAPSHOT', PAGE_STEP_SNAPSHOT, 'lib/form-detect.mjs'],
   ['snapshotIdentityFields', snapshotIdentityFields, 'extension/apply-autofill.mjs'],
+  ['SUBMIT_CANDIDATES', SUBMIT_CANDIDATES, 'lib/apply-submit.mjs'],
+  ['APPLY_PAGE_SIGNALS', APPLY_PAGE_SIGNALS, 'lib/apply-submit.mjs'],
 ];
 
 export function renderPageHelpers() {
@@ -80,11 +84,7 @@ export const OUTPUTS = [
   ['extension/collect-fields.js', renderCollectFields],
 ];
 
-const invoked = process.argv[1] ? resolve(process.argv[1]) : '';
-const self = fileURLToPath(import.meta.url);
-const isMain = process.platform === 'win32' ? invoked.toLowerCase() === self.toLowerCase() : invoked === self;
-
-if (isMain) {
+if (isMainModule(import.meta.url)) {
   const check = process.argv.includes('--check');
   const stale = [];
   for (const [rel, render] of OUTPUTS) {

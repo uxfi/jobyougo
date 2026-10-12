@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="/images/favicon.png">
+  <title>v2 studio</title>
+  <meta name="description" content="">
+  <link rel="canonical" href="https://jobyougo.xyz/agence/<!--@slug-->">
+  <meta name="theme-color" content="#0b100a">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="v2 studio">
+  <meta property="og:url" content="https://jobyougo.xyz/agence/<!--@slug-->">
+  <meta property="og:image" content="https://jobyougo.xyz/images/agence-fox-close.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="preload" as="font" type="font/woff2" href="/portfolio/fonts/cabinet-grotesk-var.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="/portfolio/fonts/boska-var-italic.woff2" crossorigin>
+  <link rel="stylesheet" href="/portfolio/agence-story.css?v=20261012j">
+  <script>
+    (function () {
+      var KEY = 'v2studio-lang';
+      var lang = null;
+      try {
+        var q = new URLSearchParams(window.location.search).get('lang');
+        if (q === 'fr' || q === 'en') lang = q;
+      } catch (e) { /* ignore */ }
+      if (!lang) {
+        try {
+          var saved = window.localStorage.getItem(KEY);
+          if (saved === 'fr' || saved === 'en') lang = saved;
+        } catch (e) { /* storage blocked */ }
+      }
+      if (!lang) lang = /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
+      window.SITE = { id: 'agency', base: '/agence', page: '<!--@slug-->', initialLang: lang, langStorageKey: KEY };
+      var root = document.documentElement;
+      root.lang = lang;
+      if (lang === 'fr') root.classList.add('i18n-pending');
+    })();
+  </script>
+</head>
+<body class="page past-hero">
+
+<a class="skip" href="#main" data-t="ag_skip_link">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+
+<header class="nav is-solid <!--@navtone-->" id="nav">
+  <a class="wordmark" href="/agence" data-ta="aria-label:ag_nav_home_aria" aria-label="v2 studio, back to the top">v2 studio<i aria-hidden="true"></i></a>
+  <nav class="nav-links" id="nav-links" aria-label="v2 studio">
+    <a href="/agence/showcase" data-page="showcase" data-t="nav_showcase">Showcase</a>
+    <a href="/agence/services" data-page="services" data-t="nav_services">Services</a>
+    <a href="/agence/pricing" data-page="pricing" data-t="nav_pricing">Pricing</a>
+    <a href="/agence/secret-touch" data-page="secret-touch" data-t="nav_secret">Secret touch</a>
+  </nav>
+  <button class="nav-burger" type="button" aria-expanded="false" aria-controls="nav-links" data-ta="aria-label:nav_menu_aria" aria-label="Open menu"><span></span></button>
+  <div class="nav-right">
+    <div class="lang" role="group" data-ta="aria-label:s_lang" aria-label="Language">
+      <button type="button" data-lang="en" lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="fr" lang="fr" aria-pressed="false">FR</button>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" data-offer="" data-t="nav_contact">Start a project</button>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+<!--@main-->
+  <section class="contact" id="contact" data-chapter="contact" aria-labelledby="contact-title">
+    <div class="contact-bg" aria-hidden="true"><img src="/images/agence-fox-close.jpg" data-src-m="/images/agence-fox-close-m.jpg" width="1920" height="1080" alt="" loading="lazy" decoding="async"></div>
+    <div class="wrap">
+      <span class="dab" aria-hidden="true"></span>
+      <h2 class="display h2" id="contact-title" data-th="contact_headline">Show us the page<br>your customers<br><em>see first.</em></h2>
+      <p class="contact-sub lede" data-t="contact_sub">Send a link and one line of context. We reply within one business day with the package that fits, or we tell you none does.</p>
+      <div class="contact-actions">
+        <button type="button" class="btn btn-primary" data-offer="" data-t="contact_primary">Describe your project</button>
+        <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="contact_link_call">Book a 30-min call</a>
+      </div>
+      <p class="contact-else"><span data-t="s_or_write">Or write to</span> <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a> · <a href="https://linkedin.com/in/hugovermot" target="_blank" rel="noopener noreferrer">LinkedIn</a></p>
+      <footer class="footer">
+        <span data-t="footer_copy">© 2026 v2 studio · Founded by Hugo Vermot</span>
+        <span data-t="footer_prices_note">Prices in US dollars. Scope confirmed in writing before payment.</span>
+      </footer>
+    </div>
+  </section>
+</main>
+
+<dialog class="dlg" id="contact-dialog" aria-labelledby="dlg-title">
+  <form class="dlg-inner" id="contact-form" novalidate>
+    <div class="dlg-head">
+      <div>
+        <h2 id="dlg-title" data-t="contact_modal_title">Tell us about your project</h2>
+        <p class="dlg-sub" data-t="contact_modal_subtitle">Pick a package and add a few lines. This opens a draft in your email app; nothing is sent until you press send there.</p>
+      </div>
+      <button type="button" class="dlg-x" id="dlg-close" data-ta="aria-label:contact_close_aria" aria-label="Close">×</button>
+    </div>
+    <div class="field"><label for="f-link" data-t="contact_label_link">Link to your site or product (optional)</label><input id="f-link" name="link" type="url" inputmode="url" autocomplete="url" placeholder="https://"></div>
+    <div class="field"><label for="f-offer" data-t="contact_label_offer">Package</label><select id="f-offer" name="offer"></select></div>
+    <div class="field"><label for="f-msg" data-t="contact_label_message">Your project</label><textarea id="f-msg" name="message" required data-ta="placeholder:contact_ph_message" placeholder="What should change, for whom, and by when?"></textarea></div>
+    <div class="field-row">
+      <div class="field"><label for="f-name" data-t="contact_label_name">Name</label><input id="f-name" name="name" autocomplete="name" required data-ta="placeholder:contact_ph_name" placeholder="Your name"></div>
+      <div class="field"><label for="f-email" data-t="contact_label_email">Email</label><input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" required data-ta="placeholder:contact_ph_email" placeholder="you@company.com"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="submit" class="btn btn-primary" id="f-send" data-t="contact_btn_send">Open email draft</button>
+      <button type="button" class="btn btn-line" id="f-copy" data-t="contact_btn_copy">Copy the message</button>
+    </div>
+    <p class="dlg-status" id="f-status" role="status" aria-live="polite"></p>
+  </form>
+</dialog>
+
+<button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="false" aria-controls="chat" data-ta="aria-label:chat_toggle_aria" aria-label="Ask the v2 studio assistant"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5a8 8 0 0 1-11.7 7.1L4 19.8l1.2-4.4a8 8 0 1 1 15.3-3.9z"/><circle cx="8.6" cy="11.6" r=".6" fill="currentColor"/><circle cx="12.5" cy="11.6" r=".6" fill="currentColor"/><circle cx="16.4" cy="11.6" r=".6" fill="currentColor"/></svg><span data-t="s_chat_btn">Ask a question</span></button>
+<section class="chat" id="chat" role="dialog" data-ta="aria-label:chat_panel_aria" aria-label="v2 studio assistant, an AI" hidden>
+  <div class="chat-head"><strong data-t="chat_name">v2 studio · Assistant</strong><span data-t="chat_sub">AI answers on packages, prices and timing</span></div>
+  <div class="chat-msgs" id="chat-msgs" aria-live="polite"></div>
+  <div class="chat-suggs" id="chat-suggs"></div>
+  <form class="chat-form" id="chat-form">
+    <textarea id="chat-input" rows="1" maxlength="600" data-ta="placeholder:chat_placeholder;aria-label:chat_placeholder" placeholder="Ask about a package, a price, a date…" aria-label="Ask about a package, a price, a date…"></textarea>
+    <button type="submit" id="chat-send" data-ta="aria-label:ag_chat_send_aria" aria-label="Send" disabled>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+    </button>
+  </form>
+</section>
+
+<script src="/portfolio/agence-data.js" defer></script>
+<script src="/portfolio/agence-i18n.js" defer></script>
+<script src="/portfolio/agence-story.js?v=20261012j" defer></script>
+<script type="module" src="/effects/dist/landing-figures.js"></script>
+</body>
+</html>

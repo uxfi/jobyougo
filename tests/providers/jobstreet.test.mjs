@@ -242,6 +242,26 @@ try {
   if (hkReached && hkJobs.length === 0) pass('jobstreet.fetch() accepts hk.jobsdb.com (HK-Main)');
   else fail('jobstreet.fetch() should accept hk.jobsdb.com and query it directly');
 
+  for (const [label, api] of [
+    ['ph.jobstreet.com', 'https://ph.jobstreet.com/api/jobsearch/v5/search'],
+    ['th.jobsdb.com', 'https://th.jobsdb.com/api/jobsearch/v5/search'],
+  ]) {
+    let reached = false;
+    const jobs = await jobstreet.fetch(
+      { name: label, provider: 'jobstreet', api, searchKeywords: 'AI' },
+      {
+        transport: 'http',
+        fetchJson: async (url) => {
+          reached = String(url).startsWith(`https://${label}/`);
+          return { data: [], totalCount: 0 };
+        },
+        fetchText: async () => { throw new Error('should not be called'); },
+      },
+    );
+    if (reached && jobs.length === 0) pass(`jobstreet.fetch() accepts ${label}`);
+    else fail(`jobstreet.fetch() should accept ${label}`);
+  }
+
   // fetch() — handles non-array data field
   const badDataCtx = {
     transport: 'http',

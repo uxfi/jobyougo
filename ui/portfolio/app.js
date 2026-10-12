@@ -602,8 +602,102 @@ function goHome() {
   document.getElementById('view-home').classList.remove('hidden');
   document.getElementById('view-project').classList.add('hidden');
   window.scrollTo(0, 0);
-  document.title = 'Hugo Vermot, Product Manager | AI Products';
+  document.title = siteHomeTitle() || 'Hugo Vermot, Product Manager | AI Products';
   if (history.pushState) history.pushState(null, '', '#');
+}
+
+/** Optional host-page config (window.SITE, set inline before any script). null on /portfolio. */
+function siteCfg() {
+  const site = window.SITE;
+  return site && typeof site === 'object' ? site : null;
+}
+
+/** SITE.title as a string, or resolved by currentLang with an en fallback. '' when unset. */
+function siteHomeTitle() {
+  const site = siteCfg();
+  if (!site || !site.title) return '';
+  if (typeof site.title === 'string') return site.title;
+  return site.title[currentLang] || site.title.en || '';
+}
+
+/** HTML from SITE.renderProjectCta, inserted before the proj-next block. '' when unset or on error. */
+function siteProjectCta(p) {
+  const site = siteCfg();
+  if (!site || typeof site.renderProjectCta !== 'function') return '';
+  try {
+    const html = site.renderProjectCta(p, currentLang);
+    return typeof html === 'string' ? html : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+/** Case-study / list label. On a host page (window.SITE): TRANSLATIONS[currentLang][key] when it
+ *  is a string, else the literal. Always the literal on /portfolio. */
+function siteLabel(key, fallback) {
+  if (!siteCfg()) return fallback;
+  const pack = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS && TRANSLATIONS[currentLang]) || null;
+  return pack && typeof pack[key] === 'string' ? pack[key] : fallback;
+}
+
+/** window.SITE[name](...args), or undefined when unset or when the hook throws. */
+function siteHook(name, ...args) {
+  const site = siteCfg();
+  if (!site || typeof site[name] !== 'function') return undefined;
+  try {
+    return site[name](...args);
+  } catch (err) {
+    console.error(`SITE.${name} failed`, err);
+    return undefined;
+  }
+}
+
+/** siteHook for hooks that return HTML: '' unless the hook returned a string. */
+function siteHookHtml(name, ...args) {
+  const html = siteHook(name, ...args);
+  return typeof html === 'string' ? html : '';
+}
+
+function siteEscape(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+/** SITE.workOrder (ids), or null when there is no SITE or no array. */
+function siteWorkOrder() {
+  const order = siteCfg()?.workOrder;
+  return Array.isArray(order) ? order.filter(id => typeof id === 'string') : null;
+}
+
+/** Listed ids first in SITE.workOrder order; unlisted projects follow in their incoming (data) order. */
+function sortBySiteWorkOrder(list, order) {
+  const pos = new Map();
+  order.forEach((id, i) => { if (!pos.has(id)) pos.set(id, i); });
+  return list
+    .map((p, i) => ({ p, rank: pos.has(p.id) ? pos.get(p.id) : order.length + i }))
+    .sort((a, b) => a.rank - b.rank)
+    .map(x => x.p);
+}
+
+/** SITE.aiBentoIds (deduplicated), or null. */
+function siteBentoIds() {
+  const ids = siteCfg()?.aiBentoIds;
+  return Array.isArray(ids) ? [...new Set(ids.filter(id => typeof id === 'string'))] : null;
+}
+
+/** AI_WIDE_TILE_CFG entries picked and ordered by SITE.aiWideIds (unknown ids skipped), or null. */
+function siteWideTiles() {
+  const ids = siteCfg()?.aiWideIds;
+  if (!Array.isArray(ids)) return null;
+  return [...new Set(ids)].map(id => AI_WIDE_TILE_CFG.find(w => w.id === id)).filter(Boolean);
+}
+
+/** Ids shown in the AI section on a host page that overrides it (bento then wide), or null. */
+function siteAiIds() {
+  if (!siteCfg()) return null;
+  const bento = siteBentoIds();
+  const wide = siteWideTiles();
+  if (!bento && !wide) return null;
+  return [...new Set([...(bento || AI_PROJECT_IDS), ...(wide || AI_WIDE_TILE_CFG).map(w => w.id)])];
 }
 
 /** Keep the wheel inside a tall page capture until it reaches the end. */
@@ -651,7 +745,12 @@ function openProject(id) {
   bindMethodTracks(document.getElementById('proj-page-content'));
   document.getElementById('view-project').classList.remove('hidden');
   window.scrollTo(0, 0);
-  document.title = `${p.company} | Hugo Vermot`;
+  let projTitle = '';
+  const site = siteCfg();
+  if (site && typeof site.projectTitle === 'function') {
+    try { projTitle = site.projectTitle(p, currentLang) || ''; } catch (_) { projTitle = ''; }
+  }
+  document.title = projTitle || `${p.company} | Hugo Vermot`;
   if (history.pushState) history.pushState(null, '', `#project/${id}`);
   if (p.models3d && p.models3d.variants && !window.matchMedia('(max-width: 768px)').matches) {
     mountAncientWorldModel(p, mountToken);
@@ -2983,14 +3082,20 @@ function projectTrail(current) {
   const aiIds = ['uxfi', 'panfy', 'flemme', 'jarvos', 'ancient-world'];
   const featuredOrder = ['oneasset', 'creads', 'lvmh', 'renault', 'sg'];
   const visible = publicProjects();
-  const work = visible.filter(item => !aiIds.includes(item.id)).sort((a, b) => {
+  // Host page (window.SITE): its AI ids and workOrder drive the trail. Both null on /portfolio.
+  const siteAi = siteAiIds();
+  const siteOrder = siteWorkOrder();
+  const workExclude = siteAi ? [...new Set([...aiIds, ...siteAi])] : aiIds;
+  const aiSeqIds = siteAi || aiIds;
+  const workAll = visible.filter(item => !workExclude.includes(item.id));
+  const work = siteOrder ? sortBySiteWorkOrder(workAll, siteOrder) : workAll.sort((a, b) => {
     const rank = item => item.id === 'arlequin'
       ? featuredOrder.length + 1
       : (featuredOrder.includes(item.id) ? featuredOrder.indexOf(item.id) : featuredOrder.length);
     return rank(a) - rank(b);
   });
-  const ai = aiIds.map(id => visible.find(item => item.id === id)).filter(Boolean);
-  const seq = aiIds.includes(current.id) ? ai : work;
+  const ai = aiSeqIds.map(id => visible.find(item => item.id === id)).filter(Boolean);
+  const seq = aiSeqIds.includes(current.id) ? ai : work;
   const idx = seq.findIndex(item => item.id === current.id);
   if (idx === -1) {
     const fallback = visible;
@@ -3000,16 +3105,23 @@ function projectTrail(current) {
   return { seq, idx };
 }
 
+/** On a host page (window.SITE) make data.js 'covers/' and 'assets/' paths root-relative: they
+ *  404 while the URL is <base>/layout-<id>. Unchanged on /portfolio (no SITE). */
+function siteAssetSrc(src) {
+  if (!src || !siteCfg()) return src;
+  return /^(covers|assets)\//.test(src) ? '/' + src : src;
+}
+
 function projectStill(p) {
-  return p.heroCover || p.screenshot || p.cover || '';
+  return siteAssetSrc(p.heroCover || p.screenshot || p.cover || '');
 }
 
 function projectNavCard(p, role) {
   const dir = role === 'prev'
-    ? (currentLang === 'en' ? 'Previous' : 'Précédent')
+    ? siteLabel('proj_prev', currentLang === 'en' ? 'Previous' : 'Précédent')
     : role === 'next'
-      ? (currentLang === 'en' ? 'Next' : 'Suivant')
-      : (currentLang === 'en' ? 'Then' : 'Ensuite');
+      ? siteLabel('proj_next', currentLang === 'en' ? 'Next' : 'Suivant')
+      : siteLabel('proj_then', currentLang === 'en' ? 'Then' : 'Ensuite');
   const still = projectStill(p);
   const tag = String(p.subtitle || p.tagline || '');
   const arrow = role === 'prev'
@@ -3060,7 +3172,7 @@ function renderProject(p) {
   // Before/after — rendered early (after goals/solution, before process)
   const galleryBeforeAfterHTML = p.gallery && p.gallery.beforeAfter ? `
     <div class="proj-gallery" style="padding-bottom:0; border-top:1px solid var(--rule);">
-      <div class="proj-gallery-label">Before / After</div>
+      <div class="proj-gallery-label">${siteLabel('proj_before_after', 'Before / After')}</div>
       <div class="proj-before-after">
         ${p.gallery.beforeAfter.map(img => `
           <div class="proj-ba-item">
@@ -3074,7 +3186,7 @@ function renderProject(p) {
   // Screens + sections — rendered after process
   const galleryHTML = p.gallery && (p.gallery.screens || p.gallery.sections) ? `
     <div class="proj-gallery">
-      <div class="proj-gallery-label">Design work</div>
+      <div class="proj-gallery-label">${siteLabel('proj_design_work', 'Design work')}</div>
       ${p.gallery.screens && p.gallery.screens.length ? `
         <div class="proj-screens-grid">
           ${p.gallery.screens.map(img => `
@@ -3098,14 +3210,14 @@ function renderProject(p) {
 
   const urlBtn = p.url
     ? `<a class="proj-url-btn" href="${p.url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:8px;">
-        ${currentLang === 'en' ? 'View result' : 'Voir le résultat'} 
+        ${siteLabel('proj_view_result', currentLang === 'en' ? 'View result' : 'Voir le résultat')} 
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       </a>`
     : '';
 
   const landingBtn = p.landingIfaceId
     ? `<button class="proj-url-btn" type="button" onclick="openIfaceModal('${p.landingIfaceId}')" style="display:inline-flex; align-items:center; gap:8px;">
-        Voir la landing
+        ${siteLabel('proj_view_landing', 'Voir la landing')}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 20h8"/><path d="M12 18v2"/></svg>
       </button>`
     : '';
@@ -3125,8 +3237,8 @@ function renderProject(p) {
 
   return `
   <div style="--proj-accent:${p.accent}; --proj-accent-text:${accentText}">
-    <div class="proj-hero${(p.video || p.heroCover) ? ' has-cover' : ''}" style="--proj-accent:${p.accent}${p.heroCover ? `; background-image: url('${p.heroCover}');` : ''}">
-      ${p.video ? `<video class="proj-hero-video js-lazy-video" data-src="${p.video}"${p.screenshot || p.cover || p.heroCover ? ` poster="${p.screenshot || p.cover || p.heroCover}"` : ''} muted loop playsinline preload="none"></video>` : ''}
+    <div class="proj-hero${(p.video || p.heroCover) ? ' has-cover' : ''}" style="--proj-accent:${p.accent}${p.heroCover ? `; background-image: url('${siteAssetSrc(p.heroCover)}');` : ''}">
+      ${p.video ? `<video class="proj-hero-video js-lazy-video" data-src="${p.video}"${p.screenshot || p.cover || p.heroCover ? ` poster="${siteAssetSrc(p.screenshot || p.cover || p.heroCover)}"` : ''} muted loop playsinline preload="none"></video>` : ''}
       ${(p.video || p.heroCover) ? `<div class="proj-hero-cover-overlay"></div>` : ''}
       <div class="proj-hero-accent-bar"></div>
       <div class="proj-hero-glow"></div>
@@ -3140,13 +3252,13 @@ function renderProject(p) {
         <div class="proj-hero-desc">${p.desc}</div>
         <div class="proj-hero-footer">
           <div class="proj-meta-row">
-            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M5 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>${currentLang === 'en' ? 'Role' : 'Rôle'}</div><div class="proj-meta-val">${p.role}</div></div>
-            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12M5 2v2M11 2v2"/></svg>${currentLang === 'en' ? 'Duration' : 'Durée'}</div><div class="proj-meta-val">${p.duration}</div></div>
-            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 14v-1a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v1"/><circle cx="8" cy="5" r="3"/></svg>${currentLang === 'en' ? 'Team' : 'Équipe'}</div><div class="proj-meta-val">${p.team}</div></div>
-            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13h4M8 11v2"/></svg>${currentLang === 'en' ? 'Platform' : 'Plateforme'}</div><div class="proj-meta-val">${platformStr}</div></div>
+            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M5 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>${siteLabel('proj_role', currentLang === 'en' ? 'Role' : 'Rôle')}</div><div class="proj-meta-val">${p.role}</div></div>
+            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12M5 2v2M11 2v2"/></svg>${siteLabel('proj_duration', currentLang === 'en' ? 'Duration' : 'Durée')}</div><div class="proj-meta-val">${p.duration}</div></div>
+            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 14v-1a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v1"/><circle cx="8" cy="5" r="3"/></svg>${siteLabel('proj_team', currentLang === 'en' ? 'Team' : 'Équipe')}</div><div class="proj-meta-val">${p.team}</div></div>
+            <div class="proj-meta-item"><div class="proj-meta-key"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13h4M8 11v2"/></svg>${siteLabel('proj_platform', currentLang === 'en' ? 'Platform' : 'Plateforme')}</div><div class="proj-meta-val">${platformStr}</div></div>
           </div>
           ${(urlBtn || landingBtn) ? `<div class="proj-hero-actions">${urlBtn}${landingBtn}</div>` : ''}
-        </div>
+        </div>${siteHookHtml('renderProjectBanner', p, currentLang)}
       </div>
     </div>
 
@@ -3195,15 +3307,15 @@ function renderProject(p) {
 
       <div style="height:64px"></div>
     </div>
-
+${siteProjectCta(p)}
     <section class="proj-next">
       <div class="proj-next-head">
         <div>
-          <div class="proj-next-kicker">${currentLang === 'en' ? 'Up next' : 'À suivre'}</div>
+          <div class="proj-next-kicker">${siteLabel('proj_up_next', currentLang === 'en' ? 'Up next' : 'À suivre')}</div>
           ${trailIndex ? `<div class="proj-next-index">${trailIndex}</div>` : ''}
         </div>
         <button type="button" class="proj-next-all" onclick="goHome()">
-          ${currentLang === 'en' ? 'All work' : 'Tous les projets'}
+          ${siteLabel('proj_all_work', currentLang === 'en' ? 'All work' : 'Tous les projets')}
         </button>
       </div>
       <div class="${stageClass}${sideCount === 1 ? ' sides-1' : ''}">
@@ -3298,10 +3410,18 @@ function renderProjList() {
     renault: [{ value: '-20%', label: 'Dev time' }],
   };
   const el = document.getElementById('proj-list-el');
-  el.innerHTML = publicProjects().filter(p => !AI_IDS.includes(p.id)).sort((a, b) => {
+  if (!el) return;
+  // Host page (window.SITE): its AI ids leave the list and SITE.workOrder sets the order.
+  // Both null on /portfolio, which keeps the original filter, sort and eager-loaded logos.
+  const siteAi = siteAiIds();
+  const siteOrder = siteWorkOrder();
+  const listExclude = siteAi ? [...new Set([...AI_IDS, ...siteAi])] : AI_IDS;
+  const eagerIds = siteOrder ? siteOrder.slice(0, featuredOrder.length) : featuredOrder;
+  const listed = publicProjects().filter(p => !listExclude.includes(p.id));
+  el.innerHTML = (siteOrder ? sortBySiteWorkOrder(listed, siteOrder) : listed.sort((a, b) => {
     const rank = p => p.id === 'arlequin' ? featuredOrder.length + 1 : (featuredOrder.includes(p.id) ? featuredOrder.indexOf(p.id) : featuredOrder.length);
     return rank(a) - rank(b);
-  }).map(p => {
+  })).map(p => {
     // Hardcoded taxonomy mapping requested by user
     const derivedTags = [];
     const id = p.id;
@@ -3316,7 +3436,7 @@ function renderProjList() {
     else if (id === 'arlequin') derivedTags.push('FinTech', 'Web3');
     else if (id === 'upviral') derivedTags.push('B2B', 'SaaS');
     else if (id === 'edenred') derivedTags.push('B2B', 'FinTech');
-    else if (id === 'oneasset') derivedTags.push('AI Product');
+    else if (id === 'oneasset') { if (!siteCfg()) derivedTags.push('AI Product'); } // host page: OneAsset is not an AI product
     else if (p.group === 'automation') derivedTags.push('Automation', 'CRM Ops');
     else if (p.group === 'ai') derivedTags.push('AI Product');
     else if (p.group === 'enterprise') derivedTags.push('B2B Enterprise');
@@ -3370,18 +3490,23 @@ function renderProjList() {
         const classes = ['proj-list-badge', bizClass].filter(Boolean).join(' ');
         return `<span class="${classes}">${icon}${t}</span>`;
       }),
-      ...(RESULT_TAGS[p.id] || []).map(tag => `<span class="proj-list-badge badge-green">${tag.value} ${tag.label}</span>`)
+      ...(RESULT_TAGS[p.id] || []).map(tag => {
+        // Host page: res_<id> / res_<id>_value from TRANSLATIONS; a defined '' label drops the chip.
+        const label = siteLabel(`res_${p.id}`, tag.label);
+        if (!label) return '';
+        return `<span class="proj-list-badge badge-green">${siteLabel(`res_${p.id}_value`, tag.value)} ${label}</span>`;
+      })
     ].join('');
 
     return `
     <div class="proj-list-item" onclick="openProject('${p.id}')">
-      ${p.logo ? `<img class="proj-list-logo" src="${p.logo}" alt="${p.company}" loading="${featuredOrder.includes(p.id) ? 'eager' : 'lazy'}"${featuredOrder.indexOf(p.id) === 0 ? ' fetchpriority="high"' : ''} decoding="async">` : `<div class="proj-list-logo-placeholder"></div>`}
+      ${p.logo ? `<img class="proj-list-logo" src="${p.logo}" alt="${p.company}" loading="${eagerIds.includes(p.id) ? 'eager' : 'lazy'}"${eagerIds.indexOf(p.id) === 0 ? ' fetchpriority="high"' : ''} decoding="async">` : `<div class="proj-list-logo-placeholder"></div>`}
       <div class="proj-list-preview-trigger">
         ${projectShapesEnabled() ? `<div class="proj-list-shape" aria-hidden="true"><div class="hairline-fig" data-hairline="${PROJECT_HAIRLINE[p.id] || 'laptop'}" data-theme="light" data-intensity="0.55"></div></div>` : ''}
         <div class="proj-list-title-block">
           <div class="proj-list-name-wrap">
             <span class="proj-list-name">${p.company}</span>
-            <div class="proj-list-badges">${allBadgesHTML}</div>
+            <div class="proj-list-badges">${allBadgesHTML}${siteHookHtml('projectChips', p, currentLang)}</div>
           </div>
           <p class="proj-list-subtitle">${p.subtitle || p.desc.replace(/[.!?]+$/, '')}</p>
           ${renderMethodMinis(p.id)}
@@ -3390,7 +3515,7 @@ function renderProjList() {
       <div class="proj-list-year">
         ${p.role ? `<span class="proj-list-role">${p.role}</span>` : ''}
         ${p.url ? `<a class="proj-list-link" href="${p.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
-          Website <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          ${siteLabel('proj_website', 'Website')} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </a>` : ''}
         <div class="proj-list-details">
           <span class="proj-list-arrow">→</span>
@@ -3402,17 +3527,37 @@ function renderProjList() {
 }
 
 const AI_PROJECT_IDS = ['uxfi','panfy','flemme'];
+// Wide landscape tiles: Jarvos + Ancient World (side projects). SITE.aiWideIds picks among these.
+const AI_WIDE_TILE_CFG = [
+  { id: 'jarvos', accent: '#a78bfa', soft: 'rgba(124,58,237,.2)' },
+  { id: 'ancient-world', accent: '#fbbf24', soft: 'rgba(217,119,6,.2)' },
+];
+
+/** Status badges from SITE.bentoBadges(p, lang) as an .ai-bento-badges row. '' on /portfolio. */
+function siteBentoBadgesHtml(p) {
+  const list = siteHook('bentoBadges', p, currentLang);
+  if (!Array.isArray(list)) return '';
+  const badges = list
+    .filter(text => typeof text === 'string' && text)
+    .map(text => `<span class="ai-bento-badge">${siteEscape(text)}</span>`);
+  return badges.length ? `<div class="ai-bento-badges">${badges.join('')}</div>` : '';
+}
+
 function renderAiBento() {
   const el = document.getElementById('ai-bento-el');
   if (!el) return;
-  const aiProjects = PROJECTS.filter(p => AI_PROJECT_IDS.includes(p.id));
+  // SITE.aiBentoIds sets which tiles and their order; hidden projects never get a tile.
+  const bentoIds = siteBentoIds();
+  const aiProjects = bentoIds
+    ? bentoIds.map(id => PROJECTS.find(p => p.id === id)).filter(p => p && !p.hidden)
+    : PROJECTS.filter(p => AI_PROJECT_IDS.includes(p.id) && !p.hidden);
   el.innerHTML = aiProjects.map(p => {
-    const bgSrc = p.screenshot || p.cover;
+    const bgSrc = siteAssetSrc(p.screenshot || p.cover);
     return `
     <div class="ai-bento-tile" onclick="openProject('${p.id}')">
       <img class="ai-bento-bg" src="${bgSrc}" alt="${p.company}" loading="lazy" decoding="async">
       <div class="ai-bento-overlay"></div>
-      <div class="ai-bento-content">
+      <div class="ai-bento-content">${siteBentoBadgesHtml(p)}
         <div class="ai-bento-name">${p.company}</div>
         <div class="ai-bento-desc">${p.subtitle || p.desc}</div>
       </div>
@@ -3422,21 +3567,18 @@ function renderAiBento() {
   // Wide landscape tiles: Jarvos + Ancient World (side projects)
   const wideEl = document.getElementById('ai-bento-wide-el');
   if (!wideEl) return;
-  const WIDE_TILES = [
-    { id: 'jarvos', accent: '#a78bfa', soft: 'rgba(124,58,237,.2)' },
-    { id: 'ancient-world', accent: '#fbbf24', soft: 'rgba(217,119,6,.2)' },
-  ];
+  const WIDE_TILES = siteWideTiles() || AI_WIDE_TILE_CFG;
   wideEl.innerHTML = WIDE_TILES.map(w => {
     const p = PROJECTS.find(x => x.id === w.id);
-    if (!p) return '';
+    if (!p || p.hidden) return '';
     return `
     <div class="ai-bento-tile ai-wide-tile" style="--wt:${w.accent};--wt-soft:${w.soft}" onclick="openProject('${p.id}')">
-      <div class="ai-wide-content">
+      <div class="ai-wide-content">${siteBentoBadgesHtml(p)}
         <div class="ai-bento-name">${p.company}</div>
         <div class="ai-bento-desc">${p.subtitle || p.desc}</div>
-        <div class="ai-bento-cta" style="color:${w.accent}">${currentLang === 'en' ? 'View case study →' : 'Voir l’étude de cas →'}</div>
+        <div class="ai-bento-cta" style="color:${w.accent}">${siteLabel('proj_view_case', currentLang === 'en' ? 'View case study →' : 'Voir l’étude de cas →')}</div>
       </div>
-      <div class="ai-wide-visual${p.heroCover ? ' ai-wide-visual--cover' : ''}"${p.heroCover ? ` style="background-image:url('${p.heroCover}')"` : ''}>
+      <div class="ai-wide-visual${p.heroCover ? ' ai-wide-visual--cover' : ''}"${p.heroCover ? ` style="background-image:url('${siteAssetSrc(p.heroCover)}')"` : ''}>
         ${p.heroCover ? '' : (p.logo ? `<img src="${p.logo}" alt="${p.company}" loading="lazy" decoding="async">` : '')}
       </div>
     </div>`;
@@ -3445,6 +3587,7 @@ function renderAiBento() {
 
 function renderClientsTable() {
   const el = document.getElementById('clients-tbody');
+  if (!el) return;
   el.innerHTML = EXP_LIST.map(e => `
     <tr>
       <td class="ct-num">${e.num}</td>
@@ -3456,9 +3599,206 @@ function renderClientsTable() {
     </tr>`).join('');
 }
 
+let githubActivity = null;
+
+function githubActivitySummary(data, lang) {
+  const count = Number(data?.total);
+  if (!Number.isFinite(count)) return lang === 'fr' ? 'Activité indisponible' : 'Activity unavailable';
+  const base = lang === 'fr'
+    ? `${count} contributions sur les 12 derniers mois`
+    : `${count} contributions in the last year`;
+  const agentDays = Number(data?.agentDays) || 0;
+  if (agentDays <= 0) return base;
+  const agentBit = lang === 'fr'
+    ? `${agentDays} jour${agentDays > 1 ? 's' : ''} d'agents`
+    : `${agentDays} agent day${agentDays > 1 ? 's' : ''}`;
+  return `${base} · ${agentBit}`;
+}
+
+function githubDayTitle(day, lang) {
+  const formatted = new Intl.DateTimeFormat(lang === 'fr' ? 'fr-FR' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${day.date}T00:00:00Z`));
+  const parts = [];
+  const contributions = Number(day.count) || 0;
+  const agents = Number(day.agents) || 0;
+  if (contributions > 0) {
+    const noun = contributions === 1 ? 'contribution' : 'contributions';
+    parts.push(`${contributions} ${noun}`);
+  }
+  if (agents > 0) {
+    const noun = lang === 'fr'
+      ? (agents === 1 ? 'appel agent' : 'appels agents')
+      : (agents === 1 ? 'agent call' : 'agent calls');
+    const providers = Array.isArray(day.providers) && day.providers.length ? ` · ${day.providers.join(', ')}` : '';
+    parts.push(`${agents} ${noun}${providers}`);
+  }
+  if (!parts.length) {
+    return lang === 'fr' ? `Aucune contribution le ${formatted}` : `No contributions on ${formatted}`;
+  }
+  return lang === 'fr'
+    ? `${parts.join(' · ')} le ${formatted}`
+    : `${parts.join(' · ')} on ${formatted}`;
+}
+
+function githubMonthLabels(weeks, lang) {
+  const names = lang === 'fr'
+    ? ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return weeks.map((week, index) => {
+    const days = (week.days || []).filter(Boolean);
+    const firstOfMonth = days.find(day => day.date.slice(8) === '01');
+    const ref = index === 0 ? (firstOfMonth || days[0]) : firstOfMonth;
+    if (!ref) return '';
+    return names[Number(ref.date.slice(5, 7)) - 1] || '';
+  });
+}
+
+function githubMonthSpans(weeks, lang) {
+  const labels = githubMonthLabels(weeks, lang);
+  const spans = [];
+  for (let i = 0; i < labels.length; i += 1) {
+    if (labels[i] || spans.length === 0) {
+      let span = 1;
+      while (i + span < labels.length && !labels[i + span]) span += 1;
+      spans.push({ label: labels[i] || '', span });
+      i += span - 1;
+    }
+  }
+  return spans;
+}
+
+function placeGithubTip(cell) {
+  const tip = document.getElementById('gh-tip');
+  const text = cell?.dataset?.tip;
+  if (!tip || !text) return;
+  const rect = cell.getBoundingClientRect();
+  tip.textContent = text;
+  tip.hidden = false;
+  tip.style.left = `${rect.left + rect.width / 2}px`;
+  tip.style.top = `${rect.top}px`;
+}
+
+function hideGithubTip() {
+  const tip = document.getElementById('gh-tip');
+  if (tip) tip.hidden = true;
+}
+
+window.addEventListener('scroll', hideGithubTip, { passive: true });
+
+function renderGithubActivity() {
+  const totalEl = document.getElementById('gh-activity-total');
+  const cal = document.getElementById('gh-cal');
+  if (!totalEl || !cal) return;
+  const lang = currentLang === 'fr' ? 'fr' : 'en';
+
+  if (!githubActivity) {
+    cal.replaceChildren();
+    cal.removeAttribute('aria-label');
+    totalEl.textContent = totalEl.dataset.state === 'error'
+      ? (lang === 'fr' ? 'Activité indisponible' : 'Activity unavailable')
+      : (lang === 'fr' ? 'Chargement…' : 'Loading activity…');
+    return;
+  }
+
+  hideGithubTip();
+  const summary = githubActivitySummary(githubActivity, lang);
+  const weekCount = githubActivity.weeks.length;
+  totalEl.textContent = summary;
+  cal.style.setProperty('--gh-weeks', String(weekCount));
+  cal.setAttribute('role', 'img');
+  cal.setAttribute('aria-label', summary);
+  cal.replaceChildren();
+
+  let monthColumn = 2;
+  for (const item of githubMonthSpans(githubActivity.weeks, lang)) {
+    const cell = document.createElement('span');
+    cell.className = 'gh-month';
+    cell.style.gridColumn = `${monthColumn} / span ${item.span}`;
+    cell.style.gridRow = '1';
+    cell.textContent = item.label;
+    cal.appendChild(cell);
+    monthColumn += item.span;
+  }
+
+  const dowLabels = lang === 'fr' ? ['', 'Lun', '', 'Mer', '', 'Ven', ''] : ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+  dowLabels.forEach((label, index) => {
+    if (!label) return;
+    const cell = document.createElement('span');
+    cell.className = 'gh-dow';
+    cell.style.gridColumn = '1';
+    cell.style.gridRow = String(index + 2);
+    cell.textContent = label;
+    cal.appendChild(cell);
+  });
+
+  githubActivity.weeks.forEach((week, weekIndex) => {
+    for (let index = 0; index < 7; index += 1) {
+      const day = week.days?.[index] || null;
+      const cell = document.createElement('span');
+      cell.className = 'gh-day';
+      cell.style.gridColumn = String(weekIndex + 2);
+      cell.style.gridRow = String(index + 2);
+      if (!day) {
+        cell.classList.add('is-empty');
+      } else {
+        cell.dataset.level = String(day.level);
+        cell.dataset.tip = githubDayTitle(day, lang);
+      }
+      cal.appendChild(cell);
+    }
+  });
+}
+
+const ghCal = document.getElementById('gh-cal');
+if (ghCal) {
+  ghCal.addEventListener('mouseover', (event) => {
+    const cell = event.target.closest('.gh-day');
+    if (!cell || !cell.dataset.tip) {
+      hideGithubTip();
+      return;
+    }
+    placeGithubTip(cell);
+  });
+  ghCal.addEventListener('mouseleave', hideGithubTip);
+}
+
+function loadGithubActivity() {
+  if (loadGithubActivity.started) return;
+  loadGithubActivity.started = true;
+  fetch('/api/github-contributions')
+    .then(response => response.ok ? response.json() : Promise.reject(new Error('unavailable')))
+    .then(data => {
+      if (!data?.ok || !Array.isArray(data.weeks) || !data.weeks.length || !Number.isFinite(Number(data.total))) {
+        throw new Error('empty');
+      }
+      githubActivity = data;
+      const totalEl = document.getElementById('gh-activity-total');
+      if (totalEl) totalEl.dataset.state = 'ready';
+      renderGithubActivity();
+    })
+    .catch(() => {
+      githubActivity = null;
+      const totalEl = document.getElementById('gh-activity-total');
+      if (totalEl) totalEl.dataset.state = 'error';
+      renderGithubActivity();
+    });
+}
+
 /* ═══════════════════════════════════════════
    INIT — Selected work + method 3D tags first; heavy sections wait.
 ═══════════════════════════════════════════ */
+// Host page asked for a starting language (window.SITE.initialLang): render in it from the first paint.
+const SITE_INITIAL_LANG = (() => {
+  const lang = siteCfg()?.initialLang;
+  if (lang !== 'en' && lang !== 'fr') return null;
+  if (typeof TRANSLATIONS === 'undefined' || !TRANSLATIONS || !TRANSLATIONS[lang]) return null;
+  return lang;
+})();
+if (SITE_INITIAL_LANG) currentLang = SITE_INITIAL_LANG;
 renderProjList();
 window.matchMedia('(hover: none), (pointer: coarse), (max-width: 900px)').addEventListener('change', () => renderProjList());
 renderMethodsCarousel();
@@ -3469,6 +3809,7 @@ const deferSecondarySections = () => {
   renderAiBento();
   renderClientsTable();
   initWhenNearViewport('.ai-transformation', initNeuralVortexBackground);
+  initWhenNearViewport('.ai-transformation', loadGithubActivity);
   initWhenNearViewport('.ai-products-section', initAiProductsMatrix);
   initWhenNearViewport('.contact-section', () => {
     document.querySelector('.contact-section')?.classList.add('bg-loaded');
@@ -3510,7 +3851,16 @@ if ('requestIdleCallback' in window) {
   let activeLang = currentLang === 'fr' ? 'fr' : 'en';
 
   function phrases() {
-    return phrasesByLang[currentLang === 'fr' ? 'fr' : 'en'];
+    const lang = currentLang === 'fr' ? 'fr' : 'en';
+    const custom = siteCfg()?.typingPhrases;
+    if (custom && typeof custom === 'object') {
+      // Only non-empty strings: the ticker calls .substring on each entry.
+      const clean = (arr) => (Array.isArray(arr) ? arr.filter(s => typeof s === 'string' && s) : []);
+      const own = clean(custom[lang]);
+      const list = own.length ? own : clean(custom.en);
+      if (list.length) return list;
+    }
+    return phrasesByLang[lang];
   }
 
   function type() {
@@ -3547,7 +3897,9 @@ if ('requestIdleCallback' in window) {
   type();
 })();
 
-const NAV_SECTIONS = ['work', 'ai-projects', 'ifaces-section', 'tools'];
+const NAV_SECTIONS = (Array.isArray(siteCfg()?.navSections) && siteCfg().navSections.length)
+  ? siteCfg().navSections.slice()
+  : ['work', 'ai-projects', 'ifaces-section', 'tools'];
 
 function setNavMenu(open) {
   const shell = document.querySelector('.nav-shell');
@@ -3673,6 +4025,7 @@ window.addEventListener('popstate', function() {
   const costEl = document.getElementById('usage-cost');
   const dateEl = document.getElementById('usage-panel-date');
   const providersEl = document.getElementById('usage-provider-list');
+  if (!trigger || !totalEl || !panelTotalEl || !inputEl || !outputEl || !requestsEl || !costEl || !dateEl || !providersEl) return;
 
   function compactNumber(value) {
     const n = Number(value || 0);
@@ -3834,9 +4187,14 @@ if (skillsSection) {
 }
 
 
-function setLang(lang) {
+function setLang(lang, opts) {
+  if (typeof TRANSLATIONS === 'undefined' || !TRANSLATIONS || !TRANSLATIONS[lang]) return;
   currentLang = lang;
   const t = TRANSLATIONS[lang];
+  const site = siteCfg();
+  if (site && site.langStorageKey && !(opts && opts.persist === false)) {
+    try { localStorage.setItem(String(site.langStorageKey), lang); } catch (_) { /* storage blocked */ }
+  }
 
   // Update all text elements
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -3869,8 +4227,8 @@ function setLang(lang) {
   });
 
   // Toggle active flag button
-  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
-  document.getElementById('btn-fr').classList.toggle('active', lang === 'fr');
+  document.getElementById('btn-en')?.classList.toggle('active', lang === 'en');
+  document.getElementById('btn-fr')?.classList.toggle('active', lang === 'fr');
 
   document.querySelectorAll('[data-method-type-label]').forEach(el => {
     const meta = METHOD_STEPS[el.getAttribute('data-method-type-label')];
@@ -3892,9 +4250,23 @@ function setLang(lang) {
     if (names) el.setAttribute('aria-label', names);
   });
 
+  if (typeof renderGithubActivity === 'function') renderGithubActivity();
   if (typeof renderStoryModalContent === 'function') renderStoryModalContent();
   if (typeof updateIfaceGridHeight === 'function') updateIfaceGridHeight();
   document.documentElement.lang = lang;
+  if (site) {
+    // Host page: keep document.title in the new language (home title, or the open case study).
+    const openP = currentProjectId ? publicProjects().find(x => x.id === currentProjectId) : null;
+    if (openP && typeof site.projectTitle === 'function') {
+      try { const tt = site.projectTitle(openP, lang); if (typeof tt === 'string' && tt) document.title = tt; } catch (_) { /* keep title */ }
+    } else if (!openP && site.title) {
+      const ht = siteHomeTitle();
+      if (ht) document.title = ht;
+    }
+  }
+  if (site && typeof site.onLangChange === 'function') {
+    try { site.onLangChange(lang); } catch (err) { console.error('SITE.onLangChange failed', err); }
+  }
 }
 
 function initRippleButton() {
@@ -3944,4 +4316,25 @@ function initRippleButton() {
   });
 }
 initRippleButton();
+
+// Host page with SITE.initialLang: apply its [data-i18n] texts once boot is done.
+// persist:false so a detected language is not stored as if the visitor had picked it.
+// Deferred to DOMContentLoaded so story-ifaces.js / stage3d.js / marquee.js (loaded after this
+// file) exist when setLang and SITE.onLangChange run. Deferred scripts execute while readyState
+// is already 'interactive', so that state cannot mean "DOMContentLoaded has fired": 'load' is the
+// fallback for a late insertion, and the once-guard keeps it to a single call.
+if (SITE_INITIAL_LANG) {
+  let initialLangApplied = false;
+  const applyInitialLang = () => {
+    if (initialLangApplied) return;
+    initialLangApplied = true;
+    // The visitor may already have switched language; do not override that choice.
+    if (currentLang === SITE_INITIAL_LANG) setLang(SITE_INITIAL_LANG, { persist: false });
+  };
+  if (document.readyState === 'complete') applyInitialLang();
+  else {
+    document.addEventListener('DOMContentLoaded', applyInitialLang, { once: true });
+    window.addEventListener('load', applyInitialLang, { once: true });
+  }
+}
 

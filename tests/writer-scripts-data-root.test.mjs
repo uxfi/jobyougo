@@ -175,7 +175,9 @@ function markerFixture(script) {
   for (const file of CLOSURE[script]) copyFileSync(join(ROOT, file), join(codeRoot, file));
   // generate-pdf.mjs imports playwright at module scope, so without this the
   // child dies before it can print anything and the assertions say nothing.
-  try { symlinkSync(join(ROOT, 'node_modules'), join(codeRoot, 'node_modules'), 'dir'); } catch { /* already there */ }
+  // A junction, not a 'dir' symlink: Windows refuses the latter without admin or
+  // Developer Mode, and the swallowed EPERM left the child without js-yaml.
+  try { symlinkSync(join(ROOT, 'node_modules'), join(codeRoot, 'node_modules'), 'junction'); } catch { /* already there */ }
 
   // The marker: rule 3. No JOBYOUGO_* variable is set when this is used.
   writeFileSync(join(codeRoot, '.jobyougo-data'), `${dataRoot}\n`);

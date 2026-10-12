@@ -5,6 +5,7 @@ import {
   dailyRateForForm,
   formSalaryValue,
   looksLikeDailyRateField,
+  looksLikeMonthlySalaryField,
   salaryNumberMatchScore,
 } from '../lib/apply-salary.mjs';
 import { pickMatchingOption } from '../lib/apply-option-match.mjs';
@@ -33,6 +34,13 @@ test('does not concatenate a min-max range into one number', () => {
   assert.equal(v.includes('110'), false);
   assert.equal(v.includes('76000'), false);
   assert.equal(v, '60000');
+});
+
+test('monthly salary is the annual minimum divided by 12; other currencies stay blank', () => {
+  assert.equal(looksLikeMonthlySalaryField('What is your salary expectation in THB monthly?'), true);
+  assert.equal(formSalaryValue(PROFILE, 'Expected monthly salary'), '5000');
+  assert.equal(formSalaryValue({ ...PROFILE, currency: 'EUR' }, 'Salary expectation in THB monthly'), '');
+  assert.equal(formSalaryValue({ ...PROFILE, currency: 'EUR' }, 'Salary range'), '60000');
 });
 
 test('falls back to the target-range floor when minimum is missing', () => {

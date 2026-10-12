@@ -24,6 +24,8 @@
 | GALIAN | +40% SaaS efficiency | via Agence V0 |
 | Shiseido | +20% loyalty enrollment (Q1 post-launch) | Feb–Jun 2024 |
 | Société Générale | +12% investment activity | MIF2 regulated flows, Feb 2023–Oct 2024 |
+| Société Générale customer scale | millions of customers | national retail bank. Confirmed by Hugo on 2026-10-06 as the large-scale example for "how many users / customers" form questions. Do not invent a more precise headcount. |
+| UpViral users | about 10,000 users | live SaaS during the 2024–2025 overhaul. Confirmed by Hugo on 2026-10-06 for product-scale form questions. |
 | BMW | +12% user engagement | 2021–2022 |
 | Renault | −20% dev time via design system · 23,900+ vehicle listings (Renew, Europe) | 2020–2021 |
 | LVMH | 15+ maisons unified (Dior, LV, Fendi, Kenzo…) | data marketing platform, 2022–2023 |
@@ -32,7 +34,7 @@
 | UXfi.ai pricing | from $10/month | e-commerce focused |
 | OneAsset entry ticket | fractional ownership from $10,000, daily USDC yield, Base / ERC-3643, VARA licensed | current role since Feb 2026 |
 | OneAsset first 6 months | Full product shipped with one Product Owner: investor app, admin panel, marketing site, plus an OTC product | Confirmed by Hugo on 2026-09-17. Do not invent engineering headcount, revenue, or a measured time-saving figure. |
-| Startup 1-to-100 | Repeated 0-to-1 / 1-to-100 product work across own ventures and client startups | Vloggy, Creads.io, Flemme OS, UXfi, Agence V0 client products, OneAsset (+ OTC). Also helped early-stage startups including Arlequin (product/design support; dates and exact scope not recorded). |
+| Startup 1-to-100 | Repeated 0-to-1 / 1-to-100 product work across client startups and later products | Agence V0 client products, OneAsset (+ OTC). Creads.io founded and launched. Flemme OS / UXfi independent only, not the form-answer reference. Vloggy is not a form-answer reference (ceased). Also helped early-stage startups including Arlequin (product/design support; dates and exact scope not recorded). |
 | Figmol | Hugo's internal Figma-like tool: live-app whiteboard for design review (personas, surfaces, DS v1/v2, DOM comment pins) | OneAsset. Not a public Figma plugin. Prototypes themselves are coded in Cursor and Claude Code. |
 | Prototype method | Entire interactive prototype created in Cursor and Claude Code | Confirmed by Hugo on 2026-09-17. Replaces static Figma mockups as the source of truth. |
 | GitHub design flow | PRD → feature branch → live prototype → GitHub PR with engineering → Cursor / Claude Code | Confirmed 2026-09-11; prototype-in-Cursor/Claude Code confirmed 2026-09-17. CTO built the spec-coherence agent, not Hugo. |
@@ -58,11 +60,11 @@ Figures are candidate-provided unless a measurement source is named. Do not pres
 
 ## Positioning and selected evidence
 
-Default positioning: **Senior Product Designer, designing and building AI products**. Product design is the established senior practice. Hugo has worked with AI for **4 years (since 2022)** by building bootstrapped products: **UXfi, Flemme OS, Creads.io and Panfy**. Cover letters must not reduce this period to Creads.io, and must not frame him as someone who "added AI in 2024" or who has "spent the past year" with AI. Creads.io is the launched SaaS (from 2024, 1,200 registered users). UXfi and Flemme OS belong to the same 4-year independent practice.
+Default positioning: **Product Leader and AI builder**, architecting end-to-end AI systems and modernizing product delivery. Product design remains the established senior practice. Hugo has worked with AI for **4 years (since 2022)** by building bootstrapped products: **UXfi, Flemme OS, Creads.io and Panfy**. Cover letters must not reduce this period to Creads.io, and must not frame him as someone who "added AI in 2024" or who has "spent the past year" with AI. Creads.io is the launched SaaS (from 2024, 1,200 registered users). UXfi and Flemme OS belong to the same 4-year independent practice.
 
 Lead with OneAsset (6-month full-product + OTC, one PO), Creads.io, Agence V0 (team + delivery) and **LVMH**. When the role is AI-agent / AI-flow, lead with **Jarvos** plus Creads/Flemme agent pipelines and the OneAsset Git/agent hand-off. When the role is AI-product design, use **UXfi and Flemme OS with Creads.io**, not Creads alone. Add Renault for international design-system work and Société Générale for regulated financial journeys.
 
-Use UpViral for SaaS discovery, product-centric interviews, and delivery with developers. Agence V0 and Vloggy support management, 0-to-1 and 1-to-100 questions. Jarvos is the agent-OS proof (in progress, not a launched SaaS). UXfi and Panfy are prototypes, with Panfy on hold. Arlequin is early-stage product/design help, not a founded company. Do not count every project as a launched solo product.
+Use UpViral for SaaS discovery, product-centric interviews, and delivery with developers. Agence V0 supports management, 0-to-1 and 1-to-100 questions. Vloggy is not a form-answer reference. Jarvos is the agent-OS proof (in progress, not a launched SaaS). UXfi and Panfy are prototypes, with Panfy on hold. Arlequin is early-stage product/design help, not a founded company. Do not count every project as a launched solo product.
 
 For strategy, UX method, AI facilitation, GitHub/Figmol, collaboration, compliance, engineering pairing, LVMH business/data work, or Renault international: use the section **Strategy, UX method, AI facilitation, collaboration**.
 
@@ -74,8 +76,8 @@ For strategy, UX method, AI facilitation, GitHub/Figmol, collaboration, complian
 | JobYouGo | Hugo's public portfolio and a platform that automates job search, matches offers to his criteria, and completes applications | Confirmed by Hugo on 2026-09-15. Built on Career-Ops (Santiago Fernández de Valderrama). Do not claim Hugo created Career-Ops from scratch. |
 | LVMH | UX / Product Designer on a group data-marketing platform. Business and data analysis as part of the work: customer data, campaign performance, monitoring tools, interviews across maisons | 15+ maisons including Dior, Louis Vuitton, Fendi and Kenzo; 2022–2023. Scope, not a revenue or conversion result. Do not retitle the role Business Analyst or Data Analyst. |
 | Renault | International product: sole design lead on front and back office across multiple countries, workshops, shared multi-country design system | Renew marketplace, Europe, 23,900+ vehicle listings; recorded −20% development time. Measurement method and period need confirmation. |
-| UpViral | Product-centric SaaS overhaul: customer interviews, IA and flows, roadmap with CPO, implementation with developers | Jul 2024–Dec 2025. Client role, not a founded product. |
-| Société Générale | Savings, allocation, investment and investor-profile validation flows under MIF2 | Recorded +12% investment activity; measurement method, baseline and period need confirmation. Adjacent compliance proof; OneAsset is the primary regulated-product case. |
+| UpViral | Product-centric SaaS overhaul: customer interviews, IA and flows, roadmap with CPO, implementation with developers | Jul 2024–Dec 2025. About 10,000 users (confirmed by Hugo on 2026-10-06). Client role, not a founded product. |
+| Société Générale | Savings, allocation, investment and investor-profile validation flows under MIF2 | National retail bank, millions of customers (confirmed by Hugo on 2026-10-06 for scale questions). Recorded +12% investment activity; measurement method, baseline and period need confirmation. Adjacent compliance proof; OneAsset is the primary regulated-product case. |
 
 ## Creads.io case study: approved factual material
 
@@ -103,7 +105,7 @@ Use these when a form or JD asks about leadership, agents, or taking a product f
 
 - **Management:** Agence V0 (founded, up to 7 junior freelance designers, 20+ client projects, ~€400K over three years). OneAsset: product lead pairing with one PO, owning delivery of several surfaces. Mentored a first junior UX designer from 2020 in the freelance practice. Do not claim engineering line-management.
 - **AI flows / agents:** Jarvos (AI Agent OS in progress: semantic dispatch, tool resolver, planner/executor/verifier, approval gates, memory). Creads.io (Brand Agent, two-pass check, Mem0, RAG). Flemme OS (modular agents for scrape, DM, email). OneAsset (GitHub agent workflow + Figmol hand-off into Cursor/Claude Code).
-- **Startup 1-to-100:** repeated 0-to-1 and early-scale product work: Vloggy (co-founder, seed, delivery), Creads.io (founded and launched), Flemme OS / UXfi (independent products), Agence V0 (client products at scale), OneAsset (full product + OTC in 6 months). Also **helped early-stage startups including Arlequin** (product/design support). Arlequin dates, title and metrics are not recorded; do not invent them.
+- **Startup 1-to-100:** repeated 0-to-1 and early-scale product work: Agence V0 (client products at scale), OneAsset (full product + OTC in 6 months). Creads.io founded and launched; Flemme OS / UXfi are independent products, not the form-answer reference. Vloggy is not a form-answer reference. Also **helped early-stage startups including Arlequin** (product/design support). Arlequin dates, title and metrics are not recorded; do not invent them.
 
 ## Strategy, UX method, AI facilitation, collaboration (confirmed 2026-09-17)
 

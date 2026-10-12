@@ -74,7 +74,6 @@ ui/*.pdf
 # ── Generated ──
 .resolved-prompt-*
 .tmp-script-test-*/
-node_modules/
 # Backup files: `{file}.bak` and `{file}.bak-{ISO timestamp}` shapes.
 *.bak*
 

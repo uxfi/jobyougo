@@ -1,0 +1,55 @@
+  <section class="proof" id="proof" data-chapter="proof" aria-labelledby="proof-title">
+    <span id="work" aria-hidden="true"></span>
+    <div class="wrap">
+      <div class="sec-head sec-head--split">
+        <div>
+          <span class="dab" aria-hidden="true"></span>
+          <h1 class="display h2" id="proof-title" data-th="proof_headline" data-reveal>Three projects,<br><em>before v2 studio.</em></h1>
+        </div>
+        <ul class="facts facts--head" id="stats">
+          <li><strong data-count data-t="stat_1_val">12</strong><span data-t="stat_1">years in product and UX</span></li>
+          <li><strong data-count data-t="stat_2_val">20+</strong><span data-t="stat_2">client projects at the founder’s previous agency</span></li>
+          <li><strong data-count data-t="stat_3_val">4</strong><span data-t="stat_3">years building AI products</span></li>
+        </ul>
+      </div>
+      <div class="cases" id="cases"></div>
+      <div class="proof-foot">
+        <p class="proof-note" data-t="s_proof_note">Figures reported by the founder for projects before v2 studio. Your results will depend on your product and your traffic.</p>
+        <a class="link-arrow" href="/portfolio"><span data-t="founder_portfolio_btn">Founder’s portfolio</span><span aria-hidden="true">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="playground" id="ifaces-section" data-tone="light" aria-labelledby="ifaces-title">
+    <div class="wrap">
+      <span class="dab" aria-hidden="true"></span>
+      <h2 class="display h2" id="ifaces-title" data-th="playground_title" data-reveal>Interfaces,<br><em>built and running.</em></h2>
+      <p class="lede" data-t="playground_line1">Open any one. These are interfaces the founder designed and coded, not mockups.</p>
+      <p class="playground-note" data-t="playground_line2">Each one opens in the browser.</p>
+      <div class="ifaces-grid-wrap" id="ifaces-grid-wrap">
+        <div class="ifaces-grid" id="ifaces-grid-el"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="iface-modal" role="dialog" aria-modal="true" data-ta="aria-label:ag_iface_modal_aria" aria-label="Interface study preview">
+    <div class="iface-modal-browser">
+      <div class="iface-modal-chrome">
+        <div class="iface-modal-dot" style="background:#ff5f57"></div>
+        <div class="iface-modal-dot" style="background:#febc2e"></div>
+        <div class="iface-modal-dot" style="background:#28c840"></div>
+        <div class="iface-modal-urlbar" id="iface-modal-url"></div>
+        <button class="iface-modal-copy" id="iface-modal-copy" type="button">Copy URL</button>
+        <button class="iface-modal-close" type="button" onclick="closeIfaceModal()" data-ta="aria-label:contact_close_aria" aria-label="Close">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="2" x2="14" y2="14"/><line x1="14" y1="2" x2="2" y2="14"/></svg>
+        </button>
+      </div>
+      <iframe class="iface-modal-frame" id="iface-modal-frame" data-ta="title:ag_iface_frame_title" title="Interface study" sandbox="allow-scripts allow-same-origin"></iframe>
+      <div class="iface-phones-row" id="iface-phones-row"></div>
+    </div>
+  </div>
+  <script>
+    var currentLang = (window.SITE && window.SITE.initialLang === 'fr') ? 'fr' : 'en';
+    if (typeof window.syncPageLock !== 'function') window.syncPageLock = function () {};
+  </script>
+  <script src="/portfolio/story-ifaces.js" defer></script>

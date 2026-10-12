@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { COLLECT_FIELDS } from '../lib/apply-collect-fields.mjs';
 import { fieldCompletionIssue, fieldMatchesAnswer } from '../lib/apply-completion.mjs';
+import { revealSfResumeInputInPage } from '../extension/page-helper-registry.mjs';
+import { isResumeFileField, fileUploadPlan } from '../lib/apply-fill-guards.mjs';
 
 async function launchBrowser() {
   try {
@@ -462,4 +464,62 @@ test('Ashby Yes/No exposes two options and No counts as answered', async () => {
   fields = await page.evaluate(COLLECT_FIELDS);
   assert.equal(fields[0].groupChecked, true);
   assert.equal(fieldCompletionIssue(fields[0]), null);
+});
+
+test('SuccessFactors resume upload appears only after Upload a CV is clicked', async () => {
+  await page.setContent(`<!doctype html><body>
+    <div class="RCMFormField attachmentField">
+      <label class="rcmFormFieldLabel"><span class="requiredField">*</span> Resume / CV</label>
+      <span id="cvIcon" class="glyphicon addAttachments" onclick="window.__cv=1; this.insertAdjacentHTML('afterend', '<div class=&quot;calloutPopupWrapper&quot;><div class=&quot;attachmentUploadOptions&quot;><span class=&quot;attachmentLabel&quot; id=&quot;dev&quot;>Upload from Device</span><input type=&quot;file&quot; class=&quot;fileUpload&quot; name=&quot;fileData1&quot; aria-labelledby=&quot;dev&quot; style=&quot;opacity:0;width:160px;height:24px&quot;><span onclick=&quot;openCloudChooser(\\\'RESUME\\\')&quot;></span></div></div>')"></span>
+    </div>
+    <div class="RCMFormField attachmentField">
+      <label class="rcmFormFieldLabel">Cover Letter</label>
+      <span id="coverIcon" class="glyphicon addAttachments" onclick="window.__cover=1"></span>
+    </div>
+  </body>`);
+  const before = await page.evaluate(COLLECT_FIELDS);
+  assert.equal(before.filter((f) => f.type === 'file').length, 0);
+  const revealed = await page.evaluate(revealSfResumeInputInPage);
+  assert.equal(revealed.clicked, true);
+  assert.equal(revealed.ready, true);
+  assert.equal(await page.evaluate(() => window.__cover || 0), 0);
+  const fields = await page.evaluate(COLLECT_FIELDS);
+  const file = fields.find((f) => f.type === 'file');
+  assert.ok(file, JSON.stringify(fields.map((f) => f.type + ':' + f.label)));
+  assert.equal(isResumeFileField(file), true);
+  assert.equal(fileUploadPlan(file, { cvPath: '/tmp/cv.pdf' }).upload, '/tmp/cv.pdf');
+  const again = await page.evaluate(revealSfResumeInputInPage);
+  assert.equal(again.clicked, false);
+  assert.equal(again.ready, true);
+});
+
+test('Google Forms: a div[role=listbox] dropdown is a list with its question and options', async () => {
+  const fields = await collect(`<form><div role="list">
+    <div role="listitem"><div role="heading" id="q1">Are you an Immediate Joiner? <span>*</span></div>
+      <div role="listbox" aria-expanded="false" aria-disabled="true" aria-required="true" aria-labelledby="q1 r1" style="width:200px;height:40px">
+        <div role="option" data-value="" aria-selected="true" style="width:180px;height:30px">Choose</div>
+        <div role="option" data-value="Yes" aria-selected="false" style="width:180px;height:0;overflow:hidden">Yes</div>
+        <div role="option" data-value="No" aria-selected="false" style="width:180px;height:0;overflow:hidden">No</div>
+      </div><div id="r1"></div></div>
+  </div></form>`);
+  const list = fields.find((f) => /Immediate Joiner/.test(f.label));
+  assert.ok(list, JSON.stringify(fields));
+  assert.equal(list.ariaHaspopup, 'listbox');
+  assert.equal(list.required, true);
+  assert.deepEqual(list.options.map((o) => o.text), ['Yes', 'No']);
+  assert.equal(list.value, '');
+});
+
+test('Google Forms: boxes deep under a role=list take its question; the hidden "Your answer" is no label', async () => {
+  const box = (v) => `<div role="listitem"><label><div><div role="checkbox" aria-label="${v}" aria-checked="false" style="width:20px;height:20px"></div></div><span>${v}</span></label></div>`;
+  const fields = await collect(`<form>
+    <div role="heading" id="t1">Which design tools are you proficient in? *</div>
+    <div><div><div role="list" aria-labelledby="t1">${box('Figma')}${box('Adobe Photoshop')}</div></div></div>
+    <div role="heading" id="t2">Notice Period</div>
+    <div><div><input type="text" aria-labelledby="t2 g2" style="width:200px;height:20px"><div id="g2" aria-hidden="true">Your answer</div></div></div>
+  </form>`);
+  const tools = fields.filter((f) => f.type === 'checkbox');
+  assert.deepEqual(tools.map((f) => f.label), ['Which design tools are you proficient in? * — Figma', 'Which design tools are you proficient in? * — Adobe Photoshop']);
+  assert.equal(tools[0].required, true);
+  assert.equal(fields.find((f) => f.type === 'text').label, 'Notice Period');
 });
