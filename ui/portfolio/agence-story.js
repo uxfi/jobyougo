@@ -482,7 +482,7 @@
         };
         const icons = [ICON.shield, ICON.bolt, ICON.pie];
         const paint = '<div class="tile-paint r-pocket">'
-          + '<div class="r-nav"><b>pocket<i>.</i></b><span>' + r.links.map((l) => '<i>' + esc(l) + '</i>').join('') + '</span><em>' + esc(r.cta) + '</em></div>'
+          + '<div class="r-nav"><b>pocket<i>.</i></b><span class="r-tag"><i class="t-dab"></i>' + esc(r.tag) + '</span><span>' + r.links.map((l) => '<i>' + esc(l) + '</i>').join('') + '</span><em>' + esc(r.cta) + '</em></div>'
           + '<div class="r-hero"><div class="r-copy"><small>' + esc(r.eyebrow) + '</small><h4>' + esc(rh1) + '<br>' + esc(rh2 || '') + '</h4><p>' + esc(r.sub) + '</p>'
           + '<div class="r-cta"><em>' + esc(r.cta) + '</em><i>' + esc(r.alt) + '</i></div>'
           + '<div class="r-trust"><span>' + ICON.star + ICON.star + ICON.star + ICON.star + ICON.star + '</span>' + esc(r.trust) + '</div></div>'
@@ -495,7 +495,6 @@
           + '<div class="r-toast"><i>' + ICON.check + '</i><div><b>' + esc(r.toast[0]) + '</b><span>' + esc(r.toast[1]) + '</span></div></div>'
           + '</div></div>'
           + '<div class="r-feats">' + r.feats.map((f, k) => '<div><i>' + icons[k] + '</i><div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div></div>').join('') + '</div>'
-          + '<span class="r-tag"><i class="t-dab"></i>' + esc(r.tag) + '</span>'
           + '</div>';
         html += '<div class="tile is-chosen k-' + kind + '" style="--h:' + HUES[kind] + '">' + generic + paint + '</div>';
       } else {
