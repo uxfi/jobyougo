@@ -21,6 +21,10 @@ accepted:
   - Consultant Confirmé Ux H/F
   - Freelance Product Designer
   - Staff Product Designer – Dropbox – Permanent contract – Fully-remote
+  # "Assistant" naming the product and a mid-or-senior range are not a level.
+  - Senior Product Designer, AI Assistant
+  - Mid/Senior Product Designer
+  - Mid-Senior Product Designer
 rejected:
   - Principal AI & Agent Systems Engineer
   - Forward Deployed Engineer
@@ -41,3 +45,9 @@ rejected:
   - Engineering Manager
   - Junior Product Designer
   - Data Scientist, ML Platform
+  # Below the Senior/Lead target level (levelGateReason), kept by the
+  # 2026-10-13 scan before the rule existed.
+  - Assistant Product Designer
+  - UI/UX Designer (Mid Level)
+  - Mid-Level Product Designer
+  - Midweight UX Designer

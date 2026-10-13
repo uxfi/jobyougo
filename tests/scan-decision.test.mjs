@@ -5,6 +5,7 @@ import * as yaml from 'js-yaml';
 import {
   assessFreshness,
   assessRemote,
+  belowTargetLevelReason,
   collapseDuplicateTitles,
   dedupeCandidates,
   evaluateCandidate,
@@ -12,6 +13,7 @@ import {
   internOrJuniorReason,
   jevDropOverrideReason,
   jevEvalOverrideReason,
+  levelGateReason,
   relativeDateFromText,
   resolvePublishedDate,
   runTitleDryRun,
@@ -224,9 +226,114 @@ if (jevDropOverrideReason({ title: 'Product Design', url: 'https://jobs.ashbyhq.
   pass('a Product Design title is a keep even without Senior in the name');
 } else fail('Product Design must override a Jev drop');
 
-if (jevDropOverrideReason({ title: 'Senior Product Manager B2C', url: 'https://careers.dayuse.com/jobs/8468369-senior-product-manager-b2c-h-f' }) === 'target role family') {
-  pass('a senior PM title overrides a Jev drop');
-} else fail('Senior Product Manager must override a Jev drop');
+// Product Manager is a secondary archetype in profile.yml (scope dependent):
+// Jev decides PM titles, the override no longer force-keeps them.
+for (const pmTitle of [
+  'Senior Product Manager B2C',
+  'Product Pricing Manager',
+  'Product Assurance Manager',
+  'Technical Product Owner',
+  'Head of Product',
+  'Product Lead',
+]) {
+  if (!jevDropOverrideReason({ title: pmTitle, url: 'https://careers.example.com/jobs/8468369-role' })) {
+    pass(`a Jev drop of "${pmTitle}" stands (PM titles are not force-kept)`);
+  } else fail(`"${pmTitle}" must not override a Jev drop any more`);
+}
+
+for (const designTitle of [
+  'Senior Product Designer',
+  'Lead Product Designer, Payments',
+  'Staff Product Designer',
+  'Principal Product Designer',
+  'Head of Product Design',
+  'UX/UI Designer',
+  'UI Designer',
+  'User Experience Designer',
+  'AI Product Builder',
+]) {
+  if (jevDropOverrideReason({ title: designTitle, url: 'https://careers.example.com/jobs/8468369-role' }) === 'target role family') {
+    pass(`"${designTitle}" is in the design family and overrides a Jev drop`);
+  } else fail(`"${designTitle}" should override a Jev drop`);
+}
+
+if (!jevEvalOverrideReason({
+  title: 'Senior Product Manager',
+  url: 'https://careers.example.com/jobs/8468369-senior-product-manager',
+  jdText: 'Senior Product Manager, pricing platform. Fully remote, Europe.',
+})) {
+  pass('a PM title no longer forces the eval gate open');
+} else fail('the eval override must not apply to a PM title');
+
+for (const [levelTitle, expected] of [
+  ['Assistant Product Designer', 'below target level (assistant)'],
+  ['Design Assistant', 'below target level (assistant)'],
+  ['Assistant(e) Chef de projet digital', 'below target level (assistant)'],
+  ['UI/UX Designer (Mid Level)', 'below target level (mid-level)'],
+  ['Mid-Level Product Designer', 'below target level (mid-level)'],
+  ['Midweight UX Designer', 'below target level (mid-level)'],
+  ['Intermediate UX Designer', 'below target level (mid-level)'],
+]) {
+  const got = belowTargetLevelReason(levelTitle, '');
+  if (got === expected) pass(`"${levelTitle}" is below the target level`);
+  else fail(`"${levelTitle}": expected "${expected}", got "${got}"`);
+}
+
+for (const keepTitle of [
+  'Senior Product Designer, AI Assistant',
+  'Product Designer - Voice Assistant',
+  'Assistant Vice President, Product Design',
+  'Mid/Senior Product Designer',
+  'Mid-Level to Senior Product Designer',
+  'Mid-Senior Product Designer',
+  'Mid-Market Product Manager',
+  'Senior Product Designer',
+]) {
+  const got = belowTargetLevelReason(keepTitle, '');
+  if (!got) pass(`"${keepTitle}" is not below the target level`);
+  else fail(`"${keepTitle}" wrongly flagged: ${got}`);
+}
+
+if (belowTargetLevelReason('', 'https://www.welcometothejungle.com/fr/companies/acme/jobs/assistant-product-designer_paris')) {
+  pass('an assistant URL slug is below the target level when the title is empty');
+} else fail('an untitled assistant slug should be below the target level');
+
+if (!belowTargetLevelReason('', 'https://jobs.ashbyhq.com/acme/ai-assistant-product-designer')) {
+  pass('an "ai-assistant" slug names the product, not the level');
+} else fail('ai-assistant in a slug must not read as a level');
+
+if (!belowTargetLevelReason('Senior Product Designer', 'https://jobs.example.com/assistant-product-designer')) {
+  pass('the URL slug is ignored when the title is known');
+} else fail('a known title must win over the URL slug');
+
+if (levelGateReason('Junior Product Designer', '') === 'junior title'
+  && levelGateReason('Assistant Product Designer', '') === 'below target level (assistant)'
+  && !levelGateReason('Lead Product Designer', '')) {
+  pass('levelGateReason chains intern/junior then assistant/mid-level');
+} else fail('levelGateReason should chain internOrJuniorReason and belowTargetLevelReason');
+
+if (!jevDropOverrideReason({ title: 'Assistant Product Designer', url: 'https://jobs.example.com/1234567' })
+  && !jevDropOverrideReason({ title: 'UI/UX Designer (Mid Level)', url: 'https://jobs.example.com/1234567' })) {
+  pass('assistant and mid-level design titles are not force-kept');
+} else fail('a below-level design title must not override a Jev drop');
+
+const levelGate = { title_filter: { positive: ['Product Designer', 'UX Designer'] } };
+const assistantDecision = evaluateCandidate(
+  { url: 'https://example.com/jobs/551100', title: 'Assistant Product Designer', location: 'Remote - Europe' },
+  levelGate,
+  { today: '2026-10-13' },
+);
+if (assistantDecision.disposition === 'reject' && assistantDecision.reasonCode === 'level') {
+  pass('the scan gate rejects an assistant title before Jev');
+} else fail(`expected level reject, got ${assistantDecision.disposition}/${assistantDecision.reasonCode}`);
+
+const seniorDecision = evaluateCandidate(
+  { url: 'https://example.com/jobs/551101', title: 'Senior Product Designer', location: 'Remote - Europe' },
+  levelGate,
+  { today: '2026-10-13' },
+);
+if (seniorDecision.reasonCode !== 'level') pass('the scan gate keeps a senior design title');
+else fail(`senior title rejected by the level gate: ${seniorDecision.reasons.join('; ')}`);
 
 if (!jevDropOverrideReason({ title: 'Product Design Intern', url: 'https://jobs.example.com/intern' })) {
   pass('an intern Product Design title is still dropped');

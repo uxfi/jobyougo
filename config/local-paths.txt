@@ -55,6 +55,7 @@ lib/monetization.test.mjs
 lib/openrouter.mjs
 lib/pinchtab.mjs
 lib/pipeline-record.mjs
+lib/posting-identity.mjs
 lib/prompt-budget.mjs
 lib/remote-geo-widen.mjs
 lib/report-validation.mjs
