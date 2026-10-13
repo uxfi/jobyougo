@@ -306,7 +306,7 @@ test('a repetition_loop validation failure writes no report or tracker row and w
 // ── Work mode: the deterministic hard pass before Qwen ──────────────────────
 const workModeGate = serverFunctions([
   'cleanString', 'cleanList', 'normalizeInline', 'inferProfileMatchingRules', 'onsitePlacesFromProfile', 'mentionsPlace',
-  'inferWorkModeFromText', 'candidateAuthorizedInUs', 'inferUsConstraintFromText', 'evaluateOfferAgainstProfile',
+  'inferWorkModeFromText', 'candidateAuthorizedInUs', 'inferUsConstraintFromText', 'onsiteAllowedFor', 'evaluateOfferAgainstProfile',
 ]);
 const workMode = text => workModeGate.inferWorkModeFromText(text).mode;
 // The location policy of config/profile.yml.
@@ -377,6 +377,23 @@ test('on-site availability opens the places it names and the profile base they b
   assert.deepEqual(places('No on-site in France; traveling to Paris for offsites is fine'), []);
   assert.deepEqual(places('Comfortable traveling for offsites in Paris'), []);
   assert.deepEqual(places(''), []);
+});
+
+test('onsiteAllowedFor: hybrid/on-site only where the on-site availability opens a place', () => {
+  const owner = workModeGate.inferProfileMatchingRules(OWNER_PROFILE, '');
+  const allowed = (rules, input) => workModeGate.onsiteAllowedFor(rules, input);
+  assert.equal(allowed(owner, { mode: 'onsite', place: 'Bangkok' }), true);
+  assert.equal(allowed(owner, { mode: 'hybrid', place: 'Phuket, Thailand' }), true);
+  assert.equal(allowed(owner, { mode: 'hybrid', place: 'Paris, France' }), false);
+  assert.equal(allowed(owner, { mode: 'onsite', place: 'New York, NY' }), false);
+  // The work-mode evidence counts when the place field is a region label.
+  assert.equal(allowed(owner, { mode: 'onsite', place: 'APAC', evidence: ['on-site role in our Bangkok office, 5 days a week'] }), true);
+  assert.equal(allowed(owner, { mode: 'hybrid' }), false);
+  // Remote or unknown attendance, or a profile that is not full remote, is never refused.
+  assert.equal(allowed(owner, { mode: 'remote', place: 'Paris' }), true);
+  assert.equal(allowed(owner, { mode: 'unknown' }), true);
+  const notFullRemote = workModeGate.inferProfileMatchingRules({ location: { country: 'France' } }, '');
+  assert.equal(allowed(notFullRemote, { mode: 'onsite', place: 'Paris' }), true);
 });
 
 test('full remote + on-site in Thailand: Paris hybrid is a hard pass', () => {

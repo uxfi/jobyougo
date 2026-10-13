@@ -6419,6 +6419,16 @@ function inferUsConstraintFromText(text = '') {
   return { blocked: false, label: '' };
 }
 
+// Whether a posting's attendance fits the profile: always for remote or
+// unknown work modes and for profiles that are not full remote; for hybrid or
+// on-site, only when the place (or the work-mode evidence) names a place the
+// on-site availability opens (rules.location.onsitePlaces).
+function onsiteAllowedFor(rules, { mode = '', place = '', evidence = [] } = {}) {
+  if (!rules.location.fullRemoteOnly || (mode !== 'hybrid' && mode !== 'onsite')) return true;
+  const text = [place, ...evidence].join('\n');
+  return rules.location.onsitePlaces.some(name => mentionsPlace(text, name));
+}
+
 function evaluateOfferAgainstProfile(jdText = '', profileData = {}, profileMarkdown = '') {
   const rules = inferProfileMatchingRules(profileData, profileMarkdown);
   const workMode = inferWorkModeFromText(jdText);
@@ -6426,11 +6436,11 @@ function evaluateOfferAgainstProfile(jdText = '', profileData = {}, profileMarkd
   const reasons = [];
   let skip = false;
 
-  // A posting that names a place the on-site availability opens goes to Qwen,
-  // whose enforcement block carries the same places.
-  const { onsitePlaces } = rules.location;
-  if (rules.location.fullRemoteOnly && (workMode.mode === 'hybrid' || workMode.mode === 'onsite')
-    && !onsitePlaces.some(place => mentionsPlace(jdText, place))) {
+  // The whole JD stands for the place: a location field alone ("APAC") misses
+  // "based in our Bangkok office". An allowed posting goes to Qwen, whose
+  // enforcement block carries the same places.
+  if (!onsiteAllowedFor(rules, { mode: workMode.mode, place: jdText, evidence: workMode.evidence })) {
+    const { onsitePlaces } = rules.location;
     reasons.push(`Profile requires full remote${onsitePlaces.length ? ` (on-site only in ${onsitePlaces.join(', ')})` : ''}, but the JD looks ${workMode.mode}.`);
   }
 
