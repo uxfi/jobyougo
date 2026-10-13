@@ -1435,8 +1435,11 @@ async function addManyToPipeline(entries = [], userId, { prepend = false } = {})
 // triage; the full fetch still happens at evaluation time.
 async function lookupPostingIdentity(url, { note = '', logLabel = 'manual-add', timeoutMs = 12000 } = {}) {
   const fromUrl = identityFromUrl(url);
-  const noteParts = extractPipelineNoteParts(note);
-  const hints = { company: noteParts.company || fromUrl.company, title: noteParts.title || fromUrl.title };
+  // Hints from the user's note only: a title + company pair read from the URL
+  // (WTTJ slugs) would send fetchKnownSourceJobDescription to the paid
+  // Google Jobs search before the page itself is fetched.
+  const { company, title } = extractPipelineNoteParts(note);
+  const hints = { company, title };
   const lookup = async () => {
     const tab = tabOfferSnapshot(url);
     const fromTab = tab ? mergePostingIdentity(identityFromJobText(tab.text), identityFromPageTitle(tab.title)) : {};

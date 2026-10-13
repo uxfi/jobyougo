@@ -44,6 +44,8 @@ test('page titles from the common boards split into title and company', () => {
     assert.equal(got.company, company, raw);
   }
   assert.equal(identityFromPageTitle('Senior Product Designer', 'Pennylane').company, 'Pennylane');
+  // "hiring" outside a LinkedIn title is not the LinkedIn pattern.
+  assert.equal(identityFromPageTitle('We are hiring Senior Product Designer | Acme').company, 'Acme');
 });
 
 test('HTML reads og:title with og:site_name, else <title>', () => {
@@ -51,6 +53,8 @@ test('HTML reads og:title with og:site_name, else <title>', () => {
   assert.deepEqual(identityFromHtml(title), { title: 'Staff Product Designer', company: 'Dropbox', location: '' });
   const og = '<meta property="og:title" content="Product Designer &amp; Researcher"><meta property="og:site_name" content="Pennylane">';
   assert.deepEqual(identityFromHtml(og), { title: 'Product Designer & Researcher', company: 'Pennylane', location: '' });
+  const apostrophe = `<meta content="Chef d'équipe Design | Acme" property="og:title">`;
+  assert.deepEqual(identityFromHtml(apostrophe), { title: "Chef d'équipe Design", company: 'Acme', location: '' });
   assert.deepEqual(identityFromHtml(''), { title: '', company: '', location: '' });
 });
 

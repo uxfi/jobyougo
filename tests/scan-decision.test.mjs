@@ -287,6 +287,8 @@ for (const keepTitle of [
   'Mid/Senior Product Designer',
   'Mid-Level to Senior Product Designer',
   'Mid-Senior Product Designer',
+  'Mid Senior Product Designer',
+  'Product Designer (Intermediate/Senior)',
   'Mid-Market Product Manager',
   'Senior Product Designer',
 ]) {
@@ -305,6 +307,20 @@ if (contractMismatchReason(clera.title, ['Salaried']) === 'freelance role, candi
   && !contractMismatchReason('Senior Product Designer', ['Salaried'])) {
   pass('contractMismatchReason flags freelance/contract titles only for a salaried-only profile');
 } else fail('contractMismatchReason should reuse detectContract against the profile contract types');
+
+// detectContract used to read "Permanent contract" as a contract role, and a
+// CDD (salaried, fixed-term) as one too.
+const permanentTitle = 'Staff Product Designer – Dropbox – Permanent contract – Fully-remote';
+const permanentDecision = evaluateCandidate(
+  { url: 'https://example.com/jobs/551102', title: permanentTitle, location: 'Remote - Europe' },
+  { title_filter: { positive: ['Product Designer'] } },
+  { today: '2026-10-13' },
+);
+if (!contractMismatchReason(permanentTitle, ['Salaried'])
+  && permanentDecision.signals.contract === 'permanent'
+  && !contractMismatchReason('Product Designer CDD 6 mois', ['Salaried'])) {
+  pass('"Permanent contract" and CDD titles are salaried, not contractor roles');
+} else fail(`permanent/CDD misread: ${permanentDecision.signals.contract}`);
 
 if (!jevDropOverrideReason(clera, ['Salaried']) && jevDropOverrideReason(clera) === 'target role family') {
   pass('a freelance design title is not force-kept for a salaried profile');
