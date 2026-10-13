@@ -1430,56 +1430,38 @@ async function addManyToPipeline(entries = [], userId, { prepend = false } = {})
 // add used to reach Jev with an empty title and company, so the triage
 // decided on the URL alone (2026-10-13: Pencil "Product Researcher" kept at
 // 0.63 from an Ashby UUID). Order: the extension's open tab, the ATS/board
-// APIs (Greenhouse, Ashby, Lever, Jobicy, Himalayas, Remotive…), one plain
-// HTTP fetch (JSON-LD, LinkedIn markup, page title), then the URL slug. No
+// APIs, one plain HTTP fetch (JSON-LD, page title), then the URL slug. No
 // Pinchtab or headed browser: this runs inside the add request and the
-// triage, and the full fetch still happens at evaluation time.
-const POSTING_IDENTITY_TIMEOUT_MS = 12000;
-
-async function lookupPostingIdentity(url, { note = '', logLabel = 'manual-add', timeoutMs = POSTING_IDENTITY_TIMEOUT_MS } = {}) {
+// triage; the full fetch still happens at evaluation time.
+async function lookupPostingIdentity(url, { note = '', logLabel = 'manual-add', timeoutMs = 12000 } = {}) {
   const fromUrl = identityFromUrl(url);
-  const noteParts = extractPipelineNoteParts(note || '');
-  const hints = {
-    company: cleanString(noteParts.company || fromUrl.company),
-    title: cleanString(noteParts.title || fromUrl.title),
-  };
-  const lookup = (async () => {
-    const snapshot = tabOfferSnapshot(url);
-    if (snapshot) {
-      const fromTab = mergePostingIdentity(identityFromJobText(snapshot.text), identityFromPageTitle(snapshot.title));
-      if (fromTab.title) return mergePostingIdentity(fromTab, fromUrl);
-    }
-    const known = await fetchKnownSourceJobDescription(url, { maxChars: 4000, logLabel, hints }).catch(() => null);
+  const noteParts = extractPipelineNoteParts(note);
+  const hints = { company: noteParts.company || fromUrl.company, title: noteParts.title || fromUrl.title };
+  const lookup = async () => {
+    const tab = tabOfferSnapshot(url);
+    const fromTab = tab ? mergePostingIdentity(identityFromJobText(tab.text), identityFromPageTitle(tab.title)) : {};
+    if (fromTab.title) return mergePostingIdentity(fromTab, fromUrl);
+    const known = await fetchKnownSourceJobDescription(url, { maxChars: 4000, logLabel, hints });
     const fromKnown = known?.ok ? identityFromJobText(known.text) : {};
     if (fromKnown.title || known?.definitive) return mergePostingIdentity(fromKnown, fromUrl);
-    let html = '';
-    try {
-      const response = await fetch(url, {
-        signal: AbortSignal.timeout(8000),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-      });
-      if (response.ok) html = await response.text();
-    } catch (err) {
-      console.warn(`[${logLabel}] [identity] fetch failed for ${url}: ${err.message}`);
-    }
-    const text = html ? textFromFetchedHtml(html, url, { maxChars: 4000, hints }) : '';
-    return mergePostingIdentity(identityFromJobText(text), identityFromHtml(html), fromUrl);
-  })().catch(err => {
-    console.warn(`[${logLabel}] [identity] lookup failed for ${url}: ${err.message}`);
-    return fromUrl;
-  });
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', 'Accept-Language': 'en-US,en;q=0.9' },
+    });
+    const html = response.ok ? await response.text() : '';
+    return mergePostingIdentity(identityFromJobText(textFromFetchedHtml(html, url, { maxChars: 4000, hints })), identityFromHtml(html), fromUrl);
+  };
   let timer;
-  const timeout = new Promise(resolve => {
-    timer = setTimeout(() => resolve(null), timeoutMs);
-    timer.unref?.();
-  });
-  const identity = await Promise.race([lookup, timeout]);
+  const timeout = new Promise(resolve => { timer = setTimeout(resolve, timeoutMs, fromUrl); });
+  const identity = await Promise.race([
+    lookup().catch(err => {
+      console.warn(`[${logLabel}] [identity] ${url}: ${err.message}`);
+      return fromUrl;
+    }),
+    timeout,
+  ]);
   clearTimeout(timer);
-  if (!identity) console.warn(`[${logLabel}] [identity] no answer within ${timeoutMs}ms for ${url}`);
-  return identity || fromUrl;
+  return identity;
 }
 
 async function addToPipeline(url, note, userId) {
@@ -1488,18 +1470,14 @@ async function addToPipeline(url, note, userId) {
   if (key && pipe.some(item => normalizeUrlKey(item.url) === key)) {
     return { added: false, duplicate: true };
   }
-  const given = extractPipelineNoteParts(note || '');
   const entry = { url, note };
+  const given = extractPipelineNoteParts(note);
   if (!(given.company && given.title)) {
     const identity = await lookupPostingIdentity(url, { note });
-    entry.note = noteWithIdentity(note, identity);
-    if (identity.title) entry.title = given.title || identity.title;
-    if (identity.company) entry.company = identity.company;
-    if (identity.location) entry.location = identity.location;
-    console.log(`[manual-add] ${url} → ${[entry.company, entry.title].filter(Boolean).join(' | ') || 'title not found (URL only)'}`);
+    Object.assign(entry, identity, { title: given.title || identity.title, note: noteWithIdentity(note, identity) });
   }
   await addManyToPipeline([entry], userId, { prepend: true });
-  return { added: true, duplicate: false, title: entry.title || given.title || '', company: entry.company || given.company || '' };
+  return { added: true, duplicate: false };
 }
 
 // ─── Portals (portals.yml) ────────────────────────────────────────────────────
@@ -6571,7 +6549,7 @@ async function dropInternPipelineItems(items = [], userId) {
       historyStatus: 'title_dropped',
       historyPortal: 'pipeline-jev',
     });
-    console.log(`[pipeline] title filter dropped ${rejected.length} offer(s) below the target level (intern/junior/assistant/mid-level)`);
+    console.log(`[pipeline] title filter dropped ${rejected.length} offer(s) below the target level`);
   }
   return { current, rejected };
 }
@@ -6640,87 +6618,21 @@ async function dropStalePipelineItems(items = [], userId) {
 }
 
 // Rows still waiting for Jev with no title (manual adds from before the
-// add-time lookup, or a lookup that timed out) get one more lookup here, so
-// Jev and the level gate read a title instead of the URL alone.
-const IDENTITY_BACKFILL_LIMIT = 12;
-const IDENTITY_BACKFILL_CONCURRENCY = 3;
-// A posting whose title could not be found is not looked up again on every
-// triage (a LinkedIn or Cloudflare page fails the same way each time).
-const IDENTITY_MISS_TTL_MS = 6 * 60 * 60 * 1000;
+// add-time lookup, or a lookup that timed out) get one more lookup, so Jev
+// and the level gate read a title instead of the URL alone. The title is
+// saved with the Jev score (updatePipelineJevScores) when the row is kept.
+// A miss is not retried for 6h: a LinkedIn or Cloudflare page fails the
+// same way on every triage.
 const identityLookupMisses = new Map();
 
-function identityLookupRecentlyMissed(key) {
-  const at = identityLookupMisses.get(key);
-  if (!at) return false;
-  if (Date.now() - at < IDENTITY_MISS_TTL_MS) return true;
-  identityLookupMisses.delete(key);
-  return false;
-}
-
-function identityToPipelineRecord(identity = {}, existing = {}, latest = null) {
-  return pipelineRecordFromEntry({
-    url: existing.url || identity.url,
-    company: identity.company || existing.company,
-    title: identity.title || existing.title,
-    location: existing.location || identity.location,
-    publishedAt: existing.published_at || existing.posted_at || latest?.posted_at || '',
-    source: existing.source || latest?.source || '',
-    engine: existing.engine || latest?.engine || '',
-    jevKeep: existing.jev_keep ?? latest?.jev_keep ?? null,
-    jevFit: existing.jev_fit ?? latest?.jev_fit ?? null,
-    jevStatus: existing.jev_status || latest?.jev_status || '',
-    remoteVerdict: existing.remote_verdict || latest?.remote_verdict || '',
-    remoteReason: existing.remote_reason || latest?.remote_reason || '',
-    remoteConfidence: existing.remote_confidence ?? latest?.remote_confidence ?? null,
-    status: latest?.status || existing.status || 'pending',
-  }, existing.scanned_at || latest?.scanned_at || new Date().toISOString());
-}
-
-async function persistPipelineIdentities(byKey = new Map(), userId) {
-  if (!byKey.size) return;
-  const records = await readLatestPipelineRecords();
-  const written = [];
-  await editPipelineMarkdown(raw => {
-    const next = raw.split('\n').map(line => {
-      const parsed = parsePipeline(line)[0];
-      if (!parsed?.url) return line;
-      const key = normalizeUrlKey(parsed.url);
-      const identity = byKey.get(key);
-      if (!identity) return line;
-      const latest = records.get(key) || null;
-      const existing = overlayPipelineRecord(normalizePipelineItem(parsed), latest) || normalizePipelineItem(parsed);
-      const record = identityToPipelineRecord(identity, existing, latest);
-      written.push(record);
-      return formatPipelineMarkdown(record);
-    });
-    return `${next.join('\n').replace(/\n+$/, '')}\n`;
-  });
-
-  const writtenKeys = new Set(written.map(record => normalizeUrlKey(record.url)));
-  const fallback = [...byKey.entries()]
-    .filter(([key]) => !writtenKeys.has(key))
-    .map(([key, identity]) => identityToPipelineRecord(identity, records.get(key) || {}, records.get(key) || null));
-  const allRecords = [...written, ...fallback];
-  await appendPipelineRecords(allRecords)
-    .catch(err => console.warn(`[pipeline] Failed to append fetched titles: ${err.message}`));
-
-  if (useSupabase && allRecords.length) {
-    for (const record of allRecords) {
-      let q = supabase.from('pipeline').update({ note: formatPipelineNote(record) }).eq('url', record.url);
-      if (userId) q = q.eq('user_id', userId);
-      const { error } = await q;
-      if (error) console.warn(`[pipeline] Failed to persist fetched title in Supabase: ${error.message}`);
-    }
-  }
-}
-
-async function backfillPipelineIdentities(items = [], userId) {
-  const missing = (items || [])
+async function backfillPipelineIdentities(items = []) {
+  const now = Date.now();
+  const missing = items
     .filter(item => item?.url
       && !pipelineItemToJevCandidate(item).title
       && pipelineItemNeedsJevTriage(item, { rescoreKept: false })
-      && !identityLookupRecentlyMissed(normalizeUrlKey(item.url)))
-    .slice(0, IDENTITY_BACKFILL_LIMIT);
+      && (identityLookupMisses.get(normalizeUrlKey(item.url)) || 0) < now - 6 * 3600_000)
+    .slice(0, 12);
   if (!missing.length) return items;
 
   const found = new Map();
@@ -6728,32 +6640,21 @@ async function backfillPipelineIdentities(items = [], userId) {
   const worker = async () => {
     while (next < missing.length) {
       const item = missing[next++];
-      const key = normalizeUrlKey(item.url);
       const identity = await lookupPostingIdentity(item.url, { note: item.note || '', logLabel: 'pipeline-identity' });
-      if (identity.title) found.set(key, { ...identity, url: item.url });
-      else identityLookupMisses.set(key, Date.now());
+      if (identity.title) found.set(item.url, identity);
+      else identityLookupMisses.set(normalizeUrlKey(item.url), Date.now());
     }
   };
-  await Promise.all(Array.from({ length: Math.min(IDENTITY_BACKFILL_CONCURRENCY, missing.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(3, missing.length) }, worker));
   console.log(`[pipeline] identity: found a title for ${found.size}/${missing.length} untitled offer(s) before Jev`);
-  if (!found.size) return items;
-
-  await persistPipelineIdentities(found, userId)
-    .catch(err => console.warn(`[pipeline] Failed to save fetched titles: ${err.message}`));
   return items.map(item => {
-    const identity = item?.url ? found.get(normalizeUrlKey(item.url)) : null;
-    if (!identity) return item;
-    return {
-      ...item,
-      title: identity.title,
-      company: identity.company || item.company || '',
-      location: item.location || identity.location || '',
-    };
+    const identity = found.get(item?.url);
+    return identity ? { ...item, title: identity.title, company: identity.company || item.company, location: item.location || identity.location } : item;
   });
 }
 
 async function triagePipelineItemsWithJev(items = [], userId, profileRules = {}, { onProgress } = {}) {
-  const titled = await backfillPipelineIdentities(items, userId);
+  const titled = await backfillPipelineIdentities(items);
   const { current: notInterns, rejected: titleDropped } = await dropInternPipelineItems(titled, userId);
   const { current: notListings, listings } = await dropListingPipelineItems(notInterns, userId);
   const { current, stale } = await dropStalePipelineItems(notListings, userId);

@@ -7,6 +7,7 @@ import {
   assessRemote,
   belowTargetLevelReason,
   collapseDuplicateTitles,
+  contractMismatchReason,
   dedupeCandidates,
   evaluateCandidate,
   explicitDateFromText,
@@ -274,7 +275,7 @@ for (const [levelTitle, expected] of [
   ['Midweight UX Designer', 'below target level (mid-level)'],
   ['Intermediate UX Designer', 'below target level (mid-level)'],
 ]) {
-  const got = belowTargetLevelReason(levelTitle, '');
+  const got = belowTargetLevelReason(levelTitle);
   if (got === expected) pass(`"${levelTitle}" is below the target level`);
   else fail(`"${levelTitle}": expected "${expected}", got "${got}"`);
 }
@@ -289,22 +290,29 @@ for (const keepTitle of [
   'Mid-Market Product Manager',
   'Senior Product Designer',
 ]) {
-  const got = belowTargetLevelReason(keepTitle, '');
+  const got = belowTargetLevelReason(keepTitle);
   if (!got) pass(`"${keepTitle}" is not below the target level`);
   else fail(`"${keepTitle}" wrongly flagged: ${got}`);
 }
 
-if (belowTargetLevelReason('', 'https://www.welcometothejungle.com/fr/companies/acme/jobs/assistant-product-designer_paris')) {
-  pass('an assistant URL slug is below the target level when the title is empty');
-} else fail('an untitled assistant slug should be below the target level');
+// Report 702: "Senior Freelance Product Designer (Fractional)" was force-kept
+// for a profile that asks for a salaried role (search.contract_types).
+const clera = { title: 'Senior Freelance Product Designer (Fractional)', url: 'https://jobs.example.com/clera/1234567' };
+if (contractMismatchReason(clera.title, ['Salaried']) === 'freelance role, candidate wants Salaried'
+  && contractMismatchReason('Product Designer - 6-month contract', ['Salaried'])
+  && !contractMismatchReason(clera.title, ['Salaried', 'Freelance'])
+  && !contractMismatchReason(clera.title, [])
+  && !contractMismatchReason('Senior Product Designer', ['Salaried'])) {
+  pass('contractMismatchReason flags freelance/contract titles only for a salaried-only profile');
+} else fail('contractMismatchReason should reuse detectContract against the profile contract types');
 
-if (!belowTargetLevelReason('', 'https://jobs.ashbyhq.com/acme/ai-assistant-product-designer')) {
-  pass('an "ai-assistant" slug names the product, not the level');
-} else fail('ai-assistant in a slug must not read as a level');
+if (!jevDropOverrideReason(clera, ['Salaried']) && jevDropOverrideReason(clera) === 'target role family') {
+  pass('a freelance design title is not force-kept for a salaried profile');
+} else fail('the override must skip a contract type the candidate refuses');
 
-if (!belowTargetLevelReason('Senior Product Designer', 'https://jobs.example.com/assistant-product-designer')) {
-  pass('the URL slug is ignored when the title is known');
-} else fail('a known title must win over the URL slug');
+if (!jevEvalOverrideReason({ ...clera, jdText: 'Fractional, fully remote, 2 days a week.', contractTypes: ['Salaried'] })) {
+  pass('the eval override does not open the gate for a refused contract type');
+} else fail('the eval override must pass the contract types to the drop override');
 
 if (levelGateReason('Junior Product Designer', '') === 'junior title'
   && levelGateReason('Assistant Product Designer', '') === 'below target level (assistant)'

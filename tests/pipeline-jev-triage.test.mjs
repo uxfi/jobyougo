@@ -98,15 +98,6 @@ if (internCandidate.seniority === 'intern' && internCandidate.contract === 'inte
   pass('an internship title is marked intern for Jev');
 } else fail(`intern mapping failed: ${JSON.stringify(internCandidate)}`);
 
-const assistantCandidate = pipelineItemToJevCandidate({
-  url: 'https://jobs.example.com/10',
-  title: 'Assistant Product Designer',
-  company: 'Acme',
-});
-if (assistantCandidate.seniority === 'below target level' && assistantCandidate.contract === '') {
-  pass('an assistant title is marked below target level for Jev, not as an internship');
-} else fail(`assistant mapping failed: ${JSON.stringify(assistantCandidate)}`);
-
 const overlaid = overlayPipelineRecord(
   { url: 'https://jobs.example.com/9', jev_status: 'kept', jev_keep: 0.8, note: scoredNote },
   { url: 'https://jobs.example.com/9', jev_status: '', jev_keep: null, status: 'pending' },

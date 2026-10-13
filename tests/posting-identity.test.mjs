@@ -46,9 +46,9 @@ test('page titles from the common boards split into title and company', () => {
   assert.equal(identityFromPageTitle('Senior Product Designer', 'Pennylane').company, 'Pennylane');
 });
 
-test('HTML prefers JSON-LD JobPosting, then og:title with og:site_name', () => {
-  const jsonLd = '<script type="application/ld+json">{"@type":"JobPosting","title":"Staff Product Designer","description":"Design.","hiringOrganization":{"name":"Dropbox"},"jobLocationType":"TELECOMMUTE"}</script>';
-  assert.deepEqual(identityFromHtml(jsonLd), { title: 'Staff Product Designer', company: 'Dropbox', location: 'Remote' });
+test('HTML reads og:title with og:site_name, else <title>', () => {
+  const title = '<html><head><title>Job Application for Staff Product Designer at Dropbox</title></head></html>';
+  assert.deepEqual(identityFromHtml(title), { title: 'Staff Product Designer', company: 'Dropbox', location: '' });
   const og = '<meta property="og:title" content="Product Designer &amp; Researcher"><meta property="og:site_name" content="Pennylane">';
   assert.deepEqual(identityFromHtml(og), { title: 'Product Designer & Researcher', company: 'Pennylane', location: '' });
   assert.deepEqual(identityFromHtml(''), { title: '', company: '', location: '' });

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   buildCandidateProfileState,
   buildJevScanResponse,
-  candidateArchetypes,
   candidateTargetLevel,
   evalGateQuestions,
   noulFromAnswers,
@@ -76,18 +75,12 @@ test('buildCandidateProfileState passes archetypes, level, contract, sector and 
   assert.ok(state.candidate_archetypes.every(entry => typeof entry === 'string'));
 });
 
-test('candidateTargetLevel reads primary archetypes, then role titles, then an explicit value', () => {
+test('candidateTargetLevel reads the primary archetype levels and the primary role titles', () => {
   assert.equal(candidateTargetLevel(designFirstRules.targeting), 'Senior/Lead');
   assert.equal(candidateTargetLevel({ primaryRoles: ['Staff Data Engineer', 'Principal Data Engineer'] }), 'Staff/Principal');
-  assert.equal(candidateTargetLevel({ targetLevel: 'Lead', archetypes: designFirstRules.targeting.archetypes }), 'Lead');
+  // A secondary archetype's level does not count.
+  assert.equal(candidateTargetLevel({ archetypes: [{ name: 'PM', level: 'Director', fit: 'secondary' }] }), '');
   assert.equal(candidateTargetLevel({}), '');
-});
-
-test('candidateArchetypes keeps primary and folds anything else into secondary', () => {
-  assert.deepEqual(
-    candidateArchetypes({ archetypes: [{ name: 'Product Designer', level: 'Senior', fit: 'Primary' }, { name: 'PM', fit: '' }, { name: '' }] }),
-    [{ name: 'Product Designer', level: 'Senior', fit: 'primary' }, { name: 'PM', level: '', fit: 'secondary' }],
-  );
 });
 
 test('Jev questions read the roles from the state instead of a hardcoded PM keep list', () => {
@@ -98,8 +91,10 @@ test('Jev questions read the roles from the state instead of a hardcoded PM keep
     assert.match(text, /candidate_target_level/);
     assert.match(text, /fit: secondary/);
     assert.match(text, /Product Pricing Manager, Product Assurance Manager, Technical Product Owner/);
-    assert.match(text, /assistant, mid-level/);
+    assert.match(text, /Titles below candidate_target_level are not a match/);
     assert.match(text, /Web Designer/);
+    assert.match(text, /candidate_contract_types lists no freelance or contract work/);
+    assert.match(text, /Senior Freelance Product Designer \(Fractional\)/);
     assert.match(text, /candidate_compensation_minimum/);
     // Rules kept from the previous text.
     assert.match(text, /remote_disposition/);
