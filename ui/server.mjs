@@ -6254,6 +6254,7 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
       ? `- "Authorized to work in your current country of residence/domicile" is met when authorized_in (${rules.location.authorizedIn.join(', ')}) covers the country the candidate lives in. It is not a residency lock and never a hard fail on its own.`
       : '- "Authorized to work in your current country of residence/domicile" asks about the candidate, it is not a residency lock: with authorized_in not specified, mark it unknown, never a hard fail.',
     '- The job location comes only from the posting\'s location field or explicit JD text about where the role is based. Never invent an office city: a company legal address, HQ or privacy-notice address is not the job location. If no city is stated, write that the location is not stated.',
+    '- The candidate lives where Candidate Context says. Never infer residence, a home country or a nomad status from the CV.',
     '- Domain gaps lower Block B / overall average — they are never a remote hard fail.',
     `- If the profile says full remote only and the JD explicitly says hybrid or on-site (${onsiteNote ? 'in a place or rhythm the on-site availability does not cover' : `outside ${home}`}), hard pass directly.`,
     authorizedInUs
@@ -6288,7 +6289,19 @@ function inferWorkModeFromText(text = '') {
     /\bin[- ]office\b/,
     /\bon-?site\b/,
     /\boffice[- ]based\b/,
+    // French postings: "télétravail jusqu'à 3 jours/semaine", "2 jours sur site".
+    /\b(?:mode|travail|poste|format|rythme|t[ée]l[ée]travail) hybride\b|\ben hybride\b/,
+    /\bt[ée]l[ée]travail\s*:?\s*(?:partiel|jusqu['’]?(?:à|a)\s*\d|\d+\s*jours?)/,
+    /\b\d+\s*jours?(?:\s*(?:\/|par)\s*semaine)?\s*(?:de\s+)?t[ée]l[ée]travail\b/,
+    /\b\d+\s*jours?(?:\s*(?:\/|par)\s*semaine)?\s*(?:sur site|au bureau|en pr[ée]sentiel|dans nos locaux)\b/,
   ];
+  const fullyRemotePatterns = [
+    /\bfull(?:y)? remote\b/,
+    /\bremote[- ]first\b/,
+  ];
+  // A remote allowance ("6 week remote working policy", "work from anywhere
+  // 4 weeks a year") is a perk of an office job, unless the posting is fully remote.
+  const remoteAllowance = /\b\d+[- ]?weeks?\s+(?:of\s+)?(?:remote|work(?:ing)? from anywhere)\b|\b(?:remote|work(?:ing)? from anywhere)\b.{0,40}\b\d+\s*weeks?\s*(?:a|per)\s*year\b/;
   const onsitePatterns = [
     /\bon-?site only\b/,
     /\bfully on-?site\b/,
@@ -6296,11 +6309,12 @@ function inferWorkModeFromText(text = '') {
     /\bmust relocate\b/,
     /\brelocation required\b/,
     /\b5\s*days?\s*(?:a|per)?\s*week\b/,
-    /\bat our [a-z ]+ office\b/,
+    /\b(?:at|out of) our [a-z ]+ office\b/,
+    /\b(?:100\s*%|full|poste en)\s*pr[ée]sentiel\b/,
+    ...(fullyRemotePatterns.some(pattern => pattern.test(lower)) ? [] : [remoteAllowance]),
   ];
   const remotePatterns = [
-    /\bfull(?:y)? remote\b/,
-    /\bremote[- ]first\b/,
+    ...fullyRemotePatterns,
     /\bwork from anywhere\b/,
     /\bdistributed team\b/,
     /\bremote within\b/,

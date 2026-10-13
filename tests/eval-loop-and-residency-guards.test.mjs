@@ -15,6 +15,12 @@
 // 3. The output looped (the same 13 bullets until max_tokens) and still
 //    passed validateReportContent, so a tracker SKIP row was written.
 //
+// The same chain scored two on-site offers instead of a hard pass: Safran.AI
+// (report 708, "télétravail jusqu'à 3 jours/semaine", the work-mode detector
+// read English only) and what3words (report 709, Ho Chi Minh City office with
+// a "6 week remote working" perk). Reports 692, 708 and 709 also read the
+// candidate's residence from the CV instead of the profile.
+//
 // ui/server.mjs starts on import: its helpers are evaluated from the source
 // text in a sandbox, like tests/server-profile-routes.test.mjs does.
 import test from 'node:test';
@@ -47,6 +53,13 @@ function sourceOf(name) {
   const end = server.indexOf('\n}\n', start);
   return server.slice(start, end + 2);
 }
+
+// The named server functions, evaluated together; `context` stubs the rest.
+function serverFunctions(names, context = {}) {
+  return vm.runInNewContext(`${names.map(sourceOf).join('\n')}\n({ ${names.join(', ')} })`, { URL, ...context });
+}
+
+const { extractTextFromHtml } = serverFunctions(['extractTextFromHtml']);
 
 // ── Extract of reports/692-consensys-2026-10-13.md ──────────────────────────
 const REPORT_692_HEAD = `# Evaluation — Senior Product Manager – Universal KYC (MetaMask Passport)
@@ -176,20 +189,13 @@ const GREENHOUSE_FORM_ONLY_PAGE = `<html><head><title>Job Application for Senior
 </div></form><div class="application--submit"><button>Submit application</button></div></div>
 </div></main></body></html>`;
 
-const pageText = html => html
-  .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-  .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-  .replace(/<[^>]+>/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
-
 test('stripApplicationFormHtml drops the Greenhouse form: no domicile question, no Fort Worth', () => {
-  const before = pageText(GREENHOUSE_FORM_ONLY_PAGE);
+  const before = extractTextFromHtml(GREENHOUSE_FORM_ONLY_PAGE);
   assert.match(before, /currently domiciled/);
   assert.match(before, /Fort Worth/);
   assert.equal(isUnusableJobDescriptionText(before), false, 'before the fix the form passed as a JD');
 
-  const after = pageText(stripApplicationFormHtml(GREENHOUSE_FORM_ONLY_PAGE));
+  const after = extractTextFromHtml(stripApplicationFormHtml(GREENHOUSE_FORM_ONLY_PAGE));
   assert.doesNotMatch(after, /domiciled|sponsorship|Fort Worth|KYC, identity verification/);
   assert.equal(isUnusableJobDescriptionText(after), true, 'a form-only page now falls through to the next source');
 });
@@ -199,12 +205,12 @@ test('stripApplicationFormHtml keeps the posting around the form and leaves non-
     '<div class="application--container">',
     '<div class="job__description body"><p>Location: EMEA - Remote. Build MetaMask Passport, a reusable KYC credential.</p></div><div class="application--container">',
   );
-  const kept = pageText(stripApplicationFormHtml(withPosting));
+  const kept = extractTextFromHtml(stripApplicationFormHtml(withPosting));
   assert.match(kept, /EMEA - Remote\. Build MetaMask Passport/);
   assert.doesNotMatch(kept, /domiciled/);
 
   const legacy = '<div id="content"><p>Remote, Europe.</p></div><form id="application_form" action="/x"><label>Are you legally authorized to work in the country in which you are currently domiciled?</label></form>';
-  assert.equal(pageText(stripApplicationFormHtml(legacy)), 'Remote, Europe.');
+  assert.equal(extractTextFromHtml(stripApplicationFormHtml(legacy)), 'Remote, Europe.');
 
   // ASP.NET wraps the whole page in one form: it must survive.
   const aspnet = '<form id="aspnetForm" action="/job.aspx"><h1>Product Designer</h1><p>Fully remote within the EU.</p></form>';
@@ -220,11 +226,8 @@ test('stripApplicationFormText cuts an open-tab capture at the Greenhouse form h
 
 test('the Greenhouse API guess tries the board from the URL path first (URL-only re-add)', async () => {
   const calls = [];
-  const context = {
-    URL,
+  const { fetchGreenhouseJobDescriptionFromGuessedApi } = serverFunctions(['slugify', 'cleanString', 'fetchGreenhouseJobDescriptionFromGuessedApi'], {
     parseGreenhousePostingUrl,
-    slugify: value => String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'document',
-    cleanString: value => String(value ?? '').trim(),
     fetchJsonWithSourceCache: async url => {
       calls.push(url);
       return url.includes('/boards/consensys/')
@@ -232,9 +235,8 @@ test('the Greenhouse API guess tries the board from the URL path first (URL-only
         : { status: 404, error: 'Job not found' };
     },
     formatSourceJobDescription: (source, job) => `${source} | ${job.companyName} | ${job.location}`,
-  };
-  const fetchGuessed = vm.runInNewContext(`(${sourceOf('fetchGreenhouseJobDescriptionFromGuessedApi')})`, context);
-  const result = await fetchGuessed('https://job-boards.greenhouse.io/consensys/jobs/7903661', { hints: {} });
+  });
+  const result = await fetchGreenhouseJobDescriptionFromGuessedApi('https://job-boards.greenhouse.io/consensys/jobs/7903661', { hints: {} });
   assert.equal(calls[0], 'https://boards-api.greenhouse.io/v1/boards/consensys/jobs/7903661');
   assert.equal(calls.length, 1);
   assert.equal(result.mode, 'greenhouse-api');
@@ -257,12 +259,12 @@ function renderEnforcement(authorizedIn) {
     targeting: { archetypes: [], superpowers: [], primaryRoles: [], headline: '' },
     search: { onsiteAvailability: '', contractTypes: [], sectorPreferences: [], geographyPreferences: [], mustHaves: [], niceToHaves: [], dealBreakers: [] },
   };
-  const build = vm.runInNewContext(`(${sourceOf('buildProfileCriteriaBlock')})`, {
+  const { buildProfileCriteriaBlock } = serverFunctions(['buildProfileCriteriaBlock'], {
     inferProfileMatchingRules: () => rules,
     homeLocationLabel: () => 'Paris, France',
     candidateAuthorizedInUs: () => false,
   });
-  const block = build({}, '');
+  const block = buildProfileCriteriaBlock({}, '');
   return block.slice(block.indexOf('### Enforcement'));
 }
 
@@ -274,6 +276,7 @@ test('the enforcement block says form questions are not residency requirements',
   assert.match(enforcement, /never a residency lock, a job location, a requirement to score in Block B, or a hard-fail reason/);
   assert.match(enforcement, /is met when authorized_in \(France, European Union, European Economic Area, Thailand\) covers the country the candidate lives in/);
   assert.match(enforcement, /Never invent an office city: a company legal address, HQ or privacy-notice address is not the job location/);
+  assert.match(enforcement, /The candidate lives where Candidate Context says\. Never infer residence, a home country or a nomad status from the CV\./);
 });
 
 test('without authorized_in the domicile question is unknown, never a hard fail', () => {
@@ -298,4 +301,48 @@ test('a repetition_loop validation failure writes no report or tracker row and w
   assert.match(invalidBranch, /send\('warning', \{ text: `Evaluation discarded: the model output looped/);
   assert.match(invalidBranch, /No report and no tracker row were written\.\$\{kept\} Relaunch the evaluation\./);
   assert.match(server, /import \{ REPETITION_LOOP_CODE, resolveEvaluationScore, validateReportContent \} from '\.\.\/lib\/report-validation\.mjs';/);
+});
+
+// ── Work mode: the deterministic hard pass before Qwen ──────────────────────
+const workModeGate = serverFunctions([
+  'cleanString', 'cleanList', 'normalizeInline', 'inferProfileMatchingRules',
+  'inferWorkModeFromText', 'candidateAuthorizedInUs', 'inferUsConstraintFromText', 'evaluateOfferAgainstProfile',
+]);
+const workMode = text => workModeGate.inferWorkModeFromText(text).mode;
+// The location policy of config/profile.yml.
+const FULL_REMOTE_PROFILE = { location: { remote_policy: 'Full remote required', authorized_in: ['France', 'European Union', 'European Economic Area', 'Thailand'] } };
+
+// Extract of the Safran.AI posting behind report 708 (WTTJ, Paris).
+const SAFRAN_708 = 'AI Product Manager (H/F) — Safran.AI, Paris. Le poste est basé à Paris, avec télétravail jusqu’à 3 jours/semaine. La personne retenue fera l’objet d’une procédure d’habilitation.';
+// Extract of the what3words posting behind report 709 (Himalayas API).
+const WHAT3WORDS_709 = 'Based in Vietnam out of our centrally located Ho Chi Minh City office, we’re looking for a talented Product Designer. Benefits: Competitive salary, Flexible working, 6 week remote working (work from anywhere) policy, 25 days holiday.';
+
+test('report 708: a French hybrid posting is a hard pass for a full-remote profile', () => {
+  assert.equal(workMode(SAFRAN_708), 'hybrid');
+  const gate = workModeGate.evaluateOfferAgainstProfile(SAFRAN_708, FULL_REMOTE_PROFILE, '');
+  assert.equal(gate.hardReject, true);
+  assert.match(gate.reasons[0], /the JD looks hybrid/);
+});
+
+test('French hybrid and on-site wording, but not "hybride" outside a work rhythm', () => {
+  assert.equal(workMode("Jusqu'à 2 jours de télétravail par semaine."), 'hybrid');
+  assert.equal(workMode('Organisation : 3 jours/semaine sur site à Lyon.'), 'hybrid');
+  assert.equal(workMode('Mode hybride, bureaux à Nantes.'), 'hybrid');
+  assert.equal(workMode('Télétravail partiel possible.'), 'hybrid');
+  assert.equal(workMode('Télétravail : jusqu’à 2 jours par semaine.'), 'hybrid');
+  assert.equal(workMode('Poste en présentiel à Toulouse.'), 'onsite');
+  assert.equal(workMode('Full remote. Nous construisons une IA hybride pour le cloud.'), 'remote');
+});
+
+test('report 709: an office job with a weeks-per-year remote perk is on-site', () => {
+  assert.equal(workMode(WHAT3WORDS_709), 'onsite');
+  assert.equal(workMode('Benefits: work from anywhere for up to 4 weeks a year.'), 'onsite');
+  assert.equal(workModeGate.evaluateOfferAgainstProfile(WHAT3WORDS_709, FULL_REMOTE_PROFILE, '').hardReject, true);
+  // On a fully remote posting the same perk is travel time, not an office.
+  assert.equal(workMode('Fully remote within Europe, plus 4 weeks a year of work from anywhere.'), 'remote');
+});
+
+test('without a full-remote policy the gate never hard-passes on work mode', () => {
+  // The live Supabase profile had no remote_policy and an empty profile_context.
+  assert.equal(workModeGate.evaluateOfferAgainstProfile(SAFRAN_708, { location: { country: 'France' } }, '').hardReject, false);
 });
