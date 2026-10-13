@@ -253,7 +253,7 @@ test('every HTML fallback and the open-tab capture strip the application form', 
 // ── Enforcement block of the Qwen evaluation prompt ─────────────────────────
 function renderEnforcement(authorizedIn) {
   const rules = {
-    location: { remotePolicy: 'Full remote required', fullRemoteOnly: true, noRelocation: true, occasionalOnsiteOk: false, authorizedIn, needsSponsorship: true },
+    location: { remotePolicy: 'Full remote required', fullRemoteOnly: true, noRelocation: true, occasionalOnsiteOk: false, onsitePlaces: [], authorizedIn, needsSponsorship: true },
     compensation: { employmentType: '', minimum: '', targetRange: '' },
     candidate: { visaStatus: 'No sponsorship needed -- French / EU citizen', location: '', city: 'Paris', country: 'France', timezone: '' },
     targeting: { archetypes: [], superpowers: [], primaryRoles: [], headline: '' },
@@ -305,7 +305,7 @@ test('a repetition_loop validation failure writes no report or tracker row and w
 
 // ── Work mode: the deterministic hard pass before Qwen ──────────────────────
 const workModeGate = serverFunctions([
-  'cleanString', 'cleanList', 'normalizeInline', 'inferProfileMatchingRules',
+  'cleanString', 'cleanList', 'normalizeInline', 'inferProfileMatchingRules', 'onsitePlacesFromProfile', 'mentionsPlace',
   'inferWorkModeFromText', 'candidateAuthorizedInUs', 'inferUsConstraintFromText', 'evaluateOfferAgainstProfile',
 ]);
 const workMode = text => workModeGate.inferWorkModeFromText(text).mode;
@@ -345,4 +345,97 @@ test('report 709: an office job with a weeks-per-year remote perk is on-site', (
 test('without a full-remote policy the gate never hard-passes on work mode', () => {
   // The live Supabase profile had no remote_policy and an empty profile_context.
   assert.equal(workModeGate.evaluateOfferAgainstProfile(SAFRAN_708, { location: { country: 'France' } }, '').hardReject, false);
+});
+
+// ── Work mode: places the on-site availability opens ────────────────────────
+// Once the owner's Supabase row was synced from config/profile.yml
+// (2026-10-13), fullRemoteOnly turned true and the gate hard-passed on-site
+// jobs in Thailand too, although the profile accepts them.
+const OWNER_PROFILE = {
+  location: {
+    country: 'France', city: 'Paris', default_city: 'Paris', default_country: 'France',
+    asia_city: 'Bangkok', asia_country: 'Thailand',
+    authorized_in: ['France', 'European Union', 'European Economic Area', 'Thailand'],
+    needs_sponsorship: true,
+    remote_policy: 'Full remote required',
+    onsite_availability: 'Open to on-site if based in Thailand; comfortable traveling for multi-day team-building/offsite events anywhere',
+  },
+};
+const ownerGate = jd => workModeGate.evaluateOfferAgainstProfile(jd, OWNER_PROFILE, '');
+
+test('on-site availability opens the places it names and the profile base they belong to', () => {
+  const rules = workModeGate.inferProfileMatchingRules(OWNER_PROFILE, '');
+  assert.equal(rules.location.fullRemoteOnly, true);
+  assert.deepEqual([...rules.location.onsitePlaces], ['Thailand', 'Bangkok']);
+
+  const places = (onsite, location = OWNER_PROFILE.location) => [...workModeGate.onsitePlacesFromProfile(location, onsite)];
+  assert.deepEqual(places('On-site OK in Lisbon or Porto, hybrid at Berlin'), ['Lisbon', 'Porto', 'Berlin']);
+  assert.deepEqual(places('Sur site possible à Lyon ou en Suisse'), ['Lyon', 'Suisse']);
+  // A lower-case country still brings the profile base it names.
+  assert.deepEqual(places('on-site ok if based in thailand'), ['Bangkok', 'Thailand']);
+  // Negated clauses and travel open nothing; the home base is not implied.
+  assert.deepEqual(places('No on-site in France; traveling to Paris for offsites is fine'), []);
+  assert.deepEqual(places('Comfortable traveling for offsites in Paris'), []);
+  assert.deepEqual(places(''), []);
+});
+
+test('full remote + on-site in Thailand: Paris hybrid is a hard pass', () => {
+  const gate = ownerGate(SAFRAN_708);
+  assert.equal(gate.workMode.mode, 'hybrid');
+  assert.equal(gate.hardReject, true);
+  assert.equal(gate.reasons[0], 'Profile requires full remote (on-site only in Thailand, Bangkok), but the JD looks hybrid.');
+});
+
+test('full remote + on-site in Thailand: a Bangkok on-site job goes to Qwen', () => {
+  const jd = 'Senior Product Designer — Agoda. Location / remote: Bangkok. This is an on-site role in our Bangkok office, 5 days a week.';
+  const gate = ownerGate(jd);
+  assert.equal(gate.workMode.mode, 'onsite');
+  assert.equal(gate.hardReject, false);
+  assert.equal(gate.reasons.length, 0);
+});
+
+test('full remote + on-site in Thailand: a Phuket, Thailand hybrid job goes to Qwen', () => {
+  const jd = 'Lead Product Designer. Location: Phuket, Thailand. Hybrid: 3 days a week in the office.';
+  const gate = ownerGate(jd);
+  assert.equal(gate.workMode.mode, 'hybrid');
+  assert.equal(gate.hardReject, false);
+});
+
+test('full remote + on-site in Thailand: US and Vietnam on-site jobs are a hard pass', () => {
+  const us = ownerGate('Senior Product Designer, New York, NY. This role is on-site 5 days a week at our New York office.');
+  assert.equal(us.workMode.mode, 'onsite');
+  assert.equal(us.hardReject, true);
+  assert.equal(ownerGate(WHAT3WORDS_709).hardReject, true);
+});
+
+test('full remote + on-site in Thailand: a bare remote job is not rejected', () => {
+  const gate = ownerGate('Senior Product Designer. Remote. Join a distributed design team.');
+  assert.equal(gate.workMode.mode, 'remote');
+  assert.equal(gate.hardReject, false);
+});
+
+test('an Asia base without on-site availability opens no place', () => {
+  const { onsite_availability, ...location } = OWNER_PROFILE.location;
+  const gate = workModeGate.evaluateOfferAgainstProfile('This role is fully on-site in our Bangkok office.', { location }, '');
+  assert.equal(gate.hardReject, true);
+  assert.equal(gate.reasons[0], 'Profile requires full remote, but the JD looks onsite.');
+});
+
+test('the enforcement block names the same on-site places as the gate', () => {
+  const { buildProfileCriteriaBlock } = serverFunctions([
+    'cleanString', 'cleanList', 'normalizeInline', 'inferProfileMatchingRules', 'onsitePlacesFromProfile', 'mentionsPlace',
+    'candidateAuthorizedInUs', 'buildProfileCriteriaBlock',
+  ], { homeLocationLabel: () => 'Paris, France' });
+  const block = buildProfileCriteriaBlock(OWNER_PROFILE, '');
+  const enforcement = block.slice(block.indexOf('### Enforcement'));
+  const onsite = OWNER_PROFILE.location.onsite_availability;
+  assert.ok(enforcement.includes(`full remote only (hybrid/on-site attendance outside Thailand, Bangkok (on-site availability: "${onsite}") is a hard fail)`));
+  assert.ok(enforcement.includes('the JD explicitly says hybrid or on-site (outside Thailand, Bangkok), hard pass directly.'));
+  assert.ok(enforcement.includes('- Hybrid or on-site work based in Thailand, Bangkok is within the candidate\'s on-site availability: not a hard fail and no work-mode penalty.'));
+
+  // Without on-site availability the rule stays the home base, with no extra line.
+  const { onsite_availability, ...location } = OWNER_PROFILE.location;
+  const homeOnly = buildProfileCriteriaBlock({ location }, '');
+  assert.ok(homeOnly.includes('full remote only (hybrid/on-site attendance outside Paris, France is a hard fail)'));
+  assert.doesNotMatch(homeOnly, /within the candidate's on-site availability/);
 });

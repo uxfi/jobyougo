@@ -6122,6 +6122,7 @@ function inferProfileMatchingRules(profileData = {}, profileMarkdown = '') {
     : [];
 
   const remotePolicy = normalizeInline(location.remote_policy || compensation.location_flexibility);
+  const onsiteAvailability = normalizeInline(search.onsite_availability || location.onsite_availability);
   const profileText = `${remotePolicy}\n${profileMarkdown}`.toLowerCase();
   const fullRemoteOnly =
     /full remote/.test(profileText) &&
@@ -6155,7 +6156,7 @@ function inferProfileMatchingRules(profileData = {}, profileMarkdown = '') {
       contractTypes: cleanList(search.contract_types),
       sectorPreferences: cleanList(search.sector_preferences),
       geographyPreferences: cleanList(search.geography_preferences),
-      onsiteAvailability: normalizeInline(search.onsite_availability || location.onsite_availability),
+      onsiteAvailability,
       mustHaves: cleanList(search.must_haves),
       niceToHaves: cleanList(search.nice_to_haves),
       dealBreakers: cleanList(search.deal_breakers),
@@ -6165,19 +6166,52 @@ function inferProfileMatchingRules(profileData = {}, profileMarkdown = '') {
       fullRemoteOnly,
       noRelocation,
       occasionalOnsiteOk,
+      onsitePlaces: onsitePlacesFromProfile(location, onsiteAvailability),
       authorizedIn: cleanList(location.authorized_in),
       needsSponsorship: location.needs_sponsorship === true,
     },
   };
 }
 
+// Where a full-remote candidate still takes hybrid or on-site work: the places
+// on-site availability names ("Open to on-site if based in Thailand"), each
+// with the profile base it belongs to (asia_country Thailand brings asia_city
+// Bangkok). Negated clauses and travel ("traveling for offsites anywhere") open
+// no place.
+function onsitePlacesFromProfile(location = {}, onsiteAvailability = '') {
+  const open = String(onsiteAvailability)
+    .split(/[;\n]|\.\s/)
+    .map(clause => clause.split(/\btravel|\bdéplace/i)[0])
+    .filter(clause => !/\b(?:no|not|never|except|pas|jamais|sauf)\b/i.test(clause))
+    .join('\n');
+  const place = "\\p{Lu}[\\p{L}'’-]+(?:\\s+\\p{Lu}[\\p{L}'’-]+)*";
+  const named = new RegExp(`(?<!\\p{L})(?:[Ii]n|[Aa]t|[Ww]ithin|[Àà]|[Ee]n|[Aa]ux?)\\s+(${place}(?:\\s*(?:,|/|or|and|ou|et)\\s*${place})*)`, 'gu');
+  const places = new Set();
+  for (const [, list] of open.matchAll(named)) {
+    for (const name of list.split(/\s*(?:[,/]|\b(?:or|and|ou|et)\b)\s*/)) if (name) places.add(name);
+  }
+  for (const key of Object.keys(location).filter(key => /(?:^|_)city$/.test(key))) {
+    const base = [location[key], location[key.replace(/city$/, 'country')]].map(normalizeInline).filter(Boolean);
+    if (base.some(name => mentionsPlace(open, name))) base.forEach(name => places.add(name));
+  }
+  return [...places];
+}
+
+function mentionsPlace(text = '', place = '') {
+  const pattern = String(place).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return Boolean(pattern) && new RegExp(`(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])`, 'iu').test(text);
+}
+
 function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
   const rules = inferProfileMatchingRules(profileData, profileMarkdown);
   const home = homeLocationLabel(profileData);
   const onsiteNote = rules.search.onsiteAvailability;
-  const onsiteFailRule = onsiteNote
-    ? `hybrid/on-site attendance that the candidate's on-site availability does not allow ("${onsiteNote}")`
-    : `hybrid/on-site attendance outside ${home}`;
+  const onsitePlaces = rules.location.onsitePlaces.join(', ');
+  // Same scope as the deterministic gate in evaluateOfferAgainstProfile.
+  const onsiteScope = onsitePlaces
+    ? `outside ${onsitePlaces}`
+    : onsiteNote ? 'in a place or rhythm the on-site availability does not cover' : `outside ${home}`;
+  const onsiteFailRule = `hybrid/on-site attendance ${onsiteScope}${onsiteNote ? ` (on-site availability: "${onsiteNote}")` : ''}`;
   const authorizedInUs = candidateAuthorizedInUs(rules.location.authorizedIn);
   const archetypeLines = rules.targeting.archetypes.length
     ? rules.targeting.archetypes.map(entry => `- ${entry.name}${entry.level ? ` (${entry.level})` : ''} — fit ${entry.fit}`).join('\n')
@@ -6259,7 +6293,10 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
     '- The job location comes only from the posting\'s location field or explicit JD text about where the role is based. Never invent an office city: a company legal address, HQ or privacy-notice address is not the job location. If no city is stated, write that the location is not stated.',
     '- The candidate lives where Candidate Context says. Never infer residence, a home country or a nomad status from the CV.',
     '- Domain gaps lower Block B / overall average — they are never a remote hard fail.',
-    `- If the profile says full remote only and the JD explicitly says hybrid or on-site (${onsiteNote ? 'in a place or rhythm the on-site availability does not cover' : `outside ${home}`}), hard pass directly.`,
+    `- If the profile says full remote only and the JD explicitly says hybrid or on-site (${onsiteScope}), hard pass directly.`,
+    ...(rules.location.fullRemoteOnly && onsitePlaces
+      ? [`- Hybrid or on-site work based in ${onsitePlaces} is within the candidate's on-site availability: not a hard fail and no work-mode penalty.`]
+      : []),
     authorizedInUs
       ? '- US-only remote or US residency requirements are acceptable: the candidate is authorized to work in the United States.'
       : '- US-only remote, must live/reside in the US, or US work-auth → Score 1.0/5 and SKIP. Do not leave as Unstated.',
@@ -6389,8 +6426,12 @@ function evaluateOfferAgainstProfile(jdText = '', profileData = {}, profileMarkd
   const reasons = [];
   let skip = false;
 
-  if (rules.location.fullRemoteOnly && (workMode.mode === 'hybrid' || workMode.mode === 'onsite')) {
-    reasons.push(`Profile requires full remote, but the JD looks ${workMode.mode}.`);
+  // A posting that names a place the on-site availability opens goes to Qwen,
+  // whose enforcement block carries the same places.
+  const { onsitePlaces } = rules.location;
+  if (rules.location.fullRemoteOnly && (workMode.mode === 'hybrid' || workMode.mode === 'onsite')
+    && !onsitePlaces.some(place => mentionsPlace(jdText, place))) {
+    reasons.push(`Profile requires full remote${onsitePlaces.length ? ` (on-site only in ${onsitePlaces.join(', ')})` : ''}, but the JD looks ${workMode.mode}.`);
   }
 
   if (usConstraint.blocked && !candidateAuthorizedInUs(rules.location.authorizedIn)) {
