@@ -54,7 +54,7 @@ import { writeFormAnswer } from '../lib/form-answer.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { createPageFetcher, findContacts, providersFromEnv } from '../lib/contact-finder.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
-import { resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
+import { REPETITION_LOOP_CODE, resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
 import { normalizeUrl } from '../url-key.mjs';
 import { classifyLiveness } from '../liveness-core.mjs';
@@ -100,6 +100,9 @@ import {
   flattenJsonLdJobLocation,
   extractZohoRecruitJob,
   isUnusableJobDescriptionText,
+  parseGreenhousePostingUrl,
+  stripApplicationFormHtml,
+  stripApplicationFormText,
 } from '../lib/ats-jd.mjs';
 import {
   adsTxt,
@@ -2727,10 +2730,12 @@ async function fetchGreenhouseJobDescriptionFromGuessedApi(jobUrl, { maxChars = 
   } catch {
     return null;
   }
-  const jobId = parsed.searchParams.get('gh_jid') || (parsed.pathname.match(/\/jobs\/(\d+)/i) || [])[1] || '';
+  const boardUrl = parseGreenhousePostingUrl(jobUrl);
+  const jobId = boardUrl?.jobId || parsed.searchParams.get('gh_jid') || (parsed.pathname.match(/\/jobs\/(\d+)/i) || [])[1] || '';
   if (!jobId) return null;
   const hostSlug = parsed.hostname.replace(/^www\./, '').split('.')[0];
   const candidates = [...new Set([
+    boardUrl?.board || '',
     hostSlug,
     hostSlug.replace(/[^a-z0-9]/gi, ''),
     slugify(hints.company || '').replace(/-/g, ''),
@@ -2743,7 +2748,7 @@ async function fetchGreenhouseJobDescriptionFromGuessedApi(jobUrl, { maxChars = 
     const text = formatSourceJobDescription('Greenhouse API', {
       ...data,
       title: data.title,
-      companyName: hints.company || board,
+      companyName: hints.company || data.company_name || board,
       location: data.location?.name || '',
       description: data.content || data.description || '',
       url: data.absolute_url || jobUrl,
@@ -2892,7 +2897,8 @@ function textFromFetchedHtml(html, jobUrl, { maxChars = 15000, hints = {} } = {}
     }, jobUrl, { maxChars });
     if (formatted) return formatted;
   }
-  return extractTextFromHtml(html);
+  // Application questions and the form's privacy notice are not the posting.
+  return extractTextFromHtml(stripApplicationFormHtml(html));
 }
 
 async function fetchDeelJobDescriptionFromJsonLd(jobUrl, { maxChars = 15000, hints = {} } = {}) {
@@ -3135,9 +3141,10 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
   const url = String(jobUrl || '').trim();
   if (!url) return { ok: false, text: '', mode: 'none', error: 'Missing URL' };
   const snapshot = tabOfferSnapshot(url);
-  if (snapshot?.text) {
-    console.log(`[${logLabel}] [extension-tab] using ${snapshot.text.length} chars from the open tab for ${url}`);
-    return { ok: true, text: snapshot.text.slice(0, maxChars), mode: 'extension-tab', html: '' };
+  const snapshotText = stripApplicationFormText(snapshot?.text || '');
+  if (snapshotText && !isUnusableJobDescriptionText(snapshotText)) {
+    console.log(`[${logLabel}] [extension-tab] using ${snapshotText.length} chars from the open tab for ${url}`);
+    return { ok: true, text: snapshotText.slice(0, maxChars), mode: 'extension-tab', html: '' };
   }
   const noteParts = extractPipelineNoteParts(note || '');
   const remoteFirstParts = parseRemoteFirstPath(url);
@@ -6190,6 +6197,11 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
       : `- Hard rules: apply the remote policy above literally (${rules.location.remotePolicy || 'not specified'}); no residency lock in a country where the candidate is not authorized; no US work authorization (I-9, E-Verify, authorized to work in the US) unless authorized_in includes the United States.`,
     `- Hard fail (Score 1.0/5 + SKIP) ONLY with verbatim JD/location evidence of: ${rules.location.fullRemoteOnly ? `${onsiteFailRule}, ` : ''}a residency lock outside the candidate's authorized countries, or work-authorization requirements the candidate does not meet.`,
     '- Do NOT hard-fail on: bare "Remote" with no country lock, HQ/office perks without mandatory days, assumed travel/OEM/tradeshows, domain skill gaps, or city names in the title when the posting is still remote.',
+    '- Application-form questions are not job requirements. Greenhouse/Ashby/Lever form fields asked of every applicant ("Are you legally authorized to work in the country in which you are currently domiciled?", "Do you now, or will you in the future, require sponsorship?", "How did you hear about this job?", free-text screening questions) are never a residency lock, a job location, a requirement to score in Block B, or a hard-fail reason.',
+    rules.location.authorizedIn.length
+      ? `- "Authorized to work in your current country of residence/domicile" is met when authorized_in (${rules.location.authorizedIn.join(', ')}) covers the country the candidate lives in. It is not a residency lock and never a hard fail on its own.`
+      : '- "Authorized to work in your current country of residence/domicile" asks about the candidate, it is not a residency lock: with authorized_in not specified, mark it unknown, never a hard fail.',
+    '- The job location comes only from the posting\'s location field or explicit JD text about where the role is based. Never invent an office city: a company legal address, HQ or privacy-notice address is not the job location. If no city is stated, write that the location is not stated.',
     '- Domain gaps lower Block B / overall average — they are never a remote hard fail.',
     `- If the profile says full remote only and the JD explicitly says hybrid or on-site (${onsiteNote ? 'in a place or rhythm the on-site availability does not cover' : `outside ${home}`}), hard pass directly.`,
     authorizedInUs
@@ -10241,7 +10253,15 @@ Règles:
             }
             console.error(`❌ Report validation failed for ${filename}: ${validation.reason}`);
             saves.push(`⚠️ Report NOT saved — ${validation.reason}`);
-            send('warning', { text: `Report not saved: ${validation.reason}. Evaluation must be restarted.` });
+            if (validation.code === REPETITION_LOOP_CODE) {
+              // A looped output still parses as "1.0/5 hard fail" (report 692):
+              // no report, no SKIP tracker row, and the URL stays queued.
+              const kept = mode === 'pipeline' && pipelineTarget ? ' The URL stays in the pipeline.' : '';
+              const { count = 0, duplicateRatio = 0 } = validation.loop || {};
+              send('warning', { text: `Evaluation discarded: the model output looped (one line repeated ${count} times, ${Math.round(duplicateRatio * 100)}% duplicate lines). No report and no tracker row were written.${kept} Relaunch the evaluation.` });
+            } else {
+              send('warning', { text: `Report not saved: ${validation.reason}. Evaluation must be restarted.` });
+            }
           }
         }
 
