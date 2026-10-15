@@ -902,24 +902,61 @@
         break;
     }
   }
+
+  // Only one method icon is live at a time (app.js releases the previous one
+  // before activating the next), so they share one WebGL context and its
+  // canvas moves between stages. A fresh renderer per card meant a new
+  // context, shader compile and geometry upload every time a card woke up.
+  let sharedMethodRenderer = null;
+  let methodRendererOwner = null;
+  function getMethodRenderer(THREE) {
+    if (!sharedMethodRenderer) {
+      const renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: false,
+        stencil: false,
+        depth: true,
+      });
+      renderer.setPixelRatio(1);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.28;
+      renderer.setClearColor(0x000000, 0);
+      sharedMethodRenderer = renderer;
+    }
+    return sharedMethodRenderer;
+  }
+
+  // Built, centred and scaled once per type. The pose is a pure function of
+  // time, so a cached model renders exactly like a freshly built one.
+  const methodModelCache = new Map();
+  function getMethodModel(THREE, type) {
+    let model = methodModelCache.get(type);
+    if (!model) {
+      model = buildMethodIcon(THREE, type);
+      const box3 = new THREE.Box3().setFromObject(model);
+      const size = box3.getSize(new THREE.Vector3());
+      const center = box3.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      model.scale.setScalar(1.55 / maxDim);
+      model.userData.baseY = model.position.y;
+      methodModelCache.set(type, model);
+    }
+    return model;
+  }
+
   function createMethodIcon3D(THREE, options, RoomEnvironment) {
     const { stage, type } = options;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 40);
     camera.position.set(0, 0.12, 3.4);
 
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: false,
-      stencil: false,
-      depth: true,
-    });
-    renderer.setPixelRatio(1);
+    const renderer = getMethodRenderer(THREE);
+    const owner = {};
+    methodRendererOwner = owner;
+    const ownsRenderer = () => methodRendererOwner === owner;
     renderer.setSize(stage.clientWidth, stage.clientHeight, false);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.28;
-    renderer.setClearColor(0x000000, 0);
     stage.appendChild(renderer.domElement);
 
     let envTarget = null;
@@ -935,7 +972,7 @@
     fill.position.set(0, -2.2, 1.6);
     scene.add(fill);
 
-    const model = buildMethodIcon(THREE, type);
+    const model = getMethodModel(THREE, type);
     const spinSpeed = ({
       research: 0.28, 'user-research': 0.34, workshops: 0.3, 'user-flows': 0.4,
       ia: 0.32, wireframe: 0.26, prototype: 0.36, 'user-tests': 0.33,
@@ -949,13 +986,6 @@
       automation: 0.02, database: 0.025, 'data-ops': 0.04, prototype: 0.05,
       'ai-agent': 0.055, 'game-3d': 0.05, brand: 0.045,
     }[type] || 0.045);
-    const box3 = new THREE.Box3().setFromObject(model);
-    const size = box3.getSize(new THREE.Vector3());
-    const center = box3.getCenter(new THREE.Vector3());
-    model.position.sub(center);
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    model.scale.setScalar(1.55 / maxDim);
-    model.userData.baseY = model.position.y;
     scene.add(model);
 
     const cssObj = stage.querySelector('.method-obj');
@@ -968,6 +998,7 @@
     let isVisible = true;
 
     function poseRest() {
+      if (!ownsRenderer()) return;
       model.rotation.y = -0.5;
       model.position.y = model.userData.baseY;
       animateMethodParts(model, 0, true);
@@ -975,6 +1006,7 @@
     }
 
     function frame(t) {
+      if (!ownsRenderer()) return;
       model.rotation.y = -0.5 + t * spinSpeed;
       model.position.y = model.userData.baseY + Math.sin(t * 1.35) * bobAmp;
       animateMethodParts(model, t, false);
@@ -1005,7 +1037,7 @@
 
     const ro = new ResizeObserver(() => {
       const w = stage.clientWidth, h = stage.clientHeight;
-      if (!w || !h) return;
+      if (!w || !h || !ownsRenderer()) return;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -1043,14 +1075,6 @@
     document.addEventListener('visibilitychange', onVisibility);
     poseRest();
 
-    function disposeObject(object) {
-      object.traverse((child) => {
-        if (child.geometry) child.geometry.dispose();
-        const materials = Array.isArray(child.material) ? child.material : [child.material].filter(Boolean);
-        materials.forEach((material) => material.dispose?.());
-      });
-    }
-
     return {
       dispose() {
         stopAnim();
@@ -1059,12 +1083,11 @@
         document.removeEventListener('visibilitychange', onVisibility);
         stage.removeEventListener('pointerenter', onEnter);
         stage.removeEventListener('pointerleave', onLeave);
+        // The model stays cached and the renderer stays alive for the next card.
         scene.remove(model);
-        disposeObject(model);
         scene.environment = null;
         envTarget?.dispose();
-        renderer.dispose();
-        renderer.forceContextLoss?.();
+        if (ownsRenderer()) methodRendererOwner = null;
         if (renderer.domElement.parentNode === stage) {
           stage.removeChild(renderer.domElement);
         }

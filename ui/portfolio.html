@@ -2303,6 +2303,15 @@
       --hairline-mid: #c4beb6;
       --hairline-lo: #e6e1da;
       --hairline-stroke: 1.05;
+      /* Out of the box while collapsed, so hairline's IntersectionObserver
+         sees it as hidden and its loop sleeps (phosphor/slow never settle).
+         The switch to none waits for the 480ms collapse to finish. */
+      display: none;
+      transition: display 480ms allow-discrete;
+    }
+    .proj-list-item:hover .proj-list-shape .hairline-fig,
+    .proj-list-item:focus-within .proj-list-shape .hairline-fig {
+      display: block;
     }
     @media (hover: none), (pointer: coarse), (max-width: 900px) {
       .proj-list-shape,
