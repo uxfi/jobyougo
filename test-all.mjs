@@ -192,6 +192,18 @@ async function runDiscovered(filter = null) {
   for (const f of files) {
     const rel = f.slice(ROOT.length + 1);
     const src = readFileSync(f, 'utf-8');
+    // A suite may declare `// requires-user-layer: cv.md, portals.yml` when its
+    // assertions are written against the owner's own files. Those files never
+    // reach the repo (DATA_CONTRACT.md), so on a clean checkout (CI, a fresh
+    // clone) the suite is reported as skipped instead of dying at import.
+    const needsUserLayer = src.match(/^\/\/\s*requires-user-layer:\s*(.+)$/m);
+    if (needsUserLayer) {
+      const missing = needsUserLayer[1].split(',').map((p) => p.trim()).filter((p) => p && !existsSync(join(ROOT, p)));
+      if (missing.length) {
+        warn(`${rel} — skipped, owner files absent on this checkout: ${missing.join(', ')}`);
+        continue;
+      }
+    }
     // Discovered suites run IN-PROCESS and share this suite's counters. A
     // process.exit() inside one would terminate test-all mid-run with a forged
     // exit code — every later section (and finish()) would silently never run.

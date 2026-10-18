@@ -1,3 +1,4 @@
+// requires-user-layer: portals.yml, config/profile.yml
 // tests/scan-filters-false-positives.test.mjs — guard high-noise title terms.
 import { pathToFileURL } from 'url';
 import { join } from 'path';

@@ -1,3 +1,4 @@
+// requires-user-layer: portals.yml
 import { pass, fail } from './helpers.mjs';
 import { readFileSync } from 'fs';
 import { join } from 'path';

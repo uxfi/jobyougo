@@ -1,3 +1,4 @@
+// requires-user-layer: cv.md
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pass, fail, ROOT } from './helpers.mjs';

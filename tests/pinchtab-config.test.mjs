@@ -4,7 +4,12 @@ import {
   resolvePinchtabConfigPath,
   stalePidFileFromOutput,
 } from '../lib/pinchtab.mjs';
+import { join } from 'path';
 import { pass, fail } from './helpers.mjs';
+
+// Expected paths go through join() so the suite holds on every OS: the
+// resolver joins with the platform separator, and CI runs on Linux too.
+const dotConfig = (home) => join(home, '.pinchtab', 'config.json');
 
 const cases = [
   [
@@ -15,17 +20,17 @@ const cases = [
   [
     'HOME utilise quand present',
     { HOME: 'C:\\home', USERPROFILE: 'C:\\user' },
-    'C:\\home\\.pinchtab\\config.json',
+    dotConfig('C:\\home'),
   ],
   [
     'USERPROFILE utilise sous Windows sans HOME',
     { USERPROFILE: 'C:\\Users\\PC' },
-    'C:\\Users\\PC\\.pinchtab\\config.json',
+    dotConfig('C:\\Users\\PC'),
   ],
   [
     'homedir en dernier recours',
     {},
-    'C:\\fallback\\.pinchtab\\config.json',
+    dotConfig('C:\\fallback'),
   ],
 ];
 
