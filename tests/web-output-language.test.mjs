@@ -139,12 +139,12 @@ test('form answers follow language.output over the question language', async () 
   const base = { company: 'Initech', role: 'Designer', career: CV, voice: 'voice', offerContext: REPORT.replace(/Acme/g, 'Initech') };
   const fr = formAnswerRequest({ ...base, question: 'Why do you want to work at Initech?', outputLanguage: 'fr' });
   assert.equal(fr.lang, 'fr');
-  assert.match(fr.user, /LANGUE : français uniquement, quelle que soit la langue de la question/);
+  assert.match(fr.user, /LANGUE : français uniquement \(langue de sortie choisie dans le profil\)/);
   assert.doesNotMatch(fr.user, /The question is in English/);
 
   const de = formAnswerRequest({ ...base, question: 'Pourquoi Initech ?', outputLanguage: 'de' });
   assert.equal(de.answerLang, 'German');
-  assert.match(de.user, /LANGUAGE: German only, whatever the language of the question/);
+  assert.match(de.user, /LANGUAGE: German only \(output language set in the profile\)/);
 
   // Profile and question agree: the usual prompt.
   const same = { ...base, question: 'Pourquoi voulez-vous rejoindre Initech ?' };
@@ -153,7 +153,7 @@ test('form answers follow language.output over the question language', async () 
   // The language guard checks the configured language: a French answer to an
   // English question is kept, an English one is sent back for a rewrite in French.
   const calls = [];
-  const frenchAnswer = "Chez Acme, j'ai conçu le parcours d'inscription utilisé par tous les nouveaux clients. J'ai simplifié les étapes avec l'équipe produit. Le parcours est plus clair pour les clients.";
+  const frenchAnswer = "J'ai conçu chez Acme le parcours d'inscription utilisé par tous les nouveaux clients. J'ai simplifié les étapes avec l'équipe produit. Le parcours est plus clair pour les clients.";
   const kept = await writeFormAnswer({
     ...base,
     question: 'Tell us about a product you designed.',
@@ -161,7 +161,7 @@ test('form answers follow language.output over the question language', async () 
     complete: async (req) => { calls.push(req); return frenchAnswer; },
   });
   assert.equal(calls.length, 1, 'no rewrite for a French answer');
-  assert.equal(kept.answer.includes('Chez Acme'), true);
+  assert.equal(kept.answer.includes('chez Acme'), true);
   assert.match(kept.block, /\*\*Question :\*\*/);
 
   const rewrites = [];
@@ -204,4 +204,13 @@ test('ui/server.mjs wires language.output and spend_tier through getProfile', ()
   assert.ok(server.includes('profileLanguage: configuredOutputLanguage(profileData)'), 'email reads getProfile(userId)');
   // Application emails stay on Qwen (user decision, 2026-10-08).
   assert.ok(server.includes('const APPLICATION_EMAIL_MODEL = process.env.APPLICATION_EMAIL_MODEL || MODELS.QWEN;'));
+});
+
+// Reports 734-736 (2026-10-15) tiered real Greenhouse postings "Suspicious"
+// because the job was on-site outside the candidate's zone.
+test('Block G judges the posting only, never the location fit', () => {
+  const g = EVAL_SYSTEM.split('\n').find(line => line.startsWith('- G:'));
+  assert.match(g, /Tier: High, Caution ou Suspicious/);
+  assert.match(g, /seulement si l'annonce est réelle et active/);
+  assert.match(g, /La localisation, le remote, la résidence, l'autorisation de travail et l'écart avec le profil ne changent jamais le tier/);
 });

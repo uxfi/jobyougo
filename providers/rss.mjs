@@ -13,6 +13,7 @@ import { decodeEntities } from './_html-entities.mjs';
 // Wire in via a `job_boards:` entry:
 //   provider: rss
 //   api: https://example.com/jobs.rss
+//   default_location: Remote   # optional, for items that carry no location
 
 /** @type {ReadonlySet<string>} */
 const ALLOWED_FEED_HOSTS = new Set([
@@ -22,12 +23,22 @@ const ALLOWED_FEED_HOSTS = new Set([
   'www.authenticjobs.com',
   'cryptojobslist.com',
   'www.cryptojobslist.com',
+  // The legacy cryptojobslist.com/rss URL now redirects here. Pin the current
+  // feed host so the provider can keep redirect:'error' enabled.
+  'api.cryptojobslist.com',
   'chainjobs.io',
   'www.chainjobs.io',
   'blockchainjobs.uk',
   'www.blockchainjobs.uk',
   'jobscollider.com',
   'www.jobscollider.com',
+  // JobsCollider's new name; its feeds moved to remotefirstjobs.com/rss/jobs/<category>.rss
+  // (verified 2026-10-13, 100 items per category, robots.txt only disallows /api/).
+  'remotefirstjobs.com',
+  'www.remotefirstjobs.com',
+  // Berlin startups, every profession (WordPress feed, verified 2026-10-13).
+  'berlinstartupjobs.com',
+  'www.berlinstartupjobs.com',
   // Design boards with a public jobs feed (both verified live 2026-10-09:
   // dribbble.com/jobs.rss ~57 items, awwwards.com/jobs/feed/ ~15 items).
   'dribbble.com',
@@ -134,6 +145,13 @@ export function splitTitle(rawTitle, fallback = '') {
     const location = (hiring[3] || '').trim();
     if (company && title) return location ? { title, company, location } : { title, company };
   }
+  // "Product Engineer // Skyflow" (Berlin Startup Jobs).
+  const slashes = text.lastIndexOf(' // ');
+  if (slashes > 0) {
+    const title = text.slice(0, slashes).trim();
+    const company = text.slice(slashes + 4).trim();
+    if (title && company) return { title, company };
+  }
   const at = text.toLowerCase().lastIndexOf(' at ');
   if (at > 0) {
     const title = text.slice(0, at).trim();
@@ -230,6 +248,8 @@ export default {
   async fetch(entry, ctx) {
     const feedUrl = resolveFeedUrl(entry);
     const text = await ctx.fetchText(feedUrl, { redirect: 'error' });
-    return parseGenericRssFeed(text, fallbackCompany(entry));
+    const jobs = parseGenericRssFeed(text, fallbackCompany(entry));
+    const place = typeof entry.default_location === 'string' ? entry.default_location.trim() : '';
+    return place ? jobs.map((job) => (job.location ? job : { ...job, location: place })) : jobs;
   },
 };

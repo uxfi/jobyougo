@@ -626,6 +626,23 @@
             <option value="MST / MDT (Denver, UTC-7)"></option><option value="PST / PDT (San Francisco, UTC-8)"></option><option value="BRT (São Paulo, UTC-3)"></option>
           </datalist>
         </div>
+        <div class="field">
+          <label for="loc_nationality">Nationality <span class="opt">recommended</span></label>
+          <input id="loc_nationality" type="text" placeholder="French">
+          <div class="hint">Answers nationality and citizenship questions on application forms.</div>
+        </div>
+        <div class="field full">
+          <div class="group-title">A second base <span class="opt">optional</span></div>
+          <div class="hint" style="margin:0 0 8px">If you also work from another country (for example Paris and Bangkok), offers in that base's region are applied from it, with its phone and time zone.</div>
+          <div class="row-grid row-2">
+            <input id="loc2_city" type="text" placeholder="City, e.g. Bangkok" aria-label="Second base city">
+            <input id="loc2_country" type="text" placeholder="Country, e.g. Thailand" aria-label="Second base country">
+          </div>
+          <div class="row-grid row-2" style="margin-top:8px">
+            <input id="loc2_timezone" type="text" list="tz-list" placeholder="Time zone, e.g. ICT (Bangkok, UTC+7)" aria-label="Second base time zone">
+            <input id="loc2_phone" type="tel" placeholder="Phone there, e.g. +66 …" aria-label="Second base phone">
+          </div>
+        </div>
         <div class="field full">
           <label for="loc_remote_select">Remote policy <span class="req">*</span></label>
           <select id="loc_remote_select">
@@ -647,6 +664,29 @@
           <label for="loc_onsite">On-site availability <span class="opt">optional</span></label>
           <input id="loc_onsite" type="text" placeholder="1 week per month in any EU city">
           <div class="hint">For remote roles that still ask for occasional presence.</div>
+        </div>
+        <div class="field full" data-tags-for="location.onsite_exceptions">
+          <label>Places where on-site or hybrid work is fine <span class="opt">optional</span></label>
+          <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="Bangkok, Thailand… press Enter"></div>
+          <div class="hint">With "Full remote only", hybrid and on-site offers are a hard fail everywhere except these places.</div>
+        </div>
+        <div class="field">
+          <label for="loc_relocation">Relocation</label>
+          <select id="loc_relocation">
+            <option value="">Choose…</option>
+            <option value="no">No relocation</option>
+            <option value="bases">Only to one of my bases</option>
+            <option value="yes">Open to relocating</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="switch-row">
+            <div>
+              <strong>Team offsites and occasional travel are fine</strong>
+              <span>Answers "willing to travel for team events?"</span>
+            </div>
+            <label class="switch"><input type="checkbox" id="loc_offsites"><i></i></label>
+          </div>
         </div>
         <div class="field full">
           <label for="loc_visa">Work authorization <span class="opt">recommended</span></label>
@@ -720,6 +760,11 @@
           <label for="start_date">Earliest start <span class="opt">optional</span></label>
           <input id="start_date" type="text" placeholder="Immediately, or 2026-11-01">
         </div>
+        <div class="field">
+          <label for="days_per_week">Days per week <span class="opt">optional</span></label>
+          <input id="days_per_week" type="number" min="1" max="7" placeholder="5">
+          <div class="hint">For "how many days a week can you work?".</div>
+        </div>
         <div class="field full">
           <label for="current_employment">Current situation <span class="opt">optional</span></label>
           <select id="current_employment">
@@ -767,6 +812,98 @@
           <label>Deal breakers <span class="opt">recommended</span></label>
           <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="4+ days on-site, no AI focus, agency work… press Enter"></div>
           <div class="hint">An offer matching a deal breaker is scored 1/5.</div>
+        </div>
+      </div>
+
+      <div class="step-header" style="margin-top:28px">
+        <span class="eyebrow">Application forms</span>
+        <h2 class="step-title" style="font-size:20px">Answers forms ask beyond your CV</h2>
+        <p class="step-sub">Auto-apply fills these the same way on every form. Anything left empty stays for you to answer.</p>
+      </div>
+      <div class="grid">
+        <div class="field">
+          <label for="scr_hear">How did you hear about us? <span class="opt">optional</span></label>
+          <input id="scr_hear" type="text" placeholder="LinkedIn">
+        </div>
+        <div class="field">
+          <label for="scr_references">References <span class="opt">optional</span></label>
+          <input id="scr_references" type="text" placeholder="Available upon request">
+        </div>
+        <div class="field">
+          <label for="ai_proficiency">Your use of AI <span class="opt">optional</span></label>
+          <select id="ai_proficiency">
+            <option value="">Choose…</option>
+            <option value="Curious">Curious: tried a few tools</option>
+            <option value="Regular user">Regular: everyday tasks</option>
+            <option value="Practitioner">Practitioner: complex work, refined prompts and tools</option>
+            <option value="Builder">Builder: ships AI products</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="scr_gender">Gender, if you want forms to state it <span class="opt">optional</span></label>
+          <select id="scr_gender">
+            <option value="">Prefer not to say</option>
+            <option value="Woman">Woman</option>
+            <option value="Man">Man</option>
+            <option value="Non-binary">Non-binary</option>
+          </select>
+          <div class="hint">Race, ethnicity, disability, veteran, religion, orientation and age are always declined.</div>
+        </div>
+        <div class="field">
+          <label for="reports_max">Most people you managed <span class="opt">optional</span></label>
+          <input id="reports_max" type="number" min="0" max="500" placeholder="0">
+        </div>
+        <div class="field">
+          <label for="reports_context">Where <span class="opt">optional</span></label>
+          <input id="reports_context" type="text" placeholder="Design lead at Acme, 2021-2024">
+        </div>
+        <div class="field">
+          <label for="scr_clearance">Security clearance <span class="opt">optional</span></label>
+          <input id="scr_clearance" type="text" placeholder="None">
+        </div>
+        <div class="field">
+          <div class="switch-row">
+            <div>
+              <strong>I hold a driving licence</strong>
+              <span>For forms that ask.</span>
+            </div>
+            <label class="switch"><input type="checkbox" id="scr_licence"><i></i></label>
+          </div>
+        </div>
+        <div class="field">
+          <div class="switch-row">
+            <div>
+              <strong>I am bound by a non-compete</strong>
+              <span>Otherwise forms answer No.</span>
+            </div>
+            <label class="switch"><input type="checkbox" id="scr_noncompete"><i></i></label>
+          </div>
+        </div>
+        <div class="field">
+          <div class="switch-row">
+            <div>
+              <strong>Companies may contact me about other roles</strong>
+              <span>Optional recruiting consents stay unticked otherwise.</span>
+            </div>
+            <label class="switch"><input type="checkbox" id="scr_future"><i></i></label>
+          </div>
+        </div>
+        <div class="field full">
+          <div class="group-title" id="education-title">Education <button class="btn-tiny" type="button" id="add-education">+ Add</button></div>
+          <div class="repeater" id="education-list"></div>
+        </div>
+        <div class="field full">
+          <div class="group-title" id="custom-answers-title">Your answers to recurring questions <button class="btn-tiny" type="button" id="add-custom-answer">+ Add</button></div>
+          <div class="hint" style="margin:0 0 8px">A form question that asks the same thing gets your answer, for example "Why remote?" or "What is your notice period negotiable to?".</div>
+          <div class="repeater" id="custom-answers-list"></div>
+        </div>
+        <div class="field full">
+          <label for="writing_voice">How your answers should sound <span class="opt">optional</span></label>
+          <textarea id="writing_voice" rows="3" placeholder="Short sentences, first person, no buzzwords, one proof per answer."></textarea>
+        </div>
+        <div class="field full">
+          <label for="outreach_rules">Rules for emails and cover letters <span class="opt">optional</span></label>
+          <textarea id="outreach_rules" rows="3" placeholder="Name well-known clients as proof; never name my current employer's internal tools."></textarea>
         </div>
       </div>
     </section>
@@ -867,7 +1004,15 @@
   const IMPORT_TIMEOUT_MS = 240_000;
   const DEFER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const DEGRADED_MESSAGE = 'Some details could not be saved yet (server update pending): phone, links, languages, availability.';
+  // A save the server could only make in part names the profile columns a
+  // pending migration has not added yet; the answers stay in the draft.
+  const DEGRADED_SECTIONS = {
+    candidate: 'phone, links, languages and education', availability: 'availability',
+    preferences: 'language and writing preferences', screening: 'application-form answers',
+    onboarding_completed_at: 'setup completion',
+  };
+  const degradedMessage = (columns = []) => `Some details could not be saved yet (server update pending): ${
+    columns.map(column => DEGRADED_SECTIONS[column] || column).join(', ') || 'part of your profile'}. Your answers stay in this browser's draft.`;
 
   // ── Auth gate ──────────────────────────────────────────────────────
   const { data: { session } } = await supabase.auth.getSession();
@@ -922,16 +1067,21 @@
   // touched the switch or a stored value exists, never as a default false.
   // language.output '' means "not chosen yet" (the select shows English, which
   // is also what the server assumes when the key is absent).
+  // Booleans of the application-form answers (non-compete, licence, consents,
+  // offsites) are absent until touched, like needs_sponsorship.
   const emptyProfile = () => ({
-    candidate: { full_name: '', email: userEmail, phone: '', location: '', linkedin: '', portfolio_url: '', github: '', twitter: '', years_experience: '', languages: [] },
+    candidate: { full_name: '', email: userEmail, phone: '', location: '', linkedin: '', portfolio_url: '', github: '', twitter: '', years_experience: '', languages: [], education: [], ai_proficiency: '' },
     target_roles: { primary: [], archetypes: [] },
     narrative: { headline: '', exit_story: '', superpowers: [], proof_points: [] },
     compensation: { target_range: '', currency: '', minimum: '', employment_type: '', location_flexibility: '' },
-    location: { country: '', city: '', postal_code: '', timezone: '', visa_status: '', authorized_in: [], remote_policy: '' },
+    location: { country: '', city: '', postal_code: '', timezone: '', nationality: '', visa_status: '', authorized_in: [], remote_policy: '', onsite_exceptions: [], relocation: '' },
     search: { current_role: emptyRole(), contract_types: [], sector_preferences: [], geography_preferences: [], onsite_availability: '', must_haves: [], nice_to_haves: [], deal_breakers: [] },
-    availability: { notice_period: '', start_date: '', current_employment: '' },
+    availability: { notice_period: '', start_date: '', current_employment: '', days_per_week: '' },
+    screening: { how_did_you_hear: '', references: '', security_clearance: '', custom_answers: [] },
     language: { output: '' },
     spend_tier: 'standard',
+    writing_voice: '',
+    outreach_rules: '',
   });
 
   const state = {
@@ -1001,7 +1151,10 @@
     'target_roles.primary', 'narrative.superpowers', 'location.authorized_in',
     'search.contract_types', 'search.sector_preferences', 'search.geography_preferences',
     'search.must_haves', 'search.nice_to_haves', 'search.deal_breakers',
+    'location.onsite_exceptions',
   ]);
+  // A structured on-site exception ({ city, country, modes }) shows as "City, Country".
+  const placeLabel = (v) => isObj(v) ? [str(v.city).trim(), str(v.country).trim()].filter(Boolean).join(', ') || str(v.name).trim() : str(v).trim();
   function normalizeRole(v) {
     if (typeof v === 'string') return { ...emptyRole(), title: v.trim(), current: Boolean(v.trim()) };
     if (!isObj(v)) return emptyRole();
@@ -1024,6 +1177,7 @@
   // provenance comparisons see the same shapes.
   function normalizeField(path, value) {
     if (path === 'candidate.languages') return list(value).map(languageLabel).filter(Boolean);
+    if (path === 'location.onsite_exceptions') return list(value).map(placeLabel).filter(Boolean);
     if (TAG_PATHS.has(path)) return strList(value);
     if (path === 'candidate.years_experience') return normalizeYears(value);
     if (path === 'search.current_role') return normalizeRole(value);
@@ -1046,7 +1200,7 @@
   // not be loaded must not blank it out). The defaults of that empty shell (the
   // sign-in email, the standard spend tier) are skipped too: they are not
   // answers, and would replace a stored contact email or tier.
-  const SECTIONS = ['candidate', 'target_roles', 'narrative', 'compensation', 'location', 'search', 'availability'];
+  const SECTIONS = ['candidate', 'target_roles', 'narrative', 'compensation', 'location', 'search', 'availability', 'screening'];
   function absorbProfile(src, { skipEmpty = false } = {}) {
     if (!isObj(src)) return;
     const p = state.profile;
@@ -1068,6 +1222,9 @@
       p.language = { ...p.language, ...src.language, output: str(src.language.output ?? p.language.output).trim() };
     }
     if (typeof src.spend_tier === 'string' && src.spend_tier && !(skipEmpty && src.spend_tier === defaults.spend_tier)) p.spend_tier = src.spend_tier;
+    for (const key of ['writing_voice', 'outreach_rules']) {
+      if (typeof src[key] === 'string' && !(skipEmpty && !src[key].trim())) p[key] = src[key];
+    }
     if (!isObj(p.search.current_role)) p.search.current_role = emptyRole();
     if (!str(p.candidate.email).trim()) p.candidate.email = userEmail;
   }
@@ -1379,7 +1536,76 @@
     ['loc_visa', 'location.visa_status'], ['loc_remote', 'location.remote_policy'], ['loc_onsite', 'search.onsite_availability'],
     ['notice_period', 'availability.notice_period'], ['start_date', 'availability.start_date'], ['current_employment', 'availability.current_employment'],
     ['pref_language', 'language.output'], ['pref_spend', 'spend_tier'],
+    ['loc_nationality', 'location.nationality'], ['loc_relocation', 'location.relocation'],
+    // The second base is edited as location._base2 and written into location.bases on save.
+    ['loc2_city', 'location._base2.city'], ['loc2_country', 'location._base2.country'],
+    ['loc2_timezone', 'location._base2.timezone'], ['loc2_phone', 'location._base2.phone'],
+    ['days_per_week', 'availability.days_per_week'],
+    ['scr_hear', 'screening.how_did_you_hear'], ['scr_references', 'screening.references'],
+    ['scr_clearance', 'screening.security_clearance'], ['scr_gender', 'screening.eeo.gender'],
+    ['ai_proficiency', 'candidate.ai_proficiency'],
+    ['reports_max', 'candidate.people_management.max_direct_reports'], ['reports_context', 'candidate.people_management.context'],
+    ['writing_voice', 'writing_voice'], ['outreach_rules', 'outreach_rules'],
   ];
+  // Switches stored only once touched (or already stored): never a default false.
+  const SWITCHES = [
+    ['loc_offsites', 'location.travel.offsites'],
+    ['scr_noncompete', 'screening.non_compete'],
+    ['scr_licence', 'screening.driving_licence'],
+    ['scr_future', 'screening.consents.future_roles'],
+  ];
+  SWITCHES.forEach(([id, path]) => {
+    $(id)?.addEventListener('change', () => { setByPath(path, $(id).checked); scheduleDraft(); });
+  });
+  // location.bases[1] ↔ the "second base" inputs.
+  function base2FromStored() {
+    // A draft keeps the second base being edited; only a fresh load reads it from bases.
+    if (isObj(state.profile.location._base2)) return;
+    const bases = list(state.profile.location.bases).filter(isObj);
+    const second = bases[1] || {};
+    state.profile.location._base2 = {
+      city: str(second.city), country: str(second.country), timezone: str(second.timezone), phone: str(second.phone),
+    };
+  }
+
+  // ── Education and recurring answers (repeaters) ────────────────────
+  function renderEducation() {
+    const host = $('education-list'); if (!host) return; host.innerHTML = '';
+    if (!Array.isArray(state.profile.candidate.education)) state.profile.candidate.education = [];
+    state.profile.candidate.education.forEach((e, idx) => {
+      const row = document.createElement('div'); row.className = 'repeater-row';
+      row.innerHTML = `
+        <div class="row-grid row-2">
+          <input type="text" placeholder="Degree, e.g. Master" value="${escapeHtml(str(e.degree))}" data-key="degree" aria-label="Degree">
+          <input type="text" placeholder="Field, e.g. Product design" value="${escapeHtml(str(e.field))}" data-key="field" aria-label="Field of study">
+        </div>
+        <div class="row-grid row-2">
+          <input type="text" placeholder="School" value="${escapeHtml(str(e.school))}" data-key="school" aria-label="School">
+          <input type="text" placeholder="Graduation year" value="${escapeHtml(str(e.end_year))}" data-key="end_year" aria-label="Graduation year">
+        </div>
+        <div class="repeater-actions"><button class="btn-tiny" type="button">Remove</button></div>`;
+      row.querySelectorAll('[data-key]').forEach(el => el.addEventListener('input', () => { e[el.dataset.key] = el.value; scheduleDraft(); }));
+      row.querySelector('.btn-tiny').addEventListener('click', () => { state.profile.candidate.education.splice(idx, 1); renderEducation(); scheduleDraft(); });
+      host.appendChild(row);
+    });
+  }
+  $('add-education')?.addEventListener('click', () => { state.profile.candidate.education.push({ degree: '', field: '', school: '', end_year: '' }); renderEducation(); scheduleDraft(); $('education-list').querySelector('.repeater-row:last-child input')?.focus(); });
+
+  function renderCustomAnswers() {
+    const host = $('custom-answers-list'); if (!host) return; host.innerHTML = '';
+    if (!Array.isArray(state.profile.screening.custom_answers)) state.profile.screening.custom_answers = [];
+    state.profile.screening.custom_answers.forEach((a, idx) => {
+      const row = document.createElement('div'); row.className = 'repeater-row';
+      row.innerHTML = `
+        <input type="text" placeholder="Question, e.g. Why do you want to work remotely?" value="${escapeHtml(str(a.question))}" data-key="question" aria-label="Question">
+        <textarea rows="2" placeholder="Your answer" data-key="answer" aria-label="Answer">${escapeHtml(str(a.answer))}</textarea>
+        <div class="repeater-actions"><button class="btn-tiny" type="button">Remove</button></div>`;
+      row.querySelectorAll('[data-key]').forEach(el => el.addEventListener('input', () => { a[el.dataset.key] = el.value; scheduleDraft(); }));
+      row.querySelector('.btn-tiny').addEventListener('click', () => { state.profile.screening.custom_answers.splice(idx, 1); renderCustomAnswers(); scheduleDraft(); });
+      host.appendChild(row);
+    });
+  }
+  $('add-custom-answer')?.addEventListener('click', () => { state.profile.screening.custom_answers.push({ question: '', answer: '' }); renderCustomAnswers(); scheduleDraft(); $('custom-answers-list').querySelector('.repeater-row:last-child input')?.focus(); });
   // Typing a current title or company makes it the current role; clearing both
   // also drops the start date the import kept, so the role reads as empty.
   function syncCurrentRole() {
@@ -1413,6 +1639,8 @@
   });
 
   function hydrate() {
+    base2FromStored();
+    SWITCHES.forEach(([id, path]) => { if ($(id)) $(id).checked = getByPath(path) === true || isObj(getByPath(path)); });
     BINDINGS.forEach(([id, path]) => {
       const el = $(id); if (!el) return;
       const value = str(getByPath(path));
@@ -1431,7 +1659,7 @@
     $('loc_sponsorship').checked = state.profile.location.needs_sponsorship === true;
     $('cv_markdown').value = state.cv_markdown || '';
     document.querySelectorAll('[data-tags-for]').forEach(f => renderTags(f.getAttribute('data-tags-for')));
-    renderArchetypes(); renderProofs(); renderSuggestions(); renderDraftSuggestions(); renderCvVersion();
+    renderArchetypes(); renderProofs(); renderEducation(); renderCustomAnswers(); renderSuggestions(); renderDraftSuggestions(); renderCvVersion();
     refreshBadges();
   }
 
@@ -1558,13 +1786,14 @@
     const btn = $('save-later-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
     saveDraft();
     try {
-      const { degraded } = await pushProfile({ complete: false });
+      const { degraded, missingColumns } = await pushProfile({ complete: false });
       // The server copy is now the reference: an edit made on the dashboard
-      // before the next visit must not be overwritten by these answers.
+      // before the next visit must not be overwritten by these answers. A
+      // partial save keeps them: the server could not store all of them.
       clearTimeout(draftTimer);
-      saveDraft({ synced: true });
+      saveDraft({ synced: !degraded });
       try { localStorage.setItem(DEFER_KEY, String(Date.now())); } catch {}
-      $('nav-status').textContent = degraded ? DEGRADED_MESSAGE : 'Progress saved. You can come back any time.';
+      $('nav-status').textContent = degraded ? degradedMessage(missingColumns) : 'Progress saved. You can come back any time.';
       leaving = true;
       setTimeout(() => { window.location.href = '/dashboard'; }, degraded ? 2500 : 600);
     } catch (err) {
@@ -1583,7 +1812,8 @@
     let saved = false;
     if (booted && state.loaded) {
       if (hasChanges()) {
-        try { await pushProfile({ complete: false }); saved = true; } catch (err) { console.warn('[onboarding] save before sign-out failed:', err); }
+        // A partial save is not a save: the user decides about the copy below.
+        try { saved = !(await pushProfile({ complete: false })).degraded; } catch (err) { console.warn('[onboarding] save before sign-out failed:', err); }
       } else saved = true;
     }
     clearTimeout(draftTimer);
@@ -1644,6 +1874,23 @@
   }
   const formatSize = (bytes) => bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
+  // A PDF CV is also the file auto-apply attaches to this account's
+  // applications (stored per account, /api/profile/apply-cv). Beside the
+  // analysis: a failure here leaves the import alone, and the dashboard
+  // profile can add the PDF later.
+  async function keepApplyPdf(file) {
+    try {
+      const data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const res = await authFetch('/api/profile/apply-cv', { method: 'PUT', body: JSON.stringify({ fileName: file.name, data }) });
+      if (res.ok) $('dropzone-file').textContent = `${file.name} · ${formatSize(file.size)} · attached to your applications`;
+    } catch { /* kept out of the import */ }
+  }
+
   // Upload → read in the browser → analysis, with no extra click.
   async function importFile(file) {
     if (currentImport) return;
@@ -1656,6 +1903,7 @@
     if (!file.size) { showCvAlert('That file is empty.'); return; }
     $('dropzone-file').textContent = `${file.name} · ${formatSize(file.size)}`;
     lastFilePayload = null;
+    if (kind === 'pdf') keepApplyPdf(file);
     await runImport(async (signal, run) => {
       const read = await readCvFile(file, kind, signal);
       run.extracted = read.markdown;
@@ -2411,6 +2659,42 @@
     p.search.current_role = isEmptyValue(normalizeRole(p.search.current_role)) ? emptyRole() : normalizeRole(p.search.current_role);
     p.compensation.currency = str(p.compensation.currency).trim();
     if (typeof p.location.needs_sponsorship !== 'boolean') delete p.location.needs_sponsorship;
+    // Bases: the main one from the fields above, the second from its inputs.
+    // A stored base keeps its other keys (regions, status, cv_profile…).
+    const stored = list(p.location.bases).filter(isObj);
+    const second = isObj(p.location._base2) ? p.location._base2 : {};
+    delete p.location._base2;
+    const hasSecond = Boolean(str(second.city).trim() || str(second.country).trim());
+    if (hasSecond || stored.length) {
+      const main = { ...(stored[0] || {}), city: str(p.location.city).trim(), country: str(p.location.country).trim(), default: true };
+      if (str(p.location.timezone).trim()) main.timezone = str(p.location.timezone).trim();
+      if (str(p.location.postal_code).trim()) main.postal_code = str(p.location.postal_code).trim();
+      const bases = [main];
+      if (hasSecond) {
+        // Another place than the stored one: its regions, status and labels were the old place's.
+        const prev = stored[1] || {};
+        const samePlace = sameText(prev.city, second.city) && sameText(prev.country, second.country);
+        const { regions, status, label, id, cv_profile, ...kept } = prev;
+        const extra = { ...(samePlace ? prev : kept), city: str(second.city).trim(), country: str(second.country).trim(), default: false };
+        if (str(second.timezone).trim()) extra.timezone = str(second.timezone).trim(); else delete extra.timezone;
+        if (str(second.phone).trim()) extra.phone = str(second.phone).trim(); else delete extra.phone;
+        bases.push(extra, ...stored.slice(2));
+      }
+      p.location.bases = bases.filter(b => b.city || b.country);
+    }
+    p.location.onsite_exceptions = list(p.location.onsite_exceptions).map(placeLabel).filter(Boolean);
+    p.location.relocation = ({ no: false, yes: true, bases: 'bases' })[str(p.location.relocation)] ?? p.location.relocation;
+    if (p.location.relocation === '') delete p.location.relocation;
+    p.availability.days_per_week = normalizeYears(p.availability.days_per_week);
+    p.candidate.education = list(p.candidate.education).filter(e => isObj(e) && (str(e.degree).trim() || str(e.school).trim()))
+      .map(e => ({ ...e, degree: str(e.degree).trim(), field: str(e.field).trim(), school: str(e.school).trim(), end_year: str(e.end_year).trim() }));
+    if (isObj(p.candidate.people_management)) {
+      const pm = p.candidate.people_management;
+      pm.max_direct_reports = normalizeYears(pm.max_direct_reports);
+      if (pm.max_direct_reports === '' && !str(pm.context).trim()) delete p.candidate.people_management;
+    }
+    p.screening.custom_answers = list(p.screening.custom_answers).filter(a => isObj(a) && str(a.question).trim() && str(a.answer).trim())
+      .map(a => ({ question: str(a.question).trim(), answer: str(a.answer).trim() }));
     // No language chosen yet: leave the stored one (or the server default) alone.
     if (!str(p.language?.output).trim()) delete p.language;
     return p;
@@ -2435,7 +2719,7 @@
       if (!cvRes.ok) { const err = await cvRes.json().catch(() => ({})); throw new Error(err.error || `Saving the CV failed (${cvRes.status})`); }
     }
     state.baseline = savePayloadKey();
-    return { degraded: result?.degraded === true };
+    return { degraded: result?.degraded === true, missingColumns: Array.isArray(result?.missing_columns) ? result.missing_columns.map(String) : [] };
   }
 
   async function submit() {
@@ -2450,12 +2734,13 @@
     }
     const btn = $('next-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
     try {
-      const { degraded } = await pushProfile({ complete: true });
-      removeDraft();
+      const { degraded, missingColumns } = await pushProfile({ complete: true });
+      // A partial save keeps the answers the server could not store.
+      if (degraded) saveDraft(); else removeDraft();
       try { localStorage.removeItem(DEFER_KEY); } catch {}
       leaving = true;
       if (degraded) {
-        alertEl.className = 'alert is-warn'; alertEl.textContent = `${DEGRADED_MESSAGE} Opening your dashboard…`;
+        alertEl.className = 'alert is-warn'; alertEl.textContent = `${degradedMessage(missingColumns)} Opening your dashboard…`;
         await sleep(2500);
       }
       window.location.replace('/dashboard?welcome=1');

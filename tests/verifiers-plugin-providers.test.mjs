@@ -47,7 +47,9 @@ function prepareFixtureCodeRoot(tmp) {
     if (existsSync(join(ROOT, dir))) cpSync(join(ROOT, dir), join(codeRoot, dir), { recursive: true });
   }
   if (existsSync(join(ROOT, 'node_modules'))) {
-    symlinkSync(join(ROOT, 'node_modules'), join(codeRoot, 'node_modules'), 'dir');
+    // 'junction': the one directory link Windows grants without the symlink
+    // privilege (a plain 'dir' link failed with EPERM); other systems ignore it.
+    symlinkSync(join(ROOT, 'node_modules'), join(codeRoot, 'node_modules'), 'junction');
   }
   return codeRoot;
 }

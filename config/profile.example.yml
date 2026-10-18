@@ -50,6 +50,10 @@ target_roles:
     - name: "Solutions Architect"
       level: "Mid-Senior"
       fit: "adjacent"
+  # Optional: more phrases the scan searches and accepts in titles, on top of
+  # the roles above (portals.yml {roles}/{role} placeholders and title filter)
+  # search_terms:
+  #   - "LLM Engineer"
 
 narrative:
   # Your professional headline (1 line)
@@ -94,8 +98,57 @@ location:
   # explicitly states it will not sponsor, that is a hard blocker (see
   # modes/_profile.md "Your Location Policy"). Omit → treated as false.
   needs_sponsorship: false
+  nationality: "American"
   # For remote roles outside your country:
   # onsite_availability: "1 week/month in any city"
+  #
+  # Optional: several places you work from (lib/candidate-location.mjs). Each
+  # offer is applied from the base whose region or country it names (else the
+  # default one), with that base's phone and time zone. Without `bases`, the
+  # country/city above are your single base.
+  # bases:
+  #   - city: "San Francisco"
+  #     country: "United States"
+  #     timezone: "America/Los_Angeles"   # IANA zone; derived from the country when omitted
+  #     default: true
+  #     status: citizen                   # citizen | resident | work_visa
+  #   - city: "Lisbon"
+  #     country: "Portugal"
+  #     phone: "+351 …"                   # falls back to candidate.phone
+  #     regions: [EU, EMEA]               # offer regions this base answers for
+  #     status: work_visa
+  # With a "Full remote" remote_policy, hybrid / on-site offers are a hard fail
+  # except in these places:
+  # onsite_exceptions:
+  #   - { city: "Lisbon", country: "Portugal", modes: [onsite, hybrid] }
+  # relocation: false          # false | true | [countries] | "bases"
+  # travel: { offsites: true } # team offsites and occasional trips are fine
+  # us_state: "California"     # for "which state do you live in?"
+
+# Optional: what application forms ask beyond the CV. Auto-apply answers these
+# the same way on every form; anything left out is left for you to answer.
+# screening:
+#   how_did_you_hear: "LinkedIn"
+#   references: "Available upon request"
+#   referred_by: { name: "", email: "" }
+#   previously_employed_at: []          # companies you worked for before
+#   previously_applied: [{ company: "", year: 2025, interviewed: false }]
+#   non_compete: false
+#   security_clearance: ""
+#   driving_licence: { has: true, categories: [B] }
+#   consents: { future_roles: false, marketing: false }
+#   eeo:                                # every other demographic question is declined
+#     gender: ""                        # empty = "Prefer not to say"
+#     decline_phrases: ["Prefer not to say", "I don't wish to answer"]
+#   custom_answers:                     # a form question asking the same thing gets this answer
+#     - question: "Why do you want to work remotely?"
+#       answer: "Deep work across time zones."
+#
+# Also optional under candidate: nationalities, education [{degree, field,
+# school, end_year}], skills [{name, years}], certifications, ai_proficiency,
+# people_management {max_direct_reports, context}, apply_cv (the PDF sent with
+# applications); under availability: notice_period_days, days_per_week.
+# Top level: writing_voice and outreach_rules (your own writing and outreach rules).
 
 language:
   # Human-facing output language for reports, tracker notes, PDFs, cover

@@ -173,8 +173,8 @@ For each question:
 1. **Report context**: Use proof points from block B, STAR stories from block F
 2. **Previous Section H / Application Answers**: If a draft or final response exists, use it as a base and refine
 3. **Specificity**: Reference something specific from the JD visible on screen
-4. **Reference:** experience and AI/LLM answers use one employer or client, ranked by brand weight and tenure. Personal projects (UXfi, Flemme, Creads, Panfy, Jarvos, JobYouGo) are motivation support only, never the proof.
-5. **JobYouGo proof point**: Include in "Additional info" if there is a field for it
+4. **Reference:** experience and AI/LLM answers use one employer or client, ranked by brand weight and tenure. Personal projects (the CV's Independent products section) are motivation support only, never the proof.
+5. **Additional info**: one proof point from `_profile.md` Evidence order, if the form has that field
 6. **Recruiter-side risk map**: Use `modes/heuristics/recruiter-side.md` to identify what doubt the question is trying to resolve (motivation, stack fit, logistics, comp, work-auth, availability, seniority) and answer that doubt directly.
 7. **Disclosure discipline**: Answer logistics questions truthfully when asked, but do not volunteer sensitive or HR-only details in unrelated motivation/fit answers.
 

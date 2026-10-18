@@ -28,6 +28,7 @@ function load(engines) {
     portalsTitleFilter: { test: () => true },
   });
   vm.runInContext(`${extract('let _webSearchConsecFail', '\n// Whether an engine attempt')}
+${extract('const ENGINE_DEAD_AFTER', '\n// Run the configured PinchTab engines')}
 ${extract('async function fetchPinchtabEnginesMerged(', '\nfunction buildTheirStackPayload(')}
 this.api = { fetchPinchtabEnginesMerged, webSearchCircuitOpen };`, context);
   return { ...context.api, calls };

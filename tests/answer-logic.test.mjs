@@ -84,11 +84,12 @@ ok('a JobYouGo mobile story is rejected as proof', usesSideProjectAsProof(mobile
 ok('an Edenred mobile story is accepted', !answerMissesProof('At Edenred I designed the locator apps.', mobileHits.join('\n')));
 ok('a tool dump is rejected on a product question', isToolDump(mobileQ, 'I use Cursor and GitHub every day.'));
 ok('a denial is rejected', opensWithDenial("Je n'ai pas conçu de produit mobile."));
-ok('AI closest uses the employer workflow', aiHits.some((line) => /OneAsset/i.test(line)) && aiHits.every((line) => !/Creads|UXfi|JobYouGo/i.test(line)));
+// Since 2026-10-13 an AI question may also use the candidate's own AI products.
+ok('AI closest uses the employer workflow', aiHits.some((line) => /OneAsset/i.test(line)));
 ok('scale questions keep the documented counts only', isScaleQuestion(scaleQ) && /10,000/.test(scaleReq.user) && /millions/.test(scaleReq.user));
 ok('scale instructions name SG or UpViral, not Creads as the proof', /Société Générale/.test(scaleReq.user) && /UpViral/.test(scaleReq.user) && /employer-scale proof/.test(scaleReq.user) && !/Creads/.test((scaleReq.user.match(/## Facts\n[\s\S]*?(?=\n\n## |\n\nAnswer|\n\nLANGUAGE)/) || [''])[0]) && !/\+12%/.test((scaleReq.user.match(/## Facts\n[\s\S]*?(?=\n\n## |\n\nAnswer|\n\nLANGUAGE)/) || [''])[0]));
 ok('a ceased employer is not an allowed proof name', !(mobileReq.allowedNames || []).some((name) => /Vloggy/i.test(name)));
-ok('why-us is a motivation question, not a product dump', isMotivationQuestion(whyQ) && /What specifically draws you to/.test(whyReq.user) && !/4 to 6 sentences/.test(whyReq.user));
+ok('why-us is a motivation question, not a product dump', isMotivationQuestion(whyQ) && /cite one specific detail from the Offer/.test(whyReq.user) && !/4 to 6 sentences/.test(whyReq.user));
 ok('why-us uses the eval match to pick proof', formAnswerRequest({
   question: whyQ,
   company: 'Mozilla',

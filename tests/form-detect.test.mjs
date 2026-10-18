@@ -4,6 +4,7 @@
  */
 import { chromium } from 'playwright';
 import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY } from '../lib/form-detect.mjs';
+import { PROGRESS_TEXT_RE } from '../lib/apply-progression.mjs';
 import { pass, fail } from './helpers.mjs';
 
 async function launchBrowser() {
@@ -226,6 +227,9 @@ const navCases = [
   ['Continue with Google', AUTH_AVOID_TEXT_RE, true, 'a eviter'],
   ['Se connecter', AUTH_AVOID_TEXT_RE, true, 'a eviter'],
   ['Apply now', AUTH_AVOID_TEXT_RE, false, 'a eviter'],
+  ['AUTO APPLY', AUTH_AVOID_TEXT_RE, false, 'a eviter'],
+  ['Apply manually', GUEST_TEXT_RE, true, 'chemin invite'],
+  ['Apply manually', AUTH_AVOID_TEXT_RE, false, 'a eviter'],
   ['Continue as guest', GUEST_TEXT_RE, true, 'chemin invite'],
   ['Apply without an account', GUEST_TEXT_RE, true, 'chemin invite'],
   ['Continuer sans compte', GUEST_TEXT_RE, true, 'chemin invite'],
@@ -263,9 +267,37 @@ const flows = [
      <button role="tab">Overview</button>
      <button role="tab">Application</button>
      <button>Apply for this job</button>`, /^(application|apply for this (job|position|role))$/i, ['Application', 'Apply for this job']],
+  ['Ashby Overview — l onglet Application non sélectionné reste cliquable', `
+     <div role="tablist">
+       <a role="tab" aria-selected="true" class="_tab_x _active_x" href="#overview">Overview</a>
+       <a role="tab" aria-selected="false" class="_tab_x" href="#application">Application</a>
+     </div>`, PROGRESS_TEXT_RE, ['Application']],
+  ['Ashby formulaire — l onglet Application déjà sélectionné n avance jamais', `
+     <div role="tablist">
+       <a role="tab" class="_tab_x" href="#overview">Overview</a>
+       <a role="tab" aria-selected="true" class="_tab_x _active_x" href="#application">Application</a>
+     </div>
+     <input name="name">`, PROGRESS_TEXT_RE, []],
+  ['Onglet courant marqué par aria-current ou par une classe active', `
+     <a aria-current="page" href="#application">Application</a>
+     <div role="tablist"><button class="tab active">Application</button></div>`, PROGRESS_TEXT_RE, []],
+  // Site chrome needs a real URL (5th item, served by a route, no network).
+  ['Teamtailor — pied de page et lien vers l accueil écartés', `
+     <a href="/">Start</a>
+     <footer><a href="/jobs">Start now</a></footer>
+     <button>Start application</button>`, PROGRESS_TEXT_RE, ['Start application'], '/jobs/123-designer'],
+  ['Accueil — un lien sans href ou "#" reste cliquable', `
+     <a>Start</a> <a href="#">Start now</a>`, PROGRESS_TEXT_RE, ['Start', 'Start now'], '/'],
 ];
-for (const [name, body, re, expected] of flows) {
-  await p2.setContent(`<html><body>${body}</body></html>`);
+for (const [name, body, re, expected, path] of flows) {
+  const html = `<html><body>${body}</body></html>`;
+  if (path) {
+    await p2.route('https://careers.example/**', (route) => route.fulfill({ contentType: 'text/html', body: html }));
+    await p2.goto(`https://careers.example${path}`);
+    await p2.unroute('https://careers.example/**');
+  } else {
+    await p2.setContent(html);
+  }
   const marked = await p2.evaluate(MARK, { reSrc: re.source, skip: [], avoidSrc: AUTH_AVOID_TEXT_RE.source });
   const got = marked.map(m => m.text);
   const ok = JSON.stringify(got) === JSON.stringify(expected);

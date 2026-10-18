@@ -20,6 +20,13 @@ try {
     fail('rss.detect() should claim provider:rss + allowlisted api');
   }
 
+  if (resolveFeedUrl({ api: 'https://api.cryptojobslist.com/jobs.rss' }) ===
+      'https://api.cryptojobslist.com/jobs.rss') {
+    pass('resolveFeedUrl allows the current canonical CryptoJobsList feed host');
+  } else {
+    fail('resolveFeedUrl should allow the current canonical CryptoJobsList feed host');
+  }
+
   if (rss.detect({ provider: 'remoteok' }) === null) {
     pass('rss.detect() ignores other provider ids');
   } else {
@@ -46,6 +53,13 @@ try {
     pass('splitTitle handles "at" and "Company: Role" shapes');
   } else {
     fail(`splitTitle unexpected: ${JSON.stringify(splitTitle('Senior PM at Acme', 'Board'))}`);
+  }
+
+  const slashed = splitTitle('Head of Sales at Scale – B2B // Acme', 'Board');
+  if (slashed.title === 'Head of Sales at Scale – B2B' && slashed.company === 'Acme') {
+    pass('splitTitle handles the "Role // Company" shape before "at"');
+  } else {
+    fail(`splitTitle "//" unexpected: ${JSON.stringify(slashed)}`);
   }
 
   // Dribbble's feed shape: "{Company} is hiring for a position of {Role} in {Place}".
@@ -133,6 +147,18 @@ try {
     pass('parseGenericRssFeed parses pubDate');
   } else {
     fail(`postedAt = ${JSON.stringify(jobs[0]?.postedAt)}`);
+  }
+
+  const feed = '<rss><channel><item><title>HR Lead at Acme</title><link>https://remotefirstjobs.com/companies/acme/jobs/1</link></item>'
+    + '<item><title>PM at Beta</title><link>https://remotefirstjobs.com/companies/beta/jobs/2</link><location>Berlin</location></item></channel></rss>';
+  const located = await rss.fetch(
+    { name: 'RFJ', provider: 'rss', api: 'https://remotefirstjobs.com/rss/jobs/hr.rss', default_location: 'Remote' },
+    { fetchText: async () => feed },
+  );
+  if (located[0]?.location === 'Remote' && located[1]?.location === 'Berlin') {
+    pass('fetch() fills default_location only where an item has none');
+  } else {
+    fail(`default_location unexpected: ${JSON.stringify(located)}`);
   }
 } catch (err) {
   fail(`rss provider test crashed: ${err.message}`);

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   APPLY_TEXT_RE,
+  AUTO_APPLY_TEXT_RE,
   PROGRESS_TEXT_RE,
   SUBMIT_TEXT_RE,
   isBlockingApplyPending,
@@ -105,6 +106,15 @@ test('AUTH_AVOID still vetoes Continue with Google / Sign in', () => {
   assert.equal(AUTH_AVOID_TEXT_RE.test('Sign in'), true);
   assert.equal(PROGRESS_TEXT_RE.test('Next'), true);
   assert.equal(AUTH_AVOID_TEXT_RE.test('Next'), false);
+});
+
+test('a board\'s auto-apply is a last resort, not an Apply CTA', () => {
+  for (const label of ['AUTO APPLY', 'AI Auto-Apply', 'Auto apply now']) {
+    assert.equal(APPLY_TEXT_RE.test(label), false, label);
+    assert.equal(AUTO_APPLY_TEXT_RE.test(label), true, label);
+  }
+  assert.equal(AUTO_APPLY_TEXT_RE.test('Apply'), false);
+  assert.equal(AUTO_APPLY_TEXT_RE.test('Apply manually'), false);
 });
 
 test('APPLY_TEXT_RE still matches Apply CTAs', () => {

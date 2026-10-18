@@ -40,7 +40,6 @@
     { id: 'services', target: 'services', key: 's_ch_services', color: PAINT.blue },
     { id: 'checks', target: 'details', key: 's_ch_checks', color: PAINT.pink },
     { id: 'pricing', target: 'pricing', key: 's_ch_pricing', color: PAINT.cyan },
-    { id: 'day2', target: 'guarantee', key: 's_ch_day2', color: PAINT.purple },
     { id: 'founder', target: 'founder', key: 's_ch_founder', color: PAINT.sienna },
     { id: 'faq', target: 'faq', key: 's_ch_faq', color: PAINT.orange },
     { id: 'contact', target: 'contact', key: 's_ch_contact', color: PAINT.white },
@@ -55,24 +54,57 @@
       s_beat2a: 'A forest of sites that all look alike.',
       s_beat2b: 'Same gradient hero. Same “Get started”. Same silence after the click.',
       s_beat3: 'Ours are still<br><em>finished by hand.</em>',
-      s_beat3_line: 'An AI design agency. Redesign, build or coaching, at fixed prices from $490.',
+      s_beat3_line: 'An AI design agency. Redesign, build or coaching, at fixed prices from $390.',
       s_same_title: 'AI is fast.<br><em>Fast to look like everyone else, too.</em>',
       s_same_lede: 'AI tools reach for the same gradient hero and the same “Get started” button. We use AI for speed, then the founder finishes every screen by hand.',
       s_same_caption: 'One of these sites went through the 12 checks.',
-      s_proof_note: 'Figures reported by the founder for projects before v2 studio. Your results will depend on your product and your traffic.',
+      proof_headline: 'Three projects<br><em>we redesigned.</em>',
+      s_proof_note: 'Figures measured on these projects. Your results will depend on your product and your traffic.',
+      s_all_work: 'See all projects',
       s_dive_a: 'A pretty hero<br>is the surface.',
       s_dive_b: 'The details live<br><em>underneath.</em>',
+      s_dive_c: 'Most sites never<br><em>come down here.</em>',
       s_fox_a: 'Someone still has<br>to finish the work.',
       s_fox_line: 'The founder checks every screen. One paint colour per chapter, from here on.',
       details_headline: 'Every delivery passes the<br><em>same 12 checks.</em>',
       s_checks_painted: 'checks painted',
-      s_pricing_refund: 'Redesign and Build: on Day 2, approve, ask for changes, or stop with a full refund.',
+      s_checks_all: 'All 12, line by line',
+      s_check_close: 'Close',
+      s_checks_lede: 'You get this grid with your files, completed and signed by the founder. A point that doesn’t apply is marked N/A.',
+      s_ledger_title: 'Detail check',
+      s_ledger_points: '12 points, read by hand',
+      s_ledger_field: 'Delivery',
+      s_ledger_field_v: 'Your page',
+      s_ledger_sign: 'Checked by hand, founder',
+      s_ledger_stamp: 'passed',
+      s_ledger_hint: 'Point at a line to read the rule behind it.',
       s_guar_short: 'On Day 2 you see the structure, one key screen and the tone. If it doesn’t convince you, we refund 100%, with no form and no reason to give.',
       s_guar_date: 'The delivery date is our commitment, and we tell you before it slips.',
       s_terms: 'The guarantee in detail',
-      s_process_note: 'Build: the same steps with two more build days, delivered on Day 7. Coaching: one session a week.',
+      s_process_note: 'Build: the same steps with two more build days, delivered on Day 7. Coaching: two calls a month.',
       step_4_body: 'The full page in code, desktop and mobile, with your real content and every state: empty, loading, error, success.',
-      faq_cancel_a: 'Yes, any time before the next billing date. The current month stays paid and unused sessions don’t roll over.',
+      faq_cancel_a: 'Yes, any time before the next billing date. The current month stays paid and unused calls don’t roll over.',
+      faq_payment_a: 'You order from the package card. Redesign and Build are paid in full before Day 1, and every payment gets an invoice. Coaching is billed monthly in advance. A custom project is paid in two parts: a deposit to book the dates, the balance at delivery. Prices are in US dollars, excluding applicable taxes.',
+      svc_4_promise: 'A senior product designer looks at your work twice a month, on a call, for teams who build themselves.',
+      svc_4_del_1: '2 calls of 45 min a month',
+      svc_4_del_3: 'A written review of 2 screens a month',
+      svc_4_del_4: 'Written priorities after each call',
+      pricing_sub: 'Each package has a fixed price, a written scope and a delivery date. You see all of it before you pay.',
+      s_price_more: '{n} more included',
+      s_price_more_build: '{n} more, with every Build',
+      s_price_track: 'Track',
+      s_price_or_call: 'or book a 30-min call',
+      s_price_or_write: 'or write to us first',
+      s_addons_hint: 'Add them when you order a Redesign or a Build.',
+      s_addon_for: 'Redesign and Build',
+      s_addon_for_coaching: 'Coaching',
+      s_steps_title: 'How ordering works',
+      s_step_req_1: ['Order on the card', 'Pick the package, the track and any add-ons, then write a short brief.'],
+      s_step_req_2: ['Scope in writing', 'Within one business day we confirm the scope and the delivery date.'],
+      s_step_req_3: ['Pay, and Day 1 starts', 'You pay by card from a secure link. Day 1 is the next business day.'],
+      s_step_pay_1: ['Order and pay on the card', 'Pick the package, the track and any add-ons, write a short brief and pay by card.'],
+      s_step_pay_2: ['Kickoff within a day', 'Within one business day we confirm the scope in writing and book the kickoff call.'],
+      s_step_pay_3: ['Delivered on the date', 'Day 1 starts once we have your brief and your files. The date is on your receipt.'],
       faq_new_a: 'Yes. The projects on this page are our founder’s work, mostly from before v2 studio: the product design agency he ran from 2020 to 2024, or his freelance work since 2016. Each case study is his own account and says which kind of work it was.',
       contact_modal_subtitle: 'Pick a package and add a few lines. This opens a draft in your email app; nothing is sent until you press send there.',
       s_or_write: 'Or write to',
@@ -97,14 +129,15 @@
       s_pick_refonte: 'My site is live, but people leave',
       s_pick_creation: 'I’m starting from a blank page',
       s_pick_accompagnement: 'My team builds it themselves',
+      s_pick_custom: 'My project is bigger than one page',
+      s_price_pages: 'Pages',
+      s_price_from: 'from',
+      s_price_quote: 'fixed quote',
       s_pick_line: '{name}: {price}, {delivery}.',
-      s_spot_paint_t: 'The details',
-      s_spot_paint: 'Paint on the cheeks, not a gradient on the hero. Every delivery passes the same 12 checks.',
-      s_spot_palette_t: 'The palette',
-      s_spot_palette: 'One colour per chapter. The rail on the right takes you to any of them.',
       s_svc_gets: 'What you get',
       s_soon: 'Soon',
       s_proof_close: 'Close the proof',
+      s_gets_close: 'Close the list',
       s_proof_img_1: 'The redesigned BMW homepage',
       s_proof_img_2: 'The redesigned UpViral campaign builder',
       s_proof_img_3: 'The Creads.io dashboard',
@@ -114,7 +147,7 @@
       s_fig_svc_4: 'A review call circling one detail of the screen',
       s_fig_step_1: 'A phone, for the kickoff call',
       s_fig_step_2: 'A dish aimed at your page',
-      s_fig_step_3: 'A padlock that opens: you can stop on Day 2',
+      s_fig_step_3: 'A padlock: the direction locks in on Day 2',
       s_fig_step_4: 'A keyboard, for the build',
       s_fig_step_5: 'A rack of checked blades, ready to hand off',
     },
@@ -122,24 +155,57 @@
       s_beat2a: 'Une forêt de sites qui se ressemblent tous.',
       s_beat2b: 'Même hero en dégradé. Même « Commencer ». Même silence après le clic.',
       s_beat3: 'Les nôtres sont encore<br><em>finis à la main.</em>',
-      s_beat3_line: 'Une agence de design IA. Refonte, création ou accompagnement, à prix fixes dès 490 $.',
+      s_beat3_line: 'Une agence de design IA. Refonte, création ou accompagnement, à prix fixes dès 390 $.',
       s_same_title: 'L’IA va vite.<br><em>Vite vers le même résultat que tout le monde.</em>',
       s_same_lede: 'Les outils d’IA proposent le même hero en dégradé et le même bouton « Commencer ». Nous utilisons l’IA pour la vitesse, puis le fondateur finit chaque écran à la main.',
       s_same_caption: 'Un seul de ces sites est passé par les 12 contrôles.',
-      s_proof_note: 'Chiffres communiqués par le fondateur pour des projets antérieurs à v2 studio. Vos résultats dépendront de votre produit et de votre trafic.',
+      proof_headline: 'Trois projets<br><em>que nous avons refaits.</em>',
+      s_proof_note: 'Chiffres mesurés sur ces projets. Vos résultats dépendront de votre produit et de votre trafic.',
+      s_all_work: 'Voir tous les projets',
       s_dive_a: 'Un beau hero,<br>c’est la surface.',
       s_dive_b: 'Les détails vivent<br><em>en dessous.</em>',
+      s_dive_c: 'La plupart des sites<br><em>ne descendent jamais ici.</em>',
       s_fox_a: 'Il faut encore quelqu’un<br>pour finir le travail.',
       s_fox_line: 'Le fondateur vérifie chaque écran. Une couleur de peinture par chapitre, à partir d’ici.',
       details_headline: 'Chaque livraison passe les<br><em>12 mêmes contrôles.</em>',
       s_checks_painted: 'contrôles peints',
-      s_pricing_refund: 'Refonte et Création : au jour 2, validez, demandez des changements, ou arrêtez avec un remboursement intégral.',
+      s_checks_all: 'Les 12, ligne par ligne',
+      s_check_close: 'Fermer',
+      s_checks_lede: 'Vous recevez cette grille avec vos fichiers, complétée et signée par le fondateur. Un point qui ne s’applique pas est marqué « sans objet ».',
+      s_ledger_title: 'Contrôle des détails',
+      s_ledger_points: '12 points, relus à la main',
+      s_ledger_field: 'Livraison',
+      s_ledger_field_v: 'Votre page',
+      s_ledger_sign: 'Vérifié à la main, fondateur',
+      s_ledger_stamp: 'validé',
+      s_ledger_hint: 'Survolez une ligne pour lire la règle qui la fonde.',
       s_guar_short: 'Au jour 2, vous voyez la structure, un écran clé et le ton. Si ça ne vous convainc pas, nous remboursons 100 %, sans formulaire ni justification.',
       s_guar_date: 'La date de livraison est notre engagement, et nous vous prévenons avant tout retard.',
       s_terms: 'La garantie en détail',
-      s_process_note: 'Création : les mêmes étapes avec deux jours de construction en plus, livraison au jour 7. Accompagnement : une séance par semaine.',
+      s_process_note: 'Création : les mêmes étapes avec deux jours de construction en plus, livraison au jour 7. Accompagnement : deux appels par mois.',
       step_4_body: 'La page complète en code, desktop et mobile, avec vos vrais contenus et tous les états : vide, chargement, erreur, succès.',
-      faq_cancel_a: 'Oui, à tout moment avant la prochaine échéance. Le mois en cours reste dû et les séances non utilisées ne sont pas reportées.',
+      faq_cancel_a: 'Oui, à tout moment avant la prochaine échéance. Le mois en cours reste dû et les appels non utilisés ne sont pas reportés.',
+      faq_payment_a: 'Vous commandez depuis la carte de la formule. La Refonte et la Création se règlent en totalité avant le jour 1, et chaque paiement donne lieu à une facture. L’Accompagnement est facturé chaque mois, d’avance. Un projet sur devis se règle en deux fois : un acompte pour réserver les dates, le solde à la livraison. Les prix sont en dollars US, hors taxes applicables.',
+      svc_4_promise: 'Le regard d’un designer produit senior sur votre travail, deux fois par mois en visio, pour les équipes qui construisent elles-mêmes.',
+      svc_4_del_1: '2 appels de 45 min par mois',
+      svc_4_del_3: 'Une revue écrite de 2 écrans par mois',
+      svc_4_del_4: 'Priorités écrites après chaque appel',
+      pricing_sub: 'Chaque formule a un prix fixe, un périmètre écrit et une date de livraison. Vous voyez tout avant de payer.',
+      s_price_more: '{n} de plus, inclus',
+      s_price_more_build: '{n} de plus, dans chaque Création',
+      s_price_track: 'Piste',
+      s_price_or_call: 'ou réservez un appel de 30 min',
+      s_price_or_write: 'ou écrivez-nous d’abord',
+      s_addons_hint: 'À ajouter au moment de commander une Refonte ou une Création.',
+      s_addon_for: 'Refonte et Création',
+      s_addon_for_coaching: 'Accompagnement',
+      s_steps_title: 'Comment commander',
+      s_step_req_1: ['Commandez sur la carte', 'Choisissez la formule, la piste et les options, puis écrivez un court brief.'],
+      s_step_req_2: ['Le périmètre par écrit', 'Sous un jour ouvré, nous confirmons le périmètre et la date de livraison.'],
+      s_step_req_3: ['Vous réglez, le jour 1 commence', 'Vous payez par carte via un lien sécurisé. Le jour 1 est le jour ouvré suivant.'],
+      s_step_pay_1: ['Commandez et payez sur la carte', 'Choisissez la formule, la piste et les options, écrivez un court brief et payez par carte.'],
+      s_step_pay_2: ['Lancement sous un jour', 'Sous un jour ouvré, nous confirmons le périmètre par écrit et fixons l’appel de lancement.'],
+      s_step_pay_3: ['Livré à la date', 'Le jour 1 commence dès que nous avons votre brief et vos fichiers. La date figure sur votre reçu.'],
       faq_new_a: 'Oui. Les projets de cette page sont le travail de notre fondateur, pour l’essentiel avant v2 studio : l’agence de product design qu’il a dirigée de 2020 à 2024, ou son activité freelance depuis 2016. Chaque étude de cas est son propre récit et précise de quel travail il s’agit.',
       contact_modal_subtitle: 'Choisissez une formule et ajoutez quelques lignes. Cela ouvre un brouillon dans votre messagerie ; rien n’est envoyé tant que vous n’avez pas cliqué sur Envoyer.',
       s_or_write: 'Ou écrivez à',
@@ -164,14 +230,15 @@
       s_pick_refonte: 'Mon site existe, mais les visiteurs partent',
       s_pick_creation: 'Je pars d’une page blanche',
       s_pick_accompagnement: 'Mon équipe construit elle-même',
+      s_pick_custom: 'Mon projet dépasse une page',
+      s_price_pages: 'Pages',
+      s_price_from: 'à partir de',
+      s_price_quote: 'devis fixe',
       s_pick_line: '{name} : {price}, {delivery}.',
-      s_spot_paint_t: 'Les détails',
-      s_spot_paint: 'De la peinture sur les joues, pas un dégradé sur le hero. Chaque livraison passe les 12 mêmes contrôles.',
-      s_spot_palette_t: 'La palette',
-      s_spot_palette: 'Une couleur par chapitre. Le rail à droite vous emmène dans chacun d’eux.',
       s_svc_gets: 'Ce que vous recevez',
       s_soon: 'Bientôt',
       s_proof_close: 'Fermer la preuve',
+      s_gets_close: 'Fermer la liste',
       s_proof_img_1: 'La page d’accueil BMW repensée',
       s_proof_img_2: 'L’éditeur de campagne UpViral repensé',
       s_proof_img_3: 'Le tableau de bord de Creads.io',
@@ -181,7 +248,7 @@
       s_fig_svc_4: 'Un appel de revue qui entoure un détail de l’écran',
       s_fig_step_1: 'Un téléphone, pour l’appel de lancement',
       s_fig_step_2: 'Une parabole pointée sur votre page',
-      s_fig_step_3: 'Un cadenas qui s’ouvre : vous pouvez arrêter au jour 2',
+      s_fig_step_3: 'Un cadenas : la direction se fixe au jour 2',
       s_fig_step_4: 'Un clavier, pour la construction',
       s_fig_step_5: 'Une baie de lames vérifiées, prête à être livrée',
     },
@@ -210,7 +277,7 @@
     img.removeAttribute('data-src');
   }
   /* Offers not open yet (coaching and its extra session): a 'Soon' tag wherever they are listed. */
-  const SOON = new Set(['accompagnement', 'session']);
+  const SOON = new Set([...(OFFERS.offers || []), ...(OFFERS.addons || [])].filter((x) => x && x.open === false).map((x) => x.id));
   const soonTag = (id) => (SOON.has(id) ? `<span class="soon">${esc(t('s_soon'))}</span>` : '');
   /* One drawn scene per service, on the card's dark pigment panel (stroke = cream, accent = --c2, motion in CSS).
      1 a page repainted by a brush, 2 a journey that drops its friction detour, 3 a prompt that becomes a screen,
@@ -264,11 +331,9 @@
       <path class="ico-line ico-faint" d="M28 107h104"/><path class="ico-prog" d="M28 107h104" pathLength="100"/>
     </svg>`,
   };
-  /* Notes pinned on the fox's last frame, in clip coordinates (0..1 of 1920x1080). Shown once the fox has arrived. */
-  const SPOTS = [
-    { id: 'paint', x: 0.468, y: 0.395 },
-    { id: 'palette', x: 0.655, y: 0.6 },
-  ];
+  /* Notes pinned on the fox's last frame, in clip coordinates (0..1 of 1920x1080), shown once the fox has arrived.
+     Removed at the user's request (2026-10-12); the host .hero-spots is gone from agence.html too. */
+  const SPOTS = [];
   let moreSeq = 0;
   function more(labelKey, inner) {
     const id = 'more-' + (++moreSeq);
@@ -279,6 +344,17 @@
   }
   function fig(name, labelKey, extra) {
     return `<div class="hairline-fig ${extra || ''}" data-hairline="${name}" data-theme="light" data-intensity="0.6" role="img" aria-label="${esc(t(labelKey))}"></div>`;
+  }
+
+  /* Pocket tile: the photo's coordinate space is 1000 px wide; --s scales it to the device box. */
+  let pocketRO = null;
+  function fitPocket() {
+    const dev = d.querySelector('.r-pocket .r-device');
+    if (!dev) return;
+    const set = () => dev.style.setProperty('--s', (dev.clientWidth / 1000).toFixed(4));
+    set();
+    if (!pocketRO && 'ResizeObserver' in window) pocketRO = new ResizeObserver(() => { const el = d.querySelector('.r-pocket .r-device'); if (el) el.style.setProperty('--s', (el.clientWidth / 1000).toFixed(4)); });
+    if (pocketRO) { pocketRO.disconnect(); pocketRO.observe(dev); }
   }
 
   /* ── Helpers ── */
@@ -303,6 +379,7 @@
     const en = STORY.en[key];
     return typeof en === 'string' ? en : '';
   }
+  const tlist = (key) => (STORY[lang] && Array.isArray(STORY[lang][key]) ? STORY[lang][key] : (Array.isArray(STORY.en[key]) ? STORY.en[key] : []));
   const noArrow = (s) => String(s || '').replace(/\s*→\s*$/, '');
   const unquote = (s) => String(s || '').replace(/^[\s“”"«»  ]+|[\s“”"«»  ]+$/g, '');
   function price(amount) {
@@ -405,7 +482,7 @@
         chat: { brand: 'Replyly', badge: 'Powered by GPT', head: 'Answer every customer|in seconds', sub: 'An AI assistant trained on your help center, live in one click.', cta: 'Try it free', alt: 'Book a demo', links: ['Features', 'Pricing', 'Docs'], trust: 'No credit card required', name: 'Assistant', status: 'Online', msgs: [['Hi! How can I help you today?', 0], ['Where is my order #4821?', 1], ['It shipped this morning and arrives Friday 🎉', 0]], placeholder: 'Ask anything…' },
         chart: { brand: 'Metrix', badge: 'Analytics 3.0', head: 'See what actually|moves revenue', sub: 'Every metric, every team, one source of truth.', cta: 'Start free trial', alt: 'View live demo', links: ['Product', 'Customers', 'Pricing'], trust: 'SOC 2 · GDPR · ISO 27001', legend: ['Revenue', 'Churn'], period: 'Last 30 days', total: '$248,920' },
         phone: { brand: 'Pocket', badge: '#1 finance app', head: 'Your money,|finally simple', sub: 'Budgets, savings and cards in one calm place.', cta: 'Download the app', alt: 'Learn more', links: ['Features', 'Security', 'Help'], trust: '4.9 ★ on the App Store', balance: '$12,480.20', balanceLabel: 'Total balance', rows: [['Groceries', '-$42.10'], ['Salary', '+$3,200'], ['Coffee', '-$4.50']], send: 'Send money' },
-        redo: { eyebrow: 'Banking, without the noise', head: 'Know where|every euro goes.', sub: 'One account, one card and a clear view of your month. No fees you didn’t ask for.', cta: 'Open an account', alt: 'See how it works', trust: '4.9 · 120k reviews', links: ['Product', 'Cards', 'Savings', 'Help'], balance: 'Balance', amount: '€4,218.40', delta: '+€3,200 this week', cats: [['Groceries', '€312'], ['Transport', '€64'], ['Eating out', '€128']], holder: 'SARAH KOVACS', toast: ['Salary received', '+€3,200.00 · just now'], feats: [['Deposits protected', 'Up to €100,000, by law.'], ['Instant transfers', 'To anyone, in seconds.'], ['Spending sorted', 'Every purchase in its place.']], tag: 'Redesign · 12 checks' },
+        redo: { eyebrow: 'Banking, without the noise', head: 'Know where|every euro goes.', sub: 'One account, one card and a clear view of your month. No fees you didn’t ask for.', cta: 'Open an account', alt: 'See how it works', trust: '4.9 · 120k reviews', links: ['Product', 'Cards', 'Savings', 'Help'], balance: 'Balance', amount: '€4,218.40', delta: '+€3,200 this week', cats: [['Groceries', '€312'], ['Transport', '€64'], ['Eating out', '€128']], holder: 'SARAH KOVACS', toast: ['Salary received', '+€3,200.00 · just now'], feats: [['Deposits protected', 'Up to €100,000, by law.'], ['Instant transfers', 'To anyone, in seconds.'], ['Spending sorted', 'Every purchase in its place.']], tag: 'New · Savings pots', ledger: [['€100k', 'deposits protected'], ['10 s', 'to send money'], ['€0', 'hidden fees']], note: 'your month,|at a glance' },
         kanban: { brand: 'Taskflow', badge: 'Now with AI planning', head: 'Plan the work,|skip the chaos', sub: 'Boards, timelines and docs for teams that ship.', cta: 'Get started free', alt: 'Watch the video', links: ['Product', 'Solutions', 'Pricing', 'Changelog'], trust: 'Loved by 4,000+ teams', cols: [['To do', 3], ['In progress', 2], ['Done', 4]] },
       },
     },
@@ -420,7 +497,7 @@
         chat: { brand: 'Replyly', badge: 'Propulsé par GPT', head: 'Répondez à chaque client|en quelques secondes', sub: 'Un assistant IA entraîné sur votre centre d’aide, en ligne en un clic.', cta: 'Essayer gratuitement', alt: 'Réserver une démo', links: ['Fonctions', 'Tarifs', 'Docs'], trust: 'Sans carte bancaire', name: 'Assistant', status: 'En ligne', msgs: [['Bonjour ! Comment puis-je vous aider ?', 0], ['Où en est ma commande #4821 ?', 1], ['Expédiée ce matin, livrée vendredi 🎉', 0]], placeholder: 'Posez votre question…' },
         chart: { brand: 'Metrix', badge: 'Analytics 3.0', head: 'Voyez ce qui fait|vraiment bouger le CA', sub: 'Chaque métrique, chaque équipe, une seule source de vérité.', cta: 'Essai gratuit', alt: 'Voir la démo', links: ['Produit', 'Clients', 'Tarifs'], trust: 'SOC 2 · RGPD · ISO 27001', legend: ['Revenu', 'Churn'], period: '30 derniers jours', total: '248 920 €' },
         phone: { brand: 'Pocket', badge: 'App finance n°1', head: 'Votre argent,|enfin simple', sub: 'Budgets, épargne et cartes dans un seul endroit calme.', cta: 'Télécharger l’app', alt: 'En savoir plus', links: ['Fonctions', 'Sécurité', 'Aide'], trust: '4,9 ★ sur l’App Store', balance: '12 480,20 €', balanceLabel: 'Solde total', rows: [['Courses', '-42,10 €'], ['Salaire', '+3 200 €'], ['Café', '-4,50 €']], send: 'Envoyer' },
-        redo: { eyebrow: 'La banque, sans le bruit', head: 'Sachez où va|chaque euro.', sub: 'Un compte, une carte et une vue claire de votre mois. Aucun frais que vous n’avez pas demandé.', cta: 'Ouvrir un compte', alt: 'Voir comment ça marche', trust: '4,9 · 120k avis', links: ['Produit', 'Cartes', 'Épargne', 'Aide'], balance: 'Solde', amount: '4 218,40 €', delta: '+3 200 € cette semaine', cats: [['Courses', '312 €'], ['Transports', '64 €'], ['Restaurants', '128 €']], holder: 'SARAH KOVACS', toast: ['Salaire reçu', '+3 200,00 € · à l’instant'], feats: [['Dépôts protégés', 'Jusqu’à 100 000 €, par la loi.'], ['Virements instantanés', 'À n’importe qui, en secondes.'], ['Dépenses classées', 'Chaque achat à sa place.']], tag: 'Refonte · 12 contrôles' },
+        redo: { eyebrow: 'La banque, sans le bruit', head: 'Sachez où va|chaque euro.', sub: 'Un compte, une carte et une vue claire de votre mois. Aucun frais que vous n’avez pas demandé.', cta: 'Ouvrir un compte', alt: 'Voir comment ça marche', trust: '4,9 · 120k avis', links: ['Produit', 'Cartes', 'Épargne', 'Aide'], balance: 'Solde', amount: '4 218,40 €', delta: '+3 200 € cette semaine', cats: [['Courses', '312 €'], ['Transports', '64 €'], ['Restaurants', '128 €']], holder: 'SARAH KOVACS', toast: ['Salaire reçu', '+3 200,00 € · à l’instant'], feats: [['Dépôts protégés', 'Jusqu’à 100 000 €, par la loi.'], ['Virements instantanés', 'À n’importe qui, en secondes.'], ['Dépenses classées', 'Chaque achat à sa place.']], tag: 'Nouveau · Cagnottes', ledger: [['100 k€', 'dépôts protégés'], ['10 s', 'pour envoyer'], ['0 €', 'frais cachés']], note: 'votre mois,|d’un coup d’œil' },
         kanban: { brand: 'Taskflow', badge: 'Avec planification IA', head: 'Planifiez le travail,|sans le chaos', sub: 'Tableaux, plannings et docs pour les équipes qui livrent.', cta: 'Commencer gratuitement', alt: 'Voir la vidéo', links: ['Produit', 'Solutions', 'Tarifs', 'Nouveautés'], trust: 'Adopté par plus de 4 000 équipes', cols: [['À faire', 3], ['En cours', 2], ['Terminé', 4]] },
       },
     },
@@ -473,28 +550,40 @@
         const r = site.kinds.redo;
         const [rh1, rh2] = r.head.split('|');
         const ICON = {
-          shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>',
-          bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"/></svg>',
-          pie: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9V3z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15V3.5z"/></svg>',
           check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>',
           nfc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 8.5a6 6 0 0 1 0 7"/><path d="M9.5 6a9.5 9.5 0 0 1 0 12"/><path d="M13 3.5a13 13 0 0 1 0 17"/></svg>',
-          star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/></svg>',
         };
-        const icons = [ICON.shield, ICON.bolt, ICON.pie];
+        // "every euro" goes italic serif over a hand-laid marker stroke; the last word stays roman when the line has 3+ words.
+        const words = String(rh2 || '').split(' ');
+        const emTxt = words.length > 2 ? words.slice(0, -1).join(' ') : words.join(' ');
+        const rest = words.length > 2 ? ' ' + words[words.length - 1] : '';
+        const [n1, n2] = String(r.note || '').split('|');
         const paint = '<div class="tile-paint r-pocket">'
-          + '<div class="r-nav"><b>pocket<i>.</i></b><span class="r-tag"><i class="t-dab"></i>' + esc(r.tag) + '</span><span>' + r.links.map((l) => '<i>' + esc(l) + '</i>').join('') + '</span><em>' + esc(r.cta) + '</em></div>'
-          + '<div class="r-hero"><div class="r-copy"><small>' + esc(r.eyebrow) + '</small><h4>' + esc(rh1) + '<br>' + esc(rh2 || '') + '</h4><p>' + esc(r.sub) + '</p>'
-          + '<div class="r-cta"><em>' + esc(r.cta) + '</em><i>' + esc(r.alt) + '</i></div>'
-          + '<div class="r-trust"><span>' + ICON.star + ICON.star + ICON.star + ICON.star + ICON.star + '</span>' + esc(r.trust) + '</div></div>'
-          + '<div class="r-scene"><div class="r-phone"><div class="r-screen">'
+          + '<div class="r-nav"><b class="r-logo"><i aria-hidden="true"></i>pocket</b><span class="r-tag"><i class="r-dot" aria-hidden="true"></i>' + esc(r.tag) + '</span><span class="r-links">' + r.links.map((l) => '<i>' + esc(l) + '</i>').join('') + '</span><em>' + esc(r.cta) + '</em></div>'
+          + '<div class="r-hero"><div class="r-copy">'
+          + '<small><i aria-hidden="true"></i>' + esc(r.eyebrow) + '</small>'
+          + '<h4>' + esc(rh1) + '<br><em>' + esc(emTxt) + '<svg class="r-swash" viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3,9 C18,5 34,10 52,7 S82,4 97,8"/></svg></em>' + esc(rest) + '</h4>'
+          + '<p>' + esc(r.sub) + '</p>'
+          + '<div class="r-cta"><em>' + esc(r.cta) + '</em><i>' + esc(r.alt) + '<span aria-hidden="true">→</span></i></div>'
+          + '<div class="r-trust"><img class="r-face" src="/images/redo-face.jpg" alt="" loading="lazy" decoding="async"><span>★</span>' + esc(r.trust) + '</div></div>'
+          + '<div class="r-scene"><div class="r-arch" aria-hidden="true"></div><div class="r-device">'
+          // A real hand and phone (Unsplash photo by Jakub Żerdzicki, cut out, screen left transparent);
+          // the HTML screen sits behind the photo, mapped onto the screen's four corners (see fitPocket).
+          + '<div class="r-screen">'
+          + '<div class="r-status"><b>9:41</b><span class="r-sig"><i></i><i></i><i></i><i></i></span><span class="r-batt"></span></div>'
+          + '<div class="r-app"><b>pocket<i>.</i></b><img src="/images/redo-face.jpg" alt="" loading="lazy" decoding="async"></div>'
           + '<div class="r-bal"><small>' + esc(r.balance) + '</small><b>' + esc(r.amount) + '</b><s>' + esc(r.delta) + '</s></div>'
           + '<svg class="r-chart" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"><path class="a" d="M0,30 C8,29 14,26 22,25 S36,27 44,22 S58,12 68,13 S84,8 100,5 L100,36 L0,36 Z"/><path class="l" d="M0,30 C8,29 14,26 22,25 S36,27 44,22 S58,12 68,13 S84,8 100,5"/><circle class="d" cx="100" cy="5" r="1.8"/></svg>'
-          + '<div class="r-cats">' + r.cats.map((c, k) => '<span><i class="c' + k + '"></i>' + esc(c[0]) + '<b>' + esc(c[1]) + '</b></span>').join('') + '</div>'
-          + '</div></div>'
+          + '<div class="r-cats">' + r.cats.map((cat, k) => '<span><i class="c' + k + '"></i>' + esc(cat[0]) + '<b>' + esc(cat[1]) + '</b></span>').join('') + '</div>'
+          + '<div class="r-tabs"><i class="on"></i><i></i><i></i><i></i></div>'
+          + '</div>'
+          + '<img class="r-hand-photo" src="/images/agence-pocket-hand.webp" alt="" width="1000" height="931" loading="lazy" decoding="async">'
+          + '</div>'
+          + (n1 ? '<div class="r-note" aria-hidden="true"><span>' + esc(n1) + '<br>' + esc(n2 || '') + '</span><svg viewBox="0 0 110 60"><path d="M4,10 C40,0 78,8 100,44"/><path d="M90,40 L100,45 L103,34"/></svg></div>' : '')
           + '<div class="r-card"><i class="r-chip"></i><span class="r-nfc">' + ICON.nfc + '</span><b>•••• 4821</b><span class="r-holder">' + esc(r.holder) + '</span><em>pocket.</em></div>'
           + '<div class="r-toast"><i>' + ICON.check + '</i><div><b>' + esc(r.toast[0]) + '</b><span>' + esc(r.toast[1]) + '</span></div></div>'
           + '</div></div>'
-          + '<div class="r-feats">' + r.feats.map((f, k) => '<div><i>' + icons[k] + '</i><div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div></div>').join('') + '</div>'
+          + '<div class="r-ledger">' + (r.ledger || []).map((l) => '<div><b>' + esc(l[0]) + '</b><span>' + esc(l[1]) + '</span></div>').join('') + '</div>'
           + '</div>';
         html += '<div class="tile is-chosen k-' + kind + '" style="--h:' + HUES[kind] + '">' + generic + paint + '</div>';
       } else {
@@ -503,6 +592,7 @@
     }
     host.innerHTML = html;
     host.dataset.size = String(count);
+    fitPocket();
     sameTiles = Array.from(host.children);
     // Fog order: deterministic shuffle so the fog rolls in unevenly, not row by row.
     sameOrder = sameTiles.map((_, i) => ((i * 5 + 3) % count));
@@ -532,6 +622,9 @@
     const host = $('svc-track');
     if (!host) return;
     const proofTag = t('svc_proof_tag');
+    // Home bento: the deliverables move into a popover beside the proof. The /agence/services page keeps them open.
+    const sec = host.closest('.services');
+    const bento = !!sec && sec.classList.contains('is-bento');
     host.innerHTML = SERVICES.map((s, i) => {
       const n = s.n;
       const dels = [];
@@ -556,8 +649,18 @@
           <p class="svc-promise">${esc(t(`svc_${n}_promise`))}</p>
         </div>
         <div class="svc-side">
-          <p class="svc-gets">${esc(t('s_svc_gets'))}</p>
-          <ul class="svc-list">${dels.join('')}</ul>
+          ${bento ? `<div class="svcp svcp--gets">
+            <button type="button" class="svcp-btn" aria-expanded="false" aria-controls="svcg-${n}">
+              <span class="svcp-ico" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M5.5 4.5h7M5.5 8h7M5.5 11.5h7"/><path class="svcp-ico-check" d="M2.6 4.5l.9.9 1.4-1.6"/><circle cx="3.4" cy="8" r=".7"/><circle cx="3.4" cy="11.5" r=".7"/></svg></span>
+              <span class="svcp-lbl">${esc(t('s_svc_gets'))}</span>
+            </button>
+            <div class="svcp-pop" id="svcg-${n}" role="region" aria-label="${esc(t('s_svc_gets'))}" inert>
+              <p class="svcp-head"><span class="svcp-dot" aria-hidden="true"></span>${esc(t('s_svc_gets'))}</p>
+              <ul class="svc-list">${dels.join('')}</ul>
+              <button type="button" class="svcp-close" aria-label="${esc(t('s_gets_close'))}"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg></button>
+            </div>
+          </div>` : `<p class="svc-gets">${esc(t('s_svc_gets'))}</p>
+          <ul class="svc-list">${dels.join('')}</ul>`}
           ${ev ? `<div class="svcp">
             <button type="button" class="svcp-btn" aria-expanded="false" aria-controls="svcp-${n}">
               <span class="svcp-ico" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/><path class="svcp-ico-check" d="M5 7.1l1.4 1.4L9 5.8"/></svg></span>
@@ -582,9 +685,26 @@
     if (!host) return;
     const bl = t('details_before');
     const al = t('details_after');
+    const sec = host.closest('.checks');
+    const ledger = !!sec && sec.classList.contains('is-ledger');
     let html = '';
     for (let i = 1; i <= CHECKS; i++) {
       const title = t(`check_${i}_title`);
+      if (ledger) {
+        // One line of the grid: a box the brush ticks, the rule's name, and its before → after in one line.
+        // The rule itself is read in the sheet's footer (desktop) or under the line once opened (phones).
+        const c = CHECK_COLORS[(i - 1) % CHECK_COLORS.length];
+        html += `<li class="check ck-row" style="--c:${c}" data-i="${i - 1}">
+          <span class="ck-box" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="ck-tick" d="M5 12.6l4.3 4.3L19.2 7" pathLength="1"/></svg></span>
+          <span class="check-n">${pad(i)}</span>
+          <div class="ck-body">
+            <h3 class="check-title"><button type="button" class="ck-btn" aria-expanded="false" aria-controls="ckd-${i}"><span class="ct-base">${esc(title)}</span><span class="ct-paint" aria-hidden="true">${esc(title)}</span></button></h3>
+            <p class="ck-ba"><s><span class="sr-only">${esc(bl)}: </span>${esc(t(`check_${i}_before`))}</s><i aria-hidden="true">→</i><span><span class="sr-only">${esc(al)}: </span>${esc(t(`check_${i}_after`))}</span></p>
+            <p class="ck-desc" id="ckd-${i}">${esc(t(`check_${i}_desc`))}</p>
+          </div>
+        </li>`;
+        continue;
+      }
       html += `<li class="check" style="--c:${CHECK_COLORS[(i - 1) % CHECK_COLORS.length]}">
         <span class="check-n">${pad(i)}</span>
         <div>
@@ -596,6 +716,10 @@
     }
     host.innerHTML = html;
     checkRows = Array.from(host.children);
+    noteHover = -1;
+    notePinned = -1;
+    const noteEl = $('ledger-note');
+    if (noteEl) noteEl._i = undefined;
     const board = $('tally-board');
     if (board) {
       board.innerHTML = checkRows.map((_, i) => `<i style="--c:${CHECK_COLORS[i % CHECK_COLORS.length]}"></i>`).join('');
@@ -604,38 +728,142 @@
     lastTally = -1;
   }
 
+  /* One small stroke icon per "Included" line (offer.includes_icons, same order as includes; unknown or missing = check). */
+  const INCL_ICONS = {
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    call: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+    page: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
+    devices: '<rect x="2" y="4" width="13" height="10" rx="2"/><path d="M5 18h7"/><rect x="17" y="8" width="5" height="12" rx="1.5"/>',
+    code: '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',
+    grid: '<path d="m3 7 2 2 4-4M3 17l2 2 4-4M13 6h8M13 18h8"/>',
+    notes: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+    chart: '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/>',
+    map: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h5a4 4 0 0 0 0-8h-2a4 4 0 0 1 0-8h5"/>',
+    ai: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+    text: '<path d="M4 7V5h16v2M9 19h6M12 5v14"/>',
+    tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
+    wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>',
+    video: '<path d="m22 8-6 4 6 4z"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+    message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    sparkles: '<path d="m12 3 2 5 5 2-5 2-2 5-2-5-5-2 5-2zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>',
+    cancel: '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>',
+    quote: '<path d="M4 2v20l3-2 3 2 3-2 3 2 3-2 1 .7V2z"/><path d="M8 7h8M8 11h8M8 15h5"/>',
+  };
+  const inclIcon = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${INCL_ICONS[k] || INCL_ICONS.check}</svg>`;
+  const CALENDLY = typeof AGENCY_CALENDLY === 'string' ? AGENCY_CALENDLY : 'https://calendly.com/chilka-v/30min';
+  /* "$390", "$90/month", "from $2,500" */
+  function priceLine(o) {
+    if (o.cadence === 'quote') return t('s_price_from') + ' ' + price(o.price);
+    return price(o.price) + (o.cadence === 'month' ? t('price_month') : '');
+  }
+
+  /* A package card: who it is for, the price, what you walk away with, the facts (pages, delivery, rounds),
+     then the first lines of what is included (the rest folds), what is not, one action and how it is paid.
+     Build carries two tracks: a switch picks the four lines that differ. Redesign and Build are ordered from
+     the card (agence-checkout.js opens the order on [data-order]); coaching takes a waiting list; custom books a call. */
+  const cardTrack = {};
+  const INCL_SHOWN = 4;
+  function trackLines(o, trackId) {
+    const tr = (o.tracks || []).find((x) => x.id === trackId) || (o.tracks || [])[0];
+    if (!tr) return '';
+    const icons = Array.isArray(tr.includes_icons) ? tr.includes_icons : [];
+    return (pick(tr.includes) || []).map((x, i) => `<li>${inclIcon(icons[i])}<span>${esc(tidy(x))}</span></li>`).join('');
+  }
   function renderPricing() {
     const host = $('prices');
     if (!host) return;
+    const pay = OFFERS.payment || {};
     host.innerHTML = (OFFERS.offers || []).map((o) => {
       const monthly = o.cadence === 'month';
-      const incl = (pick(o.includes) || []).map((x) => `<li>${esc(tidy(x))}</li>`).join('');
+      const quote = o.cadence === 'quote';
+      const icons = Array.isArray(o.includes_icons) ? o.includes_icons : [];
+      const all = (pick(o.includes) || []).map((x, i) => `<li>${inclIcon(icons[i])}<span>${esc(tidy(x))}</span></li>`);
+      const tracks = Array.isArray(o.tracks) ? o.tracks : [];
+      const trackId = tracks.length ? (cardTrack[o.id] || tracks[0].id) : '';
+      const shown = tracks.length ? [] : all.slice(0, INCL_SHOWN);
+      const folded = tracks.length ? all : all.slice(INCL_SHOWN);
       const excl = (pick(o.not_included) || []).map((x) => `<li>${esc(tidy(x))}</li>`).join('');
-      const note = pick(o.note);
       const deliveryDetail = monthly ? pick(o.delivery_detail) : '';
-      return `<article class="price${o.highlighted ? ' is-featured' : ''}" data-card="${esc(o.id)}">
-        ${o.highlighted ? `<span class="price-tag">${esc(t('price_featured_tag'))}</span>` : ''}
-        <h3 class="price-name">${esc(pick(o.name))}${soonTag(o.id)}</h3>
+      const pages = pick(o.pages);
+      const cad = quote ? t('s_price_quote') : (monthly ? t('price_month') : t('price_oneoff'));
+      const amount = quote ? `<small>${esc(t('s_price_from'))}</small>${esc(price(o.price))}` : esc(price(o.price));
+      const soon = SOON.has(o.id);
+      const payLine = pick(quote ? pay.quote : (monthly ? pay.month : pay.one_off));
+      let cta;
+      if (o.checkout === 'call' || quote) cta = `<a class="btn btn-ink price-cta" href="${esc(CALENDLY)}" target="_blank" rel="noopener noreferrer">${esc(pick(o.cta))}</a>`;
+      else if (soon) cta = `<button type="button" class="btn btn-line price-cta" data-offer="${esc(o.id)}">${esc(pick(o.cta))}</button>`;
+      else cta = `<button type="button" class="btn ${o.highlighted ? 'btn-primary' : 'btn-ink'} price-cta" data-order="${esc(o.id)}"${trackId ? ` data-track="${esc(trackId)}"` : ''}>${esc(pick(o.cta))}<span class="price-cta-amt">${esc(price(o.price))}</span></button>`;
+      const switcher = tracks.length ? `<div class="price-tracks" role="radiogroup" aria-label="${esc(t('s_price_track'))}">
+          ${tracks.map((tr) => `<button type="button" role="radio" class="price-track" data-card-track="${esc(o.id)}" data-track="${esc(tr.id)}" aria-checked="${tr.id === trackId ? 'true' : 'false'}" tabindex="${tr.id === trackId ? '0' : '-1'}">${esc(pick(tr.name))}</button>`).join('')}
+        </div>
+        <ul class="price-incl price-incl--track" data-track-list="${esc(o.id)}">${trackLines(o, trackId)}</ul>` : '';
+      const moreLabel = fillVars(t(tracks.length ? 's_price_more_build' : 's_price_more'), { n: folded.length });
+      return `<article class="price${o.highlighted ? ' is-featured' : ''}${quote ? ' is-quote' : ''}${soon ? ' is-soon' : ''}" data-card="${esc(o.id)}">
+        <header class="price-top">
+          <h3 class="price-name">${esc(pick(o.name))}${soonTag(o.id)}</h3>
+          ${o.highlighted ? `<span class="price-tag">${esc(t('price_featured_tag'))}</span>` : ''}
+        </header>
         <p class="price-for">${esc(tidy(pick(o.for)))}</p>
-        <p class="price-amount"><strong>${esc(price(o.price))}</strong><span class="price-cad">${esc(monthly ? t('price_month') : t('price_oneoff'))}</span></p>
-        ${note ? `<p class="price-note">${esc(tidy(note))}</p>` : ''}
-        <dl class="price-meta${monthly ? ' is-single' : ''}">
+        <p class="price-amount"><strong>${amount}</strong><span class="price-cad">${esc(cad)}</span></p>
+        ${pick(o.outcome) ? `<p class="price-outcome">${esc(tidy(pick(o.outcome)))}</p>` : ''}
+        <dl class="price-meta">
+          ${pages ? `<div><dt>${esc(t('s_price_pages'))}</dt><dd>${esc(pages)}</dd></div>` : ''}
           <div><dt>${esc(t('price_delivery'))}</dt><dd>${esc(pick(o.delivery))}${deliveryDetail ? `<small>${esc(tidy(deliveryDetail))}</small>` : ''}</dd></div>
           ${monthly ? '' : `<div><dt>${esc(t('price_revisions'))}</dt><dd>${esc(pick(o.revisions))}</dd></div>`}
         </dl>
-        <ul class="price-incl">${incl}</ul>
+        ${switcher}
+        ${shown.length ? `<ul class="price-incl">${shown.join('')}</ul>` : ''}
+        ${folded.length ? `<details class="price-more"><summary>${esc(moreLabel)}</summary><ul class="price-incl">${folded.join('')}</ul></details>` : ''}
         ${excl ? `<details class="price-excl"><summary>${esc(t('price_not_included'))}</summary><ul>${excl}</ul></details>` : ''}
-        <button type="button" class="btn ${o.highlighted ? 'btn-primary' : 'btn-ink'} price-cta" data-offer="${esc(o.id)}">${esc(pick(o.cta))}</button>
+        <div class="price-act">
+          ${cta}
+          ${quote
+            ? `<a class="price-call" href="mailto:${esc(EMAIL)}">${esc(t('s_price_or_write'))}</a>`
+            : `<a class="price-call" href="${esc(CALENDLY)}" target="_blank" rel="noopener noreferrer">${esc(t('s_price_or_call'))}</a>`}
+          ${payLine ? `<p class="price-pay">${esc(tidy(payLine))}</p>` : ''}
+        </div>
       </article>`;
     }).join('');
 
     const addons = $('addons');
     if (addons) {
-      addons.innerHTML = (OFFERS.addons || []).map((a) =>
-        `<li><span>${esc(tidy(pick(a.name)))}${soonTag(a.id)}</span><strong>${esc(price(a.price))}</strong></li>`).join('');
+      addons.innerHTML = (OFFERS.addons || []).map((a) => {
+        const coaching = Array.isArray(a.for) && a.for.length === 1 && a.for[0] === 'accompagnement';
+        return `<li><span class="ad-name">${esc(tidy(pick(a.name)))}${soonTag(a.id)}</span><span class="ad-for">${esc(t(coaching ? 's_addon_for_coaching' : 's_addon_for'))}</span><strong>${esc(price(a.price))}</strong></li>`;
+      }).join('');
     }
     const note = $('addons-note');
-    if (note) note.textContent = tidy(pick(OFFERS.auditDeductionNote) || '');
+    if (note) note.textContent = t('s_addons_hint');
+    renderOrderSteps();
+  }
+  /* "How ordering works": three steps, worded for the mode the server runs (card payment on the page, or a payment link). */
+  function renderOrderSteps() {
+    const host = $('order-steps');
+    if (!host) return;
+    const paid = root.dataset.pay === 'stripe';
+    const keys = paid ? ['s_step_pay_1', 's_step_pay_2', 's_step_pay_3'] : ['s_step_req_1', 's_step_req_2', 's_step_req_3'];
+    host.innerHTML = `<p class="os-title">${esc(t('s_steps_title'))}</p><ol class="os-list">${keys.map((k, i) => {
+      const [title, body] = tlist(k);
+      return `<li><span class="os-n" aria-hidden="true">${i + 1}</span><div><b>${esc(title || '')}</b><span>${esc(body || '')}</span></div></li>`;
+    }).join('')}</ol>`;
+  }
+  function setCardTrack(offerId, trackId) {
+    const o = (OFFERS.offers || []).find((x) => x.id === offerId);
+    if (!o || !(o.tracks || []).some((x) => x.id === trackId)) return;
+    cardTrack[offerId] = trackId;
+    const card = d.querySelector(`.price[data-card="${offerId}"]`);
+    if (!card) return;
+    card.querySelectorAll('.price-track').forEach((b) => {
+      const on = b.dataset.track === trackId;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+    });
+    const list = card.querySelector('[data-track-list]');
+    if (list) list.innerHTML = trackLines(o, trackId);
+    const cta = card.querySelector('[data-order]');
+    if (cta) cta.dataset.track = trackId;
   }
 
   /* The agenda: each step stands on its business day; the build step spans two. */
@@ -693,7 +921,7 @@
     if (line) {
       line.textContent = o ? fillVars(t('s_pick_line'), {
         name: pick(o.name),
-        price: price(o.price) + (o.cadence === 'month' ? t('price_month') : ''),
+        price: priceLine(o),
         delivery: pick(o.delivery),
       }) : '';
     }
@@ -993,7 +1221,7 @@
       video.src = src;
       video.preload = 'auto';
       video.load();
-      video.addEventListener('loadedmetadata', () => { s.head = -1; prime(); tick(); }, { once: true });
+      video.addEventListener('loadedmetadata', () => { s.head = -1; prime(); if (s.wantFree != null) { const f = s.wantFree; s.wantFree = null; s.release(f); } else tick(); }, { once: true });
       video.addEventListener('seeked', () => {
         s.seeking = false;
         if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(markPainted); else if (video.readyState >= 2) markPainted();
@@ -1036,20 +1264,28 @@
     /* Free run: once the stage is released, the clip plays out on its own clock instead of waiting for the scroll,
        so the scene finishes even if the hand stops. hold() gives the playhead back to the scroll. */
     s.free = false;
-    s.release = function () {
-      if (s.free || !s.loaded) return;
+    /* release(from): play on from here; if the hand jumped straight past the scrub (deep link, reload, fast scroll),
+       the clip first catches up to `from` so the scene is never stuck on its first frame. */
+    s.wantFree = null;
+    s.release = function (from) {
+      if (s.free) return;
+      if (!s.loaded || !(video.duration > 0)) { s.wantFree = from == null ? 0 : from; if (!s.loaded && !s.lazy) s.load(); return; }
       const dur = video.duration;
       if (!Number.isFinite(dur) || dur <= 0 || video.currentTime >= dur - 0.08) return;
+      if (from != null && video.currentTime < from - 0.3) { video.currentTime = Math.min(from, dur - 0.1); s.head = from; }
       s.free = true;
       s.seeking = false;
       const p = video.play();
       if (p && p.catch) p.catch(() => { s.free = false; });
     };
     s.hold = function () {
+      s.wantFree = null;
       if (!s.free) return;
       s.free = false;
       video.pause();
       s.head = video.currentTime;
+      // Stay on the frame reached by the free run; the next set() from the hand moves on from here.
+      if (video.duration > 0) s.target = video.currentTime / video.duration;
       tick();
     };
     video.addEventListener('ended', () => { s.free = false; s.head = video.currentTime; });
@@ -1079,12 +1315,13 @@
       img.decoding = 'async';
       islandHost.appendChild(img);
       window.agenceIsland = {
-        set(p) { islandHost.style.opacity = String(1 - clamp((p - 0.27) / 0.047)); },
+        set(p) { islandHost.style.opacity = String(1 - clamp((p - 0.159) / 0.028)); },
         refresh() {},
       };
     }, 7000);
   }
   const beats = hero ? Array.from(hero.querySelectorAll('.hero-beat')) : [];
+  // The lookalike sites have their own pale sheet again (2026-10-17): the fox clip is never covered by them.
   const same = d.querySelector('[data-scene="same"]');
   const services = d.querySelector('[data-scene="services"]');
   const track = $('svc-track');
@@ -1126,12 +1363,20 @@
     return !!stage && getComputedStyle(stage).position === 'sticky';
   }
 
+  /* A pinned scene with a cover (.has-cover) holds its stage for one more viewport after its own travel,
+     while the next section slides over it (data-cover="sheet") or opens through it (data-cover="dab").
+     Its progress only counts its own travel; coverOf() counts the extra viewport. */
   function progressOf(el, r, vh) {
     if (el._pinned) {
-      const total = r.height - vh;
+      const total = r.height - vh - (el._cover || 0);
       return total > 0 ? clamp(-r.top / total) : (r.top <= 0 ? 1 : 0);
     }
     return clamp((vh - r.top) / (r.height + vh));
+  }
+  function coverOf(el, r, vh) {
+    const c = el._cover || 0;
+    if (!c || !r) return 0;
+    return clamp((-r.top - (r.height - vh - c)) / c);
   }
   /* A pinned stage is on screen for a viewport before its travel starts and after it ends: the clip plays across that whole life. */
   function clipProgress(el, r, vh) {
@@ -1155,33 +1400,38 @@
       if (window.agenceIsland) window.agenceIsland.set(0);
       return;
     }
-    /* The clip in two movements. While pinned, the hand drives the glide over the water, the splash and the dive
-       (0 to 6.9 s of the clip). Released, the whale swims the rest on its own until the stage is gone;
-       the playhead is left alone meanwhile. */
-    const T_PIN = 6.9;
-    const dur = heroScrub && heroScrub.video.duration > 0 ? heroScrub.video.duration : 11.82;
+
+
+
+    /* The hand drives the clip until the last beat is on screen. That beat fades in from 0.72;
+       two or three wheel notches later the clip plays itself out, so it starts as soon as the step appears. */
+    const T_PIN = 16;
+    const RELEASE = 0.78;
+    const dur = heroScrub && heroScrub.video.duration > 0 ? heroScrub.video.duration : 20.03;
     const tSec = clamp(pinP) * T_PIN;
     if (heroScrub) {
-      if (pinP >= 1 && !gone) heroScrub.release(); else heroScrub.hold();
-      if (pinP < 1) heroScrub.set(tSec / dur);
+      if (pinP >= RELEASE && !gone) heroScrub.release(RELEASE * T_PIN); else heroScrub.hold();
+      if (pinP < RELEASE) heroScrub.set(tSec / dur);
     }
     clipP = tSec / dur;
     if (window.agenceIsland && clipP != null) window.agenceIsland.set(clipP);
     hero.style.setProperty('--scrim', (0.92 - 0.3 * seg(p, 0.1, 0.4)).toFixed(3));
     hero.style.setProperty('--deep', seg(p, 0.3, 0.8).toFixed(3));
 
-    const [b1, b2, b3] = beats;
-    if (b1) { const k = seg(p, 0.06, 0.2); setBeat(b1, 1 - k, -40 * k); }
-    if (b2) {
-      const kin = seg(p, 0.24, 0.34);
-      const kout = seg(p, 0.52, 0.6);
-      setBeat(b2, kin * (1 - kout), 24 * (1 - kin) - 36 * kout);
+    // Three beats over the pin (2026-10-15, shorter pin): the title, the dive, then the invitation while the whale swims.
+    const [b1, b3, b4] = beats;
+    if (b1) { const k = seg(p, 0.05, 0.16); setBeat(b1, 1 - k, -40 * k); }
+    if (b3) {
+      const kin = seg(p, 0.2, 0.3);
+      const kout = b4 ? seg(p, 0.52, 0.6) : 0;
+      setBeat(b3, kin * (1 - kout), 30 * (1 - kin) - 36 * kout);
     }
-    if (b3) { const k = seg(p, 0.66, 0.78); setBeat(b3, k, 30 * (1 - k)); }
+    if (b4) { const k = seg(p, 0.64, 0.74); setBeat(b4, k, 30 * (1 - k)); }
   }
 
-  /* The painter: the fox walks out of the forest and arrives with its palette. */
-  function drawFox(p, clipP) {
+  /* The painter: the fox walks out of the forest and arrives with its palette. The whole pin is the clip:
+     it holds its first frame while the dab opens (the same frame as the poster), then plays to the fox's arrival. */
+  function drawFox(p, near) {
     if (!fox) return;
     if (reduced) {
       foxBeats.forEach((b) => { b.style.opacity = ''; b.style.transform = ''; b.style.visibility = ''; });
@@ -1189,13 +1439,85 @@
       fox.classList.add('is-arrived');
       return;
     }
-    if (foxScrub && clipP != null) foxScrub.set(clipP);
-    fox.style.setProperty('--arrive', seg(p, 0.74, 0.86).toFixed(3));
-    fox.classList.toggle('is-arrived', p > 0.78);
-    fox.style.setProperty('--scrim', (0.9 - 0.35 * seg(p, 0.1, 0.5)).toFixed(3));
+    if (foxScrub && near) foxScrub.set(seg(p, 0.02, 0.96));
+    fox.style.setProperty('--arrive', seg(p, 0.86, 0.96).toFixed(3));
+    fox.classList.toggle('is-arrived', p > 0.9);
+    fox.style.setProperty('--scrim', (0.86 - 0.3 * seg(p, 0.14, 0.5)).toFixed(3));
     const [a, b] = foxBeats;
-    if (a) { const kin = seg(p, 0.0, 0.08); const kout = seg(p, 0.4, 0.5); setBeat(a, Math.max(kin, p < 0.02 ? 1 : 0) * (1 - kout), 20 * (1 - kin) - 36 * kout); }
-    if (b) { const k = seg(p, 0.64, 0.76); setBeat(b, k, 30 * (1 - k)); }
+    if (a) { const kin = seg(p, 0.06, 0.16); const kout = seg(p, 0.4, 0.5); setBeat(a, kin * (1 - kout), 20 * (1 - kin) - 36 * kout); }
+    if (b) { const k = seg(p, 0.62, 0.74); setBeat(b, k, 30 * (1 - k)); }
+  }
+
+  /* Transitions between the pinned scenes (one viewport each, scrubbed by the scroll):
+     sheet: the next section slides over the held stage, which sinks back (a little smaller, darker, rounded);
+     dab:   the next stage stays put and opens through a paint dab that grows from the painted site. */
+  const coveredEls = Array.from(d.querySelectorAll('main > section.has-cover'));
+  function measureCovers() {
+    coveredEls.forEach((el) => {
+      const stage = el.querySelector(':scope > .pin-stage');
+      let next = el.nextElementSibling;
+      while (next && next.tagName !== 'SECTION') next = next.nextElementSibling;
+      el._stage = stage;
+      el._next = next && next.classList.contains('covers') ? next : null;
+      el._cover = !reduced && el._pinned && el._next && stage ? stage.offsetHeight : 0;
+      el._k = -1;
+      if (el._next) {
+        el._next._stage = el._next.querySelector(':scope > .pin-stage');
+        el._next._rim = el._next.querySelector(':scope > .dab-rim');
+      }
+    });
+  }
+  function clearDab(next) {
+    if (!next) return;
+    next.classList.remove('is-opening');
+    [next._stage, next._rim].forEach((x) => {
+      if (!x) return;
+      x.style.transform = '';
+      x.style.webkitMaskSize = x.style.maskSize = '';
+      x.style.webkitMaskPosition = x.style.maskPosition = '';
+    });
+  }
+  function drawCovers(rects, vh, dabFrom) {
+    coveredEls.forEach((el) => {
+      const next = el._next;
+      if (!next) return;
+      const k = el._cover ? coverOf(el, rects.get(el), vh) : 0;
+      if (el.dataset.cover === 'dab') {
+        const rNext = rects.get(next);
+        // How much of the screen the opening already holds (drawChrome reads it for the nav tone).
+        next._open = el._cover ? k : 0;
+        if (!el._cover || k <= 0 || k >= 1 || !rNext) {
+          if (el._k !== k) clearDab(next);
+          next.classList.toggle('is-shut', !!el._cover && k <= 0);
+          el._k = k;
+          return;
+        }
+        el._k = k;
+        next.classList.add('is-opening');
+        next.classList.remove('is-shut');
+        // The stage is held at the top of the viewport while its section is still rising: viewport = stage coordinates.
+        const lift = `translate3d(0, ${(-Math.max(0, rNext.top)).toFixed(1)}px, 0)`;
+        const ox = dabFrom ? dabFrom.x : window.innerWidth / 2;
+        const oy = dabFrom ? dabFrom.y : vh / 2;
+        const far = Math.hypot(Math.max(ox, window.innerWidth - ox), Math.max(oy, vh - oy));
+        const e = easeInOut(seg(k, 0.04, 0.96));
+        const size = (far / 0.42) * e;
+        const place = (x, s) => {
+          if (!x) return;
+          x.style.transform = lift;
+          x.style.webkitMaskSize = x.style.maskSize = `${s.toFixed(1)}px ${s.toFixed(1)}px`;
+          x.style.webkitMaskPosition = x.style.maskPosition = `${(ox - s / 2).toFixed(1)}px ${(oy - s / 2).toFixed(1)}px`;
+        };
+        place(next._stage, size);
+        // The pigment rim runs just ahead of the opening, like wet paint at the edge of the stroke.
+        place(next._rim, size * 1.06 + 26 * (1 - e));
+        return;
+      }
+      if (el._k === k) return;
+      el._k = k;
+      if (el._stage) el._stage.style.setProperty('--out', k.toFixed(4));
+      next.style.setProperty('--in', (el._cover ? k : 1).toFixed(4));
+    });
   }
 
   function drawSame(p) {
@@ -1252,11 +1574,23 @@
     const pop = el.querySelector('.svcp-pop');
     if (open) {
       loadProofMedia(pop);
+      // A closed bubble is display:none, so open it before measuring where it fits.
+      el.classList.add('is-open');
       const r = btn.getBoundingClientRect();
       const need = pop.offsetHeight + 28;
       const below = window.innerHeight - r.bottom;
       const above = r.top - (nav ? nav.offsetHeight : 0);
       el.classList.toggle('is-up', below < need && above > below);
+      pop.style.marginLeft = '';
+      pop.style.removeProperty('--tail');
+      // stay clear of the chapter rail on the right on desktop
+      const pad = window.innerWidth > 900 ? 64 : 12;
+      const overflow = r.left + pop.offsetWidth - (window.innerWidth - pad);
+      const shift = overflow > 0 ? -Math.min(overflow, Math.max(0, r.left - pad)) : 0;
+      if (shift) {
+        pop.style.marginLeft = shift + 'px';
+        pop.style.setProperty('--tail', Math.round(22 - shift) + 'px');
+      }
     }
     el.classList.toggle('is-open', open);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1276,10 +1610,24 @@
 
   function drawChecks(vh, tops) {
     let count = 0;
+    let rowTop = null;
+    let inRow = 0;
+    // The home grid fits one screen on two columns: the brush ticks the twelve lines in reading order while the
+    // sheet rises from the bottom of the viewport to its upper third. On one column (phones) each line on its own.
+    const ledger = checkRows.length && checkRows[0].classList.contains('ck-row');
+    const twoCol = ledger && tops && tops.length > 6 && Math.abs(tops[6] - tops[0]) < 8;
+    const rise = twoCol ? clamp((vh * 0.92 - tops[0]) / (vh * 0.62)) : 0;
     checkRows.forEach((row, i) => {
       let ink = 1;
-      if (!reduced && tops) ink = clamp((vh * 0.58 - tops[i]) / (vh * 0.2));
+      if (!reduced && tops && twoCol) {
+        ink = clamp(rise * (checkRows.length + 1.5) - i);
+      } else if (!reduced && tops) {
+        // Bento tiles share a row: paint them one after the other, left to right.
+        if (rowTop != null && Math.abs(tops[i] - rowTop) < 4) inRow++; else { inRow = 0; rowTop = tops[i]; }
+        ink = clamp((vh * 0.62 - tops[i]) / (vh * 0.2) - inRow * 0.22);
+      }
       row.style.setProperty('--ink', ink.toFixed(3));
+      row.classList.toggle('is-painted', ink >= 0.995);
       if (ink >= 0.995) {
         count++;
         // A painted line shows its before/after by itself; it never folds back on the way up.
@@ -1299,7 +1647,37 @@
       tallyDots.forEach((dot, i) => dot.classList.toggle('is-on', i < count));
       const pill = $('tally-pill-n');
       if (pill) pill.textContent = pad(count);
+      const sheet = $('ledger');
+      if (sheet) sheet.classList.toggle('is-passed', checkRows.length > 0 && count >= checkRows.length);
+      if (ledger) updateNote();
     }
+  }
+
+  /* The sheet's footer reads one rule at a time: the line under the pointer or focus, else the opened one,
+     else the last line the brush ticked. */
+  let noteHover = -1;
+  let notePinned = -1;
+  function updateNote() {
+    const el = $('ledger-note');
+    if (!el || !checkRows.length || !checkRows[0].classList.contains('ck-row')) return;
+    const i = noteHover >= 0 ? noteHover : notePinned >= 0 ? notePinned : Math.max(-1, lastTally - 1);
+    if (el._i === i && el._lang === lang) return;
+    el._i = i;
+    el._lang = lang;
+    el.innerHTML = i < 0
+      ? `<span class="ln-hint">${esc(t('s_ledger_hint'))}</span>`
+      : `<b>${pad(i + 1)}</b><span>${esc(t(`check_${i + 1}_desc`))}</span>`;
+    checkRows.forEach((r, k) => r.classList.toggle('is-noted', k === i));
+  }
+  function openCheck(row, open) {
+    checkRows.forEach((r) => {
+      const on = r === row && open;
+      r.classList.toggle('is-open', on);
+      const b = r.querySelector('.ck-btn');
+      if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
+    });
+    notePinned = row && open ? Number(row.dataset.i) : -1;
+    updateNote();
   }
 
   function drawDay2(p) {
@@ -1340,11 +1718,14 @@
     let seen = false;
     let railLight = false;
     const mid = vh * 0.5;
+    // Sections overlap while a sheet slides over a held scene: the later one is on top, so the last match wins.
+    // A stage opening through a dab is held at the top of the screen before its section gets there.
     for (const el of sectionEls) {
       const r = rects.get(el);
       if (!r) continue;
-      if (!seen && r.top <= probe && r.bottom > probe) { light = el.dataset.tone === 'light'; seen = true; }
-      if (r.top <= mid && r.bottom > mid) railLight = el.dataset.tone === 'light';
+      const top = el._open > 0.55 ? 0 : r.top;
+      if (top <= probe && r.bottom > probe) { light = el.dataset.tone === 'light'; seen = true; }
+      if (top <= mid && r.bottom > mid) railLight = el.dataset.tone === 'light';
     }
     if (nav) {
       if (hero) {
@@ -1407,18 +1788,29 @@
     const checkTops = (rChecks && rChecks.bottom > 0 && rChecks.top < vh) ? checkRows.map((r) => r.getBoundingClientRect().top) : null;
     const rProcess = processSec && rects.get(processSec);
     const rFox = fox && rects.get(fox);
+    const rSame = same && rects.get(same);
+    // Where the dab opens: the centre of the site that was finished by hand (only read while it opens).
+    let dabFrom = null;
+    if (same && same._cover && rSame) {
+      const k = coverOf(same, rSame, vh);
+      const chosen = k > 0 && k < 1 && $('tiles') ? $('tiles').querySelector('.tile.is-chosen') : null;
+      if (chosen) { const t0 = chosen.getBoundingClientRect(); dabFrom = { x: t0.left + t0.width / 2, y: t0.top + t0.height / 2 }; }
+    }
 
     if (hero && rHero) {
       heroP = progressOf(hero, rHero, vh);
       const clipP = clipProgress(hero, rHero, vh);
-      // Pin progress: 1 once the sticky stage is released and the hero starts leaving.
-      const pinP = rHero.height > vh ? clamp(-rHero.top / (rHero.height - vh)) : 1;
-      // 0 scrubbed, 1 released (free run), 2 gone: a change of mode always reaches drawHero.
-      const heroMode = pinP >= 1 ? (rHero.bottom <= 0 ? 2 : 1) : 0;
+      // Pin progress: 1 once the hero's own travel is done (the covering sheet then slides over the held stage).
+      const travel = rHero.height - vh - (hero._cover || 0);
+      const pinP = travel > 0 ? clamp(-rHero.top / travel) : 1;
+      // 0 scrubbed, 1 released (free run), 2 gone (fully covered or scrolled away): a change of mode always reaches drawHero.
+      const gone = hero._cover ? coverOf(hero, rHero, vh) >= 1 : rHero.bottom <= 0;
+      const heroMode = pinP >= 1 ? (gone ? 2 : 1) : 0;
       if (!motesRunning || heroP !== lastHeroP || heroMode !== lastHeroMode) { drawHero(clipP, pinP, heroMode === 2); lastHeroP = heroP; lastHeroMode = heroMode; }
     }
-    if (same) drawSame(progressOf(same, rects.get(same), vh));
-    if (fox && rFox) drawFox(progressOf(fox, rFox, vh), rFox.bottom > -vh && rFox.top < vh * 2 ? clipProgress(fox, rFox, vh) : null);
+    if (same && rSame && (reduced || (rSame.bottom > 0 && rSame.top < vh))) drawSame(progressOf(same, rSame, vh));
+    if (fox && rFox) drawFox(progressOf(fox, rFox, vh), rFox.bottom > -vh && rFox.top < vh * 2);
+    drawCovers(rects, vh, dabFrom);
     if (services) drawServices(progressOf(services, rects.get(services), vh));
     if (checkTops || reduced) drawChecks(vh, checkTops);
     if (day2) drawDay2(progressOf(day2, rects.get(day2), vh));
@@ -1435,6 +1827,7 @@
   function layout() {
     const vh = window.innerHeight;
     [hero, same, fox, day2].forEach((el) => { if (el) el._pinned = isPinned(el); });
+    measureCovers();
     if (window.agenceIsland) window.agenceIsland.refresh();
     const stage = services && services.querySelector('.pin-stage');
     horizontal = !!services && !!stage && !reduced && window.innerWidth > 900;
@@ -1758,6 +2151,10 @@
     if (moreBtn) { toggleDisclosure(moreBtn, '.more', '.more-panel'); return; }
     const qaBtn = e.target.closest('.qa-q');
     if (qaBtn) { toggleDisclosure(qaBtn, '.qa', '.qa-panel'); return; }
+    const trackBtn = e.target.closest('.price-track');
+    if (trackBtn) { setCardTrack(trackBtn.dataset.cardTrack, trackBtn.dataset.track); return; }
+    const ckBtn = e.target.closest('.ck-btn');
+    if (ckBtn) { const row = ckBtn.closest('.ck-row'); openCheck(row, !row.classList.contains('is-open')); return; }
     const spotBtn = e.target.closest('.spot-btn');
     if (spotBtn) {
       const el = spotBtn.closest('.spot');
@@ -1784,8 +2181,9 @@
     if (pickBtn) {
       setPick(currentPick === pickBtn.dataset.pick ? '' : pickBtn.dataset.pick);
       if (currentPick && window.innerWidth <= 1080) {
+        // Phones swipe the cards sideways: bring the picked one to the middle of the row, not just into view.
         const card = d.querySelector(`.price[data-card="${currentPick}"]`);
-        if (card) card.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+        if (card) card.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: window.innerWidth <= 900 ? 'nearest' : 'center', inline: 'center' });
       }
       return;
     }
@@ -1795,6 +2193,9 @@
       if (ch) { root.style.setProperty('--chapter', ch.color); goTo(ch.target); }
       return;
     }
+    // The order flow lives in agence-checkout.js; without it, an order button still opens the email form.
+    const orderBtn = e.target.closest('[data-order]');
+    if (orderBtn && !window.agenceOrder) { e.preventDefault(); openContact(orderBtn.dataset.order || ''); return; }
     const offerBtn = e.target.closest('[data-offer]');
     if (offerBtn) { e.preventDefault(); openContact(offerBtn.dataset.offer || ''); return; }
     const a = e.target.closest('a[href^="#"]');
@@ -1819,6 +2220,25 @@
     const back = () => { const ch = CHAPTERS.find((c) => c.id === lastChapter) || CHAPTERS[0]; railSay(t(ch.key), ch.color); };
     rail.addEventListener('pointerleave', back);
     rail.addEventListener('focusout', (e) => { if (!rail.contains(e.relatedTarget)) back(); });
+  }
+  d.addEventListener('keydown', (e) => {
+    const b = e.target.closest && e.target.closest('.price-track');
+    if (!b || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+    const all = Array.from(b.parentElement.querySelectorAll('.price-track'));
+    const i = all.indexOf(b) + (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1);
+    const next = all[(i + all.length) % all.length];
+    e.preventDefault();
+    setCardTrack(next.dataset.cardTrack, next.dataset.track);
+    next.focus();
+  });
+  // The grid's footer follows the pointer and the focus, line by line.
+  const checksList = $('checks-list');
+  if (checksList) {
+    const lineOf = (e) => { const r = e.target.closest && e.target.closest('.ck-row'); return r ? Number(r.dataset.i) : -1; };
+    checksList.addEventListener('pointerover', (e) => { const i = lineOf(e); if (i >= 0 && i !== noteHover) { noteHover = i; updateNote(); } });
+    checksList.addEventListener('pointerleave', () => { noteHover = -1; updateNote(); });
+    checksList.addEventListener('focusin', (e) => { const i = lineOf(e); if (i >= 0) { noteHover = i; updateNote(); } });
+    checksList.addEventListener('focusout', (e) => { if (!checksList.contains(e.relatedTarget)) { noteHover = -1; updateNote(); } });
   }
   // Keyboard users reach the lateral service cards: scroll the pin to the focused card.
   d.addEventListener('focusin', (e) => {
@@ -1851,6 +2271,8 @@
     });
   }
 
+  // The order steps under the cards follow the payment mode the server reports (agence-checkout.js).
+  window.addEventListener('agence:paymode', renderOrderSteps);
   window.addEventListener('scroll', requestFrame, { passive: true });
   let resizeT = 0;
   let lastW = window.innerWidth;

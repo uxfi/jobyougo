@@ -46,6 +46,15 @@ export function listActionLabelsInPage() {
   const labels = [];
   for (const el of deep(document, 'a, button, [role="button"], input[type="submit"], input[type="button"]')) {
     if (disabled(el) || !visible(el)) continue;
+    // Site chrome: a footer link or a link to the site's home is no control
+    // of the form (Teamtailor's footer "Start" read as a visible Next).
+    if (el.tagName === 'A') {
+      if (el.closest('footer, [role="contentinfo"]')) continue;
+      try {
+        const u = new URL(el.href, location.href);
+        if (u.origin === location.origin && (u.pathname === '/' || u.pathname === '') && !u.search && !u.hash) continue;
+      } catch { /* keep the link */ }
+    }
     const t = label(el);
     if (!t || t.length > 80) continue;
     labels.push(t);

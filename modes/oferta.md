@@ -73,6 +73,10 @@ After filling the Remote row, cross-check the posting's **structured location fi
 - If the JD body says nothing about location or attendance, emit no flag — silence is absence of signal, not agreement.
 - If the input has no structured location field (pasted JD text only), skip this check.
 
+### Candidate location compatibility
+
+State where the candidate can work from using only the profile's recorded bases and the posting's explicit work-location terms. Paris is a valid base for EU/EMEA or genuinely global remote roles; Bangkok is a valid base for APAC/Thailand roles. A job being "based in Paris" does not by itself mean it is remote or compatible with a full-remote-only preference. If the posting says Paris-based but does not explicitly allow remote work, mark remote compatibility as unclear and do not claim it matches. If it requires hybrid/on-site attendance outside Bangkok, identify the mismatch. Never infer remote eligibility from silence or from work authorization alone.
+
 On contradiction, add exactly one flag line at the top of Block B in the report, quoting the evidence **verbatim** (never paraphrase):
 
 `⚠️ **Geo-mismatch:** location field says remote, but JD body says "{verbatim JD line}"`
@@ -554,6 +558,7 @@ This is information about **your own history** with the company, not about this 
 - **Niche/executive roles:** Staff+, VP, Director, or highly specialized roles legitimately stay open for months. Adjust age thresholds accordingly.
 - **Startup / pre-revenue:** Early-stage companies may have vague JDs because the role is genuinely undefined. Weight description vagueness less heavily.
 - **No date available:** If posting age cannot be determined and no other signals are concerning, default to "Proceed with Caution" with a note that limited data was available. NEVER default to "Suspicious" without evidence.
+- **Location or eligibility mismatch:** An on-site city outside the candidate's on-site availability, a residency lock, or a work-authorization requirement the candidate does not meet is a fit problem, not a legitimacy signal. It belongs in Block A and the score (hard fail when the profile rules say so) and never lowers the tier.
 - **Recruiter-sourced (no public posting):** Freshness signals unavailable. Note that active recruiter contact is itself a positive legitimacy signal.
 
 ---

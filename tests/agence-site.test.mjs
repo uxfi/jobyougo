@@ -12,6 +12,7 @@ import {
   buildAgencyChatPrompt,
   firstHeadStyle,
   isAgencePagePath,
+  loadAgencyOffers,
   renderAgencePage,
   renderAgenceSubpage,
   resolveChatPersona,
@@ -62,6 +63,32 @@ test('renderAgenceSubpage: splices the fragment and the slug', async (t) => {
   assert.equal(await renderAgenceSubpage(dir, 'services'), html);
   assert.equal(await renderAgenceSubpage(dir, 'showcase'), null);
   assert.equal(await renderAgenceSubpage(dir, 'nope'), null);
+});
+
+test('renderAgenceSubpage: the order thanks page is not indexed; other pages add nothing to the head', async (t) => {
+  const dir = tempDir(t);
+  mkdirSync(join(dir, 'agence'));
+  writeFileSync(join(dir, 'agence', 'page.html'), '<head><!--@head--></head><body class="<!--@navtone-->"><!--@main--></body>');
+  writeFileSync(join(dir, 'agence', 'thanks.html'), '<section id="thanks"></section>');
+  writeFileSync(join(dir, 'agence', 'pricing.html'), '<section id="pricing"></section>');
+  assert.equal(agenceSubpageId('/agence/thanks'), 'thanks');
+  assert.equal(await renderAgenceSubpage(dir, 'thanks'), '<head><meta name="robots" content="noindex"></head><body class="on-light"><section id="thanks"></section></body>');
+  assert.equal(await renderAgenceSubpage(dir, 'pricing'), '<head></head><body class="on-light"><section id="pricing"></section></body>');
+});
+
+test('loadAgencyOffers: the offers block of the real data file, cached; undefined without it', async (t) => {
+  const offers = await loadAgencyOffers(ROOT);
+  assert.ok(offers && offers.offers.some((o) => o.id === 'refonte'));
+  assert.equal(await loadAgencyOffers(ROOT), offers, 'same object while the file is unchanged');
+  assert.equal(await loadAgencyOffers(tempDir(t)), undefined);
+});
+
+test('the real sub-page shell has a head slot, and every sub-page has a fragment', () => {
+  const shell = readFileSync(join(ROOT, 'ui', 'agence', 'page.html'), 'utf8');
+  assert.ok(shell.includes('<!--@head-->'), 'page.html carries <!--@head-->');
+  for (const slug of ['showcase', 'services', 'pricing', 'secret-touch', 'thanks']) {
+    assert.ok(readFileSync(join(ROOT, 'ui', 'agence', slug + '.html'), 'utf8').trim().length > 0, slug);
+  }
 });
 
 test('isAgencePagePath', () => {

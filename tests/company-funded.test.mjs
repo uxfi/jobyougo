@@ -325,6 +325,8 @@ try {
     fail(`Markdown escaping regressed: ${markdownReport}`);
   }
 
+  // Ten days ago: a fixed July date fell out of the 3-month window on 2026-10-18.
+  const recentPubDate = new Date(Date.now() - 10 * 864e5).toUTCString();
   const originalFetch = globalThis.fetch;
   const seenFetchOptions = [];
   globalThis.fetch = async (url, options) => {
@@ -341,7 +343,7 @@ try {
         <item>
           <title>Acme raises $25M Series A</title>
           <link>https://techcrunch.com/acme</link>
-          <pubDate>Wed, 15 Jul 2026 12:00:00 +0000</pubDate>
+          <pubDate>${recentPubDate}</pubDate>
           <description>Acme raises funding.</description>
         </item>
       </channel></rss>`, {

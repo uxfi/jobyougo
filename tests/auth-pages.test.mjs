@@ -237,7 +237,7 @@ test('OB-F1/GATE-F4: a draft restores its answers only over the stored profile i
   assert.ok(provenance.includes('serverUpdatedAt: state.serverUpdatedAt'), 'stamp saved in the draft');
   assert.ok(!/\bprofile:|cv_markdown:/.test(provenance), 'provenance carries no answers');
   assert.ok(page.includes('? { ...provenance, synced: true }'), 'a synced draft is provenance only');
-  assert.ok(page.includes('saveDraft({ synced: true });'), 'save & finish later leaves a synced draft');
+  assert.ok(page.includes('saveDraft({ synced: !degraded });'), 'save & finish later leaves a synced draft, unless the save was partial');
   assert.ok(!page.includes('the draft wins on return'));
   assert.ok(page.includes('const restore = draftRestore(draft, { loaded: existing.ok, serverStamp });'));
   assert.ok(/if \(restore\.answers\) \{\s+absorbProfile\(draft\.profile/.test(page), 'answers absorbed only from a fresh draft');
@@ -374,6 +374,22 @@ test('GATE-F8: signing out never leaves the answers on the device without asking
   assert.ok(signout.includes('if (saved) removeDraft();'), 'saved: the draft goes');
   assert.ok(signout.includes("if (confirm('Keep an unsaved copy of your answers on this device?')) saveDraft(); else removeDraft();"), 'unsaved: the user decides');
   assert.ok(!/\bif \(saved\) removeDraft\(\); else saveDraft\(\);/.test(signout), 'no silent copy left behind');
+  assert.ok(signout.includes('saved = !(await pushProfile({ complete: false })).degraded;'), 'a partial save asks too');
+});
+
+test('a partial profile save names the missing sections and keeps the draft answers', () => {
+  const page = read('ui/onboarding.html');
+  assert.ok(!page.includes('phone, links, languages, availability.'), 'no fixed list of sections');
+  assert.ok(page.includes('missingColumns: Array.isArray(result?.missing_columns) ? result.missing_columns.map(String) : []'));
+  const start = page.indexOf('const DEGRADED_SECTIONS = {');
+  const end = page.indexOf("draft.`;", start) + "draft.`;".length;
+  assert.ok(start > 0 && end > start, 'degraded message helpers');
+  const { degradedMessage } = new Function(`${page.slice(start, end)}\nreturn { degradedMessage };`)();
+  assert.match(degradedMessage(['screening']), /: application-form answers\. Your answers stay in this browser's draft\.$/);
+  assert.match(degradedMessage(['candidate', 'new_column']), /: phone, links, languages and education, new_column\./);
+  const submit = pageFunction(page, 'submit');
+  assert.ok(submit.includes('if (degraded) saveDraft(); else removeDraft();'), 'finishing with a partial save keeps the answers');
+  assert.ok(submit.indexOf('if (degraded) saveDraft()') < submit.indexOf('leaving = true;'), 'saved before leaving blocks the draft');
 });
 
 // The pages have no build step: a stray backtick or brace in an inline script

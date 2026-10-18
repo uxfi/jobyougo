@@ -12,7 +12,15 @@ import {
 import { settleCheckboxGroups } from '../lib/apply-completion.mjs';
 import { acceptAdoptCandidate, isFormAppUrl } from '../extension/apply-tab-match.mjs';
 
-const browser = await chromium.launch({ headless: true });
+async function launchBrowser() {
+  try {
+    return await chromium.launch({ headless: true, channel: 'chrome' });
+  } catch {
+    return await chromium.launch({ headless: true });
+  }
+}
+
+const browser = await launchBrowser();
 test.after(() => browser.close());
 
 async function inPage(html, fn) {
@@ -93,6 +101,14 @@ test('closed offers: banner, ATS copy in other languages, Greenhouse redirect', 
   assert.equal(classifyApplyPage([frame({ title: 'Page not found', headings: ['404'] })]).kind, 'closed');
   // A live form with a closing date in its description is not closed.
   assert.equal(classifyApplyPage([frame({ fieldCount: 8, text: 'Product Designer. Applications close on 30 October.' })], { stage: 'form' }).kind, 'none');
+  // Himalayas: a "Job expired?" report button by Apply and "Job expired"
+  // badges under Similar jobs sit on live postings; a banner in the lead,
+  // bare or phrased, still closes the offer.
+  const himalayas = `Senior Freelance Product Designer · Clera · Remote · Apply now · Job expired? · About the role · ${'Clera builds AI tools for accounting teams. '.repeat(30)}· Similar jobs · Product Designer · Acme · Job expired`;
+  assert.notEqual(classifyApplyPage([frame({ text: himalayas })]).kind, 'closed');
+  assert.equal(classifyApplyPage([frame({ text: `This job has expired. ${himalayas}` })]).kind, 'closed');
+  assert.equal(classifyApplyPage([frame({ headings: ['Job expired'], text: 'Senior Product Designer · Acme' })]).kind, 'closed');
+  assert.equal(classifyApplyPage([frame({ text: 'Sorry, this posting has expired.' })]).kind, 'closed');
 });
 
 test('captcha: an unsolved widget or the image challenge waits for the user', () => {
@@ -163,4 +179,12 @@ test('a signed-in platform: the e-mail it already shows is the identity', async 
   assert.equal(pageShowsIdentity([sig], 'other@x.com'), true);
   assert.equal(pageShowsIdentity([{ text: 'Connecté en tant que Hugo@X.com', emailValues: [] }], 'hugo@x.com'), true);
   assert.equal(pageShowsIdentity([{ text: 'Apply now', emailValues: [] }], 'hugo@x.com'), false);
+});
+
+test('a closed banner is read even when filter boxes look like a form (WTTJ)', () => {
+  const page = frame({ fieldCount: 4, text: `${'Menu '.repeat(200)} This position is no longer available. Product Designer` });
+  assert.equal(classifyApplyPage([page], { stage: 'navigate' }).kind, 'closed');
+  assert.equal(classifyApplyPage([frame({ fieldCount: 3, title: 'Error 404', headings: ['Error 404', 'Page not found'] })], { stage: 'navigate' }).kind, 'closed');
+  // Mid-form the lead still decides: a long JD mentioning it in the body stays open.
+  assert.notEqual(classifyApplyPage([page], { stage: 'form' }).kind, 'closed');
 });

@@ -14,8 +14,9 @@ try {
     recordWebSearchOutcome() {}, pinchtabIsUp: async () => true,
     localGoogleCircuitOpen: () => false, tripLocalGoogleCircuit() {},
     localDdgCircuitOpen: () => false, tripLocalDdgCircuit() {},
-    fetchCareersUrlFallback: async () => { calls.push('careers'); return { ok: true, jobs: [{}] }; },
-    fetchPinchtabBraveSection: async () => { calls.push('pinchtab'); return { ok: true, jobs: [{}] }; },
+    // A real careers scrape returns its `section`; one that extracted nothing falls back to the search.
+    fetchCareersUrlFallback: async () => { calls.push('careers'); return { ok: true, section: 'careers section', jobs: [{}] }; },
+    fetchPinchtabEnginesMerged: async () => { calls.push('pinchtab'); return { ok: true, jobs: [{}] }; },
     fetchSerpApiSection: async () => { calls.push('searchapi'); return { ok: true, jobs: [{}] }; },
     fetchLocalBrowserGoogleSection: async () => { calls.push('playwright'); return { ok: true, jobs: [{}] }; },
   });
@@ -37,7 +38,7 @@ try {
 
   let closed = false;
   const browser = { ctx: { pages: () => [{ goto: async () => ({ status: () => 502 }) }], close: async () => { closed = true; } } };
-  Object.assign(context, { IS_VERCEL: false, pinchtabSearchThrottle: async () => {}, launchLocalBrowserContext: async () => browser });
+  Object.assign(context, { IS_VERCEL: false, pinchtabSearchThrottle: async () => {}, launchLocalBrowserContext: async () => browser, webSearchFreshnessParam: () => '' });
   vm.runInContext(extract('async function fetchLocalBrowserGoogleSection(', '\nconst PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT'), context);
   const result = await context.fetchLocalBrowserGoogleSection({ name: 'test', query: 'jobs' });
   assert.equal(result.ok, false);

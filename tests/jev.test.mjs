@@ -103,7 +103,42 @@ test('Jev questions read the roles from the state instead of a hardcoded PM keep
     assert.doesNotMatch(text, /Prefer yes for Product Design \/ Product Designer \/ Product Manager/);
   }
   assert.match(keep, /Welcome to the Jungle URL/);
-  assert.match(gate, /outside Thailand only with a verbatim attendance requirement/);
+  // Places come from the state for every candidate, never a hardcoded country.
+  for (const text of [keep, gate]) {
+    assert.doesNotMatch(text, /Thailand|Bangkok|Paris|France/);
+    assert.match(text, /unless the posting is based in a place listed in candidate_onsite_exceptions/);
+    assert.match(text, /restricted to countries outside candidate_authorized_in/);
+    assert.match(text, /When candidate_reject_internships is true/);
+    // A profile without authorization data is unknown, not authorized nowhere.
+    assert.match(text, /When candidate_authorized_in is not empty, residence or work authorization restricted/);
+    assert.match(text, /an empty candidate_authorized_in means the authorization is unknown, never a residence or work-authorization reject/);
+  }
+  assert.match(gate, /An attendance or residence reject needs a verbatim requirement in the JD/);
+});
+
+test('the Jev state carries the bases, on-site exceptions and nationality', async () => {
+  const { resolveLocationProfile } = await import('../lib/candidate-location.mjs');
+  const loc = resolveLocationProfile({
+    location: {
+      bases: [
+        { city: 'Lisbon', country: 'Portugal', default: true },
+        { city: 'Singapore', country: 'Singapore' },
+      ],
+      remote_policy: 'Full remote only',
+      onsite_exceptions: [{ city: 'Singapore', country: 'Singapore', modes: ['onsite'] }],
+      nationality: 'Portuguese',
+    },
+  });
+  const state = buildCandidateProfileState({ title: 'Backend Engineer' }, {
+    location: { fullRemoteOnly: true, onsitePlaces: loc.onsitePlaces, authorizedIn: [], loc },
+    candidate: { nationality: loc.nationality },
+  });
+  assert.deepEqual(state.candidate_onsite_exceptions, ['Singapore']);
+  assert.equal(state.candidate_bases.length, 2);
+  assert.match(state.candidate_bases[0], /^Lisbon, Portugal — Europe\/Lisbon \(UTC[+-]\d\) — default base$/);
+  assert.match(state.candidate_bases[1], /^Singapore, Singapore — Asia\/Singapore \(UTC\+8\) — for APAC offers$/);
+  assert.equal(state.candidate_nationality, 'Portuguese');
+  assert.equal(state.candidate_full_remote_only, true);
 });
 
 test('buildJevScanResponse is parseable by extractScanEntriesFromResponse', () => {

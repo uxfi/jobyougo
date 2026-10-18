@@ -83,7 +83,7 @@ The evaluation scores five dimensions, integrated into one global score of 1-5. 
 | Comp | Salary vs market (5=top quartile, 1=well below) |
 | Cultural signals | Company culture, growth, stability, remote policy |
 | Red flags | Blockers, warnings (negative adjustments) |
-| **Global** | Holistic judgment integrating the five dimensions above (no arithmetic formula) |
+| **Global** | Computed, not judged: the model rates each dimension 1-5 in a `
 
 Decide the Global Score once from these dimensions, applying any user-specific Scoring Rules in `modes/_custom.md`. The report header, Machine Summary `score`, and application tracker must record that same value. A–H are report sections, not numeric inputs to average; Block B requirement importance and Block G posting legitimacy remain separate from the 1–5 score.
 

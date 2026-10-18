@@ -13,10 +13,11 @@ if (host) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const small = window.matchMedia('(max-width: 720px)').matches;
   const ASSET = '/images/3d/floating-island/';
-  const V = '?v=5';
-  /* Fade: visible until the splash (about 27% of the clip), gone a beat later. */
-  const FADE_FROM = 0.27;
-  const FADE_LEN = 0.047;
+  const V = '?v=6';
+  /* Fade: visible until the splash (3.2 s into the 20 s clip, so 16%), gone about half a second later.
+     p is a fraction of the clip: change these with the clip's length. */
+  const FADE_FROM = 0.159;
+  const FADE_LEN = 0.028;
   const ISLANDS = [
     // All three sit in the background, small and hazy; skyfall is the nearest and the only one that answers the pointer, gently.
     { file: 'skyfall', size: 2.3, desk: { x: 4.15, y: 1.3, z: -2.4, s: 0.8 }, mob: { x: 0.95, y: 1.9, z: -2.2, s: 0.5 }, spin: 0.045, tilt: -0.05, bob: 0.05, phase: 0, depth: 0.5, shade: 0.62, follow: true },
@@ -73,9 +74,28 @@ if (host) {
     const rim = new THREE.DirectionalLight(0x8cf2c4, 1.2);
     rim.position.set(2.5, 3, -4);
     scene.add(rim);
-    const fill = new THREE.DirectionalLight(0xffd9a8, 0.3);
+    const fill = new THREE.DirectionalLight(0x3f8fc0, 0.45); // the sea, from below
     fill.position.set(2, -3, 4);
     scene.add(fill);
+    // The aurora itself lights the scene: green from the sky, deep navy bounced from the water.
+    scene.add(new THREE.HemisphereLight(0x7fe3bd, 0x1b4d6e, 0.7)); // aurora green above, deep sea blue below
+
+    // One soft disc, drawn once, serves every glow, mist wisp and spark.
+    const softTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const g = c.getContext('2d');
+      const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grd.addColorStop(0, 'rgba(255,255,255,.9)');
+      grd.addColorStop(0.22, 'rgba(255,255,255,.5)'); grd.addColorStop(0.55, 'rgba(255,255,255,.14)');
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grd;
+      g.fillRect(0, 0, 128, 128);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const sprite = (color, opacity) => new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
 
     const texLoader = new THREE.TextureLoader();
     const tex = (file, srgb) => {
@@ -106,6 +126,42 @@ if (host) {
       const pivot = new THREE.Group();
       isl.pivot = pivot;
       scene.add(pivot);
+      // Light around the island so it belongs to the sky: an aurora halo behind it, a wisp of mist beneath,
+      // and a slow cloud of sparks drifting around it.
+      const s = isl.size;
+      // The aura follows the island but does not spin with it, so the halo always sits behind.
+      const aura = new THREE.Group();
+      scene.add(aura);
+      const halo = sprite(0x5fe8b6, 0.34); // aurora, above and behind
+      halo.scale.set(s * 3.6, s * 2.8, 1);
+      halo.position.set(0, s * 0.35, -s * 0.4);
+      aura.add(halo);
+      const halo2 = sprite(0x2a7fb8, 0.3); // the water's reflection, below
+      halo2.scale.set(s * 3.2, s * 2.2, 1);
+      halo2.position.set(0, -s * 0.55, -s * 0.3);
+      aura.add(halo2);
+      const mist = sprite(0x8fcbe6, 0.2);
+      mist.scale.set(s * 2.2, s * 0.8, 1);
+      mist.position.set(0, -s * 0.6, s * 0.1);
+      aura.add(mist);
+      const N = 14;
+      const pos = new Float32Array(N * 3);
+      const col = new Float32Array(N * 3);
+      const phase = new Float32Array(N);
+      for (let k = 0; k < N; k++) {
+        const r = s * (0.55 + Math.random() * 0.75);
+        const a = Math.random() * Math.PI * 2;
+        pos[k * 3] = Math.cos(a) * r;
+        pos[k * 3 + 1] = (Math.random() - 0.35) * s * 1.1;
+        pos[k * 3 + 2] = Math.sin(a) * r;
+        phase[k] = Math.random() * Math.PI * 2;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const sparks = new THREE.Points(geo, new THREE.PointsMaterial({ map: softTex, size: s * 0.06, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false }));
+      pivot.add(sparks);
+      isl.fx = { aura, halo, halo2, mist, sparks, phase, col, pos, N };
       loader.load(ASSET + isl.file + '.glb' + V, (gltf) => {
         const model = gltf.scene;
         model.traverse((n) => { if (n.isMesh) { n.material = material; n.frustumCulled = false; } });
@@ -137,6 +193,7 @@ if (host) {
         isl.pivot.position.set(x, p.y, p.z || 0);
         isl.pivot.scale.setScalar(p.s);
         isl.baseX = x;
+        if (isl.fx) { isl.fx.aura.position.copy(isl.pivot.position); isl.fx.aura.scale.copy(isl.pivot.scale); }
       });
     }
     function renderOnce() { if (!state.ready) return; renderer.render(scene, camera); }
@@ -159,6 +216,29 @@ if (host) {
         isl.pivot.rotation.z = Math.sin(tsec * 0.5 + isl.phase) * 0.025;
         isl.pivot.position.x = isl.baseX + fx * 0.12 * depth + Math.sin(tsec * 0.21 + isl.phase) * (isl.follow ? 0 : 0.08);
         isl.pivot.position.y = p.y + Math.sin(tsec * 0.8 + isl.phase) * isl.bob - state.p * 1.6 * depth + fy * 0.08 * depth;
+        const efx = isl.fx;
+        if (efx) {
+          efx.aura.position.copy(isl.pivot.position);
+          efx.aura.scale.copy(isl.pivot.scale);
+          // The halo breathes with the aurora, the mist sways, the sparks twinkle and rise.
+          efx.halo.material.opacity = 0.3 + 0.08 * Math.sin(tsec * 0.5 + isl.phase);
+          efx.halo2.material.opacity = 0.26 + 0.07 * Math.sin(tsec * 0.4 + isl.phase + 1.3);
+          efx.mist.material.opacity = 0.16 + 0.06 * Math.sin(tsec * 0.45 + isl.phase + 2);
+          efx.mist.position.x = Math.sin(tsec * 0.3 + isl.phase) * isl.size * 0.08;
+          const c = efx.col;
+          const q = efx.pos;
+          for (let k = 0; k < efx.N; k++) {
+            const tw = 0.1 + 0.5 * Math.max(0, Math.sin(tsec * 1.1 + efx.phase[k]));
+            const cool = k % 3 === 0;
+            c[k * 3] = tw * (cool ? 0.75 : 0.5);
+            c[k * 3 + 1] = tw * (cool ? 0.85 : 1);
+            c[k * 3 + 2] = tw * (cool ? 1 : 0.8);
+            q[k * 3 + 1] += 0.0008 * isl.size;
+            if (q[k * 3 + 1] > isl.size * 0.8) q[k * 3 + 1] = -isl.size * 0.4;
+          }
+          efx.sparks.geometry.attributes.color.needsUpdate = true;
+          efx.sparks.geometry.attributes.position.needsUpdate = true;
+        }
       });
       renderOnce();
       requestAnimationFrame(frame);

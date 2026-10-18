@@ -32,6 +32,8 @@ Même moteur de décision côté serveur :
 
 `popup.html` est l’écran de l’icône : état du pont, bouton Connect / Reconnect, ouverture du dashboard. **Scan & apply this tab** lit l’offre de l’onglet ouvert au moment du clic, lance l’évaluation, puis le parcours d’apply sur ce même onglet. Un `!` sur l’icône veut dire que le socket n’est pas ouvert. `dashboard-bridge.js` tourne sur `http://127.0.0.1:3210` et `http://localhost:3210` pour que la barre du dashboard puisse demander la même connexion.
 
+**Appairage par compte (0.0.45).** Avec Supabase, le serveur garde un pont par compte (`ApplyBridgeHub`). Le dashboard connecté demande un jeton (`POST /api/apply/bridge-pair`) et le passe au plugin (`dashboard-bridge.js` → `bridge-pair`), qui le garde dans `chrome.storage.local` et le renvoie dans chaque `hello`. Un run ne part que vers le Chrome qui tient le jeton du compte qui l’a lancé ; un plugin sans jeton valide reste connecté mais ne reçoit rien (`paired: false`, la puce affiche « Linking… »). Le serveur ne garde que le SHA-256 des jetons (`data/apply-files/bridge-pairs.json`), cinq par compte.
+
 `apply-helper-overlay.js` est le helper quick-fill (valeurs du profil, réponses du rapport, CV régional) : le bouton « Apply » du dashboard ouvre l’offre via le plugin, puis le message `show-helper` le dessine en panneau flottant par-dessus l’offre (shadow root fermé, invisible pour la collecte des champs). Il est réinjecté après chaque navigation de l’onglet et suit un onglet ouvert depuis celui-ci ; « Fill with the plugin » ramène le dashboard sur la modale auto-apply de cet onglet.
 
 ## Fonctions exécutées dans la page

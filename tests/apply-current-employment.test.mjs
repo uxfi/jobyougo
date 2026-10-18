@@ -36,8 +36,13 @@ test('a profile without current_employment keeps the same identity', () => {
   const id = buildIdentity(profile(''), 'europe');
   assert.equal('currentEmployment' in id, false);
   assert.equal('employmentStatus' in id, false);
-  assert.equal(id.noticePeriod, '1 week');
-  assert.equal(id.startDate, 'After 1 week notice');
+  // No notice in the profile: nothing is assumed (it used to be the owner's "1 week").
+  assert.equal(id.noticePeriod, '');
+  assert.equal(id.startDate, '');
+  const withNotice = buildIdentity(profile('', { notice_period: '1 week' }), 'europe');
+  assert.equal(withNotice.noticePeriod, '1 week');
+  assert.equal(withNotice.noticePeriodDays, 7);
+  assert.equal(withNotice.startDate, 'After 1 week notice');
   assert.equal(id.employment.current, true);
   assert.equal(policyPromptLines(id, OFFER).includes('Current situation'), false);
   assert.equal(plan('May we contact your current employer?', ''), null);

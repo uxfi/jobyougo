@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { applicationSource, classifyField, planFitsField, readsAsYesNo } from '../lib/apply-classify.mjs';
 import { candidateIsIn } from '../lib/apply-places.mjs';
 import { shouldReplaceFilledValue, formHasSurnameField, formHasGivenNameField, formHasPhoneDialPicker, looksLikeDialCodeField, looksLikePhoneNumberField, isIntlTelInputPicker, isAvailabilityStartField, looksLikeEmptyChoice, optionsLookLikeDialCodes, skipComboboxProbe } from '../lib/apply-fill-guards.mjs';
-import { redactSideProjects } from '../lib/application-writing.mjs';
+import { redactSideProjects, stripSideProjectLines, usesSideProjectAsProof } from '../lib/application-writing.mjs';
+import { closestCareerLines } from '../lib/prompt-budget.mjs';
 import { pickMatchingOption, optionMatchScore } from '../lib/apply-option-match.mjs';
 import { planToUpdate } from '../extension/apply-bridge-lib.mjs';
 import { fieldCompletionIssue } from '../lib/apply-completion.mjs';
@@ -39,6 +40,8 @@ const id = {
   noticePeriod: '1 week',
   startDate: 'After 1 week notice',
   yearsExperience: 12,
+  // target_roles: "years as a Product Designer" is the career total only for them.
+  targetRoles: ['Senior Product Designer', 'UX/UI Designer'],
   visaStatus: 'No sponsorship needed -- French / EU citizen',
   languages: [
     { name: 'French', level: 'Native' },
@@ -128,6 +131,79 @@ test('work authorization depends on the country, not one fixed Yes', () => {
   assert.equal(policyPlan(radio('Do you have experience with Visa or Mastercard payment flows?'), spec), null);
   assert.equal(policyPlan(f('Tell us about a product you designed for international teams, including how visa and work permit steps were handled for new hires across several countries.', { type: 'textarea', tag: 'textarea' }), spec), null);
   assert.equal(classifyField(f('Please confirm the current right to work document you hold'), spec)?.value, id.visaStatus);
+});
+
+test('a sponsorship note under a right-to-work question does not flip it (Teamtailor knockout)', () => {
+  const note = 'Please note, if you do not have the right to work in the country your are applying to and visa sponsorship is not available, your application will be rejected automatically.';
+  const rtw = radio(`Do you have the Right to Work in the country you are applying to?* Required ${note}`);
+  // Salve.Inno 2026-10-16: no country parsed from the posting, and Paris / remote Europe.
+  assert.equal(classifyField(rtw, { ...spec, offerLocation: { countries: [], cities: [], remote: false } })?.yesNo, 'yes');
+  assert.equal(classifyField(rtw, { ...spec, offerLocation: { countries: ['France'], cities: ['paris'], remote: false } })?.yesNo, 'yes');
+  assert.equal(classifyField(rtw, { ...spec, offerLocation: { countries: ['United Kingdom'], cities: ['london'], remote: false } })?.yesNo, 'no');
+  // The sponsorship question on the same form keeps its own answer.
+  assert.equal(classifyField(radio('Will you now or in the future require sponsorship for employment visa status?* Required'), spec)?.yesNo, 'no');
+  assert.equal(classifyField(radio(`Do you require visa sponsorship? ${note}`), spec)?.yesNo, 'no');
+  // The line before the question is not the ask either way.
+  assert.equal(classifyField(radio('We are unable to offer visa sponsorship. Do you have the right to work in Germany?'), spec)?.yesNo, 'yes');
+  assert.equal(classifyField(radio('You must have the right to work in the UK. Do you require visa sponsorship?'), spec)?.yesNo, 'yes');
+  assert.equal(classifyField(radio('Are you authorized to work in the U.S. without sponsorship?'), spec)?.yesNo, 'no');
+  // Statements carry the same employer note, in brackets or as a sentence.
+  assert.equal(classifyField(radio('Right to work in the UK (visa sponsorship is not available)'), spec)?.yesNo, 'no');
+  assert.equal(classifyField(radio('Right to work in the EU (visa sponsorship is not available)'), spec)?.yesNo, 'yes');
+  const box = (label) => f(label, { type: 'checkbox' });
+  const confirm = box('I confirm I have the right to work in the country I am applying to. Visa sponsorship is not available.');
+  assert.equal(classifyField(confirm, { ...spec, offerLocation: { countries: ['France'], cities: ['paris'], remote: false } })?.check, true);
+  assert.notEqual(classifyField(confirm, { ...spec, offerLocation: { countries: ['United Kingdom'], cities: ['london'], remote: false } })?.check, true);
+  // The candidate's own "do not require" is not the employer's note.
+  assert.equal(classifyField(radio('You must have the right to work in the UK. Do you require sponsorship'), spec)?.yesNo, 'yes');
+});
+
+test('the place is the one the question names, not its note or examples', () => {
+  const at = (countries, cities = []) => ({ ...spec, offerLocation: { countries, cities, remote: false } });
+  const ask = (label, place) => classifyField(radio(label), place)?.yesNo;
+  // Brexit note: a UK question with "EU" under it got Yes.
+  assert.equal(ask('Do you have the right to work in the UK? EU nationals must hold settled or pre-settled status.', at(['United Kingdom'], ['london'])), 'no');
+  assert.equal(ask('Will you require sponsorship to work in the U.K.? EU citizens may need a visa.', at(['United Kingdom'], ['london'])), 'yes');
+  // An example status is not the job's country.
+  assert.equal(ask('Are you legally authorized to work in the country where this job is located? (e.g. U.S. citizen or green card holder)', at(['France'], ['paris'])), 'yes');
+  assert.equal(ask('Do you have the right to work in the country you are applying to? We are unable to sponsor UK Skilled Worker visas.', at(['France'], ['paris'])), 'yes');
+  // The lead-in is still the question's place; the posting comes next, the note last.
+  assert.equal(ask('You must have the right to work in the EU. Will you require sponsorship?', at(['United Kingdom'], ['london'])), 'no');
+  assert.equal(ask('Do you have the right to work in this country? This role is based in London.', at([])), 'no');
+  // Dotted abbreviations do not end the sentence.
+  assert.equal(ask('Are you authorized to work in the U.S. without sponsorship?', at(['France'], ['paris'])), 'no');
+  // "Europe" in the question is the EU; "across Europe" in a lead-in is not the role's place.
+  assert.equal(ask('Are you eligible to work in Europe?', at(['United Kingdom'], ['london'])), 'yes');
+  assert.equal(ask('We hire across Europe. Do you have the right to work in the country of the role?', at(['United Kingdom'], ['london'])), 'no');
+});
+
+test('helper lines and notes do not rewrite the question', () => {
+  const at = (countries, cities = []) => ({ ...spec, offerLocation: { countries, cities, remote: false } });
+  const ask = (label, place) => classifyField(radio(label), place)?.yesNo;
+  // Helper text on its own line, no full stop: a line break ends the sentence.
+  assert.equal(ask('Visa sponsorship is not available for this role\nDo you have the right to work in Germany?', at(['Germany'], ['berlin'])), 'yes');
+  assert.equal(ask('Visa sponsorship is not available for this role\nDo you have the right to work in the country you are applying to?', at(['United Kingdom'], ['london'])), 'no');
+  const box = f('Visa sponsorship is not available\nI have the right to work in the country I am applying to', { type: 'checkbox' });
+  assert.equal(classifyField(box, at(['France'], ['paris']))?.check, true);
+  // "without sponsorship" and "EU passport" in the note are not the ask.
+  assert.equal(ask('Do you require sponsorship?\nNote: we only hire candidates who can work without visa sponsorship.', at(['France'], ['paris'])), 'no');
+  assert.equal(ask('Do you require sponsorship?\nNote: we only hire candidates who can work without visa sponsorship.', at(['United Kingdom'], ['london'])), 'yes');
+  assert.equal(ask('Will you require visa sponsorship to work in France?\nEU passport holders do not need one.', at(['France'], ['paris'])), 'no');
+  assert.equal(ask('Do you hold an EU passport or a valid UK work permit?', at(['United Kingdom'], ['london'])), 'yes');
+  // A "?" in brackets does not end the question.
+  assert.equal(ask('Work authorization (required?) Are you authorized to work in the UK?', at(['France'], ['paris'])), 'no');
+});
+
+test('two questions in one label: each one counts, the first one leads', () => {
+  const at = (countries, cities = []) => ({ ...spec, offerLocation: { countries, cities, remote: false } });
+  const ask = (label, place) => classifyField(radio(label), place)?.yesNo;
+  assert.equal(ask('Are you currently based in the EU? Do you have the right to work in the EU without sponsorship?', at(['France'], ['paris'])), 'yes');
+  assert.equal(ask('Are you currently based in the EU?\nDo you have the right to work in the EU without sponsorship?', at(['France'], ['paris'])), 'yes');
+  assert.equal(ask('Do you have the right to work in Germany? Do you currently live in Germany?', at(['Germany'], ['berlin'])), 'no');
+  assert.equal(ask('Do you have the right to work? Are you based in Germany?', at(['Germany'], ['berlin'])), 'no');
+  // A follow-up "If not, …" does not take over the main ask.
+  assert.equal(ask('Do you have the right to work in the UK? If not, will you require sponsorship?', at(['United Kingdom'], ['london'])), 'no');
+  assert.equal(ask('Do you have permission to work in the Netherlands? If not, do you need sponsorship?', at(['France'], ['paris'])), 'yes');
 });
 
 test('passwords and legal history are left to the candidate', () => {
@@ -271,7 +347,7 @@ test('the writer keeps a usable draft instead of the canned template', async () 
 test('the last-resort draft is one real sentence or nothing', () => {
   assert.equal(
     draftFromClosest(['- Senior Product Designer : Edenred: Designed mobile apps for gas station location.'], false, 'Tell us about a mobile app'),
-    'At Edenred, I designed mobile apps for gas station location.',
+    'I designed mobile apps for gas station location at Edenred.',
   );
   assert.equal(
     draftFromClosest(['- UX / Product Designer : LVMH Group: business analysis and data analysis were part of the product work.'], false, 'Tell us'),
@@ -614,6 +690,14 @@ test('self-review: navigation keeps Apply buttons, motivation stays narrow, side
   assert.equal(isMotivationQuestion('Pourquoi avez-vous quitté votre dernier poste ?', 'Riot'), false);
   assert.equal(isMotivationQuestion('What motivates you to apply to this role?', 'Riot'), true);
   assert.equal(redactSideProjects('A bohemian style and Bohe itself.', 'Tell us', ['Bohe']), 'A bohemian style and itself.');
+  // Tether: the portfolio URL went out as "https://.xyz/portfolio".
+  assert.equal(redactSideProjects('Portfolio: https://jobyougo.xyz/portfolio, mail me@jobyougo.xyz. I built JobYouGo.', 'Share your portfolio', ['JobYouGo']),
+    'Portfolio: https://jobyougo.xyz/portfolio, mail me@jobyougo.xyz. I built .');
+  assert.equal(redactSideProjects('My app jobyougo.xyz/app shipped.', 'Tell us', ['JobYouGo']), 'My app shipped.');
+  assert.equal(stripSideProjectLines('Portfolio: https://jobyougo.xyz/portfolio\nSide app: JobYouGo', 'Share your portfolio or links', ['JobYouGo']), 'Portfolio: https://jobyougo.xyz/portfolio');
+  // Elsewhere the address goes whole, never cut in half.
+  assert.equal(redactSideProjects('Website: https://jobyougo.xyz/portfolio', 'Tell us about a product you shipped', ['JobYouGo']), 'Website:');
+  assert.equal(usesSideProjectAsProof('Please share your portfolio', 'https://jobyougo.xyz/portfolio', ['JobYouGo']), false);
   // Evaluator lines about the candidate's base are not the job's place.
   assert.deepEqual(offerLocationFromText({ role: 'Designer', reportText: '- **Localisation:** Anywhere in the World → compatible avec Phuket, Thaïlande' }).countries, []);
 });
@@ -640,4 +724,24 @@ test('replay review: a messaging number is the phone, links the profile lacks go
   assert.equal(cvLink.leaveBlank, true);
   assert.equal(classifyField(f('Portfolio Website/Link (e.g., Behance, Dribbble, PDF, etc.) *'), spec).value, spec.identity.portfolio);
   assert.deepEqual(classifyField(f('Email * — Record my email address with my response', { type: 'checkbox' }), spec), { check: true });
+});
+
+test('an AI question may take its proof from independent products', () => {
+  const q = 'How do you currently use AI tools or agentic workflows in your design process?';
+  assert.equal(usesSideProjectAsProof(q, 'I build my own AI products, like JobYouGo, and prototype in Claude Code.', ['JobYouGo']), false);
+  assert.equal(redactSideProjects('I built JobYouGo, an AI job tool.', q, ['JobYouGo']), 'I built JobYouGo, an AI job tool.');
+  assert.equal(usesSideProjectAsProof('Tell us about a mobile feature you shipped', 'I shipped it in JobYouGo.', ['JobYouGo']), true);
+});
+
+test('a French "j\'ai" is not an AI question, "l\'IA" is', () => {
+  assert.equal(usesSideProjectAsProof("Décrivez un projet où j'ai vu votre impact", 'Avec JobYouGo.', ['JobYouGo']), true);
+  assert.equal(usesSideProjectAsProof("Comment utilisez-vous l'IA ?", 'Avec JobYouGo.', ['JobYouGo']), false);
+});
+
+test('an AI question finds the candidate\'s own AI products among the closest matches', () => {
+  const career = '- Senior Product Designer : Edenred: Designed mobile apps for gas stations.\n- UXfi : Builder: AI agents that write UX audits with LLM prompts.';
+  const ai = closestCareerLines('How do you use AI agents and LLM prompts in your work?', career, 6, { sideNames: ['UXfi'] });
+  assert.ok(ai.some((line) => /UXfi/.test(line)), JSON.stringify(ai));
+  const mobile = closestCareerLines('Tell us about a mobile app you designed', career, 6, { sideNames: ['UXfi'] });
+  assert.ok(!mobile.some((line) => /UXfi/.test(line)), JSON.stringify(mobile));
 });

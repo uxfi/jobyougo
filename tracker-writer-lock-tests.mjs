@@ -132,18 +132,6 @@ async function runWhileLocked({
   const db = join(dir, 'applications.db');
   writeFileSync(tracker, content);
 
-  if (name.startsWith('reply-watch')) {
-    const candidatesFile = join(dir, 'candidates.json');
-    writeFileSync(candidatesFile, JSON.stringify(candidates || [{
-      message_id: 'reply-1',
-      from: 'hr@acme.com',
-      subject: 'Unfortunately, an update on your Acme Engineer application',
-      body_snippet: 'We decided not to proceed with your application.',
-      signal: 'rejection',
-    }]));
-    args = [candidatesFile];
-  }
-
   const childEnv = {
     ...process.env,
     JOBYOUGO_TRACKER: tracker,
@@ -354,61 +342,6 @@ await runWhileLocked({
   verifyOutput: stdout => stdout.includes('marked PDF ready'),
 });
 
-await runWhileLocked({
-  name: 'reply-watch',
-  script: 'reply-watch.mjs',
-  stdin: 'y\n',
-  content: trackerTable([
-    '| 1 | 2026-01-01 | Acme | Engineer | 4.0/5 | Applied | ❌ | [1](reports/001-acme.md) | contact hr@acme.com |',
-  ]),
-  verify: content => content.includes('| Rejected |'),
-  verifyOutput: (stdout, _stderr, tracker) => stdout.includes(`to ${realpathSync(tracker)}?`),
-});
-
-await runWhileLocked({
-  name: 'reply-watch-identical',
-  script: 'reply-watch.mjs',
-  stdin: 'y\n',
-  candidates: [
-    {
-      message_id: 'reply-1',
-      from: 'hr@acme.com',
-      subject: 'Unfortunately, an update on your Acme Engineer application',
-      body_snippet: 'We decided not to proceed with your application.',
-      signal: 'rejection',
-    },
-    {
-      message_id: 'reply-2',
-      from: 'hr@acme.com',
-      subject: 'Update on your Acme Engineer application',
-      body_snippet: 'Unfortunately, we will not be moving forward with your application.',
-      signal: 'rejection',
-    },
-  ],
-  content: trackerTable([
-    '| 1 | 2026-01-01 | Acme | Engineer | 4.0/5 | Applied | ❌ | [1](reports/001-acme.md) | contact hr@acme.com |',
-  ]),
-  verify: content => content.includes('| Rejected |'),
-  verifyOutput: stdout => stdout.includes('2 replies'),
-  completion: 'groups identical reply transitions without losing their count',
-});
-
-await runWhileLocked({
-  name: 'reply-watch-stale-status',
-  script: 'reply-watch.mjs',
-  stdin: 'y\n',
-  content: trackerTable([
-    '| 1 | 2026-01-01 | Acme | Engineer | 4.0/5 | Applied | ❌ | [1](reports/001-acme.md) | contact hr@acme.com |',
-  ]),
-  mutateWhileLocked: (content, concurrentRow) => `${content.replace('| Applied |', '| Interview |').trimEnd()}\n${concurrentRow}\n`,
-  verify: content => content.includes('| 1 | 2026-01-01 | Acme | Engineer | 4.0/5 | Interview |')
-    && content.includes('| 99 | 2026-01-03 | ConcurrentCo |')
-    && !content.includes('| Rejected |'),
-  verifyOutput: (stdout, stderr) => `${stdout}${stderr}`.includes('status changed from Applied to Interview during review'),
-  completion: 'preserves a status changed while the recommendation was under review',
-  beforeMutationOutput: 'Apply recommended status updates',
-});
-
 // --- followup-seed.mjs: a separate lock namespace, deliberately -------------
 //
 // followup-seed.mjs is absent from the matrix above because it is not a
@@ -424,7 +357,7 @@ await runWhileLocked({
 //     still race a second seeder; the follow-ups lock is what actually
 //     serializes the read-check-append on follow-ups.md, and
 //     followup-seed.mjs is the only writer of that file in the repo (every
-//     other consumer — followup-cadence, reply-watch, stats, company-history —
+//     other consumer — followup-cadence, stats, company-history —
 //     only reads it).
 //   - The stale-snapshot invariant this suite exists for cannot apply. It bites
 //     when a writer writes a whole-file snapshot back; followup-seed writes no
@@ -637,71 +570,6 @@ async function testTrackerTransactionCloseReportsCleanupFailure() {
 }
 
 await testTrackerTransactionCloseReportsCleanupFailure();
-
-async function testReplyWatchConflictingRecommendations() {
-  const dir = mkdtempSync(join(tmpdir(), 'jobyougo-reply-conflict-'));
-  const tracker = join(dir, 'applications.md');
-  const candidatesPath = join(dir, 'candidates.json');
-  const db = join(dir, 'applications.db');
-  try {
-    const initial = trackerTable([
-      '| 1 | 2026-01-01 | Acme | Engineer | 4.0/5 | Applied | ❌ | [1](reports/001-acme.md) | contact hr@acme.com |',
-    ]);
-    writeFileSync(tracker, initial);
-    writeFileSync(candidatesPath, JSON.stringify([
-      {
-        message_id: 'reply-rejected',
-        from: 'hr@acme.com',
-        subject: 'Unfortunately, an update on your Acme Engineer application',
-        body_snippet: 'We decided not to proceed with your application.',
-        signal: 'rejection',
-      },
-      {
-        message_id: 'reply-interview',
-        from: 'hr@acme.com',
-        subject: 'Interview invitation for your Acme Engineer application',
-        body_snippet: 'We would like to invite you to an interview.',
-        signal: 'interview_invite',
-      },
-    ]));
-
-    let stdout = '';
-    let stderr = '';
-    const child = spawn(NODE, [join(ROOT, 'reply-watch.mjs'), candidatesPath], {
-      cwd: ROOT,
-      env: {
-        ...process.env,
-        JOBYOUGO_TRACKER: tracker,
-        JOBYOUGO_TRACKER_DB: db,
-        JOBYOUGO_TRACKER_LOCK: join(dir, 'jobyougo-merge-tracker-conflict.lock'),
-        JOBYOUGO_TRACKER_LOCK_TIMEOUT_MS: '1000',
-        JOBYOUGO_TRACKER_LOCK_RETRY_MS: '20',
-      },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    child.stdout.on('data', chunk => { stdout += chunk; });
-    child.stderr.on('data', chunk => { stderr += chunk; });
-    child.stdin.end();
-    const closePromise = new Promise(resolve => child.once('close', code => resolve({ code })));
-    let result = await Promise.race([closePromise, sleep(HARNESS_WAIT_MS).then(() => null)]);
-    if (result === null) {
-      child.kill('SIGKILL');
-      result = await closePromise;
-    }
-    const output = `${stdout}${stderr}`;
-    if (result.code === 0 && readFileSync(tracker, 'utf-8') === initial
-        && output.includes('Conflicting status recommendations')
-        && output.includes('Interview') && output.includes('Rejected')) {
-      pass('reply-watch surfaces conflicting replies without applying an arbitrary last status');
-    } else {
-      fail(`reply-watch conflict handling failed (exit=${result.code})\n${output}\n${readFileSync(tracker, 'utf-8')}`);
-    }
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
-await testReplyWatchConflictingRecommendations();
 
 // --- Ownerless-directory grace period (#2306) -------------------------------
 //

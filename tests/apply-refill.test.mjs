@@ -125,7 +125,7 @@ test('recon skips lists, choices, what this pass wrote, and fields outside the s
   assert.deepEqual(reconCandidates(fields, { scope }).map((f) => f.i), [2]);
 });
 
-import { listNeedsChange, readBackMatches } from '../lib/apply-refill.mjs';
+import { listNeedsChange, readBackMatches, readBackTruncated } from '../lib/apply-refill.mjs';
 import { mergeFilled, mergePending, fieldCompletionIssue } from '../lib/apply-completion.mjs';
 import { isBlockingApplyPending } from '../lib/apply-progression.mjs';
 import { languageQuestionPlan, shouldReplaceFilledValue } from '../lib/apply-fill-guards.mjs';
@@ -153,6 +153,31 @@ test('a timed-out fill counts only when the page shows what was sent', () => {
   assert.equal(readBackMatches({ ...list, value: 'a' }, { selectText: 'LinkedIn' }), true);
   const phone = { i: 2, frameId: 0, type: 'tel', label: 'Phone', value: '+33 6 12 34 56 78' };
   assert.equal(readBackMatches(phone, { value: '+33612345678' }), true);
+});
+
+test('a timed-out read-back showing only the start of an answer is cut, and blocks the send', () => {
+  const want = 'Kraken’s focus on building open financial infrastructure is why I applied.';
+  const box = { i: 3, frameId: 0, tag: 'textarea', type: 'textarea', label: 'Why are you interested in working at Kraken?', value: 'Kraken’s focus on bui' };
+  assert.equal(readBackTruncated(box, { value: want }), true);
+  assert.equal(readBackMatches(box, { value: want }), false);
+  // A number early in the answer is no proof either.
+  assert.equal(readBackMatches({ ...box, value: 'I have 8 ye' }, { value: 'I have 8 years of product design experience.' }), false);
+  // The whole answer, or as much as the box's maxlength takes, landed.
+  assert.equal(readBackMatches({ ...box, value: want }, { value: want }), true);
+  assert.equal(readBackMatches({ ...box, maxLength: 21 }, { value: want }), true);
+  assert.equal(readBackTruncated({ ...box, maxLength: 21 }, { value: want }), false);
+  assert.equal(isBlockingApplyPending('valeur tronquée'), true);
+  // A year early in a cut sentence matches the year sent: still cut.
+  assert.equal(readBackMatches({ ...box, value: 'Since 2019, I hav' }, { value: 'Since 2019, I have led design for payments teams.' }), false);
+});
+
+test('a read-back the site only tidied is no cut: a dropped trailing "/", a bare amount', () => {
+  const url = { i: 4, frameId: 0, type: 'url', tag: 'input', label: 'LinkedIn', value: 'https://www.linkedin.com/in/jane-doe' };
+  assert.equal(readBackTruncated(url, { value: 'https://www.linkedin.com/in/jane-doe/' }), false);
+  assert.equal(readBackMatches(url, { value: 'https://www.linkedin.com/in/jane-doe/' }), true);
+  const salary = { i: 5, frameId: 0, type: 'text', tag: 'input', label: 'Expected salary', value: '45000' };
+  assert.equal(readBackMatches(salary, { value: '45000 EUR' }), true);
+  assert.equal(readBackMatches({ ...salary, value: '45,000' }, { value: '45000 EUR' }), true);
 });
 
 test('two fields with one label stay two rows; a filled one does not hide the other', () => {

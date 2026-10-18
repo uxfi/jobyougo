@@ -61,14 +61,12 @@ const EXCLUSIONS = new Map([
 
 /**
  * Modes that ingest untrusted text WITHOUT naming a fetch primitive, so
- * derivation alone would drop them. Both were already covered and must stay
- * covered: `batch` reads JD files supplied by the run, and `reply-watch`
- * classifies recruiter emails. Keeping them as an explicit floor is what stops
- * "derive the list" from quietly NARROWING coverage.
+ * derivation alone would drop them. `batch` reads JD files supplied by the run;
+ * it was already covered and must stay covered. Keeping it as an explicit floor
+ * is what stops "derive the list" from quietly NARROWING coverage.
  */
 const ALWAYS_REQUIRED = [
   'modes/batch.md',
-  'modes/reply-watch.md',
   // Ingests PASTED contract text. It also names the primitives, but only to
   // FORBID them ("This mode must not call WebSearch, WebFetch") — the detector
   // cannot tell use from prohibition, so listing it here rests its coverage on
@@ -171,7 +169,6 @@ if (isMainModule(import.meta.url)) {
       'modes/uses-playwright.md': 'Fall back to Playwright when JS-rendered.',
       'modes/no-ingestion.md': 'Reads cv.md and config/profile.yml only.',
       'modes/batch.md': 'Runs the batch workers.',
-      'modes/reply-watch.md': 'Classifies replies.',
       'modes/offer-prep.md': 'This mode must not call WebSearch or WebFetch.',
       'batch/README.md': 'Node.js >= 18, Playwright chromium installed.',
       'modes/_shared.md': 'WebFetch appears in the shared preamble.',
@@ -191,7 +188,6 @@ if (isMainModule(import.meta.url)) {
     // Floor: these ingest without naming a primitive, so derivation alone would
     // DROP them — the regression this list exists to prevent.
     assert(derived.includes('modes/batch.md'), 'batch.md must stay required via the floor');
-    assert(derived.includes('modes/reply-watch.md'), 'reply-watch.md must stay required via the floor');
     assert(derived.includes('modes/offer-prep.md'), 'offer-prep.md must stay required via the floor (pasted contract text)');
     // Exclusions, each for its stated reason.
     assert(!derived.includes('batch/README.md'), 'contributor docs naming Playwright as a dependency must be excluded');

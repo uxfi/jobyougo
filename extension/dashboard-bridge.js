@@ -18,6 +18,10 @@ port.onDisconnect.addListener(() => reply({ phase: 'off', error: 'Plugin disconn
 window.addEventListener('message', (event) => {
   if (event.source !== window || event.data?.source !== 'jobyougo-dashboard') return;
   if (event.data.type === 'connect') port.postMessage({ type: 'bridge-connect' });
+  // The signed-in dashboard's pairing token: runs of that account come here.
+  else if (event.data.type === 'pair' && typeof event.data.token === 'string') {
+    port.postMessage({ type: 'bridge-pair', token: event.data.token });
+  }
   else if (event.data.type === 'hello') port.postMessage({ type: 'bridge-status' });
   else if (event.data.type === 'scan-apply-progress' && event.data.tabId) {
     port.postMessage({

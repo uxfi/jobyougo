@@ -1,7 +1,7 @@
 import { pass, fail } from './helpers.mjs';
 import { bestAnswerFor } from '../lib/apply-classify.mjs';
 import { usesSideProjectAsProof } from '../lib/application-writing.mjs';
-import { answerMissesProof, claimsUnworkedBrand, extractAnswerBody, extractProofNames, formAnswerRequest, isStoryShapedMotivation, isToolDump, namesCompany, opensWithDenial, writeFormAnswer } from '../lib/form-answer.mjs';
+import { answerMissesProof, claimsUnworkedBrand, opensWithEmployer, extractAnswerBody, extractProofNames, formAnswerRequest, isStoryShapedMotivation, isToolDump, namesCompany, opensWithDenial, writeFormAnswer } from '../lib/form-answer.mjs';
 
 function ok(label, cond) {
   if (cond) pass(label);
@@ -217,3 +217,35 @@ const ihsanWritten = await writeFormAnswer({
   complete: async ({ user }) => (ihsanCalls++ === 0 ? renewStory : (/case study about a past employer/.test(user) ? whyIhsan : renewStory)),
 });
 ok('a story-shaped why-us draft is rewritten company-first', ihsanCalls === 2 && /^Ihsan is building/.test(ihsanWritten.answer));
+
+// The user found every answer opening on "At <company>, I" and naming little-known companies.
+ok('an employer opening is detected, a plain opening is not',
+  opensWithEmployer('At OneAsset, I led the UX.') && opensWithEmployer("Chez Edenred, j'ai conçu les apps.")
+  && !opensWithEmployer('At the core, I believe in clarity.') && !opensWithEmployer('I start from the problem. At OneAsset, I led it.'));
+ok('a described employer counts as proof',
+  !answerMissesProof('I cut what users ignore. In a fintech for retail investors, I led the onboarding and shipped a simpler flow.', '- Senior Product Designer : OneAsset: Led investor onboarding.'));
+ok('an answer with no work at all still misses proof',
+  answerMissesProof('Feedback matters and I value users.', '- Senior Product Designer : OneAsset: Led investor onboarding.'));
+const openerCalls = [];
+const openerWritten = await writeFormAnswer({
+  question: 'Tell us about a time user research changed your design.',
+  company: 'Pencil',
+  role: 'Product Designer',
+  career: '- Senior Product Designer : Edenred: Designed mobile apps for gas station location.',
+  complete: async ({ user }) => {
+    openerCalls.push(user);
+    return openerCalls.length === 1
+      ? 'At Edenred, I designed the station locator. Drivers could not find stations. I rebuilt the map filters.'
+      : 'Research told me drivers did not trust the map. I rebuilt the station filters at Edenred around that. Finding a station got clearer.';
+  },
+});
+ok('an employer opening gets one rewrite that names the fault',
+  openerCalls.length === 2 && /opens with the employer/.test(openerCalls[1]) && /^Research told me/.test(openerWritten.answer));
+// Pencil: "How do you decide what user feedback not to act on?" stayed blank twice.
+ok('a negative answer to the question is not a denial of work',
+  !opensWithDenial('I never act on feedback that only one loud user raises.')
+  && !opensWithDenial("I didn't act on every request.") && !opensWithDenial("Je n'ai pas retenu cette demande.")
+  && opensWithDenial("I haven't worked in healthcare.") && opensWithDenial("I've never been in a regulated industry."));
+ok('how the candidate works is not a denial, past experience gaps are',
+  !opensWithDenial('I never ship without testing with users.') && !opensWithDenial("I don't design for edge cases first.")
+  && !opensWithDenial("I don't have to rely on gut feeling.") && opensWithDenial('I never worked in gaming.'));

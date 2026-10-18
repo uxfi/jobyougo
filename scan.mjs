@@ -75,6 +75,8 @@ import { withPortalHealthLock } from './portal-health-lock.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { printScanSummaryHeader } from './lib/scan-summary-marker.mjs';
 import { appendDecisionLog, decisionLogRecord, evaluateCandidate, summarizeDecisions } from './lib/scan-decision.mjs';
+import { loadPortalsForProfile } from './lib/scan-targeting.mjs';
+import { resolveLocationProfile } from './lib/candidate-location.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 import { promoteKnownFragmentIdentity } from './url-key.mjs';
 
@@ -87,15 +89,13 @@ try {
   // dotenv is optional — fall back to process.env if not installed
 }
 
-const parseYaml = yaml.load;
-
 // ── Config ──────────────────────────────────────────────────────────
 import { getJobYouGoRoot } from './path-resolver.mjs';
 const CODE_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = getJobYouGoRoot();
 
 export const PORTALS_PATH = process.env.JOBYOUGO_PORTALS || path.join(DATA_ROOT, 'portals.yml');
-const PROFILE_PATH = process.env.JOBYOUGO_PROFILE || path.join(DATA_ROOT, 'config/profile.yml');
+export const PROFILE_PATH = process.env.JOBYOUGO_PROFILE || path.join(DATA_ROOT, 'config/profile.yml');
 // Overridable for the same reason the two inputs above are (#2271). A second
 // search lane - a bridge/income track, a career-change track, a partner sharing
 // the checkout - already gets its own portals.yml and profile, but without these
@@ -535,7 +535,7 @@ export function buildLocationFilter(locationFilter) {
   const strict = locationFilter.strict === true
     && (allow.length > 0 || block.length > 0 || blockHard.length > 0);
 
-  return (location, url, title) => {
+  return (location, url, title, { remoteConfirmed = false } = {}) => {
     const lower = typeof location === 'string' ? location.trim().toLowerCase() : '';
     const hint = locationHintFromUrl(url);
     // Nothing to judge on either field → pass (don't penalize missing data),
@@ -568,8 +568,9 @@ export function buildLocationFilter(locationFilter) {
     if (allow.some(matches)) return true;
     // Last resort only. Deliberately placed AFTER `block` so a remote title can
     // never rescue a blocked location — "Program Manager - Remote" in Bengaluru
-    // stays rejected. This widens `allow`, never `block`.
-    return titleSignalsRemote(title);
+    // stays rejected. This widens `allow`, never `block`. A remote role the
+    // remote check already confirmed (remote + allowed geography) counts too.
+    return remoteConfirmed || titleSignalsRemote(title);
   };
 }
 
@@ -843,16 +844,18 @@ export function buildContentFilter(contentFilter) {
 export function buildCountryEligibilityFilter(countryEligibilityFilter, candidateCountry) {
   if (!countryEligibilityFilter) return () => true;
 
-  const candidateCountryLower = typeof candidateCountry === 'string'
-    ? candidateCountry.toLowerCase().trim()
-    : '';
+  // One country, or every country the candidate lives or may work in (bases
+  // and authorized_in from lib/candidate-location.mjs).
+  const candidateCountries = (Array.isArray(candidateCountry) ? candidateCountry : [candidateCountry])
+    .filter(value => typeof value === 'string' && value.trim())
+    .map(value => value.toLowerCase().trim());
 
   // A "US-based candidates only" restriction can never legitimately exclude
   // a candidate who is themselves US-based — no-op the whole filter rather
   // than relying on the literal-country-name check below (which would miss
   // phrasing like "US-based candidates only" that never spells out "united
   // states").
-  if (candidateCountryLower === 'united states') return () => true;
+  if (candidateCountries.includes('united states')) return () => true;
 
   const exclusionary = normalizeKeywordList(countryEligibilityFilter.exclusionary);
   const inclusive = normalizeKeywordList(countryEligibilityFilter.inclusive);
@@ -864,7 +867,7 @@ export function buildCountryEligibilityFilter(countryEligibilityFilter, candidat
     if (exclusionary.length === 0) return true;
     if (!exclusionary.some(k => lower.includes(k))) return true;
     if (inclusive.length > 0 && inclusive.some(k => lower.includes(k))) return true;
-    if (candidateCountryLower && lower.includes(candidateCountryLower)) return true;
+    if (candidateCountries.some(country => lower.includes(country))) return true;
 
     return false;
   };
@@ -1182,6 +1185,19 @@ export function loadCandidateCountry(profilePath = PROFILE_PATH) {
     return typeof country === 'string' ? country.trim() : '';
   } catch {
     return '';
+  }
+}
+
+// Where the candidate works (lib/candidate-location.mjs), for the on-site
+// exceptions the scan gate honours ("Bangkok, Thailand (Hybrid)" for a
+// full-remote candidate who works on site in Bangkok). null when the profile
+// is missing or malformed: no exception then.
+export function loadLocationProfile(profilePath = PROFILE_PATH) {
+  if (!existsSync(profilePath)) return null;
+  try {
+    return resolveLocationProfile(yaml.load(readFileSync(profilePath, 'utf-8')) || {});
+  } catch {
+    return null;
   }
 }
 
@@ -3375,7 +3391,7 @@ async function main() {
     process.exit(1);
   }
 
-  // 2. Read portals.yml
+  // 2. Read portals.yml, its placeholders filled from config/profile.yml
   if (!existsSync(PORTALS_PATH)) {
     console.error('Error: portals.yml not found. Run onboarding first.');
     process.exit(1);
@@ -3383,7 +3399,7 @@ async function main() {
 
   let rawConfig;
   try {
-    rawConfig = parseYaml(readFileSync(PORTALS_PATH, 'utf-8'));
+    rawConfig = loadPortalsForProfile(PORTALS_PATH, PROFILE_PATH);
   } catch (err) {
     console.error(`Error: failed to parse ${PORTALS_PATH}: ${err.message}`);
     process.exit(1);
@@ -3414,6 +3430,7 @@ async function main() {
   const contentFilter = buildContentFilter(config.content_filter);
   const candidateCountry = loadCandidateCountry();
   const countryEligibilityFilter = buildCountryEligibilityFilter(config.country_eligibility_filter, candidateCountry);
+  const locationProfile = loadLocationProfile();
   const visaFilter = buildVisaFilter(config.visa_filter);
   const visaEnabled = Boolean(config.visa_filter) && config.visa_filter.enabled !== false;
 
@@ -3651,8 +3668,9 @@ async function main() {
           publishedAt: job.postedAt,
           source: company.name,
         }, config, {
-          locationAllows: () => locationFilter(job.location, job.url, job.title),
+          locationAllows: (_candidate, context) => locationFilter(job.location, job.url, job.title, context),
           countryAllows: () => countryEligibilityFilter(job.description),
+          locationProfile,
           today: date,
           firstSeenFor: (candidate) => firstSeenByUrl.get(normalizeUrlForDedup(candidate.url)) || '',
         });

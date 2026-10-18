@@ -133,3 +133,47 @@ const goodNumeric = validateReportContent(wrapLikeServer(numeric, '4.3/5', 'Role
 goodNumeric.valid
   ? pass('numeric 4.3/5 report still validates')
   : fail(`numeric report failed validation: ${goodNumeric.reason}`);
+
+for (const bad of ['0/5', '6/5', '8/10', '-1/5', '5.5/5']) {
+  const extracted = extractEvaluationScore(`**Score:** ${bad}\n\n## A) Role Summary\nx\n\n## B) Match\ny`);
+  extracted === '—'
+    ? pass(`out-of-range or invalid score ${bad} is rejected`)
+    : fail(`invalid score ${bad} was accepted as ${extracted}`);
+  isPlaceholderScore(bad)
+    ? pass(`tracker validation rejects ${bad}`)
+    : fail(`tracker validation accepted ${bad}`);
+}
+
+const invalidHeaderWithDimension = `**Score:** 6/5\n\nDimension: 4/5\n\n## A) Role Summary\nx\n\n## B) Match\ny`;
+extractEvaluationScore(invalidHeaderWithDimension) === '—'
+  ? pass('invalid header does not fall back to a dimension score')
+  : fail(`invalid header fell back to ${extractEvaluationScore(invalidHeaderWithDimension)}`);
+
+extractEvaluationScore('**Score:** 4.3 (strong fit)\n\n## A) Role Summary\nx\n\n## B) Match\ny') === '4.3/5'
+  ? pass('bare numeric scores are normalized onto the five-point scale')
+  : fail('bare numeric score was not normalized');
+
+// ── Notation table → computed Global ─────────────────────────────────────
+{
+  const { parseDimensionScores, computeGlobalScore } = await import('../lib/report-validation.mjs');
+  const table = (m, n, c, u, r) => `**Score:** 3.8/5\n\n## A) Résumé\nx\n\n## Notation\n| Dimension | Note | Preuve |\n|---|---|---|\n| Match CV | ${m} | a |\n| North Star | ${n} | b |\n| Comp | ${c} | c |\n| Culture | ${u} | d |\n| Red flags | ${r} | e |\n`;
+  const strong = resolveEvaluationScore(table(5, 5, 5, 3, 5));
+  strong.scoreRaw === '4.8/5' && strong.computed && /\*\*Score:\*\* 4\.8\/5/.test(strong.text)
+    ? pass('Notation 5/5/5/3/5 computes 4.8/5 and rewrites the body Score line')
+    : fail(`strong notation became ${strong.scoreRaw}`);
+  computeGlobalScore(parseDimensionScores(table(5, 5, 3, 3, 5))) === 4.6
+    ? pass('unstated comp + neutral culture still clears 4.5 on a perfect fit')
+    : fail('perfect fit with neutral comp/culture fell under 4.5');
+  computeGlobalScore(parseDimensionScores(table(5, 5, 5, 5, 2))) === 3.0
+    ? pass('a serious red flag caps the Global at 3.0')
+    : fail('red flag cap missing');
+  parseDimensionScores('**Score:** 4.0/5\n\n## Notation\n| Match CV | 4 | x |\n') === null
+    ? pass('an incomplete Notation table falls back to the model score')
+    : fail('incomplete table was accepted');
+  resolveEvaluationScore('**Score:** 4.0/5\n\nno table').scoreRaw === '4.0/5'
+    ? pass('no Notation table keeps the model score')
+    : fail('model score lost without table');
+  resolveEvaluationScore(table(5, 5, 5, 5, 5).replace('3.8/5', '1.0/5 (hard fail)')).scoreRaw === '1.0/5'
+    ? pass('a model hard fail beats the Notation table')
+    : fail('hard fail overridden by Notation');
+}

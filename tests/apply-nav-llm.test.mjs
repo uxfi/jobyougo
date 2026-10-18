@@ -20,6 +20,20 @@ test('filterNavButtons drops auth, back, and already tried labels', () => {
   assert.deepEqual(out.map((b) => b.text), ['Apply without account']);
 });
 
+test('filterNavButtons drops documents and legal pages, never a posting that mentions them', () => {
+  const out = filterNavButtons([
+    { n: 0, text: 'Apply Manually', href: '' },
+    { n: 4, text: 'here', href: 'https://www.lseg.com/content/dam/lseg/en_us/documents/policies/lseg-global-candidate-privacy-notice.pdf' },
+    { n: 5, text: 'here', href: 'https://acme.test/files/candidate-notice.docx?v=2' },
+    { n: 6, text: 'Privacy Policy', href: 'https://acme.test/privacy-policy' },
+    { n: 7, text: 'Terms', href: 'https://acme.test/legal/terms' },
+    { n: 8, text: 'ici', href: 'https://acme.fr/politique-de-confidentialite' },
+    { n: 9, text: 'Continue', href: 'https://acme.wd3.myworkdayjobs.com/en-US/Careers/job/London/Senior-Legal-Counsel_R123/apply' },
+    { n: 10, text: 'View role', href: 'https://acme.test/jobs/123-privacy-engineer' },
+  ], [], { phase: 'navigate' });
+  assert.deepEqual(out.map((b) => b.n), [0, 9, 10]);
+});
+
 test('parseNavDecision maps a click index to the button text', () => {
   const d = parseNavDecision(
     '{"action":"click","index":1,"reason":"opens the form"}',
@@ -88,6 +102,24 @@ test('askNavDecision spends one call per decision and stops at the run budget', 
   assert.equal(calls, 2);
   assert.equal(capped.skipped, true);
   assert.equal(capped.reason, 'plafond');
+});
+
+test('a board\'s auto-apply is never offered to the model unless the run may send on its own', async () => {
+  const buttons = [{ text: 'AUTO APPLY' }, { text: 'AI Apply' }, { text: 'Apply manually' }];
+  assert.deepEqual(filterNavButtons(buttons, [], { phase: 'navigate' }).map((b) => b.text), ['Apply manually']);
+  assert.deepEqual(filterNavButtons(buttons, [], { phase: 'navigate', allowAutoApply: true }).map((b) => b.text), ['AUTO APPLY', 'AI Apply', 'Apply manually']);
+  assert.equal(parseNavDecision('{"action":"click","index":0}', [{ text: 'AI Auto-Apply' }], { phase: 'navigate' }).action, 'human');
+  assert.equal(parseNavDecision('{"action":"click","index":0}', [{ text: 'AI Auto-Apply' }], { phase: 'navigate', allowAutoApply: true }).action, 'click');
+
+  const prompts = [];
+  const chat = async ({ messages }) => { prompts.push(messages[0].content); return '{"action":"click","index":0}'; };
+  const refused = await askNavDecision(newNavAiBudget(), { phase: 'navigate', listButtons: async () => [{ text: 'Auto apply' }], chat });
+  assert.equal(refused.reason, 'aucun bouton');
+  assert.equal(prompts.length, 0, 'the model is not asked to pick among nothing but auto-apply');
+  const allowed = await askNavDecision(newNavAiBudget(), { phase: 'navigate', allowAutoApply: true, listButtons: async () => [{ text: 'Auto apply' }], chat });
+  assert.equal(allowed.text, 'Auto apply');
+  await resolveNavAction({ phase: 'navigate', buttons: [{ text: 'Apply' }], chat });
+  assert.match(prompts.at(-1), /Never choose a job board's Auto Apply/);
 });
 
 test('askNavDecision never lists buttons or spends budget once capped, and skips pages without buttons', async () => {

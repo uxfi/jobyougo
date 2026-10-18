@@ -173,12 +173,25 @@ function collectFields() {
       }
     }
     if (!nonempty()) {
+      // A wrapper that also holds other boxes: its first label and its text
+      // are theirs too. Breezy's walk reached the <form>, and the first
+      // work-history "Start date" label named all 49 fields, the name first.
+      // There, only the nearest label before the box is its own.
+      const labelish = 'label, legend, [class*="label" i]';
       let node = el.parentElement;
       for (let d = 0; d < 3 && node; d++, node = node.parentElement) {
-        const lab = node.querySelector('label, legend, [class*="label" i]');
-        if (lab && !lab.contains(el)) { parts.push(lab.innerText); break; }
+        const crowded = [...node.querySelectorAll(fieldSelector)]
+          .some((f) => f !== el && f.type !== 'hidden' && !(el.name && f.name === el.name));
+        const labs = [...node.querySelectorAll(labelish)].filter((l) => !l.contains(el));
+        let lab = labs[0];
+        if (crowded) {
+          const before = labs.filter((l) => l.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+          const last = before.at(-1);
+          lab = last && before.find((l) => l.contains(last));
+        }
+        if (lab) { parts.push(lab.innerText); break; }
         const txt = (node.innerText || '').trim();
-        if (txt && txt.length < 220) { parts.push(txt); break; }
+        if (txt && txt.length < 220 && !crowded) { parts.push(txt); break; }
       }
     }
     if (!nonempty()) {
@@ -451,6 +464,10 @@ function collectFields() {
       && ['hidden', 'submit', 'button', 'image', 'reset'].includes(type)) continue;
     const nameId = `${el.name || ''} ${el.id || ''}`.toLowerCase();
     if (/g-recaptcha-response|h-captcha-response|cf-turnstile-response|frc-captcha-response/.test(nameId)) continue;
+    // A form posting to a sign-in or employee auto-join endpoint (Teamtailor
+    // "/auto_join": "Email address without domain" + Log in) is site chrome.
+    const ownerAction = String((el.form || el.closest('form'))?.getAttribute?.('action') || '');
+    if (/\/(auto_join|login|log_in|sign_?in|signin|sessions?)(\/|\?|$)/i.test(ownerAction)) continue;
     const isFile = type === 'file';
     const yesNoButtons = yesNoButtonsFor(el, type);
     if (yesNoButtons.length === 2) type = 'radio';
@@ -548,8 +565,11 @@ function collectFields() {
         if (['true', 'required', '1'].includes((node.getAttribute('data-required') || '').toLowerCase())) { wrapperRequired = true; break; }
       }
     }
+    // Ashby marks the sibling <label for> with a "_required_" class and draws
+    // its asterisk in CSS: neither the input nor the label text carries it.
+    const forLabel = labelByFor(el);
     const required = el.required || requiredAttr || /[*✱]/.test(label) || /\brequired\b/i.test(label)
-      || choiceRequired || wrapperRequired;
+      || choiceRequired || wrapperRequired || Boolean(forLabel && isRequiredNode(forLabel, ''));
     const selectWrapper = el.closest('[class*="select__container"], [class*="select-shell"], [class*="Select-container" i], [class*="react-select" i], [class*="Select-control"], spl-select, oc-select, [class*="oneclick" i], [class*="ant-select"], [class*="el-select"], [class*="MuiSelect"], [class*="MuiAutocomplete"], .select2-container, [class*="choices" i], [data-automation-id*="select" i], [data-automation-id*="dropdown" i]');
     let shadowRequired = null;
     if (selectWrapper) {

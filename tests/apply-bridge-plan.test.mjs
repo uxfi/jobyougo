@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planToUpdate, serializePrefer } from '../extension/apply-bridge-lib.mjs';
+import { ApplyBridge, planToUpdate, serializePrefer } from '../extension/apply-bridge-lib.mjs';
+import { AUTO_APPLY_TEXT_RE } from '../lib/apply-progression.mjs';
 import { DECLINE_RE } from '../lib/apply-select.mjs';
 
 test('serializePrefer keeps RegExp source/flags', () => {
@@ -142,6 +143,14 @@ test('planToUpdate: current location searches the city and must pick a suggestio
   );
   assert.equal(u.placeSuggest, true);
   assert.equal(u.typeQuery, 'Bangkok');
+  // "Where are you located?" is the same typeahead under a question.
+  const located = planToUpdate(
+    { i: 6, type: 'text', tag: 'input', label: 'Where are you located?', placeholder: 'Start typing...' },
+    { value: 'Paris, France', selectText: 'Paris, France', selectMatch: 'Paris' },
+    { city: 'Paris', location: 'Paris, France' },
+  );
+  assert.equal(located.placeSuggest, true);
+  assert.equal(located.typeQuery, 'Paris');
   const phone = planToUpdate(
     { i: 5, type: 'tel', tag: 'input', label: 'Phone', name: 'phone' },
     { value: '6 95 65 91 31' },
@@ -191,4 +200,87 @@ test('DECLINE_RE serializes for extension decline-without-options', () => {
   const s = serializePrefer(DECLINE_RE);
   assert.ok(s.source.length > 10);
   assert.ok(new RegExp(s.source, s.flags).test('Prefer not to say'));
+});
+
+// ── Run loops with the extension stubbed ───────────────────────────────────
+// No socket: every request a case does not answer fails at once, and the
+// page helpers answer from `helpers` by name.
+function stubBridge(helpers = {}, overrides = {}) {
+  const bridge = new ApplyBridge();
+  bridge.capabilities = new Set(['page-helper', 'submit-pick']);
+  Object.assign(bridge, {
+    _request: async (type) => { throw new Error(`stub: ${type}`); },
+    _pageHelper: async (_tabId, name) => (name in helpers ? helpers[name] : null),
+    getTab: async () => ({ url: 'https://jobs.example/offer/1' }),
+    ...overrides,
+  });
+  return bridge;
+}
+
+function stubRun(bridge, spec = {}) {
+  const states = [];
+  const run = bridge._newRun(7, { jobUrl: 'https://jobs.example/offer/1', identity: {}, ...spec }, {
+    onState: async (s) => { states.push(s); },
+    pollCommand: async () => null,
+  });
+  return { run, states };
+}
+
+test('navigation clicks a board\'s auto-apply only when the run may send on its own', async () => {
+  for (const autoSubmit of [false, true]) {
+    const tried = [];
+    const bridge = stubBridge({ LIST_VISIBLE_NAV_BUTTONS: autoSubmit ? [] : [{ n: 0, text: 'AUTO APPLY' }] }, {
+      _readTab: async () => ({ fields: [], probe: { verdict: 'none' } }),
+      clickProgression: async (_tabId, re) => { tried.push(re); return { clicked: false }; },
+    });
+    const { run } = stubRun(bridge, { autoSubmit });
+    assert.equal(await bridge._navigateToForm(run, { maxHops: 1 }), 'human');
+    assert.equal(tried.includes(AUTO_APPLY_TEXT_RE), autoSubmit, `autoSubmit=${autoSubmit}`);
+    // Without auto-send the model is never even asked about it.
+    if (!autoSubmit) assert.deepEqual(run.navAi, { nav: 0, review: 0 });
+  }
+});
+
+test('an Apply entry beside the form\'s own Submit does not hold the form back (Greenhouse)', async () => {
+  const fields = [{ i: 0, frameId: 0, type: 'email', tag: 'input', label: 'Email', value: 'a@b.co' }];
+  const bridge = stubBridge({
+    SUBMIT_CANDIDATES: [{ frameId: 0, candidates: [{ n: 0, text: 'Submit application', inFieldForm: true }] }],
+    PAGE_SHOWS_APPLY_ENTRY: true,
+    PAGE_STEP_SNAPSHOT: { heading: 'Senior Designer', bodySnippet: '' },
+    ACTION_LABELS: ['Apply for this job', 'Submit application'],
+  }, {
+    detectFieldsInTab: async () => ({ fields }),
+    _fillOnce: async () => ({ filled: [{ label: 'Email', value: 'a@b.co' }], pending: [], uploaded: [] }),
+    clickProgression: async () => assert.fail('the Apply entry is not clicked over an open form'),
+  });
+  const { run, states } = stubRun(bridge, { autoSubmit: false });
+  assert.deepEqual(await bridge._fillPass(run), { submitted: false });
+  assert.match(states.at(-1).message, /^Form ready/);
+});
+
+test('a file slot with no file to give is not re-attempted on every pass', async () => {
+  const fields = [
+    { i: 0, frameId: 0, type: 'email', tag: 'input', label: 'Email', value: 'a@b.co' },
+    { i: 1, frameId: 0, type: 'file', tag: 'input', label: 'Cover letter', required: true, fileCount: 0 },
+    { i: 2, frameId: 0, type: 'text', tag: 'input', label: 'Pronouns', value: '' },
+  ];
+  let fills = 0;
+  const bridge = stubBridge({}, {
+    detectFieldsInTab: async () => ({ fields }),
+    _fillOnce: async () => {
+      fills += 1;
+      return {
+        filled: [{ label: 'Email', value: 'a@b.co' }],
+        pending: [{ label: 'Cover letter', reason: 'lettre de motivation — aucune générée pour cette offre (menu ⋯ → Cover letter), puis Rescan' }],
+        uploaded: [],
+      };
+    },
+  });
+  const { run, states } = stubRun(bridge, { autoSubmit: false, answers: [] });
+  await bridge._fillPass(run);
+  assert.equal(fills, 1);
+  assert.ok(!run.steps.some((s) => /Relance auto/.test(s.text)));
+  // The empty box in neither list is in the state and the log, for audits.
+  assert.deepEqual(states.at(-1).skipped.map((x) => x.label), ['Pronouns']);
+  assert.ok(run.steps.some((s) => s.text === '1 champ(s) ignoré(s) : Pronouns'));
 });

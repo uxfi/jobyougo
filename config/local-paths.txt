@@ -79,7 +79,6 @@ process-quality.test.mjs
 purge-stale.mjs
 remote-eligibility-core.mjs
 remote-eligibility.mjs
-reply-matcher.test.mjs
 scripts/capture-creads.mjs
 scripts/capture-oneasset-light.mjs
 scripts/compare-application-emails.mjs

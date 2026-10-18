@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { CV_IMAGES_MAX_CHARS, validateCvParseRequest } from '../lib/cv-import.mjs';
-import { sanitizeProfileInput } from '../lib/profile-shape.mjs';
+import { isMissingColumnError, mergeProfileSections, missingColumnName, profileToRow, sanitizeProfileInput } from '../lib/profile-shape.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const server = readFileSync(join(ROOT, 'ui/server.mjs'), 'utf8');
@@ -69,7 +69,8 @@ test('signed-in reads of the view-only profile paths resolve the user', () => {
   assert.ok(guard.includes('const user = await getRequestUser(req);'));
   assert.ok(guard.includes("if (!user) return json(res, { error: 'Unauthorized' }, 401);"), 'a bad token is not an anonymous read');
   assert.ok(guard.includes('req.userId = user.id;') && guard.includes('req.userEmail = user.email;'));
-  assert.match(server, /const AUTH_REQUIRED_PROFILE_PATHS = new Set\(\['\/api\/profile\/status', '\/api\/profile\/cv-parse'\]\)/);
+  // The apply PDF routes always need the account (no anonymous read).
+  assert.ok(server.includes("const AUTH_REQUIRED_PROFILE_PATHS = new Set(['/api/profile/status', '/api/profile/cv-parse', '/api/profile/apply-cv', '/api/profile/apply-cv/file']);"));
   for (const route of ["if (path === '/api/profile') {", "if (path === '/api/profile/cv') {", "if (path === '/api/profile/context') {"]) {
     assert.ok(!routeBlock(route).includes('viewOnlyScope'), `${route} reads the account's own profile, the admin's included`);
   }
@@ -80,7 +81,9 @@ test('a storage failure never reads as an empty profile or CV', () => {
   assert.ok(save.includes('const existing = await getProfile(userId);'), 'no .catch(() => ({})) before the merge');
   assert.ok(!/getProfile\(userId\)\.catch/.test(save));
   assert.ok(save.includes('const existing = await readLocalProfile();'));
-  assert.ok(save.includes('return { profile: merged, degraded: true };') && save.includes('return { profile: merged, degraded: false };'));
+  assert.ok(save.includes('return { profile: merged, degraded: true, missingColumns: [...profileMissingColumns] };')
+    && save.includes('return { profile: merged, degraded: true, missingColumns: Object.keys(extended) };')
+    && save.includes('return { profile: merged, degraded: false, missingColumns: [] };'), 'a partial save names the columns it left out');
   const local = sourceOf('readLocalProfile');
   assert.ok(local.includes("if (err?.code === 'ENOENT') return {};") && local.includes('throw err;'), 'only a missing file is {}');
   const cv = sourceOf('getCvMarkdown');
@@ -93,13 +96,37 @@ test('a storage failure never reads as an empty profile or CV', () => {
   assert.equal((bundle.match(/return \{ degraded/g) || []).length, 3, 'every save path reports degraded');
 });
 
+test('a table without the screening column keeps the other sections and names the missing one', async () => {
+  const upserts = [];
+  const saveProfile = vm.runInNewContext(`(${sourceOf('saveProfile')})`, {
+    useSupabase: true, Date, Object, console: { warn() {} },
+    profileExtendedColumnsMissing: false, profileExtendedColumnsCheckedAt: 0, profileMissingColumns: new Set(),
+    getProfile: async () => ({}), mergeProfileSections, profileToRow, isMissingColumnError, missingColumnName,
+    supabase: {
+      from: () => ({
+        async upsert(row) {
+          upserts.push(Object.keys(row));
+          return 'screening' in row
+            ? { error: { code: 'PGRST204', message: "Could not find the 'screening' column of 'profiles' in the schema cache" } }
+            : { error: null };
+        },
+      }),
+    },
+  });
+  const result = await saveProfile({ candidate: { full_name: 'Ada' }, screening: { how_did_you_hear: 'LinkedIn' } }, 'user-1');
+  assert.equal(result.degraded, true);
+  assert.deepEqual([...result.missingColumns], ['screening']);
+  assert.ok(upserts[1].includes('candidate') && !upserts[1].includes('screening'), 'the retry keeps the other extended columns');
+});
+
 test('PUT /api/profile sanitizes the body and reports a degraded save and the new updated_at', () => {
   const route = routeBlock("if (path === '/api/profile') {");
   assert.ok(route.includes('readBody(req, { limit: 3 * 1024 * 1024 })'), 'room for an inline photo');
   assert.ok(route.includes('profile: sanitizeProfileInput(body?.profile ?? body)'));
   const put = route.slice(route.indexOf("if (method === 'PUT')"));
   assert.ok(put.indexOf('await saveProfileBundle(bundle, req.userId)') < put.indexOf('getProfileUpdatedAt(req.userId)'), 'read after the write');
-  assert.ok(put.includes('return json(res, { ok: true, degraded: Boolean(degraded), updated_at: await getProfileUpdatedAt(req.userId) });'));
+  assert.ok(put.includes('return json(res, { ok: true, degraded: Boolean(degraded), missing_columns: missingColumns || [], updated_at: await getProfileUpdatedAt(req.userId) });'));
+  assert.equal((sourceOf('saveProfileBundle').match(/return \{ degraded, missingColumns \};/g) || []).length, 2, 'both Supabase paths pass the missing columns on');
 });
 
 test('GET /api/profile gives the local profile an account.updated_at too', () => {

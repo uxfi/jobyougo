@@ -16,8 +16,8 @@ import { WebSocketServer } from 'ws';
 import { AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE } from '../lib/form-detect.mjs';
 import { classifyField } from '../lib/apply-classify.mjs';
 import { resolveUnknownFields, polishApplicationAnswer, hasUnresolvedPlaceholder } from '../lib/apply-llm.mjs';
-import { loadApplicationVoice, loadCvSummary } from '../lib/application-writing.mjs';
-import { loadCareerIndex } from '../lib/form-answer.mjs';
+import { applicationVoiceFor, cvSummaryFor } from '../lib/application-writing.mjs';
+import { careerIndexFor } from '../lib/form-answer.mjs';
 import {
   shouldFillField,
   isSubstantiveOptionalQuestion,
@@ -49,6 +49,7 @@ import {
   mergeFilled,
   mergePending,
   settleCheckboxGroups,
+  skippedFields,
 } from '../lib/apply-completion.mjs';
 import {
   rankSubmitCandidates,
@@ -77,6 +78,7 @@ import {
   noteFailedAttempt,
   planWant,
   readBackMatches,
+  readBackTruncated,
   reconCandidates,
   rematchFields,
   rememberAnswer,
@@ -105,6 +107,7 @@ import {
   canAdvanceWizardStep,
   isRequiredEmptyReason,
   shouldAttemptSubmitAfterNoopNext,
+  AUTO_APPLY_TEXT_RE,
 } from '../lib/apply-progression.mjs';
 import {
   askNavDecision,
@@ -134,6 +137,8 @@ const resumeUploaded = (labels = []) => labels.some((l) => RESUME_LABEL_RE.test(
 // Extra wait after a fill's own budget before reading the result off the page.
 const FILL_GRACE_MS = 60000;
 // Dashboard button names, quoted in the messages that tell the user what to click.
+// Words a control needs for the navigation model's pick to be clicked.
+const NAV_CTA_WORD_RE = /apply|application|postul|candidat|bewerb|aplic|continue|continuer|next|suivant|weiter|start|begin|commenc|join|proceed|submit|send|guest|visitor|invit|continu|view (the )?(job|role|position|opening|offer)|open (the )?(job|role|position)|see (the )?(job|role|position)|i['’]?m interested|interested|int[eé]ress|sollicit|candidatar|get started|accept|agree|consent|i agree|dismiss|close|\bok\b|got it|allow|reject|decline/i;
 const RESCAN_BTN = UI_BUTTONS.rescan;
 const SEND_BTN = UI_BUTTONS.send;
 
@@ -208,14 +213,14 @@ export function fillTimeoutMs(updates = []) {
  * Turn a classifyField plan into a fill-fields update payload for the extension.
  * Returns null when the field should be left blank / unresolved / skipped.
  */
-export function planToUpdate(f, plan, identity = {}) {
+export function planToUpdate(f, plan, identity = {}, spec = {}) {
   if (!plan || plan.skip) return null;
   const label = fieldLabel(f);
   if (plan.upload) {
     return { i: f.i, frameId: f.frameId ?? 0, upload: plan.upload, label };
   }
   if (plan.resume) {
-    const cv = loadCvSummary(ROOT);
+    const cv = cvSummaryFor(spec, ROOT);
     if (!cv) return null;
     return { i: f.i, frameId: f.frameId ?? 0, value: cv, label, resume: true };
   }
@@ -293,7 +298,7 @@ export function planToUpdate(f, plan, identity = {}) {
   // number is never that search.
   const placeHead = `${f.name || ''} ${f.idAttr || ''} ${f.autocomplete || ''} ${String(f.label || '').slice(0, 48)}`.toLowerCase();
   const mustPickSuggestion = isPlaceIdentityField(f) && !plan.yesNo && type !== 'tel'
-    && /location|city|ville|address-level/.test(placeHead)
+    && /location|located|based|city|ville|address-level/.test(placeHead)
     && !/address line|street|postal|zip|code postal/.test(placeHead);
   if (mustPickSuggestion) {
     const city = String(plan.selectMatch || identity.city || value)
@@ -326,7 +331,7 @@ export function planToUpdate(f, plan, identity = {}) {
 // A list that showed its options and none matched fails the same way on a
 // second pass — retrying it only typed into the dropdown again. A list that
 // never opened, or a click that did not stick, is worth another try.
-const RETRYABLE_PENDING_RE = /upload échoué|échec fill|radio option not found|FileList|valeur non retenue|element not found|liste non ouverte|cliquée mais non retenue|remplissage interrompu/i;
+const RETRYABLE_PENDING_RE = /upload échoué|échec fill|radio option not found|FileList|valeur non retenue|valeur tronquée|element not found|liste non ouverte|cliquée mais non retenue|remplissage interrompu/i;
 
 export class ApplyBridge {
   constructor() {
@@ -345,6 +350,13 @@ export class ApplyBridge {
   }
 
   attach(socket) {
+    this.bind(socket);
+    socket.on('message', (raw) => this._onMessage(raw));
+    socket.on('close', () => this.release(socket));
+  }
+
+  /** Makes `socket` this bridge's extension; its messages arrive through _onMessage. */
+  bind(socket) {
     // Only one live extension socket — drop a stale reconnect so pending
     // requests aren't answered on a dead channel, and so we don't keep two
     // half-open connections fighting each other (seen as rapid
@@ -359,13 +371,15 @@ export class ApplyBridge {
     this.extensionVersion = null;
     for (const waiter of this._connectWaiters ?? []) waiter();
     this._connectWaiters = [];
-    socket.on('message', (raw) => this._onMessage(raw));
-    socket.on('close', () => {
-      if (this.socket === socket) {
-        this.socket = null;
-        this._rejectAllPending(new Error('apply-bridge extension disconnected'));
-      }
-    });
+  }
+
+  /** `socket` closed or moved to another account: forget it, fail its requests. */
+  release(socket) {
+    if (this.socket !== socket) return;
+    this.socket = null;
+    this.capabilities = new Set();
+    this.extensionVersion = null;
+    this._rejectAllPending(new Error('apply-bridge extension disconnected'));
   }
 
   _rejectAllPending(err) {
@@ -472,7 +486,7 @@ export class ApplyBridge {
       else if (same && readBackMatches(f, u)) value = displayValue(f);
       return value
         ? { i: u.i, frameId: u.frameId ?? 0, ok: true, actualValue: value }
-        : { i: u.i, frameId: u.frameId ?? 0, ok: false, reason: 'remplissage interrompu (délai dépassé)' };
+        : { i: u.i, frameId: u.frameId ?? 0, ok: false, reason: same && readBackTruncated(f, u) ? 'valeur tronquée' : 'remplissage interrompu (délai dépassé)' };
     });
   }
 
@@ -588,13 +602,14 @@ export class ApplyBridge {
     return { probe: probe || { verdict: 'none', score: 0, signals: [], blockers: [] } };
   }
 
-  clickProgression(tabId, textRe, skip = [], { scrollFirst = true } = {}) {
+  clickProgression(tabId, textRe, skip = [], { scrollFirst = true, formStep = false } = {}) {
     return this._request('click-progression', {
       tabId,
       reSrc: textRe.source,
       avoidSrc: AUTH_AVOID_TEXT_RE.source,
       skip,
       scrollFirst,
+      formStep,
     });
   }
 
@@ -632,6 +647,7 @@ export class ApplyBridge {
       ...opts,
       url: pageUrl,
       skipTexts,
+      allowAutoApply: !!run.spec?.autoSubmit,
       listButtons: async () => {
         const res = await this._pageHelper(run.tabId, 'LIST_VISIBLE_NAV_BUTTONS', [{
           avoidSrc: AUTH_AVOID_TEXT_RE.source,
@@ -1272,7 +1288,12 @@ export class ApplyBridge {
       if (await followEmbeddedApplyLink()) continue;
 
       let clicked = null;
-      for (const re of [GUEST_TEXT_RE, APPLY_TEXT_RE, PROGRESS_TEXT_RE]) {
+      // A board's auto-apply files the application through the board itself,
+      // past the review and captcha gates and the tracker: only a run that
+      // may send on its own tries it, and last.
+      const ctas = [GUEST_TEXT_RE, APPLY_TEXT_RE, PROGRESS_TEXT_RE];
+      if (run.spec?.autoSubmit) ctas.push(AUTO_APPLY_TEXT_RE);
+      for (const re of ctas) {
         // Without scrolling first — the control may already be in view.
         for (const scrollFirst of [false, true]) {
           clicked = await this.clickProgression(run.tabId, re, skipOn(url), { scrollFirst }).catch(() => null);
@@ -1313,7 +1334,12 @@ export class ApplyBridge {
           await push('IA nav: formulaire traité comme prêt à remplir');
           return 'form';
         }
-        if (ai?.action === 'click' && ai.text) {
+        if (ai?.action === 'click' && ai.text && !NAV_CTA_WORD_RE.test(ai.text)) {
+          // A job board's listing page: the model picked a company card ("Kraken")
+          // and the run applied to another offer. Only a control that reads as a
+          // way into an application is clicked.
+          await push(`« ${ai.text} » ne ressemble pas à un bouton de candidature — non cliqué.`);
+        } else if (ai?.action === 'click' && ai.text) {
           const res = await this.clickExactLabel(run.tabId, ai.text).catch(() => null);
           if (res?.clicked) {
             clicked = { ...res, text: res.text || ai.text };
@@ -1449,7 +1475,10 @@ export class ApplyBridge {
     };
     // Click Next and wait for the step to change: 'moved', 'none' or { stuck }.
     const clickNext = async (logText) => {
-      const next = await this.clickProgression(run.tabId, PROGRESS_TEXT_RE, [], { scrollFirst: true });
+      // formStep: inside the form a Next is a button of the page, never a header
+      // or footer link, nor a link to another site (Kraken's "Get started" opened
+      // its sign-up page and the run filled that).
+      const next = await this.clickProgression(run.tabId, PROGRESS_TEXT_RE, [], { scrollFirst: true, formStep: true });
       if (!next?.clicked) return 'none';
       const kind = classifyActionLabel(next.text || '').kind;
       if (kind === 'submit' || kind === 'ambiguous' || SUBMIT_TEXT_RE.test(String(next.text || ''))) {
@@ -1492,9 +1521,13 @@ export class ApplyBridge {
       const isRetryable = (reason) => RETRYABLE_PENDING_RE.test(reason);
       const retryFields = retryTargets(run.pending, after, { retryable: isRetryable, hasValue: hasShownValue })
         .filter((f) => failedAttempts(run.memory, f) < MAX_FIELD_ATTEMPTS);
+      // A slot with no file to give (missing on disk, no letter generated for
+      // this offer, no CV configured) or not handled fails the same way on
+      // every pass: it is not re-attempted.
+      const noFileFor = (f) => run.pending.some((p) => p.label === fieldLabel(f)
+        && /fichier introuvable|fichier non géré|aucune générée|aucun CV configuré/i.test(String(p.reason || '')));
       const cvRetry = issues.some((x) => /fichier requis|CV manquant/i.test(x.reason))
-        && !run.pending.some((p) => /CV introuvable|fichier non géré/i.test(String(p.reason || '')))
-        ? after.filter((f) => f.type === 'file' && failedAttempts(run.memory, f) < MAX_FIELD_ATTEMPTS
+        ? after.filter((f) => f.type === 'file' && !noFileFor(f) && failedAttempts(run.memory, f) < MAX_FIELD_ATTEMPTS
           && shouldUploadFileField(f, { uploadedLabels: run.uploaded, resumeAlreadyUploaded: resumeUploaded(run.uploaded) }))
         : [];
       // Settle every retryable row now. A field that shows a value since (a
@@ -1609,6 +1642,14 @@ export class ApplyBridge {
       // Nothing left to fill but an Apply entry is still on screen: open the
       // form. Greenhouse keeps "Apply for this job" next to the inline form; a
       // click that only scrolls must not start a full refill of the same page.
+      // Every control with its place (null on an older extension). Read once
+      // here: the Apply-entry guard below and the send decision share it.
+      const sendView = await this.submitCandidates(run.tabId);
+      const formHasSend = !!sendView && sendView.some((fr) => (fr.candidates || [])
+        .some((c) => !c.disabled && c.inFieldForm && classifyActionLabel(c.text || c.aria || '').kind === 'submit'));
+      // The form's own Submit is on screen: the form is open, and the Apply
+      // entry beside it must not hold the send back either.
+      if (formHasSend) applyEntryVisible = false;
       if (!run.pending.length && applyEntryVisible && applyNoopMark !== lastMark) {
         const markBefore = lastMark;
         const apply = await this.clickProgression(run.tabId, APPLY_TEXT_RE, [], { scrollFirst: true });
@@ -1633,10 +1674,8 @@ export class ApplyBridge {
       const cvBlocksSubmit = sawResumeSlot && !run.filled.some((f) => /📎/.test(String(f.value || '')));
       const requiredEmpty = run.pending.some((p) => isRequiredEmptyReason(p.reason));
 
-      // Every control with its place (null on an older extension). Its labels
-      // in or after the form go first: the 40 labels read from the top of a
-      // page (a board's header and menus) could miss the form's own Next.
-      const sendView = await this.submitCandidates(run.tabId);
+      // Its labels in or after the form go first: the 40 labels read from the
+      // top of a page (a board's header and menus) could miss the form's own Next.
       let actionLabels = [];
       try { actionLabels = await this.listVisibleActionLabels(run.tabId); } catch { /* controls unknown */ }
       if (sendView) {
@@ -1706,6 +1745,9 @@ export class ApplyBridge {
           run.pending = mergePending(run.pending, [{ label: 'Resume/CV', reason: 'CV manquant — upload non confirmé' }], run.filled);
         }
       }
+      // Empty boxes in neither list are kept in the state for audits.
+      const skipped = skippedFields(after, { filled: run.filled, pending: run.pending, spec });
+      if (skipped.length) await push(`${skipped.length} champ(s) ignoré(s) : ${skipped.map((s) => s.label).join(', ')}`);
       // An e-mail the ATS copied from the CV counts as the identity too, and
       // so does what a signed-in platform already shows: a locked e-mail box
       // the collect skips, or the account e-mail written on the page.
@@ -1721,7 +1763,7 @@ export class ApplyBridge {
       else if (treatAsFinalReview) message = `Review — ready to send (${filledCount} field(s)).`;
       else if (ready) message = `Form ready — ${filledCount} field(s). Review it, then send.`;
       else message = `Form — ${filledCount} field(s) filled.`;
-      await run.set({ state: run.pending.length ? 'needs_human' : 'ready_to_review', message });
+      await run.set({ state: run.pending.length ? 'needs_human' : 'ready_to_review', message, skipped });
 
       if (!spec.autoSubmit) return { submitted: false };
 
@@ -1916,12 +1958,14 @@ export class ApplyBridge {
       // A real send button, but the form is still on screen after ~8 s with
       // no confirmation and the same URL: sent is likely, not certain.
       if (clicked.stillForm && clicked.urlChanged === false && !clicked.confirmed) {
-        await push(`Envoyé: « ${clicked.text || 'Submit'} » — formulaire encore affiché, vérifie l’onglet`, {
-          state: 'submitted',
-          message: '📨 Sent? The form is still on screen: check the confirmation in the tab.',
+        // Not vouched for: marking it Applied on a guess filed unsent
+        // applications. The user confirms with "I sent it".
+        await push(`Envoyé ? « ${clicked.text || 'Submit'} » — formulaire encore affiché, aucune confirmation lue`, {
+          state: 'needs_human',
+          message: `📨 Sent? The form is still on screen and no confirmation was read. Check the tab, then ${UI_BUTTONS.sent} (or ${SEND_BTN} to click again).`,
           pending: [],
         });
-        return true;
+        return false;
       }
       await push(`Envoyé: « ${clicked.text || 'Submit'} »`, {
         state: 'submitted',
@@ -1975,6 +2019,14 @@ export class ApplyBridge {
       // A solved captcha or a typed code often sends the form by itself.
       await sleep(2500);
       page = await read();
+      // The page may still be sending the code (Clear Street): give it time
+      // to confirm or drop the form before clicking send a second time.
+      for (let wait = 0; wait < 6 && page.kind === 'none'; wait++) {
+        const left = (await this.detectFieldsInTab(run.tabId).catch(() => null))?.fields || [];
+        if (!this.fieldsLookLikeForm(left)) break;
+        await sleep(2000);
+        page = await read();
+      }
       if (page.kind === 'none') {
         const fields = (await this.detectFieldsInTab(run.tabId).catch(() => null))?.fields || [];
         if (!this.fieldsLookLikeForm(fields)) return sent(clicked.text, 'formulaire disparu');
@@ -2117,21 +2169,23 @@ export class ApplyBridge {
       doneFiles.add(labelShort);
       const plan = classifyField(todo, spec, usedAnswers);
       // Dropzones ("Choose a file…") count as resume slots even without HTML required.
+      const slotRequired = todo.required || fieldLooksRequired(todo);
       if (!shouldFillField(todo) && !isResumeFileField(todo)) {
-        if (todo.required) pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
+        if (slotRequired) pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
         continue;
       }
       if (!plan || plan.skip || !plan.upload) {
-        if (todo.required || isResumeFileField(todo)) {
+        if (slotRequired || isResumeFileField(todo)) {
           pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
         }
         continue;
       }
       if (!existsSync(plan.upload)) {
-        pending.push({ label: labelShort, reason: `CV introuvable: ${basename(plan.upload)}` });
+        pending.push({ label: labelShort, reason: `fichier introuvable: ${basename(plan.upload)}` });
         continue;
       }
-      await push(`Upload CV: ${basename(plan.upload)}…`);
+      const isLetter = plan.kind === 'cover-letter';
+      await push(`Upload ${isLetter ? 'lettre' : 'CV'}: ${basename(plan.upload)}…`);
       try {
         const result = await this.uploadFile(tabId, {
           i: todo.i,
@@ -2141,11 +2195,13 @@ export class ApplyBridge {
         if (result?.uploadOk) {
           filled.push({ label: labelShort, value: `📎 ${basename(plan.upload)}` });
           uploaded.push(labelShort);
-          if (isResumeFileField(todo) || plan.upload === spec.cvPath) resumeAlreadyUploaded = true;
-          await push(`CV attaché: ${basename(plan.upload)}`);
+          if (!isLetter && (isResumeFileField(todo) || plan.upload === spec.cvPath)) resumeAlreadyUploaded = true;
+          await push(`${isLetter ? 'Lettre attachée' : 'CV attaché'}: ${basename(plan.upload)}`);
           await sleep(900);
-          const autofillLine = autofillLogLine(await this.waitResumeAutofill(tabId, spec?.identity || {}));
-          if (autofillLine) await push(autofillLine);
+          if (!isLetter) {
+            const autofillLine = autofillLogLine(await this.waitResumeAutofill(tabId, spec?.identity || {}));
+            if (autofillLine) await push(autofillLine);
+          }
         } else {
           const reason = `upload échoué: ${result?.error || 'unknown'}`;
           await push(`CV non attaché — ${reason}`);
@@ -2267,7 +2323,7 @@ export class ApplyBridge {
         continue;
       }
 
-      const update = planToUpdate(f, plan, spec.identity || {});
+      const update = planToUpdate(f, plan, spec.identity || {}, spec);
       if (!update) {
         // Phone and dial-code slots are identity, never a question for the model.
         if (f.required && !looksLikeDialCodeField(f) && !looksLikePhoneNumberField(f)) unresolved.push(f);
@@ -2458,8 +2514,8 @@ export class ApplyBridge {
               maxLength: f.maxLength,
             })),
             spec,
-            career: loadCareerIndex(ROOT),
-            styleGuide: loadApplicationVoice(ROOT),
+            career: careerIndexFor(spec, ROOT),
+            styleGuide: applicationVoiceFor(spec, ROOT),
             // What the form already says, so "Are you located in France?"
             // agrees with the location typed two fields above — earlier
             // passes included.
@@ -2666,6 +2722,72 @@ export class ApplyBridge {
 
 }
 
+/**
+ * One ApplyBridge per account. Each Chrome extension says whose it is with
+ * the pairing token the dashboard handed it (`hello` / `pair` messages carry
+ * `pairToken`); `resolveAccount(token)` turns that into an account key, or
+ * null. A socket nobody resolves stays unbound: no run is ever sent to it, so
+ * a run only reaches the Chrome of the account that started it.
+ */
+export class ApplyBridgeHub {
+  constructor({ resolveAccount = async () => null } = {}) {
+    this.resolveAccount = resolveAccount;
+    this.bridges = new Map();
+    this.onLog = () => {};
+    // Never bound: what an account without a paired extension gets.
+    this.unpaired = new ApplyBridge();
+  }
+
+  /** The account's bridge (created on first use). A falsy key gets the unbound one. */
+  forAccount(key) {
+    if (!key) return this.unpaired;
+    let bridge = this.bridges.get(key);
+    if (!bridge) {
+      bridge = new ApplyBridge();
+      bridge.onLog = (m) => this.onLog(m);
+      this.bridges.set(key, bridge);
+    }
+    return bridge;
+  }
+
+  attach(socket) {
+    let bridge = null;
+    let hello = null;
+    let seq = 0;
+    const bindTo = async (token) => {
+      const mine = ++seq;
+      const key = await Promise.resolve(this.resolveAccount(token || '')).catch(() => null);
+      // A later hello/pair answered first: it decides.
+      if (mine !== seq) return;
+      const next = key ? this.forAccount(key) : null;
+      if (next !== bridge) {
+        bridge?.release(socket);
+        bridge = next;
+        bridge?.bind(socket);
+        this.onLog(key ? 'extension socket paired with an account' : 'extension socket not paired (open the dashboard signed in)');
+      }
+      // bind() forgets the capabilities: replay this socket's hello.
+      if (bridge && hello) bridge._onMessage(hello);
+      try { socket.send(JSON.stringify({ type: 'paired', ok: !!key })); } catch { /* closed */ }
+    };
+    socket.on('message', (raw) => {
+      let msg;
+      try { msg = JSON.parse(raw.toString()); } catch { return; }
+      if (msg?.type === 'hello' || msg?.type === 'pair') {
+        if (msg.type === 'hello') hello = raw.toString();
+        bindTo(typeof msg.pairToken === 'string' ? msg.pairToken : '');
+        return;
+      }
+      bridge?._onMessage(raw);
+    });
+    socket.on('close', () => {
+      seq++;
+      bridge?.release(socket);
+      bridge = null;
+    });
+  }
+}
+
 export function attachApplyBridge(httpServer, bridge, { path = '/apply-bridge', log = () => {} } = {}) {
   bridge.onLog = log;
   const wss = new WebSocketServer({ noServer: true });
@@ -2673,6 +2795,13 @@ export function attachApplyBridge(httpServer, bridge, { path = '/apply-bridge', 
     let url;
     try { url = new URL(req.url, 'http://localhost'); } catch { return; }
     if (url.pathname !== path) return;
+    // A web page open in the same browser may dial this socket too; the
+    // plugin's service worker sends a chrome-extension:// origin.
+    const origin = String(req.headers?.origin || '');
+    if (origin && !origin.startsWith('chrome-extension://')) {
+      socket.destroy();
+      return;
+    }
     wss.handleUpgrade(req, socket, head, (ws) => {
       // Single log line — the extension also sends `hello`; logging both made
       // every reconnect look like two separate events in the dashboard log.

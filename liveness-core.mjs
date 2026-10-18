@@ -54,7 +54,11 @@ const HARD_EXPIRED_PATTERNS = [
   // strips diacritics, so "expiree" here matches "expirée" on the page.
   /offre (expiree|n'est plus disponible)/i,
   /(cette )?offre n'est plus (disponible|en ligne|active)/i,
-  /(offre|poste|annonce) (deja )?pourvu(e)?/i,
+  // A statement about THIS posting only: every France Travail page carries a
+  // report popin ("… concernant … une offre déjà pourvue, rendez-vous …"),
+  // and the bare noun + "pourvue" read all 1,277 of its live offers as expired.
+  /\b(?:cette |l')(?:offre|annonce) (?:a ete |est )?(?:deja )?pourvue\b/i,
+  /\bce poste (?:a ete |est )(?:deja )?pourvu\b/i,
   /offre (cloturee|desactivee|terminee)/i,
   /ce poste n'est plus (disponible|a pourvoir|ouvert)/i,
   /recrutement (termine|cloture)/i,

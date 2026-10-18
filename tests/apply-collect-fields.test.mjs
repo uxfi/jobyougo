@@ -34,6 +34,20 @@ test('identity fields: one entry each, no duplicate textbox wrapper', async () =
   assert.ok(!fields.some(f => f.role === 'textbox' && f.tag === 'div'), JSON.stringify(fields.map(f => f.tag + ':' + f.role)));
 });
 
+test('Ashby: a "_required_" class on the sibling <label for> marks the input required', async () => {
+  const fields = await collect(`
+    <style>._required_x1::after { content: '*'; }</style>
+    <div class="ashby-application-form-field-entry">
+      <label class="ashby-application-form-question-title _required_x1" for="loc">Where are you located?</label>
+      <input id="loc" type="text" role="combobox" placeholder="Start typing...">
+    </div>
+    <label class="ashby-application-form-question-title" for="tw">Twitter URL</label><input id="tw" type="text">
+  `);
+  const byLabel = Object.fromEntries(fields.map(f => [f.label, f.required]));
+  assert.equal(byLabel['Where are you located?'], true, JSON.stringify(fields.map(f => [f.label, f.required])));
+  assert.equal(byLabel['Twitter URL'], false);
+});
+
 test('Ashby-style opacity-0 radios: group becomes ONE field with Yes/No options', async () => {
   const fields = await collect(`
     <div>
@@ -131,6 +145,34 @@ test('lone consent checkbox does not swallow the rest of the form as its label',
   assert.equal(boxes.length, 1, JSON.stringify(fields.map(f => f.label)));
   assert.ok(!/First name/i.test(boxes[0].label), boxes[0].label);
   assert.match(boxes[0].label, /privacy|agree/i);
+});
+
+test('Breezy: a work-history date label never names the other fields of the form', async () => {
+  const fields = await collect(`
+    <form>
+      <div class="section">
+        <h1>Personal Details</h1>
+        <input name="cName" placeholder="Full Name" required>
+        <input type="email" name="cEmail" placeholder="Email Address" required>
+        <input name="cPhoneNumber" placeholder="Phone Number">
+        <p>${'Your details are only shared with the hiring team. '.repeat(5)}</p>
+      </div>
+      <div class="section">
+        <h1>Experience</h1>
+        <ul><li class="experience">
+          <input placeholder="Company"><div class="form-divider"></div>
+          <input placeholder="Title"><div class="form-divider"></div>
+          <textarea placeholder="Summary"></textarea><div class="form-divider"></div>
+          <span class="polygot date-label">Start date</span><input type="date"><div class="form-divider"></div>
+          <span class="polygot date-label">End date</span><input type="date"><div class="form-divider"></div>
+          <a class="date-label del-pos" href="">Delete</a>
+        </li></ul>
+      </div>
+    </form>
+  `);
+  const labels = fields.map(f => f.label);
+  assert.equal(labels.filter(l => /start date/i.test(l)).length, 1, JSON.stringify(labels));
+  assert.deepEqual(labels.slice(3), ['Company', 'Title', 'Summary', 'Start date', 'End date']);
 });
 
 test('hidden checkbox without a visible proxy is not collected', async () => {

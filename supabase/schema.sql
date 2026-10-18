@@ -149,3 +149,7 @@ alter table public.profiles
   add column if not exists availability            jsonb,
   add column if not exists preferences             jsonb,
   add column if not exists onboarding_completed_at timestamptz;
+
+-- ── 8. Screening answers (2026-10-13, see migrations/20261013_profile_complete.sql)
+alter table public.profiles
+  add column if not exists screening jsonb;

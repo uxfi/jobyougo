@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, looksLikePhoneNumberField, formDialCode, nationalPhoneNumber, fileUploadPlan, shouldReplaceFilledValue, fieldHasCommittedValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, listTypeQuery, listTypeQueryAlt, isCandidateFullNameField, isCoreApplicationIdentity, fieldIsMulti } from '../lib/apply-fill-guards.mjs';
+import { isCoverLetterFileField, skipComboboxProbe, looksLikeTypeahead, normalizedFieldLabel, isComboboxField, shouldSpeculativeProbe, shouldHumanType, isIdentityRepeatField, trivialFieldPlan, looksLikeDialCodeField, looksLikePhoneNumberField, formDialCode, nationalPhoneNumber, fileUploadPlan, shouldReplaceFilledValue, fieldHasCommittedValue, shouldFillField, fieldLooksRequired, isSecretCredentialField, travelOrRelocatePlan, employmentHistoryPlan, screeningChoicePlan, isAvailabilityStartField, monthLabel, isApplicationGateConsent, unknownThirdPartyPlan, locationTypeaheadHint, listTypeQuery, listTypeQueryAlt, isCandidateFullNameField, isCoreApplicationIdentity, fieldIsMulti } from '../lib/apply-fill-guards.mjs';
 
 const field = (label, extra = {}) => ({ label, type: 'text', name: '', idAttr: '', ...extra });
 
@@ -397,4 +397,66 @@ test('required third-party names get N/A; location typeahead uses the first word
   assert.equal(locationTypeaheadHint(field('Country'), { country: 'France' }).contains, 'France');
   // Greenhouse dial Country* (id=country) is not a residence typeahead
   assert.equal(locationTypeaheadHint({ label: 'Country', type: 'text', name: '', idAttr: 'country', role: 'combobox' }, { country: 'France' }), null);
+});
+
+test('required markers written in the label count (Personio "(necessary)")', () => {
+  for (const label of ['Salary expectations (necessary)', 'Gehaltsvorstellung* (erforderlich)', 'Upload Anschreiben (erforderlich)', 'Ville (obligatoire)', 'Phone (required)']) {
+    assert.equal(fieldLooksRequired(field(label)), true, label);
+    assert.equal(shouldFillField(field(label)), true, label);
+  }
+  assert.equal(fieldLooksRequired(field('Salary expectations')), false);
+  assert.equal(fieldLooksRequired(field('Is it necessary to relocate?')), false, 'a word inside a question is not a marker');
+});
+
+test('a cover-letter slot takes the generated letter, or is reported', () => {
+  const slot = field('Upload Cover letter', { type: 'file' });
+  assert.equal(isCoverLetterFileField(slot), true);
+  assert.equal(isCoverLetterFileField(field('Upload Anschreiben', { type: 'file' })), true);
+  assert.equal(isCoverLetterFileField(field('Upload CV', { type: 'file' })), false);
+  assert.equal(isCoverLetterFileField(field('Lebenslauf', { type: 'file' })), false);
+  const withLetter = fileUploadPlan(slot, { cvPath: '/out/cv.pdf', coverLetterPath: '/out/cover-letter-acme-pm-2026-10-12.pdf' });
+  assert.equal(withLetter.upload, '/out/cover-letter-acme-pm-2026-10-12.pdf');
+  assert.equal(withLetter.kind, 'cover-letter');
+  const without = fileUploadPlan(slot, { cvPath: '/out/cv.pdf' });
+  assert.equal(without.upload, undefined, 'the CV never goes into the cover-letter slot');
+  assert.match(without.skip, /lettre de motivation/);
+  assert.equal(fileUploadPlan(field('Upload CV', { type: 'file' }), { cvPath: '/out/cv.pdf', coverLetterPath: '/out/l.pdf' }).upload, '/out/cv.pdf');
+});
+
+// 2026-10-13 review: dashed placeholders, conditional markers, "discover",
+// pre-filled residence countries.
+test('a placeholder framed by dashes is an empty choice', () => {
+  for (const text of ['-- No answer --', '— Select —', '– Choose –', '--']) {
+    assert.equal(fieldHasCommittedValue({ tag: 'select', value: text }), false, text);
+  }
+  assert.equal(fieldHasCommittedValue({ tag: 'select', value: 'No' }), true);
+  assert.equal(fieldHasCommittedValue({ tag: 'select', value: 'N/A' }), true);
+});
+
+test('conditional wording is not a required marker', () => {
+  for (const label of ['Attach other documents if necessary.', 'Weitere Unterlagen falls erforderlich', 'Autres documents si requis', 'Upload other documents if required']) {
+    assert.equal(fieldLooksRequired(field(label, { type: 'file' })), false, label);
+  }
+  assert.equal(fieldLooksRequired(field('Anschreiben erforderlich', { type: 'file' })), true);
+  assert.equal(fieldLooksRequired(field('Cover letter (required)', { type: 'file' })), true);
+});
+
+test('only a cover-letter wording makes a cover-letter slot', () => {
+  assert.equal(isCoverLetterFileField(field('How did you discover us? Upload', { type: 'file' })), false);
+  assert.equal(isCoverLetterFileField(field('Attach', { type: 'file', name: 'cover_letter' })), true);
+  assert.equal(isCoverLetterFileField(field('Attach', { type: 'file', name: 'coverLetter' })), true);
+  assert.equal(isCoverLetterFileField(field('Covering letter', { type: 'file' })), true);
+});
+
+test('a residence country pre-filled by the site is replaced by the profile country', () => {
+  const country = field('Current country', { type: '', role: 'combobox' });
+  assert.equal(shouldReplaceFilledValue(country, 'United Kingdom', 'France'), true);
+  assert.equal(shouldReplaceFilledValue(country, 'France', 'France'), false);
+  assert.equal(shouldReplaceFilledValue(field('Country of residence'), 'FR', 'France'), false);
+  assert.equal(shouldReplaceFilledValue(field('Pays de résidence'), 'Royaume-Uni', 'France'), true);
+  assert.equal(shouldReplaceFilledValue(field('Nationality'), 'British', 'French'), false, 'a passport is not a residence');
+  assert.equal(shouldReplaceFilledValue(field('Country you are applying for'), 'Germany', 'France'), false);
+  // Two places joined by "or" are never the one place a location box asks for.
+  assert.equal(shouldReplaceFilledValue(field('Current location'), 'Lisbon or Berlin', 'Lisbon, Portugal'), true);
+  assert.equal(shouldReplaceFilledValue(field('Current location'), 'Lisbon', 'Lisbon, Portugal'), false);
 });

@@ -11,19 +11,41 @@ import {
   dedupeCandidates,
   evaluateCandidate,
   explicitDateFromText,
+  geoPolicyFrom,
   internOrJuniorReason,
   jevDropOverrideReason,
   jevEvalOverrideReason,
   levelGateReason,
+  levelPolicyFrom,
+  listingPageReason,
   relativeDateFromText,
   resolvePublishedDate,
+  roleFamilyPattern,
   runTitleDryRun,
   explainTitle,
   selectRoster,
 } from '../lib/scan-decision.mjs';
+import { resolveLocationProfile } from '../lib/candidate-location.mjs';
 import { buildJevScanResponse, classifyJevOutcome } from '../lib/jev.mjs';
 import { extractScanEntriesFromResponse } from '../lib/scan-parse.mjs';
 import { ROOT } from './helpers.mjs';
+
+// The role family and level policy come from the profile (roleFamilyPattern,
+// levelPolicyFrom). These checks use the owner's 2026-10 targeting.
+const OWNER_TARGETING = {
+  archetypes: [
+    { name: 'Product Designer', level: 'Senior/Lead', fit: 'primary' },
+    { name: 'UX/UI Designer', level: 'Senior', fit: 'primary' },
+    { name: 'AI Product Designer', level: 'Senior/Lead', fit: 'primary' },
+    { name: 'Founding Product Designer', level: 'Senior', fit: 'primary' },
+    { name: 'AI Product Builder', level: 'Senior', fit: 'primary' },
+    { name: 'Product Manager', level: 'Product scope dependent', fit: 'secondary' },
+  ],
+  primaryRoles: ['Senior Product Designer', 'Lead Product Designer', 'AI Product Designer', 'Founding Product Designer', 'AI Product Builder'],
+  rejectInternships: true,
+};
+const ownerDrop = (candidate, contractTypes = []) => jevDropOverrideReason(candidate, { contractTypes, targeting: OWNER_TARGETING });
+const ownerEval = (input) => jevEvalOverrideReason({ ...input, targeting: OWNER_TARGETING });
 
 console.log('\nShared scan decision engine');
 
@@ -211,6 +233,10 @@ if (internOrJuniorReason('Product Designer Intern', 'https://jobs.example.com/in
   pass('an intern title is rejected before Jev');
 } else fail('intern title should be intern/junior');
 
+if (internOrJuniorReason('Alternante(e) UX/UI designer (H/F/D) (H/F)', '') && internOrJuniorReason('Apprentie Product Designer', '')) {
+  pass('feminine French apprenticeship titles are rejected before Jev');
+} else fail('alternante / apprentie should be intern/junior');
+
 if (internOrJuniorReason('Senior Product Designer', 'https://jobs.example.com/spd')) {
   fail('a senior title must not be treated as intern/junior');
 } else pass('a senior title is not intern/junior');
@@ -223,7 +249,7 @@ if (internOrJuniorReason('', 'https://www.welcometothejungle.com/en/companies/ga
   pass('a WTTJ internship slug is rejected even without a title');
 } else fail('URL slug stage-de-fin should be intern/junior');
 
-if (jevDropOverrideReason({ title: 'Product Design', url: 'https://jobs.ashbyhq.com/axle-careers/c0bc06e2-6e73-486d-ac83-3fe1059b327e' }) === 'target role family') {
+if (ownerDrop({ title: 'Product Design', url: 'https://jobs.ashbyhq.com/axle-careers/c0bc06e2-6e73-486d-ac83-3fe1059b327e' }) === 'target role family') {
   pass('a Product Design title is a keep even without Senior in the name');
 } else fail('Product Design must override a Jev drop');
 
@@ -237,7 +263,7 @@ for (const pmTitle of [
   'Head of Product',
   'Product Lead',
 ]) {
-  if (!jevDropOverrideReason({ title: pmTitle, url: 'https://careers.example.com/jobs/8468369-role' })) {
+  if (!ownerDrop({ title: pmTitle, url: 'https://careers.example.com/jobs/8468369-role' })) {
     pass(`a Jev drop of "${pmTitle}" stands (PM titles are not force-kept)`);
   } else fail(`"${pmTitle}" must not override a Jev drop any more`);
 }
@@ -253,12 +279,12 @@ for (const designTitle of [
   'User Experience Designer',
   'AI Product Builder',
 ]) {
-  if (jevDropOverrideReason({ title: designTitle, url: 'https://careers.example.com/jobs/8468369-role' }) === 'target role family') {
+  if (ownerDrop({ title: designTitle, url: 'https://careers.example.com/jobs/8468369-role' }) === 'target role family') {
     pass(`"${designTitle}" is in the design family and overrides a Jev drop`);
   } else fail(`"${designTitle}" should override a Jev drop`);
 }
 
-if (!jevEvalOverrideReason({
+if (!ownerEval({
   title: 'Senior Product Manager',
   url: 'https://careers.example.com/jobs/8468369-senior-product-manager',
   jdText: 'Senior Product Manager, pricing platform. Fully remote, Europe.',
@@ -322,11 +348,11 @@ if (!contractMismatchReason(permanentTitle, ['Salaried'])
   pass('"Permanent contract" and CDD titles are salaried, not contractor roles');
 } else fail(`permanent/CDD misread: ${permanentDecision.signals.contract}`);
 
-if (!jevDropOverrideReason(clera, ['Salaried']) && jevDropOverrideReason(clera) === 'target role family') {
+if (!ownerDrop(clera, ['Salaried']) && ownerDrop(clera) === 'target role family') {
   pass('a freelance design title is not force-kept for a salaried profile');
 } else fail('the override must skip a contract type the candidate refuses');
 
-if (!jevEvalOverrideReason({ ...clera, jdText: 'Fractional, fully remote, 2 days a week.', contractTypes: ['Salaried'] })) {
+if (!ownerEval({ ...clera, jdText: 'Fractional, fully remote, 2 days a week.', contractTypes: ['Salaried'] })) {
   pass('the eval override does not open the gate for a refused contract type');
 } else fail('the eval override must pass the contract types to the drop override');
 
@@ -336,8 +362,8 @@ if (levelGateReason('Junior Product Designer', '') === 'junior title'
   pass('levelGateReason chains intern/junior then assistant/mid-level');
 } else fail('levelGateReason should chain internOrJuniorReason and belowTargetLevelReason');
 
-if (!jevDropOverrideReason({ title: 'Assistant Product Designer', url: 'https://jobs.example.com/1234567' })
-  && !jevDropOverrideReason({ title: 'UI/UX Designer (Mid Level)', url: 'https://jobs.example.com/1234567' })) {
+if (!ownerDrop({ title: 'Assistant Product Designer', url: 'https://jobs.example.com/1234567' })
+  && !ownerDrop({ title: 'UI/UX Designer (Mid Level)', url: 'https://jobs.example.com/1234567' })) {
   pass('assistant and mid-level design titles are not force-kept');
 } else fail('a below-level design title must not override a Jev drop');
 
@@ -359,19 +385,19 @@ const seniorDecision = evaluateCandidate(
 if (seniorDecision.reasonCode !== 'level') pass('the scan gate keeps a senior design title');
 else fail(`senior title rejected by the level gate: ${seniorDecision.reasons.join('; ')}`);
 
-if (!jevDropOverrideReason({ title: 'Product Design Intern', url: 'https://jobs.example.com/intern' })) {
+if (!ownerDrop({ title: 'Product Design Intern', url: 'https://jobs.example.com/intern' })) {
   pass('an intern Product Design title is still dropped');
 } else fail('intern Product Design should not override');
 
-if (!jevDropOverrideReason({ title: 'Product Designer', url: 'https://yoailabs.careers-page.com/jobs/6e74bd57-3dee-4402-a921-2cb264549dfb/apply' })) {
+if (!ownerDrop({ title: 'Product Designer', url: 'https://yoailabs.careers-page.com/jobs/6e74bd57-3dee-4402-a921-2cb264549dfb/apply' })) {
   pass('an /apply URL is left for Jev to drop');
 } else fail('/apply pages must not be force-kept');
 
-if (!jevEvalOverrideReason({ title: 'Senior Product Designer', url: 'https://www.welcometothejungle.com/en/companies/lemlist/jobs/senior-product-designer_paris', jdText: '' })) {
+if (!ownerEval({ title: 'Senior Product Designer', url: 'https://www.welcometothejungle.com/en/companies/lemlist/jobs/senior-product-designer_paris', jdText: '' })) {
   pass('eval override waits for a real job description');
 } else fail('empty JD must not force Claude');
 
-if (!jevEvalOverrideReason({
+if (!ownerEval({
   title: 'Senior Product Designer',
   url: 'https://www.welcometothejungle.com/en/companies/lemlist/jobs/senior-product-designer_paris',
   jdText: 'Hybrid role, 3 days on-site in Paris. Relocation required.',
@@ -379,7 +405,7 @@ if (!jevEvalOverrideReason({
   pass('eval override does not force a hybrid/onsite JD');
 } else fail('verbatim attendance must still skip eval');
 
-if (jevEvalOverrideReason({
+if (ownerEval({
   title: 'Senior Staff Product Designer',
   url: 'https://www.welcometothejungle.com/en/companies/omnidoc/jobs/senior-staff-product-designer-full-time',
   jdText: 'Senior Staff Product Designer. Fully remote, Europe.',
@@ -390,3 +416,169 @@ if (jevEvalOverrideReason({
 if (explainTitle('Product Manager - Stage de fin d\'études', portals.title_filter).ok) {
   fail('title filter should drop a stage de fin d\'études');
 } else pass('title filter drops French internships');
+
+// Without targeting nothing is force-kept; another profile gets its own family.
+if (!jevDropOverrideReason({ title: 'Senior Product Designer', url: 'https://jobs.example.com/1234567' })) {
+  pass('no targeting: no role family override');
+} else fail('a profile without targeting must not force-keep design titles');
+{
+  const engineer = { archetypes: [{ name: 'Senior Backend Engineer', level: 'Senior', fit: 'primary' }], primaryRoles: ['Staff Software Engineer'], rejectInternships: true };
+  const keepsBackend = jevDropOverrideReason({ title: 'Backend Engineer', url: 'https://jobs.example.com/1234567' }, { targeting: engineer }) === 'target role family';
+  const skipsDesign = !jevDropOverrideReason({ title: 'Senior Product Designer', url: 'https://jobs.example.com/1234567' }, { targeting: engineer });
+  if (keepsBackend && skipsDesign) pass('an engineer profile force-keeps its own family only');
+  else fail(`engineer family override: backend=${keepsBackend} designSkipped=${skipsDesign}`);
+}
+{
+  const junior = { archetypes: [{ name: 'Data Analyst', level: 'Junior', fit: 'primary' }], primaryRoles: ['Junior Data Analyst'], rejectInternships: false };
+  const policy = levelPolicyFrom(junior);
+  if (!levelGateReason('Junior Data Analyst', '', policy) && !levelGateReason('Data Analyst (Mid Level)', '', policy)) {
+    pass('a junior profile keeps junior and mid-level titles');
+  } else fail('levelPolicyFrom should open junior/mid-level titles for a junior target');
+}
+
+// ── Review fixes: neutral geography, US rejects, Americas parts, level, family, on-site exceptions
+{
+  const strictUs = { mode: 'strict_full_remote_only', required_any: ['remote'], rejected_any: ['hybrid', 'on-site', 'must live in the us', 'i-9', 'e-verify'], ambiguous_policy: 'review' };
+  const usOffer = { title: 'Senior Product Designer', location: 'Remote', description: 'Remote. Must live in the US. E-Verify employer.' };
+
+  const unknown = geoPolicyFrom(resolveLocationProfile({}));
+  if (unknown.usAuthorized === null && unknown.rejected.length === 0 && !unknown.allowed.includes('paris')) {
+    pass('a profile without bases or authorized countries gets a neutral geo policy, not the built-in defaults');
+  } else fail(`neutral geo policy expected, got ${JSON.stringify(unknown)}`);
+  const unknownUs = assessRemote({ ...usOffer, location: 'Remote - US' }, { mode: 'strict_full_remote_only', required_any: ['remote'] }, [], unknown);
+  if (unknownUs.disposition !== 'reject') pass('unknown US status is not refused on US work-auth or US geography');
+  else fail(`unknown US status rejected: ${unknownUs.reason}`);
+  if (geoPolicyFrom(null) === null) pass('no location profile keeps the built-in defaults');
+  else fail('geoPolicyFrom(null) should be null');
+
+  const usPolicy = geoPolicyFrom(resolveLocationProfile({ location: { city: 'Austin', country: 'United States' } }));
+  const usKept = assessRemote(usOffer, strictUs, [], usPolicy);
+  const ownerPolicy = geoPolicyFrom(resolveLocationProfile({ location: { city: 'Paris', country: 'France', authorized_in: ['France', 'European Union'] } }));
+  const ownerDropped = assessRemote(usOffer, strictUs, [], ownerPolicy);
+  if (usKept.disposition !== 'reject' && ownerDropped.disposition === 'reject') {
+    pass('portals rejected_any US phrases (must live in the us, e-verify) open for a US-authorized user only');
+  } else fail(`US rejected_any: us=${usKept.disposition} (${usKept.reason}) owner=${ownerDropped.disposition}`);
+
+  const americas = { mode: 'strict_full_remote_only', required_any: ['remote'], rejected_geo_any: ['latam', 'north america'] };
+  const brazilPolicy = geoPolicyFrom(resolveLocationProfile({ location: { city: 'Sao Paulo', country: 'Brazil' } }));
+  const verdict = (policy, location) => assessRemote({ title: 'Product Designer', location }, americas, [], policy).disposition;
+  if (verdict(usPolicy, 'Remote - LATAM') === 'reject' && verdict(usPolicy, 'Remote - North America') !== 'reject'
+    && verdict(brazilPolicy, 'Remote - LATAM') !== 'reject' && verdict(brazilPolicy, 'Remote - North America') === 'reject') {
+    pass('the Americas open only the user\'s own part: LATAM for Brazil, North America for the US');
+  } else fail(`Americas parts: us latam=${verdict(usPolicy, 'Remote - LATAM')} us na=${verdict(usPolicy, 'Remote - North America')} br latam=${verdict(brazilPolicy, 'Remote - LATAM')} br na=${verdict(brazilPolicy, 'Remote - North America')}`);
+
+  const midSenior = levelPolicyFrom({ archetypes: [{ name: 'Product Designer', level: 'Mid/Senior', fit: 'primary' }] });
+  if (!midSenior.belowSenior && !levelGateReason('Product Designer (Mid Level)', '', midSenior)
+    && levelPolicyFrom(OWNER_TARGETING).belowSenior && levelGateReason('Product Designer (Mid Level)', '', levelPolicyFrom(OWNER_TARGETING))) {
+    pass('a Mid/Senior target keeps mid-level titles; a Senior/Lead target still drops them');
+  } else fail(`Mid/Senior level policy: ${JSON.stringify(midSenior)}`);
+
+  const aiEngineer = roleFamilyPattern({ archetypes: [{ name: 'AI Engineer', level: 'Senior', fit: 'primary' }] });
+  const headOfProduct = roleFamilyPattern({ primaryRoles: ['Head of Product'] });
+  if (aiEngineer.test('Senior AI Engineer') && !aiEngineer.test('Sales Engineer') && !aiEngineer.test('Field Service Engineer')
+    && headOfProduct.test('Head of Product, Payments') && !headOfProduct.test('Product Marketing Manager')
+    && roleFamilyPattern(OWNER_TARGETING).test('Product Designer')) {
+    pass('a lone family word keeps its qualifiers (AI Engineer, Head of Product)');
+  } else fail(`role family: ai=${aiEngineer} head=${headOfProduct}`);
+
+  const ownerLoc = resolveLocationProfile({
+    location: {
+      city: 'Paris', country: 'France', asia_city: 'Bangkok', asia_country: 'Thailand',
+      authorized_in: ['France', 'European Union', 'Thailand'], remote_policy: 'Full remote required',
+      onsite_availability: 'Open to on-site if based in Thailand; comfortable traveling for offsites anywhere',
+    },
+  });
+  const gateConfig = {
+    title_filter: { positive: ['Product Designer'], negative: ['Hybrid', 'On-site'] },
+    remote_filter: { mode: 'strict_full_remote_only', required_any: ['remote'], rejected_any: ['hybrid', 'on-site', 'onsite'], ambiguous_policy: 'review' },
+  };
+  const gate = (candidate, locationProfile = ownerLoc) => evaluateCandidate(
+    { url: 'https://jobs.example.com/jobs/1234567', ...candidate },
+    gateConfig,
+    { today: '2026-10-13', locationProfile, geoPolicy: geoPolicyFrom(ownerLoc) },
+  );
+  const bangkok = gate({ title: 'Senior Product Designer (Hybrid)', location: 'Bangkok, Thailand (Hybrid)' });
+  const paris = gate({ title: 'Senior Product Designer', location: 'Paris, France (Hybrid)' });
+  const parisTitle = gate({ title: 'Senior Product Designer (Hybrid)', location: 'Paris, France (Hybrid)' });
+  const noProfile = gate({ title: 'Senior Product Designer', location: 'Bangkok, Thailand (Hybrid)' }, null);
+  if (bangkok.disposition === 'keep' && paris.reasonCode === 'remote' && parisTitle.reasonCode === 'title' && noProfile.disposition === 'reject') {
+    pass('a posting located in an on-site exception (Bangkok hybrid) passes the scan gate; Paris hybrid does not');
+  } else fail(`on-site exception: bangkok=${bangkok.disposition}/${bangkok.reasons.join('; ')} paris=${paris.reasonCode} parisTitle=${parisTitle.reasonCode} noProfile=${noProfile.disposition}`);
+}
+
+// 2026-10-13: Jev kept generic PM titles at 0.5-0.7 for a design-first
+// profile whose Product Manager archetype is secondary.
+{
+  const policy = levelPolicyFrom(OWNER_TARGETING);
+  const drops = ['Agile Product Manager', 'Product Manager (Fintech)', 'Mobile Product Manager', 'Technical Product Owner', 'Principal Product Manager, Savings (R13997)'];
+  const keeps = ['AI Product Manager (H/F)', 'Product Manager, Design Systems', 'Product Owner UX', 'Senior Product Designer', 'Digital Designer'];
+  const wrong = [
+    ...drops.filter((t) => levelGateReason(t, '', policy) !== 'secondary role outside the primary scope'),
+    ...keeps.filter((t) => levelGateReason(t, '', policy)),
+  ];
+  if (!wrong.length) pass('a secondary PM archetype passes only with a primary scope word (design, UX, UI, AI)');
+  else fail(`secondary scope gate wrong for: ${wrong.join(' | ')}`);
+  const pmFirst = levelPolicyFrom({ primaryRoles: ['Senior Product Manager'], archetypes: [{ name: 'Product Designer', fit: 'secondary' }] });
+  if (!levelGateReason('Product Designer', '', pmFirst)) pass('no scope word in the primary roles: no secondary gate');
+  else fail('a PM-first profile dropped a secondary designer title');
+}
+
+{
+  const cases = [
+    ['Senior Experience Designer (Kraków office 2 days per week), JR 747', ''],
+    ['UX Designer JR-1234', ''],
+    ['Staff Product Designer - Wise Assistant Experience', ''],
+    ['Jr. UIUX Designer', 'junior title'],
+    ['Assistant Product Designer', 'below target level (assistant)'],
+  ];
+  const wrong = cases.filter(([title, want]) => levelGateReason(title, '') !== want).map(([title]) => title);
+  if (!wrong.length) pass('a requisition number or a product name is not a level (JR 747, Wise Assistant Experience)');
+  else fail('level gate wrong for: ' + wrong.join(' | '));
+}
+
+{
+  const pages = [
+    ['https://uiuxjobsboard.com/salary/product-designer', 'Product Designer Salary Guide 2026 | Complete Pay Data'],
+    ['https://lemon.io/rate-calculator/ux-ui-developers/', 'UX/UI Designer Salary & Hourly Rate 2026'],
+    ['https://contra.com/hire/product-designers', 'Product Design freelancers - Hire'],
+    ['https://www.upwork.com/hire/ux-designers/cost/', 'UX Designer Hourly Rates | Cost to Hire UX Designer | Upwork'],
+    ['https://www.yunojuno.com/skills/ux-design', 'UX Design Freelancers: Find the best'],
+    ['https://talks.freelancerepublik.com/metiers-freelances-informatique/product/ux-ui-designer/', 'Ui Ux Designer : Fiche Métier, Salaire & Tjm'],
+    ['https://lemon.io/for-developers/ui-ux-designer-jobs/', 'UI/UX Designer Jobs — Vetted Remote Contracts, $25–$80/hr'],
+    ['https://www.welcometothejungle.com/fr/jobs?query=ux', "Offres d'emploi de UX Designer à Montpellier (34000)"],
+    ['https://example.com/blog/how-to-become-a-product-designer', 'How to become a product designer'],
+    ['https://tinycto.tv/tech-careers/roles/product-designer-ui-ux', 'Product Designer (UI/UX) — Role Architecture & Career Intelligence | TinyCTO.tv'],
+  ];
+  const postings = [
+    ['https://job-boards.greenhouse.io/clearstreet/jobs/8241353', 'Senior Product Designer — Mobile'],
+    ['https://jobs.ashbyhq.com/kraken.com/6366cb5d-6d5b-4768-a2e7-9941b4dd5100', 'Senior Product Manager - Social Experience'],
+    ['https://www.welcometothejungle.com/en/companies/blablacar/jobs/senior-lead-product-design_paris', 'Lead Product Design – BlaBlaCar – Permanent contract – Fully-remote'],
+    ['https://jobs.lever.co/acme/1a2b3c4d-1111-2222-3333-444455556666', 'Product Designer, Salary Insights Platform'],
+    ['https://agentic-engineering-jobs.com/jobs/tiger-tracks-founding-ai-engineer-contract-to-hire-LBGg5p', 'Founding AI Engineer (Contract-to-Hire)'],
+  ];
+  const missed = pages.filter(([url, title]) => !listingPageReason({ url, title })).map(([url]) => url);
+  const wrong = postings.filter(([url, title]) => listingPageReason({ url, title })).map(([url]) => url);
+  if (!missed.length && !wrong.length) pass('salary guides, hire pages, trade sheets, articles and "Jobs —" lists are not postings; real postings pass');
+  else fail(`listing detector: missed ${missed.join(', ') || '-'}; wrongly flagged ${wrong.join(', ') || '-'}`);
+}
+
+{
+  const targeting = {
+    primaryRoles: ['Senior Product Designer'],
+    archetypes: [{ name: 'Product Designer', level: 'Senior/Lead', fit: 'primary' }],
+    searchTerms: ['Web Designer', 'UX Researcher', 'Head of Design', 'AI Product', 'Head of Product'],
+    rejectInternships: true,
+  };
+  const url = 'https://jobs.example.com/1234567';
+  const over = (title, t = targeting) => jevDropOverrideReason({ title, url }, { targeting: t });
+  const keeps = ['Web Designer', 'Senior Web Designer (Remote)', 'UX Researcher', 'Head of Design'];
+  const refuses = ['Junior Web Designer', 'Web Designer - Hybrid Paris', 'Product Marketing Manager, AI Product', 'Head of Product', 'Backend Engineer'];
+  const wrong = [
+    ...keeps.filter((title) => over(title) !== 'profile search term'),
+    ...refuses.filter((title) => over(title)),
+    // Without the terms in the profile, a Web Designer stays Jev's call.
+    ...(over('Web Designer', { ...targeting, searchTerms: [] }) ? ['Web Designer without search terms'] : []),
+  ];
+  if (!wrong.length) pass('a title holding one of the profile\'s role search terms (Web Designer, UX Researcher) is kept past a Jev drop; topic terms and the other gates still apply');
+  else fail(`search-term override wrong for: ${wrong.join(' | ')}`);
+}

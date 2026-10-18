@@ -12,46 +12,71 @@ const AGENCY_OFFERS = /*OFFERS_JSON*/{
   "offers": [
     {
       "id": "refonte",
-      "name": { "en": "Redesign", "fr": "Refonte" },
-      "price": 490,
+      "name": {
+        "en": "Redesign",
+        "fr": "Refonte"
+      },
+      "price": 390,
       "cadence": "one-off",
+      "checkout": "card",
+      "pages": {
+        "en": "1 page or 1 flow",
+        "fr": "1 page ou 1 parcours"
+      },
       "highlighted": false,
       "workingDays": 5,
       "for": {
-        "en": "You have a live site, app or SaaS page that gets visits but loses people before they act.",
-        "fr": "Vous avez un site, une app ou une page SaaS en ligne qui reçoit des visites, mais où les visiteurs décrochent avant d’agir."
+        "en": "Your site, app or SaaS page is live and gets visits, but people leave before they act.",
+        "fr": "Votre site, votre app ou votre page SaaS est en ligne et reçoit des visites, mais les visiteurs partent avant d’agir."
+      },
+      "outcome": {
+        "en": "The page your customers see first, redesigned and coded, ready for your developer.",
+        "fr": "La page que vos clients voient en premier, repensée et codée, prête pour votre développeur."
       },
       "note": {
         "en": "You get the coded redesign and its source. Your developer puts it live.",
         "fr": "Vous recevez la refonte codée et son code source. Votre développeur la met en ligne."
       },
+      "includes_icons": [
+        "page",
+        "devices",
+        "code",
+        "grid",
+        "call",
+        "notes",
+        "chart"
+      ],
       "includes": {
         "en": [
-          "30-min kickoff call",
-          "UX audit on video of your current page or flow, about 15 minutes of commentary, with issues ranked by impact",
-          "Redesign of 1 key page (up to 6 sections, plus header and footer) or 1 key flow (up to 5 screens)",
+          "1 key page (up to 6 sections, plus header and footer) or 1 key flow (up to 5 screens), redesigned",
           "Desktop and mobile versions, with your real content",
-          "Clickable prototype coded in Cursor or Claude Code, with the source, ready for your developer",
-          "The 12-point check, with the completed grid",
-          "Handoff video and notes for your developer",
+          "Clickable prototype coded in Cursor or Claude Code, with the source",
+          "The 12 checks, with the completed and signed grid",
+          "30-min kickoff call",
+          "Handoff notes for your developer",
           "A 30-day follow-up call to look at your numbers together"
         ],
         "fr": [
-          "Appel de lancement de 30 min",
-          "Audit UX en vidéo de votre page ou parcours actuel, environ 15 minutes de commentaires, avec les problèmes classés par impact",
-          "Refonte d’une page clé (jusqu’à 6 sections, plus en-tête et pied de page) ou d’un parcours clé (jusqu’à 5 écrans)",
+          "1 page clé (jusqu’à 6 sections, plus en-tête et pied de page) ou 1 parcours clé (jusqu’à 5 écrans), repensé",
           "Versions desktop et mobile, avec vos vrais contenus",
-          "Prototype cliquable codé dans Cursor ou Claude Code, avec le code source, prêt pour votre développeur",
-          "Le contrôle en 12 points, grille complétée",
-          "Vidéo et notes de passation pour votre développeur",
-          "Un appel de suivi à 30 jours pour regarder vos chiffres ensemble"
+          "Prototype cliquable codé dans Cursor ou Claude Code, avec le code source",
+          "Les 12 contrôles, avec la grille complétée et signée",
+          "Appel de lancement de 30 min",
+          "Notes de passation pour votre développeur",
+          "Un appel de suivi à 30 jours pour regarder vos chiffres ensemble"
         ]
       },
-      "delivery": { "en": "5 business days", "fr": "5 jours ouvrés" },
-      "revisions": { "en": "2 rounds", "fr": "2 allers-retours" },
+      "delivery": {
+        "en": "5 business days",
+        "fr": "5 jours ouvrés"
+      },
+      "revisions": {
+        "en": "1 round",
+        "fr": "1 aller-retour"
+      },
       "revisions_detail": {
         "en": "After delivery, within the agreed brief, to be used within 14 days of delivery.",
-        "fr": "Après livraison, dans le cadre du brief validé, à utiliser dans les 14 jours suivant la livraison."
+        "fr": "Après livraison, dans le cadre du brief validé, à utiliser dans les 14 jours suivant la livraison."
       },
       "not_included": {
         "en": [
@@ -69,58 +94,138 @@ const AGENCY_OFFERS = /*OFFERS_JSON*/{
           "Hébergement"
         ]
       },
-      "cta": { "en": "Request a Redesign", "fr": "Demander une refonte" },
-      "mail_subject": { "en": "v2 studio · Redesign · {name}", "fr": "v2 studio · Refonte · {name}" }
+      "cta": {
+        "en": "Order a Redesign",
+        "fr": "Commander une refonte"
+      },
+      "mail_subject": {
+        "en": "v2 studio · Redesign · {name}",
+        "fr": "v2 studio · Refonte · {name}"
+      }
     },
     {
       "id": "creation",
-      "name": { "en": "Build", "fr": "Création" },
+      "name": {
+        "en": "Build",
+        "fr": "Création"
+      },
       "price": 590,
       "cadence": "one-off",
+      "checkout": "card",
+      "pages": {
+        "en": "1 page or 1 flow",
+        "fr": "1 page ou 1 parcours"
+      },
       "highlighted": true,
       "workingDays": 7,
       "for": {
         "en": "You are launching an offer, a landing page or an AI product idea, and nothing is built yet.",
         "fr": "Vous lancez une offre, une landing page ou une idée de produit IA, et rien n’est encore construit."
       },
+      "outcome": {
+        "en": "A first version people can use: a landing page that is live, or an AI prototype that answers for real.",
+        "fr": "Une première version utilisable : une landing page en ligne, ou un prototype IA qui répond pour de vrai."
+      },
+      "tracks": [
+        {
+          "id": "landing",
+          "name": {
+            "en": "Landing page",
+            "fr": "Landing page"
+          },
+          "includes_icons": [
+            "page",
+            "code",
+            "text",
+            "tag"
+          ],
+          "includes": {
+            "en": [
+              "One new page (up to 6 sections), built in code",
+              "Deployed to a preview link or your domain",
+              "UX copy: headings, buttons, forms, errors",
+              "Title, meta description and share preview set up"
+            ],
+            "fr": [
+              "Une nouvelle page (jusqu’à 6 sections), développée en code",
+              "Mise en ligne sur un lien de prévisualisation ou votre domaine",
+              "Textes d’interface : titres, boutons, formulaires, erreurs",
+              "Titre, meta description et aperçu de partage configurés"
+            ]
+          }
+        },
+        {
+          "id": "ai",
+          "name": {
+            "en": "AI prototype",
+            "fr": "Prototype IA"
+          },
+          "includes_icons": [
+            "ai",
+            "code",
+            "notes",
+            "eye"
+          ],
+          "includes": {
+            "en": [
+              "A clickable prototype of one core flow (up to 5 screens)",
+              "Real model calls, on test data",
+              "A plan for the prompts and the data",
+              "A second check on the model’s answers"
+            ],
+            "fr": [
+              "Un prototype cliquable d’un parcours clé (jusqu’à 5 écrans)",
+              "De vrais appels au modèle, sur des données de test",
+              "Un plan des prompts et des données",
+              "Une seconde vérification des réponses du modèle"
+            ]
+          }
+        }
+      ],
+      "includes_icons": [
+        "map",
+        "devices",
+        "grid",
+        "code",
+        "wrench",
+        "chart"
+      ],
       "includes": {
         "en": [
           "Kickoff call to map the user journey",
-          "One of two tracks. Landing page: one new page (up to 6 sections), built in code and deployed to a preview link or your domain.",
-          "Or AI product: a clickable prototype of one core flow (up to 5 screens), coded with real model calls on test data, with a prompt and data plan and a second check on outputs.",
           "Desktop and mobile versions",
-          "UX copy: headings, buttons, forms, errors. We edit and tighten your marketing text.",
-          "Title, meta description and share preview set up (landing track)",
-          "The 12-point check, with the completed grid",
-          "Source code, handoff video and notes",
+          "The 12 checks, with the completed and signed grid",
+          "Source code and handoff notes",
           "Small fixes for 14 days after delivery",
           "A 30-day follow-up call to look at your numbers together"
         ],
         "fr": [
           "Appel de lancement pour cartographier le parcours utilisateur",
-          "Au choix, deux pistes. Landing page : une nouvelle page (jusqu’à 6 sections), développée en code et mise en ligne sur un lien de prévisualisation ou votre domaine.",
-          "Ou produit IA : un prototype cliquable d’un parcours clé (jusqu’à 5 écrans), codé avec de vrais appels au modèle sur des données de test, ainsi qu’un plan des prompts et des données, et une seconde vérification des réponses.",
           "Versions desktop et mobile",
-          "Textes d’interface : titres, boutons, formulaires, erreurs. Nous retravaillons et resserrons vos textes marketing.",
-          "Titre, meta description et aperçu de partage configurés (piste landing)",
-          "Le contrôle en 12 points, grille complétée",
-          "Code source, vidéo et notes de passation",
-          "Petites corrections pendant les 14 jours suivant la livraison",
-          "Un appel de suivi à 30 jours pour regarder vos chiffres ensemble"
+          "Les 12 contrôles, avec la grille complétée et signée",
+          "Code source et notes de passation",
+          "Petites corrections pendant les 14 jours suivant la livraison",
+          "Un appel de suivi à 30 jours pour regarder vos chiffres ensemble"
         ]
       },
-      "delivery": { "en": "7 business days", "fr": "7 jours ouvrés" },
-      "revisions": { "en": "2 rounds + 14 days of fixes", "fr": "2 allers-retours + 14 jours de corrections" },
+      "delivery": {
+        "en": "7 business days",
+        "fr": "7 jours ouvrés"
+      },
+      "revisions": {
+        "en": "2 rounds + 14 days of fixes",
+        "fr": "2 allers-retours + 14 jours de corrections"
+      },
       "revisions_detail": {
         "en": "After delivery, within the agreed brief. Rounds and small fixes both run in the 14 days after delivery.",
-        "fr": "Après livraison, dans le cadre du brief validé. Allers-retours et petites corrections courent pendant les 14 jours suivant la livraison."
+        "fr": "Après livraison, dans le cadre du brief validé. Allers-retours et petites corrections courent pendant les 14 jours suivant la livraison."
       },
       "not_included": {
         "en": [
           "Domain name and hosting fees",
           "AI model usage costs (billed by the provider to your account)",
           "Back end, user accounts, database or payments",
-          "Marketing copy from scratch (add-on)",
+          "Marketing copy from scratch (add-on). We edit and tighten your text.",
           "Extra pages or flows (add-ons at posted prices)",
           "A second language version",
           "Ongoing maintenance"
@@ -129,87 +234,287 @@ const AGENCY_OFFERS = /*OFFERS_JSON*/{
           "Nom de domaine et frais d’hébergement",
           "Coûts d’utilisation des modèles IA (facturés par le fournisseur sur votre compte)",
           "Back-end, comptes utilisateurs, base de données ou paiements",
-          "Rédaction marketing complète (option)",
+          "Rédaction marketing complète (option). Nous retravaillons et resserrons vos textes.",
           "Pages ou parcours supplémentaires (options à prix affichés)",
           "Une version dans une deuxième langue",
           "Maintenance continue"
         ]
       },
-      "cta": { "en": "Request a Build", "fr": "Demander une création" },
-      "mail_subject": { "en": "v2 studio · Build · {name}", "fr": "v2 studio · Création · {name}" }
+      "cta": {
+        "en": "Order a Build",
+        "fr": "Commander une création"
+      },
+      "mail_subject": {
+        "en": "v2 studio · Build · {name}",
+        "fr": "v2 studio · Création · {name}"
+      }
     },
     {
       "id": "accompagnement",
-      "name": { "en": "Coaching", "fr": "Accompagnement" },
-      "price": 490,
+      "name": {
+        "en": "Coaching",
+        "fr": "Accompagnement"
+      },
+      "price": 90,
       "cadence": "month",
+      "checkout": "subscription",
+      "open": false,
       "highlighted": false,
       "for": {
-        "en": "Founders and small teams who design and build their product themselves, often with AI tools, and want a senior product designer to review their work every week.",
-        "fr": "Fondateurs et petites équipes qui conçoivent et construisent leur produit eux-mêmes, souvent avec des outils d’IA, et veulent le regard d’un designer produit senior sur leur travail, chaque semaine."
+        "en": "Founders and small teams who design and build their product themselves, often with AI tools, and want a senior product designer to look at their work.",
+        "fr": "Fondateurs et petites équipes qui conçoivent et construisent leur produit eux-mêmes, souvent avec des outils d’IA, et veulent le regard d’un designer produit senior sur leur travail."
       },
+      "outcome": {
+        "en": "Two calls a month and written answers in between, so your team ships with a senior eye on every screen.",
+        "fr": "Deux appels par mois et des réponses écrites entre les deux, pour que votre équipe livre avec un regard senior sur chaque écran."
+      },
+      "includes_icons": [
+        "video",
+        "message",
+        "eye",
+        "list",
+        "sparkles",
+        "cancel"
+      ],
       "includes": {
         "en": [
-          "4 video sessions of 45 minutes per month",
-          "Written questions between sessions, answered within 1 business day",
-          "Recorded video reviews of up to 4 of your screens, pages or prototypes per month",
-          "A short written list of priorities after each session",
+          "2 video calls of 45 minutes a month",
+          "Written questions between calls, answered within 1 business day",
+          "A written, annotated review of up to 2 of your screens a month",
+          "A short list of priorities after each call",
           "Help setting up an AI design workflow: prototype in Cursor or Claude Code, review, Git handoff",
           "Cancel any time before the next billing date"
         ],
         "fr": [
-          "4 séances en visio de 45 minutes par mois",
-          "Questions écrites entre les séances, réponse sous 1 jour ouvré",
-          "Jusqu’à 4 revues vidéo par mois de vos écrans, pages ou prototypes",
-          "Une courte liste de priorités écrite après chaque séance",
-          "Aide pour mettre en place une méthode de design avec l’IA : prototype dans Cursor ou Claude Code, revue, passation via Git",
+          "2 appels en visio de 45 minutes par mois",
+          "Questions écrites entre les appels, réponse sous 1 jour ouvré",
+          "Une revue écrite et annotée de 2 de vos écrans par mois",
+          "Une courte liste de priorités après chaque appel",
+          "Aide pour mettre en place une méthode de design avec l’IA : prototype dans Cursor ou Claude Code, revue, passation via Git",
           "Résiliable à tout moment avant la prochaine échéance"
         ]
       },
-      "delivery": { "en": "Starts within 5 business days", "fr": "Démarrage sous 5 jours ouvrés" },
-      "delivery_detail": {
-        "en": "First session within 5 business days of payment. Billed monthly.",
-        "fr": "Première séance sous 5 jours ouvrés après le paiement. Facturé au mois."
+      "delivery": {
+        "en": "Starts within 5 business days",
+        "fr": "Démarrage sous 5 jours ouvrés"
       },
-      "revisions": { "en": "Not applicable", "fr": "Sans objet" },
+      "delivery_detail": {
+        "en": "First call within 5 business days of payment. Billed monthly.",
+        "fr": "Premier appel sous 5 jours ouvrés après le paiement. Facturé au mois."
+      },
+      "revisions": {
+        "en": "Not applicable",
+        "fr": "Sans objet"
+      },
       "revisions_detail": {
         "en": "We review and advise, your team builds.",
         "fr": "Nous relisons et conseillons, votre équipe construit."
       },
       "not_included": {
         "en": [
-          "Design or build work done for you (book a Redesign or a Build for that)",
-          "Unused sessions carried over to the next month",
+          "Design or build work done for you (order a Redesign or a Build for that)",
+          "Unused calls carried over to the next month",
+          "Recorded video reviews",
           "On-site workshops"
         ],
         "fr": [
-          "Travail de design ou de développement réalisé à votre place (prenez une Refonte ou une Création pour cela)",
-          "Report des séances non utilisées sur le mois suivant",
+          "Travail de design ou de développement réalisé à votre place (commandez une Refonte ou une Création pour cela)",
+          "Report des appels non utilisés sur le mois suivant",
+          "Revues vidéo enregistrées",
           "Ateliers sur place"
         ]
       },
-      "cta": { "en": "Request coaching", "fr": "Demander l’accompagnement" },
-      "mail_subject": { "en": "v2 studio · Coaching · {name}", "fr": "v2 studio · Accompagnement · {name}" }
+      "cta": {
+        "en": "Join the waiting list",
+        "fr": "Rejoindre la liste d’attente"
+      },
+      "mail_subject": {
+        "en": "v2 studio · Coaching · {name}",
+        "fr": "v2 studio · Accompagnement · {name}"
+      }
+    },
+    {
+      "id": "custom",
+      "name": {
+        "en": "Custom",
+        "fr": "Sur devis"
+      },
+      "price": 2500,
+      "cadence": "quote",
+      "checkout": "call",
+      "highlighted": false,
+      "for": {
+        "en": "Several pages, a full product, a design system or an AI feature built end to end.",
+        "fr": "Plusieurs pages, un produit complet, un design system ou une fonctionnalité IA développée de bout en bout."
+      },
+      "outcome": {
+        "en": "A written scope and a fixed quote within 2 business days of the call, with dates you can plan around.",
+        "fr": "Un périmètre écrit et un devis fixe sous 2 jours ouvrés après l’appel, avec des dates sur lesquelles vous appuyer."
+      },
+      "pages": {
+        "en": "Several pages or a full product",
+        "fr": "Plusieurs pages ou un produit complet"
+      },
+      "note": {
+        "en": "Paid in two parts: a deposit to book the dates, the balance at delivery. Both amounts are written in the quote.",
+        "fr": "Réglé en deux fois : un acompte pour réserver les dates, le solde à la livraison. Les deux montants figurent au devis."
+      },
+      "includes_icons": [
+        "call",
+        "quote",
+        "page",
+        "devices",
+        "code",
+        "grid",
+        "notes"
+      ],
+      "includes": {
+        "en": [
+          "30-min scoping call",
+          "Written scope and a fixed quote, within 2 business days",
+          "Pages, flows or product screens as listed in the scope",
+          "Desktop and mobile versions, with your real content",
+          "Built in code, with the source",
+          "The 12 checks on every page, with the signed grids",
+          "Handoff notes for your team"
+        ],
+        "fr": [
+          "Appel de cadrage de 30 min",
+          "Périmètre écrit et devis fixe, sous 2 jours ouvrés",
+          "Pages, parcours ou écrans produit listés dans le périmètre",
+          "Versions desktop et mobile, avec vos vrais contenus",
+          "Développé en code, avec le code source",
+          "Les 12 contrôles sur chaque page, grilles signées",
+          "Notes de passation pour votre équipe"
+        ]
+      },
+      "delivery": {
+        "en": "Set in the quote",
+        "fr": "Fixé au devis"
+      },
+      "revisions": {
+        "en": "Set in the quote",
+        "fr": "Fixés au devis"
+      },
+      "revisions_detail": {
+        "en": "Rounds and dates are written in the quote before you pay.",
+        "fr": "Allers-retours et dates sont écrits dans le devis avant le paiement."
+      },
+      "not_included": {
+        "en": [
+          "A full online shop, a native app from scratch, or a back end built in a week",
+          "Hosting, domain and AI model usage fees",
+          "Ongoing maintenance (quoted separately)"
+        ],
+        "fr": [
+          "Une boutique en ligne complète, une app native de zéro, ou un back-end en une semaine",
+          "Hébergement, nom de domaine et coûts des modèles IA",
+          "Maintenance continue (devis séparé)"
+        ]
+      },
+      "cta": {
+        "en": "Book a scoping call",
+        "fr": "Réserver un appel de cadrage"
+      },
+      "mail_subject": {
+        "en": "v2 studio · Custom project · {name}",
+        "fr": "v2 studio · Projet sur devis · {name}"
+      }
     }
   ],
   "addons": [
-    { "id": "extra-page", "name": { "en": "Extra page, same style", "fr": "Page supplémentaire, même style" }, "price": 190 },
-    { "id": "extra-flow", "name": { "en": "Extra flow, up to 5 screens", "fr": "Parcours supplémentaire, jusqu’à 5 écrans" }, "price": 290 },
-    { "id": "copy", "name": { "en": "Copywriting, per page", "fr": "Rédaction, par page" }, "price": 150 },
-    { "id": "revision", "name": { "en": "Extra revision round", "fr": "Aller-retour supplémentaire" }, "price": 90 },
-    { "id": "audit", "name": { "en": "UX audit on video alone, deducted if you then book a Redesign", "fr": "Audit UX en vidéo seul, déduit si vous prenez ensuite une Refonte" }, "price": 190 },
-    { "id": "session", "name": { "en": "Extra coaching session", "fr": "Séance d’accompagnement supplémentaire" }, "price": 120 }
+    {
+      "id": "extra-page",
+      "name": {
+        "en": "Extra page, same style",
+        "fr": "Page supplémentaire, même style"
+      },
+      "price": 190,
+      "for": [
+        "refonte",
+        "creation"
+      ],
+      "max": 5
+    },
+    {
+      "id": "extra-flow",
+      "name": {
+        "en": "Extra flow, up to 5 screens",
+        "fr": "Parcours supplémentaire, jusqu’à 5 écrans"
+      },
+      "price": 290,
+      "for": [
+        "refonte",
+        "creation"
+      ],
+      "max": 3
+    },
+    {
+      "id": "copy",
+      "name": {
+        "en": "Copywriting, per page",
+        "fr": "Rédaction, par page"
+      },
+      "price": 150,
+      "for": [
+        "refonte",
+        "creation"
+      ],
+      "max": 6
+    },
+    {
+      "id": "revision",
+      "name": {
+        "en": "Extra revision round",
+        "fr": "Aller-retour supplémentaire"
+      },
+      "price": 90,
+      "for": [
+        "refonte",
+        "creation"
+      ],
+      "max": 3
+    },
+    {
+      "id": "session",
+      "name": {
+        "en": "Extra coaching call",
+        "fr": "Appel d’accompagnement supplémentaire"
+      },
+      "price": 45,
+      "for": [
+        "accompagnement"
+      ],
+      "max": 4,
+      "open": false
+    }
   ],
+  "payment": {
+    "one_off": {
+      "en": "Paid in full before Day 1. Every payment gets an invoice.",
+      "fr": "Réglé en totalité avant le jour 1. Chaque paiement donne lieu à une facture."
+    },
+    "month": {
+      "en": "Billed monthly in advance. Cancel before the next billing date.",
+      "fr": "Facturé chaque mois d’avance. Résiliable avant la prochaine échéance."
+    },
+    "quote": {
+      "en": "A deposit to book the dates, the balance at delivery, as written in the quote.",
+      "fr": "Un acompte pour réserver les dates, le solde à la livraison, comme écrit au devis."
+    }
+  },
   "custom": {
     "priceFrom": 2500,
     "en": "Custom project: several pages, a full product, a design system or an AI feature built end to end. Scoped on a 30-min call, fixed quote, from $2,500.",
-    "fr": "Projet sur devis : plusieurs pages, un produit complet, un design system ou une fonctionnalité IA développée de bout en bout. Cadré lors d’un appel de 30 min, devis fixe, à partir de 2 500 $.",
-    "cta": { "en": "Book a call", "fr": "Réserver un appel" },
-    "mail_subject": { "en": "v2 studio · Custom project · {name}", "fr": "v2 studio · Projet sur devis · {name}" }
-  },
-  "auditDeductionNote": {
-    "en": "The Redesign costs $300 after a $190 audit. A Day 2 refund on that Redesign returns the $300; the audit was already delivered and is not refunded.",
-    "fr": "Après un audit à 190 $, la Refonte coûte 300 $. Un remboursement au jour 2 sur cette Refonte rend les 300 $ ; l’audit, déjà livré, n’est pas remboursé."
+    "fr": "Projet sur devis : plusieurs pages, un produit complet, un design system ou une fonctionnalité IA développée de bout en bout. Cadré lors d’un appel de 30 min, devis fixe, à partir de 2 500 $.",
+    "cta": {
+      "en": "Book a call",
+      "fr": "Réserver un appel"
+    },
+    "mail_subject": {
+      "en": "v2 studio · Custom project · {name}",
+      "fr": "v2 studio · Projet sur devis · {name}"
+    }
   }
 }/*END_OFFERS_JSON*/;
 
@@ -233,10 +538,10 @@ const AGENCY_PROOF = [
   { n: 3, caseId: 'sg', offer: 'refonte', image: 'societe-generale-desktop.png', fit: 'contain', focus: 'center' },
 ];
 
-/* Section H: 12 checks (copy in check_N_*). Section F: 5 steps (step_N_*). Step 3 is the refund checkpoint. */
+/* Section H: 12 checks (copy in check_N_*). Section F: 5 steps (step_N_*). No refund step (0): the Day 2 guarantee was dropped on 2026-10-12. */
 const AGENCY_CHECK_COUNT = 12;
 const AGENCY_STEP_COUNT = 5;
-const AGENCY_REFUND_STEP = 3;
+const AGENCY_REFUND_STEP = 0;
 
 /* Section J: FAQ slugs, in order (faq_{slug}_q / faq_{slug}_a, ids faq-{slug}). */
 const AGENCY_FAQ_SLUGS = ['new', 'scope', 'clock', 'revision', 'generic', 'who', 'inputs', 'ownership', 'payment', 'unhappy', 'cancel', 'bigger'];
@@ -280,9 +585,8 @@ const AGENCY_MARQUEE_EXCLUDE = ['publicis', 'france'];
 /* Section M: nav ticker. */
 const AGENCY_TYPING = {
   en: [
-    'Redesign: $490, delivered in 5 business days',
+    'Redesign: $390, delivered in 5 business days',
     'Prices on the page, scope on the card',
-    'Day 2 direction, full refund if it doesn’t convince you',
     '12 checks on every delivery',
     'Empty, loading and error states are part of the job',
     'Prototypes coded in Cursor and Claude Code',
@@ -290,9 +594,8 @@ const AGENCY_TYPING = {
     'Our founder has built AI products since 2022',
   ],
   fr: [
-    'Refonte : 490 $, livrée en 5 jours ouvrés',
+    'Refonte : 390 $, livrée en 5 jours ouvrés',
     'Prix affichés, périmètre écrit sur la carte',
-    'Direction au jour 2, remboursement intégral si elle ne convainc pas',
     '12 contrôles à chaque livraison',
     'États vides, chargement, erreurs : tout est dessiné',
     'Prototypes codés dans Cursor et Claude Code',

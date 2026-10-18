@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { createHash } from 'node:crypto';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const server = readFileSync(join(ROOT, 'ui/server.mjs'), 'utf8');
@@ -268,6 +269,8 @@ test("syncLocalApplicationsToSupabase pushes the owner's tracker under the admin
     await vm.runInNewContext(`(${sourceOf('syncLocalApplicationsToSupabase')})`, {
       useSupabase: true,
       supabase: fakeSupabase({}, calls),
+      createHash,
+      lastAppsSyncHash: new Map(),
       join: (...parts) => parts.join('/'),
       WRITE_ROOT: 'root',
       readFile: async () => '| # | Company |',
@@ -292,22 +295,125 @@ test('on Vercel a report row belongs to the account that ran the evaluation, lik
   assert.ok(block.includes('if (uid) row.user_id = uid;') && !block.includes('row.user_id = adminId'));
 });
 
-test('the apply routes are the admin\'s in Supabase mode (buildApplySpec reads the owner\'s files)', () => {
-  const gate = "if (useSupabase && path.startsWith('/api/apply/') && !isViewOnlyGet && !(await isAdminUser(req.userId, req.userEmail))) {";
-  const at = server.indexOf(gate);
-  assert.ok(at > server.indexOf('if (useSupabase && isViewOnlyGet) {'), 'after the auth guard set req.userId');
-  assert.ok(server.slice(at, at + gate.length + 120).includes('}, 403);'));
-  for (const route of ['/api/apply/extension.zip', '/api/apply/bridge-status', '/api/apply/open-offer', '/api/apply/show-helper', '/api/apply/preview', '/api/apply/start', "path.startsWith('/api/apply/runs/')"]) {
+test('every account may apply: each request gets its own account\'s plugin bridge', () => {
+  assert.ok(!server.includes('Auto-apply is only available on the owner account'), 'the owner-only 403 is gone');
+  const pick = "const applyBridge = path.startsWith('/api/apply/') ? applyBridges.forAccount(applyAccountOf(req.userId)) : null;";
+  const at = server.indexOf(pick);
+  assert.ok(at > server.indexOf('if (useSupabase && isViewOnlyGet) {'), 'after the auth guards set req.userId');
+  for (const route of ['/api/apply/bridge-status', '/api/apply/bridge-pair', '/api/apply/open-offer', '/api/apply/show-helper', '/api/apply/preview', '/api/apply/start', "path.startsWith('/api/apply/runs/')"]) {
     const first = server.indexOf(route.startsWith('path') ? route : `'${route}'`, server.indexOf('// ── Auto-apply'));
-    assert.ok(first > at, `${route} comes after the gate`);
+    assert.ok(first > at, `${route} uses the account's bridge`);
   }
+  // No route reaches a bridge but the account's own.
+  assert.ok(!/\bapplyBridges\.(bridges|unpaired)\b/.test(server));
+  assert.equal(server.match(/applyBridges\.forAccount\(/g).length, 1);
+  // Every spec is built with the signed-in account's context (its CV PDF).
   let from = 0;
   for (;;) {
     const call = server.indexOf('buildApplySpec({', from);
     if (call < 0) break;
-    assert.ok(call > at, 'every buildApplySpec call sits behind the gate');
+    assert.ok(server.slice(call, call + 900).includes('...(await loadApplyContext(req.userId, report)),'), 'buildApplySpec takes loadApplyContext');
     from = call + 1;
   }
+});
+
+test('an apply run records who started it before its spec, and only the owner falls back to Playwright', () => {
+  const block = routeBlock("if (path === '/api/apply/start' && method === 'POST') {");
+  const owner = block.indexOf("join(runDir, 'owner.json')");
+  assert.ok(owner > 0 && owner < block.indexOf("join(runDir, 'spec.json')"));
+  const refuse = block.indexOf('if (!tabId && !ownerRun) {');
+  assert.ok(refuse > 0 && refuse < block.indexOf("spawn('node', ['apply-runner.mjs'"), 'no Playwright window for another account');
+  assert.ok(refuse < block.indexOf('await mkdir(runDir'), 'refused before a run folder exists');
+});
+
+test('a run is read and steered only by the account that started it', async () => {
+  const runs = server.slice(server.indexOf("if (path.startsWith('/api/apply/runs/')) {"));
+  const check = runs.indexOf('if (!(await applyRunVisibleTo(runDir, req.userId))) {');
+  assert.ok(check > 0);
+  for (const use of ["join(runDir, shot)", "join(runDir, 'state.json')", "join(runDir, 'command.json')"]) {
+    assert.ok(runs.indexOf(use) > check, `${use} after the ownership check`);
+  }
+  const files = { '/runs/a/owner.json': JSON.stringify({ userId: OTHER }) };
+  const visible = (supabaseOn) => vm.runInNewContext(`(${sourceOf('applyRunVisibleTo')})`, {
+    useSupabase: supabaseOn,
+    JSON,
+    Boolean,
+    join: (...parts) => parts.join('/'),
+    readFile: async (p) => { if (p in files) return files[p]; throw new Error('ENOENT'); },
+    ownsLocalData: async (id) => id === ADMIN,
+  });
+  assert.equal(await visible(true)('/runs/a', OTHER), true);
+  assert.equal(await visible(true)('/runs/a', ADMIN), false, 'not even the admin');
+  assert.equal(await visible(true)('/runs/a', undefined), false);
+  // Runs from before owner.json are the owner's.
+  assert.equal(await visible(true)('/runs/old', ADMIN), true);
+  assert.equal(await visible(true)('/runs/old', OTHER), false);
+  assert.equal(await visible(false)('/runs/a', undefined), true, 'local mode has one user');
+});
+
+test('a plugin joins only the account whose pairing token it holds', async () => {
+  const written = {};
+  const ctx = {
+    useSupabase: true,
+    bridgePairs: null,
+    BRIDGE_PAIRS_FILE: '/w/pairs.json',
+    BRIDGE_PAIRS_PER_ACCOUNT: 2,
+    Map, Object, JSON, Date, Buffer,
+    readFile: async (p) => { if (p in written) return written[p]; throw new Error('ENOENT'); },
+    writeFile: async (p, body) => { written[p] = body; },
+    mkdir: async () => {},
+    dirname: (p) => p.split('/').slice(0, -1).join('/'),
+    randomBytes: (n) => ({ toString: () => `tok${Object.keys(written).length}-${Math.random().toString(36).slice(2)}${'x'.repeat(n)}` }),
+    isAccountId: (id) => id === 'acct-a' || id === 'acct-b',
+  };
+  vm.createContext(ctx);
+  vm.runInContext(`const hashPairToken = (token) => 'h:' + [...token].reverse().join('');\n${sourceOf('loadBridgePairs')}\n${sourceOf('issueBridgePairToken')}\n${sourceOf('accountOfPairToken')}\nthis.issue = issueBridgePairToken; this.resolve = accountOfPairToken;`, ctx);
+  const a1 = await ctx.issue('acct-a');
+  const b1 = await ctx.issue('acct-b');
+  assert.equal(await ctx.resolve(a1), 'acct-a');
+  assert.equal(await ctx.resolve(b1), 'acct-b');
+  assert.equal(await ctx.resolve(''), null);
+  assert.equal(await ctx.resolve('made-up'), null);
+  assert.ok(!written['/w/pairs.json'].includes(a1), 'only hashes are stored');
+  // Past the per-account cap the oldest token stops working.
+  await ctx.issue('acct-a');
+  await ctx.issue('acct-a');
+  assert.equal(await ctx.resolve(a1), null);
+  assert.equal(await ctx.resolve(b1), 'acct-b');
+  ctx.useSupabase = false;
+  assert.equal(await ctx.resolve(''), 'local');
+});
+
+test('another account applies with its own CV PDF and letters, never output/', async () => {
+  const load = vm.runInNewContext(`(${sourceOf('loadApplyContext')})`, {
+    useSupabase: true,
+    String,
+    WRITE_ROOT: '/w',
+    getReport: async () => 'report',
+    getProfile: async () => ({}),
+    getCvMarkdown: async () => 'cv',
+    ownsLocalData: async (id) => id === ADMIN,
+    fillProfileGaps: (stored) => stored,
+    readLocalProfile: async () => ({}),
+    applyAccountOf: (id) => id,
+    readAccountCv: async (_root, account) => (account === OTHER ? { path: '/w/other/cv/Jane.pdf' } : null),
+    accountLettersDir: (root, id) => `${root}/${id}/letters`,
+  });
+  const other = await load(OTHER, 'r.md');
+  assert.equal(other.accountCvPath, '/w/other/cv/Jane.pdf');
+  assert.equal(other.letterDir, `/w/${OTHER}/letters`);
+  // The owner without an upload keeps the profile's apply_cv in output/.
+  const admin = await load(ADMIN, 'r.md');
+  assert.equal(admin.accountCvPath, undefined);
+  assert.equal(admin.letterDir, undefined);
+  const third = await load('third-id', 'r.md');
+  assert.equal(third.accountCvPath, null, 'no upload: no CV, output/ is not searched');
+});
+
+test('/output/ serves files of output/ only', () => {
+  const block = routeBlock("if (path.startsWith('/output/') && path.endsWith('.pdf')) {");
+  assert.ok(block.includes("safeJoin(join(ROOT, 'output'), filename)"));
+  assert.ok(!block.includes("readFile(join(ROOT, 'output', filename))"));
 });
 
 test('getAdminUserId matches ADMIN_EMAIL whatever its case, like isAdminUser', async () => {
@@ -322,6 +428,58 @@ test('getAdminUserId matches ADMIN_EMAIL whatever its case, like isAdminUser', a
     },
   });
   assert.equal(await getAdminUserId(), ADMIN);
+});
+
+test('getAdminUserId without ADMIN_EMAIL fails closed: no owner, never the first applications row', async () => {
+  const warnings = [];
+  const getAdminUserId = vm.runInNewContext(`(${sourceOf('getAdminUserId')})`, {
+    _adminUserId: null,
+    _adminEmailWarned: false,
+    useSupabase: true,
+    String,
+    console: { warn: message => warnings.push(message) },
+    process: { env: {} },
+    supabase: {
+      auth: { admin: { listUsers: async () => { throw new Error('no lookup without ADMIN_EMAIL'); } } },
+      from() { throw new Error('the first-application fallback is not reached'); },
+    },
+  });
+  assert.equal(await getAdminUserId(), null);
+  assert.equal(await getAdminUserId(), null);
+  assert.equal(warnings.length, 1, 'warned once');
+  assert.match(warnings[0], /ADMIN_EMAIL is not set/);
+  assert.match(readFileSync(join(ROOT, '.env.example'), 'utf8'), /^# ADMIN_EMAIL=/m, 'documented in .env.example');
+});
+
+test('another account never writes the owner\'s data/applications.md', () => {
+  const patch = routeBlock("if (path.startsWith('/api/applications/') && method === 'PATCH')");
+  assert.ok(patch.includes('if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, status).catch(() => {});'));
+  const del = routeBlock("if (path.startsWith('/api/applications/') && method === 'DELETE')");
+  assert.ok(del.includes("if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, 'Discarded').catch(() => {});"));
+  const bulk = routeBlock("if (path === '/api/applications/bulk-discard-stale' && method === 'POST')");
+  assert.ok(bulk.includes('const ownsTracker = useSupabase && await ownsLocalData(req.userId);'));
+  assert.ok(bulk.indexOf('if (!ownsTracker) continue;') < bulk.indexOf("await writeMarkdownApplicationStatus(row.num, 'Discarded')"));
+  // Besides the guarded calls, only the local (single-user) branches write it.
+  for (const block of [patch, del]) {
+    const calls = block.split('\n').filter(line => line.includes('writeMarkdownApplicationStatus('));
+    assert.ok(calls.every(line => /ownsLocalData\(req\.userId\)|const updated = /.test(line)), calls.join(' | '));
+  }
+});
+
+test('Jev triage reads the same profile as the scan: the account row, filled from profile.yml for the owner only', async () => {
+  const triage = routeBlock("if (path === '/api/pipeline/jev-triage' && method === 'POST')");
+  assert.ok(triage.includes('? await getAccountProfile(req.userId, await ownsLocalData(req.userId)).catch(() => ({}))'));
+  assert.ok(!triage.includes("join(ROOT, 'config/profile.yml')"), 'no whole-file replacement of the row');
+  assert.ok(server.includes('? getAccountProfile(req.userId, ownerFiles)'), 'the scan route uses the same helper');
+  const local = { target_roles: { primary: ['Designer'] }, location: { city: 'Paris', remote_policy: 'Full remote required' } };
+  const getAccountProfile = vm.runInNewContext(`(${sourceOf('getAccountProfile')})`, {
+    Object,
+    getProfile: async () => ({ location: { city: 'Lyon' } }),
+    readLocalProfile: async () => local,
+    fillProfileGaps: (stored, fallback) => ({ ...fallback, ...stored, location: { ...fallback.location, ...stored.location } }),
+  });
+  assert.deepEqual(plain(await getAccountProfile(ADMIN, true)).location, { city: 'Lyon', remote_policy: 'Full remote required' });
+  assert.deepEqual(plain(await getAccountProfile(OTHER, false)), { location: { city: 'Lyon' } });
 });
 
 test('getRequestUser: parallel requests with one token share a single lookup; a bad token is not cached', async () => {

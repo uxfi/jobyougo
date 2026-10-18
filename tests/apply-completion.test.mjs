@@ -11,6 +11,7 @@ import {
   fieldLabel,
   mergeFilled,
   mergePending,
+  skippedFields,
 } from '../lib/apply-completion.mjs';
 
 test('an explicit ATS error on a selected choice remains pending', () => {
@@ -157,4 +158,25 @@ test('completionIssues reports live problems under the field label', () => {
   ]);
   assert.deepEqual(issues, [{ label: 'Email', reason: 'requis et vide' }]);
   assert.equal(fieldLabel({ type: 'file' }), 'file');
+});
+
+test('empty boxes in neither list are reported with why, once per label', () => {
+  const spec = { identity: { city: 'Paris', country: 'France', location: 'Paris, France' }, answers: [] };
+  const skipped = skippedFields([
+    { i: 0, type: 'email', tag: 'input', label: 'Email', value: 'a@b.co' },
+    { i: 1, type: 'text', tag: 'input', label: 'GitHub', value: '' },
+    { i: 2, type: 'text', tag: 'input', role: 'combobox', label: 'Where are you located?', value: '' },
+    { i: 3, type: 'radio', tag: 'input', label: 'Pronouns', groupChecked: false },
+    { i: 4, type: 'radio', tag: 'input', label: 'Pronouns', groupChecked: false },
+    { i: 5, type: 'text', tag: 'input', label: 'Salary expectations *', value: '' },
+    { i: 6, type: 'text', tag: 'input', label: 'Prefilled note', value: 'Hello' },
+  ], {
+    filled: [{ label: 'Email', value: 'a@b.co' }],
+    pending: [{ label: 'Salary expectations *', reason: 'requis et vide' }],
+    spec,
+  });
+  assert.deepEqual(skipped.map((s) => s.label), ['GitHub', 'Where are you located?', 'Pronouns']);
+  const located = skipped.find((s) => s.label === 'Where are you located?');
+  // Read as optional: the required marker was missed, the audit says so.
+  assert.deepEqual(located, { label: 'Where are you located?', type: 'text', tag: 'input', role: 'combobox', required: false, reason: 'jugé optionnel' });
 });

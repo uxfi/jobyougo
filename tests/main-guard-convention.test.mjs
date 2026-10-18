@@ -351,8 +351,11 @@ test("update-system.mjs's inlined guard realpaths both sides", (t) => {
     // An unrecognized subcommand is the only branch that proves the tail ran
     // and writes NOTHING: `check` hits the network, and every other command
     // (`dismiss` included) touches the real repo through the symlink.
+    // The updater is disabled in this checkout (it answers "Auto-update is disabled"
+    // and exits before the usage text): the override reaches the branch under test.
     const viaLink = spawnSync(process.execPath, [join(link, 'update-system.mjs'), '--probe-not-a-command'], {
       cwd: ROOT, encoding: 'utf-8', timeout: 60_000,
+      env: { ...process.env, JOBYOUGO_ALLOW_UPSTREAM_UPDATE: '1' },
     });
     assert.match(
       viaLink.stdout,

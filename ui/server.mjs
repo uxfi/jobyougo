@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
 import { gzipSync, brotliCompressSync, deflateRawSync, constants as zlibConstants } from 'zlib';
 import { spawn } from 'child_process';
+import { createHash, randomBytes } from 'crypto';
 import { load as yamlLoad, dump as yamlDump } from 'js-yaml';
 import { supabase, isEnabled as useSupabase } from '../lib/supabase.mjs';
 import { chat, chatStream, MODELS } from '../lib/openrouter.mjs';
@@ -27,12 +28,17 @@ import {
 } from '../lib/jev.mjs';
 import { aggregateUsageEvents, readAiUsageEvents } from '../lib/ai-usage-log.mjs';
 import { getContributionCalendar } from '../lib/github-contributions.mjs';
-import { agenceRedirectTarget, agenceSubpageId, agencyLanguageInstruction, buildAgencyChatPrompt, isAgencePagePath, renderAgencePage, renderAgenceSubpage, resolveChatPersona } from '../lib/agence-site.mjs';
+import { agenceRedirectTarget, agenceSubpageId, agencyLanguageInstruction, buildAgencyChatPrompt, isAgencePagePath, loadAgencyOffers, renderAgencePage, renderAgenceSubpage, resolveChatPersona } from '../lib/agence-site.mjs';
+import { checkoutConfig, createCheckoutSession, makeRateLimiter, orderRecordFromEvent, priceOrder, publicCheckoutConfig, publicOrigin, readRawBody, retrieveCheckoutSession, stripeSessionParams, validateCustomer, verifyStripeSignature } from '../lib/agence-checkout.mjs';
 import { buildCvTemplateDataFromProfile, loadCvTemplateData } from '../lib/cv-template-data.mjs';
-import { computeProfileStatus, homeLocationLabel, isMissingColumnError, mergeProfileSections, normalizeProfileRow, profileToRow, sanitizeProfileInput } from '../lib/profile-shape.mjs';
+import { computeProfileStatus, fillProfileGaps, homeLocationLabel, isMissingColumnError, mergeProfileSections, missingColumnName, normalizeProfileRow, profileToRow, sanitizeProfileInput } from '../lib/profile-shape.mjs';
+import { authorizedFor, locationSummaryLines, resolveLocationProfile, workModeAllowed } from '../lib/candidate-location.mjs';
+import { placesIn, regionCountriesIn } from '../lib/apply-places.mjs';
+import { attendancePlaceText, resolveWorkMode, structuredWorkMode } from '../lib/work-mode.mjs';
 import { CV_MIN_CHARS, CvImportError, parseCvWithLlm, validateCvParseRequest } from '../lib/cv-import.mjs';
 import { buildApplySpec, detectRegion } from '../lib/apply-spec.mjs';
-import { ApplyBridge, attachApplyBridge } from '../extension/apply-bridge-lib.mjs';
+import { ApplyBridgeHub, attachApplyBridge } from '../extension/apply-bridge-lib.mjs';
+import { APPLY_FILES_DIR, accountLettersDir, deleteAccountCv, isAccountId, readAccountCv, readAccountCvBytes, saveAccountCv, safePdfName } from '../lib/apply-account-files.mjs';
 import { loadCanonicalStates, resolveCanonicalState } from '../tracker-utils.mjs';
 import { detectChallenge, matchChallengeText } from '../lib/challenge-detect.mjs';
 import {
@@ -54,7 +60,8 @@ import { writeFormAnswer } from '../lib/form-answer.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { createPageFetcher, findContacts, providersFromEnv } from '../lib/contact-finder.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
-import { REPETITION_LOOP_CODE, resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
+import { postingDateFromPage, postingStatusFromApi } from '../lib/posting-date.mjs';
+import { OWN_EMPLOYER_CODE, REPETITION_LOOP_CODE, extractEvaluationScore, ownEmployerConfusion, resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
 import { normalizeUrl } from '../url-key.mjs';
 import { classifyLiveness } from '../liveness-core.mjs';
@@ -70,6 +77,8 @@ import {
   pipelineItemReadyForEval,
   pipelineItemToJevCandidate,
   insertPipelineMarkdownLines,
+  pipelineNoteCompany,
+  pipelineOfferIdentity,
   pipelineUrlsReadyForEval,
 } from '../lib/pipeline-record.mjs';
 import { withPipelineLock } from '../pipeline-lock.mjs';
@@ -84,13 +93,21 @@ import {
   collapseDuplicateTitles,
   dedupeCandidates,
   explainTitle,
+  geoPolicyFrom,
   levelGateReason,
+  levelPolicyFrom,
   listingPageReason,
   partitionCandidates,
   resolvePublishedDate,
   selectRoster,
   summarizeDecisions,
+  isUndatedReview,
 } from '../lib/scan-decision.mjs';
+import { portalsForProfile, scanTermsFrom } from '../lib/scan-targeting.mjs';
+import { loadQueryYield, recordQueryYield, saveQueryYield, shouldSkipQuery } from '../lib/web-search-yield.mjs';
+import { SCAN_HISTORY_RETENTION_DAYS, ensureScanMemoryDir, pruneScanHistoryLines, scanHistoryCutoff, scanMemoryPaths } from '../lib/scan-memory.mjs';
+import { appendGateDrop, readGateDrops } from '../lib/gate-drops.mjs';
+import { settleWithLimit } from '../lib/scan-concurrency.mjs';
 import {
   parseAshbyPostingUrl,
   findAshbyJobOnBoard,
@@ -317,6 +334,21 @@ function clientIp(req) {
   return req.socket?.remoteAddress || 'unknown';
 }
 
+// Agency order attempts (POST /api/agence/checkout): each one opens a Stripe session.
+const agenceOrderLimited = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: Number(process.env.AGENCE_ORDER_RATE_LIMIT || 12) });
+
+/** A paid agency order: one log line, plus a JSON line in AGENCE_ORDERS_FILE when set (Stripe stays the record). */
+async function recordAgenceOrder(record) {
+  console.log(`[agence] order ${record.paid ? 'paid' : 'completed'}: ${record.offer}${record.track ? '/' + record.track : ''} ${record.total} ${record.currency} (${record.session})`);
+  const file = String(process.env.AGENCE_ORDERS_FILE || '').trim();
+  if (!file) return;
+  try {
+    await appendFile(resolve(ROOT, file), JSON.stringify(record) + '\n');
+  } catch (err) {
+    console.error('[agence] could not record the order:', err.message);
+  }
+}
+
 function hrhvRateLimited(req) {
   if (!Number.isFinite(HRHV_MAX_REQUESTS) || HRHV_MAX_REQUESTS <= 0) return false;
   const now = Date.now();
@@ -339,17 +371,38 @@ const activePinchtabTabs = new Set();
 let isShuttingDown = false;
 
 // ─── PinchTab wrappers (shared client in lib/pinchtab.mjs) ─────────────────────
+let pinchtabNavigationsInFlight = 0;
+const PINCHTAB_LATE_SWEEP_MS = 15000;
+
+function sweepTimedOutTab(url) {
+  // Blank and search tabs are swept too only when no other navigation is
+  // in flight: theirs are blank or on a search page until they return.
+  const sweep = () => pinchtabCloseStaleTabs({
+    keep: activePinchtabTabs,
+    urls: new Set([url]),
+    onlyUrls: pinchtabNavigationsInFlight > 0,
+  }).catch(() => {});
+  sweep();
+  // The daemon can still open the tab after the client gave up: the
+  // Coinbase and Databricks tabs of 2026-10-17 stayed open past the first
+  // sweep. A second pass catches them.
+  setTimeout(sweep, PINCHTAB_LATE_SWEEP_MS).unref?.();
+}
+
 async function pinchtabNavigate(url, opts = {}) {
   let tabId;
+  pinchtabNavigationsInFlight += 1;
   try {
     tabId = await pinchtabNavigateRaw(url, opts);
   } catch (err) {
     // A client-side timeout leaves the tab open on the daemon with no id to
-    // close it by; sweep it (plus any blank tab) so tabs don't pile up until
-    // every navigation hangs — 54 leaked tabs did exactly that on 2026-10-09.
-    pinchtabCloseStaleTabs({ keep: activePinchtabTabs, urls: new Set([url]) }).catch(() => {});
+    // close it by; sweep it so tabs don't pile up until every navigation
+    // hangs — 54 leaked tabs did exactly that on 2026-10-09.
+    pinchtabNavigationsInFlight -= 1;
+    sweepTimedOutTab(url);
     throw err;
   }
+  pinchtabNavigationsInFlight -= 1;
   activePinchtabTabs.add(tabId);
   return tabId;
 }
@@ -357,7 +410,10 @@ async function pinchtabNavigate(url, opts = {}) {
 async function pinchtabClose(tabId) {
   if (!tabId) return;
   activePinchtabTabs.delete(tabId);
-  await pinchtabCloseRaw(tabId);
+  // A busy daemon can miss the close (5 s timeout); try once more later.
+  if (!(await pinchtabCloseRaw(tabId))) {
+    setTimeout(() => pinchtabCloseRaw(tabId).catch(() => {}), PINCHTAB_LATE_SWEEP_MS).unref?.();
+  }
 }
 
 let _pinchtabSolveConsecFail = 0;
@@ -408,18 +464,24 @@ let _interfaceShowcaseCache = null;
 
 // ─── Admin user lookup (Supabase) ─────────────────────────────────────────────
 let _adminUserId = null;
+let _adminEmailWarned = false;
 async function getAdminUserId() {
   if (_adminUserId) return _adminUserId;
   if (!useSupabase || !supabase) return null;
   const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-  if (adminEmail) {
-    // One page of 1000, not the default 50: past it, the admin was missed and
-    // the fallback below took whichever account owned the first application.
-    const { data } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }).catch(() => ({ data: null }));
-    // Case-insensitive, like isAdminUser: Supabase stores emails lowercased.
-    const found = (data?.users || []).find(u => String(u.email || '').toLowerCase() === adminEmail);
-    if (found) { _adminUserId = found.id; return _adminUserId; }
+  // No ADMIN_EMAIL: no account owns the files on disk (fail closed). The
+  // first applications row used to decide, so any account could become the owner.
+  if (!adminEmail) {
+    if (!_adminEmailWarned) console.warn('[auth] ADMIN_EMAIL is not set: no account reads or writes the files on disk (see .env.example).');
+    _adminEmailWarned = true;
+    return null;
   }
+  // One page of 1000, not the default 50: past it, the admin was missed and
+  // the fallback below took whichever account owned the first application.
+  const { data: users } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }).catch(() => ({ data: null }));
+  // Case-insensitive, like isAdminUser: Supabase stores emails lowercased.
+  const found = (users?.users || []).find(u => String(u.email || '').toLowerCase() === adminEmail);
+  if (found) { _adminUserId = found.id; return _adminUserId; }
   const { data } = await supabase.from('applications').select('user_id').not('user_id', 'is', null).limit(1).single().catch(() => ({ data: null }));
   if (data?.user_id) { _adminUserId = data.user_id; return _adminUserId; }
   return null;
@@ -777,11 +839,15 @@ function deleteApplicationBlockReason(status = '') {
 // merge-tracker.mjs writes relative to the tracker's own directory. The old
 // regex only matched the legacy form, so URL capture failed on every correctly
 // normalized row.
-async function findPostingUrlFromReportLink(reportLink = '') {
+async function findPostingUrlFromReportLink(reportLink = '', userId) {
   const match = String(reportLink || '').match(/\[\d+\]\((?:\.\.\/)?reports\/([^)]+\.md)\)/);
   if (!match) return '';
   try {
-    const reportContent = await readFile(join(ROOT, 'reports', match[1]), 'utf-8');
+    // Another account's report is its own Supabase row, never the owner's
+    // file of the same name.
+    const reportContent = await ownsLocalData(userId)
+      ? await readFile(join(ROOT, 'reports', match[1]), 'utf-8')
+      : await getReport(match[1], userId);
     const urlMatch = reportContent.match(/^\*\*URL:\*\*\s*(.+)$/m);
     const url = urlMatch ? urlMatch[1].trim() : '';
     return url.startsWith('http') ? url : '';
@@ -1218,10 +1284,12 @@ function pipelineHistoryLine(url, portal, title, company, status) {
   return [url, new Date().toISOString().slice(0, 10), portal, tsvSafe(title), tsvSafe(company), status].join('\t');
 }
 
-async function recordPipelineChange(records, historyRows) {
-  await appendPipelineRecords(records).catch(err => console.warn(`[pipeline] jsonl: ${err.message}`));
+// data/pipeline.jsonl is laid over the owner's rows only (getPipeline), so
+// another account's changes go to its own scan history and nowhere else.
+async function recordPipelineChange(records, historyRows, memory = OWNER_SCAN_MEMORY) {
+  if (!memory.account) await appendPipelineRecords(records).catch(err => console.warn(`[pipeline] jsonl: ${err.message}`));
   if (!historyRows.length) return;
-  await appendScanHistoryEntries(historyRows).catch(err => console.warn(`[pipeline] scan-history: ${err.message}`));
+  await appendScanHistoryEntries(historyRows, memory).catch(err => console.warn(`[pipeline] scan-history: ${err.message}`));
 }
 
 async function editPipelineMarkdown(edit) {
@@ -1399,6 +1467,7 @@ async function addManyToPipeline(entries = [], userId, { prepend = false } = {})
     ...entry,
     status: pipelineSideStatus(entry, 'pending'),
   }, scannedAt));
+  const memory = await scanMemoryOf(userId);
   await recordPipelineChange(records, canonical.map(({ entry }) => {
     const parts = extractPipelineNoteParts(entry.note || '');
     return pipelineHistoryLine(
@@ -1408,8 +1477,10 @@ async function addManyToPipeline(entries = [], userId, { prepend = false } = {})
       entry.company || parts.company,
       pipelineSideStatus(entry, 'added'),
     );
-  }));
+  }), memory);
 
+  // data/pipeline.md is the owner's inbox.
+  if (memory.account) return;
   try {
     await editPipelineMarkdown(raw => {
       const existing = new Set(parsePipeline(raw).map(item => normalizeUrlKey(item.url)).filter(Boolean));
@@ -1730,6 +1801,20 @@ function recordWebSearchOutcome(ok) {
   }
 }
 
+// A PinchTab that answers /health but can no longer open a tab ("browser did
+// not open a new tab within 10s", seen 2026-10-13) fails every engine of every
+// query the same way: trip the circuit at once instead of after 8 queries × 3
+// engines of 10-second timeouts.
+const PINCHTAB_WEDGED = /did not open a new tab|out of memory or overloaded/i;
+function tripWebSearchCircuitIfWedged(result) {
+  if (!PINCHTAB_WEDGED.test(result?.error || '')) return false;
+  if (!webSearchCircuitOpen()) {
+    console.warn('[scan] [websearch] PinchTab cannot open tabs — skipping remaining web-search queries this run (restart PinchTab)');
+  }
+  _webSearchConsecFail = WEB_SEARCH_FAIL_BUDGET;
+  return true;
+}
+
 // Whether an engine attempt was actually BLOCKED (timeout, HTTP error, unsolved
 // challenge) as opposed to having loaded/parsed the page cleanly but simply
 // found 0 titles matching the filter this round — a normal, frequent outcome
@@ -1906,6 +1991,7 @@ function buildJobSection(name, jobs, { includeCompany = false } = {}) {
   const seen = new Set();
   const lines = (jobs || [])
     .filter(job => job?.title && job?.url)
+    .filter(job => !isCareerNavigationTitle(job.title))
     .filter(job => portalsTitleFilter.test(job.title))
     .filter(job => {
       const key = `${job.url}::${job.title}`;
@@ -1927,10 +2013,12 @@ function buildJobSection(name, jobs, { includeCompany = false } = {}) {
   return lines.length > 0 ? `### ${name}\n${lines.join('\n')}` : null;
 }
 
-function buildScanCandidateRecords(sourceName, jobs = [], { includeCompany = false, engine = '' } = {}) {
+// titleFilter: the scanning account's (portalsForProfile); the shared file's by default.
+function buildScanCandidateRecords(sourceName, jobs = [], { includeCompany = false, engine = '', titleFilter = portalsTitleConfig } = {}) {
   return (jobs || [])
     .filter(job => job?.title && job?.url)
-    .filter(job => portalsTitleFilter.test(job.title))
+    .filter(job => !isCareerNavigationTitle(job.title))
+    .filter(job => explainTitle(job.title, titleFilter || {}).ok)
     .map(job => ({
       source: cleanString(sourceName),
       engine: cleanString(engine),
@@ -1938,9 +2026,10 @@ function buildScanCandidateRecords(sourceName, jobs = [], { includeCompany = fal
       title: cleanString(job.title),
       location: cleanString(job.location),
       remoteEvidence: cleanString(job.remoteEvidence).slice(0, 160),
+      workMode: cleanString(job.workMode),
       // JD snippet so remote_filter can catch "must live in the US" / I-9 in
       // the body when the ATS location field is only "Remote".
-      description: cleanString(job.description || job.snippet || '').slice(0, 4000),
+      description: cleanString(job.description || job.snippet || '').slice(0, SCAN_DESCRIPTION_CHARS),
       publishedAt: normalizeDateValue(job.publishedAt || ''),
       url: cleanString(job.url),
       normalizedUrl: normalizeUrlKey(job.url),
@@ -2001,34 +2090,10 @@ async function getAshbyBoardCached(slug) {
   return data;
 }
 
-async function tryApiPublishedDate(url) {
-  let m = url.match(/^https:\/\/job-boards(?:\.eu)?\.greenhouse\.io\/([^/]+)\/jobs\/(\d+)/i);
-  if (m) {
-    try {
-      const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${m[1]}/jobs/${m[2]}`, { signal: AbortSignal.timeout(8000) });
-      if (!r.ok) return null;
-      const d = await r.json().catch(() => ({}));
-      const raw = d.first_published || d.updated_at || '';
-      return raw ? String(raw).slice(0, 10) : null;
-    } catch { return null; }
-  }
-  m = url.match(/^https:\/\/jobs(\.eu)?\.lever\.co\/([^/]+)\/([a-f0-9-]+)/i);
-  if (m) {
-    try {
-      const base = m[1] ? 'https://api.eu.lever.co' : 'https://api.lever.co';
-      const r = await fetch(`${base}/v0/postings/${m[2]}/${m[3]}?mode=json`, { signal: AbortSignal.timeout(8000) });
-      if (!r.ok) return null;
-      const d = await r.json().catch(() => ({}));
-      return d.createdAt ? new Date(d.createdAt).toISOString().slice(0, 10) : null;
-    } catch { return null; }
-  }
-  m = url.match(/^https:\/\/jobs\.ashbyhq\.com\/([^/]+)\/([a-f0-9-]+)/i);
-  if (m) {
-    const board = await getAshbyBoardCached(m[1]);
-    const job = findAshbyJobOnBoard(board, m[2]);
-    return job?.publishedAt ? String(job.publishedAt).slice(0, 10) : null;
-  }
-  return null;
+// { date, closed } from the board's own API (lib/posting-date.mjs), or
+// undefined when no API covers the URL.
+function tryApiPostingStatus(url) {
+  return postingStatusFromApi(url, { getAshbyBoard: getAshbyBoardCached, findAshbyJob: findAshbyJobOnBoard });
 }
 
 const PINCHTAB_DATE_EXTRACT_SCRIPT = `(() => {
@@ -2065,20 +2130,27 @@ async function tryPinchtabPublishedDate(url) {
   finally { await pinchtabClose(tabId); }
 }
 
-async function lookupPublishedDate(url) {
-  if (!url) return null;
+// { date, closed }. A board API that no longer has the posting (404/410, or
+// an Ashby board without it) closes it; that answer is cached for good.
+async function lookupPostingStatus(url) {
+  if (!url) return { date: null, closed: false };
   const cache = await loadPublishedDateCache();
   const cached = cache[url];
   if (cached) {
-    if (cached.publishedAt) return cached.publishedAt;
+    if (cached.closed) return { date: null, closed: true };
+    if (cached.publishedAt) return { date: cached.publishedAt, closed: false };
     if (cached.fetchedAt && Date.now() - new Date(cached.fetchedAt).getTime() < PUBLISHED_DATE_NEGATIVE_TTL_MS) {
-      return null;
+      return { date: null, closed: false };
     }
   }
-  let date = await tryApiPublishedDate(url).catch(() => null);
-  if (!date) date = await tryPinchtabPublishedDate(url).catch(() => null);
-  cache[url] = { publishedAt: date || null, fetchedAt: new Date().toISOString() };
-  return date || null;
+  const api = await tryApiPostingStatus(url).catch(() => undefined);
+  let date = api?.date || null;
+  const closed = Boolean(api?.closed);
+  // The page's JSON-LD without a browser, then PinchTab as the last resort.
+  if (!date && !closed) date = await postingDateFromPage(url).catch(() => null);
+  if (!date && !closed) date = await tryPinchtabPublishedDate(url).catch(() => null);
+  cache[url] = { publishedAt: date || null, ...(closed ? { closed: true } : {}), fetchedAt: new Date().toISOString() };
+  return { date: date || null, closed };
 }
 
 async function enrichCandidatesWithPublishedDates(candidates = [], { concurrency = 5 } = {}) {
@@ -2088,15 +2160,17 @@ async function enrichCandidatesWithPublishedDates(candidates = [], { concurrency
   const ATS_RE = /^https:\/\/(job-boards(?:\.eu)?\.greenhouse\.io|jobs(?:\.eu)?\.lever\.co|jobs\.ashbyhq\.com)\//i;
   const atsCount = undated.filter(c => ATS_RE.test(c.url)).length;
   console.log(`[scan] [date-enrich] looking up dates for ${undated.length} candidate(s) (ats-api=${atsCount}, pinchtab=${pinchOk ? 'up' : 'down'})`);
-  let i = 0, hits = 0;
+  let i = 0, hits = 0, closedCount = 0;
   const workers = Array.from({ length: Math.min(concurrency, undated.length) }, async () => {
     while (i < undated.length) {
       const c = undated[i++];
-      const date = await lookupPublishedDate(c.url);
+      const { date, closed } = await lookupPostingStatus(c.url);
       if (date) { c.publishedAt = date; hits += 1; }
+      if (closed) { c.postingClosed = true; closedCount += 1; }
     }
   });
   await Promise.all(workers);
+  if (closedCount) console.log(`[scan] [date-enrich] ${closedCount} posting(s) gone from their board API`);
   await savePublishedDateCache();
   if (hits === 0 && undated.length > 0) {
     const reason = !pinchOk && atsCount === 0
@@ -2807,9 +2881,9 @@ async function fetchGreenhouseJobDescriptionFromGuessedApi(jobUrl, { maxChars = 
       location: data.location?.name || '',
       description: data.content || data.description || '',
       url: data.absolute_url || jobUrl,
-      publishedAt: data.updated_at || data.first_published || '',
+      publishedAt: data.first_published || '',
     }, jobUrl, { maxChars });
-    if (text) return { ok: true, text, mode: 'greenhouse-api', status: 200 };
+    if (text) return { ok: true, text, mode: 'greenhouse-api', status: 200, workMode: structuredWorkMode('greenhouse', data) };
   }
   return null;
 }
@@ -2856,7 +2930,7 @@ async function fetchAshbyJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints
     salaryCurrency: job.compensation?.currency,
     salaryPeriod: job.compensation?.interval,
   }, jobUrl, { maxChars });
-  if (text) return { ok: true, text, mode: 'ashby-api', status: 200 };
+  if (text) return { ok: true, text, mode: 'ashby-api', status: 200, workMode: structuredWorkMode('ashby', job) };
   return {
     ok: false,
     definitive: true,
@@ -2883,8 +2957,9 @@ async function fetchLeverJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints
     url: data.hostedUrl || data.applyUrl || jobUrl,
     publishedAt: data.createdAt ? new Date(data.createdAt).toISOString() : '',
     employmentType: data.categories?.commitment || '',
+    workplaceType: data.workplaceType && data.workplaceType !== 'unspecified' ? data.workplaceType : '',
   }, jobUrl, { maxChars });
-  if (text) return { ok: true, text, mode: 'lever-api', status: 200 };
+  if (text) return { ok: true, text, mode: 'lever-api', status: 200, workMode: structuredWorkMode('lever', data) };
   return {
     ok: false,
     definitive: true,
@@ -2893,6 +2968,33 @@ async function fetchLeverJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints
     status: 200,
     error: 'Lever posting returned no usable description',
   };
+}
+
+// Workable's public job API carries `workplace` (remote / hybrid / on_site),
+// which the HTML page's JSON-LD does not.
+async function fetchWorkableJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  const match = String(jobUrl || '').match(/^https:\/\/apply\.workable\.com\/([a-z0-9_-]+)\/j\/([A-Z0-9]+)/i);
+  if (!match) return null;
+  const [, account, shortcode] = match;
+  const data = await fetchJsonWithSourceCache(
+    `https://apply.workable.com/api/v2/accounts/${encodeURIComponent(account)}/jobs/${encodeURIComponent(shortcode)}`,
+    { timeoutMs: 15000 },
+  ).catch(() => null);
+  if (!data?.title) return null;
+  const place = data.location || {};
+  const text = formatSourceJobDescription('Workable API', {
+    title: data.title,
+    companyName: hints.company || account,
+    location: [place.city, place.region, place.country].filter(Boolean).join(', '),
+    description: [data.description, data.requirements, data.benefits].filter(Boolean).join('\n'),
+    url: jobUrl,
+    publishedAt: data.published || '',
+    employmentType: data.type || '',
+    department: Array.isArray(data.department) ? data.department.join(', ') : data.department,
+    workplaceType: data.workplace || (data.remote === true ? 'remote' : ''),
+  }, jobUrl, { maxChars });
+  if (text) return { ok: true, text, mode: 'workable-api', status: 200, workMode: structuredWorkMode('workable', data) };
+  return null;
 }
 
 function formatJsonLdJobPostingText(posting, jobUrl, { maxChars = 15000, hints = {} } = {}) {
@@ -3061,6 +3163,7 @@ async function fetchKnownSourceJobDescription(jobUrl, { maxChars = 15000, logLab
     ['greenhouse-api', () => fetchGreenhouseJobDescriptionFromGuessedApi(jobUrl, { maxChars, hints })],
     ['ashby-api', () => fetchAshbyJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['lever-api', () => fetchLeverJobDescriptionFromApi(jobUrl, { maxChars, hints })],
+    ['workable-api', () => fetchWorkableJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['deel-jsonld', () => fetchDeelJobDescriptionFromJsonLd(jobUrl, { maxChars, hints })],
     ['zoho-recruit', () => fetchZohoRecruitJobDescription(jobUrl, { maxChars, hints })],
     ['google-jobs', () => fetchGoogleJobsDescriptionFromHints(jobUrl, { maxChars, hints })],
@@ -3384,6 +3487,36 @@ function mergePublishedDates(index, jobs = []) {
   });
 }
 
+// Scan fan-out bounds. One attempt covers request + body; two attempts plus
+// the retry pause stay under the per-source deadline.
+const SCAN_SOURCE_ATTEMPT_MS = 25_000;
+// ATS bodies often state the location and work model last, past 4,000
+// characters ("LOCATION On-site in New York", Clera, 2026-10-17).
+const SCAN_DESCRIPTION_CHARS = 8000;
+
+function withGreenhouseContent(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('content', 'true');
+    return parsed.href;
+  } catch {
+    return url;
+  }
+}
+
+// The ATS's own work-mode field (Ashby, Lever): 'remote' | 'hybrid' | 'onsite' | ''.
+function atsWorkMode(value = '') {
+  const mode = cleanString(value).toLowerCase().replace(/[\s_-]+/g, '');
+  if (mode === 'remote') return 'remote';
+  if (mode === 'hybrid') return 'hybrid';
+  if (mode === 'onsite' || mode === 'inoffice') return 'onsite';
+  return '';
+}
+const SCAN_DIRECT_CONCURRENCY = 10;
+const SCAN_DIRECT_DEADLINE_MS = 60_000;
+const SCAN_PROVIDER_CONCURRENCY = 4;
+const SCAN_PROVIDER_DEADLINE_MS = 120_000;
+
 async function fetchSourceSection(source = {}) {
   const { name, url, type, query = '', careers_url = '' } = source;
   const provider = inferApiProviderFromUrl(url);
@@ -3396,8 +3529,13 @@ async function fetchSourceSection(source = {}) {
   const fallbackToSecondarySource = async (reason) => {
     // Dead Greenhouse/Ashby/Lever board tokens (HTTP 404/410) must not burn
     // SearchAPI quota or Playwright crawl time — especially on API-only scans.
-    // Same-ATS careers_url would hit the same broken board anyway.
+    // A configured search query can discover a migrated ATS. Do not retry the
+    // stale careers_url, which points at the same dead board that returned 404.
     if (provider === 'greenhouse' || provider === 'ashby' || provider === 'lever') {
+      if (/\bHTTP\s+(?:404|410)\b/i.test(String(reason)) && fallbackSource.query) {
+        console.warn(`[scan] [${logType.toUpperCase()}] Falling back to web search for "${name}" after stale ATS board (${reason})`);
+        return fetchWebSearchSection({ name, query: fallbackSource.query });
+      }
       console.warn(`[scan] [${logType.toUpperCase()}] API failed for "${name}" (${reason}) — no websearch/careers fallback`);
       return { ok: false, section: null, jobs: [], engine: `${logType}-api`, error: reason };
     }
@@ -3412,7 +3550,10 @@ async function fetchSourceSection(source = {}) {
     return { ok: false, section: null, jobs: [], engine: `${logType}-api`, error: reason };
   };
 
-  console.log(`[scan] [${logType.toUpperCase()}] Fetching "${name}" → ${url}`);
+  // Greenhouse lists carry no posting body unless asked: without it the
+  // remote check and Jev saw only the title and location (2026-10-17).
+  const requestUrl = provider === 'greenhouse' ? withGreenhouseContent(url) : url;
+  console.log(`[scan] [${logType.toUpperCase()}] Fetching "${name}" → ${requestUrl}`);
   // Some feeds (e.g. Jobicy RSS) reject default Node requests with HTTP 403.
   // Send a realistic browser UA + Accept header tuned to the source type.
   const fetchHeaders = {
@@ -3422,11 +3563,17 @@ async function fetchSourceSection(source = {}) {
       : 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5',
     'Accept-Language': 'en-US,en;q=0.9',
   };
+  // The body is read inside the attempt: the timeout also covers the download,
+  // and a multi-MB Ashby board cut off mid-body used to fail with no retry.
   let r;
+  let body = '';
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      r = await fetch(url, { signal: AbortSignal.timeout(20000), headers: fetchHeaders });
-      if (r.ok) break;
+      r = await fetch(requestUrl, { signal: AbortSignal.timeout(SCAN_SOURCE_ATTEMPT_MS), headers: fetchHeaders });
+      if (r.ok) {
+        body = await r.text();
+        break;
+      }
       const retryable = r.status === 429 || r.status >= 500;
       console.error(`[scan] [${logType.toUpperCase()}] HTTP ${r.status} "${name}"${retryable && attempt === 1 ? ' — retrying once...' : ''}`);
       if (retryable && attempt === 1) {
@@ -3435,12 +3582,14 @@ async function fetchSourceSection(source = {}) {
       }
       return fallbackToSecondarySource(`HTTP ${r.status}`);
     } catch (err) {
-      console.error(`[scan] [${logType.toUpperCase()}] TIMEOUT/ERROR "${name}": ${err.message}${attempt === 1 ? ' — retrying once...' : ''}`);
+      const stage = r?.ok ? 'body' : 'request';
+      r = null;
+      console.error(`[scan] [${logType.toUpperCase()}] TIMEOUT/ERROR "${name}" (${stage}): ${err.message}${attempt === 1 ? ' — retrying once...' : ''}`);
       if (attempt === 1) {
         await sleep(1500);
         continue;
       }
-      return fallbackToSecondarySource(`network error: ${err.message}`);
+      return fallbackToSecondarySource(`network error (${stage}): ${err.message}`);
     }
   }
   if (!r?.ok) return fallbackToSecondarySource(`HTTP ${r?.status || 'unknown'}`);
@@ -3449,7 +3598,7 @@ async function fetchSourceSection(source = {}) {
   if (type === 'json') {
     let data;
     try {
-      data = await r.json();
+      data = JSON.parse(body);
     } catch (err) {
       console.error(`[scan] [${logType.toUpperCase()}] Invalid JSON "${name}": ${err.message}`);
       return fallbackToSecondarySource(`invalid JSON: ${err.message}`);
@@ -3473,7 +3622,8 @@ async function fetchSourceSection(source = {}) {
             url: cleanString(job.jobUrl || job.applyUrl || ''),
             location,
             remoteEvidence,
-            description: cleanString(job.descriptionPlain || job.descriptionHtml || job.description || '').slice(0, 4000),
+            workMode: atsWorkMode(job.workplaceType),
+            description: cleanString(job.descriptionPlain || job.descriptionHtml || job.description || '').slice(0, SCAN_DESCRIPTION_CHARS),
             publishedAt: normalizeDateValue(job.publishedAt || ''),
           };
         });
@@ -3498,8 +3648,9 @@ async function fetchSourceSection(source = {}) {
           url: cleanString(job.hostedUrl || job.applyUrl || job.url || ''),
           location,
           remoteEvidence,
-          description: cleanString(job.descriptionPlain || job.description || '').slice(0, 4000),
-          publishedAt: normalizeDateValue(job.createdAt || job.updatedAt || ''),
+          workMode: atsWorkMode(job.workplaceType),
+          description: cleanString(job.descriptionPlain || job.description || '').slice(0, SCAN_DESCRIPTION_CHARS),
+          publishedAt: normalizeDateValue(job.createdAt || ''),
         };
       });
     } else {
@@ -3526,14 +3677,17 @@ async function fetchSourceSection(source = {}) {
                 .join(', ')
             : '')
         ),
-        description: cleanString(job.content || job.description || '').slice(0, 4000),
+        // content=true sends the body as entity-escaped HTML.
+        description: cleanString(job.content ? normalizeSearchResultTitle(decodeHtmlEntitiesDeep(job.content)) : (job.description || '')).slice(0, SCAN_DESCRIPTION_CHARS),
+        // The boards API names it first_published; without it every
+        // Greenhouse job went to the date lookup (a PinchTab page load each
+        // for custom-domain boards such as Coinbase or Databricks).
         publishedAt: normalizeDateValue(
+          job.first_published ||
           job.published_at ||
           job.publishedAt ||
           job.created_at ||
           job.createdAt ||
-          job.updated_at ||
-          job.updatedAt ||
           job.date_posted ||
           job.datePosted ||
           ''
@@ -3542,7 +3696,7 @@ async function fetchSourceSection(source = {}) {
     }
     console.log(`[scan] [${logType.toUpperCase()}] "${name}" → ${jobs.length} jobs total, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after title filter`);
   } else if (type === 'rss') {
-    const txt = await r.text();
+    const txt = body;
     const itemRe = /<(item|entry)[^>]*>([\s\S]*?)<\/\1>/gi;
     let match;
     while ((match = itemRe.exec(txt)) !== null) {
@@ -4202,13 +4356,40 @@ const PINCHTAB_SEARCH_ENGINES = {
   duckduckgo: fetchPinchtabDuckDuckGoSection,
 };
 
+// An engine that came back blocked or empty ENGINE_DEAD_AFTER times in a row
+// is skipped for the next queries of this run (one try in ENGINE_RETRY_EVERY
+// to notice a recovery): DuckDuckGo answered 0 to nearly every query and
+// Google sat behind a captcha, so each query paid two dead page loads.
+const ENGINE_DEAD_AFTER = 5;
+const ENGINE_RETRY_EVERY = 8;
+const engineHealth = new Map();
+function resetEngineHealth() { engineHealth.clear(); }
+// Only while another engine still answers: with every engine dead, the web-search
+// circuit breaker decides, and nothing rests.
+function engineIsResting(id, allIds = []) {
+  const h = engineHealth.get(id);
+  if (!h || h.dead < ENGINE_DEAD_AFTER) return false;
+  if (!allIds.some((other) => other !== id && (engineHealth.get(other)?.dead || 0) < ENGINE_DEAD_AFTER)) return false;
+  h.skipped += 1;
+  return h.skipped % ENGINE_RETRY_EVERY !== 0;
+}
+function noteEngineResult(id, useful) {
+  const h = engineHealth.get(id) || { dead: 0, skipped: 0 };
+  h.dead = useful ? 0 : h.dead + 1;
+  engineHealth.set(id, h);
+}
+
 // Run the configured PinchTab engines in order and MERGE their results (dedup
 // by normalized URL) instead of stopping at the first engine that loaded.
 // Brave's index is thin for niche job boards and Google is the quickest to
 // throw a captcha, so a single engine per query was leaving most `site:`
 // queries at 0–3 hits; the union of two or three engines is what actually
 // covers them. Stops early once `min_results` distinct URLs are in hand. The
-// circuit breaker counts the query as blocked only when EVERY engine was.
+// circuit breaker counts the query as failed when it merged nothing and an
+// engine was blocked: an engine that loads but finds nothing (DuckDuckGo,
+// almost every query) must not reset it while the others sit behind captchas
+// (2026-10-16, 10 empty queries in a row never tripped it). Clean 0-hit
+// answers from every engine are still a working search, not a failure.
 async function fetchPinchtabEnginesMerged(source) {
   const { engines, minResults } = webSearchConfig;
   const merged = [];
@@ -4220,9 +4401,12 @@ async function fetchPinchtabEnginesMerged(source) {
     const run = PINCHTAB_SEARCH_ENGINES[id];
     if (!run) continue;
     if (minResults > 0 && merged.length >= minResults) break;
+    if (engineIsResting(id, engines)) { engineLog.push(`${id}:resting`); continue; }
     const result = await run(source);
+    if (tripWebSearchCircuitIfWedged(result)) return result;
     if (isWebSearchEngineBlocked(result)) {
       lastBlocked = result;
+      noteEngineResult(id, false);
       engineLog.push(`${id}:blocked`);
       continue;
     }
@@ -4235,13 +4419,19 @@ async function fetchPinchtabEnginesMerged(source) {
       merged.push(job);
       added += 1;
     }
+    noteEngineResult(id, added > 0);
     engineLog.push(`${id}:${added}`);
   }
   if (!loaded) {
     recordWebSearchOutcome(false);
     return lastBlocked || { ok: false, section: null, jobs: [], engine: 'pinchtab', error: 'no web-search engine configured' };
   }
-  recordWebSearchOutcome(true);
+  // Search pages often return something even while another engine is blocked,
+  // but those results can all be outside the user's target profile. Count that
+  // as a failed query so repeated challenge pages don't keep the scan opening
+  // PinchTab tabs for offers that will be discarded by the title filter.
+  const hasRelevantResult = merged.some(job => portalsTitleFilter.test(job.title));
+  recordWebSearchOutcome(hasRelevantResult || !lastBlocked);
   const used = engineLog.filter(entry => !entry.endsWith(':blocked')).map(entry => entry.split(':')[0]);
   console.log(`[scan] [WebSearch] "${source.name}" → ${merged.length} merged results (${engineLog.join(', ')}), ${merged.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
   return { ok: merged.length > 0, section: buildJobSection(source.name, merged), jobs: merged, engine: `pinchtab-${used.join('+')}` };
@@ -4460,7 +4650,9 @@ async function fetchJoobleSection(aggregator = {}) {
         url: cleanString(job.link || ''),
         location: cleanString(job.location || location),
         remoteEvidence: cleanString([location, job.location, job.type, job.snippet].filter(Boolean).join(' | ')).slice(0, 240),
-        publishedAt: normalizeDateValue(job.updated || ''),
+        // Jooble exposes `updated` as an update timestamp, not the original
+        // publication date. Leave this unknown so the scan can verify it.
+        publishedAt: '',
       })));
     } catch (err) {
       console.warn(`[scan] [Jooble] ${location} failed: ${err.message}`);
@@ -4713,9 +4905,12 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
   if (source?.careers_url) {
     console.log(`[scan] [WebSearch] Preferring careers_url for "${source.name}"`);
     const fallback = await fetchCareersUrlFallback(source);
-    if (!isWebSearchEngineBlocked(fallback)) {
+    if (!isWebSearchEngineBlocked(fallback) && (fallback?.section || !source.query)) {
       recordWebSearchOutcome(true);
       return fallback;
+    }
+    if (!isWebSearchEngineBlocked(fallback)) {
+      console.warn(`[scan] [WebSearch] No matching jobs extracted from "${source.name}" careers page; falling back to search query`);
     }
   }
 
@@ -4808,8 +5003,22 @@ const PINCHTAB_SCROLL_SCRIPT = `(async () => {
   return true;
 })()`;
 
+const CAREER_NAVIGATION_TITLE_SOURCE = String.raw`^(?:search\s+(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|(?:careers?|jobs?)\s+(?:at|for|with)\s+.{1,100}|(?:view|see|browse|explore)\s+(?:all\s+)?(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|je\s+consulte\s+les\s+offres|nos\s+offres(?:\b.*)?|offres?\s+d['’]emploi(?:\s+en\b.*)?|offres?\s+en\s+t[ée]l[ée]travail|missions?\s+en\s+management\s+de\s+transition|outil\s+job\s+match|secteur\s+public\s*&\s*int[ée]r[ée]t\s+g[ée]n[ée]ral|technology\s+and\s+product|product\s+management\s*\d+\s+positions?|stillinger|opportunities\s+for\s+young\s+talents|banyan\s+tree|21c\s+museum\s+hotel|25hours\s+hotels?|delano|hyde|mama\s+shelter|morgans\s+orginals|(?:contrat\s+permanent|permanent\s+contract|creative\s*&\s*design|creation\s*&\s*design))$`;
+const CAREER_NAVIGATION_TITLE_RE = new RegExp(CAREER_NAVIGATION_TITLE_SOURCE, 'i');
+
+function isCareerNavigationTitle(title = '') {
+  return CAREER_NAVIGATION_TITLE_RE.test(cleanString(title).replace(/\s+/g, ' '));
+}
+
 const PINCHTAB_EXTRACT_SCRIPT = `(() => {
-  const normalizeText = value => String(value || '').replace(/\\s+/g, ' ').trim();
+  const normalizeText = value => {
+    if (Array.isArray(value)) return value.map(normalizeText).filter(Boolean).join(', ');
+    if (value && typeof value === 'object') {
+      return normalizeText(value.name || value.label || value.value || value.city || value.displayName || value.location || '');
+    }
+    if (typeof value !== 'string' && typeof value !== 'number') return '';
+    return String(value).replace(/\\s+/g, ' ').trim();
+  };
   const parseDate = value => {
     const raw = normalizeText(value);
     if (!raw) return '';
@@ -4818,6 +5027,7 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
   };
   const host = window.location.hostname;
   const navLike = /^(home|jobs|careers|open roles|open positions|learn more|view all|see all|apply now|accéder au contenu|offres d'emploi|offres d’emploi|missions en|technology|finance et comptabilité|logistique et supply chain|ressources humaines|on-site|onsite|hybrid|remote|full[- ]?time|part[- ]?time)$/i;
+  const careerNavigationTitle = new RegExp(${JSON.stringify(CAREER_NAVIGATION_TITLE_SOURCE)}, 'i');
   const junkTitle = /^(bangkok|singapore|pathum thani|hong kong|jakarta|tokyo|paris|london|berlin|remote|hybrid|on-site|onsite)(\\s|,|$)/i;
   const isLikelyJobHref = href => {
     const value = String(href || '');
@@ -4833,7 +5043,7 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
   const pushJob = entry => {
     const title = normalizeText(entry && entry.title);
     const url = normalizeText(entry && entry.url);
-    if (!title || !url || navLike.test(title) || junkTitle.test(title)) return;
+    if (!title || !url || navLike.test(title) || careerNavigationTitle.test(title) || junkTitle.test(title)) return;
     if (title.length < 4 || title.length > 180) return;
     const key = url + '::' + title.toLowerCase();
     if (seen.has(key)) return;
@@ -4913,7 +5123,6 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
       posting.publishedDate ||
       posting.publishedAt ||
       posting.createdAt ||
-      posting.updatedAt ||
       ''
     );
     const addAshbyPosting = posting => {
@@ -5006,7 +5215,7 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
               current.location || current.locationName || current.city ||
               (current.categories && current.categories.location) || ''
             ),
-            publishedAt: parseDate(current.updated_at || current.publishedAt || current.createdAt || current.postedAt || ''),
+            publishedAt: parseDate(current.date_posted || current.datePosted || current.published_at || current.publishedAt || current.postedAt || current.first_published || current.created_at || current.createdAt || ''),
           });
         }
         Object.values(current).forEach(item => {
@@ -5110,6 +5319,7 @@ function scanDetailEvidenceSnippet(text = '') {
 function usableDetailTitle(title = '') {
   const value = cleanString(title);
   if (value.length < 4 || value.length > 180) return false;
+  if (isCareerNavigationTitle(value)) return false;
   if (/^(apply|apply now|view role|learn more|jobs?|careers?|open roles?|open positions?|job details?)$/i.test(value)) return false;
   if (/^(accéder au contenu|offres d'emploi|offres d’emploi|missions en|technology|finance et|logistique|ressources humaines)$/i.test(value)) return false;
   if (/^(on-site|onsite|hybrid|remote|full[- ]?time|part[- ]?time)$/i.test(value)) return false;
@@ -5487,31 +5697,38 @@ async function deletePortal(name) {
 
 // ─── Scan State (data/scan-state.json) ───────────────────────────────────────
 
-const SCAN_STATE_FILE      = join(WRITE_ROOT, 'data/scan-state.json');
-const SCAN_SELECTION_FILE  = join(WRITE_ROOT, 'data/scan-selection.json');
+// What a scan remembers (history, decisions, source state, selection, query
+// yield, deleted company+role pairs): the owner's files under data/, any
+// other account's own folder under data/accounts/ (lib/scan-memory.mjs).
+const OWNER_SCAN_MEMORY = scanMemoryPaths(WRITE_ROOT);
 
-async function getScanState() {
+async function scanMemoryOf(userId) {
+  return await ownsLocalData(userId) ? OWNER_SCAN_MEMORY : scanMemoryPaths(WRITE_ROOT, userId);
+}
+
+async function getScanState(memory = OWNER_SCAN_MEMORY) {
   try {
-    const raw = await readFile(SCAN_STATE_FILE, 'utf-8');
+    const raw = await readFile(memory.state, 'utf-8');
     return JSON.parse(raw);
   } catch { return {}; }
 }
 
-async function updateScanState(sourceNames = [], scannedAt = new Date().toISOString()) {
+async function updateScanState(sourceNames = [], scannedAt = new Date().toISOString(), memory = OWNER_SCAN_MEMORY) {
   if (!sourceNames.length) return;
-  const current = await getScanState();
+  const current = await getScanState(memory);
   sourceNames
     .map(name => String(name || '').trim())
     .filter(Boolean)
     .forEach(name => {
       current[name] = scannedAt;
     });
-  await writeFile(SCAN_STATE_FILE, JSON.stringify(current, null, 2), 'utf-8');
+  await ensureScanMemoryDir(memory);
+  await writeFile(memory.state, JSON.stringify(current, null, 2), 'utf-8');
 }
 
-async function getScanSources() {
+async function getScanSources(memory = OWNER_SCAN_MEMORY) {
   const { parsed } = await readPortalsYaml();
-  const scanState  = await getScanState();
+  const scanState  = await getScanState(memory);
   const companies = (parsed.tracked_companies || [])
     .filter(c => c.enabled !== false)
     .map(c => {
@@ -5547,17 +5764,18 @@ async function getScanSources() {
   return { companies, rss, queries, aggregators };
 }
 
-async function getScanSelection() {
-  try { return JSON.parse(await readFile(SCAN_SELECTION_FILE, 'utf-8')); }
+async function getScanSelection(memory = OWNER_SCAN_MEMORY) {
+  try { return JSON.parse(await readFile(memory.selection, 'utf-8')); }
   catch { return null; }
 }
 
-async function saveScanSelection(sel) {
-  await writeFile(SCAN_SELECTION_FILE, JSON.stringify(sel, null, 2), 'utf-8');
+async function saveScanSelection(sel, memory = OWNER_SCAN_MEMORY) {
+  await ensureScanMemoryDir(memory);
+  await writeFile(memory.selection, JSON.stringify(sel, null, 2), 'utf-8');
 }
 
-async function logScanSelectionReset(previous) {
-  const logFile = join(WRITE_ROOT, 'data/scan-selection-log.jsonl');
+async function logScanSelectionReset(previous, memory = OWNER_SCAN_MEMORY) {
+  const logFile = memory.selectionLog;
   const entry = {
     at: new Date().toISOString(),
     event: 'reset_to_all',
@@ -5570,16 +5788,15 @@ async function logScanSelectionReset(previous) {
     console.warn(`[scan] selection log failed: ${err.message}`);
   }
   try {
-    await writeFile(SCAN_SELECTION_FILE, JSON.stringify({ all: true }), 'utf-8');
+    await writeFile(memory.selection, JSON.stringify({ all: true }), 'utf-8');
   } catch (err) {
     console.warn(`[scan] selection reset failed: ${err.message}`);
   }
 }
 
-async function getScanHistoryRows() {
-  const scanHistoryFile = join(WRITE_ROOT, 'data/scan-history.tsv');
+async function getScanHistoryRows(memory = OWNER_SCAN_MEMORY) {
   try {
-    const raw = await readFile(scanHistoryFile, 'utf-8');
+    const raw = await readFile(memory.history, 'utf-8');
     return raw.split('\n').filter(Boolean);
   } catch {
     return ['url\tfirst_seen\tportal\ttitle\tcompany\tstatus'];
@@ -5601,8 +5818,8 @@ function scanHistoryStatusBlocksReadd(status = '') {
   return !['added', 'skipped_dup', 'remote_review', 'jev_unverified'].includes(s);
 }
 
-async function getBlockingScanHistoryUrlSet() {
-  const rows = await getScanHistoryRows();
+async function getBlockingScanHistoryUrlSet(memory = OWNER_SCAN_MEMORY) {
+  const rows = await getScanHistoryRows(memory);
   const latestStatusByUrl = new Map();
   rows.forEach(line => {
     const cells = line.split('\t');
@@ -5618,8 +5835,8 @@ async function getBlockingScanHistoryUrlSet() {
   );
 }
 
-async function getLatestScanHistoryEntryMap() {
-  const rows = await getScanHistoryRows();
+async function getLatestScanHistoryEntryMap(memory = OWNER_SCAN_MEMORY) {
+  const rows = await getScanHistoryRows(memory);
   const latestByUrl = new Map();
   rows.forEach(line => {
     const cells = line.split('\t');
@@ -5654,6 +5871,17 @@ async function getReportUrlSet() {
   } catch { return new Set(); }
 }
 
+// Postings a scan must not bring back because they were evaluated: the
+// owner's reports/ on disk, or another account's own tracker rows (its
+// evaluations live in Supabase, never in reports/).
+async function getEvaluatedUrlSet(userId, memory = OWNER_SCAN_MEMORY) {
+  if (!memory.account) return getReportUrlSet();
+  const apps = await getApplications(userId);
+  return new Set((apps || [])
+    .map(app => String(app.JobURL ?? app.job_url ?? app.jobUrl ?? app.URL ?? app.url ?? '').trim())
+    .filter(url => url.startsWith('http')));
+}
+
 async function getOrphanedScanPipelineItems(existingPipeline = []) {
   const [latestHistory, reportUrls] = await Promise.all([
     getLatestScanHistoryEntryMap().catch(() => new Map()),
@@ -5672,7 +5900,7 @@ async function getOrphanedScanPipelineItems(existingPipeline = []) {
     })
     .map(entry => normalizePipelineItem({
       url: entry.url,
-      note: [entry.company, entry.title, entry.first_seen].filter(Boolean).join(' | '),
+      note: [entry.title ? pipelineNoteCompany(entry.company) : entry.company, entry.title, entry.first_seen].filter(Boolean).join(' | '),
       company: entry.company,
       title: entry.title,
       created_at: entry.first_seen,
@@ -5681,11 +5909,23 @@ async function getOrphanedScanPipelineItems(existingPipeline = []) {
     }));
 }
 
-async function appendScanHistoryEntries(entries = []) {
+// purge-stale.mjs trims the owner's history at every start; an account's
+// history drops the same rows (past retention_days, deleted kept) as it grows.
+async function scanHistoryRetentionDays() {
+  try {
+    const { parsed } = await readPortalsYaml();
+    if (Number.isFinite(parsed?.retention_days) && parsed.retention_days > 0) return parsed.retention_days;
+  } catch { /* keep the default */ }
+  return SCAN_HISTORY_RETENTION_DAYS;
+}
+
+async function appendScanHistoryEntries(entries = [], memory = OWNER_SCAN_MEMORY) {
   if (!entries.length) return;
-  const scanHistoryFile = join(WRITE_ROOT, 'data/scan-history.tsv');
+  const scanHistoryFile = memory.history;
+  const cutoff = memory.account ? scanHistoryCutoff(new Date().toISOString(), await scanHistoryRetentionDays()) : '';
+  await ensureScanMemoryDir(memory);
   await withPipelineLock(scanHistoryFile, async () => {
-    const existingRows = await getScanHistoryRows();
+    const existingRows = pruneScanHistoryLines(await getScanHistoryRows(memory), cutoff);
     const payload = `${existingRows.join('\n').replace(/\n+$/,'')}\n${entries.join('\n')}\n`;
     await writeFile(scanHistoryFile, payload, 'utf-8');
   });
@@ -5693,7 +5933,7 @@ async function appendScanHistoryEntries(entries = []) {
 
 const DELETED_APPLICATIONS_HEADER = 'company\trole\tdate_deleted\treason';
 
-async function appendDeletedApplicationEntries(entries = []) {
+async function appendDeletedApplicationEntries(entries = [], memory = OWNER_SCAN_MEMORY) {
   const rows = (entries || [])
     .map(e => ({
       company: tsvSafe(e.company),
@@ -5704,7 +5944,7 @@ async function appendDeletedApplicationEntries(entries = []) {
     .filter(e => e.company && e.role);
   if (!rows.length) return;
 
-  const deletedFile = join(WRITE_ROOT, 'data/deleted-applications.tsv');
+  const deletedFile = memory.deleted;
   let existing = '';
   try {
     existing = await readFile(deletedFile, 'utf-8');
@@ -5717,11 +5957,13 @@ async function appendDeletedApplicationEntries(entries = []) {
   }
 
   const payload = `${existing.replace(/\n+$/, '')}\n${rows.map(r => `${r.company}\t${r.role}\t${r.date}\t${r.reason}`).join('\n')}\n`;
+  await ensureScanMemoryDir(memory);
   await writeFile(deletedFile, payload, 'utf-8');
 }
 
 async function getCompanyRoleExclusions(userId) {
   const exclusions = [];
+  const memory = await scanMemoryOf(userId);
 
   try {
     const apps = await getApplications(userId);
@@ -5733,8 +5975,7 @@ async function getCompanyRoleExclusions(userId) {
   } catch { /* ignore */ }
 
   try {
-    const deletedFile = join(WRITE_ROOT, 'data/deleted-applications.tsv');
-    const raw = await readFile(deletedFile, 'utf-8');
+    const raw = await readFile(memory.deleted, 'utf-8');
     for (const line of raw.split('\n').slice(1)) {
       if (!line.trim()) continue;
       const [company, role] = line.split('\t');
@@ -5799,17 +6040,18 @@ async function writeMarkdownApplicationStatus(num, status) {
   return true;
 }
 
-async function recordManualApplicationDelete({ company, role, jobUrl, date }) {
+async function recordManualApplicationDelete({ company, role, jobUrl, date, userId }) {
   const historyUrl = (jobUrl && String(jobUrl).startsWith('http'))
     ? String(jobUrl).trim()
     : `unknown:${tsvSafe(company) || 'company'}:${tsvSafe(role) || 'role'}`;
+  const memory = await scanMemoryOf(userId);
   await appendScanHistoryEntries([
     `${historyUrl}\t${date}\tmanual-delete\t${tsvSafe(role)}\t${tsvSafe(company)}\tdeleted`,
-  ]).catch(() => {});
+  ], memory).catch(() => {});
   if (company && role) {
     await appendDeletedApplicationEntries([
       { company, role, date, reason: 'user_deleted' },
-    ]).catch(() => {});
+    ], memory).catch(() => {});
   }
 }
 
@@ -5921,14 +6163,116 @@ async function readLocalProfile() {
   return yamlLoad(raw) || {};
 }
 
+// A signed-in account's structured profile, as the scan, the pipeline and Jev
+// triage read it: its row, with config/profile.yml filling for the owner what
+// the row cannot hold yet (a stored value always wins).
+async function getAccountProfile(userId, ownerFiles) {
+  const data = await getProfile(userId);
+  const stored = (data && Object.keys(data).length) ? data : {};
+  return ownerFiles ? fillProfileGaps(stored, await readLocalProfile().catch(() => ({}))) : stored;
+}
+
 // Set once the first upsert reports that the 2026-10-07 columns are missing,
 // so later saves go straight to the legacy columns and the warning prints once.
 let profileExtendedColumnsMissing = false;
 let profileExtendedColumnsCheckedAt = 0;
+// Extended columns the table lacks (missingColumnName of the upsert error).
+const profileMissingColumns = new Set();
 
-// Returns { profile, degraded }: degraded is true when only the legacy columns
-// could be written (the 20261007 migration has not run), so the client can say
-// that phone, links, languages and availability were not kept.
+// The profile and CV an apply run uses: the signed-in account's. For the
+// owner (local mode or the admin account) config/profile.yml fills what the
+// Supabase row cannot hold yet (phones, languages, apply_cv, availability
+// before the 20261013 migration); a stored value always wins.
+async function loadApplyContext(userId, reportFilename) {
+  // The report through getReport: another account never gets one it does not own.
+  const reportText = await getReport(reportFilename, userId);
+  // The CV PDF uploaded to the account (data/apply-files/<id>/cv/). The
+  // owner without one keeps the profile's apply_cv in output/ (undefined);
+  // another account never reads output/ (null = no CV yet).
+  const ownCv = await readAccountCv(WRITE_ROOT, applyAccountOf(userId)).catch(() => null);
+  if (!useSupabase) return { profile: await readLocalProfile(), cvMarkdown: null, reportText, voice: null, accountCvPath: ownCv?.path };
+  const stored = await getProfile(userId);
+  const owner = await ownsLocalData(userId);
+  const profile = owner ? fillProfileGaps(stored, await readLocalProfile().catch(() => ({}))) : stored;
+  const cvMarkdown = await getCvMarkdown(userId).catch(() => '');
+  // The owner without a stored CV still has cv.md on disk (null = read it);
+  // the owner's voice files and article-digest.md stay the owner's (null =
+  // read them, '' = none for another account).
+  return {
+    profile,
+    cvMarkdown: cvMarkdown || (owner ? null : ''),
+    reportText,
+    voice: owner ? null : String(profile?.writing_voice || ''),
+    digest: owner ? null : '',
+    accountCvPath: owner ? ownCv?.path : (ownCv?.path || null),
+    // Cover letters: output/ is the owner's; another account's are copied
+    // to its own folder by /api/cover-letter-pdf.
+    letterDir: owner ? undefined : accountLettersDir(WRITE_ROOT, userId),
+  };
+}
+
+// ─── Auto-apply per account ───────────────────────────────────────────────────
+// The key of the account a run, its files and its Chrome plugin belong to:
+// the Supabase user id, or 'local' when the server has no accounts.
+function applyAccountOf(userId) {
+  if (!useSupabase) return 'local';
+  return isAccountId(userId) ? userId : null;
+}
+
+// Pairing tokens the signed-in dashboard hands to its Chrome plugin: the
+// plugin sends one back in its hello, and the server routes that account's
+// runs to it. Only their SHA-256 is kept (data/apply-files/bridge-pairs.json).
+const BRIDGE_PAIRS_FILE = join(WRITE_ROOT, APPLY_FILES_DIR, 'bridge-pairs.json');
+const BRIDGE_PAIRS_PER_ACCOUNT = 5;
+let bridgePairs = null;
+const hashPairToken = (token) => createHash('sha256').update(String(token)).digest('hex');
+
+async function loadBridgePairs() {
+  if (bridgePairs) return bridgePairs;
+  try {
+    bridgePairs = new Map(Object.entries(JSON.parse(await readFile(BRIDGE_PAIRS_FILE, 'utf-8')) || {}));
+  } catch {
+    bridgePairs = new Map();
+  }
+  return bridgePairs;
+}
+
+async function issueBridgePairToken(account) {
+  const pairs = await loadBridgePairs();
+  const token = randomBytes(24).toString('base64url');
+  pairs.set(hashPairToken(token), { account, at: Date.now() });
+  // One token per Chrome the account signed in from; the oldest go.
+  // Same millisecond: the one added later (later in the Map) is the newer.
+  const mine = [...pairs].map((entry, order) => ({ entry, order }))
+    .filter(({ entry }) => entry[1]?.account === account)
+    .sort((a, b) => (b.entry[1].at - a.entry[1].at) || (b.order - a.order))
+    .map(({ entry }) => entry);
+  for (const [hash] of mine.slice(BRIDGE_PAIRS_PER_ACCOUNT)) pairs.delete(hash);
+  await mkdir(dirname(BRIDGE_PAIRS_FILE), { recursive: true });
+  await writeFile(BRIDGE_PAIRS_FILE, JSON.stringify(Object.fromEntries(pairs)), 'utf-8');
+  return token;
+}
+
+async function accountOfPairToken(token) {
+  // No accounts: the one local user owns every plugin.
+  if (!useSupabase) return 'local';
+  if (typeof token !== 'string' || !token || token.length > 200) return null;
+  const row = (await loadBridgePairs()).get(hashPairToken(token));
+  return row && isAccountId(row.account) ? row.account : null;
+}
+
+// Who started a run (scratch/apply-runs/<id>/owner.json). Runs from before
+// that file existed are the owner's.
+async function applyRunVisibleTo(runDir, userId) {
+  if (!useSupabase) return true;
+  const meta = await readFile(join(runDir, 'owner.json'), 'utf-8').then(JSON.parse).catch(() => null);
+  if (meta?.userId) return Boolean(userId) && meta.userId === userId;
+  return ownsLocalData(userId);
+}
+
+// Returns { profile, degraded, missingColumns }: degraded is true when some
+// extended columns could not be written (a migration has not run), and
+// missingColumns names them so the client can say what was not kept.
 async function saveProfile(data, userId, { onboardingCompleted = false } = {}) {
   if (useSupabase && userId) {
     // A failed read aborts the save. It used to merge over {} and write the
@@ -5937,18 +6281,35 @@ async function saveProfile(data, userId, { onboardingCompleted = false } = {}) {
     const merged = mergeProfileSections(existing, data);
     const { legacy, extended } = profileToRow(merged, userId);
     if (onboardingCompleted) extended.onboarding_completed_at = new Date().toISOString();
-    if (profileExtendedColumnsMissing && Date.now() - profileExtendedColumnsCheckedAt > 10 * 60_000) profileExtendedColumnsMissing = false;
-    if (!profileExtendedColumnsMissing) {
-      const { error } = await supabase.from('profiles').upsert({ ...legacy, ...extended });
-      if (!error) return { profile: merged, degraded: false };
-      if (!isMissingColumnError(error)) throw error;
-      profileExtendedColumnsMissing = true;
-      profileExtendedColumnsCheckedAt = Date.now();
-      console.warn('[profile] public.profiles has no candidate/availability/preferences columns yet — run supabase/migrations/20261007_profile_onboarding.sql. Phone, links, languages and availability are NOT persisted until then.');
+    // Re-check every ten minutes: a migration run since then adds the columns.
+    if ((profileExtendedColumnsMissing || profileMissingColumns.size) && Date.now() - profileExtendedColumnsCheckedAt > 10 * 60_000) {
+      profileExtendedColumnsMissing = false;
+      profileMissingColumns.clear();
     }
+    // Only the extended columns the table lacks are left out: a deployment
+    // with the 2026-10-07 columns but not `screening` keeps phone, languages
+    // and availability.
+    const row = { ...legacy, ...extended };
+    for (const column of profileMissingColumns) delete row[column];
+    for (let attempt = 0; !profileExtendedColumnsMissing && attempt <= Object.keys(extended).length; attempt++) {
+      const { error } = await supabase.from('profiles').upsert(row);
+      if (!error) {
+        if (!profileMissingColumns.size) return { profile: merged, degraded: false, missingColumns: [] };
+        return { profile: merged, degraded: true, missingColumns: [...profileMissingColumns] };
+      }
+      if (!isMissingColumnError(error)) throw error;
+      const column = missingColumnName(error);
+      if (!column || !Object.hasOwn(extended, column) || profileMissingColumns.has(column)) break;
+      profileMissingColumns.add(column);
+      profileExtendedColumnsCheckedAt = Date.now();
+      delete row[column];
+      console.warn(`[profile] public.profiles has no "${column}" column — run supabase/migrations/20261013_profile_complete.sql. That section is NOT persisted until then.`);
+    }
+    profileExtendedColumnsMissing = true;
+    profileExtendedColumnsCheckedAt = Date.now();
     const { error } = await supabase.from('profiles').upsert(legacy);
     if (error) throw error;
-    return { profile: merged, degraded: true };
+    return { profile: merged, degraded: true, missingColumns: Object.keys(extended) };
   }
   // Local YAML: merge too, so the dashboard (which knows a subset of the
   // keys) cannot wipe apply_cv, languages or any other hand-written key. A
@@ -5956,7 +6317,7 @@ async function saveProfile(data, userId, { onboardingCompleted = false } = {}) {
   const existing = await readLocalProfile();
   const merged = mergeProfileSections(existing, data);
   await writeFile(PROFILE_FILE, yamlDump(merged, { lineWidth: 120, quotingType: '"' }), 'utf-8');
-  return { profile: merged, degraded: false };
+  return { profile: merged, degraded: false, missingColumns: [] };
 }
 
 async function getProfileContext(userId) {
@@ -6010,14 +6371,14 @@ async function saveProfileBundle(payload = {}, userId) {
   const hasContext = context !== null && (context.trim().length > 0 || payload?.clear_context === true);
 
   if (!hasContext) {
-    const { degraded } = await saveProfile(profile, userId, { onboardingCompleted });
-    return { degraded };
+    const { degraded, missingColumns } = await saveProfile(profile, userId, { onboardingCompleted });
+    return { degraded, missingColumns };
   }
 
   if (useSupabase && userId) {
-    const { degraded } = await saveProfile(profile, userId, { onboardingCompleted });
+    const { degraded, missingColumns } = await saveProfile(profile, userId, { onboardingCompleted });
     await saveProfileContext(context, userId);
-    return { degraded };
+    return { degraded, missingColumns };
   }
 
   // Local files: rollback on error
@@ -6121,30 +6482,40 @@ function inferProfileMatchingRules(profileData = {}, profileMarkdown = '') {
         .filter(entry => entry.name)
     : [];
 
+  // Bases, authorization and on-site exceptions: one reading shared with Jev,
+  // the scan and apply (lib/candidate-location.mjs).
+  const loc = resolveLocationProfile(profileData);
   const remotePolicy = normalizeInline(location.remote_policy || compensation.location_flexibility);
   const onsiteAvailability = normalizeInline(search.onsite_availability || location.onsite_availability);
   const profileText = `${remotePolicy}\n${profileMarkdown}`.toLowerCase();
-  const fullRemoteOnly =
+  // The profile markdown only speaks when no remote policy is stated.
+  const fullRemoteOnly = loc.fullRemoteOnly || (!remotePolicy &&
     /full remote/.test(profileText) &&
-    /(required|obligatoire|only|obligatoire\.|mandatory|full remote only)/.test(profileText);
-  const noRelocation = /no relocation|sans relocalisation|pas de relocalisation/.test(profileText);
+    /(required|obligatoire|only|obligatoire\.|mandatory|full remote only)/.test(profileText));
+  const noRelocation = loc.relocation === false || /no relocation|sans relocalisation|pas de relocalisation/.test(profileText);
   const occasionalOnsiteOk = /occasional on-?site|on-?site occasionnel|sessions on-?site occasionnelles|exceptional opportunity|opportunité exceptionnelle/.test(profileText);
+  // Internships and junior roles are refused unless the profile targets them.
+  const levelText = [...archetypes.map(entry => `${entry.name} ${entry.level}`), ...primaryRoles, compensation.employment_type].join(' ');
+  const rejectInternships = !/\b(intern(ship)?|(?<!early[- ])stage|stagiaire|alternan\w*|apprenti\w*|junior|entry[- ]level|graduate)\b/i.test(levelText);
 
   return {
     candidate: {
       location: normalizeInline(candidate.location),
-      country: normalizeInline(location.country),
-      city: normalizeInline(location.city),
-      timezone: normalizeInline(location.timezone),
+      country: normalizeInline(loc.defaultBase?.country || location.country),
+      city: normalizeInline(loc.defaultBase?.city || location.city),
+      timezone: normalizeInline(location.timezone || loc.bases.map(base => base.timezoneLabel).filter(Boolean).join(' / ')),
       visaStatus: normalizeInline(location.visa_status),
+      nationality: loc.nationality,
+      bases: loc.bases,
     },
     targeting: {
       primaryRoles,
       archetypes,
+      searchTerms: cleanList(targetRoles.search_terms),
       headline: normalizeInline(narrative.headline),
       superpowers: cleanList(narrative.superpowers),
       yearsExperience: Number(candidate.years_experience) || '',
-      rejectInternships: true,
+      rejectInternships,
     },
     compensation: {
       targetRange: normalizeInline(compensation.target_range),
@@ -6166,40 +6537,19 @@ function inferProfileMatchingRules(profileData = {}, profileMarkdown = '') {
       fullRemoteOnly,
       noRelocation,
       occasionalOnsiteOk,
-      onsitePlaces: onsitePlacesFromProfile(location, onsiteAvailability),
+      onsitePlaces: loc.onsitePlaces,
       authorizedIn: cleanList(location.authorized_in),
       needsSponsorship: location.needs_sponsorship === true,
+      // true for authorized_in or a base in the United States, false, or null
+      // (unknown) when the profile names no base and no authorized country.
+      usAuthorized: loc.bases.some(base => base.country === 'United States') || authorizedFor(loc, 'United States'),
+      // Where the candidate may not work is only known from explicit data: a
+      // city alone (Berlin) says where they live, not where they may work.
+      authorizationStated: loc.authorizedIn.length > 0 || loc.needsSponsorship
+        || (Array.isArray(location.bases) && location.bases.some(base => cleanString(base?.status))),
+      loc: { ...loc, fullRemoteOnly },
     },
   };
-}
-
-// Where a full-remote candidate still takes hybrid or on-site work: the places
-// on-site availability names ("Open to on-site if based in Thailand"), each
-// with the profile base it belongs to (asia_country Thailand brings asia_city
-// Bangkok). Negated clauses and travel ("traveling for offsites anywhere") open
-// no place.
-function onsitePlacesFromProfile(location = {}, onsiteAvailability = '') {
-  const open = String(onsiteAvailability)
-    .split(/[;\n]|\.\s/)
-    .map(clause => clause.split(/\btravel|\bdéplace/i)[0])
-    .filter(clause => !/\b(?:no|not|never|except|pas|jamais|sauf)\b/i.test(clause))
-    .join('\n');
-  const place = "\\p{Lu}[\\p{L}'’-]+(?:\\s+\\p{Lu}[\\p{L}'’-]+)*";
-  const named = new RegExp(`(?<!\\p{L})(?:[Ii]n|[Aa]t|[Ww]ithin|[Àà]|[Ee]n|[Aa]ux?)\\s+(${place}(?:\\s*(?:,|/|or|and|ou|et)\\s*${place})*)`, 'gu');
-  const places = new Set();
-  for (const [, list] of open.matchAll(named)) {
-    for (const name of list.split(/\s*(?:[,/]|\b(?:or|and|ou|et)\b)\s*/)) if (name) places.add(name);
-  }
-  for (const key of Object.keys(location).filter(key => /(?:^|_)city$/.test(key))) {
-    const base = [location[key], location[key.replace(/city$/, 'country')]].map(normalizeInline).filter(Boolean);
-    if (base.some(name => mentionsPlace(open, name))) base.forEach(name => places.add(name));
-  }
-  return [...places];
-}
-
-function mentionsPlace(text = '', place = '') {
-  const pattern = String(place).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-  return Boolean(pattern) && new RegExp(`(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])`, 'iu').test(text);
 }
 
 function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
@@ -6212,7 +6562,13 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
     ? `outside ${onsitePlaces}`
     : onsiteNote ? 'in a place or rhythm the on-site availability does not cover' : `outside ${home}`;
   const onsiteFailRule = `hybrid/on-site attendance ${onsiteScope}${onsiteNote ? ` (on-site availability: "${onsiteNote}")` : ''}`;
-  const authorizedInUs = candidateAuthorizedInUs(rules.location.authorizedIn);
+  // true, false, or null when the profile names no base and no authorized country.
+  const { usAuthorized } = rules.location;
+  const usAuthRule = usAuthorized === true
+    ? 'US work authorization (I-9, E-Verify, authorized to work in the US) is met: the candidate is authorized in the United States'
+    : usAuthorized === false
+      ? 'no US work authorization (I-9, E-Verify, authorized to work in the US): the candidate is not authorized in the United States'
+      : 'US work authorization (I-9, E-Verify, authorized to work in the US) is unknown: the profile names no base or authorized country';
   const archetypeLines = rules.targeting.archetypes.length
     ? rules.targeting.archetypes.map(entry => `- ${entry.name}${entry.level ? ` (${entry.level})` : ''} — fit ${entry.fit}`).join('\n')
     : '- none';
@@ -6237,6 +6593,10 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
   const dealBreakers = rules.search.dealBreakers.length
     ? rules.search.dealBreakers.map(item => `- ${item}`).join('\n')
     : '- none';
+  const aiProficiency = String(profileData?.candidate?.ai_proficiency || '').trim();
+  const skills = (Array.isArray(profileData?.candidate?.skills) ? profileData.candidate.skills : [])
+    .map(skill => String(typeof skill === 'string' ? skill : skill?.name || '').trim())
+    .filter(Boolean);
 
   return [
     '### Hard Matching Rules',
@@ -6259,8 +6619,16 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
     '',
     '### Candidate Context',
     `- Headline: ${rules.targeting.headline || 'not specified'}`,
-    `- Location: ${[rules.candidate.location, rules.candidate.city, rules.candidate.country].filter(Boolean).join(' / ') || 'not specified'}`,
-    `- Timezone: ${rules.candidate.timezone || 'not specified'}`,
+    ...(rules.location.loc?.bases?.length
+      ? ['- Bases (where the candidate works from):', ...locationSummaryLines(rules.location.loc).map(line => `  ${line}`)]
+      : [`- Location: ${[rules.candidate.location, rules.candidate.city, rules.candidate.country].filter(Boolean).join(' / ') || 'not specified'}`,
+         `- Timezone: ${rules.candidate.timezone || 'not specified'}`]),
+    ...(rules.candidate.nationality ? [`- Nationality: ${rules.candidate.nationality}`] : []),
+    ...(rules.targeting.yearsExperience ? [`- Years of experience: ${rules.targeting.yearsExperience}`] : []),
+    // The profile's own level and skills: with only CV lines, the evaluator
+    // read an AI builder's independent products as "no AI experience".
+    ...(aiProficiency ? [`- AI proficiency (from the profile): ${aiProficiency}`] : []),
+    ...(skills.length ? [`- Skills (from the profile): ${skills.slice(0, 24).join(', ')}`] : []),
     '',
     '### Strong Proof Areas',
     superpowers,
@@ -6282,8 +6650,8 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
     '',
     '### Enforcement',
     rules.location.fullRemoteOnly
-      ? `- Hard rules: full remote only (${onsiteFailRule} is a hard fail); no residency lock in a country where the candidate is not authorized; no US work authorization (I-9, E-Verify, authorized to work in the US) unless authorized_in includes the United States.`
-      : `- Hard rules: apply the remote policy above literally (${rules.location.remotePolicy || 'not specified'}); no residency lock in a country where the candidate is not authorized; no US work authorization (I-9, E-Verify, authorized to work in the US) unless authorized_in includes the United States.`,
+      ? `- Hard rules: full remote only (${onsiteFailRule} is a hard fail); no residency lock in a country where the candidate is not authorized; ${usAuthRule}.`
+      : `- Hard rules: apply the remote policy above literally (${rules.location.remotePolicy || 'not specified'}); no residency lock in a country where the candidate is not authorized; ${usAuthRule}.`,
     `- Hard fail (Score 1.0/5 + SKIP) ONLY with verbatim JD/location evidence of: ${rules.location.fullRemoteOnly ? `${onsiteFailRule}, ` : ''}a residency lock outside the candidate's authorized countries, or work-authorization requirements the candidate does not meet.`,
     '- Do NOT hard-fail on: bare "Remote" with no country lock, HQ/office perks without mandatory days, assumed travel/OEM/tradeshows, domain skill gaps, or city names in the title when the posting is still remote.',
     '- Application-form questions are not job requirements. Greenhouse/Ashby/Lever form fields asked of every applicant ("Are you legally authorized to work in the country in which you are currently domiciled?", "Do you now, or will you in the future, require sponsorship?", "How did you hear about this job?", free-text screening questions) are never a residency lock, a job location, a requirement to score in Block B, or a hard-fail reason.',
@@ -6297,88 +6665,14 @@ function buildProfileCriteriaBlock(profileData = {}, profileMarkdown = '') {
     ...(rules.location.fullRemoteOnly && onsitePlaces
       ? [`- Hybrid or on-site work based in ${onsitePlaces} is within the candidate's on-site availability: not a hard fail and no work-mode penalty.`]
       : []),
-    authorizedInUs
+    usAuthorized === true
       ? '- US-only remote or US residency requirements are acceptable: the candidate is authorized to work in the United States.'
-      : '- US-only remote, must live/reside in the US, or US work-auth → Score 1.0/5 and SKIP. Do not leave as Unstated.',
+      : usAuthorized === false
+        ? '- US-only remote, must live/reside in the US, or US work-auth → Score 1.0/5 and SKIP. Do not leave as Unstated.'
+        : '- US-only remote, US residency or US work-auth: the candidate\'s US status is unknown (no base or authorized country in the profile). Mark it unknown, never a hard fail.',
     '- Domain-experience asks (e.g. "N years in AI") are preferences, not hard rejects, when the CV shows adjacent evidence. Never score 1.0 only because the JD lacks or demands a specific domain mandate.',
     '- If a profile criterion is not visible in the JD, do not invent it; mark it as unknown.',
   ].join('\n');
-}
-
-function inferWorkModeFromText(text = '') {
-  // One line: descriptions keep their line breaks, and ".{0,40}" windows stop at them.
-  const content = String(text || '').replace(/\s+/g, ' ');
-  const lower = content.toLowerCase();
-  const snippets = [];
-
-  const collect = (patterns) => {
-    for (const pattern of patterns) {
-      const match = lower.match(pattern);
-      if (match) {
-        const start = Math.max(0, match.index - 40);
-        const end = Math.min(content.length, match.index + match[0].length + 80);
-        snippets.push(normalizeInline(content.slice(start, end)));
-      }
-    }
-  };
-
-  const hybridPatterns = [
-    /\bhybrid\b/,
-    /\b\d+\s*(?:-|to)\s*\d+\s*days?\s*(?:a|per)?\s*week\b/,
-    /\b\d+\s*days?\s*(?:a|per)?\s*week\b/,
-    /\bin[- ]office\b/,
-    /\bon-?site\b/,
-    /\boffice[- ]based\b/,
-    // French postings: "télétravail jusqu'à 3 jours/semaine", "2 jours sur site".
-    /\b(?:mode|travail|poste|format|rythme|t[ée]l[ée]travail) hybride\b|\ben hybride\b/,
-    /\bt[ée]l[ée]travail\s*:?\s*(?:partiel|jusqu['’]?(?:à|a)\s*\d|\d+\s*jours?)/,
-    /\b\d+\s*jours?(?:\s*(?:\/|par)\s*semaine)?\s*(?:de\s+)?t[ée]l[ée]travail\b/,
-    /\b\d+\s*jours?(?:\s*(?:\/|par)\s*semaine)?\s*(?:sur site|au bureau|en pr[ée]sentiel|dans nos locaux)\b/,
-  ];
-  const fullyRemotePatterns = [
-    /\bfull(?:y)? remote\b/,
-    /\bremote[- ]first\b/,
-  ];
-  // A remote allowance ("6 week remote working policy", "work from anywhere
-  // 4 weeks a year") is a perk of an office job, unless the posting is fully remote.
-  const remoteAllowance = /\b\d+[- ]?weeks?\s+(?:of\s+)?(?:remote|work(?:ing)? from anywhere)\b|\b(?:remote|work(?:ing)? from anywhere)\b.{0,40}\b\d+\s*weeks?\s*(?:a|per)\s*year\b/;
-  const onsitePatterns = [
-    /\bon-?site only\b/,
-    /\bfully on-?site\b/,
-    /\bmust be based in\b/,
-    /\bmust relocate\b/,
-    /\brelocation required\b/,
-    /\b5\s*days?\s*(?:a|per)?\s*week\b/,
-    /\b(?:at|out of) our [a-z ]+ office\b/,
-    /\b(?:100\s*%|full|poste en)\s*pr[ée]sentiel\b/,
-    ...(fullyRemotePatterns.some(pattern => pattern.test(lower)) ? [] : [remoteAllowance]),
-  ];
-  const remotePatterns = [
-    ...fullyRemotePatterns,
-    /\bwork from anywhere\b/,
-    /\bdistributed team\b/,
-    /\bremote within\b/,
-    /\bremote role\b/,
-    /\bremote\b/,
-  ];
-
-  if (onsitePatterns.some(pattern => pattern.test(lower))) {
-    collect(onsitePatterns);
-    return { mode: 'onsite', evidence: snippets.slice(0, 3) };
-  }
-  if (hybridPatterns.some(pattern => pattern.test(lower))) {
-    collect(hybridPatterns);
-    return { mode: 'hybrid', evidence: snippets.slice(0, 3) };
-  }
-  if (remotePatterns.some(pattern => pattern.test(lower))) {
-    collect(remotePatterns);
-    return { mode: 'remote', evidence: snippets.slice(0, 3) };
-  }
-  return { mode: 'unknown', evidence: [] };
-}
-
-function candidateAuthorizedInUs(authorizedIn = []) {
-  return cleanList(authorizedIn).some(item => /\bunited states\b|\busa\b/i.test(item));
 }
 
 /**
@@ -6407,10 +6701,10 @@ function inferUsConstraintFromText(text = '') {
     [/\bmust reside in the (u\.?s\.?a?|united states)\b/, 'must reside in the US'],
     [/\bmust be (?:based|located) in the (u\.?s\.?a?|united states)\b/, 'must be based in the US'],
     [/\bcandidates must (?:live|reside|be based|be located) in the (u\.?s\.?a?|united states)\b/, 'candidates must live in the US'],
-    [/\b(united states|usa|u\.s\.) only\b/, 'US-only'],
-    [/\bus-only\b/, 'US-only'],
-    [/\bremote\s*[-–—]\s*us\b/, 'Remote - US'],
-    [/\bremote \(us\)\b/, 'Remote (US)'],
+    [/\b(?:united states|usa|u\.s\.?|us)[ -]only\b/, 'US-only'],
+    [/\bremote\s*[-–—]?\s*(?:us|usa|u\.s\.?|united states)\b/, 'Remote - US'],
+    [/\b(?:us|usa|u\.s\.?|united states)\s*[-–—]?\s*remote\b/, 'US Remote'],
+    [/\bremote\s*\(\s*(?:us|usa|united states)\s*\)/, 'Remote (US)'],
   ];
   const multiRegion = /(?:europe|eu|emea|asia|apac|worldwide|global).{0,40}(?:or|,|\/|and).{0,40}(?:us|usa|united states)|(?:us|usa|united states).{0,40}(?:or|,|\/|and).{0,40}(?:europe|eu|emea|asia|apac|worldwide|global)|\bwork from anywhere\b|\banywhere in the world\b/i.test(lower);
   for (const [re, label] of residency) {
@@ -6425,28 +6719,91 @@ function inferUsConstraintFromText(text = '') {
 // on-site availability opens (rules.location.onsitePlaces).
 function onsiteAllowedFor(rules, { mode = '', place = '', evidence = [] } = {}) {
   if (!rules.location.fullRemoteOnly || (mode !== 'hybrid' && mode !== 'onsite')) return true;
-  const text = [place, ...evidence].join('\n');
-  return rules.location.onsitePlaces.some(name => mentionsPlace(text, name));
+  return workModeAllowed(rules.location.loc, { mode, text: [place, ...evidence].join('\n') }).ok;
 }
 
-function evaluateOfferAgainstProfile(jdText = '', profileData = {}, profileMarkdown = '') {
+// "Must be based in X", "Candidates need to be located in X", "Only open to
+// candidates in X": the countries a posting restricts residence to. Empty when
+// the posting names none. A clause needs a modal: "Candidates located in the
+// UK are hired via our UK entity" and "For candidates based in the US, the
+// salary range is…" say nothing about where the candidate must live, and no
+// sentence about pay or the hiring entity counts.
+function inferResidencyLockFromText(text = '') {
+  const content = String(text || '').replace(/\s+/g, ' ').split(/(?<=[.!?])\s+/)
+    .filter(sentence => !/\b(?:salar(?:y|ies)|pay|payroll|compensation|entit(?:y|ies))\b/i.test(sentence))
+    .join(' ');
+  const clauses = [
+    ...content.matchAll(/\b(?:must|need to|required to|should) (?:be )?(?:live|living|reside|residing|based|located)\s+(?:in|within)\s+([^.;:()]{2,80})/gi),
+    ...content.matchAll(/\b(?:only (?:open|available) to (?:candidates|applicants|residents) (?:in|of|based in))\s+([^.;:()]{2,80})/gi),
+  ].map(match => match[1]);
+  const countries = new Set();
+  for (const clause of clauses) {
+    // "within US or European time zones", "compatible with US Eastern hours":
+    // a working-hours ask, not where the candidate must live.
+    if (/time ?zones?|\bhours\b|\butc\b|\bgmt\b|\bcet\b|\best\b|\bpst\b/i.test(clause)) continue;
+    // "the UK or the EU": every alternative counts, not only the first one.
+    for (const part of clause.split(/,|\/|&|\bor\b|\band\b/i)) {
+      for (const country of placesIn(part).countries) countries.add(country);
+      for (const country of regionCountriesIn(`in ${part.trim().replace(/^the\s+/i, '')}`)) countries.add(country);
+    }
+  }
+  return { countries: [...countries], clauses };
+}
+
+// `atsWorkMode`: the ATS's own work-mode field (lib/work-mode.mjs
+// structuredWorkMode, carried on the fetchJobDescriptionText result). It wins
+// over the JD text, which only decides when the posting has no such field.
+// `remoteVerdict`: what the scan said about remote ('unclear' = ambiguous). On a
+// full-remote profile, an unclear posting whose text never mentions remote work
+// is the "remote inconnu" hard fail the model would give after a full call.
+function evaluateOfferAgainstProfile(jdText = '', profileData = {}, profileMarkdown = '', { atsWorkMode = null, remoteVerdict = '' } = {}) {
   const rules = inferProfileMatchingRules(profileData, profileMarkdown);
-  const workMode = inferWorkModeFromText(jdText);
-  const usConstraint = inferUsConstraintFromText(jdText);
+  const workMode = resolveWorkMode(jdText, atsWorkMode);
+  // ATS location/work-mode fields can carry the only geo restriction (e.g.
+  // workplaceType=Remote + locations=["Remote - US"]). Apply the same hard
+  // residency/work-auth rules to that structured evidence as to the JD.
+  const eligibilityText = [jdText, ...(workMode.structured ? workMode.locations || [] : [])].filter(Boolean).join('\n');
+  const usConstraint = inferUsConstraintFromText(eligibilityText);
   const reasons = [];
   let skip = false;
 
-  // The whole JD stands for the place: a location field alone ("APAC") misses
-  // "based in our Bangkok office". An allowed posting goes to Qwen, whose
-  // enforcement block carries the same places.
-  if (!onsiteAllowedFor(rules, { mode: workMode.mode, place: jdText, evidence: workMode.evidence })) {
+  // The location lines and the attendance sentences stand for the place: a
+  // location field alone ("APAC") misses "based in our Bangkok office", and the
+  // whole JD opened any city it named ("teams in Bangkok"). An allowed posting
+  // goes to Qwen, whose enforcement block carries the same places. A
+  // structured hybrid or on-site mode adds the ATS's location list.
+  const place = [attendancePlaceText(jdText), ...(workMode.structured ? workMode.locations || [] : [])].join('\n');
+  if (!onsiteAllowedFor(rules, { mode: workMode.mode, place })) {
     const { onsitePlaces } = rules.location;
-    reasons.push(`Profile requires full remote${onsitePlaces.length ? ` (on-site only in ${onsitePlaces.join(', ')})` : ''}, but the JD looks ${workMode.mode}.`);
+    const looks = workMode.implied
+      ? `names only an office location (${workMode.evidence.map(line => line.replace(/^Location: /, '')).join(' | ')}) and never mentions remote work`
+      : workMode.structured
+        ? `is ${workMode.mode} per the ATS field (${workMode.evidence.join('; ')})`
+        : `looks ${workMode.mode}`;
+    reasons.push(`Profile requires full remote${onsitePlaces.length ? ` (on-site only in ${onsitePlaces.join(', ')})` : ''}, but the JD ${looks}.`);
   }
 
-  if (usConstraint.blocked && !candidateAuthorizedInUs(rules.location.authorizedIn)) {
+  if (remoteVerdict === 'unclear' && rules.location.fullRemoteOnly && workMode.mode === 'unknown' && !workMode.structured
+      && !/\b(?:remote|remotely|t[ée]l[ée]travail|work from (?:home|anywhere)|wfh|distributed|home[ -]?office|anywhere in)\b/i.test(jdText)) {
+    reasons.push('Profile requires full remote, the scan could not confirm remote work, and the posting never mentions it.');
+  }
+
+  // Unknown US status (no base, no authorized country) is never a hard pass.
+  if (usConstraint.blocked && rules.location.usAuthorized === false) {
     reasons.push(`JD requires US residency or US work authorization (${usConstraint.label}); candidate is not authorized in the United States.`);
     skip = true;
+  }
+
+  // Residence restricted to countries the candidate can neither live nor work
+  // in. Only with a profile that states where the candidate may work.
+  const residency = inferResidencyLockFromText(eligibilityText);
+  const loc = rules.location.loc;
+  if (!usConstraint.blocked && residency.countries.length && rules.location.authorizationStated && (loc.authorizedCountries.size || loc.bases.length)) {
+    const allowed = residency.countries.some(country => authorizedFor(loc, country) || loc.bases.some(base => base.country === country));
+    if (!allowed) {
+      reasons.push(`JD restricts residence to ${residency.countries.slice(0, 6).join(', ')}${residency.countries.length > 6 ? '…' : ''}; the candidate can work only in ${loc.authorizedIn.join(', ') || loc.bases.map(base => base.country).join(', ')}.`);
+      skip = true;
+    }
   }
 
   return {
@@ -6512,15 +6869,20 @@ async function removeManyFromPipeline(urls = [], userId, { historyStatus = 'dele
   for (const { error } of failed) console.error('Supabase update error:', error);
 
   const removedAt = new Date().toISOString();
+  const memory = await scanMemoryOf(userId);
   await recordPipelineChange(
     cleanUrls.map(url => ({ url, status: 'removed', scanned_at: removedAt })),
     targets.map(target => pipelineHistoryLine(target.url, historyPortal, target.item?.title, target.item?.company, historyStatus)),
+    memory,
   );
 
-  try {
-    await editPipelineMarkdown(raw => removePipelineMarkdownUrls(raw, cleanUrls));
-  } catch (err) {
-    console.warn(`[pipeline] markdown remove failed: ${err.message}`);
+  // data/pipeline.md is the owner's inbox.
+  if (!memory.account) {
+    try {
+      await editPipelineMarkdown(raw => removePipelineMarkdownUrls(raw, cleanUrls));
+    } catch (err) {
+      console.warn(`[pipeline] markdown remove failed: ${err.message}`);
+    }
   }
 
   if (failed.length) throw new Error(`Supabase pipeline sync failed for ${failed.length} offer(s)`);
@@ -6528,6 +6890,15 @@ async function removeManyFromPipeline(urls = [], userId, { historyStatus = 'dele
 
 async function removeFromPipeline(url, userId, opts) {
   return removeManyFromPipeline([url], userId, opts);
+}
+
+// GET /api/pipeline/dropped lists these (lib/gate-drops.mjs). A failed write
+// only loses the trace, never the drop itself.
+async function logGateDrops(userId, drops = []) {
+  const memory = await scanMemoryOf(userId);
+  for (const drop of drops) {
+    await appendGateDrop(memory, drop).catch(err => console.warn(`[pipeline] gate-drops: ${err.message}`));
+  }
 }
 
 function jevDecisionToRecord(decision = {}, existing = {}, scannedAt = new Date().toISOString()) {
@@ -6549,13 +6920,25 @@ function jevDecisionToRecord(decision = {}, existing = {}, scannedAt = new Date(
   }, scannedAt);
 }
 
-async function updatePipelineJevScores(decisions = [], userId) {
+async function updatePipelineJevScores(decisions = [], userId, items = []) {
   const byKey = new Map(
     (decisions || [])
       .filter(item => item?.url)
       .map(item => [normalizeUrlKey(item.url), item])
   );
   if (!byKey.size) return;
+
+  // data/pipeline.md and pipeline.jsonl are the owner's (another account is
+  // always a Supabase one): its note is rebuilt from its own triaged rows.
+  if (!await ownsLocalData(userId)) {
+    const rowsByKey = new Map((items || []).filter(item => item?.url).map(item => [normalizeUrlKey(item.url), item]));
+    for (const [key, decision] of byKey) {
+      const record = jevDecisionToRecord(decision, rowsByKey.get(key) || {}, new Date().toISOString());
+      const { error } = await supabase.from('pipeline').update({ note: formatPipelineNote(record) }).eq('url', record.url).eq('user_id', userId);
+      if (error) console.warn(`[pipeline] Failed to persist Jev score in Supabase: ${error.message}`);
+    }
+    return;
+  }
 
   const records = await readLatestPipelineRecords();
   const written = [];
@@ -6602,13 +6985,13 @@ function resolvePipelineItemPublishedAt(item = {}, today = '') {
   }, today);
 }
 
-async function dropInternPipelineItems(items = [], userId) {
+async function dropInternPipelineItems(items = [], userId, levelPolicy = levelPolicyFrom()) {
   const rejected = [];
   const current = [];
   for (const item of items || []) {
     if (!item?.url) continue;
     const candidate = pipelineItemToJevCandidate(item);
-    const reason = levelGateReason(candidate.title, candidate.url);
+    const reason = levelGateReason(candidate.title, candidate.url, levelPolicy);
     if (reason) rejected.push({ ...item, titleReason: reason });
     else current.push(item);
   }
@@ -6654,22 +7037,12 @@ async function dropStalePipelineItems(items = [], userId) {
   const current = [];
   for (const item of items || []) {
     if (!item?.url) continue;
-    // Already-kept pipeline rows were accepted (or restored) for eval.
-    // Age belongs to scan ingest — do not purge them again on Process.
-    if (pipelineItemReadyForEval(item)) {
-      current.push(item);
-      continue;
-    }
     const addedAt = String(item.scanned_at || item.created_at || '').slice(0, 10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(addedAt)) {
-      const addedFresh = assessFreshness({ publishedAt: addedAt, maxAgeDays, today });
-      if (addedFresh.ok) {
-        current.push(item);
-        continue;
-      }
-    }
     const publishedAt = resolvePipelineItemPublishedAt(item, today);
-    const freshness = assessFreshness({ publishedAt, maxAgeDays, today });
+    // The posting's publication date wins. `scanned_at`/`created_at` is only
+    // a proxy when the posting itself has no trustworthy date; a fresh scan
+    // must not make an old job look newly published.
+    const freshness = assessFreshness({ publishedAt, firstSeen: addedAt, maxAgeDays, today });
     if (!freshness.ok) stale.push({ ...item, publishedAt: freshness.publishedAt || publishedAt });
     else current.push(item);
   }
@@ -6723,7 +7096,7 @@ async function backfillPipelineIdentities(items = []) {
 
 async function triagePipelineItemsWithJev(items = [], userId, profileRules = {}, { onProgress } = {}) {
   const titled = await backfillPipelineIdentities(items);
-  const { current: notInterns, rejected: titleDropped } = await dropInternPipelineItems(titled, userId);
+  const { current: notInterns, rejected: titleDropped } = await dropInternPipelineItems(titled, userId, levelPolicyFrom(profileRules.targeting));
   const { current: notListings, listings } = await dropListingPipelineItems(notInterns, userId);
   const { current, stale } = await dropStalePipelineItems(notListings, userId);
   const pending = current.filter(item => pipelineItemNeedsJevTriage(item, { rescoreKept: false }));
@@ -6754,9 +7127,16 @@ async function triagePipelineItemsWithJev(items = [], userId, profileRules = {},
       historyStatus: 'jev_dropped',
       historyPortal: 'pipeline-jev',
     });
+    await logGateDrops(userId, result.dropped.map(item => ({
+      url: item.url,
+      title: item.title,
+      company: item.company,
+      gate: 'jev',
+      reasons: [`Jev (titre et lieu) : probabilité de garder ${item.jevKeep == null ? 'inconnue' : Number(item.jevKeep).toFixed(2)}, sous le seuil.`],
+    })));
   }
   if (result.kept.length && !accountError) {
-    await updatePipelineJevScores(result.kept, userId);
+    await updatePipelineJevScores(result.kept, userId, pending);
   }
 
   return {
@@ -6829,6 +7209,11 @@ function parseApplicationsMarkdown(content = '') {
     .filter(r => !isNaN(r.num));
 }
 
+// Hash of the rows last pushed OK, per target account: every tracker write
+// triggers a push, and six identical 700-row upserts in a row were common
+// (2026-10-17 log), one of them timing out on a network blip.
+const lastAppsSyncHash = new Map();
+
 /**
  * Push local applications.md → Supabase using the logged-in user id when available.
  * This is the missing link that made evaluated offers invisible in the UI.
@@ -6851,6 +7236,10 @@ async function syncLocalApplicationsToSupabase(userId) {
   if (uid) rows.forEach(r => { r.user_id = uid; });
   rows.forEach(r => { if (!r.job_url) delete r.job_url; });
 
+  const rowsHash = createHash('sha1').update(JSON.stringify(rows)).digest('hex');
+  const syncKey = uid || 'none';
+  if (lastAppsSyncHash.get(syncKey) === rowsHash) return { ok: true, count: rows.length, unchanged: true };
+
   let { error } = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
   if (error && /job_url|schema cache|column/i.test(error.message || '')) {
     rows.forEach(r => { delete r.job_url; });
@@ -6861,6 +7250,7 @@ async function syncLocalApplicationsToSupabase(userId) {
     console.error('[sync-apps] Supabase upsert failed:', error.message);
     return { ok: false, error: error.message, count: 0 };
   }
+  lastAppsSyncHash.set(syncKey, rowsHash);
   console.log(`[sync-apps] ${rows.length} application(s) synced to Supabase (user=${uid || 'none'})`);
   return { ok: true, count: rows.length };
 }
@@ -7828,15 +8218,21 @@ async function draftApplicationEmailRequest(body = {}, userId) {
     }
   };
 
-  const [cv, profileData, profileContext, custom, companyText, job, localProfileRaw] = await Promise.all([
+  // modes/_custom.md and config/profile.yml are the owner's files: another
+  // account's rules come from its own profile (outreach_rules), and its
+  // contact block is never completed with the owner's phone.
+  const owner = await ownsLocalData(userId);
+  const [cv, profileData, profileContext, ownerCustom, companyText, job, localProfileRaw] = await Promise.all([
     getCvMarkdown(userId),
     getProfile(userId).catch(() => ({})),
     getProfileContext(userId).catch(() => ''),
-    readFile(join(ROOT, 'modes/_custom.md'), 'utf-8').catch(() => ''),
+    owner ? readFile(join(ROOT, 'modes/_custom.md'), 'utf-8').catch(() => '') : '',
     fetchCompanyPage(),
     fetchJob(),
-    readFile(PROFILE_FILE, 'utf-8').catch(() => ''),
+    owner ? readFile(PROFILE_FILE, 'utf-8').catch(() => '') : '',
   ]);
+  const ownRules = String(profileData?.outreach_rules || '').trim();
+  const custom = owner ? ownerCustom : (ownRules ? `### Brand names in outreach\n${ownRules}\n` : '');
   if (!String(cv).trim()) return { status: 400, payload: { error: 'No CV in your profile yet. Import your CV first.' } };
   let localProfile = {};
   try { localProfile = localProfileRaw ? yamlLoad(localProfileRaw) || {} : {}; } catch { localProfile = {}; }
@@ -8088,10 +8484,58 @@ const server = createServer(async (req, res) => {
       return json(res, publicMonetizationConfig(await getMonetization()));
     }
 
+    // ── Agency orders (lib/agence-checkout.mjs). Public: the order form on /agence.
+    // Card payments stay off (503) unless AGENCE_PAYMENTS=stripe, STRIPE_SECRET_KEY and
+    // AGENCE_TERMS_URL are all set; the order is priced here from the offers JSON, never
+    // from the amounts a client sends. See docs/AGENCE_PAYMENTS.md.
+    if (path === '/api/agence/checkout/config' && method === 'GET') {
+      return json(res, publicCheckoutConfig(checkoutConfig()));
+    }
+    if (path === '/api/agence/checkout' && method === 'POST') {
+      const cfg = checkoutConfig();
+      if (cfg.mode !== 'stripe') return json(res, { error: 'payments_off' }, 503);
+      if (agenceOrderLimited(clientIp(req))) {
+        res.setHeader('Retry-After', '600');
+        return json(res, { error: 'too_many_orders' }, 429);
+      }
+      const body = await readBody(req, { limit: 32 * 1024 });
+      const lang = body && body.lang === 'fr' ? 'fr' : 'en';
+      const offers = await loadAgencyOffers(ROOT);
+      if (!offers) return json(res, { error: 'offers_unavailable' }, 503);
+      const priced = priceOrder(offers, body, lang);
+      if (!priced.ok) return json(res, { error: priced.error }, 422);
+      const who = validateCustomer(body && body.customer);
+      if (!who.ok) return json(res, { error: who.error }, 422);
+      const origin = publicOrigin(req);
+      if (!origin) return json(res, { error: 'no_origin' }, 500);
+      const params = stripeSessionParams(priced.order, who.customer, { origin, lang, automaticTax: cfg.automaticTax });
+      const session = await createCheckoutSession(params, process.env.STRIPE_SECRET_KEY);
+      return json(res, { url: session.url });
+    }
+    if (path === '/api/agence/checkout/session' && method === 'GET') {
+      if (checkoutConfig().mode !== 'stripe') return json(res, { error: 'payments_off' }, 503);
+      try {
+        return json(res, await retrieveCheckoutSession(urlObj.searchParams.get('id'), process.env.STRIPE_SECRET_KEY));
+      } catch (err) {
+        return json(res, { error: 'unknown_session' }, err.statusCode === 404 ? 404 : 502);
+      }
+    }
+    if (path === '/api/agence/stripe-webhook' && method === 'POST') {
+      const secret = String(process.env.STRIPE_WEBHOOK_SECRET || '').trim();
+      if (!secret) return json(res, { error: 'webhook_off' }, 503);
+      const raw = await readRawBody(req);
+      if (!verifyStripeSignature(raw, req.headers['stripe-signature'], secret)) return json(res, { error: 'bad_signature' }, 400);
+      let event;
+      try { event = JSON.parse(raw.toString('utf8')); } catch { return json(res, { error: 'bad_json' }, 400); }
+      const record = orderRecordFromEvent(event);
+      if (record) await recordAgenceOrder(record);
+      return json(res, { received: true });
+    }
+
     // ── Auth guard (toutes les routes /api/* sauf /api/hrhv) ─────────────────
     // Read-only GET routes are accessible without auth (view-only mode)
     const VIEW_ONLY_PATHS = ['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs', '/api/portals', '/api/queries', '/api/profile', '/api/scan-state', '/api/scan-sources', '/api/monetization/affiliates', '/api/apply/bridge-status', '/api/apply/extension.zip'];
-    const AUTH_REQUIRED_PROFILE_PATHS = new Set(['/api/profile/status', '/api/profile/cv-parse']);
+    const AUTH_REQUIRED_PROFILE_PATHS = new Set(['/api/profile/status', '/api/profile/cv-parse', '/api/profile/apply-cv', '/api/profile/apply-cv/file']);
     const isViewOnlyGet = method === 'GET'
       && !AUTH_REQUIRED_PROFILE_PATHS.has(path)
       && VIEW_ONLY_PATHS.some(p => path === p || path.startsWith(p + '/'));
@@ -8112,8 +8556,8 @@ const server = createServer(async (req, res) => {
     // token is now resolved on all of them (a bad one is a 401, so the page
     // sees a failed load rather than someone else's data) and a non-admin
     // account reads its own rows only (viewOnlyScope). Anonymous view-only
-    // callers are unchanged. portals.yml, the scan state and the plugin
-    // routes are one shared config with no per-account rows yet.
+    // callers are unchanged. portals.yml and the plugin routes are one shared
+    // config with no per-account rows yet; the scan state is per account.
     if (useSupabase && isViewOnlyGet) {
       const hasToken = String(req.headers['authorization'] || '').startsWith('Bearer ') || urlObj.searchParams.has('_token');
       if (hasToken) {
@@ -8250,7 +8694,8 @@ const server = createServer(async (req, res) => {
         const { error } = await q;
         if (error) return json(res, { error: error.message }, 500);
 
-        await writeMarkdownApplicationStatus(num, status).catch(() => {});
+        // data/applications.md is the owner's: another account's row N is not its row N.
+        if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, status).catch(() => {});
         return json(res, { ok: true });
       }
       const updated = await writeMarkdownApplicationStatus(num, status).catch(() => false);
@@ -8274,15 +8719,15 @@ const server = createServer(async (req, res) => {
 
         const company = String(existing.company ?? existing.Company ?? '').trim();
         const role = String(existing.role ?? existing.Role ?? '').trim();
-        const jobUrl = await findPostingUrlFromReportLink(existing.report ?? '');
+        const jobUrl = await findPostingUrlFromReportLink(existing.report ?? '', req.userId);
 
         let updateQ = supabase.from('applications').update({ status: 'Discarded' }).eq('num', Number(num));
         if (req.userId) updateQ = updateQ.eq('user_id', req.userId);
         const { error } = await updateQ;
         if (error) return json(res, { error: error.message }, 500);
 
-        await writeMarkdownApplicationStatus(num, 'Discarded').catch(() => {});
-        await recordManualApplicationDelete({ company, role, jobUrl, date: today });
+        if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, 'Discarded').catch(() => {});
+        await recordManualApplicationDelete({ company, role, jobUrl, date: today, userId: req.userId });
         return json(res, { ok: true, status: 'Discarded' });
       }
 
@@ -8335,12 +8780,14 @@ const server = createServer(async (req, res) => {
         rows = nums.map(num => ({ num }));
       }
 
+      const ownsTracker = useSupabase && await ownsLocalData(req.userId);
       for (const row of rows) {
         const company = String(row.company ?? row.Company ?? '').trim();
         const role = String(row.role ?? row.Role ?? '').trim();
-        const jobUrl = await findPostingUrlFromReportLink(row.report ?? row.Report ?? '');
-        await recordManualApplicationDelete({ company, role, jobUrl, date: today });
-        if (!useSupabase) continue;
+        const jobUrl = await findPostingUrlFromReportLink(row.report ?? row.Report ?? '', req.userId);
+        await recordManualApplicationDelete({ company, role, jobUrl, date: today, userId: req.userId });
+        // data/applications.md is the owner's (the local branch above already wrote it).
+        if (!ownsTracker) continue;
         await writeMarkdownApplicationStatus(row.num, 'Discarded').catch(() => {});
       }
       return json(res, { ok: true, updated: rows.length, status: 'Discarded' });
@@ -8377,6 +8824,11 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    // Offers the pipeline dropped before Qwen, with the gate's reason.
+    if (path === '/api/pipeline/dropped' && method === 'GET') {
+      return json(res, { drops: await readGateDrops(await scanMemoryOf(viewOnlyScope(req))) });
+    }
+
     if (path === '/api/pipeline/jev-triage' && method === 'POST') {
       const body = await readBody(req).catch(() => ({}));
       const requested = Array.isArray(body?.urls) ? body.urls.map(value => String(value || '').trim()).filter(value => value.startsWith('http')) : [];
@@ -8386,15 +8838,11 @@ const server = createServer(async (req, res) => {
         ? pipe.filter(item => requestedKeys.has(normalizeUrlKey(item.url)))
         : pipe;
       const profile = await getProfileContext(req.userId).catch(() => '');
-      let profileData = {};
-      if (useSupabase && req.userId) {
-        profileData = await getProfile(req.userId).catch(() => ({}));
-      }
-      if (!profileData?.target_roles) {
-        try {
-          profileData = yamlLoad(await readFile(join(ROOT, 'config/profile.yml'), 'utf-8')) || profileData;
-        } catch { /* keep whatever we have */ }
-      }
+      // The same profile as the scan and pipeline route: only the owner's row
+      // is filled from config/profile.yml.
+      const profileData = useSupabase && req.userId
+        ? await getAccountProfile(req.userId, await ownsLocalData(req.userId)).catch(() => ({}))
+        : await readLocalProfile().catch(() => ({}));
       const profileRules = inferProfileMatchingRules(profileData || {}, profile);
       const triage = await triagePipelineItemsWithJev(items, req.userId, profileRules);
       const blockedUrls = [
@@ -8479,22 +8927,22 @@ const server = createServer(async (req, res) => {
       }
     }
 
-    // Scan State
+    // Scan State: each account sees when its own scans last read each source.
     if (path === '/api/scan-state') {
-      if (method === 'GET') return json(res, await getScanState());
+      if (method === 'GET') return json(res, await getScanState(await scanMemoryOf(viewOnlyScope(req))));
     }
 
     // Scan Sources (for selector modal)
     if (path === '/api/scan-sources' && method === 'GET') {
-      return json(res, await getScanSources());
+      return json(res, await getScanSources(await scanMemoryOf(viewOnlyScope(req))));
     }
 
-    // Scan Selection
+    // Scan Selection: the picker's choice is for the account's own next scan.
     if (path === '/api/scan-selection') {
-      if (method === 'GET')  return json(res, await getScanSelection());
+      if (method === 'GET')  return json(res, await getScanSelection(await scanMemoryOf(req.userId)));
       if (method === 'POST') {
         const sel = await readBody(req);
-        await saveScanSelection(sel);
+        await saveScanSelection(sel, await scanMemoryOf(req.userId));
         return json(res, { ok: true });
       }
     }
@@ -8591,8 +9039,8 @@ const server = createServer(async (req, res) => {
           ...(body && typeof body === 'object' && !Array.isArray(body) ? body : {}),
           profile: sanitizeProfileInput(body?.profile ?? body),
         };
-        const { degraded } = await saveProfileBundle(bundle, req.userId);
-        return json(res, { ok: true, degraded: Boolean(degraded), updated_at: await getProfileUpdatedAt(req.userId) });
+        const { degraded, missingColumns } = await saveProfileBundle(bundle, req.userId);
+        return json(res, { ok: true, degraded: Boolean(degraded), missing_columns: missingColumns || [], updated_at: await getProfileUpdatedAt(req.userId) });
       }
     }
 
@@ -8623,6 +9071,71 @@ const server = createServer(async (req, res) => {
         }
         await saveCvMarkdown(markdown, req.userId);
         return json(res, { ok: true });
+      }
+    }
+
+    // The CV PDF every application of this account attaches. Stored per
+    // account (lib/apply-account-files.mjs), never in the shared output/.
+    if (path === '/api/profile/apply-cv' || path === '/api/profile/apply-cv/file' || path === '/api/profile/apply-cv/generate') {
+      const account = applyAccountOf(req.userId);
+      if (!account) return json(res, { error: 'Sign in first.' }, 401);
+      const describe = (cv) => (cv ? { fileName: cv.fileName, size: cv.size, updatedAt: cv.updatedAt } : null);
+      if (path === '/api/profile/apply-cv/file' && method === 'GET') {
+        const cv = await readAccountCvBytes(WRITE_ROOT, account).catch(() => null);
+        if (!cv) return json(res, { error: 'No CV PDF on this account' }, 404);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${cv.fileName}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        res.writeHead(200);
+        res.end(cv.bytes);
+        return;
+      }
+      if (path === '/api/profile/apply-cv' && method === 'GET') {
+        const cv = await readAccountCv(WRITE_ROOT, account).catch(() => null);
+        // The owner without an upload still applies with the profile's apply_cv.
+        return json(res, { cv: describe(cv), ownerFallback: !cv && await ownsLocalData(req.userId) });
+      }
+      if (path === '/api/profile/apply-cv' && method === 'PUT') {
+        const body = await readBody(req, { limit: 8 * 1024 * 1024 });
+        const data = typeof body?.data === 'string' ? body.data.replace(/^data:[^,]*,/, '') : '';
+        try {
+          const cv = await saveAccountCv(WRITE_ROOT, account, { fileName: body?.fileName, bytes: Buffer.from(data, 'base64') });
+          return json(res, { ok: true, cv: describe(cv) });
+        } catch (err) {
+          return json(res, { error: err?.message || 'Could not save the PDF' }, 400);
+        }
+      }
+      if (path === '/api/profile/apply-cv' && method === 'DELETE') {
+        await deleteAccountCv(WRITE_ROOT, account);
+        return json(res, { ok: true, cv: null });
+      }
+      // A PDF made from the account's own CV (the premium template), kept as
+      // its apply CV.
+      if (path === '/api/profile/apply-cv/generate' && method === 'POST') {
+        if (IS_VERCEL) return json(res, { error: 'PDF generation needs the local server' }, 400);
+        try {
+          const templateData = await loadCvTemplateDataForUser(req.userId, 'complete_paris', {}, req.userEmail);
+          const html = await renderPremiumCV('complete_paris', {}, { userId: req.userId, templateData });
+          const name = String(templateData?.shared?.contact?.name || '').replace(/&(#39|quot|amp|lt|gt);/g, ' ');
+          await mkdir(join(WRITE_ROOT, 'batch/temp'), { recursive: true });
+          const tmpDir = await mkdtemp(join(WRITE_ROOT, 'batch/temp', 'apply-cv-'));
+          try {
+            const htmlPath = join(tmpDir, 'cv.html');
+            const pdfPath = join(tmpDir, 'cv.pdf');
+            await writeFile(htmlPath, html, 'utf-8');
+            const result = await runScript('pdf-gen', [htmlPath, pdfPath, '--format=a4']);
+            if (!result.ok) return json(res, { error: result.stderr || 'PDF generation failed' }, 500);
+            const cv = await saveAccountCv(WRITE_ROOT, account, {
+              fileName: safePdfName(name.trim() ? `${name.trim().replace(/\s+/g, '_')}_CV` : 'CV'),
+              bytes: await readFile(pdfPath),
+            });
+            return json(res, { ok: true, cv: describe(cv) });
+          } finally {
+            await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+          }
+        } catch (err) {
+          return json(res, { error: err?.message || 'PDF generation failed' }, 500);
+        }
       }
     }
 
@@ -8675,14 +9188,11 @@ const server = createServer(async (req, res) => {
     }
 
     // ── Auto-apply (Chrome plugin, Playwright fallback) ──────────────────────
-    // A run is the owner's: buildApplySpec reads config/profile.yml, cv.md and
-    // the apply PDF from ROOT, the run folders keep that spec, and the plugin
-    // drives the owner's Chrome. Until a run takes the account's own profile
-    // and CV, only the admin may preview, start or steer one; the plugin
-    // download and the bridge status (view-only GETs) stay open.
-    if (useSupabase && path.startsWith('/api/apply/') && !isViewOnlyGet && !(await isAdminUser(req.userId, req.userEmail))) {
-      return json(res, { error: 'Auto-apply is only available on the owner account for now.' }, 403);
-    }
+    // Every signed-in account applies with its own profile, CV and CV PDF
+    // (loadApplyContext), in the Chrome its dashboard paired (applyBridges),
+    // and only sees and steers the runs it started (applyRunVisibleTo). The
+    // Playwright window opens on the server's desktop: the owner's only.
+    const applyBridge = path.startsWith('/api/apply/') ? applyBridges.forAccount(applyAccountOf(req.userId)) : null;
 
     // Unpacked Chrome plugin. The dashboard offers this when the bridge is down.
     if (path === '/api/apply/extension.zip' && method === 'GET') {
@@ -8703,10 +9213,21 @@ const server = createServer(async (req, res) => {
     // if a run will happen in the user's tab or in a separate Playwright window.
     if (path === '/api/apply/bridge-status' && method === 'GET') {
       return json(res, {
+        // This account's plugin (anonymous view-only callers have none).
         connected: !IS_VERCEL && applyBridge.connected,
+        accounts: useSupabase,
         version: applyBridge.extensionVersion,
         readOptions: applyBridge.capabilities.has('read-options'),
       });
+    }
+
+    // A pairing token for the signed-in account: the dashboard hands it to
+    // the plugin, which sends it back to the bridge (ApplyBridgeHub).
+    if (path === '/api/apply/bridge-pair' && method === 'POST') {
+      if (IS_VERCEL) return json(res, { error: 'The Chrome plugin needs the local server' }, 400);
+      const account = applyAccountOf(req.userId);
+      if (!account) return json(res, { error: 'Sign in first.' }, 401);
+      return json(res, { token: await issueBridgePairToken(account) });
     }
 
     // Quick-fill helper: open the posting through the plugin (no popup
@@ -8751,6 +9272,7 @@ const server = createServer(async (req, res) => {
           reportFilename: report,
           company: cleanString(urlObj.searchParams.get('company')),
           role: cleanString(urlObj.searchParams.get('role')),
+          ...(await loadApplyContext(req.userId, report)),
         });
         return json(res, {
           region: spec.region,
@@ -8781,6 +9303,7 @@ const server = createServer(async (req, res) => {
           // the pause-before-submit review flow.
           autoSubmit: body.autoSubmit !== false,
           solveChallenges: body.solveChallenges !== false,
+          ...(await loadApplyContext(req.userId, report)),
         });
         // Open the tab immediately. Section F answers from the report are used
         // if present; missing free-text is written against the real form fields,
@@ -8798,9 +9321,22 @@ const server = createServer(async (req, res) => {
           pluginError = opened.error || '';
         }
 
+        // The Playwright window opens on this machine's desktop with the
+        // owner's browser profile: another account needs its own plugin.
+        const ownerRun = await ownsLocalData(req.userId);
+        if (!tabId && !ownerRun) {
+          return json(res, {
+            error: applyBridge.connected
+              ? `Your Chrome plugin could not open the offer (${pluginError || 'no tab'}).`
+              : 'Connect the JobYouGo Chrome plugin first: install it, then open this dashboard signed in in that Chrome.',
+          }, 409);
+        }
+
         const runId = `${Date.now().toString(36)}-${slugify(spec.company || 'offer').slice(0, 30)}`;
         const runDir = join(ROOT, 'scratch/apply-runs', runId);
         await mkdir(runDir, { recursive: true });
+        // Before the spec: a run is readable and steerable by this account only.
+        await writeFile(join(runDir, 'owner.json'), JSON.stringify({ userId: req.userId || null, at: new Date().toISOString() }), 'utf-8');
         await writeFile(join(runDir, 'spec.json'), JSON.stringify(spec, null, 2), 'utf-8');
 
         if (tabId) {
@@ -8883,6 +9419,10 @@ const server = createServer(async (req, res) => {
       const runId = decodeURIComponent(parts[0] || '').replace(/[^a-z0-9_-]/gi, '');
       if (!runId) return json(res, { error: 'runId required' }, 400);
       const runDir = join(ROOT, 'scratch/apply-runs', runId);
+      // Another account's run answers like a missing one.
+      if (!(await applyRunVisibleTo(runDir, req.userId))) {
+        return json(res, { error: 'run not found or not started yet', runId }, 404);
+      }
 
       if (method === 'GET' && parts[1] === 'shots' && parts[2]) {
         try {
@@ -8933,7 +9473,9 @@ const server = createServer(async (req, res) => {
         try { tailoredData = JSON.parse(tailoredJsonMatch[1]); } catch {}
       }
 
-      const region = detectRegion(`${company} ${role} ${response}`);
+      // Lines naming the candidate describe the candidate, not the offer.
+      const cvOwner = await getProfile(req.userId).catch(() => ({}));
+      const region = detectRegion(`${company} ${role} ${response}`, cvOwner?.candidate?.full_name || '');
       const basedProfileKey = region === 'asia' ? 'complete_bangkok' : 'complete_paris';
       const templateData = await loadCvTemplateDataForUser(req.userId, basedProfileKey, tailoredData, req.userEmail);
       const html = await renderPremiumCV(basedProfileKey, tailoredData, { userId: req.userId, templateData });
@@ -8970,6 +9512,13 @@ const server = createServer(async (req, res) => {
       const result = await runScript('pdf-gen', [htmlPath, pdfPath, '--format=a4']);
       if (!result.ok) {
         return json(res, { error: result.stderr || 'PDF generation failed' }, 500);
+      }
+      // Auto-apply attaches another account's letters from its own folder
+      // only (loadApplyContext letterDir), never from the shared output/.
+      if (useSupabase && isAccountId(req.userId) && !(await ownsLocalData(req.userId))) {
+        const letters = accountLettersDir(WRITE_ROOT, req.userId);
+        await mkdir(letters, { recursive: true });
+        await copyFile(pdfPath, join(letters, `${baseName}.pdf`)).catch((err) => console.warn('[cover-letter] account copy failed:', err.message));
       }
 
       return json(res, {
@@ -9112,22 +9661,24 @@ const server = createServer(async (req, res) => {
       try {
         // ── Load context ──────────────────────────────────────────────────
         const activeModeFile = mode === 'pipeline' ? 'oferta' : mode;
+        // The owner's files on disk (tracker, pipeline, article digest, story
+        // bank, voice) reach the owner's prompts only (local mode or admin).
+        const ownerFiles = await ownsLocalData(req.userId);
+        // A scan remembers in the owner's scan files or in the account's own
+        // (lib/scan-memory.mjs), never in both.
+        const scanMemory = mode !== 'scan' || ownerFiles ? OWNER_SCAN_MEMORY : scanMemoryPaths(WRITE_ROOT, req.userId);
         const [shared, modeFile, cv, profile, profileConfig, apps, pipeline, articleDigest] = await Promise.all([
           readFile(join(ROOT, 'modes/_shared.md'), 'utf-8').catch(() => ''),
           readFile(join(ROOT, `modes/${activeModeFile}.md`), 'utf-8').catch(() => ''),
           getCvMarkdown(req.userId),
           getProfileContext(req.userId),
           // profileConfig : données structurées depuis Supabase (objet) ou fichier YAML (string)
-          (async () => {
-            if (useSupabase && req.userId) {
-              const data = await getProfile(req.userId);
-              return (data && Object.keys(data).length) ? data : {};
-            }
-            return readFile(join(ROOT, 'config/profile.yml'), 'utf-8').catch(() => '');
-          })(),
-          readFile(join(ROOT, 'data/applications.md'), 'utf-8').catch(() => ''),
-          readFile(join(ROOT, 'data/pipeline.md'), 'utf-8').catch(() => ''),
-          readFile(join(ROOT, 'article-digest.md'), 'utf-8').catch(() => ''),
+          useSupabase && req.userId
+            ? getAccountProfile(req.userId, ownerFiles)
+            : readFile(join(ROOT, 'config/profile.yml'), 'utf-8').catch(() => ''),
+          ownerFiles ? readFile(join(ROOT, 'data/applications.md'), 'utf-8').catch(() => '') : '',
+          ownerFiles ? readFile(join(ROOT, 'data/pipeline.md'), 'utf-8').catch(() => '') : '',
+          ownerFiles ? readFile(join(ROOT, 'article-digest.md'), 'utf-8').catch(() => '') : '',
         ]);
 
         // ── Pre-fetch for scan & pipeline ───
@@ -9162,6 +9713,7 @@ const server = createServer(async (req, res) => {
           resetLocalDdgCircuit();
           resetPinchtabSolveCircuit();
           resetWebSearchCircuit();
+          resetEngineHealth();
           resetPinchtabHealthCache();
           if (!IS_VERCEL) {
             const pinchtab = await ensurePinchtabRunning({
@@ -9180,8 +9732,17 @@ const server = createServer(async (req, res) => {
             }
           }
           send('status', { text: 'Fetching direct scan sources...' });
-          const { parsed: portalsConfig } = await readPortalsYaml();
-          const selection = await getScanSelection();
+          // portals.yml lists the platforms; level, geography and the search
+          // words ({roles}/{role} placeholders, title filter) follow the profile.
+          const scanProfileRules = inferProfileMatchingRules(profileStruct, profile);
+          const scanLoc = scanProfileRules.location.loc;
+          if (!scanTermsFrom(scanProfileRules.targeting).length) {
+            throw new Error('Ajoute tes rôles cibles dans ton profil : le scan cherche les offres à partir d\'eux.');
+          }
+          const { parsed: sharedPortals } = await readPortalsYaml();
+          const portalsConfig = portalsForProfile(sharedPortals, { targeting: scanProfileRules.targeting, geoPolicy: geoPolicyFrom(scanLoc) });
+          usePortalsTitleFilter(portalsConfig.title_filter);
+          const selection = await getScanSelection(scanMemory);
           // sel = null means scan all enabled sources
           const sel = selection && !selection.all ? selection : null;
 
@@ -9232,9 +9793,21 @@ const server = createServer(async (req, res) => {
             ...(portalsConfig.eu_job_boards || []),
             ...(portalsConfig.freelance_portals || []),
           ];
+          // Queries that came back empty three loaded runs in a row rest a week
+          // (lib/web-search-yield.mjs) instead of costing three engine loads each.
+          const today = new Date().toISOString().slice(0, 10);
+          const queryYieldPath = scanMemory.queryYield;
+          const queryYield = await loadQueryYield(queryYieldPath);
+          const restingQueries = [];
           allQueries
             .filter(q => q.enabled !== false && inSel('queries', q.name))
-            .forEach(q => webSearchSources.push({ name: q.name, query: q.query }));
+            .forEach(q => {
+              if (shouldSkipQuery(queryYield, q.query, today)) restingQueries.push(q.name);
+              else webSearchSources.push({ name: q.name, query: q.query });
+            });
+          if (restingQueries.length) {
+            console.log(`[scan] [WebSearch] ${restingQueries.length} quer${restingQueries.length === 1 ? 'y' : 'ies'} resting after 3 empty runs: ${restingQueries.join(', ')}`);
+          }
 
           const selectedAggregators = getScanAggregators(portalsConfig)
             .filter(a => a.enabled !== false && inSel('aggregators', a.name));
@@ -9247,11 +9820,20 @@ const server = createServer(async (req, res) => {
             ...runnableAggregators.map(aggregator => aggregator.name),
           ];
 
+          // Bounded fan-out: every board at once timed out bodies and one
+          // fetch that never settled held the whole scan (lib/scan-concurrency.mjs).
           const [directResults, providerResults] = await Promise.all([
-            Promise.allSettled(directSources.map(source => fetchSourceSection(source))),
-            Promise.allSettled(providerCompanies.map(company =>
-              fetchAggregatorSection({ ...company, sourceKind: 'job_board' }, portalsConfig)
-            )),
+            settleWithLimit(directSources, source => fetchSourceSection(source), {
+              limit: SCAN_DIRECT_CONCURRENCY,
+              deadlineMs: SCAN_DIRECT_DEADLINE_MS,
+              onDeadline: source => console.warn(`[scan] [deadline] "${source.name}" gave no answer after ${SCAN_DIRECT_DEADLINE_MS / 1000}s — skipped`),
+            }),
+            settleWithLimit(providerCompanies, company =>
+              fetchAggregatorSection({ ...company, sourceKind: 'job_board' }, portalsConfig), {
+              limit: SCAN_PROVIDER_CONCURRENCY,
+              deadlineMs: SCAN_PROVIDER_DEADLINE_MS,
+              onDeadline: company => console.warn(`[scan] [deadline] "${company.name}" gave no answer after ${SCAN_PROVIDER_DEADLINE_MS / 1000}s — skipped`),
+            }),
           ]);
           const serpApiConfigured = Boolean(SERPAPI_KEY || process.env.SEARCHAPI_KEY);
           const pinchtabSearch = await pinchtabIsUp();
@@ -9263,7 +9845,7 @@ const server = createServer(async (req, res) => {
           const aggregatorResults = await Promise.allSettled(runnableAggregators.map(aggregator =>
             fetchAggregatorSection(aggregator, portalsConfig)
           ));
-          await updateScanState(scannedSourceNames).catch(err => {
+          await updateScanState(scannedSourceNames, new Date().toISOString(), scanMemory).catch(err => {
             console.warn(`[scan] Failed to update scan-state.json: ${err.message}`);
           });
 
@@ -9284,12 +9866,34 @@ const server = createServer(async (req, res) => {
             .filter(r => r.status === 'fulfilled' && r.value?.jobs?.length)
             .forEach(r => mergePublishedDates(scanUrlPublishedAt, r.value.jobs));
 
+          const webSearchRecords = webSearchResults.map((result, index) =>
+            result.status === 'fulfilled' && result.value?.jobs?.length
+              ? buildScanCandidateRecords(webSearchSources[index]?.name, result.value.jobs, {
+                  includeCompany: Boolean(webSearchSources[index]?.isCompany),
+                  engine: result.value.engine || '',
+                  titleFilter: portalsConfig.title_filter,
+                }).map(candidate => ({ ...candidate, webSearch: true }))
+              : []
+          );
+          webSearchSources.forEach((source, index) => {
+            if (source.isCompany) return;
+            const result = webSearchResults[index];
+            recordQueryYield(queryYield, source.query, {
+              hits: webSearchRecords[index].length,
+              blocked: result?.status !== 'fulfilled' || Boolean(result.value?.error),
+            }, today);
+          });
+          await ensureScanMemoryDir(scanMemory).then(() => saveQueryYield(queryYieldPath, queryYield, today)).catch(err =>
+            console.warn(`[scan] Failed to save web-search-yield.json: ${err.message}`)
+          );
+
           const allScanCandidates = dedupeScanCandidates([
             ...directResults.flatMap((result, index) =>
               result.status === 'fulfilled' && result.value?.jobs?.length
                 ? buildScanCandidateRecords(directSources[index]?.name, result.value.jobs, {
                     includeCompany: Boolean(directSources[index]?.isCompany),
                     engine: result.value.engine || '',
+                    titleFilter: portalsConfig.title_filter,
                   })
                 : []
             ),
@@ -9298,20 +9902,14 @@ const server = createServer(async (req, res) => {
                 ? buildScanCandidateRecords(providerCompanies[index]?.name, result.value.jobs, {
                     includeCompany: true,
                     engine: result.value.engine || '',
+                    titleFilter: portalsConfig.title_filter,
                   })
                 : []
             ),
-            ...webSearchResults.flatMap((result, index) =>
-              result.status === 'fulfilled' && result.value?.jobs?.length
-                ? buildScanCandidateRecords(webSearchSources[index]?.name, result.value.jobs, {
-                    includeCompany: Boolean(webSearchSources[index]?.isCompany),
-                    engine: result.value.engine || '',
-                  })
-                : []
-            ),
+            ...webSearchRecords.flat(),
             ...playwrightResults.flatMap(result =>
               result.ok && result.jobs?.length
-                ? buildScanCandidateRecords(result.company, result.jobs, { includeCompany: true, engine: 'playwright' })
+                ? buildScanCandidateRecords(result.company, result.jobs, { includeCompany: true, engine: 'playwright', titleFilter: portalsConfig.title_filter })
                 : []
             ),
             ...aggregatorResults.flatMap((result, index) =>
@@ -9319,21 +9917,30 @@ const server = createServer(async (req, res) => {
                 ? buildScanCandidateRecords(runnableAggregators[index]?.name, result.value.jobs, {
                     includeCompany: true,
                     engine: result.value.engine || '',
+                    titleFilter: portalsConfig.title_filter,
                   })
                 : []
             ),
           ]);
-          const today = new Date().toISOString().slice(0, 10);
-          const historyByUrl = await getLatestScanHistoryEntryMap().catch(() => new Map());
+          const historyByUrl = await getLatestScanHistoryEntryMap(scanMemory).catch(() => new Map());
           const locationAllows = buildLocationFilter(portalsConfig.location_filter);
+          // Every country the candidate lives or may work in lifts a
+          // "<country> only" exclusion.
           const countryAllows = buildCountryEligibilityFilter(
             portalsConfig.country_eligibility_filter,
-            profileStruct?.location?.country || '',
+            [...new Set([...scanLoc.bases.map(base => base.country), ...scanLoc.authorizedCountries])],
           );
-          await enrichCandidatesWithPublishedDates(allScanCandidates);
+          // Dates are looked up after the cheap filters and the dedup (below):
+          // on 2026-10-17 a 305-company scan sat for 10+ minutes loading,
+          // one PinchTab page each, offers the level and location filters
+          // were about to reject anyway.
           const decisionOptions = {
             today,
-            locationAllows: (candidate) => locationAllows(candidate.location, candidate.url, candidate.title),
+            levelPolicy: levelPolicyFrom(scanProfileRules.targeting),
+            geoPolicy: geoPolicyFrom(scanLoc),
+            // A posting located in an on-site exception keeps its hybrid/on-site words.
+            locationProfile: scanLoc,
+            locationAllows: (candidate, context) => locationAllows(candidate.location, candidate.url, candidate.title, context),
             countryAllows: (candidate) => countryAllows(candidate.description),
             firstSeenFor: (candidate) => historyByUrl.get(candidate.normalizedUrl || normalizeUrlKey(candidate.url))?.first_seen || '',
           };
@@ -9347,7 +9954,7 @@ const server = createServer(async (req, res) => {
           }));
           const decisionSummary = summarizeDecisions(scanDecisionRecords);
           console.log(`[scan] [decision] ${Object.entries(decisionSummary).map(([key, count]) => `${key}=${count}`).join(' ')}`);
-          appendDecisionLog(join(WRITE_ROOT, 'data', 'scan-decisions.jsonl'), scanDecisionRecords.filter(record => record.disposition === 'reject'));
+          appendDecisionLog(scanMemory.decisions, scanDecisionRecords.filter(record => record.disposition === 'reject'));
 
           const beforeTitleCollapse = [...partitioned.kept, ...partitioned.review];
           const survivors = collapseDuplicateTitles(beforeTitleCollapse);
@@ -9365,32 +9972,20 @@ const server = createServer(async (req, res) => {
           };
           scanAgeDropped = partitioned.rejected.filter(candidate => candidate.reasonCode === 'age').length;
 
-          // Verify that job URLs are still alive (filter out 404s, expired postings)
-          const { alive: verifiedCandidates, dead: deadCandidates } = await verifyJobLinks(survivors);
-          scanDeadCount = deadCandidates.length;
-          if (deadCandidates.length) {
-            appendDecisionLog(join(WRITE_ROOT, 'data', 'scan-decisions.jsonl'), deadCandidates.map(candidate => decisionLogRecord({
-              ...candidate,
-              disposition: 'reject',
-              reasonCode: 'link',
-              reasons: ['job link is dead'],
-            }, { jev: 'not_sent' })));
-            const deadEntries = deadCandidates.map(c =>
-              `${c.url}\t${today}\tscan-link-check\t${c.title || ''}\t${c.company || ''}\texpired`
-            );
-            await appendScanHistoryEntries(deadEntries).catch(err =>
-              console.warn(`[scan] Failed to append dead links to scan-history: ${err.message}`)
-            );
-          }
           // Filter out URLs already in pipeline, scan-history, or reports, and
-          // company+role pairs already tracked / permanently deleted.
+          // company+role pairs already tracked / permanently deleted — before
+          // the link check, which used to re-fetch every known dead URL on
+          // every scan (379 URLs → 1,974 "expired" history rows by 2026-10-13).
+          // The owner's scan checks every row and file it always did; another
+          // account's, its own rows and scan memory only.
           {
+            const dedupScope = scanMemory.account ? req.userId : undefined;
             const [existingPipeline, existingHistory, existingReports, companyRoleExclusions, processedKeys] = await Promise.all([
-              getPipeline().catch(() => []),
-              getBlockingScanHistoryUrlSet().catch(() => new Set()),
-              getReportUrlSet().catch(() => new Set()),
+              getPipeline(dedupScope).catch(() => []),
+              getBlockingScanHistoryUrlSet(scanMemory).catch(() => new Set()),
+              getEvaluatedUrlSet(req.userId, scanMemory).catch(() => new Set()),
               getCompanyRoleExclusions(req.userId).catch(() => new Map()),
-              getProcessedPipelineUrlKeys().catch(() => new Set()),
+              getProcessedPipelineUrlKeys(dedupScope).catch(() => new Set()),
             ]);
             const knownNormalized = new Set([
               ...existingPipeline.map(e => normalizeUrlKey(String(e?.url || ''))).filter(Boolean),
@@ -9398,16 +9993,16 @@ const server = createServer(async (req, res) => {
               ...[...existingReports].map(u => normalizeUrlKey(u)).filter(Boolean),
               ...processedKeys,
             ]);
-            const beforeCount = verifiedCandidates.length;
-            const freshCandidates = verifiedCandidates.filter(c => {
+            const beforeCount = survivors.length;
+            const freshCandidates = survivors.filter(c => {
               const key = c.normalizedUrl || normalizeUrlKey(c.url);
               if (!key || knownNormalized.has(key)) return false;
               if (isCompanyRoleExcluded(c.company || '', c.title || '', companyRoleExclusions)) return false;
               return true;
             });
-            const skippedKnown = verifiedCandidates.filter(candidate => !freshCandidates.includes(candidate));
+            const skippedKnown = survivors.filter(candidate => !freshCandidates.includes(candidate));
             if (skippedKnown.length) {
-              appendDecisionLog(join(WRITE_ROOT, 'data', 'scan-decisions.jsonl'), skippedKnown.map(candidate => decisionLogRecord({
+              appendDecisionLog(scanMemory.decisions, skippedKnown.map(candidate => decisionLogRecord({
                 ...candidate,
                 disposition: 'reject',
                 reasonCode: 'duplicate',
@@ -9420,6 +10015,46 @@ const server = createServer(async (req, res) => {
             }
             scanCandidates = freshCandidates;
             scanPreDedupSkipped = skippedCount;
+          }
+
+          // Date lookup for the offers still standing, then the same decision
+          // again: a found date can make an offer too old, and a board API that
+          // no longer lists it closes it.
+          if (scanCandidates.length) {
+            await enrichCandidatesWithPublishedDates(scanCandidates);
+            const dated = partitionCandidates(scanCandidates, portalsConfig, decisionOptions);
+            if (dated.rejected.length) {
+              const datedRejects = dated.rejected.map(candidate => decisionLogRecord(candidate, { jev: 'not_sent' }));
+              appendDecisionLog(scanMemory.decisions, datedRejects);
+              console.log(`[scan] [decision:dated] ${Object.entries(summarizeDecisions(datedRejects)).map(([key, count]) => `${key}=${count}`).join(' ')}`);
+              scanAgeDropped += dated.rejected.filter(candidate => candidate.reasonCode === 'age').length;
+            }
+            const standing = new Map([...dated.kept, ...dated.review].map(candidate => [candidate.url, candidate]));
+            scanCandidates = scanCandidates.filter(candidate => standing.has(candidate.url)).map(candidate => standing.get(candidate.url));
+          }
+
+          // Link check (404s, closed postings) for search hits and scraped
+          // careers pages only: ATS APIs, providers and feeds list open
+          // postings, and since 2026-10-09 the check had caught 4 dead ones
+          // there against 373 false "expired" on France Travail.
+          const unlistedSources = new Set([...webSearchSources.map(source => cleanString(source.name)), ...playwrightCos.map(company => cleanString(company.name))]);
+          const { dead: deadCandidates } = await verifyJobLinks(scanCandidates.filter(candidate => unlistedSources.has(candidate.source)));
+          scanDeadCount = deadCandidates.length;
+          if (deadCandidates.length) {
+            const deadSet = new Set(deadCandidates.map(candidate => candidate.url));
+            scanCandidates = scanCandidates.filter(candidate => !deadSet.has(candidate.url));
+            appendDecisionLog(scanMemory.decisions, deadCandidates.map(candidate => decisionLogRecord({
+              ...candidate,
+              disposition: 'reject',
+              reasonCode: 'link',
+              reasons: ['job link is dead'],
+            }, { jev: 'not_sent' })));
+            const deadEntries = deadCandidates.map(c =>
+              `${c.url}\t${today}\tscan-link-check\t${c.title || ''}\t${c.company || ''}\texpired`
+            );
+            await appendScanHistoryEntries(deadEntries, scanMemory).catch(err =>
+              console.warn(`[scan] Failed to append dead links to scan-history: ${err.message}`)
+            );
           }
 
           scanSourceSectionCount = [
@@ -9559,7 +10194,7 @@ const server = createServer(async (req, res) => {
 
           // Clear selection after use so next scan defaults to all.
           // The previous selection is appended first, so the reset is auditable.
-          await logScanSelectionReset(selection);
+          await logScanSelectionReset(selection, scanMemory);
 
           send('status', { text: `Filtrage Jev (${JEV_MODEL}) des candidats…` });
         } else if (mode === 'pipeline') {
@@ -9612,7 +10247,7 @@ const server = createServer(async (req, res) => {
             const candidate = pipelineItemToJevCandidate(item);
             return pipelineItemReadyForEval(item)
               && !listingPageReason(candidate)
-              && !levelGateReason(candidate.title, candidate.url);
+              && !levelGateReason(candidate.title, candidate.url, levelPolicyFrom(profileRules.targeting));
           });
           pipelineTarget = selectedKey
             ? remaining.find(entry => normalizeUrlKey(entry.url) === selectedKey) || null
@@ -9660,10 +10295,29 @@ const server = createServer(async (req, res) => {
           }
           prefetchData = `## Job Description from ${pipelineTarget.url}\n${pipelineTarget.note ? `Context note: ${pipelineTarget.note}\n` : ''}\n${jdResult.text}`;
           console.log(`[pipeline] prefetchData length: ${prefetchData.length} chars`);
-          profileGate = evaluateOfferAgainstProfile(prefetchData, profileStruct, profile);
-          console.log(`[pipeline] profileGate: hardReject=${profileGate.hardReject}, reasons=${JSON.stringify(profileGate.reasons)}`);
+          // The gate reads the posting, never the scan's own note: "remote_verdict:
+          // unclear — remote status is ambiguous" put the word remote into the text,
+          // so on-site postings (OpenAI, San Francisco HQ) read as remote and went to
+          // the model, which hard-failed them (76 of 104 unclear offers, 2026-10-17).
+          const gateText = [pipelineTarget.location ? `Location: ${pipelineTarget.location}` : '', jdResult.text].filter(Boolean).join('\n');
+          profileGate = evaluateOfferAgainstProfile(gateText, profileStruct, profile, { atsWorkMode: jdResult.workMode || null, remoteVerdict: pipelineTarget.remote_verdict || '' });
+          console.log(`[pipeline] profileGate: hardReject=${profileGate.hardReject}, workMode=${profileGate.workMode.mode} (${profileGate.workMode.source}${profileGate.workMode.ambiguous ? ', ambiguous' : ''}), reasons=${JSON.stringify(profileGate.reasons)}`);
           if (profileGate.hardReject) {
-            send('status', { text: `Hard pass détecté avant évaluation: ${profileGate.reasons.join(' ')}` });
+            // Like a Jev drop: left queued, the same URL came back on every
+            // pipeline run (raydar, bitpanda, n8n… 2026-10-16).
+            await removeFromPipeline(pipelineTarget.url, req.userId, {
+              historyStatus: 'profile_dropped',
+              historyPortal: 'pipeline-gate',
+            });
+            const offer = pipelineOfferIdentity(pipelineTarget);
+            await logGateDrops(req.userId, [{
+              url: pipelineTarget.url,
+              title: offer.title,
+              company: offer.company,
+              gate: 'profile',
+              reasons: profileGate.reasons,
+            }]);
+            send('status', { text: `Hard pass détecté avant évaluation, offre retirée du pipeline : ${profileGate.reasons.join(' ')}` });
           } else {
             send('status', { text: `Gate Jev (${JEV_MODEL}) avant évaluation…` });
             try {
@@ -9688,6 +10342,14 @@ const server = createServer(async (req, res) => {
                   historyStatus: 'jev_dropped',
                   historyPortal: 'pipeline-jev',
                 });
+                const offer = pipelineOfferIdentity(pipelineTarget);
+                await logGateDrops(req.userId, [{
+                  url: pipelineTarget.url,
+                  title: offer.title,
+                  company: offer.company,
+                  gate: 'jev',
+                  reasons: [`Jev (description complète) : intérêt ${jevGate.worth == null ? 'inconnu' : Number(jevGate.worth).toFixed(2)}, sous le seuil de ${jevGate.threshold}.`],
+                }]);
                 send('status', { text: `Hard pass Jev — offre retirée du pipeline. ${profileGate.reasons.join(' ')}` });
               } else {
                 send('status', { text: 'Evaluating with Qwen...' });
@@ -9824,7 +10486,7 @@ const server = createServer(async (req, res) => {
           const asked = urlObj.searchParams.get('question') || '';
           const behavioral = /\b(time when|tell (?:us|me) about a time|describe a (?:time|situation)|exemple de situation|raconte)\b/i.test(asked);
           if (behavioral) {
-            const stories = await readFile(join(ROOT, 'interview-prep/story-bank.md'), 'utf-8').catch(() => '');
+            const stories = ownerFiles ? await readFile(join(ROOT, 'interview-prep/story-bank.md'), 'utf-8').catch(() => '') : '';
             if (stories.trim()) questionStories = stories.slice(0, 2000);
           }
         }
@@ -9921,7 +10583,7 @@ Règles:
           console.log(
             `[scan] Jev filter done — validated=${strictKept.length} review=${reviewKept.length} unverified=${(jevResult.unverified || []).length} dropped=${jevResult.dropped.length} errors=${jevResult.errors.length} considered=${jevResult.considered}`
           );
-          appendDecisionLog(join(WRITE_ROOT, 'data', 'scan-decisions.jsonl'), [
+          appendDecisionLog(scanMemory.decisions, [
             ...strictKept.map(candidate => decisionLogRecord(candidate, { jev: 'validated' })),
             ...reviewKept.map(candidate => decisionLogRecord(candidate, { jev: 'review' })),
             ...(jevResult.dropped || []).map(candidate => decisionLogRecord({
@@ -9940,9 +10602,9 @@ Règles:
           send('chunk', { text: fullResponse });
         } else if (mode === 'pipeline' && profileGate?.hardReject) {
           // Hard pass (profile rules or Jev gate) — skip expensive text LLM.
-          const noteParts = extractPipelineNoteParts(pipelineTarget?.note || '');
-          const companyLabel = noteParts.company || pipelineTarget?.company || 'Unknown';
-          const roleLabel = noteParts.title || pipelineTarget?.title || 'Role';
+          const offer = pipelineOfferIdentity(pipelineTarget || {});
+          const companyLabel = offer.company || 'Unknown';
+          const roleLabel = offer.title || 'Role';
           const reasons = (profileGate.reasons || []).map(r => `- ${r}`).join('\n') || '- Hard mismatch with profile criteria.';
           const jevWorth = profileGate.jev?.worth;
           fullResponse = [
@@ -9976,7 +10638,8 @@ Règles:
             career: careerIndex.text,
             index: careerIndex,
             digest: articleDigest,
-            voice: loadApplicationVoice(ROOT).slice(0, 1400),
+            // The owner's voice files, or the account's own writing_voice.
+            voice: (ownerFiles ? loadApplicationVoice(ROOT) : String(profileStruct?.writing_voice || '')).slice(0, 1400),
             facts: profileCriteriaBlock || '',
             offerContext: [prefetchData, questionStories].filter(Boolean).join('\n\n'),
             outputLanguage,
@@ -10097,9 +10760,9 @@ Règles:
               .map(entry => normalizeUrlKey(String(entry?.url || '').trim()))
               .filter(Boolean)
           );
-          const existingHistoryUrls = await getBlockingScanHistoryUrlSet().catch(() => new Set());
+          const existingHistoryUrls = await getBlockingScanHistoryUrlSet(scanMemory).catch(() => new Set());
           const processedPipelineKeys = await getProcessedPipelineUrlKeys(req.userId).catch(() => new Set());
-          const existingReportUrls = await getReportUrlSet().catch(() => new Set());
+          const existingReportUrls = await getEvaluatedUrlSet(req.userId, scanMemory).catch(() => new Set());
           const companyRoleExclusions = await getCompanyRoleExclusions(req.userId).catch(() => new Map());
           const normalizedReportUrls = new Set([...existingReportUrls].map(url => normalizeUrlKey(url)).filter(Boolean));
           const isKnown = (url, note = '') => {
@@ -10128,7 +10791,7 @@ Règles:
               jevFit: candidate.jevFit,
               jevOutcome: candidate.jevOutcome,
               jevError: candidate.jevError,
-              remoteVerdict: entry.status === 'remote_review' || ambiguous ? 'unclear' : (candidate.remoteDisposition ? 'compatible' : ''),
+              remoteVerdict: (entry.status === 'remote_review' && !/\bdate:review\b/.test(entry.note || '')) || ambiguous ? 'unclear' : (candidate.remoteDisposition ? 'compatible' : ''),
               remoteReason: candidate.remoteReason || '',
               remoteConfidence: candidate.remoteConfidence,
             };
@@ -10146,10 +10809,16 @@ Règles:
 
           const sideBucket = (list, tag, status) => (list || []).map(candidate => ({
             url: candidate.url,
-            note: [candidate.company, candidate.title, tag, candidate.publishedAt].filter(Boolean).join(' | '),
+            note: [candidate.title ? pipelineNoteCompany(candidate.company) : candidate.company, candidate.title, typeof tag === 'function' ? tag(candidate) : tag, candidate.publishedAt].filter(Boolean).join(' | '),
             status,
           })).filter(entry => entry.url && !isKnown(entry.url, entry.note) && !rejectListingEntry(entry));
-          const reviewEntries = sideBucket(jevResult.reviewKept, 'remote:review', 'remote_review').map(enrichScanEntry);
+          // Review holds ambiguous remote offers and undated web-search hits;
+          // the tag says which check is left (date:review, remote:review).
+          const reviewEntries = sideBucket(
+            jevResult.reviewKept,
+            candidate => (isUndatedReview(candidate) ? 'date:review' : 'remote:review'),
+            'remote_review',
+          ).map(enrichScanEntry);
           const unverifiedEntries = sideBucket(jevResult.unverified, 'jev:unverified', 'jev_unverified').map(enrichScanEntry);
 
           if (newEntries.length) {
@@ -10178,7 +10847,7 @@ Règles:
                 return [url, today, 'scan-ui', parts.title || '', parts.company || '', status].join('\t');
               }),
             ];
-            await appendScanHistoryEntries(historyRows).catch(err => {
+            await appendScanHistoryEntries(historyRows, scanMemory).catch(err => {
               console.warn(`[scan] Failed to append scan-history.tsv: ${err.message}`);
             });
           }
@@ -10198,7 +10867,7 @@ Règles:
               'jev_dropped',
             ].join('\t'));
           if (jevDroppedRows.length) {
-            await appendScanHistoryEntries(jevDroppedRows).catch(err => {
+            await appendScanHistoryEntries(jevDroppedRows, scanMemory).catch(err => {
               console.warn(`[scan] Failed to record Jev drops in scan-history.tsv: ${err.message}`);
             });
           }
@@ -10211,7 +10880,9 @@ Règles:
           }
 
           if (reviewEntries.length) {
-            saves.push(`${reviewEntries.length} offre(s) remote ambiguës ajoutées au bac review, séparées des matchs validés`);
+            const undatedCount = reviewEntries.filter(entry => /\bdate:review\b/.test(entry.note || '')).length;
+            if (reviewEntries.length > undatedCount) saves.push(`${reviewEntries.length - undatedCount} offre(s) remote ambiguës ajoutées au bac review, séparées des matchs validés`);
+            if (undatedCount) saves.push(`${undatedCount} offre(s) de recherche web sans date de publication ajoutées au bac review`);
           }
           if (unverifiedEntries.length) {
             saves.push(`${unverifiedEntries.length} offre(s) non qualifiées par Jev, marquées jev:unverified`);
@@ -10238,8 +10909,12 @@ Règles:
         }
 
         // OFERTA/PIPELINE → save report + TSV tracker entry (WITH VALIDATION)
-        const pipelineHardSkip = mode === 'pipeline' && profileGate?.hardReject && fullResponse.length > 100;
-        if (['oferta', 'pipeline'].includes(mode) && (fullResponse.length > 500 || pipelineHardSkip)) {
+        // A gate reject (profile rules or Jev) has no evaluation sections, so
+        // its report never passed validation: it is already out of the queue.
+        const pipelineHardSkip = mode === 'pipeline' && profileGate?.hardReject;
+        if (pipelineHardSkip) {
+          saves.push(`Offre écartée avant évaluation et retirée du pipeline : ${(profileGate.reasons || []).join(' ')}`);
+        } else if (['oferta', 'pipeline'].includes(mode) && fullResponse.length > 500) {
           console.log(`[${mode}] post-processing report — fullResponse=${fullResponse.length} chars`);
           const reserveOpts = { rootDir: WRITE_ROOT };
           let reserved = null;
@@ -10262,21 +10937,29 @@ Règles:
           const companyMatch = headerMatch || fullResponse.match(/\*\*Company[:\*]+\s*(.+?)[\*\n]/i) || fullResponse.match(/\*\*Empresa[:\*]+\s*(.+?)[\*\n]/i) || fullResponse.match(/entreprise[:\s]+\*?\*?([^\n\*]+)/i);
           const roleMatch    = (headerMatch ? { 1: headerMatch[2] } : null) || fullResponse.match(/\*\*Role[:\*]+\s*(.+?)[\*\n]/i) || fullResponse.match(/\*\*Rol[:\*]+\s*(.+?)[\*\n]/i) || fullResponse.match(/rôle[:\s]+\*?\*?([^\n\*]+)/i);
 
-          const company  = (companyMatch?.[1] || 'unknown').trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 30);
-          const role     = (roleMatch?.[1]    || 'role').trim().slice(0, 70);
-          const hardReject = Boolean(profileGate?.hardReject);
-          const { scoreRaw, numericScore } = resolveEvaluationScore(fullResponse, { hardReject });
-          const llmHardSkip = !hardReject
-            && Number.isFinite(numericScore)
+          // The pipeline entry names the offer; the model's header only fills in
+          // what the entry cannot be trusted with (lib/pipeline-record.mjs).
+          const offer = mode === 'pipeline' && pipelineTarget
+            ? pipelineOfferIdentity(pipelineTarget)
+            : { company: '', title: '' };
+          const headerCompany = (companyMatch?.[1] || '').trim();
+          const companyName = offer.company || headerCompany;
+          const company  = (companyName || 'unknown').replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 30);
+          const role     = (offer.title || roleMatch?.[1] || 'role').trim().slice(0, 70);
+          // Gate rejects never reach this point (pipelineHardSkip above): this
+          // is a Qwen evaluation, and only Qwen's own hard fail makes it a SKIP.
+          // With a complete ## Notation table the Global is computed from the
+          // five ratings and the body's **Score:** line is rewritten to match.
+          const { scoreRaw, numericScore, text: scoredResponse, computed: scoreComputed } = resolveEvaluationScore(fullResponse);
+          if (scoreComputed) {
+            console.log(`[${mode}] score computed from Notation: ${scoreRaw} (model said ${extractEvaluationScore(fullResponse)})`);
+            fullResponse = scoredResponse;
+          }
+          const llmHardSkip = Number.isFinite(numericScore)
             && numericScore <= 1.5
             && /\b(?:hard\s*fail|hard\s*pass|do\s+not\s+apply|SKIP\s*\/\s*DO NOT APPLY)\b/i.test(fullResponse);
-          const effectiveSkip = hardReject || llmHardSkip;
-          const trackerStatus = effectiveSkip
-            ? ((profileGate?.skip || llmHardSkip) ? 'SKIP' : 'Discarded')
-            : 'Evaluated';
-          const trackerNote = hardReject
-            ? profileGate.reasons.join(' ')
-            : (llmHardSkip ? 'LLM hard-fail (see report)' : '');
+          const trackerStatus = llmHardSkip ? 'SKIP' : 'Evaluated';
+          const trackerNote = llmHardSkip ? 'LLM hard-fail (see report)' : '';
 
           const filename = `${num}-${company}-${today}.md`;
           const jobUrl = (mode === 'pipeline' && pipelineTarget?.url)
@@ -10286,7 +10969,22 @@ Règles:
           const reportContent = `# Evaluation — ${role}\n\n**Date:** ${today}\n${reportUrlLine}**Score:** ${scoreRaw}\n\n---\n\n${fullResponse}`;
 
           // ── VALIDATE before writing ──────────────────────────────────────
-          const validation = validateReportContent(reportContent, scoreRaw, company, role);
+          // A scored evaluation of the candidate's own job is not an evaluation.
+          const career = mode === 'pipeline' ? indexCareer(cv) : null;
+          const ownEmployer = career
+            ? ownEmployerConfusion(headerCompany, offer.company, [
+              profileStruct?.search?.current_role?.company,
+              ...career.employerNames,
+              ...career.sideNames,
+            ].filter(Boolean))
+            : '';
+          const validation = ownEmployer
+            ? {
+              valid: false,
+              code: OWN_EMPLOYER_CODE,
+              reason: `the model evaluated the candidate's own employer (${ownEmployer}) instead of the ${offer.company} offer. The URL stays in the pipeline`,
+            }
+            : validateReportContent(reportContent, scoreRaw, company, role);
 
           console.log(`[${mode}] validation: valid=${validation.valid}, reason=${validation.reason || 'none'}`);
           console.log(`[${mode}] parsed: company=${company}, role=${role.slice(0, 40)}, score=${scoreRaw}, status=${trackerStatus}`);
@@ -10319,7 +11017,7 @@ Règles:
             const tsvLine = [
               parseInt(num, 10),
               today,
-              tsvSafe(companyMatch?.[1] || 'Unknown'),
+              tsvSafe(companyName || 'Unknown'),
               tsvSafe(role),
               tsvSafe(trackerStatus),
               tsvSafe(scoreRaw),
@@ -10367,7 +11065,7 @@ Règles:
               const row = {
                 num: parseInt(num, 10),
                 date: today,
-                company: companyMatch?.[1]?.trim() || 'Unknown',
+                company: companyName || 'Unknown',
                 role,
                 score: scoreRaw,
                 status: trackerStatus,
@@ -10390,11 +11088,8 @@ Règles:
             }
 
             if (mode === 'pipeline' && pipelineTarget) {
-              const jevHardPass = profileGate?.jev && profileGate.jev.pass === false;
               if (tracked) {
                 await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'evaluated', historyPortal: 'pipeline' });
-                saves.push(`Removed URL from pipeline queue`);
-              } else if (jevHardPass) {
                 saves.push(`Removed URL from pipeline queue`);
               } else {
                 const message = `Evaluation saved as ${filename}, but it is not in the applications list yet — URL kept in pipeline so you can retry`;
@@ -10555,7 +11250,10 @@ Règles:
     if (path.startsWith('/output/') && path.endsWith('.pdf')) {
       const filename = decodeURIComponent(path.slice('/output/'.length));
       try {
-        const content = await readFile(join(ROOT, 'output', filename));
+        // A file of output/ itself: "..%2F" used to reach any PDF under ROOT.
+        const file = /[\\/]/.test(filename) ? null : safeJoin(join(ROOT, 'output'), filename);
+        if (!file) { res.writeHead(403); res.end('Forbidden'); return; }
+        const content = await readFile(file);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.writeHead(200);
@@ -10805,8 +11503,10 @@ async function isJobYouGoServer(pid) {
 // in that same tab (Apply/Next/ATS normalize). Playwright is only the
 // fallback when the extension cannot open a tab. File upload + Submit stay
 // manual in the tab. See extension/README.md.
-const applyBridge = new ApplyBridge();
-attachApplyBridge(server, applyBridge, { log: (m) => console.log(`[apply-bridge] ${m}`) });
+// One bridge per account: a plugin joins the account whose pairing token it
+// holds (ApplyBridgeHub), so a run only ever drives its own account's Chrome.
+const applyBridges = new ApplyBridgeHub({ resolveAccount: accountOfPairToken });
+attachApplyBridge(server, applyBridges, { log: (m) => console.log(`[apply-bridge] ${m}`) });
 
 function waitForPortRelease(port, timeoutMs = 8000) {
   const startedAt = Date.now();
@@ -10874,11 +11574,12 @@ async function startServer() {
   const mode = useSupabase ? 'Supabase' : 'markdown files';
   console.log(`\n  JobYouGo UI  →  http://localhost:${PORT}  [${mode}]\n`);
 
-  // Startup maintenance (local only): drop dead offers >20d, then heal apps sync.
+  // Startup maintenance (local only): drop dead offers past portals.yml retention_days (7), then heal apps sync.
   if (!IS_VERCEL) {
     setTimeout(async () => {
       try {
-        const purge = await runScript('purge-stale', ['--days=20']);
+        // No --days: purge-stale reads retention_days from portals.yml.
+        const purge = await runScript('purge-stale', []);
         if (purge.stdout) console.log(purge.stdout.trim());
         if (!purge.ok) console.warn('[purge] failed:', purge.stderr || purge.error);
       } catch (err) {

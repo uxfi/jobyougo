@@ -5,8 +5,11 @@ import { pass, fail, ROOT } from './helpers.mjs';
 
 console.log('\nScanner — title false positives');
 
-const { loadPortals, passesTitle } = await import(pathToFileURL(join(ROOT, 'lib/scan-filters.mjs')).href);
-const portals = loadPortals(join(ROOT, 'portals.yml'));
+const { passesTitle } = await import(pathToFileURL(join(ROOT, 'lib/scan-filters.mjs')).href);
+const { loadPortalsForProfile } = await import(pathToFileURL(join(ROOT, 'lib/scan-targeting.mjs')).href);
+// The title filter the scan really runs: portals.yml platforms + the profile's roles (since 2026-10-13
+// the positive list lives in config/profile.yml, not in portals.yml).
+const portals = loadPortalsForProfile(join(ROOT, 'portals.yml'), join(ROOT, 'config/profile.yml'));
 
 const rejected = [
   'L1 Hosting Tech Support Agent',

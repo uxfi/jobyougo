@@ -54,7 +54,7 @@ test('sanitizer follows copywriting/humanizer/stop-slop/copy-editing: dashes, st
   );
   assert.equal(
     polishApplicationAnswer('I built prototypes in Cursor and reviewed them in Figmol (my internal Figma-like tool).'),
-    'I built prototypes in Cursor and reviewed them in Figmol (my internal Figma-like tool).',
+    'I built prototypes in Cursor and reviewed them in Figmol (my internal Figma like tool).',
   );
 });
 
@@ -134,4 +134,21 @@ test('polish strips metric dumps from long free-text but keeps salary facts', ()
   assert.match(keptTitle, /UpViral \(2024 – 2025\)/);
   assert.match(keptTitle, /Led the overhaul/);
   assert.doesNotMatch(keptTitle, /10,000/);
+});
+
+test('compound words lose their hyphen, proper names, ranges and addresses keep it', () => {
+  assert.equal(polishApplicationAnswer('I led the end-to-end redesign of a GitHub-native, AI-driven, user-facing flow.'),
+    'I led the end to end redesign of a GitHub native, AI driven, user facing flow.');
+  assert.equal(polishApplicationAnswer('Jean-Pierre moved to Aix-en-Provence as a co-founder of a B2B-SaaS.'),
+    'Jean-Pierre moved to Aix-en-Provence as a cofounder of a B2B-SaaS.');
+  assert.equal(polishApplicationAnswer('e-mail hugo-v@my-site.com or see https://my-site.com/case-study-1'),
+    'email hugo-v@my-site.com or see https://my-site.com/case-study-1');
+  assert.equal(polishApplicationAnswer("Je travaille de bout-en-bout, c'est-à-dire orienté-utilisateur."),
+    "Je travaille de bout en bout, c'est à dire orienté utilisateur.");
+});
+
+test('a link without https keeps its hyphens', () => {
+  assert.equal(polishApplicationAnswer('linkedin.com/in/jean-dupont'), 'linkedin.com/in/jean-dupont');
+  assert.equal(polishApplicationAnswer('See linkedin.com/in/jean-dupont and my-site.com for my end-to-end work.'),
+    'See linkedin.com/in/jean-dupont and my-site.com for my end to end work.');
 });

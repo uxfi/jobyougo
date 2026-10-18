@@ -111,7 +111,8 @@ const bankHits = closestCareerLines('Parlez-nous d une experience en banque ou f
 ok('a finance question surfaces the bank roles', bankHits.some((line) => /Société Générale|Banque Populaire/i.test(line)));
 const aiHits = closestCareerLines('Have you used AI in your design process?', career);
 ok('an AI question surfaces the employer AI role', aiHits.some((line) => /OneAsset/i.test(line)));
-ok('an AI question does not use a side project as closest proof', aiHits.every((line) => !/UXfi|Creads|JobYouGo|Flemme|Jarvos/i.test(line)));
+// 2026-10-13: the owner's AI work lives in his own AI products; AI questions may use them.
+ok('an AI question may also draw on the candidate own AI products', aiHits.some((line) => /UXfi|Creads|JobYouGo|Flemme|Jarvos/i.test(line)));
 const indexed = indexCareer(cv);
 ok('career index treats independent-only names as side products', indexed.sideNames.some((name) => /JobYouGo|Creads/i.test(name)) && !indexed.sideNames.some((name) => /Edenred|Vloggy|Société Générale/i.test(name)));
 ok('a name in both sections stays an employer', indexed.employers.some((line) => /Vloggy/i.test(line)) && !indexed.sideNames.some((name) => /Vloggy/i.test(name)));
@@ -193,16 +194,17 @@ ok('a user-count question is a scale question', isScaleQuestion('What was the sc
 ok('why-us is a motivation question', isMotivationQuestion('Why are you interested in this role?') && !isMotivationQuestion('Tell us about a product you designed'));
 ok('fit and cover letter are motivation questions', isMotivationQuestion('What makes you a good fit for this position?') && isMotivationQuestion('Cover letter'));
 ok('a "why you are interested … strong match" label is a motivation question', isMotivationQuestion('Why you are interested in joining our team and think you could be a strong match', 'Ihsan') && isMotivationQuestion('What draws you to Ihsan?', 'Ihsan') && isMotivationQuestion('Pourquoi souhaitez-vous nous rejoindre ?') && !isMotivationQuestion('What motivated you to become a designer?'));
-ok('motivation instructions start from the offer, not a canned employer opener', /What specifically draws you to Acme/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })) && /Ambition/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })) && /Do not open with a past employer/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })) && !/First sentence: an employer/.test(questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' })));
+const whyAcmePrompt = questionPromptEn({ question: 'Why do you want to work at Acme?', company: 'Acme', role: 'Designer', voice: '' });
+ok('motivation answers stay specific without a fixed pitch', /specific detail from the Offer/.test(whyAcmePrompt) && /goal or experience in the profile/.test(whyAcmePrompt) && /Do not open with a past employer/.test(whyAcmePrompt) && !/4 to 5 sentences|one half-sentence proof/.test(whyAcmePrompt));
 
 const enQuestion = 'Tell us about the product you are most proud of designing. What problem were you solving?';
 const frQuestion = 'Décrivez une expérience dont vous êtes fier et le problème que vous résolviez.';
 const enPrompt = questionPromptEn({ question: enQuestion, company: 'Acme', role: 'Designer', voice: 'short' });
 const frPrompt = questionPromptFr({ question: frQuestion, company: 'Acme', role: 'Designer', voice: 'court' });
-ok('english question instructions stay in english', /English only/.test(enPrompt) && /First sentence/.test(enPrompt) && !/français uniquement/.test(enPrompt));
-ok('narrative instructions ban KPIs', /No number/.test(enPrompt) && /Aucun chiffre/.test(frPrompt));
+ok('english question instructions stay in english', /English only/.test(enPrompt) && /Answer directly and naturally/.test(enPrompt) && !/français uniquement/.test(enPrompt));
+ok('narrative instructions ban KPIs', /No numbers or KPIs/.test(enPrompt) && /Aucun chiffre ou KPI/.test(frPrompt));
 ok('narrative instructions keep the offer off the career', /Closest matches/.test(enPrompt) && /did not work at Acme/.test(enPrompt));
-ok('french question instructions stay in french', /français uniquement/.test(frPrompt) && /Première phrase/.test(frPrompt));
+ok('french question instructions stay in french', /français uniquement/.test(frPrompt) && /Réponds directement et naturellement/.test(frPrompt));
 ok('a factual question stays a short value', /valeur seule|bare value/.test(questionPromptEn({ question: 'Salary expectations', company: 'Acme', role: 'Designer', voice: '' })) && !/First sentence/.test(questionPromptEn({ question: 'Salary expectations', company: 'Acme', role: 'Designer', voice: '' })));
 ok('question language follows the question', questionLanguage(enQuestion) === 'en' && questionLanguage(frQuestion) === 'fr');
 

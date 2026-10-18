@@ -248,8 +248,22 @@ export const LIST_VISIBLE_NAV_BUTTONS = ({ avoidSrc, skip = [] } = {}) => {
     const t = labelOf(el);
     if (!t || t.length > 80) continue;
     if (avoid.test(t) || skipSet.has(t.toLowerCase())) continue;
+    // Site chrome is never a step: a footer link, or a link to another page
+    // that is the site's home (Teamtailor's footer "Start" matched the
+    // Start/Next vocabulary). A link with no href or "#" stays on this page.
+    if (el.tagName === 'A') {
+      if (el.closest('footer, [role="contentinfo"]')) continue;
+      const raw = el.getAttribute('href');
+      try {
+        const u = new URL(raw, location.href);
+        if (raw && u.href.split('#')[0] !== location.href.split('#')[0]
+          && u.origin === location.origin && (u.pathname === '/' || u.pathname === '') && !u.search && !u.hash) continue;
+      } catch { /* keep the link */ }
+    }
     el.setAttribute('data-co-nav', String(n));
-    out.push({ n, text: t, href: (el.href || '').slice(0, 100) });
+    // Long enough to keep a document's extension (filterNavButtons drops
+    // PDFs); the prompt still shows 100 characters.
+    out.push({ n, text: t, href: (el.href || '').slice(0, 300) });
     n++;
     if (n >= 12) break;
   }

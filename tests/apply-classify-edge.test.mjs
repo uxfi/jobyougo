@@ -29,6 +29,8 @@ const id = {
   twitter: 'https://x.com/Chilka_',
   noticePeriod: '1 week',
   yearsExperience: 12,
+  // target_roles: "years as a Product Designer" is the career total only for them.
+  targetRoles: ['Senior Product Designer', 'UX/UI Designer'],
   languages: [
     { name: 'French', level: 'Native' },
     { name: 'English', level: 'Professional' },
@@ -38,6 +40,12 @@ const id = {
   howDidYouHear: 'Other',
   needsSponsorship: false,
   visaStatus: 'No sponsorship needed',
+  // A stated full-remote policy: without one nothing is refused for work mode.
+  policy: { remote: 'Full remote required', fullRemoteOnly: true },
+  // candidate.ai_proficiency, read for "your current use of AI" pick lists.
+  aiProficiency: 'Practitioner',
+  // A full-time salaried search: "How many days a week?" is five.
+  engagement: 'Full-time; contract: Salaried',
   employment: {
     company: 'OneAsset',
     title: 'Senior Product Designer / Product Lead',
@@ -391,15 +399,9 @@ test('Stravito: essays are not the portfolio URL; choices follow the CV', () => 
     'How many years have you worked in a role where you both designed and built websites?',
     { type: 'radio', required: true },
   ), spec);
-  assert.equal(years?.selectText, '2 to 4 years');
-  assert.notEqual(years?.value, '12');
-  const yearOpt = pickSelectOption([
-    { text: 'Less than 2 years' },
-    { text: '2 to 4 years' },
-    { text: '5 to 8 years' },
-    { text: 'More than 8 years' },
-  ], years, 'years');
-  assert.equal(yearOpt?.text, '2 to 4 years');
+  // A skill-specific count is not the career total, and no person's bracket
+  // is hard-coded any more: the resolver reads the CV.
+  assert.equal(years, null);
 
   const loc = 'Locations*Required';
   assert.equal(classifyField(box(loc, 'The Netherlands'), spec)?.check, true);
@@ -438,14 +440,16 @@ test('Stravito: essays are not the portfolio URL; choices follow the CV', () => 
     { text: '1 Month Notice' },
   ], agodaStart, 'start')?.text, 'Immediate');
 
+  // Industries follow search.sector_preferences; anything else is the
+  // resolver's (it reads the CV), never a fixed list.
   const ind = 'What industries do you have relevant experience in?*Required';
-  assert.equal(classifyField(box(ind, 'B2B SaaS'), spec)?.check, true);
-  assert.equal(classifyField(box(ind, 'Enterprise SaaS'), spec)?.check, true);
-  assert.equal(classifyField(box(ind, 'MarTech'), spec)?.check, true);
-  assert.equal(classifyField(box(ind, 'AI / GenAI'), spec)?.check, true);
-  assert.equal(classifyField(box(ind, 'Consumer SaaS / B2C software'), spec)?.answeredBlank, true);
-  assert.equal(classifyField(box(ind, 'Cybersecurity'), spec)?.answeredBlank, true);
-  assert.equal(classifyField(box(ind, 'Other'), spec)?.answeredBlank, true);
+  const sectorSpec = { ...spec, identity: { ...id, sectors: ['B2B SaaS', 'Enterprise SaaS', 'MarTech', 'AI'] } };
+  assert.equal(classifyField(box(ind, 'B2B SaaS'), sectorSpec)?.check, true);
+  assert.equal(classifyField(box(ind, 'Enterprise SaaS'), sectorSpec)?.check, true);
+  assert.equal(classifyField(box(ind, 'MarTech'), sectorSpec)?.check, true);
+  assert.equal(classifyField(box(ind, 'AI / GenAI'), sectorSpec)?.check, true);
+  assert.notEqual(classifyField(box(ind, 'Consumer SaaS / B2C software'), sectorSpec)?.check, true);
+  assert.notEqual(classifyField(box(ind, 'Cybersecurity'), sectorSpec)?.check, true);
 });
 
 test('Mozilla-style mobile / France / relocation questions do not steal identity values', () => {
@@ -631,4 +635,118 @@ test('replay leftovers: phone, place, employer, address, EU locations, AI produc
   const sponsor = classifyField(f('For the country in which you will be based, do you now, or will you at any time require visa sponsorship?'), spec);
   assert.equal(sponsor?.yesNo, 'no');
   assert.notEqual(sponsor?.value, 'France');
+});
+
+// 2026-10-13 review: time-zone lists, screening choices, the profile's source,
+// field words in years questions, currency-qualified salary questions.
+test('a time-zone list takes the row of the candidate zone, else the resolver', () => {
+  const paris = { ...id, timezone: 'Europe/Paris (UTC+2)', utcOffset: 2 };
+  const bangkok = { ...id, city: 'Bangkok', country: 'Thailand', location: 'Bangkok, Thailand', timezone: 'Asia/Bangkok (UTC+7)', utcOffset: 7 };
+  const newYork = { ...id, city: 'New York', country: 'United States', location: 'New York, United States', timezone: 'America/New_York (UTC-4)', utcOffset: -4 };
+  const pick = (rows, identity) => classifyField(
+    f('Which time zone are you in?', { tag: 'select', options: rows.map((text) => ({ text })) }),
+    { ...spec, identity },
+  )?.selectText ?? null;
+  assert.equal(pick(['GMT+1 (CET)', 'GMT+7 (ICT)'], paris), 'GMT+1 (CET)');
+  assert.equal(pick(['GMT+1 (CET)', 'GMT+7 (ICT)'], bangkok), 'GMT+7 (ICT)');
+  assert.equal(pick(['Americas', 'EMEA', 'APAC'], paris), 'EMEA');
+  assert.equal(pick(['Americas', 'EMEA', 'APAC'], bangkok), 'APAC');
+  assert.equal(pick(['Central European Time (CET)', 'Indochina Time (ICT)'], bangkok), 'Indochina Time (ICT)');
+  assert.equal(pick(['(UTC-05:00) Eastern Time', '(UTC+01:00) Brussels, Copenhagen, Madrid, Paris'], paris), '(UTC+01:00) Brussels, Copenhagen, Madrid, Paris');
+  assert.equal(pick(['America/New_York', 'Europe/Paris'], paris), 'Europe/Paris');
+  assert.equal(pick(['Pacific Time (PT)', 'Eastern Time (ET)', 'Central European Time'], newYork), 'Eastern Time (ET)');
+  assert.equal(pick(['UTC-08:00', 'UTC-05:00', 'UTC+01:00'], newYork), 'UTC-05:00', 'the standard offset, any zone');
+  assert.equal(pick(['UTC-8', 'UTC-5'], paris), null, 'no row: the resolver decides');
+  assert.equal(classifyField(f('Time zone'), { ...spec, identity: paris })?.value, 'Europe/Paris (UTC+2)', 'a text box keeps the label');
+});
+
+test('background, reference and future-roles answers follow the screening section', () => {
+  const said = (screening) => ({ ...spec, identity: { ...id, screening } });
+  const background = f('Are you willing to undergo a background check?');
+  assert.equal(classifyField(background, spec)?.yesNo, 'yes', 'never answered: Yes as before');
+  assert.equal(classifyField(background, said({ backgroundCheckOk: false }))?.yesNo, 'no');
+  const references = f('Are you able to provide professional references?');
+  assert.equal(classifyField(references, said({ referenceCheckOk: true }))?.yesNo, 'yes');
+  assert.equal(classifyField(references, said({ referenceCheckOk: false }))?.yesNo, 'no');
+
+  const pool = f('Companies may contact me about other roles', { type: 'checkbox' });
+  assert.equal(classifyField(pool, said({ consents: { futureRoles: true } }))?.check, true);
+  assert.equal(classifyField(pool, said({ consents: { futureRoles: false } }))?.leaveBlank, true);
+  assert.equal(classifyField(pool, spec)?.check, undefined, 'never answered: ticked only with consentOptIn');
+  assert.equal(classifyField(pool, { ...spec, consentOptIn: true })?.check, undefined, 'not a consent wording: unchanged');
+  const list = f('May we contact you about future opportunities?', { tag: 'select', options: [{ text: 'Yes' }, { text: 'No' }] });
+  assert.equal(classifyField(list, said({ consents: { futureRoles: true } }))?.yesNo, 'yes');
+  assert.equal(classifyField(list, said({ consents: { futureRoles: false } }))?.yesNo, 'no');
+});
+
+test('how did you hear: the profile answer beats a source read off the URL', () => {
+  const hear = f('How did you hear about us?', { tag: 'select', options: ['LinkedIn', 'Indeed', 'Referral', 'Other'].map((text) => ({ text })) });
+  const linkedin = { ...spec, jobUrl: 'https://www.linkedin.com/jobs/view/1' };
+  const plan = classifyField(hear, { ...linkedin, identity: { ...id, screening: { howDidYouHear: 'Indeed' } } });
+  assert.equal(plan?.value, 'Indeed');
+  assert.equal(pickSelectOption(hear.options, plan, hear.label)?.text, 'Indeed');
+  assert.equal(classifyField(hear, linkedin)?.selectText, 'LinkedIn', 'no profile answer: the URL source');
+});
+
+test('years: a field word is the career total only for a candidate who targets it', () => {
+  const backend = { ...spec, identity: { ...id, yearsExperience: 8, targetRoles: ['Senior Backend Engineer'], skills: [{ name: 'Node.js' }] } };
+  assert.equal(classifyField(f('How many years of UX design experience do you have?'), backend), null);
+  assert.equal(classifyField(f('How many years of experience do you have as a Product Designer?'), backend), null);
+  assert.equal(classifyField(f('Years of experience'), backend)?.value, '8');
+  assert.equal(classifyField(f('How many years of UX design experience do you have?'), spec)?.value, '12');
+});
+
+test('a salary question that asks for its currency gets the amount with the currency', () => {
+  const pay = { ...spec, identity: { ...id, salaryMinimum: 'EUR60K', salaryCurrency: 'EUR' } };
+  assert.equal(classifyField(f('Please indicate your annual salary expectations for this role in your local currency'), pay)?.value, '60000 EUR');
+  assert.equal(classifyField(f('What is your expected starting salary? (Indicate currency)*'), pay)?.value, '60000 EUR');
+  assert.equal(classifyField(f('What is your expected starting salary? (Indicate currency)*', { type: 'number' }), pay)?.value, '60000');
+  // The question is the currency itself.
+  assert.equal(classifyField(f('Currency'), pay)?.value, 'EUR');
+  assert.equal(classifyField(f('Expected salary currency'), pay)?.value, 'EUR');
+  assert.equal(classifyField(f('Salary expectations (currency)', { tag: 'select', options: ['USD', 'EUR', 'GBP'].map((text) => ({ text })) }), pay)?.value, 'EUR');
+});
+
+test('a question about past applications is not the future-roles consent', () => {
+  const identity = { ...id, screening: { consents: { futureRoles: true } } };
+  const past = f('Have you applied for other positions with us before?', { tag: 'select', options: [{ text: 'Yes' }, { text: 'No' }] });
+  assert.notEqual(classifyField(past, { ...spec, identity })?.yesNo, 'yes');
+});
+
+test('a current-salary box that says "enter 0 if not applicable" gets 0', () => {
+  const plan = classifyField(
+    { label: 'What is your Current salary (enter 0 if not applicable)?', type: 'text', required: true },
+    { identity: id, answers: [] },
+  );
+  assert.equal(plan?.value, '0');
+});
+
+test('a plain current-salary box is still left to the user', () => {
+  const plan = classifyField({ label: 'What is your current salary?', type: 'text', required: true }, { identity: id, answers: [] });
+  assert.equal(plan?.leaveBlank, true);
+});
+
+test('"where did you hear about us" is recognised in Ukrainian, Russian, Polish and Portuguese (UPSTARS form)', () => {
+  for (const label of [
+    'Де ти бачив/чув інформацію про UPSTARS?* Required',
+    'Откуда вы узнали о нас?',
+    'Skąd dowiedziałeś się o ofercie?',
+    'Como você soube da vaga?',
+  ]) {
+    const plan = classifyField({ label, type: 'text', required: true }, { identity: id, answers: [], jobUrl: 'https://jobgether.com/offer/6ad-product-designer' });
+    assert.ok(plan?.value, label);
+  }
+});
+
+test('"If you aren\'t based in the US, select N/A" answers N/A for a candidate who lives elsewhere (Chromatic)', () => {
+  const field = {
+    label: 'If you are based in the US: will you require visa sponsorship now or in the future? (If you aren\'t based in the US, select "N/A").',
+    type: 'radio',
+    required: true,
+    options: ['Yes', 'No', 'N/A'].map(text => ({ text, value: text })),
+  };
+  const plan = classifyField(field, { identity: { ...id, country: 'France' }, answers: [] });
+  assert.equal(plan?.selectText, 'N/A');
+  // A candidate based in the US gets the sponsorship policy as before.
+  assert.notEqual(classifyField(field, { identity: { ...id, country: 'United States' }, answers: [] })?.selectText, 'N/A');
 });

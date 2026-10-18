@@ -36,6 +36,16 @@ test('extractEmbeddedApplyUrl follows an off-site applicationLink and ignores th
   assert.equal(extractEmbeddedApplyUrl('<button>Apply</button>', 'https://example.com/job'), null);
 });
 
+test('extractEmbeddedApplyUrl reads Jobgether\'s data-apply-url and unescapes the query', () => {
+  const html = '<apply-button data-offer-title="SPM" data-apply-url="https://careers.blackwall.com/jobs/8124220-spm?utm_source=Jobgether&amp;utm_medium=website" data-is-user-logged="true"><button data-role="auto-apply">AUTO APPLY</button><button data-role="apply-logged">APPLY</button></apply-button>';
+  assert.equal(
+    extractEmbeddedApplyUrl(html, 'https://jobgether.com/offer/6ac576e28a27695aea3430a2-spm'),
+    'https://careers.blackwall.com/jobs/8124220-spm?utm_source=Jobgether&utm_medium=website',
+  );
+  // The board's own apply page is not the employer's form.
+  assert.equal(extractEmbeddedApplyUrl('<x data-apply-url="https://jobgether.com/apply/1">', 'https://jobgether.com/offer/1'), null);
+});
+
 function browserFlow(pages) {
   let index = 0;
   const actions = [];

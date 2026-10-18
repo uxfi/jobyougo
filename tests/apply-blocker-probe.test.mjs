@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from '../lib/apply-blocker-probe.mjs';
 
-const browser = await chromium.launch({headless:true});
+// The Playwright headless shell is not always installed: system Chrome first.
+const browser = await chromium.launch({ headless: true, channel: 'chrome' }).catch(() => chromium.launch({ headless: true }));
 test.after(() => browser.close());
 async function probe(html) {
   const page = await browser.newPage();

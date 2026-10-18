@@ -438,7 +438,6 @@ const scripts = [
   { name: 'tracker-columns-tests.mjs', expectExit: 0, timeoutMs: 180_000 },
   { name: 'agent-inbox-tests.mjs', expectExit: 0 },
   { name: 'followup-seed-tests.mjs', expectExit: 0 },
-  { name: 'paste-reply-tests.mjs', expectExit: 0 },
   { name: 'set-status-tests.mjs', expectExit: 0 },
   // The one script in this list that genuinely needs longer than the shared
   // budget. It spawns competing writer processes for 27 contention cases, and
@@ -660,74 +659,6 @@ try {
       pass('assessment-log.mjs preserves add/summary flags and dash-containing values (#2797 regression)');
     } else {
       fail(`assessment-log.mjs existing CLI behavior regressed: ${JSON.stringify({ add: { status: addR.status, stdout: addR.stdout, stderr: addR.stderr }, summary: { status: summaryR.status, stdout: summaryR.stdout, stderr: summaryR.stderr } })}`);
-    }
-  }
-
-  // reply-watch.mjs CLI flag validation (#2743). main() used to read
-  // process.argv[2] purely positionally with no flag checking: `--help` or
-  // any typo'd flag silently became the "candidates path" argument, and
-  // since that "path" doesn't exist, ensureCandidatesFile() created a real
-  // file named e.g. `--help` on disk. Mirrors the scan-ats-full.mjs
-  // KNOWN_FLAGS precedent (#1633/#1635): --help/-h print usage and exit 0,
-  // any other flag-looking arg is rejected with exit 1 — neither path
-  // should ever touch the filesystem.
-  {
-    const replyWatchCli = (...argv) => spawnSync(NODE, [join(scriptTmp, 'reply-watch.mjs'), ...argv], {
-      cwd: scriptTmp,
-      encoding: 'utf-8',
-      timeout: 30000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const helpR = replyWatchCli('--help');
-    const hR = replyWatchCli('-h');
-    const bogusR = replyWatchCli('--bogus');
-
-    const helpOk = helpR.status === 0 && /Usage:/.test(helpR.stdout)
-      && !existsSync(join(scriptTmp, '--help'));
-    const hOk = hR.status === 0 && /Usage:/.test(hR.stdout)
-      && !existsSync(join(scriptTmp, '-h'));
-    const bogusOk = bogusR.status === 1 && /unrecognized flag/.test(bogusR.stderr)
-      && bogusR.stderr.includes('--bogus') && !existsSync(join(scriptTmp, '--bogus'));
-
-    if (helpOk && hOk && bogusOk) {
-      pass('reply-watch.mjs rejects --help/-h/unrecognized flags without creating a stray candidates file (#2743)');
-    } else {
-      fail(`reply-watch.mjs flag validation broken: help=${JSON.stringify({ status: helpR.status, stdout: helpR.stdout, exists: existsSync(join(scriptTmp, '--help')) })} h=${JSON.stringify({ status: hR.status, stdout: hR.stdout, exists: existsSync(join(scriptTmp, '-h')) })} bogus=${JSON.stringify({ status: bogusR.status, stderr: bogusR.stderr, exists: existsSync(join(scriptTmp, '--bogus')) })}`);
-    }
-
-    // CodeRabbit (#2745): --help paired with an unrecognized flag must still
-    // reject — unknown-flag validation has to run before --help short-circuits,
-    // otherwise `reply-watch.mjs --help --bogus` would exit 0 instead of erroring.
-    const mixedR = replyWatchCli('--help', '--bogus');
-    const mixedOk = mixedR.status === 1 && /unrecognized flag/.test(mixedR.stderr)
-      && mixedR.stderr.includes('--bogus') && !/Usage:/.test(mixedR.stdout)
-      && !existsSync(join(scriptTmp, '--help')) && !existsSync(join(scriptTmp, '--bogus'));
-    if (mixedOk) {
-      pass('reply-watch.mjs rejects an unrecognized flag even when --help is also present (#2745)');
-    } else {
-      fail(`reply-watch.mjs --help+--bogus should still error, not exit clean: ${JSON.stringify({ status: mixedR.status, stdout: mixedR.stdout, stderr: mixedR.stderr })}`);
-    }
-
-    // Regression: the existing no-args-uses-default and explicit-path
-    // behaviors must be unchanged by the new flag-parsing gate. Both run to
-    // completion here — the copied scriptTmp tracker has zero rows, so no
-    // candidates ever match an application, no update-recommendation prompt
-    // fires, and the process exits on its own without touching stdin.
-    const defaultCandidatesFile = join(scriptTmp, 'data', 'reply-candidates.json');
-    const noArgsR = replyWatchCli();
-    const noArgsOk = noArgsR.status === 0 && existsSync(defaultCandidatesFile)
-      && /application updates need review/.test(noArgsR.stdout);
-
-    const explicitPath = join(scriptTmp, 'my-candidates.json');
-    const explicitR = replyWatchCli(explicitPath);
-    const explicitOk = explicitR.status === 0 && existsSync(explicitPath)
-      && /application updates need review/.test(explicitR.stdout);
-
-    if (noArgsOk && explicitOk) {
-      pass('reply-watch.mjs no-args-uses-default and explicit-path behaviors unchanged (#2743 regression)');
-    } else {
-      fail(`reply-watch.mjs regression broken: noArgs=${JSON.stringify({ status: noArgsR.status, exists: existsSync(defaultCandidatesFile) })} explicit=${JSON.stringify({ status: explicitR.status, exists: existsSync(explicitPath) })}`);
     }
   }
 } finally {
@@ -5403,7 +5334,6 @@ try {
   const nodeTrackerWriters = [
     ['dedup-tracker.mjs', 1],
     ['normalize-statuses.mjs', 1],
-    ['reply-watch.mjs', 1],
     ['tracker.mjs', 2],
   ];
   const unsafeWriters = nodeTrackerWriters.filter(([name, minTransactions]) => {
@@ -13256,11 +13186,13 @@ try {
   // in section 12c.
   const emptyClaudeCfg = mkdtempSync(join(tmpdir(), 'co-emptycfg-'));
   const doctorEnv = { env: { ...process.env, CLAUDE_CONFIG_DIR: emptyClaudeCfg } };
+  // doctor reads MCP project config from the LAUNCH checkout (its cwd), not from --target
+  // (#3867): each fixture below is therefore also the child's working directory.
 
   // No project MCP config → doctor surfaces a (non-fatal) warning instead of
   // letting SPA job boards fail silently.
   const noMcp = mkdtempSync(join(tmpdir(), 'co-nomcp-'));
-  const a = JSON.parse(run(NODE, ['doctor.mjs', '--json', '--target', noMcp], doctorEnv) || '{}');
+  const a = JSON.parse(run(NODE, [join(ROOT, 'doctor.mjs'), '--json', '--target', noMcp], { ...doctorEnv, cwd: noMcp }) || '{}');
   if (Array.isArray(a.warnings) && a.warnings.some((w) => /playwright mcp/i.test(w))) {
     pass('No Playwright MCP config → warning surfaced');
   } else {
@@ -13275,7 +13207,7 @@ try {
     join(withMcp, '.claude', 'settings.json'),
     JSON.stringify({ mcpServers: { playwright: { command: 'npx', args: ['@playwright/mcp', '--headless'] } } }),
   );
-  const b = JSON.parse(run(NODE, ['doctor.mjs', '--json', '--target', withMcp], doctorEnv) || '{}');
+  const b = JSON.parse(run(NODE, [join(ROOT, 'doctor.mjs'), '--json', '--target', withMcp], { ...doctorEnv, cwd: withMcp }) || '{}');
   if (Array.isArray(b.warnings) && !b.warnings.some((w) => /playwright mcp/i.test(w))) {
     pass('Playwright MCP configured → no warning');
   } else {
@@ -13290,7 +13222,7 @@ try {
     join(withLocalMcp, '.claude', 'settings.local.json'),
     JSON.stringify({ mcpServers: { browser: { command: 'npx', args: ['@playwright/mcp'] } } }),
   );
-  const c = JSON.parse(run(NODE, ['doctor.mjs', '--json', '--target', withLocalMcp], doctorEnv) || '{}');
+  const c = JSON.parse(run(NODE, [join(ROOT, 'doctor.mjs'), '--json', '--target', withLocalMcp], { ...doctorEnv, cwd: withLocalMcp }) || '{}');
   if (Array.isArray(c.warnings) && !c.warnings.some((w) => /playwright mcp/i.test(w))) {
     pass('Playwright MCP configured via .claude/settings.local.json → no warning');
   } else {

@@ -42,6 +42,10 @@ ok('15 years contradicts the CV year count', issues.some(item => item.startsWith
 ok('implicit Figma contradicts the tool line', issues.some(item => item.includes('Figma')));
 ok('Figma described only through Figmol still contradicts the tool line', findFactContradictions('Figma est implicite via Figmol.', facts).some(item => item.includes('Figma')));
 ok('respective country does not include Thailand', issues.some(item => item.includes('respective country')));
+// Only a country said to be covered is that claim: "Le poste inclut…" is not.
+const scope = 'Remote anywhere in your respective country. Pays : UK, India, Philippines, Portugal. Le poste inclut la refonte du design system.';
+ok('"Le poste inclut…" is not a country-inclusion claim', !findFactContradictions(scope, facts).some(item => item.includes('respective country')));
+ok('"Thailand is included" still is', findFactContradictions(`${scope} Thailand is included.`, facts).some(item => item.includes('respective country')));
 
 const check = draftNeedsRepair(broken, facts);
 ok('the Fireflies draft needs a repair', check.repair && check.missingScore && check.sections >= 4);

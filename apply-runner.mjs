@@ -18,10 +18,10 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { resolveUnknownFields } from './lib/apply-llm.mjs';
-import { loadCareerIndex } from './lib/form-answer.mjs';
+import { careerIndexFor } from './lib/form-answer.mjs';
 import { classifyField } from './lib/apply-classify.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, isDemographicLabel } from './lib/apply-select.mjs';
-import { polishApplicationAnswer, hasUnresolvedPlaceholder, loadApplicationVoice, loadCvSummary } from './lib/application-writing.mjs';
+import { polishApplicationAnswer, hasUnresolvedPlaceholder, applicationVoiceFor, cvSummaryFor } from './lib/application-writing.mjs';
 import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isSubstantiveOptionalQuestion, isResumeFileField, shouldReplaceFilledValue, fieldHasCommittedValue, formHasPhoneDialPicker, formHasSurnameField, formHasGivenNameField, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
 import {
@@ -33,6 +33,7 @@ import {
   mergeFilled,
   mergePending,
   shouldUploadFileField,
+  skippedFields,
 } from './lib/apply-completion.mjs';
 import { COLLECT_FIELDS } from './lib/apply-collect-fields.mjs';
 import { watchApplicationTransition, exploreApplicationInterface } from './lib/apply-navigation.mjs';
@@ -1019,6 +1020,7 @@ async function askPageNavAi(page, { skipTexts = [], ...opts } = {}) {
     ...opts,
     url: currentPageUrl(page),
     skipTexts,
+    allowAutoApply: !!spec.autoSubmit,
     listButtons: () => page.evaluate(LIST_VISIBLE_NAV_BUTTONS, { avoidSrc: AUTH_AVOID_TEXT_RE.source, skip: skipTexts }),
   });
   if (decision.log) log(decision.log);
@@ -1837,7 +1839,7 @@ async function fillFields(frame, spec) {
         continue;
       }
       if (plan.resume) {
-        const cv = loadCvSummary(ROOT);
+        const cv = cvSummaryFor(spec, ROOT);
         if (cv) { await loc.fill(cv, { timeout: 5000 }); filled.push({ label: labelShort, value: '📄 CV (texte)' }); }
         else if (f.required) unresolved.push(f);
         continue;
@@ -1983,8 +1985,8 @@ async function fillFields(frame, spec) {
       answers = await resolveUnknownFields({
         fields: llmTargets.map(f => ({ i: f.i, label: f.label, kind: llmKind(f), required: f.required, multiple: fieldIsMulti(f), options: f.options, maxLength: f.maxLength })),
         spec,
-        career: loadCareerIndex(ROOT),
-        styleGuide: loadApplicationVoice(ROOT),
+        career: careerIndexFor(spec, ROOT),
+        styleGuide: applicationVoiceFor(spec, ROOT),
         answered: filled,
       });
     } catch (err) {
@@ -2336,7 +2338,7 @@ function mergeLiveIssues(pending, issues, filled) {
 
 async function main() {
   await writeState();
-  log(`Candidature: ${spec.company} — ${spec.role} [région: ${spec.region === 'asia' ? 'Asie → Bangkok' : 'Europe → Paris'}]`);
+  log(`Candidature: ${spec.company} — ${spec.role} [base: ${spec.identity?.base?.label || spec.identity?.location || 'non définie'}]`);
   log(`CV: ${basenamePath(spec.cvPath)} · ${spec.answers.length} réponse(s) pré-écrites`);
 
   const context = await launchBrowser();
@@ -2455,6 +2457,9 @@ async function main() {
         }
         log('CV manquant — envoi bloqué jusqu’à upload réussi.');
       }
+      // Empty boxes in neither list are kept in the state for audits.
+      state.skipped = skippedFields(stepFields, { filled: state.filled, pending, spec });
+      if (state.skipped.length) log(`${state.skipped.length} champ(s) ignoré(s) : ${state.skipped.map((s) => s.label).join(', ')}`);
       const applyEntryVisible = await activePage.evaluate(PAGE_SHOWS_APPLY_ENTRY).catch(() => false);
 
       let snap = { heading: '', bodySnippet: '' };

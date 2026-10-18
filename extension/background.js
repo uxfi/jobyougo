@@ -52,6 +52,24 @@ let ws = null;
 let reconnectTimer = null;
 let bridgePhase = 'off';
 let bridgeError = '';
+// Whether the server tied this Chrome to an account (its 'paired' reply).
+// null until the first reply.
+let bridgePaired = null;
+// The token the signed-in dashboard handed over: the server routes a run to
+// the Chrome holding its account's token, never to any connected one.
+const PAIR_KEY = 'jobyougoPairToken';
+const UNPAIRED_ERROR = 'Not linked to an account: open the JobYouGo dashboard signed in.';
+
+async function readPairToken() {
+  try { return (await chrome.storage.local.get(PAIR_KEY))[PAIR_KEY] || ''; } catch { return ''; }
+}
+
+async function savePairToken(token) {
+  const value = typeof token === 'string' ? token.trim().slice(0, 200) : '';
+  if (!value) return;
+  try { await chrome.storage.local.set({ [PAIR_KEY]: value }); } catch { /* storage unavailable */ }
+  send({ type: 'pair', pairToken: value });
+}
 const bridgePorts = new Set();
 const runBadges = new Map();
 const runBadgeTimers = new Map();
@@ -67,6 +85,7 @@ function bridgeSnapshot() {
     connected: bridgePhase === 'on',
     error: bridgeError,
     url: BRIDGE_URL,
+    paired: bridgePaired,
     version: chrome.runtime.getManifest().version,
   };
 }
@@ -115,14 +134,19 @@ function connect() {
   socket.addEventListener('open', () => {
     if (!current()) return;
     console.log('[jobyougo-bridge] connected to', BRIDGE_URL);
+    bridgePaired = null;
     setPhase('on');
-    send({
-      type: 'hello',
-      extension: 'jobyougo-apply-bridge-poc',
-      version: chrome.runtime.getManifest().version,
-      // Lets the bridge skip messages an older build would never answer.
-      capabilities: ['page-helper', 'read-options', 'apply-helper', 'submit-pick'],
-    });
+    quiet(readPairToken().then((pairToken) => {
+      if (!current()) return;
+      send({
+        type: 'hello',
+        extension: 'jobyougo-apply-bridge-poc',
+        version: chrome.runtime.getManifest().version,
+        // Lets the bridge skip messages an older build would never answer.
+        capabilities: ['page-helper', 'read-options', 'apply-helper', 'submit-pick'],
+        pairToken,
+      });
+    }));
   });
   socket.addEventListener('close', () => {
     if (!current()) return;
@@ -170,6 +194,7 @@ chrome.runtime.onConnect.addListener((port) => {
       return;
     }
     if (msg?.type === 'bridge-connect') connectNow();
+    else if (msg?.type === 'bridge-pair') quiet(savePairToken(msg.token));
     else if (msg?.type === 'scan-apply-tab') quiet(runScanApplyOnTab(port, msg));
     else if (msg?.type === 'scan-apply-progress') {
       quiet(paintRunBadge(msg.tabId, { phase: msg.phase, text: msg.text }));
@@ -212,6 +237,13 @@ async function onMessage(event) {
   let msg;
   try { msg = JSON.parse(event.data); } catch { return; }
   const rid = msg.requestId;
+
+  if (msg.type === 'paired') {
+    bridgePaired = msg.ok === true;
+    bridgeError = bridgePaired ? '' : UNPAIRED_ERROR;
+    publishBridge();
+    return;
+  }
 
   try {
     if (msg.type === 'open-tab' && msg.url) {
@@ -269,7 +301,7 @@ async function onMessage(event) {
         msg.reSrc,
         msg.avoidSrc,
         msg.skip || [],
-        { scrollFirst: msg.scrollFirst !== false },
+        { scrollFirst: msg.scrollFirst !== false, formStep: msg.formStep === true },
       );
       reply(rid, 'click-result', true, { tabId: msg.tabId, ...result });
       return;
@@ -691,7 +723,7 @@ async function runPageHelper(tabId, name, args = []) {
 // Mirrors lib/form-detect.mjs MARK_PROGRESSION_CONTROLS, then clicks the first
 // match. Lives here so the service worker can click without round-tripping
 // the mark source every time (server still sends reSrc/avoidSrc).
-function markAndClickInPage(reSrc, skip, avoidSrc) {
+function markAndClickInPage(reSrc, skip, avoidSrc, formStep = false) {
   document.querySelectorAll('[data-co-click]').forEach((el) => el.removeAttribute('data-co-click'));
   const re = new RegExp(reSrc, 'i');
   const avoid = new RegExp(avoidSrc, 'i');
@@ -717,12 +749,37 @@ function markAndClickInPage(reSrc, skip, avoidSrc) {
   };
   const labelOf = (el) => (el.innerText || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '')
     .replace(/\s+/g, ' ').trim();
+  // The tab already shown never advances: Ashby's selected "Application"
+  // tab matched the Next vocabulary and was clicked as the next step.
+  const isCurrentTab = (el) => el.getAttribute('aria-selected') === 'true'
+    || (el.hasAttribute('aria-current') && el.getAttribute('aria-current') !== 'false')
+    || (!!el.closest('[role="tablist"]') && /(^|[\s_-])(active|selected|current)([\s_-]|$)/i.test(el.getAttribute('class') || ''));
 
   const candidates = [];
   const consider = (el) => {
     const r = el.getBoundingClientRect();
     if (r.width < 5 || r.height < 5) return;
-    if (isDisabled(el)) return;
+    if (isDisabled(el) || isCurrentTab(el)) return;
+    // Site chrome is never a step: a footer link, or a link to another page
+    // that is the site's home (Teamtailor's footer "Start" matched the
+    // Start/Next vocabulary and sent the run back to the careers home page,
+    // twice). A link with no href or "#" stays on this page.
+    if (el.tagName === 'A') {
+      if (el.closest('footer, [role="contentinfo"]')) return;
+      if (formStep) {
+        if (el.closest('header, nav, [role="banner"], [role="navigation"]')) return;
+        try {
+          const to = new URL(el.getAttribute('href') || '', location.href);
+          if (/^https?:$/.test(to.protocol) && to.origin !== location.origin) return;
+        } catch { /* keep the link */ }
+      }
+      const raw = el.getAttribute('href');
+      try {
+        const u = new URL(raw, location.href);
+        if (raw && u.href.split('#')[0] !== location.href.split('#')[0]
+          && u.origin === location.origin && (u.pathname === '/' || u.pathname === '') && !u.search && !u.hash) return;
+      } catch { /* keep the link */ }
+    }
     const t = labelOf(el);
     if (!t || t.length > 80 || !re.test(t) || skipSet.has(t)) return;
     if (avoid.test(t)) return;
@@ -862,7 +919,7 @@ async function openHrefInNewTab(openerTabId, url) {
   return await waitForHttpTab(tab.id, 15000) || tab;
 }
 
-async function clickProgressionInTab(tabId, reSrc, avoidSrc, skip, { scrollFirst = true } = {}) {
+async function clickProgressionInTab(tabId, reSrc, avoidSrc, skip, { scrollFirst = true, formStep = false } = {}) {
   let windowId;
   try { windowId = (await chrome.tabs.get(tabId)).windowId; } catch { windowId = await currentWindowId(); }
 
@@ -892,7 +949,7 @@ async function clickProgressionInTab(tabId, reSrc, avoidSrc, skip, { scrollFirst
         target: { tabId },
         world: 'MAIN',
         func: markAndClickInPage,
-        args: [reSrc, skip, avoidSrc],
+        args: [reSrc, skip, avoidSrc, formStep],
       });
       result = pageResult;
     } catch (err) {
@@ -1856,6 +1913,67 @@ async function fillFieldsInPage(updates) {
       }
     }
 
+    // 1b) Virtualised lists (react-phone-number-input's country menu: 240 rows,
+    // a dozen in the DOM, no search box): scroll the list until the answer
+    // is rendered.
+    if (shown && !binary && shown.nodes.length >= 3 && !matchIn(shown.nodes)) {
+      const scroller = (() => {
+        for (let n = shown.nodes[0].parentElement, d = 0; n && n !== document.body && d < 8; d++, n = n.parentElement) {
+          const st = getComputedStyle(n);
+          if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 40) return n;
+        }
+        return null;
+      })();
+      if (scroller) {
+        const from = scroller.scrollTop;
+        const scanUntil = Math.max(deadline, Date.now() + 15000);
+        // A row is really drawn when it sits inside the scroller's own viewport:
+        // a hidden tab redraws a virtual list late, and scrolling on before it
+        // has (Recare, 2026-10-17) walked straight past "France".
+        const drawnIn = (nodes) => {
+          const box = scroller.getBoundingClientRect();
+          return nodes.some((n) => {
+            const r = n.getBoundingClientRect();
+            return r.height > 0 && r.bottom > box.top + 2 && r.top < box.bottom - 2;
+          });
+        };
+        let snap = shown;
+        for (let k = 0; k < 160 && Date.now() < scanUntil; k++) {
+          const before = snap.sig;
+          scroller.scrollTop += Math.max(100, Math.floor(scroller.clientHeight * 0.8));
+          const redrawn = async () => {
+            for (let w = 0; w < 30; w++) {
+              await sleep(60);
+              snap = optionSnapshot(el, true);
+              if (snap.count && snap.sig !== before && drawnIn(snap.nodes)) return true;
+            }
+            return false;
+          };
+          if (!(await redrawn())) {
+            // Nudge the scroll event once; a list that still shows the old rows
+            // is not scrolled further (rows would be skipped unseen).
+            scroller.scrollTop -= 1;
+            await sleep(150);
+            scroller.scrollTop += 1;
+            if (!(await redrawn())) break;
+          }
+          if (snap.count) {
+            const hit = matchIn(snap.nodes);
+            if (hit) {
+              const got = await clickAndCheck(hit);
+              if (got) {
+                out.picked = got;
+                return out;
+              }
+              break;
+            }
+          }
+          if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2) break;
+        }
+        scroller.scrollTop = from;
+      }
+    }
+
     // 2) Search lists: type the query, pick among the results. A second
     // query (dial lists: the code, then the country name) runs only when the
     // first one showed nothing usable.
@@ -1885,7 +2003,11 @@ async function fillFieldsInPage(updates) {
       .filter((q, k, all) => q.length >= 2 && all.indexOf(q) === k);
     for (const query of queries) {
       if (out.clicked || binary || Date.now() >= deadline) break;
-      if (shown && listIsComplete(shown.nodes)) break;
+      // A typeahead (Ashby's location: aria-autocomplete=list, rows only after
+      // typing) shows nothing of its own when opened: whatever rows the page-wide
+      // scan found ("I agree") are another control's, not its complete list.
+      const searchOnly = typable && /list|both/i.test(el.getAttribute('aria-autocomplete') || '') && !matchIn(shown?.nodes || []);
+      if (shown && listIsComplete(shown.nodes) && !searchOnly) break;
       const box = typable ? el : listSearchBox();
       if (!box) break;
       if (out.typed) {
@@ -1975,6 +2097,10 @@ async function fillFieldsInPage(updates) {
     if (str.length < 24 && el.tagName !== 'TEXTAREA' && !el.isContentEditable) {
       return setText(el, str);
     }
+    // A hidden tab runs its timers about once a second: chunk by chunk, a
+    // long answer outlasts the fill budget and is read back cut. Write it
+    // whole instead.
+    if (document.visibilityState === 'hidden') return setText(el, str);
     el.focus();
     if (el.isContentEditable || el.getAttribute('contenteditable') === 'true') {
       el.textContent = '';
@@ -2463,21 +2589,33 @@ async function fillFieldsInPage(updates) {
       const landed = String(el.value ?? actual ?? '').trim();
       const wantStr = String(writeValue ?? '').trim();
       let okLand = true;
+      let cut = false;
       if (type === 'tel') {
         const digits = (s) => String(s).replace(/\D/g, '');
         okLand = digits(landed).length > 0 && digits(landed) === digits(wantStr);
       } else if (type === 'email' || /@/.test(wantStr)) {
         okLand = landed.toLowerCase() === wantStr.toLowerCase();
       } else if ((tag === 'INPUT' || tag === 'TEXTAREA') && wantStr) {
-        okLand = landed === wantStr
-          || (wantStr.length >= 12 && landed.includes(wantStr.slice(0, 12)));
+        // A long answer counts once the box holds all of it, give or take
+        // the ATS's whitespace and character tweaks, or its maxlength cut it.
+        // Its first 12 characters were enough: "Kraken's focus on bui" passed.
+        // A trailing "/", space or full stop the site drops is no cut: a
+        // profile URL sent with its "/" reads back without it.
+        const squash = (s) => s.replace(/\s+/g, ' ').replace(/[\s/.,;:!?]+$/, '');
+        const got = squash(landed);
+        const full = squash(wantStr);
+        const ours = full.length >= 12 && got.includes(full.slice(0, 12));
+        const atMaxLength = el.maxLength > 0 && el.value.length >= el.maxLength;
+        okLand = got === full
+          || (ours && (atMaxLength || (!full.startsWith(got) && got.length >= full.length * 0.9)));
+        cut = !okLand && ours;
       }
       results.push({
         i,
         frameId,
         ok: okLand,
         actualValue: landed,
-        reason: okLand ? undefined : 'valeur non retenue par le formulaire',
+        reason: okLand ? undefined : (cut ? 'valeur tronquée' : 'valeur non retenue par le formulaire'),
       });
     } catch (err) {
       results.push({ i, frameId: u.frameId ?? 0, ok: false, reason: String(err?.message || err) });

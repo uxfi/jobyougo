@@ -1378,6 +1378,14 @@
     gap: 6px;
     flex-shrink: 0;
   }
+  .pipeline-dropped { margin-top: 24px; }
+  .pipeline-dropped > summary { cursor: pointer; list-style: none; justify-content: flex-start; }
+  .pipeline-dropped > summary::-webkit-details-marker { display: none; }
+  .pipeline-dropped > summary::before { content: '▸'; color: var(--text-4); margin-right: 8px; transition: transform .15s; display: inline-block; }
+  .pipeline-dropped[open] > summary::before { transform: rotate(90deg); }
+  .pipeline-dropped-count { font-family: var(--font-mono); font-size: 12px; color: var(--text-4); margin-left: 8px; }
+  .pipeline-dropped-hint { font-size: 12.5px; color: var(--text-4); margin: 0 0 12px; max-width: 70ch; }
+  .pipeline-drop-reason { font-size: 12.5px; color: var(--text-3); line-height: 1.45; overflow-wrap: anywhere; }
   .pipeline-bulk-bar {
     position: sticky;
     top: calc(var(--topbar-h) + 8px);
@@ -2792,105 +2800,56 @@
     gap: 8px;
     margin-top: auto;
   }
-  .dashboard-command-row .btn-action { height: 38px; padding: 0 16px; font-size: 13.5px; }
+  .dashboard-command-row .btn-action { height: 42px; padding: 0 19px; font-size: 13px; letter-spacing: .01em; }
+  .dashboard-command-row .btn-action.is-primary {
+    gap: 10px;
+    border: 1px solid rgba(106, 244, 202, .48);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #35d9ae 0%, #18b990 100%);
+    color: #04251d;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 5px 14px rgba(20,190,145,.16);
+    transition: background 180ms var(--ease-out), border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out), transform 180ms var(--ease-out);
+  }
+  .dashboard-command-row .btn-action.is-primary svg {
+    width: 16px;
+    height: 16px;
+    padding: 3px;
+    box-sizing: content-box;
+    border: 1px solid rgba(4,37,29,.18);
+    border-radius: 7px;
+    background: rgba(4,37,29,.09);
+    color: currentColor;
+    transition: transform 180ms var(--ease-out), background 180ms var(--ease-out);
+  }
+  .dashboard-command-row .btn-action.is-primary:hover {
+    background: linear-gradient(180deg, #56e8be 0%, #27c99e 100%);
+    border-color: rgba(146,255,220,.72);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 8px 20px rgba(20,190,145,.24);
+    transform: translateY(-1px);
+  }
+  .dashboard-command-row .btn-action.is-primary:hover svg { color: currentColor; transform: scale(1.06); background: rgba(4,37,29,.13); }
+  .dashboard-command-row .btn-action.is-primary:active { transform: translateY(0) scale(.98); }
+  .dashboard-command-row .btn-action.is-primary:focus-visible { outline: 2px solid #b7ffe9; outline-offset: 3px; }
   .cmd-beam-host { display: inline-flex; border-radius: 999px; }
   .cmd-beam-host > div { border-radius: inherit; }
 
-  /* CSS 3D illustration — same face system as the portfolio objects */
-  .dash-illu {
-    position: relative;
-    width: 132px;
-    height: 132px;
+  .dashboard-hero-art {
     flex: none;
-    perspective: 720px;
+    width: 150px;
+    height: 132px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
   }
-  .dash-illu-aura {
-    position: absolute;
-    inset: 12%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(45,212,160,0.55), transparent 68%);
-    filter: blur(14px);
-    animation: dash-aura 5s ease-in-out infinite alternate;
-  }
-  @keyframes dash-aura {
-    from { opacity: 0.65; transform: scale(0.92); }
-    to   { opacity: 1; transform: scale(1.06); }
-  }
-  .dash-illu-stage { position: absolute; inset: 0; }
-  .dash-illu-shadow {
-    position: absolute;
-    left: 50%; bottom: 16px;
-    width: 72px; height: 14px;
-    transform: translateX(-50%);
-    background: radial-gradient(ellipse, rgba(0,0,0,0.45), transparent 70%);
-    filter: blur(2px);
-  }
-  .dash-illu-scene {
-    position: absolute;
-    inset: 16px;
-    transform-style: preserve-3d;
-    animation: dash-spin 7.6s ease-in-out infinite;
-  }
-  .dash-illu:hover .dash-illu-scene { animation-play-state: paused; }
-  @keyframes dash-spin {
-    0%, 100% { transform: rotateX(-22deg) rotateY(-38deg) translateY(0); }
-    50%      { transform: rotateX(-14deg) rotateY(20deg) translateY(-8px); }
-  }
-  .dbox {
-    --w: 40px; --h: 40px; --d: 40px;
-    --cf: #f4efe4; --ct: #fffaf2; --cs: #c9c0b0;
-    position: absolute;
-    left: 50%; top: 54%;
-    width: 0; height: 0;
-    transform-style: preserve-3d;
-  }
-  .dbox.paper {
-    --w: 52px; --h: 66px; --d: 6px;
-    transform: translate3d(-22px, 6px, -10px) rotateZ(-8deg);
-  }
-  .dbox.mint {
-    --w: 34px; --h: 34px; --d: 34px;
-    --cf: #3ee6b0; --ct: #d6fff1; --cs: #0f8a68;
-    transform: translate3d(18px, -14px, 28px);
-  }
-  .dbox.chip {
-    --w: 28px; --h: 8px; --d: 28px;
-    --cf: #ffe08a; --ct: #fff6d0; --cs: #c9a227;
-    transform: translate3d(-6px, 22px, 18px) rotateZ(12deg);
-  }
-  .df {
-    position: absolute;
-    left: 50%; top: 50%;
-    backface-visibility: hidden;
-    box-shadow: inset 0 0 0 1px rgba(12,11,9,0.12);
-  }
-  .df-front, .df-back {
-    width: var(--w); height: var(--h);
-    margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
-  }
-  .df-front { background: var(--cf); transform: translateZ(calc(var(--d) / 2)); }
-  .df-back { background: var(--cs); transform: rotateY(180deg) translateZ(calc(var(--d) / 2)); }
-  .df-left, .df-right {
-    width: var(--d); height: var(--h);
-    margin: calc(var(--h) / -2) 0 0 calc(var(--d) / -2);
-    background: var(--cs);
-  }
-  .df-right { transform: rotateY(90deg) translateZ(calc(var(--w) / 2)); }
-  .df-left { transform: rotateY(-90deg) translateZ(calc(var(--w) / 2)); }
-  .df-top, .df-bot {
-    width: var(--w); height: var(--d);
-    margin: calc(var(--d) / -2) 0 0 calc(var(--w) / -2);
-  }
-  .df-top { background: var(--ct); transform: rotateX(90deg) translateZ(calc(var(--h) / 2)); }
-  .df-bot { background: var(--cs); transform: rotateX(-90deg) translateZ(calc(var(--h) / 2)); }
-  .dbox.paper .df-front {
-    background:
-      linear-gradient(#d6d0c4, #d6d0c4) 8px 16px / 30px 3px no-repeat,
-      linear-gradient(#d6d0c4, #d6d0c4) 8px 24px / 22px 3px no-repeat,
-      linear-gradient(#2dd4a0, #2dd4a0) 8px 36px / 16px 3px no-repeat,
-      linear-gradient(#d6d0c4, #d6d0c4) 8px 44px / 26px 3px no-repeat,
-      var(--cf);
-    border-radius: 3px;
+  .dashboard-hero-art .hairline-fig {
+    width: 100%;
+    margin: 0;
+    --hairline-plate: transparent;
+    --hairline-hi: #e8f5ef;
+    --hairline-edge: #aab9b1;
+    --hairline-mid: #7f9187;
+    --hairline-lo: #4c5b52;
+    --hairline-stroke: 1.1;
   }
   /* Next best move */
   .dashboard-focus-card {
@@ -3479,6 +3438,38 @@
     background: rgba(255,255,255,0.02);
   }
   .proof-card .proof-metric { grid-column: 1 / -1; margin-top: 6px; outline: none; }
+  .edu-row,
+  .answer-row {
+    display: grid;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 10px;
+    border: 1px solid var(--border-s);
+    border-radius: var(--radius);
+    background: rgba(255,255,255,0.02);
+  }
+  .edu-row { grid-template-columns: 1fr 1fr 1fr 96px 28px; }
+  .answer-row { grid-template-columns: 1fr 28px; }
+  .answer-row .answer-text { grid-column: 1 / -1; resize: vertical; }
+  .edu-row input,
+  .answer-row input,
+  .answer-row textarea { font-size: 13px; padding: 6px 10px; }
+  #education-list:empty::before,
+  #custom-answers-list:empty::before {
+    content: "Nothing here yet. Use Add to create the first one.";
+    display: block;
+    padding: 14px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--text-4);
+    font-size: 13px;
+  }
+  @media (max-width: 640px) {
+    .edu-row { grid-template-columns: 1fr 28px; }
+    .edu-row input { grid-column: 1; }
+    .edu-row .delete-edu-btn { grid-column: 2; grid-row: 1; }
+  }
   .fit-tag {
     display: inline-block;
     padding: 1px 7px;
@@ -3804,7 +3795,7 @@
   @media (max-width: 960px) {
     .criteria-grid { grid-template-columns: 1fr; }
     .dashboard-hero { padding: 20px; border-radius: var(--radius-lg); gap: 20px; }
-    .dash-illu { display: none; }
+    .dashboard-hero-art { display: none; }
   }
   @media (max-width: 860px) {
     .menu-toggle { display: inline-flex; }
@@ -3971,6 +3962,31 @@
   .rc-actions { display: flex; align-items: center; justify-content: flex-end; gap: 2px; min-width: 0; }
   .rc-actions .btn-row-primary { height: 32px; padding: 0 14px 0 11px; border-radius: 999px; }
   .rc-actions .icon-btn { width: 32px; height: 32px; border-radius: 50%; }
+
+  /* Multi-select: offers with a report and not sent yet get a check box
+     before the score; the apply queue takes them one after another. */
+  .app-card.has-select { grid-template-columns: 22px 64px minmax(0, 1fr) 150px 188px; }
+  .app-select {
+    width: 18px; height: 18px;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    background: rgba(255,255,255,0.02);
+    color: var(--accent-ink);
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+  }
+  .app-select:hover { border-color: rgba(255,255,255,0.24); }
+  .app-select svg { opacity: 0; transition: opacity 120ms; }
+  .app-card.selected .app-select { background: var(--accent); border-color: var(--accent); }
+  .app-card.selected .app-select svg { opacity: 1; }
+  .app-card.selected {
+    background: linear-gradient(0deg, rgba(45,212,160,0.06), rgba(45,212,160,0.06)), var(--surface);
+    border-color: var(--accent-line);
+    box-shadow: inset 0 0 0 1px rgba(45,212,160,0.08);
+  }
+  .app-select-spacer { width: 18px; height: 18px; }
 
   /* Compact variant (dashboard "Latest applications") */
   .result-list.is-compact { gap: 6px; }
@@ -4185,7 +4201,9 @@
       padding: 14px;
     }
     .app-card { grid-template-columns: 48px minmax(0, 1fr); }
+    .app-card.has-select { grid-template-columns: 22px 48px minmax(0, 1fr); }
     .rc-meta { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+    .app-card.has-select .rc-meta { grid-column: 3; }
     .rc-actions { grid-column: 1 / -1; justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--border-s); }
     .rc-actions .btn-row-primary { margin-right: auto; }
     .report-chevron { display: none; }
@@ -4722,28 +4740,8 @@
                 <h1 class="dashboard-hero-title" id="dashboard-hero-title">Keep the funnel moving.</h1>
                 <p class="dashboard-hero-copy" id="dashboard-hero-copy">Scan portals, score fit, and push strong matches into real applications.</p>
               </div>
-              <div class="dash-illu" aria-hidden="true">
-                <div class="dash-illu-aura"></div>
-                <div class="dash-illu-stage">
-                  <span class="dash-illu-shadow"></span>
-                  <div class="dash-illu-scene">
-                    <div class="dbox paper">
-                      <i class="df df-front"></i><i class="df df-back"></i>
-                      <i class="df df-left"></i><i class="df df-right"></i>
-                      <i class="df df-top"></i><i class="df df-bot"></i>
-                    </div>
-                    <div class="dbox mint">
-                      <i class="df df-front"></i><i class="df df-back"></i>
-                      <i class="df df-left"></i><i class="df df-right"></i>
-                      <i class="df df-top"></i><i class="df df-bot"></i>
-                    </div>
-                    <div class="dbox chip">
-                      <i class="df df-front"></i><i class="df df-back"></i>
-                      <i class="df df-left"></i><i class="df df-right"></i>
-                      <i class="df df-top"></i><i class="df df-bot"></i>
-                    </div>
-                  </div>
-                </div>
+              <div class="dashboard-hero-art" aria-hidden="true">
+                <div class="hairline-fig" data-hairline="terrain" data-intensity="0.65"></div>
               </div>
             </div>
             <div class="dashboard-hero-sources" id="dashboard-hero-sources"></div>
@@ -4791,6 +4789,7 @@
     <!-- ─── Applications ─────────────────────────────────────── -->
     <div class="content view" id="view-applications">
       <div class="filters" id="app-filters"></div>
+      <div id="app-bulk-bar" class="pipeline-bulk-bar"></div>
       <div class="result-list" id="app-tbody" role="list" aria-label="Applications"></div>
     </div>
 
@@ -4826,6 +4825,14 @@
         <span class="section-title">Pending URLs</span>
       </div>
       <div class="pipeline-list" id="pipeline-list"></div>
+      <details class="pipeline-dropped" id="pipeline-dropped" hidden>
+        <summary class="section-header">
+          <span class="section-title">Dropped before evaluation</span>
+          <span class="pipeline-dropped-count" id="pipeline-dropped-count"></span>
+        </summary>
+        <p class="pipeline-dropped-hint">Your profile rules or Jev took these out of the queue after reading the job description, before Qwen evaluated them. Last 30 days. Re-add one to process it anyway.</p>
+        <div class="pipeline-list" id="pipeline-dropped-list"></div>
+      </details>
     </div>
 
     <!-- ─── Portals ─────────────────────────────────────────── -->
@@ -4907,6 +4914,7 @@
               <span id="profile-completion-hint">The richer your profile, the more precise the recommendations.</span>
             </div>
           </div>
+          <a class="btn btn-ghost btn-sm" href="/onboarding" style="margin-top:12px;align-self:flex-start">Run the guided setup again</a>
         </div>
       </header>
 
@@ -4919,6 +4927,8 @@
         <a href="#sec-comp" data-anchor="sec-comp">Compensation</a>
         <a href="#sec-location" data-anchor="sec-location">Location</a>
         <a href="#sec-search" data-anchor="sec-search">Criteria</a>
+        <a href="#sec-background" data-anchor="sec-background">Background</a>
+        <a href="#sec-forms" data-anchor="sec-forms">Forms</a>
         <a href="#sec-cv" data-anchor="sec-cv">CV</a>
         <a href="#sec-advanced" data-anchor="sec-advanced">Advanced</a>
       </nav>
@@ -5008,7 +5018,7 @@
         <div class="profile-section-head">
           <div>
             <h2 class="profile-section-title">Compensation</h2>
-            <p class="profile-section-desc">Your pay expectations and the type of engagement you want. Used to filter offers.</p>
+            <p class="profile-section-desc">Your pay expectations, the engagement you want and when you can start. Used to filter offers and to answer salary and start-date questions.</p>
           </div>
         </div>
         <div class="profile-card">
@@ -5020,6 +5030,28 @@
             <div class="field span-2"><label class="field-label" for="prof-location-flex">Location flexibility</label><input type="text" id="prof-location-flex" placeholder="e.g. Remote only — no relocation"></div>
           </div>
         </div>
+        <div class="profile-card">
+          <div class="profile-subsection">
+            <div class="profile-subtitle">Availability</div>
+            <div class="profile-subhint">Answers the notice, start date and working days questions on application forms.</div>
+            <div class="field-grid">
+              <div class="field"><label class="field-label" for="prof-notice">Notice period</label><input type="text" id="prof-notice" placeholder="e.g. 1 month"></div>
+              <div class="field"><label class="field-label" for="prof-start-date">Earliest start</label><input type="text" id="prof-start-date" placeholder="Immediately, or 2026-11-01"></div>
+              <div class="field"><label class="field-label" for="prof-days-week">Days per week</label><input type="text" id="prof-days-week" inputmode="numeric" placeholder="5"></div>
+              <div class="field">
+                <label class="field-label" for="prof-current-situation">Current situation</label>
+                <select id="prof-current-situation" class="profile-select">
+                  <option value="">Not answered</option>
+                  <option value="Employed, looking discreetly">Employed, looking discreetly</option>
+                  <option value="Employed, actively looking">Employed, actively looking</option>
+                  <option value="Freelancing">Freelancing</option>
+                  <option value="Between jobs, available now">Between jobs, available now</option>
+                  <option value="Student / graduating">Student or graduating</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Location & Search -->
@@ -5027,16 +5059,70 @@
         <div class="profile-section-head">
           <div>
             <h2 class="profile-section-title">Location</h2>
-            <p class="profile-section-desc">Country, timezone, visa status and remote policy. Used to filter geographic zones.</p>
+            <p class="profile-section-desc">Your bases, work authorization, remote policy and travel. Used to filter geographic zones and to answer location questions on forms.</p>
           </div>
         </div>
         <div class="profile-card">
           <div class="field-grid">
             <div class="field"><label class="field-label" for="prof-country">Country</label><input type="text" id="prof-country" placeholder="France"></div>
             <div class="field"><label class="field-label" for="prof-city">City / Region</label><input type="text" id="prof-city" placeholder="Remote"></div>
-            <div class="field"><label class="field-label" for="prof-timezone">Timezone</label><input type="text" id="prof-timezone" placeholder="CET"></div>
+            <div class="field"><label class="field-label" for="prof-postal">Postal code</label><input type="text" id="prof-postal" placeholder="75011" autocomplete="postal-code"></div>
+            <div class="field"><label class="field-label" for="prof-timezone">Timezone</label><input type="text" id="prof-timezone" list="prof-tz-list" placeholder="CET"></div>
+            <div class="field"><label class="field-label" for="prof-nationality">Nationality</label><input type="text" id="prof-nationality" placeholder="French"></div>
             <div class="field"><label class="field-label" for="prof-visa">Visa status</label><input type="text" id="prof-visa" placeholder="EU citizen, no sponsorship required"></div>
             <div class="field span-2"><label class="field-label" for="prof-remote-policy">Remote policy</label><input type="text" id="prof-remote-policy" placeholder="Full remote required — all sectors"></div>
+          </div>
+          <datalist id="prof-tz-list">
+            <option value="UTC"></option><option value="GMT / BST (London, Lisbon)"></option><option value="CET / CEST (Paris, Berlin, Madrid)"></option>
+            <option value="EET (Athens, Helsinki, Kyiv)"></option><option value="GST (Dubai, UTC+4)"></option><option value="IST (India, UTC+5:30)"></option>
+            <option value="ICT (Bangkok, UTC+7)"></option><option value="SGT (Singapore, UTC+8)"></option><option value="JST (Tokyo, UTC+9)"></option>
+            <option value="AEST (Sydney, UTC+10)"></option><option value="EST / EDT (New York, UTC-5)"></option><option value="CST / CDT (Chicago, UTC-6)"></option>
+            <option value="MST / MDT (Denver, UTC-7)"></option><option value="PST / PDT (San Francisco, UTC-8)"></option><option value="BRT (São Paulo, UTC-3)"></option>
+          </datalist>
+        </div>
+        <div class="profile-card">
+          <div class="profile-subsection">
+            <div class="profile-subtitle">Second base</div>
+            <div class="profile-subhint">If you also work from another country, offers in that region are applied from it, with its phone and time zone. Clear its city and country to remove it.</div>
+            <div class="field-grid">
+              <div class="field"><label class="field-label" for="prof-base2-city">City</label><input type="text" id="prof-base2-city" placeholder="e.g. Lisbon"></div>
+              <div class="field"><label class="field-label" for="prof-base2-country">Country</label><input type="text" id="prof-base2-country" placeholder="e.g. Portugal"></div>
+              <div class="field"><label class="field-label" for="prof-base2-timezone">Time zone there</label><input type="text" id="prof-base2-timezone" list="prof-tz-list" placeholder="e.g. GMT / BST (London, Lisbon)"></div>
+              <div class="field"><label class="field-label" for="prof-base2-phone">Phone there</label><input type="text" id="prof-base2-phone" inputmode="tel" placeholder="e.g. +351 …"></div>
+            </div>
+          </div>
+          <div class="profile-subsection">
+            <div class="profile-subtitle">Work authorization and travel</div>
+            <div class="profile-subhint">Hard filters for the scanner and the evaluator, and the answers to location questions on application forms.</div>
+            <div class="field-grid">
+              <div class="field span-2"><label class="field-label" for="prof-authorized-in">Countries where you can already work <span class="field-hint">(one per line)</span></label><textarea id="prof-authorized-in" rows="3" style="resize:vertical" placeholder="France&#10;European Union"></textarea></div>
+              <div class="field">
+                <label class="field-label" for="prof-sponsorship">Visa sponsorship elsewhere</label>
+                <select id="prof-sponsorship" class="profile-select">
+                  <option value="">Not answered</option>
+                  <option value="yes">I need sponsorship outside those countries</option>
+                  <option value="no">No sponsorship needed</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="prof-relocation">Relocation</label>
+                <select id="prof-relocation" class="profile-select">
+                  <option value="">Not answered</option>
+                  <option value="no">No relocation</option>
+                  <option value="bases">Only to one of my bases</option>
+                  <option value="yes">Open to relocating</option>
+                </select>
+              </div>
+              <div class="field span-2"><label class="field-label" for="prof-onsite-places">Places where on-site or hybrid work is fine <span class="field-hint">(one per line; with a full remote policy, everywhere else is a hard fail)</span></label><textarea id="prof-onsite-places" rows="2" style="resize:vertical" placeholder="Lisbon, Portugal"></textarea></div>
+              <div class="field">
+                <label class="field-label" for="prof-offsites">Team offsites and occasional travel</label>
+                <select id="prof-offsites" class="profile-select">
+                  <option value="">Not answered</option>
+                  <option value="yes">Fine</option>
+                  <option value="no">No travel</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -5107,12 +5193,130 @@
         </div>
       </section>
 
+      <!-- Background -->
+      <section class="profile-section" id="sec-background">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Background</h2>
+            <p class="profile-section-desc">Languages, education, AI practice and people management. Used for the language, degree and experience questions application forms ask.</p>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div class="field-grid">
+            <div class="field span-2"><label class="field-label" for="prof-languages">Languages <span class="field-hint">(one per line, level in brackets)</span></label><textarea id="prof-languages" rows="3" style="resize:vertical" placeholder="French (Native)&#10;English (C1)"></textarea></div>
+            <div class="field span-2">
+              <label class="field-label" for="prof-ai-level">Your use of AI <span class="field-hint">(pick a level or describe it)</span></label>
+              <input type="text" id="prof-ai-level" list="prof-ai-levels" placeholder="Practitioner">
+              <datalist id="prof-ai-levels">
+                <option value="Curious">Tried a few tools</option>
+                <option value="Regular user">Everyday tasks</option>
+                <option value="Practitioner">Complex work, refined prompts and tools</option>
+                <option value="Builder">Ships AI products</option>
+              </datalist>
+            </div>
+            <div class="field"><label class="field-label" for="prof-reports-max">Most people you managed</label><input type="text" id="prof-reports-max" inputmode="numeric" placeholder="0"></div>
+            <div class="field"><label class="field-label" for="prof-reports-context">Where</label><input type="text" id="prof-reports-context" placeholder="Design lead at Acme, 2021-2024"></div>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span class="field-label">Education</span>
+            <button type="button" class="btn-inline-add" id="add-education-btn">
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Add
+            </button>
+          </div>
+          <div id="education-list"></div>
+        </div>
+      </section>
+
+      <!-- Application forms -->
+      <section class="profile-section" id="sec-forms">
+        <div class="profile-section-head">
+          <div>
+            <h2 class="profile-section-title">Application forms</h2>
+            <p class="profile-section-desc">Answers forms ask beyond your CV. Auto-apply fills them the same way on every form; anything left unanswered stays for you.</p>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div class="field-grid">
+            <div class="field"><label class="field-label" for="prof-hear">How did you hear about us?</label><input type="text" id="prof-hear" placeholder="LinkedIn"></div>
+            <div class="field"><label class="field-label" for="prof-references">References</label><input type="text" id="prof-references" placeholder="Available upon request"></div>
+            <div class="field"><label class="field-label" for="prof-clearance">Security clearance</label><input type="text" id="prof-clearance" placeholder="None"></div>
+            <div class="field">
+              <label class="field-label" for="prof-gender">Gender, if forms should state it</label>
+              <select id="prof-gender" class="profile-select">
+                <option value="">Prefer not to say</option>
+                <option value="Woman">Woman</option>
+                <option value="Man">Man</option>
+                <option value="Non-binary">Non-binary</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="prof-licence">Driving licence</label>
+              <select id="prof-licence" class="profile-select">
+                <option value="">Not answered</option>
+                <option value="yes">I hold one</option>
+                <option value="no">No licence</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="prof-noncompete">Non-compete</label>
+              <select id="prof-noncompete" class="profile-select">
+                <option value="">Not answered</option>
+                <option value="yes">I am bound by one</option>
+                <option value="no">No non-compete</option>
+              </select>
+            </div>
+            <div class="field span-2">
+              <label class="field-label" for="prof-future-roles">Companies may contact me about other roles</label>
+              <select id="prof-future-roles" class="profile-select">
+                <option value="">Not answered (optional consents stay unticked)</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-hint" style="margin-top:12px">Race, ethnicity, disability, veteran status, religion, orientation and age are always declined.</div>
+        </div>
+        <div class="profile-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px">
+            <span class="field-label">Your answers to recurring questions</span>
+            <button type="button" class="btn-inline-add" id="add-answer-btn">
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Add
+            </button>
+          </div>
+          <div class="profile-subhint">A form question that asks the same thing gets your answer, for example "Why remote?".</div>
+          <div id="custom-answers-list"></div>
+        </div>
+        <div class="profile-card">
+          <div class="field-grid">
+            <div class="field span-2"><label class="field-label" for="prof-writing-voice">How your answers should sound</label><textarea id="prof-writing-voice" rows="3" style="resize:vertical" placeholder="Short sentences, first person, no buzzwords, one proof per answer."></textarea></div>
+            <div class="field span-2"><label class="field-label" for="prof-outreach-rules">Rules for emails and cover letters</label><textarea id="prof-outreach-rules" rows="3" style="resize:vertical" placeholder="Name well-known clients as proof; never name my current employer's internal tools."></textarea></div>
+          </div>
+        </div>
+      </section>
+
       <!-- CV -->
       <section class="profile-section" id="sec-cv">
         <div class="profile-section-head">
           <div>
             <h2 class="profile-section-title">CV</h2>
             <p class="profile-section-desc">Source of truth for every PDF CV and every offer evaluation.</p>
+          </div>
+        </div>
+        <div class="profile-card" id="apply-cv-card" style="margin-bottom:16px">
+          <div class="field">
+            <span class="field-label">PDF sent with your applications <span class="field-hint">(auto-apply attaches this file, up to 5 MB)</span></span>
+            <p id="apply-cv-status" style="margin:6px 0 12px;font-size:13.5px;color:var(--text-2)">Loading…</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <label class="btn btn-secondary" for="apply-cv-file" style="cursor:pointer">Upload a PDF</label>
+              <input type="file" id="apply-cv-file" accept=".pdf,application/pdf" hidden>
+              <button type="button" class="btn btn-secondary" id="apply-cv-generate">Generate from my CV</button>
+              <button type="button" class="btn btn-ghost" id="apply-cv-view" hidden>Open</button>
+              <button type="button" class="btn btn-ghost" id="apply-cv-remove" hidden>Remove</button>
+            </div>
           </div>
         </div>
         <div class="profile-card">
@@ -5574,6 +5778,7 @@
 </div>
 
 <script src="/effects/dist/effects.js"></script>
+<script type="module" src="/effects/dist/landing-figures.js"></script>
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -5594,6 +5799,10 @@ const state = {
   pipeSourcesOpen: false,
   selectedPipelineUrls: new Set(),
   pipelineChain: null,
+  // Offers ticked in the applications list; the queue applies them in a row.
+  selectedApplicationNums: new Set(),
+  applyChain: null,
+  deferredApplyRuns: [],
   hiddenApplicationNums: new Set(),
   reportSearch: '',
   reportMinScore: 0,
@@ -6383,7 +6592,7 @@ async function renderReportAffiliates(filename) {
 
 // ─── Load data ────────────────────────────────────────────────────────────────
 window.loadAll = async function loadAll() {
-  const [apps, pipe, reports, portals, queries, cvs, scanState, monetization] = await Promise.all([
+  const [apps, pipe, reports, portals, queries, cvs, scanState, monetization, drops] = await Promise.all([
     api('/api/applications').catch(() => []),
     api('/api/pipeline').catch(() => []),
     api('/api/reports').catch(() => []),
@@ -6392,9 +6601,11 @@ window.loadAll = async function loadAll() {
     api('/api/cvs').catch(() => []),
     api('/api/scan-state').catch(() => ({})),
     api('/api/monetization').catch(() => null),
+    api('/api/pipeline/dropped').catch(() => ({ drops: [] })),
   ]);
   state.applications = normalizeApplications(apps);
   state.pipeline     = pipe;
+  state.pipelineDrops = Array.isArray(drops?.drops) ? drops.drops : [];
   state.reports      = reports;
   state.cvs          = cvs;
   state.portals      = portals;
@@ -6436,6 +6647,7 @@ function renderAll() {
   renderDashboard();
   renderApplications();
   renderPipeline();
+  renderPipelineDrops();
   renderReports();
   renderCVs();
   renderPortals();
@@ -6609,7 +6821,7 @@ function renderDashboard() {
       .filter(Boolean).join(' · ');
     return `<li><a class="focus-item" href="${escapeHtml(normalizeExternalUrl(item.url || '') || '#')}" target="_blank" rel="noopener noreferrer" title="Open the posting">
       <span class="focus-item-index">${String(index + 1).padStart(2, '0')}</span>
-      <span class="focus-item-main"><span class="focus-item-title">${escapeHtml(d.title)}</span><span class="focus-item-meta">${escapeHtml(meta)}${d.remoteReview ? ' · <span style="color:var(--warn-ink)">Remote to verify</span>' : ''}</span></span>
+      <span class="focus-item-main"><span class="focus-item-title">${escapeHtml(d.title)}</span><span class="focus-item-meta">${escapeHtml(meta)}${d.remoteReview ? ' · <span style="color:var(--warn-ink)">Remote to verify</span>' : ''}${d.dateReview ? ' · <span style="color:var(--warn-ink)">Date to verify</span>' : ''}</span></span>
       <span class="focus-item-go">${ICON_ARROW_UP_RIGHT}</span>
     </a></li>`;
   };
@@ -7252,12 +7464,26 @@ function renderApplications({ keepToolbar = false } = {}) {
     });
   }
 
+  // Selection: drop offers that can no longer be queued (sent, closed, gone),
+  // remember what is in view for "Select N to apply" and the queue order.
+  for (const num of [...state.selectedApplicationNums]) {
+    if (!canQueueApply(applicationByNum(num))) state.selectedApplicationNums.delete(num);
+  }
+  const displayed = [...filtered].reverse();
+  applicationsView.displayNums = displayed.map(a => String(a['#'] ?? ''));
+  applicationsView.applyableNums = displayed.filter(canQueueApply).map(a => String(a['#'] ?? ''));
+
   // Filter bar: rebuilt on filter changes; typing only refreshes the summary + rows
   const filtersActive = Boolean(query) || state.filter !== 'All' || state.appMinScore > 0;
   const summary = filterSummaryHtml({ shown: filtered.length, total: listed.length, noun: 'offers', active: filtersActive, scope: 'applications' });
   const toolbar = document.getElementById('app-filters');
   if (keepToolbar && toolbar.querySelector('#app-search-input')) {
     toolbar.querySelector('#app-filter-summary').innerHTML = summary;
+    const selectBtn = toolbar.querySelector('#app-select-applyable');
+    if (selectBtn) {
+      selectBtn.hidden = !applicationsView.applyableNums.length;
+      selectBtn.textContent = applySelectButtonLabel();
+    }
   } else {
     const statusTone = s => ({ All: 'var(--text-2)' })[s]
       || `var(${({ evaluated: '--st-evaluated', applied: '--st-applied', closed: '--st-closed' })[STATUS_ICON_KEY[s]] || '--text-3'})`;
@@ -7279,9 +7505,16 @@ function renderApplications({ keepToolbar = false } = {}) {
       <div class="list-bar">
         <span class="filter-summary" id="app-filter-summary">${summary}</span>
         <span class="filter-spacer"></span>
+        <button type="button" class="btn btn-ghost btn-sm" id="app-select-applyable" ${applicationsView.applyableNums.length ? '' : 'hidden'}>${applySelectButtonLabel()}</button>
         ${staleCleanupButton('applications')}
       </div>
     `, 'app-search-input');
+    toolbar.querySelector('#app-select-applyable')?.addEventListener('click', () => {
+      const nums = applicationsView.applyableNums;
+      const allSelected = nums.length > 0 && nums.every(n => state.selectedApplicationNums.has(n));
+      nums.forEach(n => (allSelected ? state.selectedApplicationNums.delete(n) : state.selectedApplicationNums.add(n)));
+      renderApplications({ keepToolbar: true });
+    });
     toolbar.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
       btn.addEventListener('click', () => {
         state.filter = btn.dataset.filter;
@@ -7320,8 +7553,13 @@ function renderApplications({ keepToolbar = false } = {}) {
         const notePreview = noteText
           ? `<span class="offer-note" data-tip="${escapeHtml(noteText)}" aria-label="Note">${ICON_INFO}<span class="offer-note-text">${highlightText(noteText, query)}</span></span>`
           : '';
+        const selectable = canQueueApply(a);
+        const selected = selectable && state.selectedApplicationNums.has(num);
         return `
-        <div class="result-card app-card ${isReadyToApply(a) ? 'is-ready' : ''}" role="listitem">
+        <div class="result-card app-card has-select ${isReadyToApply(a) ? 'is-ready' : ''} ${selected ? 'selected' : ''}" role="listitem">
+          ${selectable
+            ? `<button type="button" class="app-select" data-app-select="${numAttr}" role="checkbox" aria-checked="${selected ? 'true' : 'false'}" aria-label="Select ${escapeHtml(a.Company || 'this offer')} to apply" title="Select, then apply the selection one after another">${ICON_TICK}</button>`
+            : '<span class="app-select-spacer" aria-hidden="true"></span>'}
           <div class="rc-score">${scoreEl(a.Score)}</div>
           <div class="rc-main td-offer">
             <div class="offer-cell">
@@ -7344,6 +7582,158 @@ function renderApplications({ keepToolbar = false } = {}) {
     : (listed.length
         ? emptyResultsHtml({ query, scope: 'applications' })
         : '<div class="empty"><strong>No applications yet</strong><span>Evaluate a job offer to see it here</span></div>');
+  renderApplyBulkBar();
+}
+
+// ─── Apply queue: select offers, apply them one after another ────────────────
+// Mirrors the pipeline's "Process N in a row": a Set of ticked rows, a sticky
+// bulk bar, and a chain that opens the apply modal for each offer in turn.
+// Latest shown rows, read by the selection controls and the queue order.
+const applicationsView = { displayNums: [], applyableNums: [] };
+const ICON_TICK = '<svg width="11" height="11" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M3 7.5l3 3L12 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+// Offers the queue can take: a report to fill from, not sent, not closed.
+function canQueueApply(app) {
+  if (!app) return false;
+  const status = String(app.Status || '').trim();
+  return Boolean(extractReportFilename(app.Report)) && !isAppliedStatus(status) && !isClosedApplicationStatus(status);
+}
+
+function applySelectButtonLabel() {
+  const nums = applicationsView.applyableNums;
+  const allSelected = nums.length > 0 && nums.every(n => state.selectedApplicationNums.has(n));
+  return allSelected ? `Deselect ${formatNumber(nums.length)}` : `Select ${formatNumber(nums.length)} to apply`;
+}
+
+function upsertDeferredApplyRun(run) {
+  state.deferredApplyRuns ||= [];
+  const index = state.deferredApplyRuns.findIndex(item => item.runId === run.runId);
+  if (index >= 0) state.deferredApplyRuns[index] = { ...state.deferredApplyRuns[index], ...run };
+  else state.deferredApplyRuns.push(run);
+  renderApplyBulkBar();
+}
+
+function removeDeferredApplyRun(runId) {
+  state.deferredApplyRuns = (state.deferredApplyRuns || []).filter(item => item.runId !== runId);
+  renderApplyBulkBar();
+}
+
+function resumeDeferredApply(run) {
+  if (state.applyChain) return;
+  openAutoApplyModal({ ...run, resumeRunId: run.runId });
+}
+
+function renderApplyBulkBar() {
+  const bar = document.getElementById('app-bulk-bar');
+  if (!bar) return;
+  const chain = state.applyChain;
+  const selected = state.selectedApplicationNums;
+  const count = selected.size;
+  const waitingRuns = state.deferredApplyRuns || [];
+  bar.classList.toggle('open', count > 0 || Boolean(chain) || waitingRuns.length > 0);
+  if (!count && !chain && !waitingRuns.length) { bar.innerHTML = ''; return; }
+  const inView = applicationsView.displayNums.filter(n => selected.has(n)).length;
+  const selectionMeta = chain
+    ? `Applying <strong>${chain.current}/${chain.total}</strong> one after another${chain.done ? ` · ${chain.done} sent` : ''}${chain.failed ? ` · ${chain.failed} failed` : ''}`
+    : count ? `<strong>${formatNumber(count)}</strong> selected${inView !== count ? ` · ${formatNumber(inView)} in this view` : ''}` : '';
+  const waitingMeta = waitingRuns.length ? `<strong>${formatNumber(waitingRuns.length)}</strong> waiting for your input` : '';
+  const meta = [selectionMeta, waitingMeta].filter(Boolean).join(' · ');
+  bar.innerHTML = `
+    <div class="pipeline-bulk-meta">${meta}</div>
+    ${count || chain ? `<div class="pipeline-bulk-actions">
+      <button class="btn btn-primary btn-sm" id="app-bulk-apply"${chain || !count ? ' disabled' : ''}>${chain ? `Applying ${chain.current}/${chain.total}…` : (count > 1 ? `Apply ${formatNumber(count)} in a row` : 'Apply')}</button>
+      <button class="btn btn-ghost btn-sm" id="app-bulk-clear"${chain || !count ? ' disabled' : ''}>Clear</button>
+    </div>` : ''}
+    ${waitingRuns.length ? `<div class="pipeline-bulk-actions">${waitingRuns.map(run => `<button class="btn btn-ghost btn-sm" data-resume-apply="${escapeHtml(run.runId)}"${chain ? ' disabled' : ''}>Resume ${escapeHtml(run.company || 'application')}</button>`).join('')}</div>` : ''}
+  `;
+  bar.querySelector('#app-bulk-apply')?.addEventListener('click', () => applySelectedOffers());
+  bar.querySelector('#app-bulk-clear')?.addEventListener('click', () => {
+    state.selectedApplicationNums.clear();
+    renderApplications({ keepToolbar: true });
+  });
+  bar.querySelectorAll('[data-resume-apply]').forEach(button => button.addEventListener('click', () => {
+    const run = waitingRuns.find(item => item.runId === button.dataset.resumeApply);
+    if (run) resumeDeferredApply(run);
+  }));
+}
+
+// Queue order: as displayed (top to bottom), then anything selected out of view.
+function selectedApplicationQueue() {
+  const selected = state.selectedApplicationNums;
+  const inView = applicationsView.displayNums.filter(n => selected.has(n));
+  const rest = [...selected].filter(n => !inView.includes(n));
+  return [...inView, ...rest];
+}
+
+// One modal per offer, in turn. The first offer shows the setup (CV, send
+// when filled); its choices are reused for the rest, which auto-start. A
+// run that needs the user (captcha, review) waits like a single apply does.
+// Stop rules: "Stop queue" or closing the modal ends the chain, the rest
+// stays selected; two errors in a row end it too.
+async function applySelectedOffers() {
+  if (state.applyChain) {
+    toast(`Already applying ${state.applyChain.current}/${state.applyChain.total}`, true);
+    return;
+  }
+  const waitingNums = new Set((state.deferredApplyRuns || []).map(run => String(run.num)));
+  const selectedQueue = selectedApplicationQueue();
+  const queue = selectedQueue.filter(num => !waitingNums.has(String(num)) && canQueueApply(applicationByNum(num)));
+  if (!queue.length) {
+    toast(selectedQueue.some(num => waitingNums.has(String(num)))
+      ? 'These selected offers are already waiting for your input. Resume them below.'
+      : 'Nothing to apply: select offers with a report that are not sent yet', true);
+    return;
+  }
+  const chain = { total: queue.length, current: 0, done: 0, failed: 0, skipped: 0, deferred: 0, stopReason: '', presets: null };
+  state.applyChain = chain;
+  renderApplyBulkBar();
+  let failuresInRow = 0;
+  try {
+    for (const num of queue) {
+      const app = applicationByNum(num);
+      if (!canQueueApply(app)) { chain.skipped += 1; state.selectedApplicationNums.delete(num); continue; }
+      chain.current += 1;
+      renderApplyBulkBar();
+      const result = await new Promise(resolve => {
+        openAutoApplyModal({
+          company: app.Company || '',
+          role: app.Role || '',
+          report: extractReportFilename(app.Report),
+          num: String(num),
+          chain,
+          autostart: Boolean(chain.presets),
+          onFinish: resolve,
+        });
+      });
+      if (result.state === 'stopped') {
+        chain.current -= 1;
+        chain.stopReason = 'stopped';
+        break;
+      }
+      if (result.state === 'deferred') chain.deferred += 1;
+      else state.selectedApplicationNums.delete(num);
+      if (result.ok) {
+        chain.done += 1;
+        failuresInRow = 0;
+        continue;
+      }
+      if (result.state === 'error') {
+        chain.failed += 1;
+        failuresInRow += 1;
+        if (failuresInRow >= 2) { chain.stopReason = 'two errors in a row'; break; }
+      } else if (result.state !== 'deferred') {
+        chain.skipped += 1;
+      }
+    }
+  } finally {
+    state.applyChain = null;
+    renderApplications({ keepToolbar: true });
+  }
+  const left = chain.total - chain.done - chain.failed - chain.skipped - chain.deferred;
+  const summary = `${chain.done}/${chain.total} sent${chain.deferred ? `, ${chain.deferred} waiting for input` : ''}${chain.failed ? `, ${chain.failed} failed` : ''}${chain.skipped ? `, ${chain.skipped} skipped` : ''}`;
+  if (!left) toast(summary, chain.failed > 0);
+  else if (chain.stopReason === 'stopped') toast(`Queue stopped: ${summary}. ${left} still selected.`);
+  else toast(`Queue stopped (${chain.stopReason}): ${summary}. ${left} still selected.`, true);
 }
 
 // ─── Application row actions ──────────────────────────────────────────────────
@@ -7479,6 +7869,14 @@ function openRowMenu(trigger) {
 }
 
 document.addEventListener('click', e => {
+  const selectEl = e.target.closest('[data-app-select]');
+  if (selectEl && selectEl.closest('#app-tbody')) {
+    const num = selectEl.dataset.appSelect;
+    if (state.selectedApplicationNums.has(num)) state.selectedApplicationNums.delete(num);
+    else state.selectedApplicationNums.add(num);
+    renderApplications({ keepToolbar: true });
+    return;
+  }
   const actionEl = e.target.closest('[data-row-action]');
   if (actionEl && (actionEl.closest('#app-tbody') || actionEl.closest('.row-menu'))) {
     const fromMenu = Boolean(actionEl.closest('.row-menu'));
@@ -7638,9 +8036,21 @@ const AUTO_APPLY_STATE_LABELS = {
   error: { label: 'Error', tone: 'bad', spin: false },
 };
 
+// app.chain / app.onFinish come from the apply queue (applySelectedOffers):
+// the modal then reports how the offer ended — { ok, state } with state one of
+// submitted | manual_sent | discarded | aborted | skipped | error | stopped.
+// Returns false when refused: while a queue runs, only its own modals open.
+// Another (an extension message) would replace the queue's modal and orphan
+// the chain: its poll goes on unseen, and "Already applying" sticks.
 function openAutoApplyModal(app) {
+  if (state.applyChain && !app.chain) {
+    toast(`Already applying ${state.applyChain.current}/${state.applyChain.total}. Stop the queue first.`, true);
+    return false;
+  }
   document.getElementById('auto-apply-overlay')?.remove();
 
+  const chain = app.chain || null;
+  const presets = chain?.presets || null;
   const overlay = document.createElement('div');
   overlay.id = 'auto-apply-overlay';
   overlay.className = 'modal-backdrop open';
@@ -7649,9 +8059,9 @@ function openAutoApplyModal(app) {
       <div class="modal-header">
         <div class="modal-heading">
           <span class="modal-title" id="aa-title">${escapeHtml(app.company)}</span>
-          <p class="modal-sub">${escapeHtml(app.role || '')}</p>
+          <p class="modal-sub">${escapeHtml(app.role || '')}${chain ? ` · Offer ${chain.current} of ${chain.total}` : ''}</p>
         </div>
-        <button id="aa-close" class="modal-close" aria-label="Close" title="Close. The run keeps going.">
+        <button id="aa-close" class="modal-close" aria-label="Close" title="${chain ? 'Close. The run keeps going; the queue stops.' : 'Close. The run keeps going.'}">
           <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
       </div>
@@ -7675,6 +8085,7 @@ function openAutoApplyModal(app) {
             <span>Solve Cloudflare and Turnstile<small>You handle any other captcha.</small></span>
           </label>
           <p id="aa-plugin" class="modal-hint">Checking Chrome…</p>
+          ${chain && !presets ? `<p class="modal-hint">These choices apply to all ${chain.total} offers in the queue. The next ones start on their own.</p>` : ''}
         </div>
 
         <div id="aa-run" class="aa-run" style="display:none">
@@ -7699,13 +8110,16 @@ function openAutoApplyModal(app) {
         </div>
       </div>
       <div class="modal-footer" id="aa-setup-footer">
-        <button id="aa-start" class="btn btn-primary">Start</button>
+        ${chain ? '<button id="aa-skip" class="btn btn-ghost" title="Leave this offer and go to the next one">Skip</button>' : ''}
+        <button id="aa-start" class="btn btn-primary">${chain ? `Start ${chain.current}/${chain.total}` : 'Start'}</button>
       </div>
       <div class="modal-footer" id="aa-run-footer" style="display:none">
-        <button id="aa-abort" class="btn btn-danger">Abort</button>
+        <button id="aa-abort" class="btn btn-danger"${chain ? ' title="Abort this one. The queue goes on to the next offer."' : ''}>Abort</button>
+        ${chain ? '<button id="aa-stop-queue" class="btn btn-ghost" title="Abort this run and stop the queue">Stop queue</button>' : ''}
         <button id="aa-rescan" class="btn btn-ghost" style="display:none">Rescan</button>
         <button id="aa-discard" class="btn btn-ghost" style="display:none" title="Set the tracker status to Discarded">Mark discarded</button>
         <button id="aa-submit" class="btn btn-ghost" style="display:none" title="Ask Chrome to click send">Confirm send</button>
+        <button id="aa-next-offer" class="btn btn-ghost" style="display:none" title="Leave this application running and continue the queue">${chain && chain.current >= chain.total ? 'Finish queue' : 'Next offer'}</button>
         <button id="aa-manual-sent" class="btn btn-primary" style="display:none" title="After you send it in Chrome">I sent it</button>
       </div>
     </div>`;
@@ -7715,12 +8129,47 @@ function openAutoApplyModal(app) {
   let pollTimer = null;
   let finished = false;
   let appliedMarked = false;
+  let deferred = false;
+  // How this offer ended, reported once to the queue when the modal closes.
+  // Closing before the run ends keeps the run going and stops the queue.
+  let outcome = null;
+  let reported = false;
+  const finish = (result) => {
+    if (reported) return;
+    reported = true;
+    if (typeof app.onFinish === 'function') app.onFinish(result);
+  };
 
   const $ = (id) => overlay.querySelector('#' + id);
   const stopPolling = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } };
-  const close = () => { stopPolling(); overlay.remove(); };
+  const close = () => { stopPolling(); overlay.remove(); finish(outcome || { ok: false, state: 'stopped' }); };
+  const deferOffer = () => {
+    if (!runId || finished || deferred) return false;
+    deferred = true;
+    outcome = { ok: false, state: 'deferred' };
+    const deferredRun = { runId, num: String(app.num || ''), company: app.company || '', role: app.role || '', report: app.report || '' };
+    upsertDeferredApplyRun(deferredRun);
+    void monitorDeferredApply(runId, app.num, app.company);
+    close();
+    return true;
+  };
   $('aa-close').addEventListener('click', close);
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  // A backdrop click would silently stop the queue, so only outside a chain.
+  overlay.addEventListener('click', e => { if (e.target === overlay && !chain) close(); });
+  if (presets) {
+    $('aa-region').value = presets.region || '';
+    $('aa-autosubmit').checked = presets.autoSubmit;
+    $('aa-solve-challenges').checked = presets.solveChallenges;
+  }
+  $('aa-skip')?.addEventListener('click', () => { outcome = { ok: false, state: 'skipped' }; close(); });
+  $('aa-stop-queue')?.addEventListener('click', () => {
+    if (runId && !finished) sendCommand('abort');
+    outcome = { ok: false, state: 'stopped' };
+    close();
+  });
+  $('aa-next-offer')?.addEventListener('click', () => {
+    deferOffer();
+  });
 
   // PinchTab only runs in the separate window. Hide that option while the plugin is connected.
   api('/api/apply/bridge-status').then((b) => {
@@ -7738,22 +8187,39 @@ function openAutoApplyModal(app) {
     const gate = showLaunchGate('Starting apply…');
     $('aa-start').disabled = true;
     $('aa-start').textContent = 'Launching…';
+    const choices = {
+      region: $('aa-region').value,
+      autoSubmit: $('aa-autosubmit').checked,
+      solveChallenges: presets ? presets.solveChallenges : ($('aa-solve-row').hidden ? true : $('aa-solve-challenges').checked),
+    };
     try {
+      if (app.resumeRunId) {
+        hideLaunchGate(gate);
+        runId = app.resumeRunId;
+        $('aa-setup').style.display = 'none';
+        $('aa-setup-footer').style.display = 'none';
+        $('aa-run').style.display = 'flex';
+        $('aa-run-footer').style.display = 'flex';
+        pollTimer = setInterval(poll, 1500);
+        poll();
+        return;
+      }
       const r = await api('/api/apply/start', {
         method: 'POST',
         body: JSON.stringify({
           report: app.report,
           company: app.company,
           role: app.role,
-          region: $('aa-region').value,
-          autoSubmit: $('aa-autosubmit').checked,
-          solveChallenges: $('aa-solve-row').hidden ? true : $('aa-solve-challenges').checked,
+          region: choices.region,
+          autoSubmit: choices.autoSubmit,
+          solveChallenges: choices.solveChallenges,
           tabId: app.tabId || undefined,
         }),
       });
       if (!r?.runId) throw new Error(r?.error || 'Launch incomplete');
       hideLaunchGate(gate);
       runId = r.runId;
+      if (chain && !chain.presets) chain.presets = choices;
       $('aa-setup').style.display = 'none';
       $('aa-setup-footer').style.display = 'none';
       $('aa-run').style.display = 'flex';
@@ -7796,6 +8262,7 @@ function openAutoApplyModal(app) {
       }
       finished = true;
       stopPolling();
+      outcome = { ok: true, state: 'manual_sent' };
       toast(app.num
         ? `${app.company} — send confirmed, status → Applied`
         : 'Send confirmed.');
@@ -7819,6 +8286,7 @@ function openAutoApplyModal(app) {
       await reloadApplications();
       finished = true;
       stopPolling();
+      outcome = { ok: false, state: 'discarded' };
       toast(`${app.company} — offer closed, status → Discarded`);
       close();
     } catch (err) {
@@ -7831,12 +8299,35 @@ function openAutoApplyModal(app) {
     sendCommand('abort');
   });
 
+  // Queue watchdog: a run that stops reporting (tab hung, bridge gone, server
+  // restarted) or never ends must not hold the whole queue. Only inside a
+  // chain; a single apply is watched by the user.
+  const STALL_MS = 3 * 60 * 1000;
+  const OFFER_CAP_MS = 15 * 60 * 1000;
+  let watchStartedAt = 0;
+  let pollMisses = 0;
+  const abandonStalled = (why) => {
+    if (finished) return;
+    finished = true;
+    stopPolling();
+    if (runId) sendCommand('abort');
+    outcome = { ok: false, state: 'error', message: why };
+    toast(`${app.company || 'Offer'} — ${why}. Moving to the next offer.`, true);
+    close();
+  };
+
   async function poll() {
     if (!runId || finished) return;
-    let s;
-    try { s = await api(`/api/apply/runs/${runId}`); }
-    catch { return; } // state.json pas encore écrit
-    if (finished || s.error) return;
+    if (!watchStartedAt) watchStartedAt = Date.now();
+    let s = null;
+    try { s = await api(`/api/apply/runs/${runId}`); } catch { /* state.json pas encore écrit */ }
+    if (finished) return;
+    if (!s || s.error) {
+      pollMisses += 1;
+      if (chain && pollMisses * 1500 > 60000) abandonStalled('the run never reported back');
+      return;
+    }
+    pollMisses = 0;
 
     const meta = AUTO_APPLY_STATE_LABELS[s.state] || { label: s.state, tone: 'muted', spin: false };
     if (app.autostart && offerTabRun && Number(offerTabRun.tabId) === Number(app.tabId)) {
@@ -7863,6 +8354,7 @@ function openAutoApplyModal(app) {
     const waiting = s.state === 'needs_human' || s.state === 'ready_to_review';
     const closedOffer = s.state === 'closed';
     $('aa-manual-sent').style.display = waiting ? 'inline-flex' : 'none';
+    $('aa-next-offer').style.display = waiting && chain ? 'inline-flex' : 'none';
     $('aa-submit').style.display = waiting ? 'inline-flex' : 'none';
     $('aa-rescan').style.display = waiting || closedOffer ? 'inline-flex' : 'none';
     $('aa-discard').style.display = closedOffer && app.num ? 'inline-flex' : 'none';
@@ -7877,9 +8369,34 @@ function openAutoApplyModal(app) {
     $('aa-submit').disabled = stale || Date.now() < submitDebounceUntil;
     $('aa-rescan').disabled = stale;
 
+    // Keep a human-blocked application open in Chrome and let the chain move
+    // on. It remains resumable from the bulk bar when the user is ready.
+    if (waiting && chain) {
+      deferOffer();
+      return;
+    }
+
+    if (chain && !['submitted', 'aborted', 'error', 'closed'].includes(s.state) && !waiting) {
+      if (ageMs > STALL_MS) return abandonStalled('the run stopped reporting');
+      if (Date.now() - watchStartedAt > OFFER_CAP_MS) return abandonStalled('this offer took too long');
+    }
+
+    // A closed offer ends this one for the queue: free the run and go on. The
+    // row stays as it is; "Mark discarded" is still one click in the list.
+    if (chain && closedOffer) {
+      finished = true;
+      stopPolling();
+      sendCommand('abort');
+      outcome = { ok: false, state: 'closed', message: s.message || '' };
+      toast(`${app.company || 'Offer'} — offer closed, skipped.`);
+      close();
+      return;
+    }
+
     if (['submitted', 'aborted', 'error'].includes(s.state)) {
       finished = true;
       stopPolling();
+      outcome = outcome || { ok: s.state === 'submitted', state: s.state, message: s.message || '' };
       if (s.state === 'submitted' && !appliedMarked && app.num) {
         appliedMarked = true;
         try {
@@ -7898,8 +8415,47 @@ function openAutoApplyModal(app) {
         close();
         return;
       }
+      if (app.resumeRunId) removeDeferredApplyRun(app.resumeRunId);
+      // Inside a queue a failed or cancelled offer must not wait for a click.
+      if (chain) {
+        if (s.state === 'error') toast(`${app.company || 'Offer'} — ${s.message || 'error'}`, true);
+        close();
+        return;
+      }
       $('aa-abort').textContent = 'Close';
     }
+  }
+  return true;
+}
+
+// A human-input run can remain open in Chrome while the queue starts another
+// offer. Keep watching it so a later successful submission updates the tracker.
+async function monitorDeferredApply(runId, num, company) {
+  let consecutiveErrors = 0;
+  while (true) {
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    let status;
+    try { status = await api(`/api/apply/runs/${encodeURIComponent(runId)}`); }
+    catch {
+      consecutiveErrors += 1;
+      if (consecutiveErrors >= 5) return; // keep the resume card after transient API outages
+      continue;
+    }
+    consecutiveErrors = 0;
+    if (status?.state === 'submitted') {
+      if (num) {
+        try {
+          await api(`/api/applications/${encodeURIComponent(num)}`, {
+            method: 'PATCH', body: JSON.stringify({ status: 'Applied' }),
+          });
+          await reloadApplications();
+          toast(`${company} — application sent, status → Applied`);
+        } catch (err) { toast(`${company} was sent, but marking it Applied failed: ${err.message}`, true); }
+      }
+      removeDeferredApplyRun(runId);
+      return;
+    }
+    if (['aborted', 'error', 'closed'].includes(status?.state)) { removeDeferredApplyRun(runId); return; }
   }
 }
 
@@ -8043,8 +8599,7 @@ async function continueApplyOnTab(result, { tabId, url, runId }) {
     toast(message);
     return;
   }
-  reportOfferTab(runId, 'run', 'Applying on this tab…');
-  openAutoApplyModal({
+  const opened = openAutoApplyModal({
     company: app.Company || '',
     role: app.Role || '',
     report,
@@ -8052,6 +8607,7 @@ async function continueApplyOnTab(result, { tabId, url, runId }) {
     tabId,
     autostart: true,
   });
+  reportOfferTab(runId, opened ? 'run' : 'warn', opened ? 'Applying on this tab…' : 'A queue is applying. Apply was not started on this tab.');
 }
 
 window.addEventListener('message', (event) => {
@@ -8197,19 +8753,22 @@ function pipelineUrlHtml(url = '', query = '') {
 // dropped (the server leaves display_note empty for those), and the
 // "remote:review" marker becomes a tag instead of posing as a title.
 const REMOTE_REVIEW_RE = /\bremote:review\b/i;
+// Undated web-search hits sit in the same review bin (lib/scan-decision.mjs).
+const DATE_REVIEW_RE = /\bdate:review\b/i;
 function pipelineDisplay(item = {}) {
   let title = String(item.title || '').trim();
   let company = String(item.company || '').trim();
   const rawNote = 'display_note' in item ? item.display_note : (item.displayNote ?? item.note);
   let note = decodeEntities(String(rawNote || '')).trim();
   const remoteReview = [title, note, String(item.note || '')].some(value => REMOTE_REVIEW_RE.test(value));
-  if (REMOTE_REVIEW_RE.test(title)) {
+  const dateReview = [title, note, String(item.note || '')].some(value => DATE_REVIEW_RE.test(value));
+  if (REMOTE_REVIEW_RE.test(title) || DATE_REVIEW_RE.test(title)) {
     title = company;
     company = '';
   }
-  note = note.replace(REMOTE_REVIEW_RE, '').replace(/^[\s|·,–-]+|[\s|·,–-]+$/g, '').trim();
+  note = note.replace(REMOTE_REVIEW_RE, '').replace(DATE_REVIEW_RE, '').replace(/^[\s|·,–-]+|[\s|·,–-]+$/g, '').trim();
   if (note && [title, company].some(value => value && value.toLowerCase() === note.toLowerCase())) note = '';
-  return { title: title || company || 'Untitled role', company: title ? company : '', note, remoteReview };
+  return { title: title || company || 'Untitled role', company: title ? company : '', note, remoteReview, dateReview };
 }
 
 function sourceTagHtml(source) {
@@ -8229,6 +8788,59 @@ function pipelineDateTagHtml(item = {}) {
 const PIPE_TOP_SOURCES = 6;
 // Latest shown/matching URLs, read by the selection controls at click time.
 let pipelineView = { shownUrls: [], matchingUrls: [] };
+
+// Offers the pipeline dropped before Qwen (GET /api/pipeline/dropped,
+// lib/gate-drops.mjs): the reason stays visible instead of the offer vanishing.
+const GATE_LABELS = { profile: 'Profile rules', jev: 'Jev' };
+function renderPipelineDrops() {
+  const box = document.getElementById('pipeline-dropped');
+  const listEl = document.getElementById('pipeline-dropped-list');
+  if (!box || !listEl) return;
+  const queued = new Set((state.pipeline || []).map(item => item.url));
+  const drops = (state.pipelineDrops || []).filter(drop => drop?.url && !queued.has(drop.url));
+  box.hidden = drops.length === 0;
+  document.getElementById('pipeline-dropped-count').textContent = drops.length ? formatNumber(drops.length) : '';
+  listEl.innerHTML = drops.map(drop => {
+    const url = normalizeExternalUrl(drop.url) || '#';
+    const when = relativeTime(drop.at);
+    return `
+    <div class="pipeline-item">
+      <div class="pipeline-main">
+        <div class="pipeline-heading"><span class="pipeline-title">${escapeHtml(drop.title || 'Untitled role')}</span></div>
+        <div class="pipeline-meta">
+          ${drop.company ? `<span class="pipeline-company">${escapeHtml(drop.company)}</span>` : ''}
+          <span class="tag tag-mono">${escapeHtml(GATE_LABELS[drop.gate] || 'Gate')}</span>
+          ${when ? `<span class="pipeline-note" title="${escapeHtml(drop.at)}">${escapeHtml(when)}</span>` : ''}
+        </div>
+        <div class="pipeline-drop-reason">${escapeHtml((drop.reasons || []).join(' '))}</div>
+        <span class="pipeline-url" title="${escapeHtml(drop.url)}">${pipelineUrlHtml(drop.url)}</span>
+      </div>
+      <div class="pipeline-actions">
+        <button class="btn btn-ghost btn-sm" data-readd-url="${escapeHtml(drop.url)}" title="Put this offer back in the queue">Re-add</button>
+        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm">Open</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest?.('[data-readd-url]');
+  if (!button) return;
+  const url = button.dataset.readdUrl;
+  const drop = (state.pipelineDrops || []).find(item => item.url === url) || {};
+  button.disabled = true;
+  try {
+    // "company | title" keeps the offer's identity (lib/pipeline-record.mjs).
+    const note = drop.title ? `${drop.company || '?'} | ${drop.title}` : '';
+    await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
+    state.pipeline = await api('/api/pipeline').catch(() => state.pipeline);
+    renderPipeline();
+    renderPipelineDrops();
+  } catch (err) {
+    button.disabled = false;
+    window.toast?.(`Could not re-add: ${err.message}`, true);
+  }
+});
 
 function renderPipeline({ keepToolbar = false } = {}) {
   const items = getVisiblePipeline();
@@ -8394,6 +9006,7 @@ function renderPipeline({ keepToolbar = false } = {}) {
           ${sourceTagHtml(source)}
           ${pipelineDateTagHtml(item)}
           ${d.remoteReview ? `<span class="tag tag-warn" title="Remote eligibility still has to be checked">${ICON_ALERT}Remote to verify</span>` : ''}
+          ${d.dateReview ? `<span class="tag tag-warn" title="Found by web search with no publication date: check it is recent">${ICON_ALERT}Date to verify</span>` : ''}
           ${jevMeta ? `<span class="tag tag-mono">${escapeHtml(jevMeta)}</span>` : ''}
           ${d.note ? `<span class="pipeline-note" title="${escapeHtml(d.note)}">${highlightText(d.note, query)}</span>` : ''}
         </div>
@@ -9607,10 +10220,10 @@ function profileListLabel(entry) {
 // Lines still equal to an original entry's label give back that entry
 // unchanged (object, number or multi-line string); edited or new lines are
 // plain strings, and deleted lines are dropped.
-function restoreProfileList(text, originals) {
+function restoreProfileList(text, originals, labelOf = profileListLabel) {
   const unused = new Map();
   for (const entry of Array.isArray(originals) ? originals : []) {
-    const label = profileListLabel(entry);
+    const label = labelOf(entry);
     if (!label) continue;
     if (!unused.has(label)) unused.set(label, []);
     unused.get(label).push(entry);
@@ -9631,6 +10244,438 @@ function setProfileList(id, list) {
 function getProfileList(id) {
   const el = document.getElementById(id);
   return restoreProfileList(el.value, el.__orig);
+}
+
+// ─── Sections the onboarding writes ───────────────────────────────────────────
+// Nationality, bases, work authorization, travel, languages, education,
+// availability and the application-form answers. They are edited against the
+// profile as last stored (profileStored) and only the keys whose value changed
+// are sent, so a Save without edits rewrites none of them, and what the page
+// does not show (bases[].regions, travel.note, a language's cefr, the licence
+// categories…) is written back as it was.
+let profileStored = {};
+
+// [element id, form key] for the single-value fields.
+const PROFILE_EXTRA_FIELDS = [
+  ['prof-nationality', 'nationality'], ['prof-postal', 'postal_code'],
+  ['prof-base2-city', 'base2_city'], ['prof-base2-country', 'base2_country'],
+  ['prof-base2-timezone', 'base2_timezone'], ['prof-base2-phone', 'base2_phone'],
+  ['prof-authorized-in', 'authorized_in'], ['prof-sponsorship', 'needs_sponsorship'],
+  ['prof-onsite-places', 'onsite_places'], ['prof-relocation', 'relocation'], ['prof-offsites', 'offsites'],
+  ['prof-languages', 'languages'], ['prof-ai-level', 'ai_proficiency'],
+  ['prof-reports-max', 'reports_max'], ['prof-reports-context', 'reports_context'],
+  ['prof-notice', 'notice_period'], ['prof-start-date', 'start_date'],
+  ['prof-days-week', 'days_per_week'], ['prof-current-situation', 'current_employment'],
+  ['prof-hear', 'how_did_you_hear'], ['prof-references', 'references'], ['prof-clearance', 'security_clearance'],
+  ['prof-gender', 'gender'], ['prof-licence', 'driving_licence'], ['prof-noncompete', 'non_compete'],
+  ['prof-future-roles', 'future_roles'],
+  ['prof-writing-voice', 'writing_voice'], ['prof-outreach-rules', 'outreach_rules'],
+];
+const EDUCATION_KEYS = ['degree', 'field', 'school', 'end_year'];
+const CUSTOM_ANSWER_KEYS = ['question', 'answer'];
+// What the onboarding's relocation choices store.
+const RELOCATION_VALUES = { no: false, yes: true, bases: 'bases' };
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function plainObject(value) {
+  return isPlainObject(value) ? value : {};
+}
+
+function fieldText(value) {
+  return value === null || value === undefined || typeof value === 'object' ? '' : String(value).trim();
+}
+
+// A single-line input drops the line breaks of a stored value, which is not
+// an edit.
+function sameFieldText(a, b) {
+  return fieldText(a).replace(/\s+/g, ' ') === fieldText(b).replace(/\s+/g, ' ');
+}
+
+function isBlankProfileValue(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return !value.trim();
+  if (Array.isArray(value)) return value.length === 0;
+  if (isPlainObject(value)) return Object.keys(value).length === 0;
+  return false;
+}
+
+function sameProfileValue(a, b) {
+  return (isBlankProfileValue(a) && isBlankProfileValue(b)) || JSON.stringify(a) === JSON.stringify(b);
+}
+
+// Same labels as the onboarding: a { name, level } language reads
+// "French (Native)", a structured on-site place "Bangkok, Thailand".
+function languageLabel(entry) {
+  if (!isPlainObject(entry)) return fieldText(entry);
+  const name = fieldText(entry.name || entry.language);
+  const level = fieldText(entry.level || entry.cefr || entry.proficiency);
+  return name && level ? `${name} (${level})` : name;
+}
+
+function placeLabel(entry) {
+  if (!isPlainObject(entry)) return fieldText(entry);
+  return [fieldText(entry.city), fieldText(entry.country)].filter(Boolean).join(', ') || fieldText(entry.name);
+}
+
+function listText(list, labelOf) {
+  return (Array.isArray(list) ? list : (list ? [list] : [])).map(labelOf).filter(Boolean).join('\n');
+}
+
+// Tri-state answers: '' is "not answered", never a stored false.
+function yesNoChoice(value) {
+  return value === true ? 'yes' : value === false ? 'no' : '';
+}
+
+function yesNoValue(choice) {
+  return choice === 'yes' ? true : choice === 'no' ? false : null;
+}
+
+function relocationChoice(value) {
+  if (value === false) return 'no';
+  if (value === true) return 'yes';
+  return fieldText(value);
+}
+
+// screening.driving_licence is true/false (onboarding) or { has, categories }.
+function licenceHeld(value) {
+  return isPlainObject(value) ? value.has : value;
+}
+
+function foldPlace(value) {
+  return fieldText(value).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+// The second base is the first one that is not the default (location.bases[1]
+// as the onboarding writes it).
+function secondBaseIndex(bases) {
+  const list = Array.isArray(bases) ? bases : [];
+  const main = Math.max(0, list.findIndex(b => isPlainObject(b) && b.default === true));
+  return list.findIndex((b, i) => i !== main && isPlainObject(b));
+}
+
+// location.bases after the "Second base" inputs. The default base is left as
+// stored: when the City and Country fields above name another place,
+// resolveLocationProfile (lib/candidate-location.mjs) already reads them as
+// the newer answer. Same rules as the onboarding for the second one: another
+// place drops the old place's regions, status and labels; clearing its city
+// and country removes it.
+function nextLocationBases(storedBases, home, input) {
+  const stored = Array.isArray(storedBases) ? storedBases : [];
+  const place = {
+    city: fieldText(input.city), country: fieldText(input.country),
+    timezone: fieldText(input.timezone), phone: fieldText(input.phone),
+  };
+  const index = secondBaseIndex(stored);
+  const prev = index >= 0 ? stored[index] : null;
+  if (!place.city && !place.country) return prev ? stored.filter((_, i) => i !== index) : stored;
+  let next = {};
+  if (prev && foldPlace(prev.city) === foldPlace(place.city) && foldPlace(prev.country) === foldPlace(place.country)) {
+    next = { ...prev };
+  } else if (prev) {
+    const { regions, status, label, id, cv_profile, ...kept } = prev;
+    next = kept;
+  }
+  next.city = place.city;
+  next.country = place.country;
+  for (const key of ['timezone', 'phone']) {
+    if (place[key]) next[key] = place[key];
+    else delete next[key];
+  }
+  if (prev) return stored.map((b, i) => (i === index ? next : b));
+  if (stored.length) return [...stored, next];
+  // The first second base: the default one is the location fields above, as
+  // the onboarding writes it.
+  const main = { city: fieldText(home.city), country: fieldText(home.country), default: true };
+  if (fieldText(home.timezone)) main.timezone = fieldText(home.timezone);
+  if (fieldText(home.postal_code)) main.postal_code = fieldText(home.postal_code);
+  return [main, { ...next, default: false }].filter(b => b.city || b.country);
+}
+
+// Repeater rows → entries. An unedited cell keeps its stored value as written
+// (a number year, a trailing newline) and the entry's other keys stay.
+function entriesFromRows(rows, keys) {
+  return (Array.isArray(rows) ? rows : []).map(row => {
+    const orig = plainObject(row.orig);
+    const entry = { ...orig };
+    for (const key of keys) {
+      if (!sameFieldText(row[key], orig[key])) entry[key] = fieldText(row[key]);
+    }
+    return entry;
+  });
+}
+
+function rowsFromEntries(entries, keys) {
+  return (Array.isArray(entries) ? entries : []).filter(isPlainObject)
+    .map(entry => Object.fromEntries([['orig', entry], ...keys.map(key => [key, fieldText(entry[key])])]));
+}
+
+// The form values of these sections for a stored profile (form keys of
+// PROFILE_EXTRA_FIELDS, plus the education and custom-answer rows).
+function profileExtrasForm(stored) {
+  const loc = plainObject(stored?.location);
+  const c = plainObject(stored?.candidate);
+  const a = plainObject(stored?.availability);
+  const s = plainObject(stored?.screening);
+  const pm = plainObject(c.people_management);
+  const bases = Array.isArray(loc.bases) ? loc.bases : [];
+  const second = plainObject(bases[secondBaseIndex(bases)]);
+  return {
+    nationality: fieldText(loc.nationality),
+    postal_code: fieldText(loc.postal_code),
+    base2_city: fieldText(second.city),
+    base2_country: fieldText(second.country),
+    base2_timezone: fieldText(second.timezone),
+    base2_phone: fieldText(second.phone),
+    authorized_in: listText(loc.authorized_in, profileListLabel),
+    needs_sponsorship: yesNoChoice(loc.needs_sponsorship),
+    onsite_places: listText(loc.onsite_exceptions, placeLabel),
+    relocation: relocationChoice(loc.relocation),
+    offsites: yesNoChoice(plainObject(loc.travel).offsites),
+    languages: listText(c.languages, languageLabel),
+    ai_proficiency: fieldText(c.ai_proficiency),
+    reports_max: fieldText(pm.max_direct_reports),
+    reports_context: fieldText(pm.context),
+    notice_period: fieldText(a.notice_period),
+    start_date: fieldText(a.start_date),
+    days_per_week: fieldText(a.days_per_week),
+    current_employment: fieldText(a.current_employment),
+    how_did_you_hear: fieldText(s.how_did_you_hear),
+    references: fieldText(s.references),
+    security_clearance: fieldText(s.security_clearance),
+    gender: fieldText(plainObject(s.eeo).gender),
+    driving_licence: yesNoChoice(licenceHeld(s.driving_licence)),
+    non_compete: yesNoChoice(s.non_compete),
+    future_roles: yesNoChoice(plainObject(s.consents).future_roles),
+    writing_voice: fieldText(stored?.writing_voice),
+    outreach_rules: fieldText(stored?.outreach_rules),
+    education: rowsFromEntries(c.education, EDUCATION_KEYS),
+    custom_answers: rowsFromEntries(s.custom_answers, CUSTOM_ANSWER_KEYS),
+  };
+}
+
+// The keys of these sections whose form value differs from the stored one,
+// shaped for PUT /api/profile: { candidate, location, availability,
+// screening, writing_voice, outreach_rules }, each present only when changed.
+// `home` holds the City / Country / Timezone fields of the Location card.
+function profileExtrasPatch(stored, form, home = {}) {
+  const loc = plainObject(stored?.location);
+  const c = plainObject(stored?.candidate);
+  const a = plainObject(stored?.availability);
+  const s = plainObject(stored?.screening);
+  const top = plainObject(stored);
+  const patch = { candidate: {}, location: {}, availability: {}, screening: {}, top: {} };
+  const text = (section, src, key, value) => {
+    if (sameFieldText(value, src[key])) return false;
+    patch[section][key] = fieldText(value);
+    return true;
+  };
+  const number = (section, src, key, value) => {
+    const raw = fieldText(value);
+    if (sameFieldText(raw, src[key])) return;
+    const digits = raw.match(/\d+/);
+    if (!raw) patch[section][key] = '';
+    else if (digits) patch[section][key] = Number(digits[0]);
+  };
+  const list = (section, src, key, value, labelOf) => {
+    const next = restoreProfileList(value, Array.isArray(src[key]) ? src[key] : (src[key] ? [src[key]] : []), labelOf);
+    if (!sameProfileValue(next, src[key])) patch[section][key] = next;
+  };
+  // A cleared answer is sent as null (unknown), never as false.
+  const choice = (section, src, key, value) => {
+    if ((value || '') !== yesNoChoice(src[key])) patch[section][key] = yesNoValue(value);
+  };
+
+  text('location', loc, 'nationality', form.nationality);
+  text('location', loc, 'postal_code', form.postal_code);
+  list('location', loc, 'authorized_in', form.authorized_in, profileListLabel);
+  // A stored sponsorship answer can be changed, not cleared: the server only
+  // keeps true or false there.
+  if (form.needs_sponsorship && form.needs_sponsorship !== yesNoChoice(loc.needs_sponsorship)) {
+    patch.location.needs_sponsorship = yesNoValue(form.needs_sponsorship);
+  }
+  list('location', loc, 'onsite_exceptions', form.onsite_places, placeLabel);
+  if ((form.relocation || '') !== relocationChoice(loc.relocation)) {
+    const choiceValue = form.relocation || '';
+    patch.location.relocation = Object.prototype.hasOwnProperty.call(RELOCATION_VALUES, choiceValue)
+      ? RELOCATION_VALUES[choiceValue]
+      : (choiceValue || null);
+  }
+  const travel = plainObject(loc.travel);
+  if ((form.offsites || '') !== yesNoChoice(travel.offsites)) {
+    patch.location.travel = { ...travel, offsites: yesNoValue(form.offsites) };
+  }
+  const bases = nextLocationBases(loc.bases, { ...home, postal_code: form.postal_code }, {
+    city: form.base2_city, country: form.base2_country, timezone: form.base2_timezone, phone: form.base2_phone,
+  });
+  if (!sameProfileValue(bases, loc.bases)) patch.location.bases = bases;
+
+  list('candidate', c, 'languages', form.languages, languageLabel);
+  text('candidate', c, 'ai_proficiency', form.ai_proficiency);
+  const pm = plainObject(c.people_management);
+  const reportsMax = fieldText(form.reports_max);
+  const reportsContext = fieldText(form.reports_context);
+  if (!sameFieldText(reportsMax, pm.max_direct_reports) || !sameFieldText(reportsContext, pm.context)) {
+    // Both cleared: no management fact left for the forms to state.
+    if (!reportsMax && !reportsContext) {
+      patch.candidate.people_management = null;
+    } else {
+      const next = { ...pm };
+      const digits = reportsMax.match(/\d+/);
+      if (!sameFieldText(reportsMax, pm.max_direct_reports)) next.max_direct_reports = digits ? Number(digits[0]) : '';
+      if (!sameFieldText(reportsContext, pm.context)) next.context = reportsContext;
+      patch.candidate.people_management = next;
+    }
+  }
+  const education = entriesFromRows(form.education, EDUCATION_KEYS)
+    .filter(e => fieldText(e.degree) || fieldText(e.field) || fieldText(e.school));
+  if (!sameProfileValue(education, c.education)) patch.candidate.education = education;
+
+  // notice_period_days wins over the text in apply-spec, so a new notice
+  // period drops the stale day count.
+  if (text('availability', a, 'notice_period', form.notice_period) && a.notice_period_days != null) {
+    patch.availability.notice_period_days = null;
+  }
+  text('availability', a, 'start_date', form.start_date);
+  number('availability', a, 'days_per_week', form.days_per_week);
+  text('availability', a, 'current_employment', form.current_employment);
+
+  text('screening', s, 'how_did_you_hear', form.how_did_you_hear);
+  text('screening', s, 'references', form.references);
+  text('screening', s, 'security_clearance', form.security_clearance);
+  choice('screening', s, 'non_compete', form.non_compete);
+  if ((form.driving_licence || '') !== yesNoChoice(licenceHeld(s.driving_licence))) {
+    const held = yesNoValue(form.driving_licence);
+    patch.screening.driving_licence = isPlainObject(s.driving_licence) ? { ...s.driving_licence, has: held } : held;
+  }
+  const consents = plainObject(s.consents);
+  if ((form.future_roles || '') !== yesNoChoice(consents.future_roles)) {
+    patch.screening.consents = { ...consents, future_roles: yesNoValue(form.future_roles) };
+  }
+  const eeo = plainObject(s.eeo);
+  if (!sameFieldText(form.gender, eeo.gender)) patch.screening.eeo = { ...eeo, gender: fieldText(form.gender) };
+  const answers = entriesFromRows(form.custom_answers, CUSTOM_ANSWER_KEYS)
+    .filter(x => fieldText(x.question) && fieldText(x.answer));
+  if (!sameProfileValue(answers, s.custom_answers)) patch.screening.custom_answers = answers;
+
+  text('top', top, 'writing_voice', form.writing_voice);
+  text('top', top, 'outreach_rules', form.outreach_rules);
+
+  const { top: topLevel, ...sections } = patch;
+  const out = Object.fromEntries(Object.entries(sections).filter(([, value]) => Object.keys(value).length));
+  return { ...out, ...topLevel };
+}
+
+// What the server stores after a PUT (mergeProfileSections in
+// lib/profile-shape.mjs): each sent section merged key by key over the stored
+// one, top-level keys replaced.
+const PROFILE_SECTION_KEYS = ['candidate', 'target_roles', 'narrative', 'compensation', 'location', 'search', 'availability', 'preferences', 'screening'];
+function mergeStoredProfile(stored, sent) {
+  const out = { ...plainObject(stored) };
+  for (const [key, value] of Object.entries(plainObject(sent))) {
+    if (PROFILE_SECTION_KEYS.includes(key)) out[key] = value === null ? {} : { ...plainObject(out[key]), ...plainObject(value) };
+    else out[key] = value;
+  }
+  return JSON.parse(JSON.stringify(out));
+}
+
+// A degraded save left out the jsonb columns the server lacks: those parts are
+// not stored, so they stay out of profileStored and go again next time.
+// `preferences` holds the top-level keys (writing_voice, outreach_rules…).
+function storedPartOfSave(sent, missingColumns) {
+  const missing = new Set(Array.isArray(missingColumns) ? missingColumns : []);
+  return Object.fromEntries(Object.entries(plainObject(sent)).filter(([key]) => {
+    if (PROFILE_SECTION_KEYS.includes(key)) return !missing.has(key);
+    return !missing.has('preferences');
+  }));
+}
+
+// A stored value missing from a select's options gets its own option, so it
+// is shown and saved back rather than silently replaced.
+function setSelectValue(el, value) {
+  if (value && ![...el.options].some(o => o.value === value)) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = value;
+    el.appendChild(opt);
+  }
+  el.value = value;
+}
+
+function markProfileDirty() {
+  const status = document.getElementById('profile-save-status');
+  if (status && status.dataset.state !== 'saving') setProfileSaveState('dirty', 'Unsaved changes');
+}
+
+const DELETE_ROW_ICON = '<svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+function addEducationRow(entry = {}) {
+  const row = document.createElement('div');
+  row.className = 'edu-row';
+  row.innerHTML = `
+    <input type="text" class="edu-degree" aria-label="Degree" value="${escapeHtml(entry.degree || '')}" placeholder="Degree, e.g. Master">
+    <input type="text" class="edu-field" aria-label="Field of study" value="${escapeHtml(entry.field || '')}" placeholder="Field, e.g. Product design">
+    <input type="text" class="edu-school" aria-label="School" value="${escapeHtml(entry.school || '')}" placeholder="School">
+    <input type="text" class="edu-year" aria-label="Graduation year" inputmode="numeric" value="${escapeHtml(entry.end_year || '')}" placeholder="Year">
+    <button type="button" class="btn-icon delete-edu-btn" title="Remove" aria-label="Remove this degree" style="color:var(--red)">${DELETE_ROW_ICON}</button>
+  `;
+  row.querySelector('.delete-edu-btn').addEventListener('click', () => { row.remove(); markProfileDirty(); });
+  // Keys this row does not edit (start_year, country…) are written back as they were.
+  row.__orig = entry.orig || {};
+  document.getElementById('education-list').appendChild(row);
+  return row;
+}
+
+function addCustomAnswerRow(entry = {}) {
+  const row = document.createElement('div');
+  row.className = 'answer-row';
+  row.innerHTML = `
+    <input type="text" class="answer-question" aria-label="Question" value="${escapeHtml(entry.question || '')}" placeholder="Question, e.g. Why do you want to work remotely?">
+    <button type="button" class="btn-icon delete-answer-btn" title="Remove" aria-label="Remove this answer" style="color:var(--red)">${DELETE_ROW_ICON}</button>
+    <textarea class="answer-text" rows="2" aria-label="Answer" placeholder="Your answer">${escapeHtml(entry.answer || '')}</textarea>
+  `;
+  row.querySelector('.delete-answer-btn').addEventListener('click', () => { row.remove(); markProfileDirty(); });
+  row.__orig = entry.orig || {};
+  document.getElementById('custom-answers-list').appendChild(row);
+  return row;
+}
+
+function fillProfileExtras(stored) {
+  const form = profileExtrasForm(stored);
+  for (const [id, key] of PROFILE_EXTRA_FIELDS) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (el.tagName === 'SELECT') setSelectValue(el, form[key]);
+    else el.value = form[key];
+  }
+  // Once answered, the sponsorship question can change but not go back to
+  // "Not answered" (the server keeps only true or false).
+  const unanswered = document.querySelector('#prof-sponsorship option[value=""]');
+  if (unanswered) unanswered.disabled = form.needs_sponsorship !== '';
+  document.getElementById('education-list').innerHTML = '';
+  form.education.forEach(addEducationRow);
+  document.getElementById('custom-answers-list').innerHTML = '';
+  form.custom_answers.forEach(addCustomAnswerRow);
+}
+
+function readProfileExtrasForm() {
+  const form = {};
+  for (const [id, key] of PROFILE_EXTRA_FIELDS) form[key] = document.getElementById(id)?.value ?? '';
+  form.education = [...document.querySelectorAll('#education-list .edu-row')].map(row => ({
+    orig: row.__orig,
+    degree: row.querySelector('.edu-degree').value,
+    field: row.querySelector('.edu-field').value,
+    school: row.querySelector('.edu-school').value,
+    end_year: row.querySelector('.edu-year').value,
+  }));
+  form.custom_answers = [...document.querySelectorAll('#custom-answers-list .answer-row')].map(row => ({
+    orig: row.__orig,
+    question: row.querySelector('.answer-question').value,
+    answer: row.querySelector('.answer-text').value,
+  }));
+  return form;
 }
 
 function normalizeProfileData(data) {
@@ -9663,6 +10708,8 @@ function normalizeProfileData(data) {
 function renderProfile(rawData) {
   const data = normalizeProfileData(rawData);
   profileData = data;
+  profileStored = JSON.parse(JSON.stringify(data || {}));
+  fillProfileExtras(profileStored);
   const c = data.candidate || {};
   const t = data.target_roles || {};
   const n = data.narrative || {};
@@ -9715,7 +10762,80 @@ function renderProfile(rawData) {
   document.getElementById('prof-advanced-context').value        = profileContextMarkdown || '';
 }
 
+// The account's apply PDF (/api/profile/apply-cv): stored per account, the
+// only CV an auto-apply run of this account attaches.
+function paintApplyCv(state) {
+  const status = document.getElementById('apply-cv-status');
+  if (!status) return;
+  const cv = state?.cv || null;
+  const size = cv ? (cv.size >= 1048576 ? `${(cv.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(cv.size / 1024))} KB`) : '';
+  status.textContent = cv
+    ? `${cv.fileName} · ${size} · updated ${new Date(cv.updatedAt).toLocaleDateString()}`
+    : state?.ownerFallback
+      ? 'None uploaded: runs attach the apply_cv named in config/profile.yml.'
+      : 'None yet. Auto-apply needs one: upload your PDF or generate it from the CV below.';
+  document.getElementById('apply-cv-view').hidden = !cv;
+  document.getElementById('apply-cv-remove').hidden = !cv;
+}
+
+async function loadApplyCv() {
+  try { paintApplyCv(await api('/api/profile/apply-cv')); }
+  catch { const el = document.getElementById('apply-cv-status'); if (el) el.textContent = 'Could not load the PDF status.'; }
+}
+
+document.getElementById('apply-cv-file')?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { toast('That PDF is over 5 MB. Export a lighter one.', true); return; }
+  try {
+    const data = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    paintApplyCv(await api('/api/profile/apply-cv', { method: 'PUT', body: JSON.stringify({ fileName: file.name, data }) }));
+    toast('PDF saved: your applications will attach it.');
+  } catch (err) {
+    toast(err?.message || 'Could not save the PDF', true);
+  }
+});
+document.getElementById('apply-cv-generate')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Generating…';
+  try {
+    paintApplyCv(await api('/api/profile/apply-cv/generate', { method: 'POST' }));
+    toast('PDF generated from your CV.');
+  } catch (err) {
+    toast(err?.message || 'PDF generation failed', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+});
+document.getElementById('apply-cv-view')?.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/profile/apply-cv/file', { headers: window.__authToken ? { Authorization: `Bearer ${window.__authToken}` } : {} });
+    if (!res.ok) throw new Error('Could not open the PDF');
+    const url = URL.createObjectURL(await res.blob());
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (err) {
+    toast(err?.message || 'Could not open the PDF', true);
+  }
+});
+document.getElementById('apply-cv-remove')?.addEventListener('click', async () => {
+  if (!confirm('Remove this PDF? Auto-apply needs one to attach.')) return;
+  // Reloaded: the status says whether the owner falls back to apply_cv.
+  try { await api('/api/profile/apply-cv', { method: 'DELETE' }); await loadApplyCv(); }
+  catch (err) { toast(err?.message || 'Could not remove the PDF', true); }
+});
+
 async function loadProfile() {
+  loadApplyCv();
   const [dataResult, contextResult, cvResult] = await Promise.allSettled([
     api('/api/profile'),
     api('/api/profile/context'),
@@ -9809,6 +10929,17 @@ function collectProfile() {
     return obj;
   }).filter(p => p.name);
 
+  const locationFields = {
+    country:      document.getElementById('prof-country').value.trim(),
+    city:         document.getElementById('prof-city').value.trim(),
+    timezone:     document.getElementById('prof-timezone').value.trim(),
+    visa_status:  document.getElementById('prof-visa').value.trim(),
+    remote_policy:document.getElementById('prof-remote-policy').value.trim(),
+  };
+  // Only the onboarding-written keys whose value changed (see profileExtrasPatch).
+  const { candidate: extraCandidate = {}, location: extraLocation = {}, ...extras } =
+    profileExtrasPatch(profileStored, readProfileExtrasForm(), locationFields);
+
   return {
     candidate: {
       full_name:     document.getElementById('prof-name').value.trim(),
@@ -9819,6 +10950,7 @@ function collectProfile() {
       portfolio_url: document.getElementById('prof-portfolio').value.trim(),
       github:        document.getElementById('prof-github').value.trim(),
       twitter:       document.getElementById('prof-twitter').value.trim(),
+      ...extraCandidate,
     },
     target_roles: {
       primary:    getProfileList('prof-primary-roles'),
@@ -9837,13 +10969,7 @@ function collectProfile() {
       employment_type:      document.getElementById('prof-employment-type').value.trim(),
       location_flexibility: document.getElementById('prof-location-flex').value.trim(),
     },
-    location: {
-      country:      document.getElementById('prof-country').value.trim(),
-      city:         document.getElementById('prof-city').value.trim(),
-      timezone:     document.getElementById('prof-timezone').value.trim(),
-      visa_status:  document.getElementById('prof-visa').value.trim(),
-      remote_policy:document.getElementById('prof-remote-policy').value.trim(),
-    },
+    location: { ...locationFields, ...extraLocation },
     search: {
       contract_types: getProfileList('prof-search-contract-types'),
       sector_preferences: getProfileList('prof-search-sectors'),
@@ -9853,6 +10979,7 @@ function collectProfile() {
       nice_to_haves: getProfileList('prof-search-nice-to-haves'),
       deal_breakers: getProfileList('prof-search-deal-breakers'),
     },
+    ...extras,
   };
 }
 
@@ -9892,7 +11019,7 @@ function setProfileSaveState(state, text) {
 
 // PUT /api/profile answers degraded: true while the server lacks the
 // columns for these details; the onboarding shows the same sentence.
-const PROFILE_DEGRADED_MESSAGE = 'Some details could not be saved yet (server update pending): phone, links, languages, availability.';
+const PROFILE_DEGRADED_MESSAGE = 'Some details could not be saved yet (server update pending): phone, links, languages, availability, form answers.';
 
 // The body of PUT /api/profile/cv for this Save, or null to write nothing.
 // Emptying a stored CV removes it, which the server refuses without
@@ -9955,15 +11082,17 @@ document.getElementById('profile-save-btn').addEventListener('click', async () =
       cvKept = !cvBody && Boolean(profileCvStored.trim());
     }
     setProfileSaveState('saving', 'Saving…');
-    // collectProfile() sends only the keys this page knows; the server merges
-    // section by section, so languages, availability, the current role and
-    // the sponsorship answer written by the onboarding are kept. The two
-    // saves are reported apart: a refused CV must not hide a stored profile.
+    // collectProfile() sends only the keys this page knows, and of the
+    // onboarding's sections only the values edited here; the server merges
+    // section by section, so the current role, a language's level, the
+    // bases' regions and the rest are kept. The two saves are reported apart:
+    // a refused CV must not hide a stored profile.
+    const profilePayload = collectProfile();
     const [profileResult, cvSettled] = await Promise.allSettled([
       api('/api/profile', {
         method: 'PUT',
         body: JSON.stringify({
-          profile: collectProfile(),
+          profile: profilePayload,
           context_markdown: advancedContext,
           clear_context: !advancedContext.trim() && Boolean((profileContextMarkdown || '').trim()),
         }),
@@ -9977,6 +11106,11 @@ document.getElementById('profile-save-btn').addEventListener('click', async () =
       profileContextMarkdown = advancedContext;
       // The apply helper refetches rather than offering pre-save values.
       profileData = null;
+      // The next Save compares with what is now stored.
+      profileStored = mergeStoredProfile(profileStored, storedPartOfSave(profilePayload, profileResult.value?.missing_columns));
+      // Shows what was kept (empty rows dropped). A degraded save leaves the
+      // form as typed: those answers go again with the next Save.
+      if (profileResult.value?.degraded !== true) fillProfileExtras(profileStored);
     }
     if (cvSaved) profileCvStored = cvBody.markdown;
     if (cvKept) document.getElementById('prof-cv-markdown').value = profileCvStored;
@@ -9999,6 +11133,8 @@ document.getElementById('profile-save-btn').addEventListener('click', async () =
 
 document.getElementById('add-archetype-btn').addEventListener('click', () => addArchetypeRow());
 document.getElementById('add-proof-btn').addEventListener('click', () => addProofRow());
+document.getElementById('add-education-btn').addEventListener('click', () => addEducationRow().querySelector('input').focus());
+document.getElementById('add-answer-btn').addEventListener('click', () => addCustomAnswerRow().querySelector('input').focus());
 
 // ─── Profile hero, completion, scrollspy ──────────────────────────────────────
 function getInitialsFromName(name) {
@@ -11560,6 +12696,11 @@ let pluginExtensionHere = false;
 let pluginSocketPhase = '';
 let pluginApiConnected = false;
 let pluginApiVersion = '';
+// With accounts, the server runs an account's applies in the Chrome its
+// dashboard paired; a plugin that is connected but tied to no account (or to
+// another one) gets a fresh pairing token from this page.
+let pluginApiAccounts = false;
+let pluginPairAt = 0;
 
 function syncPluginButton() {
   const long = document.querySelector('.plugin-chip-btn-long');
@@ -11589,6 +12730,10 @@ function setPluginChip(state, label, title) {
 }
 
 function paintPluginChip() {
+  if (pluginApiAccounts && !pluginApiConnected && pluginSocketPhase === 'on') {
+    setPluginChip('checking', 'Linking…', 'Chrome plugin is connected, linking it to your account');
+    return;
+  }
   if (pluginApiConnected || pluginSocketPhase === 'on') {
     const tag = pluginApiVersion ? `v${pluginApiVersion}` : '';
     setPluginChip('on', 'Plugin on', tag ? `Chrome plugin connected (${tag})` : 'Chrome plugin connected');
@@ -11605,15 +12750,33 @@ function paintPluginChip() {
 
 async function refreshPluginChip() {
   try {
-    const res = await fetch('/api/apply/bridge-status');
+    // With the token: the status of this account's plugin, not any plugin.
+    const headers = window.__authToken ? { Authorization: `Bearer ${window.__authToken}` } : {};
+    const res = await fetch('/api/apply/bridge-status', { headers });
     if (!res.ok) throw new Error(String(res.status));
     const status = await res.json();
     pluginApiConnected = !!status?.connected;
+    pluginApiAccounts = !!status?.accounts;
     pluginApiVersion = status?.version || pluginApiVersion;
   } catch {
     pluginApiConnected = false;
   }
   paintPluginChip();
+  pairPluginIfNeeded();
+}
+
+// Hands this account's pairing token to the plugin in this Chrome. At most
+// every 30 s: a plugin that never pairs (too old a build) stays "Linking…".
+async function pairPluginIfNeeded() {
+  if (!pluginApiAccounts || pluginApiConnected || pluginSocketPhase !== 'on' || !window.__authToken) return;
+  if (Date.now() - pluginPairAt < 30_000) return;
+  pluginPairAt = Date.now();
+  try {
+    const { token } = await api('/api/apply/bridge-pair', { method: 'POST' });
+    if (!token) return;
+    window.postMessage({ source: 'jobyougo-dashboard', type: 'pair', token }, window.location.origin);
+    setTimeout(refreshPluginChip, 1500);
+  } catch { /* signed out or the server refused: the chip stays as is */ }
 }
 
 function requestPluginMessage(type) {
@@ -11677,6 +12840,7 @@ window.addEventListener('message', (event) => {
   const note = document.getElementById('plugin-connect-note');
   if (note) note.hidden = true;
   paintPluginChip();
+  pairPluginIfNeeded();
 });
 
 document.getElementById('plugin-chip-btn')?.addEventListener('click', (e) => {

@@ -28,7 +28,8 @@ function render(snapshot) {
   labelEl.textContent = COPY[phase] || COPY.off;
   detailEl.textContent = snapshot?.url || '';
   verEl.textContent = snapshot?.version ? `v${snapshot.version}` : '';
-  errorEl.hidden = !snapshot?.error || phase === 'on';
+  // Connected but tied to no account: the server sends it no run.
+  errorEl.hidden = !snapshot?.error || (phase === 'on' && snapshot?.paired !== false);
   errorEl.textContent = snapshot?.error || '';
   connectBtn.textContent = phase === 'on' ? 'Reconnect' : 'Connect';
   connectBtn.disabled = phase === 'connecting';

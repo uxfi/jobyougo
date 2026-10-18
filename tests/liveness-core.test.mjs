@@ -290,3 +290,15 @@ for (const { text, label } of [
     ? pass(`${label} -> active/apply_control_visible`)
     : fail(`${label} classified ${verdict.result}/${verdict.code}, expected active/apply_control_visible`);
 }
+
+// France Travail: the "report this offer" popin on every live page mentions
+// "une offre déjà pourvue"; only a sentence about this posting is a closure.
+const ftLive = 'Senior UX / Product Designer - CDI. Postuler. Pour tout signalement concernant des informations inexactes ou une offre déjà pourvue, rendez-vous auprès de votre agence France Travail.';
+classifyLiveness({ status: 200, finalUrl: 'https://candidat.francetravail.fr/offres/recherche/detail/7701634', bodyText: ftLive, applyControls: ['Postuler'] }).result !== 'expired'
+  ? pass('France Travail report popin ("une offre déjà pourvue") is NOT expired')
+  : fail('false positive: France Travail report popin read as expired');
+for (const banner of ['Cette offre a été pourvue.', "L'offre est déjà pourvue", 'Ce poste est déjà pourvu']) {
+  expired(banner) === 'expired'
+    ? pass(`"${banner}" -> expired`)
+    : fail(`"${banner}" NOT classified expired`);
+}
