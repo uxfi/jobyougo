@@ -505,6 +505,25 @@ if (!jevDropOverrideReason({ title: 'Senior Product Designer', url: 'https://job
   if (bangkok.disposition === 'keep' && paris.reasonCode === 'remote' && parisTitle.reasonCode === 'title' && noProfile.disposition === 'reject') {
     pass('a posting located in an on-site exception (Bangkok hybrid) passes the scan gate; Paris hybrid does not');
   } else fail(`on-site exception: bangkok=${bangkok.disposition}/${bangkok.reasons.join('; ')} paris=${paris.reasonCode} parisTitle=${parisTitle.reasonCode} noProfile=${noProfile.disposition}`);
+
+  // Another account that takes hybrid work: the shared attendance filters
+  // (the owner's full-remote policy) used to drop every hybrid posting.
+  const hybridLoc = resolveLocationProfile({
+    location: { city: 'Lyon', country: 'France', authorized_in: ['France', 'European Union'], remote_policy: 'Hybrid acceptable (2-3 days on-site per week)' },
+  });
+  const hybridGate = (candidate) => evaluateCandidate(
+    { url: 'https://jobs.example.com/jobs/7654321', ...candidate },
+    gateConfig,
+    { today: '2026-10-13', locationProfile: hybridLoc, geoPolicy: geoPolicyFrom(hybridLoc) },
+  );
+  const lyon = hybridGate({ title: 'Senior Product Designer (Hybrid)', location: 'Lyon, France (Hybrid)' });
+  const onsite = hybridGate({ title: 'Senior Product Designer', location: 'Lyon, France (On-site)' });
+  const usOnly = hybridGate({ title: 'Senior Product Designer', location: 'Remote - US only' });
+  const ownerStill = gate({ title: 'Senior Product Designer (Hybrid)', location: 'Lyon, France (Hybrid)' });
+  if (!hybridLoc.fullRemoteOnly && lyon.disposition !== 'reject' && onsite.disposition !== 'reject'
+    && usOnly.reasonCode === 'remote' && ownerStill.disposition === 'reject') {
+    pass('a hybrid-friendly account keeps hybrid and on-site postings; geography still rejects; the full-remote owner is unchanged');
+  } else fail(`attendance open: lyon=${lyon.disposition}/${lyon.reasons.join('; ')} onsite=${onsite.disposition}/${onsite.reasons.join('; ')} us=${usOnly.reasonCode} owner=${ownerStill.disposition}`);
 }
 
 // 2026-10-13: Jev kept generic PM titles at 0.5-0.7 for a design-first

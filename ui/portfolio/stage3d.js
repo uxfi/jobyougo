@@ -53,14 +53,18 @@
     const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
     camera.position.set(0, 0, 9.5);
 
+    // Small stages (method icons loaded from a GLB) are drawn at the screen's pixel density with antialiasing,
+    // otherwise they look pixelated next to the crisp CSS icons; the big hero stage keeps 1x for performance.
+    const small = stage.clientWidth > 0 && stage.clientWidth <= 420;
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
-      antialias: false,
+      antialias: small,
       powerPreference: 'low-power',
       stencil: false,
       depth: true,
     });
-    renderer.setPixelRatio(1);
+    // at least 2x even on 1x screens (supersampling: the browser scales the buffer down, edges stay clean)
+    renderer.setPixelRatio(small ? Math.min(Math.max(window.devicePixelRatio || 1, 2), 3) : 1);
     renderer.setSize(stage.clientWidth, stage.clientHeight, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -911,13 +915,17 @@
   let methodRendererOwner = null;
   function getMethodRenderer(THREE) {
     if (!sharedMethodRenderer) {
+      // A ~168px canvas: antialiasing and the screen's pixel density (capped at 2x) cost little and keep the
+      // icon as sharp as the CSS version it replaces on hover (1x without AA looked pixelated on HiDPI screens).
       const renderer = new THREE.WebGLRenderer({
         alpha: true,
-        antialias: false,
+        antialias: true,
         stencil: false,
         depth: true,
       });
-      renderer.setPixelRatio(1);
+      // At least 2x even on 1x screens: the browser scales the 2x buffer down (supersampling), so edges stay
+      // clean where 1x + MSAA alone still looked pixelated; capped at 3x for very dense screens.
+      renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio || 1, 2), 3));
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.28;
@@ -1074,6 +1082,9 @@
     };
     document.addEventListener('visibilitychange', onVisibility);
     poseRest();
+    // The icon is mounted asynchronously after the card's pointerenter: if the pointer is already on the card,
+    // start spinning now instead of waiting for a second hover.
+    if (stage.matches(':hover')) onEnter();
 
     return {
       dispose() {

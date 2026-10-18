@@ -2658,6 +2658,9 @@ async function main() {
           if (c3 !== 'submit') { outerAction = 'rescan'; break; }
           continue; // the user fixed it → re-click submit only
         }
+        // The dashboard keeps such a row Started instead of marking it Applied.
+        // `confirmed` cannot tell: it stays false on several real sends above.
+        state.unconfirmed = true;
         return setState('submitted', '📨 Candidature probablement envoyée — pas de message de confirmation détecté, vérifie la fenêtre Chrome.');
       }
       if (outerAction === 'rescan') {

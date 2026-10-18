@@ -128,6 +128,7 @@ const STATUS_PRIORITY = {
   interview: 0,
   responded: 1,
   applied: 2,
+  started: 2.5,
   evaluated: 3,
   offer: 4,
   rejected: 5,

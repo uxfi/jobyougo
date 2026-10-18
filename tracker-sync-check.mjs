@@ -142,6 +142,7 @@ const STATUS_ALIASES = {
   'rechazado': 'rejected', 'rechazada': 'rejected',
   'descartado': 'discarded', 'descartada': 'discarded',
   'cerrada': 'discarded', 'cancelada': 'discarded',
+  'in progress': 'started', 'in_progress': 'started', 'en cours': 'started', 'iniciado': 'started', 'iniciada': 'started',
   'no aplicar': 'skip', 'no_aplicar': 'skip', 'monitor': 'skip', 'geo blocker': 'skip',
 };
 

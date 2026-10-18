@@ -39,7 +39,8 @@ import { CV_MIN_CHARS, CvImportError, parseCvWithLlm, validateCvParseRequest } f
 import { buildApplySpec, detectRegion } from '../lib/apply-spec.mjs';
 import { ApplyBridgeHub, attachApplyBridge } from '../extension/apply-bridge-lib.mjs';
 import { APPLY_FILES_DIR, accountLettersDir, deleteAccountCv, isAccountId, readAccountCv, readAccountCvBytes, saveAccountCv, safePdfName } from '../lib/apply-account-files.mjs';
-import { loadCanonicalStates, resolveCanonicalState } from '../tracker-utils.mjs';
+import { loadCanonicalStates, resolveCanonicalState, openTrackerTransaction } from '../tracker-utils.mjs';
+import { localToday } from '../lib/local-today.mjs';
 import { detectChallenge, matchChallengeText } from '../lib/challenge-detect.mjs';
 import {
   PINCHTAB_URL,
@@ -256,6 +257,10 @@ const CONTACT_FINDER_MODEL = process.env.CONTACT_FINDER_MODEL || MODELS.QWEN;
 // On Vercel, the deployment dir is read-only. Redirect all writes to /tmp.
 const IS_VERCEL = !!process.env.VERCEL || ROOT.startsWith('/var/task');
 const WRITE_ROOT = IS_VERCEL ? '/tmp/jobyougo' : ROOT;
+// A second server on the same Supabase project (a test copy on another port):
+// no startup purge, no applications sync and no reports/ watcher, all of which
+// write the owner's rows.
+const LOCAL_SYNC_DISABLED = /^(1|true|yes)$/i.test(String(process.env.JOBYOUGO_NO_LOCAL_SYNC || '').trim());
 
 // Ensure writable dirs exist on Vercel
 if (IS_VERCEL) {
@@ -506,6 +511,14 @@ async function ownsLocalData(userId) {
   if (!useSupabase || !userId) return true;
   const adminId = await getAdminUserId().catch(() => null);
   return Boolean(adminId && userId === adminId);
+}
+
+// An evaluation another account runs on a local server is its own: the report
+// and its tracker row go to Supabase under its id, never to the owner's
+// reports/ and tracker (the watcher and the sync push those under the owner's id).
+async function evaluationIsAccountOnly(userId) {
+  if (!useSupabase || IS_VERCEL || !userId) return false;
+  return !(await ownsLocalData(userId));
 }
 
 // Whose rows a view-only GET returns. undefined is every row plus the
@@ -1562,6 +1575,9 @@ async function addToPipeline(url, note, userId) {
 const PORTALS_EXAMPLE = join(ROOT, 'templates', 'portals.example.yml');
 const PORTALS_FILE = IS_VERCEL ? join(WRITE_ROOT, 'portals.yml') : join(ROOT, 'portals.yml');
 
+// The dashboard's first load reads portals and queries at once: two copies of
+// the template ran together and, on Windows, the second one failed (a 500).
+let portalsSeeding = null;
 async function ensurePortalsFile() {
   try {
     await access(PORTALS_FILE);
@@ -1569,7 +1585,11 @@ async function ensurePortalsFile() {
   } catch {
     /* missing — seed below */
   }
+  portalsSeeding ||= seedPortalsFile().finally(() => { portalsSeeding = null; });
+  return portalsSeeding;
+}
 
+async function seedPortalsFile() {
   const sources = IS_VERCEL
     ? [join(ROOT, 'portals.yml'), PORTALS_EXAMPLE]
     : [PORTALS_EXAMPLE];
@@ -6000,44 +6020,202 @@ function isCompanyRoleExcluded(company, role, exclusionsByCompany) {
   return roles.some(r => roleMatch(r, role));
 }
 
-function setApplicationStatusInMarkdown(raw, num, status) {
-  let updated = false;
-  const newLines = String(raw || '').split('\n').map(line => {
-    if (!line.trim().startsWith('|')) return line;
-    const rowNum = getMarkdownTableRowNumber(line);
-    if (!rowNum || rowNum === '#' || parseInt(rowNum, 10) !== parseInt(num, 10)) return line;
-    const cells = line.split('|');
-    if (cells.length < 7) return line;
-    cells[6] = ` ${status} `;
-    updated = true;
-    return cells.join('|');
-  });
-  return { content: newLines.join('\n'), updated };
+// Index of the Status cell in `line.split('|')`, read from the table header:
+// the optional Via column (merge-tracker --migrate-via) moves it right.
+function trackerStatusCellIndex(lines) {
+  const header = lines.find(line => /^\|\s*#\s*\|/.test(line));
+  const idx = header ? header.split('|').findIndex(c => c.trim().toLowerCase() === 'status') : -1;
+  return idx > 0 ? idx : 6;
 }
 
-function setApplicationStatusesInMarkdown(raw, nums, status) {
+// Sets `status` on the rows whose number is in `nums` (a Set of strings).
+// onlyFrom: canonical states a row may move from; other rows are left alone.
+function setApplicationStatusesInMarkdown(raw, nums, status, { onlyFrom } = {}) {
+  const lines = String(raw || '').split('\n');
+  const statusIdx = trackerStatusCellIndex(lines);
+  const states = onlyFrom ? canonicalApplicationStates() : null;
   let updated = false;
-  const newLines = String(raw || '').split('\n').map(line => {
+  const changes = [];
+  const newLines = lines.map(line => {
     if (!line.trim().startsWith('|')) return line;
     const rowNum = getMarkdownTableRowNumber(line);
     const n = parseInt(rowNum, 10);
     if (!rowNum || rowNum === '#' || !Number.isFinite(n) || (!nums.has(String(n)) && !nums.has(String(rowNum)))) return line;
     const cells = line.split('|');
-    if (cells.length < 7) return line;
-    cells[6] = ` ${status} `;
+    if (cells.length <= statusIdx) return line;
+    const from = cells[statusIdx].trim();
+    if (onlyFrom && !onlyFrom.includes(resolveCanonicalState(from, states))) return line;
+    changes.push({ num: n, from, to: status });
+    cells[statusIdx] = ` ${status} `;
     updated = true;
     return cells.join('|');
   });
-  return { content: newLines.join('\n'), updated };
+  return { content: newLines.join('\n'), updated, changes };
 }
 
-async function writeMarkdownApplicationStatus(num, status) {
-  const appFile = join(WRITE_ROOT, 'data/applications.md');
-  const raw = await readFile(appFile, 'utf-8');
-  const { content, updated } = setApplicationStatusInMarkdown(raw, num, status);
-  if (!updated) return false;
-  await writeFile(appFile, content, 'utf-8');
-  return true;
+// Who asked for a status write. The UI names the button or flow; anything
+// else is kept short and to a safe charset so it can sit in a TSV cell.
+function statusWriteSource(value) {
+  const s = String(value || '').toLowerCase().replace(/[^a-z0-9._:-]/g, '').slice(0, 60);
+  return s || 'unspecified';
+}
+
+// 2026-10-18: 74 rows turned Applied overnight with no send behind them, and
+// nothing recorded which call wrote them. Every status write from the app now
+// lands in status-log.tsv (source "web", the caller in the note), the same
+// ledger set-status.mjs appends to.
+async function logApplicationStatusChanges(changes, { via, runId } = {}) {
+  const states = canonicalApplicationStates();
+  const canon = value => resolveCanonicalState(value, states) || '-';
+  const d = new Date();
+  const day = localToday(d);
+  const note = [`via=${statusWriteSource(via)}`, runId ? `run=${statusWriteSource(runId)}` : '', `at=${d.toISOString()}`]
+    .filter(Boolean).join(' ');
+  const lines = (changes || [])
+    .filter(c => canon(c.from) !== canon(c.to))
+    .map(c => `${c.num}\t${day}\t${canon(c.from)}\t${canon(c.to)}\tweb\t${note}\n`);
+  if (!lines.length) return;
+  try {
+    await appendFile(join(WRITE_ROOT, 'data/status-log.tsv'), lines.join(''), 'utf-8');
+  } catch (err) {
+    console.error(`[status-log] append failed (status write itself succeeded): ${err.message}`);
+  }
+}
+
+// Every status write the server makes to data/applications.md goes through
+// here: one at a time in this process, inside the tracker lock set-status.mjs
+// and merge-tracker.mjs take, with an atomic replace. Two ✓ clicks 1 ms apart
+// used to read the same file, and the later write undid the earlier one
+// (#871, #853 on 2026-10-18).
+let trackerWriteQueue = Promise.resolve();
+
+// Resolves to the rows it set (`{ num, from, to }`); a row whose status already
+// matched counts as set, a row onlyFrom held back does not.
+function writeMarkdownApplicationStatuses(nums, status, source = {}, { onlyFrom } = {}) {
+  const wanted = new Set([...nums].map(n => parseInt(n, 10)).filter(Number.isFinite).map(String));
+  const run = trackerWriteQueue.then(async () => {
+    const tx = await openTrackerTransaction(join(WRITE_ROOT, 'data/applications.md'));
+    try {
+      const { content, updated, changes } = setApplicationStatusesInMarkdown(tx.read(), wanted, status, { onlyFrom });
+      if (updated) {
+        tx.replace(content);
+        await logApplicationStatusChanges(changes, source);
+      }
+      return changes;
+    } finally {
+      tx.close();
+    }
+  });
+  trackerWriteQueue = run.catch(() => {});
+  return run;
+}
+
+async function writeMarkdownApplicationStatus(num, status, source = {}, options = {}) {
+  return (await writeMarkdownApplicationStatuses([num], status, source, options)).length > 0;
+}
+
+// Supabase keeps a status as the tracker wrote it: the label, or an alias with
+// a capital first letter (Evaluada, Hold).
+function statusSpellings(labels) {
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  return canonicalApplicationStates()
+    .filter(s => labels.includes(s.label))
+    .flatMap(s => [s.label, ...s.aliases.map(cap)]);
+}
+
+// An apply run on an Evaluated offer turns it Started, so the list shows which
+// offers the apply system already went through; a confirmed send moves it on to
+// Applied. Statuses only move forward: a run on an Applied or closed row
+// changes nothing.
+async function moveApplicationStatus({ num, userId, status, from, source }) {
+  const n = Number(num);
+  if (!Number.isInteger(n) || n <= 0) return false;
+  if (useSupabase && supabase) {
+    let q = supabase.from('applications').update({ status })
+      .eq('num', n).in('status', statusSpellings(from));
+    if (userId) q = q.eq('user_id', userId);
+    const { data, error } = await q.select('num');
+    if (error) console.warn(`[apply] #${n} not moved to ${status}: ${error.message}`);
+    // data/applications.md is the owner's: another account's row N is not its row N.
+    if (!(await ownsLocalData(userId))) return !error && Boolean(data?.length);
+  }
+  return writeMarkdownApplicationStatus(n, status, source, { onlyFrom: from }).catch(() => false);
+}
+
+function markApplyStarted({ num, userId, runId }) {
+  return moveApplicationStatus({ num, userId, status: 'Started', from: ['Evaluated'], source: { via: 'apply-start', runId } });
+}
+
+function markApplySent({ num, userId, runId }) {
+  return moveApplicationStatus({ num, userId, status: 'Applied', from: ['Evaluated', 'Started'], source: { via: 'apply-sent', runId } });
+}
+
+// The last apply run of each report, for the list: a Started row tells how its
+// last run ended. owner.json is written once when a run starts, so it is read
+// once per folder, together with the report name that runs from before
+// 2026-10-18 keep only in spec.json. Folders without owner.json predate it and
+// are remembered as such once they are a minute old (a new run writes it just
+// after creating its folder). Read failures other than a missing file are not
+// remembered, so a locked file is read again on the next call.
+const applyRunMetaCache = new Map();
+
+async function applyRunMeta(runDir) {
+  if (applyRunMetaCache.has(runDir)) return applyRunMetaCache.get(runDir);
+  let owner;
+  try {
+    owner = JSON.parse(await readFile(join(runDir, 'owner.json'), 'utf-8'));
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      const mtime = await stat(runDir).then(s => s.mtimeMs, () => Date.now());
+      if (Date.now() - mtime > 60_000) applyRunMetaCache.set(runDir, null);
+    }
+    return null;
+  }
+  let report = owner?.report || '';
+  if (!report) {
+    try {
+      report = JSON.parse(await readFile(join(runDir, 'spec.json'), 'utf-8')).report || '';
+    } catch (err) {
+      if (err.code !== 'ENOENT') return null;
+    }
+  }
+  const meta = owner?.at && report ? { owner, report } : null;
+  applyRunMetaCache.set(runDir, meta);
+  return meta;
+}
+
+// "Probably sent, no confirmation read": the runner flags it since 2026-10-18;
+// older runs only say it in the message.
+function applyRunUnconfirmed(s) {
+  return s?.state === 'submitted' && (s.unconfirmed === true || /probablement envoy/i.test(String(s.message || '')));
+}
+
+async function latestApplyRunsByReport(userId) {
+  const base = join(ROOT, 'scratch/apply-runs');
+  const dirs = (await readdir(base, { withFileTypes: true }).catch(() => [])).filter(d => d.isDirectory());
+  const metas = await Promise.all(dirs.map(d => applyRunMeta(join(base, d.name))));
+  const latest = new Map();
+  for (const [i, meta] of metas.entries()) {
+    if (!meta) continue;
+    const runDir = join(base, dirs[i].name);
+    if (!(await applyRunVisibleTo(runDir, userId, meta.owner))) continue;
+    const prev = latest.get(meta.report);
+    if (!prev || String(meta.owner.at) > String(prev.at)) latest.set(meta.report, { runId: dirs[i].name, at: meta.owner.at, runDir });
+  }
+  const entries = await Promise.all([...latest].map(async ([report, run]) => {
+    const s = await readFile(join(run.runDir, 'state.json'), 'utf-8').then(JSON.parse).catch(() => null);
+    if (!s?.state) return null;
+    return [report, {
+      runId: run.runId,
+      at: run.at,
+      state: s.state,
+      message: String(s.message || '').slice(0, 240),
+      pending: Array.isArray(s.pending) ? s.pending.length : 0,
+      unconfirmed: applyRunUnconfirmed(s),
+      updatedAt: s.updatedAt || null,
+    }];
+  }));
+  return Object.fromEntries(entries.filter(Boolean));
 }
 
 async function recordManualApplicationDelete({ company, role, jobUrl, date, userId }) {
@@ -6263,9 +6441,9 @@ async function accountOfPairToken(token) {
 
 // Who started a run (scratch/apply-runs/<id>/owner.json). Runs from before
 // that file existed are the owner's.
-async function applyRunVisibleTo(runDir, userId) {
+async function applyRunVisibleTo(runDir, userId, owner) {
   if (!useSupabase) return true;
-  const meta = await readFile(join(runDir, 'owner.json'), 'utf-8').then(JSON.parse).catch(() => null);
+  const meta = owner || await readFile(join(runDir, 'owner.json'), 'utf-8').then(JSON.parse).catch(() => null);
   if (meta?.userId) return Boolean(userId) && meta.userId === userId;
   return ownsLocalData(userId);
 }
@@ -7219,7 +7397,7 @@ const lastAppsSyncHash = new Map();
  * This is the missing link that made evaluated offers invisible in the UI.
  */
 async function syncLocalApplicationsToSupabase(userId) {
-  if (!useSupabase || !supabase) return { ok: true, skipped: true, count: 0 };
+  if (!useSupabase || !supabase || LOCAL_SYNC_DISABLED) return { ok: true, skipped: true, count: 0 };
   const appFile = join(WRITE_ROOT, 'data/applications.md');
   let raw = '';
   try {
@@ -8673,7 +8851,8 @@ const server = createServer(async (req, res) => {
 
     if (path.startsWith('/api/applications/') && method === 'PATCH') {
       const num = decodeURIComponent(path.slice('/api/applications/'.length));
-      const { status: rawStatus } = await readBody(req);
+      const { status: rawStatus, source: rawSource, runId: rawRunId } = await readBody(req);
+      const statusSource = { via: rawSource, runId: rawRunId };
       if (!rawStatus) return json(res, { error: 'status is required' }, 400);
       // AGENTS.md: "All statuses MUST be canonical (see templates/states.yml)".
       // This route used to write whatever string it was handed, so a typo or a
@@ -8695,10 +8874,10 @@ const server = createServer(async (req, res) => {
         if (error) return json(res, { error: error.message }, 500);
 
         // data/applications.md is the owner's: another account's row N is not its row N.
-        if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, status).catch(() => {});
+        if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, status, statusSource).catch(() => {});
         return json(res, { ok: true });
       }
-      const updated = await writeMarkdownApplicationStatus(num, status).catch(() => false);
+      const updated = await writeMarkdownApplicationStatus(num, status, statusSource).catch(() => false);
       if (!updated) return json(res, { error: 'Application not found' }, 404);
       return json(res, { ok: true });
     }
@@ -8726,7 +8905,7 @@ const server = createServer(async (req, res) => {
         const { error } = await updateQ;
         if (error) return json(res, { error: error.message }, 500);
 
-        if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, 'Discarded').catch(() => {});
+        if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, 'Discarded', { via: 'ui-delete' }).catch(() => {});
         await recordManualApplicationDelete({ company, role, jobUrl, date: today, userId: req.userId });
         return json(res, { ok: true, status: 'Discarded' });
       }
@@ -8744,7 +8923,7 @@ const server = createServer(async (req, res) => {
       const blockReason = deleteApplicationBlockReason(cells[6] || '');
       if (blockReason) return json(res, { error: blockReason }, 409);
 
-      const updated = await writeMarkdownApplicationStatus(num, 'Discarded');
+      const updated = await writeMarkdownApplicationStatus(num, 'Discarded', { via: 'ui-delete' });
       if (!updated) return json(res, { error: 'Application not found' }, 404);
 
       const jobUrl = await findPostingUrlFromReportLink(targetLine);
@@ -8758,6 +8937,10 @@ const server = createServer(async (req, res) => {
         .map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0))];
       if (!nums.length) return json(res, { error: 'No application numbers provided' }, 400);
       const today = new Date().toISOString().slice(0, 10);
+      // Only offers nobody acted on: a Started row may already have been sent,
+      // and the dialog promises that applications in progress are kept.
+      const sweepFrom = ['Evaluated'];
+      const source = { via: 'ui-bulk-discard-stale' };
       let rows = [];
 
       if (useSupabase) {
@@ -8765,30 +8948,28 @@ const server = createServer(async (req, res) => {
         if (req.userId) q = q.eq('user_id', req.userId);
         const { data, error: fetchError } = await q;
         if (fetchError) return json(res, { error: fetchError.message }, 500);
-        rows = data || [];
+        const states = canonicalApplicationStates();
+        rows = (data || []).filter(row => sweepFrom.includes(resolveCanonicalState(row.status, states)));
         if (rows.length) {
           let update = supabase.from('applications').update({ status: 'Discarded' }).in('num', rows.map(row => row.num));
           if (req.userId) update = update.eq('user_id', req.userId);
           const { error } = await update;
           if (error) return json(res, { error: `Supabase application sync failed: ${error.message}` }, 500);
         }
+        // data/applications.md is the owner's: another account's row N is not its row N.
+        if (rows.length && await ownsLocalData(req.userId)) {
+          await writeMarkdownApplicationStatuses(rows.map(row => row.num), 'Discarded', source, { onlyFrom: sweepFrom }).catch(() => {});
+        }
       } else {
-        const raw = await readFile(join(WRITE_ROOT, 'data/applications.md'), 'utf-8');
-        const wanted = new Set(nums.map(String));
-        const changed = setApplicationStatusesInMarkdown(raw, wanted, 'Discarded');
-        if (changed.updated) await writeFile(join(WRITE_ROOT, 'data/applications.md'), changed.content, 'utf-8');
-        rows = nums.map(num => ({ num }));
+        const changes = await writeMarkdownApplicationStatuses(nums, 'Discarded', source, { onlyFrom: sweepFrom });
+        rows = changes.map(change => ({ num: change.num }));
       }
 
-      const ownsTracker = useSupabase && await ownsLocalData(req.userId);
       for (const row of rows) {
         const company = String(row.company ?? row.Company ?? '').trim();
         const role = String(row.role ?? row.Role ?? '').trim();
         const jobUrl = await findPostingUrlFromReportLink(row.report ?? row.Report ?? '', req.userId);
         await recordManualApplicationDelete({ company, role, jobUrl, date: today, userId: req.userId });
-        // data/applications.md is the owner's (the local branch above already wrote it).
-        if (!ownsTracker) continue;
-        await writeMarkdownApplicationStatus(row.num, 'Discarded').catch(() => {});
       }
       return json(res, { ok: true, updated: rows.length, status: 'Discarded' });
     }
@@ -9182,6 +9363,12 @@ const server = createServer(async (req, res) => {
     }
 
     if (path.startsWith('/api/run/') && method === 'POST') {
+      // Maintenance scripts work on the owner's files and rows: purge-stale
+      // deletes old Supabase applications and reports, sync-apps and merge
+      // write the owner's tracker. Another account never runs them.
+      if (useSupabase && !(await isAdminUser(req.userId, req.userEmail))) {
+        return json(res, { error: 'Maintenance scripts are only available on the owner account.' }, 403);
+      }
       const script = path.slice('/api/run/'.length);
       const result = await runScript(script);
       return json(res, result, result.ok ? 200 : 500);
@@ -9334,10 +9521,13 @@ const server = createServer(async (req, res) => {
 
         const runId = `${Date.now().toString(36)}-${slugify(spec.company || 'offer').slice(0, 30)}`;
         const runDir = join(ROOT, 'scratch/apply-runs', runId);
+        const num = Number.isInteger(Number(body.num)) && Number(body.num) > 0 ? Number(body.num) : null;
         await mkdir(runDir, { recursive: true });
         // Before the spec: a run is readable and steerable by this account only.
-        await writeFile(join(runDir, 'owner.json'), JSON.stringify({ userId: req.userId || null, at: new Date().toISOString() }), 'utf-8');
+        await writeFile(join(runDir, 'owner.json'), JSON.stringify({ userId: req.userId || null, at: new Date().toISOString(), num, report }), 'utf-8');
         await writeFile(join(runDir, 'spec.json'), JSON.stringify(spec, null, 2), 'utf-8');
+        // Runs alongside the launch; only the response waits for it.
+        const startedMark = num ? markApplyStarted({ num, userId: req.userId, runId }).catch(() => false) : Promise.resolve(false);
 
         if (tabId) {
           const statePath = join(runDir, 'state.json');
@@ -9354,9 +9544,16 @@ const server = createServer(async (req, res) => {
           };
           await writeFile(statePath, JSON.stringify(state, null, 2), 'utf-8');
 
+          // A send the plugin reports moves the row to Applied here, so it does
+          // not depend on a dashboard tab still watching the run.
+          let sentMarked = false;
           const writeState = async (partial) => {
             state = { ...state, ...partial, updatedAt: partial.updatedAt || new Date().toISOString() };
             await writeFile(statePath, JSON.stringify(state, null, 2), 'utf-8');
+            if (num && !sentMarked && state.state === 'submitted' && !applyRunUnconfirmed(state)) {
+              sentMarked = true;
+              startedMark.then(() => markApplySent({ num, userId: req.userId, runId })).catch(() => {});
+            }
           };
           const pollCommand = async () => {
             try {
@@ -9388,6 +9585,7 @@ const server = createServer(async (req, res) => {
             answersCount: spec.answers.length,
             jobUrl: spec.jobUrl,
             browserMode: 'extension',
+            started: await startedMark,
           });
         }
 
@@ -9407,11 +9605,16 @@ const server = createServer(async (req, res) => {
           jobUrl: spec.jobUrl,
           browserMode: 'playwright',
           pluginError: pluginError || 'plugin not connected',
+          started: await startedMark,
         });
       } catch (err) {
         console.error('[apply] start failed:', err);
         return json(res, { error: String(err?.message || err) }, 500);
       }
+    }
+
+    if (path === '/api/apply/last-runs' && method === 'GET') {
+      return json(res, { runs: await latestApplyRunsByReport(req.userId) });
     }
 
     if (path.startsWith('/api/apply/runs/')) {
@@ -10989,9 +11192,23 @@ Règles:
           console.log(`[${mode}] validation: valid=${validation.valid}, reason=${validation.reason || 'none'}`);
           console.log(`[${mode}] parsed: company=${company}, role=${role.slice(0, 40)}, score=${scoreRaw}, status=${trackerStatus}`);
           if (validation.valid) {
-            console.log(`[${mode}] writing report → reports/${filename}`);
+            // Another account's evaluation is its own: stored in Supabase under
+            // its id. The owner's reports/ (the watcher pushes it under the
+            // owner's id) and tracker (merged, then synced under the owner's id)
+            // used to receive it, and the account never saw it. applications.num
+            // is unique across accounts, so an empty NNN-account.ref keeps the
+            // number taken for the owner's allocator (reserve-report-num counts
+            // any NNN- file in reports/; the watcher and the lists read .md only).
+            const accountOnly = await evaluationIsAccountOnly(req.userId);
+            let reportStored = true;
             await mkdir(join(WRITE_ROOT, 'reports'), { recursive: true });
-            await writeFile(join(WRITE_ROOT, `reports/${filename}`), reportContent, 'utf-8');
+            if (accountOnly) {
+              console.log(`[${mode}] account evaluation ${filename} → Supabase (user ${req.userId})`);
+              await writeFile(join(WRITE_ROOT, `reports/${num}-account.ref`), '', 'utf-8');
+            } else {
+              console.log(`[${mode}] writing report → reports/${filename}`);
+              await writeFile(join(WRITE_ROOT, `reports/${filename}`), reportContent, 'utf-8');
+            }
             if (reserved) {
               await releaseReportNumbers(reserved, reserveOpts).catch(err => {
                 console.warn(`[${mode}] failed to release report reservation ${num}: ${err.message}`);
@@ -10999,7 +11216,7 @@ Règles:
             }
 
             // On Vercel, also sync report directly to Supabase (watcher can't run there)
-            if (IS_VERCEL && useSupabase) {
+            if ((IS_VERCEL || accountOnly) && useSupabase) {
               const parts = filename.replace('.md', '').split('-');
               const rNum = parseInt(parts[0], 10);
               const rDate = parts.slice(-3).join('-');
@@ -11009,29 +11226,37 @@ Règles:
               const uid = req.userId || await getAdminUserId().catch(() => null);
               const row = { filename, content: reportContent, num: rNum, company: rCompany, date: rDate };
               if (uid) row.user_id = uid;
-              await supabase.from('reports').upsert(row, { onConflict: 'filename' });
+              const { error: reportErr } = await supabase.from('reports').upsert(row, { onConflict: 'filename' });
+              if (reportErr) {
+                reportStored = false;
+                console.error(`[${mode}] report ${filename} not stored: ${reportErr.message}`);
+                saves.push(`⚠️ Report not stored: ${reportErr.message}`);
+              }
             }
 
-            const tsvDir = join(WRITE_ROOT, 'batch/tracker-additions');
-            await mkdir(tsvDir, { recursive: true });
-            const tsvLine = [
-              parseInt(num, 10),
-              today,
-              tsvSafe(companyName || 'Unknown'),
-              tsvSafe(role),
-              tsvSafe(trackerStatus),
-              tsvSafe(scoreRaw),
-              '❌',
-              `[${parseInt(num, 10)}](reports/${filename})`,
-              tsvSafe(trackerNote),
-              jobUrl || '',
-            ].join('\t') + '\n';
-            console.log(`[${mode}] writing TSV → batch/tracker-additions/${num}-${company}.tsv`);
-            await writeFile(join(tsvDir, `${num}-${company}.tsv`), tsvLine);
+            // The TSV feeds the owner's tracker (merge-tracker): never another account's row.
+            if (!accountOnly) {
+              const tsvDir = join(WRITE_ROOT, 'batch/tracker-additions');
+              await mkdir(tsvDir, { recursive: true });
+              const tsvLine = [
+                parseInt(num, 10),
+                today,
+                tsvSafe(companyName || 'Unknown'),
+                tsvSafe(role),
+                tsvSafe(trackerStatus),
+                tsvSafe(scoreRaw),
+                '❌',
+                `[${parseInt(num, 10)}](reports/${filename})`,
+                tsvSafe(trackerNote),
+                jobUrl || '',
+              ].join('\t') + '\n';
+              console.log(`[${mode}] writing TSV → batch/tracker-additions/${num}-${company}.tsv`);
+              await writeFile(join(tsvDir, `${num}-${company}.tsv`), tsvLine);
+            }
             saves.push(`Report saved: ${filename}`);
 
             let tracked = false;
-            if (!IS_VERCEL) {
+            if (!IS_VERCEL && !accountOnly) {
               const mergeResult = await runWithRetry(
                 () => runScript('merge'),
                 { attempts: 3, delayMs: 1500, label: `${mode}/merge-tracker` }
@@ -11059,6 +11284,10 @@ Règles:
                 saves.push(`Applications list synced (${syncResult.count})`);
               }
               tracked = await trackerHasEvaluation({ num, filename, url: jobUrl, userId: req.userId });
+            } else if (accountOnly && !reportStored) {
+              // No local copy exists: a tracker row would point at nothing, and
+              // the URL stays in the pipeline for a retry.
+              saves.push(`⚠️ Tracker not updated: the report could not be stored`);
             } else {
               const adminId = await getAdminUserId().catch(() => null);
               const uid = req.userId || adminId;
@@ -11074,9 +11303,17 @@ Règles:
                 notes: trackerNote,
               };
               if (uid) row.user_id = uid;
+              // The posting URL is what an account's scan memory reads to never
+              // bring an evaluated offer back (getEvaluatedUrlSet); a table
+              // without the column takes the row without it, as in the sync.
+              if (jobUrl) row.job_url = jobUrl;
               const upsert = await runWithRetry(async () => {
                 try {
-                  const { error: appErr } = await supabase.from('applications').upsert(row, { onConflict: 'num' });
+                  let { error: appErr } = await supabase.from('applications').upsert(row, { onConflict: 'num' });
+                  if (appErr && row.job_url && /job_url|schema cache|column/i.test(appErr.message || '')) {
+                    delete row.job_url;
+                    ({ error: appErr } = await supabase.from('applications').upsert(row, { onConflict: 'num' }));
+                  }
                   return appErr ? { ok: false, error: appErr.message } : { ok: true };
                 } catch (err) {
                   return { ok: false, error: err.message };
@@ -11575,7 +11812,7 @@ async function startServer() {
   console.log(`\n  JobYouGo UI  →  http://localhost:${PORT}  [${mode}]\n`);
 
   // Startup maintenance (local only): drop dead offers past portals.yml retention_days (7), then heal apps sync.
-  if (!IS_VERCEL) {
+  if (!IS_VERCEL && !LOCAL_SYNC_DISABLED) {
     setTimeout(async () => {
       try {
         // No --days: purge-stale reads retention_days from portals.yml.
@@ -11612,7 +11849,9 @@ setupGracefulShutdown(server);
 // UI while tracker rows stayed invisible until a manual sync or the UI
 // oferta/pipeline path called syncLocalApplicationsToSupabase.
 
-if (useSupabase && !IS_VERCEL) {
+if (useSupabase && !IS_VERCEL && LOCAL_SYNC_DISABLED) {
+  console.log('  JOBYOUGO_NO_LOCAL_SYNC: no startup purge, no reports/ or applications.md sync to Supabase.\n');
+} else if (useSupabase && !IS_VERCEL) {
   const reportsDir = join(ROOT, 'reports');
   const dataDir = join(WRITE_ROOT, 'data');
   const pending = new Set();

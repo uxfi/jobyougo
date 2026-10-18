@@ -51,6 +51,9 @@ const STATUS_RANK = {
   'discarded': 0,
   'rejected': 1,
   'evaluated': 2,
+  // Started: the apply ran but the send is not confirmed. It must win over an
+  // Evaluated duplicate, or dedup walks the row back into "Select N to apply".
+  'started': 2.5,
   'applied': 3,
   'responded': 4,
   'interview': 5,

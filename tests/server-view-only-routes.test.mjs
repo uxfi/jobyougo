@@ -264,10 +264,11 @@ test('getPipeline: the unscoped read keeps the overlay and the scan-history orph
 });
 
 test("syncLocalApplicationsToSupabase pushes the owner's tracker under the admin id, never another account's", async () => {
-  const pushedAs = async userId => {
-    const calls = [];
+  const pushedAs = async (userId, { localSyncDisabled = false, callsOut = [] } = {}) => {
+    const calls = callsOut;
     await vm.runInNewContext(`(${sourceOf('syncLocalApplicationsToSupabase')})`, {
       useSupabase: true,
+      LOCAL_SYNC_DISABLED: localSyncDisabled,
       supabase: fakeSupabase({}, calls),
       createHash,
       lastAppsSyncHash: new Map(),
@@ -280,12 +281,29 @@ test("syncLocalApplicationsToSupabase pushes the owner's tracker under the admin
       console: { log() {}, error() {} },
     })(userId);
     const upsert = calls.find(c => c.op === 'upsert');
+    if (localSyncDisabled) return upsert;
     assert.equal(upsert.opts.onConflict, 'num');
     return [...new Set(upsert.rows.map(row => row.user_id))];
   };
   assert.deepEqual(await pushedAs(OTHER), [ADMIN], 'the upsert on num used to hand every owner row to this account');
   assert.deepEqual(await pushedAs(ADMIN), [ADMIN]);
   assert.deepEqual(await pushedAs(null), [ADMIN], 'the watcher and the startup sync');
+  const calls = [];
+  assert.equal(await pushedAs(null, { localSyncDisabled: true, callsOut: calls }), undefined, 'JOBYOUGO_NO_LOCAL_SYNC: a test server never writes the owner rows');
+  assert.equal(calls.length, 0);
+});
+
+test('a second server can turn off the startup purge, the applications sync and the reports/ watcher', () => {
+  assert.match(server, /const LOCAL_SYNC_DISABLED = \/\^\(1\|true\|yes\)\$\/i\.test\(String\(process\.env\.JOBYOUGO_NO_LOCAL_SYNC/);
+  assert.ok(server.includes('if (!IS_VERCEL && !LOCAL_SYNC_DISABLED) {'), 'startup purge-stale + sync');
+  assert.ok(server.includes('if (useSupabase && !IS_VERCEL && LOCAL_SYNC_DISABLED) {'), 'no watcher');
+});
+
+test('maintenance scripts (/api/run/*) are the owner account\'s only', () => {
+  const start = server.indexOf("if (path.startsWith('/api/run/') && method === 'POST') {");
+  const block = server.slice(start, server.indexOf('const result = await runScript(script);', start));
+  assert.ok(start > 0 && block.includes('if (useSupabase && !(await isAdminUser(req.userId, req.userEmail))) {'));
+  assert.ok(block.indexOf('403') < block.indexOf("const script = path.slice('/api/run/'.length);"), 'refused before anything runs');
 });
 
 test('on Vercel a report row belongs to the account that ran the evaluation, like its tracker row', () => {
@@ -453,12 +471,13 @@ test('getAdminUserId without ADMIN_EMAIL fails closed: no owner, never the first
 
 test('another account never writes the owner\'s data/applications.md', () => {
   const patch = routeBlock("if (path.startsWith('/api/applications/') && method === 'PATCH')");
-  assert.ok(patch.includes('if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, status).catch(() => {});'));
+  assert.ok(patch.includes('if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, status, statusSource).catch(() => {});'));
   const del = routeBlock("if (path.startsWith('/api/applications/') && method === 'DELETE')");
-  assert.ok(del.includes("if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, 'Discarded').catch(() => {});"));
+  assert.ok(del.includes("if (await ownsLocalData(req.userId)) await writeMarkdownApplicationStatus(num, 'Discarded', { via: 'ui-delete' }).catch(() => {});"));
   const bulk = routeBlock("if (path === '/api/applications/bulk-discard-stale' && method === 'POST')");
-  assert.ok(bulk.includes('const ownsTracker = useSupabase && await ownsLocalData(req.userId);'));
-  assert.ok(bulk.indexOf('if (!ownsTracker) continue;') < bulk.indexOf("await writeMarkdownApplicationStatus(row.num, 'Discarded')"));
+  // Supabase mode writes the owner's tracker only, in one pass after the update.
+  const ownerGuard = bulk.indexOf('if (rows.length && await ownsLocalData(req.userId)) {');
+  assert.ok(ownerGuard > 0 && ownerGuard < bulk.indexOf("await writeMarkdownApplicationStatuses(rows.map(row => row.num), 'Discarded', source, { onlyFrom: sweepFrom })"));
   // Besides the guarded calls, only the local (single-user) branches write it.
   for (const block of [patch, del]) {
     const calls = block.split('\n').filter(line => line.includes('writeMarkdownApplicationStatus('));

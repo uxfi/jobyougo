@@ -234,6 +234,26 @@ test('current role and current employment follow the CV', () => {
   assert.equal(employed.profile.availability.current_employment, '', 'never guesses discreet vs active');
 });
 
+test('education rows for the application forms come from the CV education section', () => {
+  const base = { normalizedSource: src, contacts: {}, sourceText: RAW_CV, now: NOW };
+  const cv = {
+    ...coerceStructuredCv({}, src).cv,
+    education: [
+      { degree: 'MSc in Computer Science', school: 'INSA Lyon', start: '2012', end: '2017', details: [] },
+      { degree: 'PhD', school: 'Université Lyon 1', start: '2025', end: 'Present', details: [] },
+      { degree: 'Baccalauréat S', school: '', start: '2012', end: '', details: [] },
+      { degree: '', school: '', start: '2010', end: '2011', details: [] },
+    ],
+  };
+  const out = groundProfile({}, { ...base, structuredCv: cv });
+  assert.deepEqual(out.profile.candidate.education, [
+    { degree: 'MSc in Computer Science', field: '', school: 'INSA Lyon', end_year: '2017' },
+    { degree: 'PhD', field: '', school: 'Université Lyon 1', end_year: '' },
+    { degree: 'Baccalauréat S', field: '', school: '', end_year: '2012' },
+  ], 'the year it ended; an ongoing degree has none; a row without degree or school is not one');
+  assert.deepEqual(groundProfile({}, { ...base, structuredCv: coerceStructuredCv({}, src).cv }).profile.candidate.education, []);
+});
+
 test('currency, nationality and language helpers', () => {
   assert.equal(currencyForCountry('France'), 'EUR');
   assert.equal(currencyForCountry('Allemagne'), 'EUR');

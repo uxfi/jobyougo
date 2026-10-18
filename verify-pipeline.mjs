@@ -56,7 +56,7 @@ mkdirSync(join(JOBYOUGO, 'data'), { recursive: true });
 mkdirSync(REPORTS_DIR, { recursive: true });
 
 const CANONICAL_STATUSES = [
-  'evaluated', 'applied', 'responded', 'interview',
+  'evaluated', 'started', 'applied', 'responded', 'interview',
   'offer', 'rejected', 'discarded', 'skip', 'hired',
 ];
 
@@ -68,6 +68,7 @@ const ALIASES = {
   'oferta': 'offer',
   'rechazado': 'rejected', 'rechazada': 'rejected',
   'descartado': 'discarded', 'descartada': 'discarded', 'cerrada': 'discarded', 'cancelada': 'discarded',
+  'in progress': 'started', 'in_progress': 'started', 'en cours': 'started', 'iniciado': 'started', 'iniciada': 'started',
   'no aplicar': 'skip', 'no_aplicar': 'skip', 'monitor': 'skip', 'geo blocker': 'skip',
   'contratado': 'hired', 'contratada': 'hired', 'hired': 'hired', 'accepted': 'hired', 'accept': 'hired',
 };

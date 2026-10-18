@@ -20,6 +20,16 @@ states:
     description: Offer evaluated with report, pending decision
     dashboard_group: evaluated
 
+  # Set by the dashboard when an apply run starts on an Evaluated offer, so the
+  # list shows which offers the apply system already went through. It turns
+  # Applied once the send is confirmed; until then the form was left unfinished,
+  # the send was not confirmed, or the run stopped.
+  - id: started
+    label: Started
+    aliases: [in progress, in_progress, en cours, iniciado, iniciada]
+    description: Apply started by the apply system, not sent or not confirmed yet
+    dashboard_group: started
+
   - id: applied
     label: Applied
     aliases: [aplicado, enviada, aplicada, sent, başvuruldu, basvuruldu]

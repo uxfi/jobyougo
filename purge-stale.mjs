@@ -68,7 +68,8 @@ const stats = {
   deletedExclusions: 0,
 };
 
-const KEPT_STATUSES = new Set(['applied', 'responded', 'interview', 'offer', 'hired', 'rejected']);
+// started: the apply system ran on the offer and the send may have gone out.
+const KEPT_STATUSES = new Set(['started', 'applied', 'responded', 'interview', 'offer', 'hired', 'rejected']);
 
 // Not exported: importing this script runs the purge.
 function isKeptStatus(status = '') {

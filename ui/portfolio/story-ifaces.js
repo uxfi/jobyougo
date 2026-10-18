@@ -813,7 +813,7 @@ const INTERFACES = [
     name: 'Viora — Health Dashboard',
     tag: 'Healthcare · Light · Analytics',
     type: 'desktop',
-    thumb: 'covers/iface-viora-health.jpg',
+    thumb: 'covers/iface-viora-health-v2.jpg',
     url: 'viora.health/overview',
     src: 'interfaces/viora-health.html'
   },
@@ -822,7 +822,7 @@ const INTERFACES = [
     name: 'RemoteRecruit — Employer Browse',
     tag: 'Recruitment · Audit Response · Light',
     type: 'desktop',
-    thumb: 'covers/iface-remoterecruit-redesign.jpg',
+    thumb: 'covers/iface-remoterecruit-redesign-v2.jpg',
     url: 'remoterecruit.com/employer-search',
     src: 'interfaces/remoterecruit-redesign.html'
   },
@@ -831,7 +831,7 @@ const INTERFACES = [
     name: 'LinkedIn Jobs — Search Redesign',
     tag: 'Recruitment · Jobs · Light',
     type: 'desktop',
-    thumb: 'covers/iface-linkedin-jobs-playground.webp',
+    thumb: 'covers/iface-linkedin-jobs-playground-v2.jpg',
     url: 'linkedin.com/jobs/search',
     src: 'interfaces/linkedin-jobs-playground.html'
   },
@@ -933,8 +933,10 @@ function updateIfaceGridHeight() {
   const collapsedRows = showcase ? 2 : IFACE_COLLAPSED_ROWS;
 
   if (isCollapsed) {
-    const overlap = showcase ? 0 : 140; // 140 matches the playground's negative margin-top
-    const padding = showcase ? 8 : 60; // playground: 30px top + 30px bottom
+    // .is-gallery (the /portfolio playground since 2026-10-18) lays cards flat like the agence showcase
+    const flat = showcase || wrap.classList.contains('is-gallery');
+    const overlap = flat ? 0 : 140; // 140 matches the old playground's negative margin-top
+    const padding = flat ? 8 : 60; // old playground: 30px top + 30px bottom
     const h = Math.ceil((cardHeight * collapsedRows) + (gap * (collapsedRows - 1)) - (overlap * (collapsedRows - 1)) + padding);
     limiter.style.maxHeight = h + 'px';
   } else {
@@ -1069,13 +1071,17 @@ function setModalUrl(raw) {
   copyBtn.disabled = false;
   copyBtn.textContent = copyUrlLabel();
   copyBtn.onclick = async () => {
+    // data-state drives the confirmation colour and pop in portfolio.html (#micro-interactions)
+    const settle = () => window.setTimeout(() => { copyBtn.textContent = copyUrlLabel(); delete copyBtn.dataset.state; }, 1200);
     try {
       await navigator.clipboard.writeText(href);
       copyBtn.textContent = copyUrlLabel('copied');
-      window.setTimeout(() => { copyBtn.textContent = copyUrlLabel(); }, 1200);
+      copyBtn.dataset.state = 'copied';
+      settle();
     } catch {
       copyBtn.textContent = copyUrlLabel('failed');
-      window.setTimeout(() => { copyBtn.textContent = copyUrlLabel(); }, 1200);
+      copyBtn.dataset.state = 'failed';
+      settle();
     }
   };
 }

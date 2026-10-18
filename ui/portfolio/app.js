@@ -744,6 +744,7 @@ function openProject(id) {
   bindBrowserViewports(document.getElementById('proj-page-content'));
   bindMethodTracks(document.getElementById('proj-page-content'));
   document.getElementById('view-project').classList.remove('hidden');
+  bindProjectThread(document.getElementById('proj-page-content'));
   window.scrollTo(0, 0);
   let projTitle = '';
   const site = siteCfg();
@@ -3001,6 +3002,38 @@ function methodBannerSlots(count, width) {
   return { cols, rows, tile, gap, holeCols, holeRows, slots: picked };
 }
 
+/* Method tiles burst out of the centre (where the count and title sit) the first time the section is on
+   screen: each tile starts at the centre, small and transparent, and flies to its slot, delayed by its
+   distance so the burst reads as one shock wave. Skipped under reduced motion; never replayed on resize. */
+function burstMethods(root, track) {
+  if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const items = [...track.querySelectorAll('.methods-carousel-item')];
+  const centre = root.querySelector('.explore-intro-head') || track;
+  if (!items.length) return;
+  requestAnimationFrame(() => {
+    const c = centre.getBoundingClientRect();
+    const cx = c.left + c.width / 2, cy = c.top + c.height / 2;
+    const dist = items.map((el) => {
+      const r = el.getBoundingClientRect();
+      const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+      el.style.setProperty('--fx', dx.toFixed(1) + 'px');
+      el.style.setProperty('--fy', dy.toFixed(1) + 'px');
+      return Math.hypot(dx, dy);
+    });
+    const max = Math.max(...dist, 1);
+    items.forEach((el, i) => el.style.setProperty('--bd', Math.round(dist[i] / max * 420) + 'ms'));
+    if (root.dataset.burst === 'done') return;
+    root.classList.add('m-burst');
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      io.disconnect();
+      root.dataset.burst = 'done';
+      requestAnimationFrame(() => root.classList.add('is-burst'));
+    }, { threshold: 0.3 });
+    io.observe(root);
+  });
+}
+
 function renderMethodsCarousel() {
   const root = document.getElementById('methods-carousel');
   const track = document.getElementById('methods-carousel-track');
@@ -3031,6 +3064,7 @@ function renderMethodsCarousel() {
       <div class="methods-carousel-label" data-method-type-label="${type}">${name}</div>
     </div>`;
   }).join('');
+  burstMethods(root, track);
   if (!renderMethodsCarousel.bound) {
     renderMethodsCarousel.bound = true;
     let timer;
@@ -3141,6 +3175,45 @@ function projectNavCard(p, role) {
       </span>
       <span class="proj-next-go">${arrow}</span>
     </button>`;
+}
+
+/* The project thread, right under the hero: problem → what had to change → what I did → result.
+   Built only from fields every project already has (challenge, goals, steps, outcome, outcomeStat); role,
+   team and duration stay in the hero. The narrative below keeps the detail. Labels go through TRANSLATIONS (data-i18n). */
+function renderProjectThread(p) {
+  if (!p || !p.challenge || !Array.isArray(p.steps) || !p.steps.length || !p.outcome) return '';
+  const label = (key, en, fr) => {
+    const pack = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS && TRANSLATIONS[currentLang]) || null;
+    return pack && typeof pack[key] === 'string' ? pack[key] : (currentLang === 'fr' ? fr : en);
+  };
+  const stat = p.outcomeStat ? String(p.outcomeStat).trim() : '';
+  // "+12% investment activity following…" already starts with the figure shown above it
+  const outcome = stat && p.outcome.trim().startsWith(stat) ? p.outcome.trim().slice(stat.length).trim() : p.outcome;
+  return `
+    <section class="proj-thread" aria-labelledby="proj-thread-title-${p.id}">
+      <div class="proj-thread-top">
+        <h2 class="proj-thread-title" id="proj-thread-title-${p.id}"><span data-i18n="thread_title_a">${label('thread_title_a', 'From problem', 'Du problème')}</span> <em data-i18n="thread_title_b">${label('thread_title_b', 'to result.', 'au résultat.')}</em></h2>
+      </div>
+      <ol class="proj-thread-steps">
+        <li class="proj-thread-node"><div class="proj-thread-k" data-i18n="thread_problem">${label('thread_problem', 'The problem', 'Le problème')}</div><p class="proj-thread-problem">${p.challenge}</p></li>
+        <li class="proj-thread-node"><div class="proj-thread-k" data-i18n="thread_change">${label('thread_change', 'What had to change', 'Ce qui devait changer')}</div><p class="proj-thread-aim">${p.goals || ''}</p></li>
+        <li class="proj-thread-node"><div class="proj-thread-k" data-i18n="thread_did">${label('thread_did', 'What I did', 'Ce que j’ai fait')}</div><ol class="proj-thread-did">${p.steps.map(s => `<li>${s.title}</li>`).join('')}</ol></li>
+        <li class="proj-thread-node is-result"><div class="proj-thread-k" data-i18n="thread_result">${label('thread_result', 'Result', 'Résultat')}</div>${stat ? `<div class="proj-thread-stat">${stat}</div>` : ''}<p class="proj-thread-out${stat ? '' : ' is-lead'}">${outcome}</p></li>
+      </ol>
+    </section>`;
+}
+
+/* Draw the thread's line and bring its nodes in once it is on screen (CSS does nothing under reduced motion). */
+function bindProjectThread(root) {
+  const el = root && root.querySelector('.proj-thread');
+  if (!el) return;
+  if (!('IntersectionObserver' in window)) { el.classList.add('is-in'); return; }
+  const io = new IntersectionObserver((entries) => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    el.classList.add('is-in');
+    io.disconnect();
+  }, { threshold: 0.25 });
+  io.observe(el);
 }
 
 function renderProject(p) {
@@ -3262,6 +3335,7 @@ function renderProject(p) {
       </div>
     </div>
 
+    ${renderProjectThread(p)}
     ${renderMethodSchema(p)}
     <div class="proj-body">
       ${p.narrative ? `
@@ -3330,71 +3404,42 @@ ${siteProjectCta(p)}
 /* ═══════════════════════════════════════════
    RENDER HOME
 ═══════════════════════════════════════════ */
-const PROJECT_HAIRLINE = {
-  oneasset: 'terrain',
-  creads: 'laptop',
-  lvmh: 'patch',
-  renault: 'riffle',
-  sg: 'vault',
-  upviral: 'branches',
-  edenred: 'phone',
-  arlequin: 'terminal',
-  skiset: 'lockers',
-  casino: 'slow',
-  shiseido: 'turntable',
-  vloggy: 'phosphor',
-  bmw: 'exploded',
-  sncf: 'elevator',
-  galian: 'padlock',
+/* Selected work visuals. Screen: the product itself — an existing device mockup ("framed", shown whole on
+   the dark stage) or a raw screen put in a CSS laptop ("laptop"). Mood: the inspirational photo shown as a
+   micro cover left of the title (hero cover by default); null = the logo stands in. */
+const WORK_SCREENS = {
+  oneasset: { src: 'oneasset-v2-inv-dashboard.webp', frame: 'laptop' },
+  creads: { src: 'creads-v2-dashboard.webp', frame: 'laptop' },
+  lvmh: { src: 'lvmh-screenshot.webp', frame: 'laptop', fit: 'contain' }, // 1600×751: shown whole, not cropped
+  renault: { src: 'renault-screen.webp', frame: 'framed' },
+  sg: { src: 'societe-generale-desktop.png', frame: 'framed' },
+  upviral: { src: 'after-upviral.png', frame: 'framed' },
+  edenred: { src: 'mockup-edenred.webp', frame: 'framed' },
+  arlequin: { src: 'arlequin-phone.webp', frame: 'framed' },
+  skiset: { src: 'skiset-screen.webp', frame: 'framed' },
+  casino: { src: 'casino-mobile-catalog.png', frame: 'framed' },
+  shiseido: { src: 'shiseido-mobile.webp', frame: 'framed' },
+  bmw: { src: 'bmw-desktop-frame.webp', frame: 'framed' },
+  sncf: { src: 'sncf-desktop.png', frame: 'framed' },
+  galian: { src: 'galian-macbook.png', frame: 'framed' },
+};
+const WORK_MOOD = {
+  renault: '../images/renault-cover.webp',
+  skiset: '../images/skiset-cover.webp',
+  casino: '../images/casino-cover.webp',
+  arlequin: '../images/arlequin cover.webp',
+  creads: null,
+  shiseido: null,
 };
 
-function bindProjectShape(item) {
-  if (!item || item.dataset.shapeBound === '1') return;
-  const fig = item.querySelector('.hairline-fig');
-  if (!fig) return;
-  item.dataset.shapeBound = '1';
-  if (typeof window.mountHairlines === 'function') window.mountHairlines(item);
-  const relay = (type, e) => {
-    fig.dispatchEvent(new PointerEvent(type, {
-      bubbles: false,
-      cancelable: false,
-      clientX: e ? e.clientX : 0,
-      clientY: e ? e.clientY : 0,
-      pointerType: 'mouse',
-    }));
-  };
-  item.addEventListener('pointermove', (e) => {
-    if (e.pointerType && e.pointerType !== 'mouse') return;
-    relay('pointermove', e);
-  });
-  item.addEventListener('pointerleave', (e) => relay('pointerleave', e));
-}
-
-function projectShapesEnabled() {
-  return !window.matchMedia('(hover: none), (pointer: coarse), (max-width: 900px)').matches;
-}
-
-function mountProjectShapes(root) {
-  if (mountProjectShapes.observer) {
-    mountProjectShapes.observer.disconnect();
-    mountProjectShapes.observer = null;
-  }
-  if (!projectShapesEnabled()) return;
-  const items = [...root.querySelectorAll('.proj-list-item')];
-  if (!items.length) return;
-  if (!('IntersectionObserver' in window)) {
-    items.forEach(bindProjectShape);
-    return;
-  }
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      observer.unobserve(entry.target);
-      bindProjectShape(entry.target);
-    });
-  }, { rootMargin: '200px' });
-  mountProjectShapes.observer = observer;
-  items.forEach((item) => observer.observe(item));
+function workShotHTML(src, frame, logo, loading, fit) {
+  if (!src) return '';
+  const lazy = loading ? ` loading="${loading}"` : '';
+  const img = `<img src="${src}" alt=""${lazy} decoding="async">`;
+  return `<div class="work-shot work-shot--${frame}${fit === 'contain' ? ' is-contain' : ''}">
+      ${frame === 'laptop' ? `<div class="dev-laptop"><div class="dev-screen">${img}</div><div class="dev-base"></div></div>` : img}
+      ${logo ? `<span class="work-logo"><img src="${logo}" alt=""${lazy} decoding="async"></span>` : ''}
+    </div>`;
 }
 
 function renderProjList() {
@@ -3418,7 +3463,8 @@ function renderProjList() {
   const listExclude = siteAi ? [...new Set([...AI_IDS, ...siteAi])] : AI_IDS;
   const eagerIds = siteOrder ? siteOrder.slice(0, featuredOrder.length) : featuredOrder;
   const listed = publicProjects().filter(p => !listExclude.includes(p.id));
-  el.innerHTML = (siteOrder ? sortBySiteWorkOrder(listed, siteOrder) : listed.sort((a, b) => {
+  let rowIndex = 0;
+  const rowsHTML = (siteOrder ? sortBySiteWorkOrder(listed, siteOrder) : listed.sort((a, b) => {
     const rank = p => p.id === 'arlequin' ? featuredOrder.length + 1 : (featuredOrder.includes(p.id) ? featuredOrder.indexOf(p.id) : featuredOrder.length);
     return rank(a) - rank(b);
   })).map(p => {
@@ -3427,7 +3473,10 @@ function renderProjList() {
     const id = p.id;
     const co = p.company.toLowerCase();
 
-    if (id === 'vloggy') derivedTags.push('Social Video');
+    if (id === 'vloggy') derivedTags.push('Social Video', 'Mobile App');
+    else if (id === 'creads') derivedTags.push('AI Product', 'SaaS');
+    else if (id === 'renault') derivedTags.push('B2B Enterprise', 'B2C', 'Retail');
+    else if (id === 'sncf') derivedTags.push('B2B Enterprise', 'Mobile App');
     else if (id === 'bmw') derivedTags.push('Retail', 'B2C');
     else if (id === 'casino') derivedTags.push('Retail');
     else if (id === 'shiseido') derivedTags.push('E-Commerce');
@@ -3435,95 +3484,105 @@ function renderProjList() {
     else if (id === 'sg') derivedTags.push('B2C', 'FinTech');
     else if (id === 'arlequin') derivedTags.push('FinTech', 'Web3');
     else if (id === 'upviral') derivedTags.push('B2B', 'SaaS');
-    else if (id === 'edenred') derivedTags.push('B2B', 'FinTech');
+    else if (id === 'edenred') derivedTags.push('B2B', 'FinTech', 'Mobile App');
     else if (id === 'oneasset') { if (!siteCfg()) derivedTags.push('AI Product'); } // host page: OneAsset is not an AI product
     else if (p.group === 'automation') derivedTags.push('Automation', 'CRM Ops');
     else if (p.group === 'ai') derivedTags.push('AI Product');
     else if (p.group === 'enterprise') derivedTags.push('B2B Enterprise');
 
     const PLATFORM_TAGS = new Set(['mobile app', 'web platform', 'desktop', 'mobile', 'app']);
-    const allTags = [...(p.badges || []), ...derivedTags]
-      .filter(t => !PLATFORM_TAGS.has(String(t).toLowerCase().trim()))
+    // platform words are dropped from the data badges only; a platform tag added above is deliberate
+    const allTags = [...(p.badges || []).filter(t => !PLATFORM_TAGS.has(String(t).toLowerCase().trim())), ...derivedTags]
       .slice(0, 3);
     
-    const BUSINESS_BADGE_CLASS = {
-      'b2b': 'badge-biz-b2b',
-      'b2b enterprise': 'badge-biz-b2b',
-      'b2c': 'badge-biz-b2c',
-      'saas': 'badge-biz-saas',
-      'fintech': 'badge-biz-fintech',
-      'finance': 'badge-biz-fintech',
-      'crypto': 'badge-biz-web3',
-      'web3': 'badge-biz-web3',
-      'e-commerce': 'badge-biz-commerce',
-      'retail': 'badge-biz-commerce',
-      'automation': 'badge-biz-automation',
-      'crm ops': 'badge-biz-automation',
-      'ai product': 'badge-biz-ai',
-      'web platform': 'badge-biz-platform',
-      'mobile app': 'badge-biz-mobile',
-      'social video': 'badge-biz-social',
-      'ads ecom': 'badge-biz-ads',
-      'side project': 'badge-biz-side',
-      'game': 'badge-biz-game',
-    };
-
-    const getBusinessBadgeClass = (txt) => BUSINESS_BADGE_CLASS[txt.toLowerCase().trim()] || '';
-
-    const getTagIcon = (txt) => {
-      const low = txt.toLowerCase();
-      if (low.includes('mobile')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="1" width="8" height="14" rx="1.5"/><path d="M8 12h0"/></svg>`;
-      if (low.includes('web') || low.includes('platform')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 13h4M8 11v2"/></svg>`;
-      if (low.includes('ai') || low.includes('product')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v4M8 11v4M1 8h4M11 8h4M4.5 4.5l2 2M9.5 9.5l2 2"/></svg>`;
-      if (low.includes('b2b') || low.includes('enterprise')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14V3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v11M10 5h3a1 1 0 0 1 1 1v8"/></svg>`;
-      if (low.includes('saas')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h8a4 4 0 0 0 0-8 3 3 0 0 0-5.5-2.5A4 4 0 0 0 4 13z"/></svg>`;
-      if (low.includes('finance') || low.includes('fintech')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h4"/></svg>`;
-      if (low.includes('retail') || low.includes('e-commerce') || low.includes('b2c')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l-2 3v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5l-2-3H4z"/><path d="M2 5h12M8 8a3 3 0 0 1-6 0"/></svg>`;
-      if (low.includes('video') || low.includes('social')) return `<svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="7"/><path d="M6.5 5.5l5 2.5-5 2.5v-5z"/></svg>`;
-      return '';
-    };
-
-    const allBadgesHTML = [
-      ...allTags.map(t => {
-        const bizClass = getBusinessBadgeClass(t);
-        const icon = getTagIcon(t);
-        const classes = ['proj-list-badge', bizClass].filter(Boolean).join(' ');
-        return `<span class="${classes}">${icon}${t}</span>`;
-      }),
-      ...(RESULT_TAGS[p.id] || []).map(tag => {
-        // Host page: res_<id> / res_<id>_value from TRANSLATIONS; a defined '' label drops the chip.
-        const label = siteLabel(`res_${p.id}`, tag.label);
-        if (!label) return '';
-        return `<span class="proj-list-badge badge-green">${siteLabel(`res_${p.id}_value`, tag.value)} ${label}</span>`;
-      })
-    ].join('');
-
+    // Business type → the badge-biz-* colours already defined in portfolio.html
+    const WORK_TAG_CLASS = { b2b: 'badge-biz-b2b', 'b2b enterprise': 'badge-biz-b2b', b2c: 'badge-biz-b2c', saas: 'badge-biz-saas', fintech: 'badge-biz-fintech', finance: 'badge-biz-fintech', crypto: 'badge-biz-web3', web3: 'badge-biz-web3', 'e-commerce': 'badge-biz-commerce', retail: 'badge-biz-commerce', automation: 'badge-biz-automation', 'crm ops': 'badge-biz-automation', 'ai product': 'badge-biz-ai', 'social video': 'badge-biz-social', 'ads ecom': 'badge-biz-ads', 'side project': 'badge-biz-side', game: 'badge-biz-game', 'mobile app': 'badge-biz-mobile' };
+    // Editorial index row: number, name, one line, plain meta; the visual lives in the sticky stage
+    // (desktop) or above the row (phones). Method tiles were removed from the list at the user's request.
+    const n = String(++rowIndex).padStart(2, '0');
+    const narrativeImg = (p.narrative || []).map(b => b.src || (b.images && b.images[0] && b.images[0].src)).find(Boolean) || '';
+    const fallback = encodeURI(siteAssetSrc(p.cover || '') || projectStill(p) || narrativeImg);
+    const shot = WORK_SCREENS[p.id];
+    const screen = shot ? encodeURI('../images/' + shot.src) : fallback;
+    const frame = shot ? shot.frame : 'cover';
+    const moodRaw = Object.prototype.hasOwnProperty.call(WORK_MOOD, p.id) ? WORK_MOOD[p.id] : (p.heroCover || null);
+    const mood = moodRaw ? encodeURI(siteAssetSrc(moodRaw)) : '';
+    const results = (RESULT_TAGS[p.id] || []).map(tag => {
+      const label = siteLabel(`res_${p.id}`, tag.label);
+      return label ? `<span class="work-result">${siteLabel(`res_${p.id}_value`, tag.value)} <small>${label}</small></span>` : '';
+    }).join('');
+    const loading = eagerIds.includes(p.id) ? 'eager' : 'lazy';
     return `
-    <div class="proj-list-item" onclick="openProject('${p.id}')">
-      ${p.logo ? `<img class="proj-list-logo" src="${p.logo}" alt="${p.company}" loading="${eagerIds.includes(p.id) ? 'eager' : 'lazy'}"${eagerIds.indexOf(p.id) === 0 ? ' fetchpriority="high"' : ''} decoding="async">` : `<div class="proj-list-logo-placeholder"></div>`}
-      <div class="proj-list-preview-trigger">
-        ${projectShapesEnabled() ? `<div class="proj-list-shape" aria-hidden="true"><div class="hairline-fig" data-hairline="${PROJECT_HAIRLINE[p.id] || 'laptop'}" data-theme="light" data-intensity="0.55"></div></div>` : ''}
-        <div class="proj-list-title-block">
-          <div class="proj-list-name-wrap">
-            <span class="proj-list-name">${p.company}</span>
-            <div class="proj-list-badges">${allBadgesHTML}${siteHookHtml('projectChips', p, currentLang)}</div>
-          </div>
-          <p class="proj-list-subtitle">${p.subtitle || p.desc.replace(/[.!?]+$/, '')}</p>
-          ${renderMethodMinis(p.id)}
+    <div class="work-row" data-id="${p.id}" data-visual="${screen}" data-frame="${frame}" data-fit="${shot && shot.fit || ''}" data-logo="${p.logo || ''}" onclick="openProject('${p.id}')">
+      <div class="work-thumb">${workShotHTML(screen, frame, p.logo, 'lazy', shot && shot.fit)}</div>
+      <span class="work-n">${n}</span>
+      <span class="work-cover">${mood ? `<img src="${mood}" alt="" loading="${loading}" decoding="async">` : (p.logo ? `<img class="is-logo" src="${p.logo}" alt="" loading="${loading}" decoding="async">` : '')}</span>
+      <div class="work-main">
+        <div class="work-name"><span class="proj-list-name">${p.company}</span></div>
+        <p class="work-sub">${p.subtitle || p.desc.replace(/[.!?]+$/, '')}</p>
+        ${allTags.length ? `<div class="work-tags">${allTags.map(tag => `<span class="work-tag ${WORK_TAG_CLASS[tag.toLowerCase().trim()] || ''}">${tag}</span>`).join('')}</div>` : ''}
+        <div class="work-meta">
+          ${p.year ? `<span>${p.year}</span>` : ''}
+          ${p.role ? `<span>${p.role}</span>` : ''}
+          ${siteHookHtml('projectChips', p, currentLang)}
         </div>
       </div>
-      <div class="proj-list-year">
-        ${p.role ? `<span class="proj-list-role">${p.role}</span>` : ''}
-        ${p.url ? `<a class="proj-list-link" href="${p.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
-          ${siteLabel('proj_website', 'Website')} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        </a>` : ''}
-        <div class="proj-list-details">
-          <span class="proj-list-arrow">→</span>
-        </div>
+      <div class="work-side">
+        ${results}
+        ${p.url ? `<a class="work-link" href="${p.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${siteLabel('proj_website', 'Website')} <span aria-hidden="true">↗</span></a>` : ''}
+        <span class="work-go" aria-hidden="true">→</span>
       </div>
     </div>`;
   }).join('');
-  mountProjectShapes(el);
+  el.innerHTML = `
+    <div class="work-index">
+      <div class="work-list">${rowsHTML}</div>
+      <div class="work-stage" aria-hidden="true">
+        <div class="work-frame"><div class="work-layer is-on"></div><div class="work-layer"></div></div>
+        <div class="work-caption"><b></b><span>${siteLabel('proj_view_case', currentLang === 'en' ? 'View case study →' : 'Voir l’étude de cas →')}</span></div>
+      </div>
+    </div>`;
+  bindWorkIndex(el);
+}
+
+/* Sticky stage: the row in the middle of the viewport (or the one hovered / focused) shows its visual.
+   Two stacked images cross-fade; under reduced motion the swap is instant (CSS). */
+function bindWorkIndex(host) {
+  const stage = host.querySelector('.work-stage');
+  const rows = [...host.querySelectorAll('.work-row')];
+  if (!stage || !rows.length) return;
+  const layers = [...stage.querySelectorAll('.work-layer')];
+  const name = stage.querySelector('.work-caption b');
+  let current = null, front = 0;
+  const show = (row) => {
+    if (!row || row === current) return;
+    current = row;
+    rows.forEach(r => r.classList.toggle('is-active', r === row));
+    name.textContent = row.querySelector('.proj-list-name')?.textContent || '';
+    const src = row.dataset.visual;
+    if (!src) return;
+    const next = layers[1 - front];
+    const swap = () => { next.classList.add('is-on'); layers[front].classList.remove('is-on'); front = 1 - front; };
+    if (next.dataset.src === src) { swap(); return; }
+    next.dataset.src = src;
+    next.innerHTML = workShotHTML(src, row.dataset.frame || 'cover', row.dataset.logo || '', '', row.dataset.fit);
+    const img = next.querySelector('img');
+    if (img && !img.complete) { img.onload = swap; img.onerror = swap; } else swap();
+  };
+  stage.onclick = () => { if (current) openProject(current.dataset.id); };
+  rows.forEach(r => {
+    r.addEventListener('mouseenter', () => show(r));
+    r.addEventListener('focus', () => show(r));
+  });
+  if ('IntersectionObserver' in window) {
+    if (bindWorkIndex.io) bindWorkIndex.io.disconnect();
+    bindWorkIndex.io = new IntersectionObserver((entries) => {
+      const hit = entries.filter(x => x.isIntersecting).map(x => x.target)[0];
+      if (hit && !host.matches(':hover')) show(hit);
+    }, { rootMargin: '-45% 0px -45% 0px' });
+    rows.forEach(r => bindWorkIndex.io.observe(r));
+  }
+  show(rows[0]);
 }
 
 const AI_PROJECT_IDS = ['uxfi','panfy','flemme'];
@@ -3585,18 +3644,49 @@ function renderAiBento() {
   }).join('');
 }
 
+/* Track record as a career ledger: every company set on the years it happened (EXP_LIST "year" only,
+   "Present" = this year). Bars grow in once the ledger is on screen (CSS, skipped under reduced motion). */
 function renderClientsTable() {
-  const el = document.getElementById('clients-tbody');
+  const el = document.getElementById('clients-career');
   if (!el) return;
-  el.innerHTML = EXP_LIST.map(e => `
-    <tr>
-      <td class="ct-num">${e.num}</td>
-      <td class="ct-logo">${e.logo ? `<img src="${e.logo}" alt="${e.company}" loading="lazy" decoding="async">` : `<div class="ct-logo-placeholder"></div>`}</td>
-      <td class="ct-co">${e.company}</td>
-      <td class="ct-role">${e.role}</td>
-      <td class="ct-type">${e.type}</td>
-      <td class="ct-year">${e.year}</td>
-    </tr>`).join('');
+  const thisYear = new Date().getFullYear();
+  const rows = EXP_LIST.map((e) => {
+    const [a, b] = String(e.year).split(/[–-]/).map(s => s.trim());
+    const start = parseInt(a, 10);
+    const now = /present|aujourd/i.test(b || '');
+    const end = now ? thisYear : (b ? parseInt(b, 10) : start);
+    return { e, start, end, now };
+  }).filter(r => Number.isFinite(r.start) && Number.isFinite(r.end));
+  if (!rows.length) return;
+  const y0 = Math.min(...rows.map(r => r.start));
+  const y1 = Math.max(...rows.map(r => r.end));
+  const cols = y1 - y0 + 1;
+  const presentLabel = currentLang === 'fr' ? 'aujourd’hui' : 'Present';
+  const years = Array.from({ length: cols }, (_, i) => y0 + i)
+    .map((y, i) => `<span>${i === 0 || i === cols - 1 || i % 2 === 0 ? y : '’' + String(y).slice(2)}</span>`).join('');
+  el.style.setProperty('--cols', cols);
+  el.innerHTML = `
+    <div class="career-ruler" aria-hidden="true"><span></span><div class="career-years">${years}</div></div>
+    ${rows.map((r, i) => {
+      const span = r.now ? `${r.start} – ${presentLabel}` : (r.end === r.start ? `${r.start}` : `${r.start} – ${r.end}`);
+      const edge = r.end >= y1 - 1 ? ' is-edge' : '';
+      return `
+      <div class="career-row${r.now ? ' is-now' : ''}" role="listitem">
+        <div class="career-who">
+          ${r.e.logo ? `<img src="${r.e.logo}" alt="" loading="lazy" decoding="async">` : ''}
+          <div><b>${r.e.company}${r.now ? `<span class="career-now">${currentLang === 'fr' ? 'actuel' : 'now'}</span>` : ''}</b><small>${r.e.role} · ${r.e.type}</small></div>
+          <span class="sr-only">${span}</span>
+        </div>
+        <div class="career-track" aria-hidden="true">${'<i></i>'.repeat(cols)}<div class="career-bar${edge}" style="--s:${r.start - y0};--d:${r.end - r.start + 1};--i:${i}"><em>${span.replace(' – ', '–')}</em></div></div>
+      </div>`;
+    }).join('')}`;
+  if (!('IntersectionObserver' in window)) { el.classList.add('is-in'); return; }
+  const io = new IntersectionObserver((entries) => {
+    if (!entries.some(x => x.isIntersecting)) return;
+    el.classList.add('is-in');
+    io.disconnect();
+  }, { threshold: 0.15 });
+  io.observe(el);
 }
 
 let githubActivity = null;
@@ -4251,6 +4341,7 @@ function setLang(lang, opts) {
   });
 
   if (typeof renderGithubActivity === 'function') renderGithubActivity();
+  renderClientsTable(); // the ledger's "now" / "Present" labels follow the language
   if (typeof renderStoryModalContent === 'function') renderStoryModalContent();
   if (typeof updateIfaceGridHeight === 'function') updateIfaceGridHeight();
   document.documentElement.lang = lang;
@@ -4338,3 +4429,109 @@ if (SITE_INITIAL_LANG) {
   }
 }
 
+/* ── Micro-interactions (2026-10-18) ──
+   1. Keyboard access: work rows, AI tiles and playground cards are <div onclick> from the renderers above.
+      Same treatment as agence.js: a tab stop, a role, and Enter (links) / Enter + Space (buttons).
+   2. Sliding nav pill: the white "active section" pill travels between links (styles in #micro-interactions). */
+(function microInteractions() {
+  const CLICKABLE = '.work-row, .proj-list-item, .ai-bento-tile, .iface-card';
+  function enhanceClickables(host) {
+    host.querySelectorAll(CLICKABLE).forEach((el) => {
+      if (el.dataset.mKey) return;
+      el.dataset.mKey = '1';
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('role', el.classList.contains('iface-card') ? 'button' : 'link');
+      const name = el.querySelector('.proj-list-name, .ai-bento-name, .iface-card-name');
+      if (name && !el.hasAttribute('aria-label')) el.setAttribute('aria-label', name.textContent.replace(/\s+/g, ' ').trim());
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const el = e.target;
+    if (!el || typeof el.matches !== 'function' || !el.matches(CLICKABLE)) return;
+    if (e.key === ' ' && el.getAttribute('role') === 'link') return; // links activate on Enter only
+    e.preventDefault();
+    el.click();
+  });
+
+  function navPill() {
+    const links = document.querySelector('.nav-links');
+    if (!links || links.querySelector('.nav-ind')) return;
+    const pill = document.createElement('span');
+    pill.className = 'nav-ind';
+    pill.setAttribute('aria-hidden', 'true');
+    links.prepend(pill);
+    links.classList.add('has-ind');
+    let raf = 0;
+    const place = () => {
+      raf = 0;
+      const a = links.querySelector('.nav-link.is-active');
+      if (!a || !a.offsetWidth) { pill.style.opacity = '0'; return; }
+      pill.style.width = a.offsetWidth + 'px';
+      pill.style.height = a.offsetHeight + 'px';
+      pill.style.transform = `translate(${a.offsetLeft}px, ${a.offsetTop}px)`;
+      pill.style.opacity = '1';
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(place); };
+    new MutationObserver(schedule).observe(links, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    if ('ResizeObserver' in window) new ResizeObserver(schedule).observe(links);
+    schedule();
+  }
+
+  function boot() {
+    ['proj-list-el', 'ai-bento-el', 'ai-bento-wide-el', 'ifaces-grid-el'].forEach((id) => {
+      const host = document.getElementById(id);
+      if (!host) return;
+      enhanceClickables(host);
+      new MutationObserver(() => enhanceClickables(host)).observe(host, { childList: true });
+    });
+    navPill();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
+})();
+
+/* ── Hello World laptop (2026-10-18): closed until its section is on screen, then it opens, boots on
+   "Hello World" and plays the screens of the three highlighted projects; the bubble of the project on
+   screen lights up, and hovering a bubble shows its screen. Styles in #editorial-sections (.m-intro). ── */
+(function laptopIntro() {
+  const sec = document.getElementById('explore-intro');
+  const stage = sec && sec.querySelector('.explore-intro-stage');
+  const slides = sec ? [...sec.querySelectorAll('.mb-slides img')] : [];
+  if (!sec || !stage || !slides.length || !('IntersectionObserver' in window)) return;
+  sec.classList.add('m-intro');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const bubbles = [...sec.querySelectorAll('.proj-bubble')];
+  const bubbleFor = (id) => sec.querySelector('.proj-bubble--' + id);
+  let index = 0, timer = 0, visible = false, booted = false;
+  const show = (k) => {
+    index = k;
+    slides.forEach((s, j) => s.classList.toggle('is-on', j === k));
+    bubbles.forEach(b => b.classList.remove('is-lit'));
+    const b = bubbleFor(slides[k].dataset.for);
+    if (b) b.classList.add('is-lit');
+  };
+  const cycle = () => {
+    clearInterval(timer);
+    if (reduce || !visible || !booted) return;
+    timer = setInterval(() => show((index + 1) % slides.length), 2800);
+  };
+  const boot = () => {
+    sec.classList.add('is-open');
+    setTimeout(() => { booted = true; sec.classList.add('is-booted'); show(0); cycle(); }, reduce ? 0 : 2000);
+  };
+  const io = new IntersectionObserver((entries) => {
+    const on = entries.some(e => e.isIntersecting);
+    if (on && !sec.classList.contains('is-open')) boot();
+    visible = on;
+    cycle();
+  }, { threshold: 0.35 });
+  io.observe(stage);
+  slides.forEach((s, k) => {
+    const b = bubbleFor(s.dataset.for);
+    if (!b) return;
+    const pick = () => { if (booted) { show(k); cycle(); } };
+    b.addEventListener('mouseenter', pick);
+    b.addEventListener('focus', pick);
+  });
+})();

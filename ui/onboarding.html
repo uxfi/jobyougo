@@ -1140,6 +1140,8 @@
   const NAMED_ROW_PATHS = new Set(['target_roles.archetypes', 'narrative.proof_points']);
   function isEmptyField(path, v) {
     if (NAMED_ROW_PATHS.has(path) && Array.isArray(v)) return !v.some(x => isObj(x) && str(x.name).trim());
+    // An education row without a degree or a school is dropped on save too.
+    if (path === 'candidate.education' && Array.isArray(v)) return !v.some(x => isObj(x) && (str(x.degree).trim() || str(x.school).trim()));
     return isEmptyValue(v);
   }
   const canonical = (v) => JSON.stringify(v ?? '', (_k, x) => typeof x === 'number' ? String(x) : (typeof x === 'string' ? x.trim() : x));
@@ -1189,6 +1191,9 @@
     }
     if (path === 'narrative.proof_points') {
       return list(value).filter(isObj).map(p => ({ ...p, name: str(p.name).trim(), url: str(p.url).trim(), hero_metric: str(p.hero_metric).trim() }));
+    }
+    if (path === 'candidate.education') {
+      return list(value).filter(isObj).map(e => ({ ...e, degree: str(e.degree).trim(), field: str(e.field).trim(), school: str(e.school).trim(), end_year: str(e.end_year).trim() }));
     }
     return value;
   }
@@ -1668,7 +1673,7 @@
   // wrote; the first edit removes it (compared against state.imported).
   const IMPORT_PATHS = [
     'candidate.full_name', 'candidate.email', 'candidate.phone', 'candidate.location', 'candidate.linkedin', 'candidate.portfolio_url',
-    'candidate.github', 'candidate.twitter', 'candidate.years_experience', 'candidate.languages',
+    'candidate.github', 'candidate.twitter', 'candidate.years_experience', 'candidate.languages', 'candidate.education',
     'target_roles.primary', 'target_roles.archetypes',
     'narrative.headline', 'narrative.exit_story', 'narrative.superpowers', 'narrative.proof_points',
     'compensation.currency', 'compensation.employment_type', 'compensation.target_range', 'compensation.minimum', 'compensation.location_flexibility',
@@ -1683,6 +1688,7 @@
     if (path === 'cv_markdown') return document.querySelector('label[for="cv_markdown"]');
     if (path === 'target_roles.archetypes') return $('archetypes-title');
     if (path === 'narrative.proof_points') return $('proofs-title');
+    if (path === 'candidate.education') return $('education-title');
     const binding = BINDINGS.find(([, p]) => p === path);
     if (binding) return document.querySelector(`label[for="${binding[0]}"]`);
     return tagField(path)?.querySelector(':scope > label') || null;
@@ -2374,6 +2380,7 @@
     const v = normalizeField(path, raw);
     if (path === 'target_roles.archetypes') return v.filter(a => a.name).map(a => ({ name: a.name, level: a.level, fit: a.fit || 'secondary' }));
     if (path === 'narrative.proof_points') return v.filter(p => p.name).map(p => ({ name: p.name, url: p.url, hero_metric: p.hero_metric }));
+    if (path === 'candidate.education') return v.filter(e => e.degree || e.school).map(e => ({ degree: e.degree, field: e.field, school: e.school, end_year: e.end_year }));
     if (path === 'search.current_role') { const role = { ...emptyRole(), ...v }; return isEmptyValue(role) ? emptyRole() : role; }
     if (path === 'language.output') { const code = str(v).trim().toLowerCase(); return OUTPUT_LANGUAGES.includes(code) ? code : ''; }
     if (path === 'narrative.headline') return fitText(v, 120);
@@ -2467,7 +2474,7 @@
   const FIELD_LABELS = {
     'candidate.full_name': 'your name', 'candidate.email': 'your email', 'candidate.phone': 'your phone', 'candidate.location': 'where you are based',
     'candidate.linkedin': 'your LinkedIn', 'candidate.github': 'your GitHub', 'candidate.portfolio_url': 'your website', 'candidate.years_experience': 'your years of experience',
-    'candidate.languages': 'some languages', 'target_roles.primary': 'some target roles', 'narrative.headline': 'the headline', 'narrative.exit_story': 'your story',
+    'candidate.languages': 'some languages', 'candidate.education': 'your education', 'target_roles.primary': 'some target roles', 'narrative.headline': 'the headline', 'narrative.exit_story': 'your story',
     'narrative.superpowers': 'some superpowers', 'narrative.proof_points': 'some proof points', 'location.authorized_in': 'work authorization',
     'location.visa_status': 'visa status', 'location.postal_code': 'the postal code', 'availability.notice_period': 'the notice period',
     'availability.start_date': 'the start date', 'compensation.employment_type': 'the engagement type', 'search.current_role': 'the current role', 'location.nationality': 'your nationality',

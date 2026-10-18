@@ -461,6 +461,7 @@ num\tdate\tcompany\trole\tstatus\tscore\tpdf\treport\tnotes\turl
 | State | When to use |
 |-------|-------------|
 | `Evaluated` | Report completed, pending decision |
+| `Started` | Set by the dashboard when an apply run starts; the send is not done or not confirmed yet |
 | `Applied` | Application sent |
 | `Responded` | Company responded |
 | `Interview` | In interview process |

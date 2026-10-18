@@ -193,7 +193,7 @@ select:focus-visible, textarea:focus-visible {
 }
 .link-arrow:hover::after, .link-arrow:focus-visible::after { transform: scaleX(1); }
 .link-arrow span:last-child { transition: transform .22s var(--ease); }
-.link-arrow:hover span:last-child { transform: translateX(3px); }
+.link-arrow:hover span:last-child, .link-arrow:focus-visible span:last-child { transform: translateX(3px); }
 .text-link, .pricing-small a, .contact-else a, .bubble.assistant a, .day2-terms a {
   text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em;
   text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); transition: text-decoration-color .2s ease;
@@ -232,8 +232,12 @@ select:focus-visible, textarea:focus-visible {
 }
 .wordmark i {
   width: 7px; height: 7px; margin-left: 4px; align-self: center;
-  background: var(--chapter); transition: background-color .5s ease;
+  background: var(--chapter); transition: background-color .5s ease, transform .3s var(--ease);
   border-radius: 48% 52% 46% 54% / 55% 45% 55% 45%;
+}
+/* the wordmark dab answers the pointer like the rail dabs do */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .wordmark:hover i, .wordmark:focus-visible i { transform: scale(1.35) rotate(-10deg); }
 }
 .nav-links { display: flex; gap: 2px; margin-left: auto; }
 .nav-links a {
@@ -405,7 +409,8 @@ body:not(.page) main > .sheet:not([data-tone='light']) { box-shadow: 0 -22px 48p
 .hero-beat--1 { bottom: clamp(84px, 16vh, 176px); }
 /* The coloured words are lit glass: a translucent aurora drifts through the letters, a fine bright edge
    catches the light, and the shadow falls softly below instead of glowing all round. */
-.hero h1 em, .beat-title em, .contact .h2 em {
+.hero h1 em, .beat-title em, .contact .h2 em,
+.hero h1.is-split em .rw, .beat-title.is-split em .rw, .contact .h2.is-split em .rw {
   color: #a8ecd0;
   background-image:
     linear-gradient(180deg, rgba(255, 255, 255, .34) 0%, rgba(255, 255, 255, 0) 46%, rgba(255, 255, 255, 0) 62%, rgba(255, 255, 255, .1) 100%),
@@ -416,6 +421,12 @@ body:not(.page) main > .sheet:not([data-tone='light']) { box-shadow: 0 -22px 48p
   -webkit-text-stroke: .9px rgba(255, 255, 255, .42);
   filter: drop-shadow(0 -1px 0 rgba(255, 255, 255, .34)) drop-shadow(0 1px 0 rgba(200, 245, 255, .16)) drop-shadow(0 10px 22px rgba(4, 18, 24, .55)) drop-shadow(0 0 18px rgba(150, 255, 214, .2));
   animation: aurora-ink 14s ease-in-out infinite, aurora-breathe 9s ease-in-out infinite;
+}
+/* The word reveal splits these ems into inline-block words (.rw) that move on their own. background-clip:text on
+   the em then paints the glass apart from the words, which doubled "see first." on the home contact. When split,
+   the em carries nothing and each word is its own piece of glass. */
+.hero h1.is-split em, .beat-title.is-split em, .contact .h2.is-split em {
+  background: none; -webkit-text-fill-color: currentColor; -webkit-text-stroke: 0; filter: none; animation: none;
 }
 .hero h1 em { white-space: nowrap; line-height: .92; }
 .hero .beat-title em { background-position: 0 0, 100% 10%; animation-delay: -6s, -3s; }
@@ -1435,7 +1446,7 @@ body.past-hero .chat-toggle, .chat-toggle[aria-expanded='true'] {
 @media (prefers-reduced-motion: reduce) {
   .r-chart .l, .r-swash path { stroke-dashoffset: 0; } .r-chart .a, .r-chart .d, .r-toast { opacity: 1; transform: none; }
   .is-live .r-card, .is-live .r-card::after, .is-live .r-device, .is-live .r-chart .l, .is-live .r-chart .a, .is-live .r-chart .d, .is-live .r-toast { animation: none; }
-  .hero h1 em, .beat-title em, .contact .h2 em { animation: none; } .chat-toggle { opacity: 1; transform: none; pointer-events: auto; visibility: visible; } }
+  .hero h1 em, .beat-title em, .contact .h2 em, .is-split em .rw { animation: none; } .chat-toggle { opacity: 1; transform: none; pointer-events: auto; visibility: visible; } }
 .chat-toggle span {
   position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
   padding: 7px 12px; border-radius: 8px; white-space: nowrap; background: rgba(11, 16, 10, .86); border: 1px solid var(--rule-dark);
@@ -1892,6 +1903,9 @@ body.page .proof, body.page .pricing, body.page .checks { padding-top: calc(var(
   font: inherit; letter-spacing: inherit; line-height: inherit; color: inherit; text-align: left;
 }
 .ck-btn:focus-visible { outline: 2px solid var(--l-ink); outline-offset: 4px; border-radius: 3px; }
+/* each check opens its before/after: a tinted underline says so on hover */
+.ck-btn .ct-base { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: .2em; text-decoration-color: transparent; transition: text-decoration-color .2s ease; }
+@media (hover: hover) { .ck-btn:hover .ct-base { text-decoration-color: color-mix(in srgb, var(--c) 70%, transparent); } }
 .ledger .check-title .ct-base, .ledger .check-title .ct-paint { color: var(--l-ink); }
 .ledger .check-title .ct-paint::before { left: -6px; right: -9px; top: 4%; bottom: -4%; background: color-mix(in srgb, var(--c) 42%, var(--l-paper)); }
 .ck-ba { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 8px; margin-top: 5px; font-size: 13.5px; line-height: 1.45; color: var(--l-ink-2); }
@@ -1983,6 +1997,7 @@ body.page .proof, body.page .pricing, body.page .checks { padding-top: calc(var(
 .price-call {
   justify-self: center; display: inline-flex; align-items: center; min-height: 34px; font-size: 13px; color: var(--ink-2);
   text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  transition: color .2s ease, text-decoration-color .2s ease;
 }
 .price-call:hover { color: var(--ink); text-decoration-color: currentColor; }
 /* "from $2,500" / "à partir de 2 500 $": the word goes above the figure so the amount never leaves the card */
@@ -2001,7 +2016,8 @@ body.page .proof, body.page .pricing, body.page .checks { padding-top: calc(var(
 .os-list li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; align-items: start; }
 .os-n {
   display: grid; place-items: center; width: 28px; height: 28px; border-radius: 48% 52% 46% 54% / 55% 45% 55% 45%;
-  background: var(--c); color: #fff; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  /* the chapter pigment is tuned for dabs, not for white digits (3:1); deepen it so the number reads */
+  background: color-mix(in srgb, var(--c) 75%, #000); color: #fff; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
 .os-list b { display: block; font-size: 15px; font-weight: 600; line-height: 1.3; letter-spacing: -.01em; }
 .os-list li span:not(.os-n) { display: block; margin-top: 5px; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
