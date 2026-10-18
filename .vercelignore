@@ -10,11 +10,24 @@ node_modules
 # ── Playwright auto-apply runtime state ──
 # Chrome profiles = thousands of tiny files + Unix sockets (SingletonSocket,
 # SingletonLock, SingletonCookie) that the CLI can't hash → the OOM trigger.
+# They also hold the signed-in browser sessions. The scan, search and JD
+# profiles (chrome-scan-profile, …) took the function to 1 GB on 2026-10-18.
 scratch
-data/chrome-profile
+data/chrome-*profile
 
 # Meshy source exports. The site serves the compressed glbs next to this folder.
 images/3d/floating-island/source
+
+# Old agence hero renders: gitignored, nothing references them (29 MB).
+images/agence-hero.mp4
+images/agence-hero-scrub.mp4
+
+# The function caps at 250 MB uncompressed and vercel.json bundles data/**.
+# The scan decision log is append-only (the server never reads it, 67 MB),
+# and the backups are local safety copies.
+data/scan-decisions.jsonl
+data/*-backup-*
+data/profile-backups
 
 # ── Local-only artifacts not needed by ui/server.mjs ──
 reports
