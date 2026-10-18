@@ -1284,3 +1284,12 @@ test('layout links the portfolio the offer asks for, turns a parenthesis list in
   assert.match(out, /My CV is attached and my portfolio is linked below\./);
   assert.match(formatApplicationEmail(body, { language: 'en', profileData }), /My CV is attached\. Could we talk/);
 });
+
+test('the portfolio is always mentioned when the profile has one, even without a "CV attached" sentence', async () => {
+  const { formatApplicationEmail } = await import('../lib/application-email.mjs');
+  const profileData = { candidate: { full_name: 'Jo Doe', portfolio_url: 'https://jo.example/portfolio' } };
+  const out = formatApplicationEmail('Hello,\n\nI design products.\n\nCould we talk this week?', { language: 'en', profileData, portfolioAsked: true });
+  assert.match(out, /Could we talk this week\? My portfolio is linked below\./);
+  const fr = formatApplicationEmail('Bonjour,\n\nJe conçois des produits.\n\nPouvons-nous échanger ?', { language: 'fr', profileData, portfolioAsked: true });
+  assert.match(fr, /Mon portfolio est lié ci-dessous\./);
+});
