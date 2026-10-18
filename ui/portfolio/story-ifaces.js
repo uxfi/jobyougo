@@ -880,6 +880,58 @@ function siteIfaceBadgeHtml(iface) {
   return typeof text === 'string' && text ? `<span class="iface-card-badge">${escapeHTML(text)}</span>` : '';
 }
 
+/* Recorded loops of a few interfaces (images/reel/, made for the /agence reel, 2026-10-18): on a card they play over
+   the cover while it is hovered or focused, and on touch screens while it sits in view. Key = INTERFACES id. */
+const IFACE_MOTION = {
+  'sobers-hero': 'sobers-hero',
+  'motion-hero': 'motion-hero',
+  'munsit-voice-flow': 'munsit-studio',
+  'maritana-hero': 'maritana-hero',
+  'upload-drop-glow': 'upload-drop-glow',
+  'devpilot-hero': 'devpilot-hero',
+};
+/* On /agence, visitors in languages other than EN and FR get the machine translation (agTr, agence shells). */
+function ifaceTr(s) {
+  return typeof window.agTr === 'function' ? window.agTr(s) : s;
+}
+function ifaceMotionHtml(iface) {
+  const file = IFACE_MOTION[iface.id];
+  if (!file) return '';
+  const label = currentLang === 'fr' ? 'Vidéo' : ifaceTr('Motion');
+  return `<video class="iface-card-video" muted loop playsinline preload="none" disablepictureinpicture disableremoteplayback tabindex="-1" aria-hidden="true" data-src="/images/reel/${file}.mp4?v=1"></video><span class="iface-card-motion" aria-hidden="true">${label}</span>`;
+}
+function bindIfaceMotion(grid) {
+  const cards = Array.from(grid.querySelectorAll('.iface-card')).filter(card => card.querySelector('.iface-card-video'));
+  if (!cards.length) return;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const hover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const play = (card) => {
+    const v = card.querySelector('.iface-card-video');
+    if (!v.getAttribute('src')) { v.preload = 'auto'; v.src = v.dataset.src; }
+    card.classList.add('is-playing');
+    const p = v.play();
+    if (p && p.catch) p.catch(() => card.classList.remove('is-playing'));
+  };
+  const stop = (card) => {
+    const v = card.querySelector('.iface-card-video');
+    v.pause();
+    card.classList.remove('is-playing');
+  };
+  if (hover) {
+    cards.forEach(card => {
+      card.addEventListener('mouseenter', () => play(card));
+      card.addEventListener('mouseleave', () => stop(card));
+      card.addEventListener('focusin', () => play(card));
+      card.addEventListener('focusout', () => stop(card));
+    });
+  } else if (!reduce && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) play(e.target); else stop(e.target); });
+    }, { threshold: 0.7 });
+    cards.forEach(card => io.observe(card));
+  }
+}
+
 function renderIfaceGrid() {
   const el = document.getElementById('ifaces-grid-el');
   if (!el) return;
@@ -888,7 +940,7 @@ function renderIfaceGrid() {
       ${iface.thumb
         ? `<img class="iface-card-thumb" src="${ifaceThumbSrc(iface.thumb)}" alt="${escapeHTML(iface.name)}" loading="lazy" decoding="async">`
         : `<div class="iface-card-thumb--empty"><span class="iface-card-initials">${escapeHTML(getIfaceInitials(iface.name))}</span></div>`
-      }
+      }${ifaceMotionHtml(iface)}
       <div class="iface-card-open">
         <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9"/><polyline points="10 1 15 1 15 6"/><line x1="15" y1="1" x2="7" y2="9"/></svg>
       </div>
@@ -897,7 +949,8 @@ function renderIfaceGrid() {
         <div class="iface-card-tag">${escapeHTML(iface.tag)}</div>
       </div>
     </div>`).join('');
-  
+  bindIfaceMotion(el);
+
   // Use requestAnimationFrame to ensure the grid is rendered before calculating height
   requestAnimationFrame(() => {
     initIfaceGrid();
@@ -943,8 +996,8 @@ function updateIfaceGridHeight() {
     limiter.style.maxHeight = grid.scrollHeight + 'px';
   }
   const labelKey = isCollapsed ? 'show_all' : 'show_fewer';
-  label.textContent = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][labelKey])
-    || (isCollapsed ? 'Show all interfaces' : 'Show fewer interfaces');
+  label.textContent = ifaceTr((typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][labelKey])
+    || (isCollapsed ? 'Show all interfaces' : 'Show fewer interfaces'));
 
   const columns = Math.max(1, getIfaceColumnCount(grid));
   // A host page counts only the cards it shows; /portfolio keeps counting every entry.

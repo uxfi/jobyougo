@@ -1157,7 +1157,9 @@ const PROJECTS = [
     "outcomeStat": "+12%",
     "url": "https://particuliers.sg.fr/",
     "screenshot": "../images/societe-general-screenshot.webp",
-    "heroCover": "../images/sg-cover.webp",
+    "heroCover": "../images/sg-building.webp",
+    "heroCoverCredit": "Photo: Arthur Weidmann · CC BY-SA 4.0",
+    "heroCoverCreditUrl": "https://commons.wikimedia.org/wiki/File:Si%C3%A8ge_central_de_la_Soci%C3%A9t%C3%A9_G%C3%A9n%C3%A9rale_ext%C3%A9rieur.jpg",
     "narrative": [
       {
         "type": "text",

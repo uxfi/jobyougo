@@ -3313,6 +3313,7 @@ function renderProject(p) {
     <div class="proj-hero${(p.video || p.heroCover) ? ' has-cover' : ''}" style="--proj-accent:${p.accent}${p.heroCover ? `; background-image: url('${siteAssetSrc(p.heroCover)}');` : ''}">
       ${p.video ? `<video class="proj-hero-video js-lazy-video" data-src="${p.video}"${p.screenshot || p.cover || p.heroCover ? ` poster="${siteAssetSrc(p.screenshot || p.cover || p.heroCover)}"` : ''} muted loop playsinline preload="none"></video>` : ''}
       ${(p.video || p.heroCover) ? `<div class="proj-hero-cover-overlay"></div>` : ''}
+      ${p.heroCoverCredit ? `<a class="proj-hero-credit" href="${p.heroCoverCreditUrl || '#'}" target="_blank" rel="noopener noreferrer">${p.heroCoverCredit}</a>` : ''}
       <div class="proj-hero-accent-bar"></div>
       <div class="proj-hero-glow"></div>
       <div class="proj-hero-content" style="max-width:100%;">

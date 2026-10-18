@@ -309,17 +309,17 @@
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 2px;
+      gap: 4px;
       flex-shrink: 0;
-      padding: 3px;
+      padding: 0;
       border-radius: 999px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.14);
+      /* No tile of its own (2026-10-18): the scrolled deck is already a pill, and a second one inside it
+         read as a double frame. The white .nav-ind pill alone marks the active section. */
     }
     .nav-link {
       font-size: 12px; font-weight: 600; letter-spacing: .04em;
       color: rgba(255,255,255,.84); text-decoration: none;
-      padding: 6px 12px;
+      padding: 7px 13px;
       border-radius: 999px;
       line-height: 1;
       transition: color 180ms ease, background 180ms ease;
@@ -331,6 +331,7 @@
       background: #fff;
     }
     .nav-link.is-active:hover { color: #0c0b09; background: #fff; }
+    nav:not(.nav--scrolled) .nav-link:not(.is-active) { text-shadow: 0 1px 2px rgba(0,0,0,.35); } /* over the hero image, without the tile */
     .nav-right { display: flex; align-items: center; gap: 20px; }
     .nav-object-switch {
       height: 34px;
@@ -1390,40 +1391,63 @@
       font-style: italic; font-weight: 400;
       color: #4db88a;
     }
+    /* Two lines (2026-10-18): "I design products / and build with AI." The French copy is a third longer than
+       the English, so it steps down one size to keep its two lines inside the 58% column. */
+    :lang(fr) .hero-headline { font-size: clamp(36px, 4.6vw, 64px); }
     .hero-story-launch {
       margin-bottom: 20px;
       width: fit-content;
       max-width: 100%;
     }
+    /* "My background in 1 minute" (2026-10-18): a lit emerald pill instead of the glass one, so it reads as
+       the hero's main action next to the green words of the headline. The halo ring pulses only without
+       reduced motion and stops on hover. */
     .hero-story-cta {
+      position: relative;
       width: auto;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(255,255,255,.06);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      border: 0;
+      background: linear-gradient(118deg, #a6ffe0 0%, #5fe3ab 46%, #2ecb8a 100%);
       border-radius: 999px;
-      padding: 5px 6px 5px 5px;
-      color: #fff;
+      padding: 6px 8px 6px 6px;
+      color: #06130d;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       text-align: left;
-      box-shadow: none;
-      transition: background 180ms ease, border-color 180ms ease;
+      box-shadow: 0 1px 0 rgba(255,255,255,.55) inset, 0 12px 34px rgba(46,203,138,.38), 0 2px 6px rgba(0,0,0,.25);
+      transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+    }
+    .hero-story-cta::after {
+      content: '';
+      position: absolute; inset: -4px;
+      border-radius: inherit;
+      border: 2px solid rgba(127,255,212,.7);
+      opacity: 0;
+      pointer-events: none;
     }
     .hero-story-cta:hover {
-      background: rgba(255,255,255,.11);
-      border-color: rgba(157, 255, 209, .5);
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 16px 44px rgba(46,203,138,.5), 0 2px 6px rgba(0,0,0,.25);
+    }
+    .hero-story-cta:focus-visible { outline-color: #a6ffe0; }
+    @media (prefers-reduced-motion: no-preference) {
+      .hero-story-cta::after { animation: story-halo 2.6s cubic-bezier(.2,.7,.3,1) infinite; }
+      .hero-story-cta:hover::after { animation: none; }
+    }
+    @keyframes story-halo {
+      0%        { opacity: .85; transform: scale(.96); }
+      70%, 100% { opacity: 0;   transform: scale(1.14); }
     }
     .hero-story-avatar {
       flex-shrink: 0;
-      width: 32px;
-      height: 32px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       overflow: hidden;
       border: 0;
-      box-shadow: none;
-      background: rgba(255,255,255,.08);
+      box-shadow: 0 0 0 2px rgba(6,19,13,.14);
+      background: rgba(6,19,13,.12);
     }
     .hero-story-avatar img {
       width: 100%;
@@ -1435,24 +1459,34 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
+      gap: 2px;
     }
     .hero-story-title {
       font-family: var(--font-body);
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 15px;
+      font-weight: 700;
       letter-spacing: -.01em;
-      line-height: 1.2;
-      color: #fff;
+      line-height: 1.15;
+      color: inherit;
       padding-right: 4px;
+      white-space: nowrap;
     }
-    .hero-story-meta { display: none; }
+    .hero-story-meta {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.2;
+      color: rgba(6,19,13,.72);
+      padding-right: 4px;
+      white-space: nowrap;
+    }
     .hero-story-arrow {
       flex-shrink: 0;
-      width: 28px;
-      height: 28px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: 0;
-      background: transparent;
+      background: #06130d;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1461,8 +1495,8 @@
       transition: transform 180ms ease;
     }
     .hero-story-cta:hover .hero-story-arrow {
-      transform: translateX(2px);
-      background: transparent;
+      transform: translate(2px, -2px);
+      background: #06130d;
     }
     .hero-bottom {
       display: block;
@@ -3431,6 +3465,13 @@
       background: linear-gradient(to top, rgba(12,11,9,.92) 0%, rgba(12,11,9,.6) 40%, rgba(12,11,9,.2) 100%);
       z-index: 1;
     }
+    .proj-hero-credit {
+      position: absolute; right: 16px; bottom: 12px; z-index: 3;
+      font-size: 11px; letter-spacing: .02em; line-height: 1;
+      color: rgba(255,255,255,.5); text-decoration: none; white-space: nowrap;
+      transition: color 180ms ease;
+    }
+    .proj-hero-credit:hover, .proj-hero-credit:focus-visible { color: rgba(255,255,255,.9); }
     .proj-hero-video {
       position: absolute; inset: 0;
       width: 100%; height: 100%;
@@ -7320,6 +7361,9 @@
       color: rgba(255,255,255,.74);
     }
 
+    /* ≤ 1100px: the token counter has no room in the top-state nav (the JobYouGo pill was covering "Tools") */
+    @media (max-width: 1100px) { .nav-usage { display: none; } }
+
     /* ── RESPONSIVE — tablet (≤ 900px) ── */
     @media (max-width: 900px) {
       .methods-carousel { display: none; }
@@ -7332,6 +7376,14 @@
       .nav-object-switch-label { display: none; }
       .nav-object-switch { padding: 6px 8px; }
       .nav-usage-label { display: none; }
+      .nav-right { gap: 12px; }
+      .lang-btn { padding: 4px; gap: 0; }
+      .lang-label { display: none; } /* flags only: the codes had no room next to the links, JobYouGo and the dock */
+      @media (max-width: 640px) { /* 561-640px: "Tools" and the JobYouGo pill were 6px into each other */
+        .nav-center { margin-left: 8px; }
+        .nav-right { gap: 8px; }
+        .nav-link { padding: 6px 8px; }
+      }
 
     @media (max-width: 560px) {
       nav.nav--scrolled {
@@ -7378,6 +7430,7 @@
         font-size: clamp(46px, 14.1vw, 76px);
         letter-spacing: -1.6px;
       }
+      :lang(fr) .hero-headline { font-size: clamp(42px, 12vw, 64px); }
       .hero-story-launch {
         width: 100%;
         max-width: 520px;
@@ -7786,18 +7839,19 @@
       .hero-story-cta {
         width: auto;
         max-width: 100%;
-        padding: 5px 6px 5px 5px;
+        padding: 5px 7px 5px 5px;
         border-radius: 999px;
         gap: 10px;
       }
       .hero-story-avatar {
+        width: 34px;
+        height: 34px;
+      }
+      .hero-story-title { font-size: 14px; }
+      .hero-story-meta { display: none; }
+      .hero-story-arrow {
         width: 30px;
         height: 30px;
-      }
-      .hero-story-title { font-size: 13px; }
-      .hero-story-arrow {
-        width: 26px;
-        height: 26px;
         border-radius: 50%;
       }
       .hero-stats { gap: 8px; }
@@ -8214,13 +8268,16 @@
     @keyframes m-focus { from { outline-offset: 7px; outline-color: transparent; } }
     @keyframes m-pop { 40% { scale: 1.06; } }
 
-    /* Reading progress: a thin green line along the bottom of the scrolled nav, driven by the page scroll
-       (CSS scroll timeline, no JS; browsers without it simply don't show it). */
+    /* Reading progress (fixed 2026-10-18): the line floated 4px above the deck's edge and started under the
+       logo, so it read as a stray underline. It now runs along the deck's own bottom edge, between the rounded
+       ends, lighting that edge green as the page is read. CSS scroll timeline, no JS; browsers without it
+       simply don't show it; phones have no deck, so no line. */
     @supports (animation-timeline: scroll()) {
-      @media (prefers-reduced-motion: no-preference) {
+      @media (prefers-reduced-motion: no-preference) and (min-width: 481px) {
         nav.nav--scrolled::after {
-          content: ''; position: absolute; left: 24px; right: 24px; bottom: 4px; height: 2px; border-radius: 2px;
-          background: linear-gradient(90deg, #2ecb8a, #00a86b); transform-origin: 0 50%; pointer-events: none;
+          content: ''; position: absolute; left: 30px; right: 30px; bottom: -1px; height: 2px; border-radius: 2px;
+          background: linear-gradient(90deg, #2ecb8a, #7fffd4); box-shadow: 0 0 10px rgba(46,203,138,.6);
+          transform-origin: 0 50%; pointer-events: none;
           animation: m-progress linear both; animation-timeline: scroll(root block);
         }
       }
@@ -8432,6 +8489,21 @@
     .ifaces-grid-wrap.is-gallery .iface-card-name { font-family: var(--font-display); font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
     .ifaces-grid-wrap.is-gallery .iface-card-tag { margin-top: 4px; font-family: 'Space Mono', monospace; font-size: 10.5px; font-weight: 400; letter-spacing: .05em; color: var(--ink-3); }
     .ifaces-grid-wrap.is-gallery .iface-card:focus-visible { outline-offset: 6px; border-radius: 12px; }
+    /* a recorded loop of the interface plays over the cover on hover (story-ifaces.js IFACE_MOTION) */
+    .ifaces-grid-wrap .iface-card-video {
+      position: absolute; left: 0; top: 0; width: 100%; height: auto; aspect-ratio: 280 / 190; object-fit: cover; object-position: top center;
+      border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity .45s ease, transform 400ms var(--m-ease);
+    }
+    .ifaces-grid-wrap .iface-card.is-playing .iface-card-video { opacity: 1; }
+    .ifaces-grid-wrap.is-gallery .iface-card:hover .iface-card-video { transform: translateY(-4px); }
+    .ifaces-grid-wrap .iface-card-motion {
+      position: absolute; left: 10px; top: 10px; z-index: 3; display: inline-flex; align-items: center; gap: 5px; pointer-events: none;
+      padding: 4px 8px 3px 7px; border-radius: 999px; background: rgba(12,11,9,.62); color: #fff;
+      font-size: 10px; font-weight: 600; letter-spacing: .05em; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: opacity .3s ease;
+    }
+    .ifaces-grid-wrap .iface-card-motion::before { content: ''; border-left: 6px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+    .ifaces-grid-wrap .iface-card.is-playing .iface-card-motion { opacity: 0; }
+    @media (prefers-reduced-motion: reduce) { .ifaces-grid-wrap .iface-card-video { transition: none; } }
 
     /* ── Selected work: an editorial index with a sticky visual stage ── */
     .work-index { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 40%); gap: 0 56px; align-items: start; }
@@ -8758,7 +8830,7 @@
       </div>
     </div>
     <div class="hero-copy">
-      <h1 class="hero-headline" data-i18n-html="hero_headline">I design <br><em>products</em> <br>and build <br><em>with AI.</em></h1>
+      <h1 class="hero-headline" data-i18n-html="hero_headline">I design <em>products</em><br>and build <em>with AI.</em></h1>
       <div class="hero-story-launch">
         <button class="hero-story-cta" type="button" onclick="openStoryModal()" aria-haspopup="dialog" aria-controls="story-modal">
           <span class="hero-story-avatar" aria-hidden="true">
@@ -9609,7 +9681,7 @@
   </div>
 </div>
 
-<script src="/portfolio/story-ifaces.js" defer></script>
+<script src="/portfolio/story-ifaces.js?v=20261018h" defer></script>
 
 <!-- HERO 3D OBELISK + PROJECT 3D -->
 <script type="importmap">
