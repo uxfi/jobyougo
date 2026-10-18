@@ -216,7 +216,7 @@ test('audit catches multi-word X-not-Y, solo claims and French calques; layout a
     'Chez Renault, j’ai conçu une marketplace de véhicules: annonces, recherche et contact vendeur.',
     'Mon CV est en pièce jointe. Auriez-vous 20 minutes la semaine prochaine?',
   ].join('\n\n'), { language: 'fr', profileData: PROFILE });
-  assert.match(fr, /véhicules : annonces/);
+  assert.match(fr, /véhicules, annonces/); // a colon inside a sentence becomes a comma
   assert.match(fr, /semaine prochaine \?/);
   const frIssues = auditApplicationEmail({ subject: 'Lead Product Designer - Hugo Vermot', body: fr, language: 'fr' });
   assert.ok(frIssues.some(i => /Calque/.test(i)));
@@ -294,7 +294,7 @@ test('audit catches the French "X, pas un Y" form', () => {
 
 test('formatApplicationEmail drops a closing recap sentence', () => {
   const body = formatApplicationEmail('Hello,\n\nI am applying for the role.\n\nI built prototypes in Cursor. I handed them off via GitHub. The workflow is driven by AI: structured prompts and validation layers.\n\nMy CV is attached.', { language: 'en', profileData: PROFILE });
-  assert.match(body, /handed them off via GitHub\.\n\nMy CV/);
+  assert.match(body, /handed them off\.\n\nMy CV/);
   assert.doesNotMatch(body, /workflow is driven/);
   // Kept when dropping it would leave a one-sentence paragraph.
   const thin = formatApplicationEmail('Hello,\n\nIntro.\n\nI built prototypes in Cursor. The workflow is driven by AI.\n\nMy CV is attached.', { language: 'en', profileData: PROFILE });
@@ -303,13 +303,13 @@ test('formatApplicationEmail drops a closing recap sentence', () => {
 
 test('recap sentence is dropped mid-paragraph and "X, not a Y" is caught', () => {
   const body = formatApplicationEmail('Hello,\n\nDiscovery should feel like advice, not a ranked list from a system.\n\nI built prototypes in Cursor. This workflow treats AI as a core production layer. I handed them off via GitHub.\n\nMy CV is attached.', { language: 'en', profileData: PROFILE });
-  assert.match(body, /I built prototypes in Cursor\. I handed them off via GitHub\./);
+  assert.match(body, /I built prototypes in Cursor\. I handed them off\./);
   assert.ok(auditApplicationEmail({ subject: 'X - Hugo Vermot', body, language: 'en' }).some(i => /pas X mais Y/.test(i)));
 });
 
 test('formatApplicationEmail joins participle fragments to the previous sentence', () => {
   const body = formatApplicationEmail('Bonjour,\n\nJe postule.\n\nLes prototypes ont été construits dans Cursor et Claude Code. Revus sur l’app live. Passés aux développeurs via GitHub.\n\nMon CV est en pièce jointe.', { language: 'fr', profileData: PROFILE });
-  assert.match(body, /Claude Code, revus sur l’app live, passés aux développeurs via GitHub\./);
+  assert.match(body, /Claude Code, revus sur l’app live, passés aux développeurs./);
 });
 
 const GROUND_CV = [
@@ -1211,4 +1211,76 @@ test('a CV from the onboarding import (H2 dialect) is read by the rules, with em
   assert.deepEqual([...new Set(proofs.map(p => `${p.employer}|${p.role}|${p.latest}`))], ['Qonto|Senior Product Designer|true', 'Lydia|Product Designer|false']);
   assert.equal(cvRulesLookUnsure(proofs, cv), false);
   assert.ok(indexCvExperiences(cv).some(item => item.names.includes('Qonto')));
+});
+
+test('the audit flags two paragraphs that say the same thing and a sentence copied from the CV', async () => {
+  const { auditApplicationEmail } = await import('../lib/application-email.mjs');
+  const cv = 'I shipped a full investor app, admin panel and marketing site in six months with one Product Owner at my current role.';
+  const body = [
+    'Hi,',
+    'I shipped a full investor app, admin panel and marketing site in six months with one Product Owner at my current role. The prototypes were built in Cursor and Claude Code.',
+    'The prototypes were built in Cursor and Claude Code, then reviewed with the investor app, admin panel and marketing site shipped in six months.',
+    'My CV is attached. Can we talk?',
+  ].join('\n\n');
+  const issues = auditApplicationEmail({ subject: 'Designer - Hugo', body, language: 'en' }, { copySource: cv });
+  assert.ok(issues.some(issue => /répètent la même chose/.test(issue)), issues.join('\n'));
+  assert.ok(issues.some(issue => /recopiée du CV/.test(issue)), issues.join('\n'));
+});
+
+test('the main description reaches the prompt and no candidate fact is hard-coded in the voice rules', async () => {
+  const { buildApplicationEmailMessages, candidateDescription, EMAIL_VOICE_RULES } = await import('../lib/application-email.mjs');
+  const profileData = { narrative: { headline: 'Data engineer', exit_story: 'Builds payment pipelines for fintech teams.', next_role: 'Senior data role' } };
+  assert.match(candidateDescription(profileData).text, /payment pipelines/);
+  const { system, user } = buildApplicationEmailMessages({ cv: '# CV', profileData, jobText: 'We build ledgers. Looking for a data engineer.' });
+  assert.match(system, /BASE OF THE EMAIL/);
+  assert.match(user, /MAIN DESCRIPTION[\s\S]*payment pipelines/);
+  assert.doesNotMatch(EMAIL_VOICE_RULES, /investor app|Product Owner/);
+});
+
+test('offerLinkIssues warns when nothing was read, and when the email shares no subject with the offer', async () => {
+  const { offerLinkIssues } = await import('../lib/application-email.mjs');
+  assert.equal(offerLinkIssues({ body: 'Hi\n\nx\n\nBye', role: '' }, {}).length, 1);
+  const posting = 'We are building a compliance dashboard for stablecoin payments and onboarding flows.';
+  assert.equal(offerLinkIssues({ body: 'Hi\n\nI built compliance onboarding flows for payments, and I want to join because your payments dashboard serves them.\n\nBye', role: 'Designer' }, { jobText: posting }).length, 0);
+  assert.equal(offerLinkIssues({ body: 'Hi\n\nI like gardening and cooking every weekend.\n\nBye', role: 'Designer' }, { jobText: posting }).some(issue => /aucun sujet/.test(issue)), true);
+});
+
+test('a tool slash becomes "and", acronyms stay, and a motivation sentence with a reason survives', async () => {
+  const { formatApplicationEmail, auditApplicationEmail } = await import('../lib/application-email.mjs');
+  const body = [
+    'Hello,',
+    'I prototype in Cursor/Claude Code and ship KYC/KYB flows. I\'m excited to apply. I\'d like to join Acme because your onboarding flow serves first-time investors.',
+    'My CV is attached.',
+  ].join('\n\n');
+  const out = formatApplicationEmail(body, { language: 'en', profileData: { candidate: { full_name: 'Jo Doe' } } });
+  assert.match(out, /Cursor and Claude Code/);
+  assert.match(out, /KYC\/KYB/);
+  assert.doesNotMatch(out, /excited to apply/);
+  assert.match(out, /I'd like to join Acme because/);
+  const issues = auditApplicationEmail({ subject: 'x', body: 'Hi,\n\nI work (daily): prototypes; reviews - fast / slow, in Figma.\n\nMy CV is attached.', language: 'en' });
+  assert.ok(issues.some(issue => /Trop de ponctuation/.test(issue)), issues.join('\n'));
+});
+
+test('layout drops the internal-tool clause and turns a colon after a year into a comma', async () => {
+  const { formatApplicationEmail } = await import('../lib/application-email.mjs');
+  const out = formatApplicationEmail('Hello,\n\nI built AI products since 2022: UXfi and Creads.io. I shipped the app in six months. I reviewed prototypes in an internal tool I built before handing them off.\n\nMy CV is attached.', { language: 'en', profileData: { candidate: { full_name: 'Jo Doe' } } });
+  assert.match(out, /since 2022, UXfi/);
+  assert.doesNotMatch(out, /internal tool/);
+});
+
+test('detectTextLanguage settles an English offer despite French page chrome, and stays silent on short text', async () => {
+  const { detectTextLanguage } = await import('../lib/application-email.mjs');
+  const en = 'Voir l’entreprise Suivre WE’RE HIRING PRODUCT DESIGNER HiPrep is looking for a creative and user-focused Product Designer to join its team and help build intuitive digital experiences. The ideal candidate should have proven experience in UI/UX design and a strong understanding of the principles. Proficiency in Figma and other relevant design tools. The ability to translate ideas into wireframes and high-fidelity designs.';
+  assert.equal(detectTextLanguage(en), 'en');
+  assert.equal(detectTextLanguage('Product Designer'), '');
+});
+
+test('layout links the portfolio the offer asks for, turns a parenthesis list into commas, and keeps acronyms', async () => {
+  const { formatApplicationEmail } = await import('../lib/application-email.mjs');
+  const profileData = { candidate: { full_name: 'Jo Doe', portfolio_url: 'https://jo.example/portfolio' } };
+  const body = 'Hello,\n\nI shipped a full product (investor app, admin panel and marketing site) in six months under VARA (licence).\n\nMy CV is attached. Could we talk?';
+  const out = formatApplicationEmail(body, { language: 'en', profileData, portfolioAsked: true });
+  assert.match(out, /full product, investor app, admin panel and marketing site, in six months/);
+  assert.match(out, /My CV is attached and my portfolio is linked below\./);
+  assert.match(formatApplicationEmail(body, { language: 'en', profileData }), /My CV is attached\. Could we talk/);
 });
