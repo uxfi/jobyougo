@@ -415,207 +415,34 @@ product_designer:
         - Generated around €400K revenue over three years.
 complete_paris:
   use_profile_config: false
-  headline: Senior Product Designer | AI Products
-  portrait: hugo_vermot.optimized.jpg
-  summary: >-
-    Senior product designer (12 years) seeking a senior or lead product design role on AI products: full
-    remote, full-time.
-
-    Strongest proof: Creads.io, an AI advertising SaaS I founded and built (1,200 registered users, 20 paying
-    clients), and OneAsset, where I shipped a full regulated investment product with one Product Owner in 6
-    months.
-
-    Background across SaaS, enterprise and financial services: LVMH, Renault, Société Générale.
-  stats:
-    - value: '12'
-      label: years
-      sub: product design
-    - value: 1,200
-      label: users
-      sub: Creads.io
-    - value: 15+
-      label: maisons
-      sub: LVMH platform
-  availability_tags:
-    - label: Seeking full-time
-      bg: '#f0fdf4'
-      color: '#166534'
-      border: '#bbf7d0'
-    - label: Full remote
-      bg: '#eff6ff'
-      color: '#1d4ed8'
-      border: '#bfdbfe'
-  target_roles:
-    - Senior Product Designer
-    - Lead Product Designer
-    - AI Product Designer
-  skill_sections:
-    - title: Product Design
-      items:
-        - UX Research
-        - User Interviews
-        - User Flows
-        - Wireframing
-        - Hi-fi Prototypes
-        - Design Systems
-        - IA
-    - title: AI & Tech
-      items:
-        - AI Agents
-        - Multi-Agent Orchestration
-        - Prompt Engineering
-        - LLM Workflows
-        - Process Automation
-        - JavaScript
-        - Python
-    - title: Leadership
-      items:
-        - Product Leadership
-        - Stakeholder Management
-        - Cross-functional Alignment
-        - Workshop Facilitation
-        - Team Management
-  projects_title: Selected work
-  projects:
-    - name: OneAsset
-      desc: Regulated real-world asset investment platform
-      tag: Product Lead
-      bullets:
-        - Investor journey, marketplace, onboarding and internal PM tooling.
-        - Design, product strategy and prototype ownership with one PO.
-    - name: LVMH Group
-      desc: Data marketing platform
-      tag: 15+ maisons
-      bullets:
-        - Customer data and campaign performance unified across 15+ maisons.
-        - Interviews with Dior, Louis Vuitton, Fendi, Kenzo teams; monitoring tools.
-    - name: Renault Group
-      desc: Renew international marketplace
-      tag: '-20% dev time'
-      bullets:
-        - Sole design lead, front and back office.
-        - Multi-country design system with cross-team workshops.
-  founder_title: Founder projects
-  founder_projects:
-    - name: Creads.io
-      logo: creads-logo.webp
-      url: https://creads.io
-      prominent: true
-      tag: Launched 2024
-      desc: AI advertising SaaS, founded and built solo
-      bullets:
-        - >-
-          Result: 1,200 registered users, 20 paying clients and 5,000 monthly visits (Sept 2026), zero paid
-          acquisition.
-        - >-
-          Brand memory, structured briefs and a second prompt that checks each output against the brief before
-          it ships.
-        - Owned user flows, AI orchestration and deployment.
-    - name: Jarvos
-      logo: jarvos-logo.svg
-      prominent: true
-      tag: In progress
-      desc: AI Agent OS
-      bullets:
-        - Semantic dispatch, planner / executor / verifier loops, tool resolver and approval gates.
-        - Used as proof of agent-flow design.
-  founder_other: >-
-    Also built: UXfi.ai (AI UX audit, prototype), FlemmeOS (AI agentic workflow OS), JobYouGo (portfolio + AI
-    job-search automation), Newflux.fr (first UX/UI media in France, 2015).
-  experience_title: Professional experience
-  experience:
-    - company: OneAsset
-      role: Senior Product Designer / Product Lead
-      period: Feb 2026 – Present
-      logo: oneasset-logo.png
-      bullets:
-        - >-
-          Result: in the first 6 months, shipped the full product with one Product Owner: investor app, admin
-          panel and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed
-          in Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
-        - >-
-          Scope: regulated real-world asset investment platform (fractional real estate ownership from
-          $10,000, daily USDC yield on Base / ERC-3643).
-        - >-
-          Own product strategy and full UX architecture: investor journey, marketplace, onboarding and
-          internal PM tooling.
-    - company: Freelance & Agence V0 (Founder)
-      role: Senior Product Designer / Founder & Head of Product Design
-      period: 2020 – 2025
-      logo: logo-HV.jpg
-      url: https://v0.agency
-      summary: >-
-        Founded Agence V0 and grew it to a team of up to 7 junior freelance designers, recruited and mentored
-        as it scaled; 20+ client projects generating ~EUR 400K in revenue over three years (Oct 2020 – Jan
-        2024). Client missions below overlapped in time.
-      clients:
-        - name: UpViral
-          role: Product Designer / Product Manager
-          period: Jul 2024 – Dec 2025
-          text: >-
-            SaaS marketing platform. Sole designer on a complete overhaul (UI, information architecture, user
-            flows) backed by multiple rounds of customer interviews.
-        - name: Shiseido Group
-          role: Senior Product Designer
-          period: Feb – Jun 2024
-          text: >-
-            Redesigned loyalty flows, onboarding and account space end-to-end: +20% loyalty enrollment in the
-            quarter after launch.
-        - name: Société Générale
-          role: Senior Product Designer
-          period: Feb 2023 – Oct 2024
-          text: >-
-            Savings, allocation and investment flows on desktop and mobile under MIF2 regulatory constraints:
-            +12% investment activity.
-        - name: Edenred
-          role: Senior Product Designer
-          period: 2023 – 2024
-          text: >-
-            Mobile apps to locate gas stations and EV-charging points, plus employee-benefits and meal-voucher
-            management.
-        - name: LVMH Group
-          role: UX / Product Designer
-          period: 2022 – 2023
-          text: >-
-            Data marketing platform unifying customer data and campaign performance across 15+ maisons (Dior,
-            Louis Vuitton, Fendi, Kenzo and others); stakeholder interviews to reconcile brand-level needs.
-        - name: BMW Group
-          role: Senior Product Designer
-          period: 2021 – 2022
-          text: 'Full UX/UI audit and redesign of key pages of the public website: +12% user engagement.'
-        - name: Renault Group
-          role: Senior Product Designer
-          period: 2020 – 2021
-          text: >-
-            Sole design lead on Renew, Renault's European used-car marketplace (23,900+ listings); built a
-            multi-country design system: -20% development time.
-      bullets:
-        - 'Other agency clients: Volkswagen, Casino/Spar/Vival, Skiset, GALIAN-SMABTP.'
   phone: +33 6 95 65 91 31
   phone_link: '+33695659131'
-complete_bangkok:
-  use_profile_config: false
   headline: Senior Product Designer | AI Products
   portrait: hugo_vermot.optimized.jpg
+  maxim: From user research to working products.
+  experience_note: Agency (Agence V0) and freelance client missions ran in parallel, so some dates overlap.
   summary: >-
-    Senior product designer (12 years) seeking a senior or lead product design role on AI products: full
-    remote, full-time.
+    Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
+    research, complex journeys and design systems with product and engineering teams. My experience includes
+    OneAsset, LVMH, Renault and Société Générale. At OneAsset I shipped the full product in 6 months with one Product Owner.
 
-    Strongest proof: Creads.io, an AI advertising SaaS I founded and built (1,200 registered users, 20 paying
-    clients), and OneAsset, where I shipped a full regulated investment product with one Product Owner in 6
-    months.
 
-    Background across SaaS, enterprise and financial services: LVMH, Renault, Société Générale.
+    I have worked with AI for 4 years, building bootstrapped products: UXfi, Flemme OS and Creads.io, an AI
+    advertising SaaS with 1,200 registered users. I also built Figmol for live-prototype design reviews at
+    OneAsset.
+
+
+    Currently employed at OneAsset; seeking a new full-time role. Start date to be agreed.
   stats:
     - value: '12'
       label: years
       sub: product design
-    - value: 1,200
-      label: users
-      sub: Creads.io
-    - value: 15+
-      label: maisons
-      sub: LVMH platform
+    - value: 30+
+      label: projects
+      sub: delivered
+    - value: '5'
+      label: founder
+      sub: projects
   availability_tags:
     - label: Seeking full-time
       bg: '#f0fdf4'
@@ -627,8 +454,8 @@ complete_bangkok:
       border: '#bfdbfe'
   target_roles:
     - Senior Product Designer
-    - Lead Product Designer
-    - AI Product Designer
+    - AI Product Builder
+    - Product Lead
   skill_sections:
     - title: Product Design
       items:
@@ -648,7 +475,7 @@ complete_bangkok:
         - Process Automation
         - JavaScript
         - Python
-    - title: Leadership
+    - title: Soft Skills
       items:
         - Product Leadership
         - Stakeholder Management
@@ -658,121 +485,206 @@ complete_bangkok:
   projects_title: Selected work
   projects:
     - name: OneAsset
-      desc: Regulated real-world asset investment platform
+      logo: oneasset-logo.png
+      screenshot: oneasset-cover.png
+      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
       tag: Product Lead
       bullets:
-        - Investor journey, marketplace, onboarding and internal PM tooling.
-        - Design, product strategy and prototype ownership with one PO.
+        - 'Regulated real-world asset investment platform: investor app, admin panel, marketing site and OTC product.'
+        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
+    - name: Creads.io
+      logo: creads-logo.webp
+      screenshot: screenshot_creads.webp
+      url: https://creads.io
+      desc: AI advertising SaaS, from brand context to checked creative outputs
+      tag: 1,200 registered users
+      bullets:
+        - Founded and built the product, from user flows through AI orchestration and deployment.
+        - Brand memory, structured briefs and a second prompt checking output compliance.
+        - >-
+          1,200 registered users, 20 paying clients and 5,000 monthly visits (September 2026). Zero paid
+          acquisition.
     - name: LVMH Group
-      desc: Data marketing platform
-      tag: 15+ maisons
+      logo: lvmh.png
+      screenshot: lvmh-screenshot.webp
+      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
+      tag: Enterprise UX
       bullets:
-        - Customer data and campaign performance unified across 15+ maisons.
-        - Interviews with Dior, Louis Vuitton, Fendi, Kenzo teams; monitoring tools.
+        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
+        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
     - name: Renault Group
-      desc: Renew international marketplace
-      tag: '-20% dev time'
+      logo: renault.png
+      screenshot: renault-screens.png
+      desc: Renew international marketplace and multi-country design system
+      tag: Design systems
       bullets:
-        - Sole design lead, front and back office.
-        - Multi-country design system with cross-team workshops.
-  founder_title: Founder projects
+        - Sole design lead across the front and back office, with cross-team stakeholder workshops.
+        - Recorded 20% reduction in development time through the shared design system.
   founder_projects:
     - name: Creads.io
       logo: creads-logo.webp
-      url: https://creads.io
-      prominent: true
-      tag: Launched 2024
-      desc: AI advertising SaaS, founded and built solo
-      bullets:
-        - >-
-          Result: 1,200 registered users, 20 paying clients and 5,000 monthly visits (Sept 2026), zero paid
-          acquisition.
-        - >-
-          Brand memory, structured briefs and a second prompt that checks each output against the brief before
-          it ships.
-        - Owned user flows, AI orchestration and deployment.
+      desc: AI advertising SaaS for brands
+      tag: Launched · 1,200 users
+      year: '2024'
     - name: Jarvos
       logo: jarvos-logo.svg
-      prominent: true
-      tag: In progress
-      desc: AI Agent OS
-      bullets:
-        - Semantic dispatch, planner / executor / verifier loops, tool resolver and approval gates.
-        - Used as proof of agent-flow design.
-  founder_other: >-
-    Also built: UXfi.ai (AI UX audit, prototype), FlemmeOS (AI agentic workflow OS), JobYouGo (portfolio + AI
-    job-search automation), Newflux.fr (first UX/UI media in France, 2015).
-  experience_title: Professional experience
-  experience:
-    - company: OneAsset
-      role: Senior Product Designer / Product Lead
-      period: Feb 2026 – Present
-      logo: oneasset-logo.png
-      bullets:
-        - >-
-          Result: in the first 6 months, shipped the full product with one Product Owner: investor app, admin
-          panel and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed
-          in Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
-        - >-
-          Scope: regulated real-world asset investment platform (fractional real estate ownership from
-          $10,000, daily USDC yield on Base / ERC-3643).
-        - >-
-          Own product strategy and full UX architecture: investor journey, marketplace, onboarding and
-          internal PM tooling.
-    - company: Freelance & Agence V0 (Founder)
-      role: Senior Product Designer / Founder & Head of Product Design
-      period: 2020 – 2025
+      desc: AI Agent OS with semantic orchestration
+      tag: Agent OS in progress
+    - name: UXfi.ai
+      logo: uxfi.png
+      desc: AI UX Audit platform
+      tag: Prototype
+      year: '2024'
+    - name: FlemmeOS
+      logo: cursor-logo.jpg
+      desc: AI Agentic Workflow OS
+      tag: AI / OS
+      year: '2024'
+    - name: JobYouGo
+      logo: favicon.png
+      desc: Portfolio + AI job-search automation
+      tag: Career / AI
+    - name: Newflux.fr
       logo: logo-HV.jpg
-      url: https://v0.agency
-      summary: >-
-        Founded Agence V0 and grew it to a team of up to 7 junior freelance designers, recruited and mentored
-        as it scaled; 20+ client projects generating ~EUR 400K in revenue over three years (Oct 2020 – Jan
-        2024). Client missions below overlapped in time.
-      clients:
-        - name: UpViral
-          role: Product Designer / Product Manager
-          period: Jul 2024 – Dec 2025
-          text: >-
-            SaaS marketing platform. Sole designer on a complete overhaul (UI, information architecture, user
-            flows) backed by multiple rounds of customer interviews.
-        - name: Shiseido Group
-          role: Senior Product Designer
-          period: Feb – Jun 2024
-          text: >-
-            Redesigned loyalty flows, onboarding and account space end-to-end: +20% loyalty enrollment in the
-            quarter after launch.
-        - name: Société Générale
-          role: Senior Product Designer
-          period: Feb 2023 – Oct 2024
-          text: >-
-            Savings, allocation and investment flows on desktop and mobile under MIF2 regulatory constraints:
-            +12% investment activity.
-        - name: Edenred
-          role: Senior Product Designer
-          period: 2023 – 2024
-          text: >-
-            Mobile apps to locate gas stations and EV-charging points, plus employee-benefits and meal-voucher
-            management.
-        - name: LVMH Group
-          role: UX / Product Designer
-          period: 2022 – 2023
-          text: >-
-            Data marketing platform unifying customer data and campaign performance across 15+ maisons (Dior,
-            Louis Vuitton, Fendi, Kenzo and others); stakeholder interviews to reconcile brand-level needs.
-        - name: BMW Group
-          role: Senior Product Designer
-          period: 2021 – 2022
-          text: 'Full UX/UI audit and redesign of key pages of the public website: +12% user engagement.'
-        - name: Renault Group
-          role: Senior Product Designer
-          period: 2020 – 2021
-          text: >-
-            Sole design lead on Renew, Renault's European used-car marketplace (23,900+ listings); built a
-            multi-country design system: -20% development time.
-      bullets:
-        - 'Other agency clients: Volkswagen, Casino/Spar/Vival, Skiset, GALIAN-SMABTP.'
+      desc: First UX/UI media in France
+      tag: Media / UX
+      year: '2015'
+complete_bangkok:
+  use_profile_config: false
   phone: +66 62 784 2137
   phone_link: '+66627842137'
+  headline: Senior Product Designer | AI Products
+  portrait: hugo_vermot.optimized.jpg
+  maxim: From user research to working products.
+  experience_note: Agency (Agence V0) and freelance client missions ran in parallel, so some dates overlap.
+  summary: >-
+    Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
+    research, complex journeys and design systems with product and engineering teams. My experience includes
+    OneAsset, LVMH, Renault and Société Générale. At OneAsset I shipped the full product in 6 months with one Product Owner.
+
+
+    I have worked with AI for 4 years, building bootstrapped products: UXfi, Flemme OS and Creads.io, an AI
+    advertising SaaS with 1,200 registered users. I also built Figmol for live-prototype design reviews at
+    OneAsset.
+
+
+    Currently employed at OneAsset; seeking a new full-time role. Start date to be agreed.
+  stats:
+    - value: '12'
+      label: years
+      sub: product design
+    - value: 30+
+      label: projects
+      sub: delivered
+    - value: '5'
+      label: founder
+      sub: projects
+  availability_tags:
+    - label: Seeking full-time
+      bg: '#f0fdf4'
+      color: '#166534'
+      border: '#bbf7d0'
+    - label: Full remote
+      bg: '#eff6ff'
+      color: '#1d4ed8'
+      border: '#bfdbfe'
+  target_roles:
+    - Senior Product Designer
+    - AI Product Builder
+    - Product Lead
+  skill_sections:
+    - title: Product Design
+      items:
+        - UX Research
+        - User Interviews
+        - User Flows
+        - Wireframing
+        - Hi-fi Prototypes
+        - Design Systems
+        - IA
+    - title: AI & Tech
+      items:
+        - AI Agents
+        - Multi-Agent Orchestration
+        - Prompt Engineering
+        - LLM Workflows
+        - Process Automation
+        - JavaScript
+        - Python
+    - title: Soft Skills
+      items:
+        - Product Leadership
+        - Stakeholder Management
+        - Cross-functional Alignment
+        - Workshop Facilitation
+        - Team Management
+  projects_title: Selected work
+  projects:
+    - name: OneAsset
+      logo: oneasset-logo.png
+      screenshot: oneasset-cover.png
+      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
+      tag: Product Lead
+      bullets:
+        - 'Regulated real-world asset investment platform: investor app, admin panel, marketing site and OTC product.'
+        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
+    - name: Creads.io
+      logo: creads-logo.webp
+      screenshot: screenshot_creads.webp
+      url: https://creads.io
+      desc: AI advertising SaaS, from brand context to checked creative outputs
+      tag: 1,200 registered users
+      bullets:
+        - Founded and built the product, from user flows through AI orchestration and deployment.
+        - Brand memory, structured briefs and a second prompt checking output compliance.
+        - >-
+          1,200 registered users, 20 paying clients and 5,000 monthly visits (September 2026). Zero paid
+          acquisition.
+    - name: LVMH Group
+      logo: lvmh.png
+      screenshot: lvmh-screenshot.webp
+      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
+      tag: Enterprise UX
+      bullets:
+        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
+        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
+    - name: Renault Group
+      logo: renault.png
+      screenshot: renault-screens.png
+      desc: Renew international marketplace and multi-country design system
+      tag: Design systems
+      bullets:
+        - Sole design lead across the front and back office, with cross-team stakeholder workshops.
+        - Recorded 20% reduction in development time through the shared design system.
+  founder_projects:
+    - name: Creads.io
+      logo: creads-logo.webp
+      desc: AI advertising SaaS for brands
+      tag: Launched · 1,200 users
+      year: '2024'
+    - name: Jarvos
+      logo: jarvos-logo.svg
+      desc: AI Agent OS with semantic orchestration
+      tag: Agent OS in progress
+    - name: UXfi.ai
+      logo: uxfi.png
+      desc: AI UX Audit platform
+      tag: Prototype
+      year: '2024'
+    - name: FlemmeOS
+      logo: cursor-logo.jpg
+      desc: AI Agentic Workflow OS
+      tag: AI / OS
+      year: '2024'
+    - name: JobYouGo
+      logo: favicon.png
+      desc: Portfolio + AI job-search automation
+      tag: Career / AI
+    - name: Newflux.fr
+      logo: logo-HV.jpg
+      desc: First UX/UI media in France
+      tag: Media / UX
+      year: '2015'
 product_manager:
   use_profile_config: false
   headline: Product Designer / Product Manager
@@ -987,7 +899,7 @@ shared:
   contact:
     name: Hugo Vermot
     email: chilka.v@gmail.com
-    location: Full remote - Paris or Thailand, depending on the role
+    location: Full remote · Paris or Thailand, depending on the role
     linkedin: linkedin.com/in/hugovermot
     twitter: Chilka_
     portfolio: https://jobyougo.xyz/portfolio
@@ -995,70 +907,96 @@ shared:
     - company: OneAsset
       role: Senior Product Designer / Product Lead
       period: Feb 2026 – Present
-      logo: oneasset-logo.png
       bullets:
         - >-
-          Result: in the first 6 months, shipped the full product with one Product Owner: investor app, admin
-          panel and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed
-          in Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
+          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
+          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
+          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
         - >-
-          Scope: regulated real-world asset investment platform (fractional real estate ownership from
-          $10,000, daily USDC yield on Base / ERC-3643).
+          Regulated real-world asset investment platform: fractional real estate ownership from $10,000, daily
+          USDC yield (Base / ERC-3643).
         - >-
-          Own product strategy and full UX architecture: investor journey, marketplace, onboarding and
-          internal PM tooling.
-    - company: Freelance & Agence V0 (Founder)
-      role: Senior Product Designer / Founder & Head of Product Design
-      period: 2020 – 2025
-      logo: logo-HV.jpg
+          Own product strategy and full UX architecture with one Product Owner: investor journey,
+          marketplace, onboarding, and internal PM tooling.
+    - company: UpViral
+      url: https://upviral.com
+      logo: upviral.png
+      role: Product Designer / Product Manager
+      period: Jul 2024 – Dec 2025
+      bullets:
+        - SaaS marketing platform.
+        - >-
+          Led a complete SaaS overhaul as the sole designer: UI redesign, information architecture rebuild,
+          and user-flow redesign from weak initial foundations.
+        - >-
+          Ran multiple rounds of user interviews with real customers, translating findings directly into
+          structural product decisions.
+    - company: Shiseido Group
+      logo: shisideo.png
+      role: Senior Product Designer
+      period: Feb – Jun 2024
+      bullets:
+        - Beauty retail loyalty program.
+        - >-
+          Redesigned the loyalty flows, onboarding, and account space end-to-end, driving +20% loyalty
+          enrollment in the quarter following launch.
+    - company: Société Générale
+      logo: societegenerale.png
+      role: Senior Product Designer
+      period: Feb 2023 – Oct 2024
+      bullets:
+        - 'Retail banking: savings, allocation, and investment products.'
+        - >-
+          Designed savings, allocation, and investment flows across desktop and mobile, navigating MIF2
+          regulatory constraints, driving +12% investment activity.
+    - company: Edenred
+      logo: edenred.png
+      role: Senior Product Designer
+      period: 2023 – 2024
+      bullets:
+        - 'Corporate mobility benefits: gas station and EV-charging locator apps.'
+        - >-
+          Designed mobile apps for gas station and EV-charging-point location, plus employee-benefits and
+          meal-voucher management experiences.
+    - company: LVMH Group
+      logo: lvmh.png
+      role: UX / Product Designer
+      period: 2022 – 2023
+      bullets:
+        - >-
+          Group-wide data marketing platform spanning 15+ maisons (Dior, Louis Vuitton, Fendi, Kenzo, and
+          others).
+        - >-
+          Unified customer data and campaign performance across maisons, running stakeholder interviews to
+          reconcile conflicting brand-level needs. Business and data analysis sat inside that product work.
+    - company: BMW Group
+      logo: bmw.png
+      role: Senior Product Designer
+      period: 2021 – 2022
+      bullets:
+        - BMW public website.
+        - Ran a full UX/UI audit and redesigned key pages, driving +12% user engagement.
+    - company: Renault Group
+      logo: renault.png
+      role: Senior Product Designer
+      period: 2020 – 2021
+      bullets:
+        - 'Renew, Renault''s European used-car marketplace: 23,900+ vehicle listings.'
+        - >-
+          Led the end-to-end redesign as sole design lead and built a multi-country design system, cutting
+          development time by 20%.
+    - company: Agence V0
       url: https://v0.agency
-      summary: >-
-        Founded Agence V0 and grew it to a team of up to 7 junior freelance designers, recruited and mentored
-        as it scaled; 20+ client projects generating ~EUR 400K in revenue over three years (Oct 2020 – Jan
-        2024). Client missions below overlapped in time.
-      clients:
-        - name: UpViral
-          role: Product Designer / Product Manager
-          period: Jul 2024 – Dec 2025
-          text: >-
-            SaaS marketing platform. Sole designer on a complete overhaul (UI, information architecture, user
-            flows) backed by multiple rounds of customer interviews.
-        - name: Shiseido Group
-          role: Senior Product Designer
-          period: Feb – Jun 2024
-          text: >-
-            Redesigned loyalty flows, onboarding and account space end-to-end: +20% loyalty enrollment in the
-            quarter after launch.
-        - name: Société Générale
-          role: Senior Product Designer
-          period: Feb 2023 – Oct 2024
-          text: >-
-            Savings, allocation and investment flows on desktop and mobile under MIF2 regulatory constraints:
-            +12% investment activity.
-        - name: Edenred
-          role: Senior Product Designer
-          period: 2023 – 2024
-          text: >-
-            Mobile apps to locate gas stations and EV-charging points, plus employee-benefits and meal-voucher
-            management.
-        - name: LVMH Group
-          role: UX / Product Designer
-          period: 2022 – 2023
-          text: >-
-            Data marketing platform unifying customer data and campaign performance across 15+ maisons (Dior,
-            Louis Vuitton, Fendi, Kenzo and others); stakeholder interviews to reconcile brand-level needs.
-        - name: BMW Group
-          role: Senior Product Designer
-          period: 2021 – 2022
-          text: 'Full UX/UI audit and redesign of key pages of the public website: +12% user engagement.'
-        - name: Renault Group
-          role: Senior Product Designer
-          period: 2020 – 2021
-          text: >-
-            Sole design lead on Renew, Renault's European used-car marketplace (23,900+ listings); built a
-            multi-country design system: -20% development time.
+      logo: logo-HV.jpg
+      role: Founder & Head of Product Design
+      period: Oct 2020 – Jan 2024
       bullets:
-        - 'Other agency clients: Volkswagen, Casino/Spar/Vival, Skiset, GALIAN-SMABTP.'
+        - >-
+          Product design agency: Renault Group, BMW Group, Volkswagen, Casino/Spar/Vival, Skiset, Shiseido,
+          Société Générale, Edenred, and GALIAN-SMABTP.
+        - >-
+          Founded the agency and grew it to a team of up to 7 junior freelance designers, recruited and
+          mentored as it scaled; delivered 20+ client projects generating ~€400K in revenue over three years.
   education:
     - degree: Bachelor Product Design
       school: Digital Campus
@@ -1108,11 +1046,15 @@ shared:
       - name: Growth Automation
       - name: Crypto Product
   languages:
-    - name: French
+    - flag: 🇫🇷
+      name: French
       level: Native
-    - name: English
+    - flag: 🇬🇧
+      name: English
       level: Professional
-    - name: Spanish
+    - flag: 🇪🇸
+      name: Spanish
       level: Basic
-    - name: Thai
+    - flag: 🇹🇭
+      name: Thai
       level: Notions
