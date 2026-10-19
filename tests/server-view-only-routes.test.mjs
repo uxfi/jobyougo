@@ -272,6 +272,7 @@ test("syncLocalApplicationsToSupabase pushes the owner's tracker under the admin
       supabase: fakeSupabase({}, calls),
       createHash,
       lastAppsSyncHash: new Map(),
+      appsSyncInFlight: new Map(),
       join: (...parts) => parts.join('/'),
       WRITE_ROOT: 'root',
       readFile: async () => '| # | Company |',

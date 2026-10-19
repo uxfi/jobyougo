@@ -308,7 +308,12 @@ test('a repetition_loop validation failure writes no report or tracker row and w
   assert.match(validBranch, /batch\/tracker-additions/, 'the tracker row is written in the valid branch only');
 
   const invalidBranch = server.slice(invalidStart, server.indexOf('// PDF → automatic generation', invalidStart));
-  assert.doesNotMatch(invalidBranch, /writeFile\(|tracker-additions|removeFromPipeline/);
+  assert.doesNotMatch(invalidBranch, /writeFile\(|tracker-additions/);
+  // The URL stays queued, except the needs_review park after the retry
+  // (lib/eval-attempts.mjs, Eyzee 2026-10-19).
+  const removes = invalidBranch.match(/removeFromPipeline\([^\n]*/g) || [];
+  assert.deepEqual(removes, ["removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'needs_review', historyPortal: 'pipeline-review' });"]);
+  assert.match(invalidBranch, /if \(validationFailureAction\(sameReason\) === 'park'\) \{\s*await removeFromPipeline/);
   assert.match(invalidBranch, /validation\.code === REPETITION_LOOP_CODE/);
   assert.match(invalidBranch, /send\('warning', \{ text: `Evaluation discarded: the model output looped/);
   assert.match(invalidBranch, /No report and no tracker row were written\.\$\{kept\} Relaunch the evaluation\./);

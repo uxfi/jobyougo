@@ -8990,7 +8990,7 @@ let pipelineView = { shownUrls: [], matchingUrls: [] };
 
 // Offers the pipeline dropped before Qwen (GET /api/pipeline/dropped,
 // lib/gate-drops.mjs): the reason stays visible instead of the offer vanishing.
-const GATE_LABELS = { profile: 'Profile rules', jev: 'Jev' };
+const GATE_LABELS = { profile: 'Profile rules', jev: 'Jev', review: 'To review' };
 function renderPipelineDrops() {
   const box = document.getElementById('pipeline-dropped');
   const listEl = document.getElementById('pipeline-dropped-list');

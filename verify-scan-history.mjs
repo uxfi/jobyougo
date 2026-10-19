@@ -55,6 +55,8 @@ const MAX_COLS = SCAN_HISTORY_HEADER.trim().split('\t').length;
 const KNOWN_STATUSES = new Set([
   'added', 'deleted', 'expired',
   'skipped_remote', 'skipped_title', 'skipped_dup', 'skipped_blocked', 'recovered',
+  // Pipeline parks (ui/server.mjs): thin JD, or validation failed twice.
+  'skipped_thin_jd', 'needs_review',
 ]);
 
 function today() {

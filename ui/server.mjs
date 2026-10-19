@@ -40,7 +40,9 @@ import { placesIn, regionCountriesIn } from '../lib/apply-places.mjs';
 import { attendancePlaceText, resolveWorkMode, structuredWorkMode } from '../lib/work-mode.mjs';
 import { CV_MIN_CHARS, CvImportError, parseCvWithLlm, validateCvParseRequest } from '../lib/cv-import.mjs';
 import { buildApplySpec, detectRegion, preferLocalApplyCv } from '../lib/apply-spec.mjs';
-import { jdSufficiency, offerAnchor } from '../lib/jd-sufficiency.mjs';
+import { detectJdLanguage, jdSufficiency, offerAnchor, offerTaskLine } from '../lib/jd-sufficiency.mjs';
+import { recordEvalFailure, validationFailureAction, MAX_VALIDATION_RETRIES } from '../lib/eval-attempts.mjs';
+import { formatJustJoinOffer, justJoinOfferApiUrl, justJoinOfferSlug } from '../providers/justjoin.mjs';
 import { ApplyBridgeHub, attachApplyBridge } from '../extension/apply-bridge-lib.mjs';
 import { APPLY_FILES_DIR, accountLettersDir, deleteAccountCv, isAccountId, readAccountCv, readAccountCvBytes, saveAccountCv, safePdfName } from '../lib/apply-account-files.mjs';
 import { loadCanonicalStates, resolveCanonicalState, openTrackerTransaction } from '../tracker-utils.mjs';
@@ -3268,8 +3270,35 @@ async function fetchGoogleJobsDescriptionFromHints(jobUrl, { maxChars = 15000, h
   return null;
 }
 
+// justjoin.it pages are rendered in JS; their JSON-LD flattens the body into
+// one run-on line. The public candidate API returns the offer with its HTML
+// body, salary and skills (GET /api/candidate-api/offers/<slug>).
+async function fetchJustJoinJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  const apiUrl = justJoinOfferApiUrl(justJoinOfferSlug(jobUrl));
+  if (!apiUrl) return null;
+  const response = await fetch(apiUrl, {
+    redirect: 'error',
+    signal: AbortSignal.timeout(15000),
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', 'Accept': 'application/json' },
+  });
+  if (response.status === 404) {
+    return { ok: false, definitive: true, text: '', mode: 'justjoin-api', status: 404, error: 'JustJoin offer returned 404' };
+  }
+  if (!response.ok) return null;
+  const offer = formatJustJoinOffer(await response.json().catch(() => null));
+  if (!offer) return null;
+  const text = formatSourceJobDescription('JustJoin API', {
+    ...offer,
+    companyName: hints.company || offer.companyName,
+    url: offer.url || jobUrl,
+  }, jobUrl, { maxChars });
+  if (!text) return null;
+  return { ok: true, text, mode: 'justjoin-api', status: 200, workMode: offer.workMode || null };
+}
+
 async function fetchKnownSourceJobDescription(jobUrl, { maxChars = 15000, logLabel = 'pipeline', hints = {} } = {}) {
   const attempts = [
+    ['justjoin-api', () => fetchJustJoinJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['jobicy-api', () => fetchJobicyJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['himalayas-api', () => fetchHimalayasJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['remotive-api', () => fetchRemotiveJobDescriptionFromApi(jobUrl, { maxChars, hints })],
@@ -7605,6 +7634,11 @@ function parseApplicationsMarkdown(content = '') {
 // triggers a push, and six identical 700-row upserts in a row were common
 // (2026-10-17 log), one of them timing out on a network blip.
 const lastAppsSyncHash = new Map();
+// The push in flight per target account. A tracker write fires the
+// applications.md watcher while the evaluation calls the sync itself: both
+// passed the hash check before either finished, and the same rows went up
+// twice ("[sync-apps] N application(s) synced" logged twice per report).
+const appsSyncInFlight = new Map();
 
 /**
  * Push local applications.md → Supabase using the logged-in user id when available.
@@ -7631,20 +7665,31 @@ async function syncLocalApplicationsToSupabase(userId) {
   const rowsHash = createHash('sha1').update(JSON.stringify(rows)).digest('hex');
   const syncKey = uid || 'none';
   if (lastAppsSyncHash.get(syncKey) === rowsHash) return { ok: true, count: rows.length, unchanged: true };
-
-  let { error } = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
-  if (error && /job_url|schema cache|column/i.test(error.message || '')) {
-    rows.forEach(r => { delete r.job_url; });
-    const retry = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
-    error = retry.error;
+  // Wait for the push in flight; it may be these very rows.
+  while (appsSyncInFlight.has(syncKey)) {
+    await appsSyncInFlight.get(syncKey);
+    if (lastAppsSyncHash.get(syncKey) === rowsHash) return { ok: true, count: rows.length, unchanged: true };
   }
-  if (error) {
-    console.error('[sync-apps] Supabase upsert failed:', error.message);
-    return { ok: false, error: error.message, count: 0 };
+  let release;
+  appsSyncInFlight.set(syncKey, new Promise(resolve => { release = resolve; }));
+  try {
+    let { error } = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
+    if (error && /job_url|schema cache|column/i.test(error.message || '')) {
+      rows.forEach(r => { delete r.job_url; });
+      const retry = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
+      error = retry.error;
+    }
+    if (error) {
+      console.error('[sync-apps] Supabase upsert failed:', error.message);
+      return { ok: false, error: error.message, count: 0 };
+    }
+    lastAppsSyncHash.set(syncKey, rowsHash);
+    console.log(`[sync-apps] ${rows.length} application(s) synced to Supabase (user=${uid || 'none'})`);
+    return { ok: true, count: rows.length };
+  } finally {
+    appsSyncInFlight.delete(syncKey);
+    release();
   }
-  lastAppsSyncHash.set(syncKey, rowsHash);
-  console.log(`[sync-apps] ${rows.length} application(s) synced to Supabase (user=${uid || 'none'})`);
-  return { ok: true, count: rows.length };
 }
 
 function parseCoverLetterSections(markdown = '') {
@@ -10088,6 +10133,8 @@ const server = createServer(async (req, res) => {
         let applyTarget = null;
         let coverLetterTarget = null;
         let profileGate = null;
+        // Pipeline offer: main language of its JD ('' when unknown).
+        let pipelineLanguage = '';
         if (mode === 'scan') {
           resetSerpApiCircuit();
           resetLocalGoogleCircuit();
@@ -10703,6 +10750,8 @@ const server = createServer(async (req, res) => {
               // the candidate's own CV instead (Eyzee vs OneAsset, 2026-10-19).
               await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'skipped_thin_jd', historyPortal: 'pipeline-thin-jd' })
                 .catch(err => console.warn(`[pipeline] failed to park thin-JD URL: ${err.message}`));
+              // Listed under "dropped" with Re-add, instead of leaving no trace.
+              await logGateDrops(req.userId, [{ url: pipelineTarget.url, title: offer.title, company: offer.company, gate: 'review', reasons: [`Description trop pauvre pour évaluer : ${jdCheck.reason}.`] }]);
               const message = `JD too thin for ${pipelineTarget.url}: ${jdCheck.reason}. Parked for review (skipped_thin_jd), not sent to the model - paste the JD text or re-add the URL to retry.`;
               console.warn(`[pipeline] ${message}`);
               send('warning', { text: message });
@@ -10711,9 +10760,13 @@ const server = createServer(async (req, res) => {
               res.end();
               return;
             }
-            prefetchData = `${offerAnchor({ company: offer.company || pipelineNoteParts.company, title: offer.title || pipelineNoteParts.title, url: pipelineTarget.url })}\n## Job Description from ${pipelineTarget.url}\n${pipelineTarget.note ? `Context note: ${pipelineTarget.note}\n` : ''}\n${jdResult.text}`;
+            pipelineLanguage = detectJdLanguage(jdResult.text).code;
+            const languageLine = pipelineLanguage && pipelineLanguage !== 'fr' && pipelineLanguage !== 'en'
+              ? `Langue de l'annonce : ${detectJdLanguage(jdResult.text).label}\n`
+              : '';
+            prefetchData = `${offerAnchor({ company: offer.company || pipelineNoteParts.company, title: offer.title || pipelineNoteParts.title, url: pipelineTarget.url })}${languageLine}\n## Job Description from ${pipelineTarget.url}\n${pipelineTarget.note ? `Context note: ${pipelineTarget.note}\n` : ''}\n${jdResult.text}`;
           }
-          console.log(`[pipeline] prefetchData length: ${prefetchData.length} chars`);
+          console.log(`[pipeline] prefetchData length: ${prefetchData.length} chars (source ${jdResult.mode || '?'}${pipelineLanguage ? `, language ${pipelineLanguage}` : ''})`);
           // The gate reads the posting, never the scan's own note: "remote_verdict:
           // unclear — remote status is ambiguous" put the word remote into the text,
           // so on-site postings (OpenAI, San Francisco HQ) read as remote and went to
@@ -10943,7 +10996,15 @@ Règles:
 - garde le format A-D suffisamment structuré pour que le report reste exploitable
 - conclusion explicite: SKIP / DO NOT APPLY`);
           } else {
-            parts.push(`---\nÉvalue l'offre ci-dessus. URL: ${pipelineTarget.url}. Applique le contrat système (A, B, C, D, G). Pas de plan CV, pas d'entretien, pas de cover letter.`);
+            const offer = pipelineOfferIdentity(pipelineTarget);
+            const career = indexCareer(cv);
+            parts.push(offerTaskLine({
+              company: offer.company,
+              title: offer.title,
+              url: pipelineTarget.url,
+              language: pipelineLanguage,
+              ownEmployers: [profileStruct?.search?.current_role?.company, ...career.employerNames].filter(Boolean),
+            }));
           }
         } else if (mode === 'apply') {
           parts.push(`---\nTu démarres le mode apply pour une offre déjà sélectionnée. Utilise le report complet fourni ci-dessus pour préparer un starter pack d'application: résumé ciblé de l'offre, 3-5 angles forts à réutiliser, pièces à joindre, valeurs probables pour les champs standards (salaire, préavis, visa/remote) basées sur profile.yml si disponibles, puis une liste concise de ce qu'il faut partager ensuite (screenshot ou copier-coller des questions). N'invente aucun champ de formulaire non visible et ne prétends pas voir le formulaire tant qu'il n'a pas été fourni.`);
@@ -11139,7 +11200,7 @@ Règles:
               // The repair rewrites the report: same tier model, same language.
               const repaired = await chat({
                 model: evalModel.model,
-                messages: [{ role: 'user', content: buildEvalRepairPrompt(fullResponse, facts, { outputLanguage }) }],
+                messages: [{ role: 'user', content: buildEvalRepairPrompt(fullResponse, facts, { outputLanguage, offer: mode === 'pipeline' && pipelineTarget ? pipelineOfferIdentity(pipelineTarget) : null }) }],
                 temperature: 0,
                 max_tokens: 2200,
                 reasoning: evalModel.reasoning,
@@ -11367,7 +11428,9 @@ Règles:
           const headerCompany = (companyMatch?.[1] || '').trim();
           const companyName = offer.company || headerCompany;
           const company  = (companyName || 'unknown').replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 30);
-          const role     = (offer.title || roleMatch?.[1] || 'role').trim().slice(0, 70);
+          // The full title, one space per run ("Senior Product Designer (Webflow)
+          // Temp to Perm" was cut at 70 here and at 40 in the log line).
+          const role     = String(offer.title || roleMatch?.[1] || 'role').replace(/\s+/g, ' ').trim().slice(0, 200);
           // Gate rejects never reach this point (pipelineHardSkip above): this
           // is a Qwen evaluation, and only Qwen's own hard fail makes it a SKIP.
           // With a complete ## Notation table the Global is computed from the
@@ -11409,7 +11472,7 @@ Règles:
             : validateReportContent(reportContent, scoreRaw, company, role);
 
           console.log(`[${mode}] validation: valid=${validation.valid}, reason=${validation.reason || 'none'}`);
-          console.log(`[${mode}] parsed: company=${company}, role=${role.slice(0, 40)}, score=${scoreRaw}, status=${trackerStatus}`);
+          console.log(`[${mode}] parsed: company=${company}, role=${role}, score=${scoreRaw}, status=${trackerStatus}`);
           if (validation.valid) {
             // Another account's evaluation is its own: stored in Supabase under
             // its id. The owner's reports/ (the watcher pushes it under the
@@ -11561,6 +11624,35 @@ Règles:
             }
             console.error(`❌ Report validation failed for ${filename}: ${validation.reason}`);
             saves.push(`⚠️ Report NOT saved — ${validation.reason}`);
+            // Nothing was written (no report, no TSV, no tracker or Supabase
+            // row). The URL gets MAX_VALIDATION_RETRIES more tries, then it is
+            // parked for review: the Eyzee posting failed the same way on every
+            // pipeline run (2026-10-19).
+            if (mode === 'pipeline' && pipelineTarget?.url) {
+              try {
+                const memory = await scanMemoryOf(req.userId);
+                const failures = await recordEvalFailure(memory, { url: pipelineTarget.url, code: validation.code || 'invalid', reason: validation.reason });
+                const sameReason = failures.filter(f => f.code === (validation.code || 'invalid')).length;
+                if (validationFailureAction(sameReason) === 'park') {
+                  await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'needs_review', historyPortal: 'pipeline-review' });
+                  await logGateDrops(req.userId, [{
+                    url: pipelineTarget.url,
+                    title: offer.title,
+                    company: offer.company,
+                    gate: 'review',
+                    reasons: [`Évaluation rejetée ${sameReason} fois (${validation.code || 'invalid'}) : ${validation.reason}. Retirée de la file, à revoir.`],
+                  }]);
+                  const message = `Evaluation rejected ${sameReason} times for the same reason: URL parked as needs_review (listed under dropped offers, Re-add to retry).`;
+                  console.warn(`[pipeline] ${message} ${pipelineTarget.url}`);
+                  saves.push(`⚠️ ${message}`);
+                  send('warning', { text: message });
+                } else {
+                  saves.push(`URL kept in the pipeline for ${MAX_VALIDATION_RETRIES} more try (attempt ${sameReason}).`);
+                }
+              } catch (err) {
+                console.warn(`[pipeline] eval-failure tracking failed: ${err.message}`);
+              }
+            }
             if (validation.code === REPETITION_LOOP_CODE) {
               // A looped output still parses as "1.0/5 hard fail" (report 692):
               // no report, no SKIP tracker row, and the URL stays queued.
