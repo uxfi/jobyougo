@@ -7,7 +7,16 @@
 //
 // Wire in via a `job_boards:` entry with `provider: workingnomads`.
 
+import { fetchJsonWithRetry } from './_http.mjs';
+
 const FEED_URL = 'https://www.workingnomads.com/api/exposed_jobs/';
+
+/** @param {unknown} value */
+function toEpochMs(value) {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const ms = Date.parse(value.trim());
+  return Number.isNaN(ms) ? undefined : ms;
+}
 
 /** @type {Provider} */
 export default {
@@ -21,7 +30,7 @@ export default {
    */
   async fetch(entry, ctx) {
     // redirect:'error' prevents SSRF via server-side redirects
-    const data = await ctx.fetchJson(FEED_URL, { redirect: 'error' });
+    const data = await fetchJsonWithRetry(ctx, FEED_URL, { redirect: 'error' });
     if (!Array.isArray(data)) {
       throw new Error(`workingnomads: unexpected API response — expected a JSON array, got ${data === null ? 'null' : typeof data}`);
     }
@@ -35,6 +44,8 @@ export default {
         url: j.url.trim(),
         company: typeof j.company_name === 'string' && j.company_name.trim() ? j.company_name.trim() : (entry.name || 'Working Nomads'),
         location: typeof j.location === 'string' ? j.location.trim() : '',
+        remoteEvidence: `Remote${typeof j.location === 'string' && j.location.trim() ? ` (${j.location.trim()})` : ''}`,
+        ...(toEpochMs(j.pub_date) !== undefined ? { postedAt: toEpochMs(j.pub_date) } : {}),
       }));
   },
 };

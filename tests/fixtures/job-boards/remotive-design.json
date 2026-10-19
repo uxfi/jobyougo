@@ -1,0 +1,28 @@
+{
+  "00-warning": "Remotive main domain moved to remotive.com",
+  "0-legal-notice": "Please link back to the URL found on Remotive AND mention Remotive as a source.",
+  "job-count": 3,
+  "jobs": [
+    {
+      "id": 2091001,
+      "url": "https://remotive.com/remote-jobs/design/senior-product-designer-2091001?utm_source=api&utm_medium=feed",
+      "title": "Senior Product Designer",
+      "company_name": "Acme Labs",
+      "category": "Design",
+      "publication_date": "2026-10-17T16:04:29",
+      "candidate_required_location": "Europe",
+      "description": "<p>We are looking for a <strong>Senior Product Designer</strong> to own end-to-end flows.</p><ul><li>Design systems</li><li>User research</li></ul>"
+    },
+    {
+      "id": 2091002,
+      "url": "https://remotive.com/remote-jobs/design/ux-researcher-2091002",
+      "title": "UX Researcher",
+      "company_name": "",
+      "category": "Design",
+      "publication_date": "not a date",
+      "candidate_required_location": "Worldwide",
+      "description": ""
+    },
+    { "id": 3, "url": "/relative", "title": "Dropped", "company_name": "X" }
+  ]
+}

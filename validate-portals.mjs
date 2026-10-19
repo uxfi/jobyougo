@@ -286,6 +286,12 @@ export async function validatePortalsConfig(config, { providerIds = new Set() } 
         }
       }
 
+      if (entry.min_interval_minutes !== undefined && !(Number.isFinite(Number(entry.min_interval_minutes)) && Number(entry.min_interval_minutes) >= 0)) {
+        add(errors, `${base}.min_interval_minutes`, 'min_interval_minutes must be a number >= 0');
+      }
+      if (entry.provider === 'remotive' && entry.category !== undefined && !/^[a-z0-9][a-z0-9-]{0,40}$/i.test(String(entry.category))) {
+        add(errors, `${base}.category`, 'remotive category must be a Remotive category slug (e.g. design, product)');
+      }
       validateParser(entry.parser, `${base}.parser`, errors);
     }
   };

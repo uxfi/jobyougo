@@ -98,7 +98,8 @@ import {
 } from '../lib/pipeline-record.mjs';
 import { withPipelineLock } from '../pipeline-lock.mjs';
 import { formatReportNumber, releaseReportNumbers, reserveReportNumbers } from '../reserve-report-num.mjs';
-import { getScanAggregators, fetchJobBoard, jobBoardProviders } from '../lib/scan-job-boards.mjs';
+import { getScanAggregators, fetchJobBoardPolite, jobBoardProviders } from '../lib/scan-job-boards.mjs';
+import { createSourceThrottle } from '../lib/job-board-throttle.mjs';
 import { buildCountryEligibilityFilter, buildLocationFilter } from '../scan.mjs';
 import {
   appendDecisionLog,
@@ -4968,10 +4969,18 @@ async function fetchRemoteOkSection(aggregator = {}) {
   }
 }
 
+// Per-source minimum interval (Remotive asks for max ~4 calls/day), persisted across scans.
+const jobBoardThrottle = createSourceThrottle({ statePath: join(WRITE_ROOT, 'data', 'job-board-throttle.json') });
 async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
   if (aggregator.sourceKind === 'job_board') {
     try {
-      const jobs = (await fetchJobBoard(aggregator)).map(job => ({
+      const polite = await fetchJobBoardPolite(aggregator, { throttle: jobBoardThrottle });
+      if (polite.skipped) {
+        console.log(`[scan] [${aggregator.provider}] ${aggregator.name}: skipped - ${polite.reason}`);
+        scanLog.summary({ company: aggregator.name, engine: aggregator.provider, found: 0, junkIgnored: 0, afterFilter: 0, note: 'throttled' });
+        return { ok: true, empty: true, skipped: true, jobs: [], section: null, engine: aggregator.provider, note: polite.reason };
+      }
+      const jobs = polite.jobs.map(job => ({
         ...job, publishedAt: normalizeDateValue(job.publishedAt),
       }));
       console.log(`[scan] [${aggregator.provider}] ${aggregator.name}: ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title || '')).length} after filter`);

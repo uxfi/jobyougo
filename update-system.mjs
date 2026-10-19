@@ -244,6 +244,7 @@ const SYSTEM_PATHS = [
   'lib/manatal-careers.mjs',
   'lib/personio-careers.mjs',
   'lib/careers-feeds.mjs',
+  'lib/job-board-throttle.mjs',
   'lib/ats-autodetect.mjs',
   'lib/scan-careers-wait.mjs',
   'lib/scan-engine-backoff.mjs',
