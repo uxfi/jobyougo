@@ -242,6 +242,8 @@ const SYSTEM_PATHS = [
   'lib/fetch-politeness.mjs',
   'lib/jd-clean.mjs',
   'lib/manatal-careers.mjs',
+  'lib/personio-careers.mjs',
+  'lib/careers-feeds.mjs',
   'lib/scan-careers-wait.mjs',
   'lib/scan-engine-backoff.mjs',
   'lib/scan-funnel.mjs',

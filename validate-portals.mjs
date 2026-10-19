@@ -16,6 +16,8 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import * as yaml from 'js-yaml';
 import { flagValue, hasFlag } from './lib/cli-flags.mjs';
 import { getJobYouGoRoot } from './path-resolver.mjs';
+import { personioUrlProblem } from './lib/personio-careers.mjs';
+import { careersFeedFor, hasCareersFeed } from './lib/careers-feeds.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const PROVIDERS_DIR = join(ROOT, 'providers');
@@ -265,6 +267,16 @@ export async function validatePortalsConfig(config, { providerIds = new Set() } 
 
       validateUrl(entry.careers_url, `${base}.careers_url`, errors);
       validateUrl(entry.api, `${base}.api`, errors);
+
+      // Public careers feeds read without a browser (lib/careers-feeds.mjs).
+      const personioProblem = personioUrlProblem(entry.careers_url);
+      if (personioProblem) add(errors, `${base}.careers_url`, personioProblem);
+      if (entry.personio !== undefined && (typeof entry.personio !== 'string' || !/^[a-z0-9][a-z0-9-]{0,62}$/i.test(entry.personio.trim()))) {
+        add(errors, `${base}.personio`, 'personio must be the tenant slug (<slug>.jobs.personio.de)');
+      }
+      if (hasCareersFeed(entry) && entry.scan_method === 'websearch') {
+        add(warnings, `${base}.scan_method`, `careers_url is a public ${careersFeedFor(entry).id} feed: it is read directly, scan_method websearch is ignored`);
+      }
 
       if (entry.provider !== undefined) {
         if (typeof entry.provider !== 'string' || entry.provider.trim() === '') {

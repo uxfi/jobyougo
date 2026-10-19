@@ -64,7 +64,8 @@ import { writeFormAnswer } from '../lib/form-answer.mjs';
 import { createFunnel, countBy } from '../lib/scan-funnel.mjs';
 import { cleanFetchUrl, retryPolicy, backoffDelayMs } from '../lib/fetch-politeness.mjs';
 import { cleanJobDescriptionText } from '../lib/jd-clean.mjs';
-import { fetchManatalJobs, isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mjs';
+import { isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mjs';
+import { careersFeedFor, hasCareersFeed } from '../lib/careers-feeds.mjs';
 import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
 import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
 import { createScanLogger } from '../lib/scan-log.mjs';
@@ -574,17 +575,29 @@ async function getMonetization() {
 }
 
 
-// careers-page.com (Manatal): JSON API / server-rendered HTML, no browser.
-async function fetchManatalCompany(company) {
+// Public careers feeds (careers-page.com / Manatal, Personio XML, ...): no browser.
+// ok + empty when the feed answers with no job; null (browser fallback) on a real error.
+async function fetchCareersFeedCompany(company) {
+  const feed = careersFeedFor(company);
+  if (!feed) return null;
   try {
-    const { source, partial, jobs: raw } = await fetchManatalJobs(company.careers_url);
-    const jobs = raw.map(j => ({ title: j.title, url: j.url, location: j.location || '' }));
+    const { source, partial, jobs: raw } = await feed.fetch(company);
+    const jobs = raw.map(j => ({
+      title: j.title,
+      url: j.url,
+      location: j.location || '',
+      company: company.name || j.company || '',
+      publishedAt: j.publishedAt || '',
+      description: j.description || '',
+      remoteEvidence: j.remoteEvidence || '',
+      workMode: j.workMode || '',
+    }));
     const afterFilter = jobs.filter(j => portalsTitleFilter.test(j.title)).length;
-    console.log(`[scan] [manatal] "${company.name}" ${jobs.length} jobs via ${source}${partial ? ' (partial, rate-limited)' : ''}, ${afterFilter} after filter`);
-    scanLog.summary({ company: company.name, engine: 'manatal', found: jobs.length, junkIgnored: 0, afterFilter });
-    return { ok: true, section: buildJobSection(company.name, jobs), jobs, engine: 'manatal', company: company.name };
+    console.log(`[scan] [${feed.id}] "${company.name}" ${jobs.length} jobs via ${source}${partial ? ' (partial, rate-limited)' : ''}, ${afterFilter} after filter`);
+    scanLog.summary({ company: company.name, engine: feed.id, found: jobs.length, junkIgnored: 0, afterFilter });
+    return { ok: true, empty: jobs.length === 0, section: jobs.length ? buildJobSection(company.name, jobs) : null, jobs, engine: feed.id, company: company.name };
   } catch (err) {
-    console.warn(`[scan] [manatal] "${company.name}" failed (${err.message}) - falling back to the browser crawl`);
+    console.warn(`[scan] [${feed.id}] "${company.name}" failed (${err.message}) - falling back to the browser crawl`);
     return null;
   }
 }
@@ -5702,13 +5715,13 @@ async function fetchPlaywrightSectionsLocal(companies = []) {
 
 async function fetchPlaywrightSections(companies = []) {
   if (!companies.length) return [];
-  const manatalCos = companies.filter(c => isManatalUrl(c.careers_url) && !c._manatalTried);
-  if (manatalCos.length) {
-    const manatalResults = await Promise.all(manatalCos.map(fetchManatalCompany));
-    const okNames = new Set(manatalResults.filter(Boolean).map(r => r.company));
+  const feedCos = companies.filter(c => !c._feedTried && hasCareersFeed(c));
+  if (feedCos.length) {
+    const feedResults = (await Promise.all(feedCos.map(fetchCareersFeedCompany))).filter(Boolean);
+    const okNames = new Set(feedResults.map(r => r.company));
     const rest = companies.filter(c => !okNames.has(c.name));
-    const restResults = rest.length ? await fetchPlaywrightSections(rest.filter(c => !isManatalUrl(c.careers_url) || true).map(c => ({ ...c, _manatalTried: true }))) : [];
-    const byName = new Map([...manatalResults.filter(Boolean), ...restResults].map(r => [r.company, r]));
+    const restResults = rest.length ? await fetchPlaywrightSections(rest.map(c => ({ ...c, _feedTried: true }))) : [];
+    const byName = new Map([...feedResults, ...restResults].map(r => [r.company, r]));
     return companies.map(c => byName.get(c.name)).filter(Boolean);
   }
   if (isShuttingDown) {
@@ -10076,8 +10089,8 @@ const server = createServer(async (req, res) => {
               });
               return;
             }
-            if (isManatalUrl(company.careers_url) && access.mode !== 'provider') {
-              playwrightCos.push(company); // careers-page.com: JSON/HTML fetch, no search needed
+            if (hasCareersFeed(company) && access.mode !== 'provider') {
+              playwrightCos.push(company); // public careers feed (careers-page.com, Personio): fetched without search or browser
               return;
             }
             if (access.mode === 'websearch' && access.query) {
