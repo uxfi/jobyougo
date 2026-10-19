@@ -12676,6 +12676,18 @@ function renderScanGroup(title, items, key, groupId) {
   </div>`;
 }
 
+// "N sources selected" hid what a partial selection leaves out: on
+// 2026-10-19 a scan ran 95 web searches and no API, RSS or aggregator source.
+function scanSelectionSummary(sel, sources) {
+  const n = (k) => sel?.[k]?.length || 0;
+  const total = n('companies') + n('rss') + n('queries') + n('aggregators');
+  const parts = [
+    ['companies', 'companies'], ['rss', 'RSS'], ['aggregators', 'API boards'], ['queries', 'web searches'],
+  ].map(([k, label]) => `${label} ${n(k)}/${sources?.[k]?.length || 0}`);
+  const missing = ['companies', 'rss', 'aggregators'].filter(k => (sources?.[k]?.length || 0) > 0 && !n(k));
+  return `${total} source${total !== 1 ? 's' : ''} selected · ${parts.join(' · ')}${missing.length && total ? ' · some kinds are not selected' : ''}`;
+}
+
 function renderScanModal() {
   const body = document.getElementById('scan-modal-body');
   const apiCos    = filterByKind(scanSources.companies.filter(c => c.access === 'api'));
@@ -12691,14 +12703,14 @@ function renderScanModal() {
     renderScanGroup('Direct API', apiCos, 'companies', 'companies-api'),
     renderScanGroup('Web', webCos, 'companies', 'companies-web'),
     renderScanGroup('RSS feeds', rssItems, 'rss', 'rss'),
-    renderScanGroup('API aggregators', aggItems, 'aggregators', 'aggregators'),
-    renderScanGroup('Job boards', jobQueries, 'queries', 'queries-jobs'),
-    renderScanGroup('Freelance boards', freeQueries, 'queries', 'queries-freelance'),
+    renderScanGroup('API job boards & aggregators', aggItems, 'aggregators', 'aggregators'),
+    renderScanGroup('Job boards (web search)', jobQueries, 'queries', 'queries-jobs'),
+    renderScanGroup('Freelance boards (web search)', freeQueries, 'queries', 'queries-freelance'),
   ].filter(Boolean).join('') || '<p class="modal-empty">No sources match this filter.</p>';
 
   const total = (scanSelection.companies?.length || 0) + (scanSelection.rss?.length || 0)
     + (scanSelection.queries?.length || 0) + (scanSelection.aggregators?.length || 0);
-  document.getElementById('scan-sel-count').textContent = `${total} source${total !== 1 ? 's' : ''} selected`;
+  document.getElementById('scan-sel-count').textContent = scanSelectionSummary(scanSelection, scanSources);
 
   // Bind checkboxes
   body.querySelectorAll('.scan-cb').forEach(cb => {
@@ -12827,10 +12839,14 @@ document.getElementById('scan-sel-none').addEventListener('click', () => {
 });
 document.getElementById('scan-sel-fresh').addEventListener('click', () => {
   const isFresh = ts => !ts || (Date.now() - new Date(ts).getTime()) >= 86400000;
-  const cos = filterByKind(scanSources.companies).filter(c => isFresh(c.lastScanned)).map(c => c.name);
-  const rss = filterByKind(scanSources.rss).filter(r => isFresh(r.lastScanned)).map(r => r.name);
+  // API, RSS and job-board feeds are cheap and only report what is new:
+  // they always stay in. Only the slow web searches and browser-scanned
+  // companies are left out when they ran in the last 24 h (2026-10-19, "Fresh
+  // only" after a full scan dropped every API source).
+  const cos = filterByKind(scanSources.companies).filter(c => c.access === 'api' || isFresh(c.lastScanned)).map(c => c.name);
+  const rss = filterByKind(scanSources.rss).map(r => r.name);
   const qs  = filterByKind(scanSources.queries).filter(q => isFresh(q.lastScanned)).map(q => q.name);
-  const ag  = filterByKind(scanSources.aggregators).filter(a => isFresh(a.lastScanned)).map(a => a.name);
+  const ag  = filterByKind(scanSources.aggregators).map(a => a.name);
   if (scanKindFilter === 'all') {
     scanSelection = { all: false, companies: cos, rss, queries: qs, aggregators: ag };
   } else {

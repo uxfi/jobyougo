@@ -8,6 +8,8 @@ import { join } from 'node:path';
 import vm from 'node:vm';
 import { ROOT } from './helpers.mjs';
 import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
+import { createCircuitProbe } from '../lib/web-search-circuit-probe.mjs';
+import { serpDiagnostic } from '../lib/serp-page-check.mjs';
 
 const source = readFileSync(join(ROOT, 'ui/server.mjs'), 'utf8');
 const extract = (start, end) => {
@@ -23,6 +25,10 @@ function load(engines) {
     process: { env: { SCAN_QUERY_SPACING_MS: '0' } },
     createEngineBackoff,
     createQuerySpacer,
+    createCircuitProbe,
+    serpDiagnostic,
+    Number,
+    Math,
     webSearchConfig: { engines: Object.keys(engines), minResults: 15 },
     PINCHTAB_SEARCH_ENGINES: Object.fromEntries(Object.entries(engines).map(([id, result]) => [id, async () => { calls.push(id); return typeof result === 'function' ? result() : result; }])),
     isWebSearchEngineBlocked: result => Boolean(result?.error),

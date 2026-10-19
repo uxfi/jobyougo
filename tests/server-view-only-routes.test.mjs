@@ -412,7 +412,12 @@ test('another account applies with its own CV PDF and letters, never output/', a
     getCvMarkdown: async () => 'cv',
     ownsLocalData: async (id) => id === ADMIN,
     fillProfileGaps: (stored) => stored,
-    readLocalProfile: async () => ({}),
+    readLocalProfile: async () => ({ candidate: { apply_cv: 'Local_CV.pdf' } }),
+    preferLocalApplyCv: (profile, local) => ({ ...profile, candidate: { ...(profile.candidate || {}), apply_cv: local.candidate.apply_cv } }),
+    access: async () => {},
+    join: (...parts) => parts.join('/'),
+    ROOT: '/r',
+    console: { log() {} },
     applyAccountOf: (id) => id,
     readAccountCv: async (_root, account) => (account === OTHER ? { path: '/w/other/cv/Jane.pdf' } : null),
     accountLettersDir: (root, id) => `${root}/${id}/letters`,
@@ -424,6 +429,11 @@ test('another account applies with its own CV PDF and letters, never output/', a
   const admin = await load(ADMIN, 'r.md');
   assert.equal(admin.accountCvPath, undefined);
   assert.equal(admin.letterDir, undefined);
+  // The owner's config/profile.yml apply_cv and cv.md win over the stored row.
+  assert.equal(admin.profile.candidate.apply_cv, 'Local_CV.pdf');
+  assert.equal(admin.cvMarkdown, null, 'owner with cv.md on disk: read it');
+  assert.equal(other.cvMarkdown, 'cv');
+  assert.equal(other.profile.candidate, undefined, 'another account never gets the owner apply_cv');
   const third = await load('third-id', 'r.md');
   assert.equal(third.accountCvPath, null, 'no upload: no CV, output/ is not searched');
 });

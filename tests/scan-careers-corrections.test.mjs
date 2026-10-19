@@ -57,7 +57,7 @@ test('(C) query spacing waits spacingMs with jitter and is off at 0', async () =
 test('(C) the engine loop skips a cooling engine for another one and logs why', () => {
   const src = read(new URL('../ui/server.mjs', import.meta.url), 'utf8');
   assert.match(src, /engineBackoff\.cooling\(id\) && engines\.some/);
-  assert.match(src, /blocked \(challenge\/captcha\): resting \$\{Math\.round\(restMs \/ 1000\)\}s, next engine/);
+  assert.match(src, /blocked \(\$\{result\?\.error \|\| 'challenge\/captcha'\}\): resting \$\{Math\.round\(restMs \/ 1000\)\}s, next engine/);
   assert.match(src, /await querySpacer\(\)/);
 });
 
