@@ -7,6 +7,7 @@ import {
   extractOutreachRules,
   findUngroundedClaims,
   findToolAttributionClaims,
+  splitSentences,
   maskUnnamedEmployers,
   indexCvExperiences,
   formatApplicationEmail,
@@ -1292,4 +1293,50 @@ test('the portfolio is always mentioned when the profile has one, even without a
   assert.match(out, /Could we talk this week\? My portfolio is linked below\./);
   const fr = formatApplicationEmail('Bonjour,\n\nJe conçois des produits.\n\nPouvons-nous échanger ?', { language: 'fr', profileData, portfolioAsked: true });
   assert.match(fr, /Mon portfolio est lié ci-dessous\./);
+});
+
+// Regression: company "555GROUP PTE. LTD." from the posting.
+const PTE = '555GROUP PTE. LTD.';
+test('sentence splitting never cuts company suffixes or abbreviations', () => {
+  assert.deepEqual(splitSentences(`I'd like to join ${PTE} I build design systems.`), [`I'd like to join ${PTE}`, 'I build design systems.']);
+  assert.deepEqual(splitSentences('Acme Co. Ltd. is hiring. Dr. Smith leads design. I am J. R. Tolkien fan.'), ['Acme Co. Ltd. is hiring.', 'Dr. Smith leads design.', 'I am J. R. Tolkien fan.']);
+  assert.deepEqual(splitSentences('I worked at Acme Inc. The team was small.'), ['I worked at Acme Inc.', 'The team was small.']);
+  assert.deepEqual(splitSentences('Qonto S.A.S. hired me. I shipped it.'), ['Qonto S.A.S. hired me.', 'I shipped it.']);
+});
+
+test('statements about the target company and role are never removed as absent from the CV', () => {
+  const body = groundEmail(
+    `I'm applying for the Product Designer role at ${PTE} I'd like to join ${PTE}`,
+    'At Edenred I designed mobile apps for corporate mobility clients. I shipped the investor app with one Product Owner.',
+  );
+  const claims = findUngroundedClaims(body, {
+    cv: GROUND_CV,
+    sourceText: `Product Designer at ${PTE} in Singapore. Design mobile apps.`,
+    company: PTE,
+    role: 'Product Designer',
+    sameLanguage: true,
+  });
+  assert.deepEqual(claims, []);
+  const { body: kept, removed } = stripUngroundedSentences(body, claims);
+  assert.deepEqual(removed, []);
+  assert.equal(kept, body);
+});
+
+test('a figure in the company name is not an unbacked figure, a real unbacked figure still is', () => {
+  const body = groundEmail(
+    `I'm applying for the Product Designer role at ${PTE}`,
+    'At Edenred I designed mobile apps. I grew activation by 40%.',
+  );
+  const claims = findUngroundedClaims(body, { cv: GROUND_CV, sourceText: '', company: PTE, role: 'Product Designer' });
+  assert.equal(claims.length, 1);
+  assert.match(claims[0].sentence, /40%/);
+});
+
+test('the audit does not report "LTD." as a fragment for a company name with suffixes', () => {
+  const body = groundEmail(
+    `I'm applying for the Product Designer role at ${PTE} I'd like to join ${PTE}`,
+    'At Edenred I designed mobile apps for corporate mobility clients.',
+  );
+  const issues = auditApplicationEmail({ subject: 'Product Designer - Hugo Vermot', body, language: 'en' }, {});
+  assert.equal(issues.some(issue => /Fragment/.test(issue)), false, issues.join(' | '));
 });
