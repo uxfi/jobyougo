@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { ROOT } from './helpers.mjs';
+import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
 
 const source = readFileSync(join(ROOT, 'ui/server.mjs'), 'utf8');
 const extract = (start, end) => {
@@ -19,6 +20,9 @@ function load(engines) {
   const calls = [];
   const context = vm.createContext({
     console: { log() {}, warn() {} },
+    process: { env: { SCAN_QUERY_SPACING_MS: '0' } },
+    createEngineBackoff,
+    createQuerySpacer,
     webSearchConfig: { engines: Object.keys(engines), minResults: 15 },
     PINCHTAB_SEARCH_ENGINES: Object.fromEntries(Object.entries(engines).map(([id, result]) => [id, async () => { calls.push(id); return typeof result === 'function' ? result() : result; }])),
     isWebSearchEngineBlocked: result => Boolean(result?.error),

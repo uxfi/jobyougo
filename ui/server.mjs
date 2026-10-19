@@ -63,7 +63,8 @@ import { evalModelForTier } from '../lib/spend-tier.mjs';
 import { writeFormAnswer } from '../lib/form-answer.mjs';
 import { createFunnel, countBy } from '../lib/scan-funnel.mjs';
 import { cleanFetchUrl, retryPolicy, backoffDelayMs } from '../lib/fetch-politeness.mjs';
-import { fetchManatalJobs, isManatalUrl } from '../lib/manatal-careers.mjs';
+import { cleanJobDescriptionText } from '../lib/jd-clean.mjs';
+import { fetchManatalJobs, isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mjs';
 import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
 import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
 import { createScanLogger } from '../lib/scan-log.mjs';
@@ -1574,12 +1575,20 @@ async function lookupPostingIdentity(url, { note = '', logLabel = 'manual-add', 
     const known = await fetchKnownSourceJobDescription(url, { maxChars: 4000, logLabel, hints });
     const fromKnown = known?.ok ? identityFromJobText(known.text) : {};
     if (fromKnown.title || known?.definitive) return mergePostingIdentity(fromKnown, fromUrl);
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', 'Accept-Language': 'en-US,en;q=0.9' },
-    });
+    const fetchUrl = cleanFetchUrl(url);
+    const policy = retryPolicy(fetchUrl);
+    let response;
+    for (let attempt = 1; attempt <= policy.attempts; attempt += 1) {
+      response = await fetch(fetchUrl, {
+        signal: AbortSignal.timeout(8000),
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', 'Accept-Language': 'en-US,en;q=0.9' },
+      });
+      if (response.status !== 429 || attempt === policy.attempts) break;
+      await sleep(backoffDelayMs(attempt, { baseMs: policy.baseMs, retryAfter: response.headers.get('retry-after') || '' }));
+    }
     const html = response.ok ? await response.text() : '';
-    return mergePostingIdentity(identityFromJobText(textFromFetchedHtml(html, url, { maxChars: 4000, hints })), identityFromHtml(html), fromUrl);
+    const manatalIdentity = isManatalUrl(url) ? identityFromManatalHtml(html, url) : {};
+    return mergePostingIdentity(manatalIdentity, identityFromJobText(textFromFetchedHtml(html, url, { maxChars: 4000, hints })), identityFromHtml(html), fromUrl);
   };
   let timer;
   const timeout = new Promise(resolve => { timer = setTimeout(resolve, timeoutMs, fromUrl); });
@@ -3117,8 +3126,9 @@ function textFromFetchedHtml(html, jobUrl, { maxChars = 15000, hints = {} } = {}
     }, jobUrl, { maxChars });
     if (formatted) return formatted;
   }
-  // Application questions and the form's privacy notice are not the posting.
-  return extractTextFromHtml(stripApplicationFormHtml(html));
+  // Application questions and the form's privacy notice are not the posting;
+  // nor are the nav, cookie banner and footer around a long page.
+  return cleanJobDescriptionText(extractTextFromHtml(stripApplicationFormHtml(html)), { title: hints.title || '' });
 }
 
 async function fetchDeelJobDescriptionFromJsonLd(jobUrl, { maxChars = 15000, hints = {} } = {}) {
@@ -4467,6 +4477,7 @@ async function fetchPinchtabEnginesMerged(source) {
   const engineLog = [];
   let loaded = 0;
   let lastBlocked = null;
+  let skippedCooling = false;
   for (const id of engines) {
     const run = PINCHTAB_SEARCH_ENGINES[id];
     if (!run) continue;
@@ -4474,6 +4485,8 @@ async function fetchPinchtabEnginesMerged(source) {
     if (engineIsResting(id, engines)) { engineLog.push(`${id}:resting`); continue; }
     if (engineBackoff.cooling(id) && engines.some(other => other !== id && !engineBackoff.cooling(other))) {
       engineLog.push(`${id}:cooldown`);
+      skippedCooling = true;
+      noteEngineResult(id, false); // a cooling engine is not an answering engine: keeps engineIsResting honest
       continue;
     }
     await querySpacer();
@@ -4509,7 +4522,7 @@ async function fetchPinchtabEnginesMerged(source) {
   // as a failed query so repeated challenge pages don't keep the scan opening
   // PinchTab tabs for offers that will be discarded by the title filter.
   const hasRelevantResult = merged.some(job => portalsTitleFilter.test(job.title));
-  recordWebSearchOutcome(hasRelevantResult || !lastBlocked);
+  recordWebSearchOutcome(hasRelevantResult || !(lastBlocked || skippedCooling));
   const used = engineLog.filter(entry => !/:(?:blocked|cooldown|resting)$/.test(entry)).map(entry => entry.split(':')[0]);
   console.log(`[scan] [WebSearch] "${source.name}" → ${merged.length} merged results (${engineLog.join(', ')}), ${merged.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
   // Engines answered cleanly with nothing relevant = legitimately empty, not a failed fetch.

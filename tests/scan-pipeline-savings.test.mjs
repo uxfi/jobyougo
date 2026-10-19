@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const server = readFileSync(join(ROOT, 'ui/server.mjs'), 'utf8');
@@ -21,7 +22,7 @@ function between(startMarker, endMarker) {
 
 test('an engine blocked or empty five times in a row rests, and is retried now and then', () => {
   const code = between('const ENGINE_DEAD_AFTER', 'async function fetchPinchtabEnginesMerged');
-  const h = vm.runInNewContext(`${code}${NL}({ engineIsResting, noteEngineResult, resetEngineHealth, ENGINE_DEAD_AFTER, ENGINE_RETRY_EVERY })`, {});
+  const h = vm.runInNewContext(`${code}${NL}({ engineIsResting, noteEngineResult, resetEngineHealth, ENGINE_DEAD_AFTER, ENGINE_RETRY_EVERY })`, { process: { env: {} }, createEngineBackoff, createQuerySpacer });
   const ALL = ['brave', 'duckduckgo', 'google'];
   for (let i = 0; i < h.ENGINE_DEAD_AFTER - 1; i++) h.noteEngineResult('duckduckgo', false);
   assert.equal(h.engineIsResting('duckduckgo', ALL), false, 'four misses are not enough');
