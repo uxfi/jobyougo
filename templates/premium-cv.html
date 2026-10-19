@@ -233,8 +233,8 @@
   }
 
   header { 
-    border-left: 4px solid var(--accent);
-    padding-left: 20px;
+    
+    padding-left: 0;
     margin-bottom: 2px;
   }
   h1 {
@@ -372,7 +372,7 @@
   }
   
   .project-visual {
-    height: 100px;
+    height: 86px;
     background: var(--bg-sidebar);
     border-bottom: 1px solid var(--border);
     overflow: hidden;
@@ -393,6 +393,7 @@
   .project-desc { font-size: 10px; color: var(--accent); font-weight: 600; margin-bottom: 8px; }
   .project-tag { display: inline-block; font-size: 9px; font-weight: 700; color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 20px; margin-bottom: 8px; }
   
+  .project-link { display: block; font-size: 9px; font-weight: 700; color: var(--accent); text-decoration: none; margin-top: 2px; }
   .project-card ul { list-style: none; }
   .project-card li { font-size: 8.8px; color: var(--text-muted); margin-bottom: 2px; line-height: 1.32; position: relative; padding-left: 10px; }
   .project-card li::before { content: "•"; position: absolute; left: 0; color: var(--border); }
@@ -723,7 +724,7 @@
           {{#if this.tag}}<span class="project-tag">{{this.tag}}</span>{{/if}}
         </a>
         {{else}}
-        <a href="{{this.url}}" class="project-card" target="_blank" {{#if this.url}}{{else}}style="pointer-events:none;"{{/if}}>
+        <div class="project-card">
           {{#if this.screenshot}}
           <div class="project-visual">
             <img src="../images/{{this.screenshot}}" class="project-screenshot" alt="">
@@ -740,6 +741,7 @@
             </div>
             {{#if this.desc}}<div class="project-desc">{{this.desc}}</div>{{/if}}
             {{#if this.tag}}<span class="project-tag">{{this.tag}}</span>{{/if}}
+            {{#if this.portfolio_url}}<a class="project-link" href="{{this.portfolio_url}}" target="_blank">View case study &#8599;</a>{{/if}}
             {{#if this.bullets}}
             <ul style="margin-top:8px;">
               {{#each this.bullets}}
@@ -748,7 +750,7 @@
             </ul>
             {{/if}}
           </div>
-        </a>
+        </div>
         {{/if}}
         {{/each}}
       </div>
