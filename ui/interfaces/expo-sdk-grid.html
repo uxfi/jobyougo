@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>App — Bento Showcase</title>
+<title>myapp 2.0 — Release</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="/ui/assets/fonts.css">
+<script>document.documentElement.classList.add('js');</script>
 <style>
+  :root {
+    --cyan: #6ecbff;
+    --gold: #f7e1b3;
+    --muted: rgba(255,255,255,.66);
+    --mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, monospace;
+    --ease: cubic-bezier(.2,.8,.2,1);
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     min-height: 100vh;
@@ -16,6 +24,12 @@
     background: #d6d6d6;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; }
+  :where(button):focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
   }
 
   .stage {
@@ -52,18 +66,25 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+    transition: box-shadow .25s ease;
   }
+  /* Hover only firms the edge: no lift, no filter, so nothing jumps under the pointer */
+  .card:hover,
+  .card:focus-within { box-shadow: inset 0 0 0 1px rgba(255,255,255,.11); }
 
-  /* ─── grid placement ─────────────────────────────────────────── */
-  .c-precompiled  { grid-column: 1; grid-row: 1 / 3; }
-  .c-integrating  { grid-column: 2; grid-row: 1; }
-  .c-launch       { grid-column: 3; grid-row: 1; }
-  .c-sdk          { grid-column: 2; grid-row: 2 / 4; }
-  .c-liquid       { grid-column: 3; grid-row: 2 / 5; }
-  .c-rn           { grid-column: 1; grid-row: 3; }
-  .c-router       { grid-column: 1; grid-row: 4; }
-  .c-awards       { grid-column: 2; grid-row: 4; }
+  /* ─── grid placement + entrance order (hero first, CTA last) ─── */
+  .c-precompiled  { grid-column: 1; grid-row: 1 / 3; --d: .16s; }
+  .c-integrating  { grid-column: 2; grid-row: 1;     --d: .09s; }
+  .c-launch       { grid-column: 3; grid-row: 1;     --d: .52s; }
+  .c-sdk          { grid-column: 2; grid-row: 2 / 4; --d: 0s; }
+  .c-liquid       { grid-column: 3; grid-row: 2 / 5; --d: .23s; }
+  .c-rn           { grid-column: 1; grid-row: 3;     --d: .3s; }
+  .c-router       { grid-column: 1; grid-row: 4;     --d: .36s; }
+  .c-coldstart    { grid-column: 2; grid-row: 4;     --d: .42s; }
+
+  @keyframes tile-in { from { opacity: 0; translate: 0 14px; } }
+  .js .card { animation: tile-in .62s var(--ease) var(--d, 0s) backwards; }
 
   /* ─── common title styles ────────────────────────────────────── */
   .card-title {
@@ -74,78 +95,35 @@
     line-height: 1.2;
     color: #fff;
   }
-  .row-title-center {
-    position: absolute;
-    top: 22px; left: 0; right: 0;
-    text-align: center;
-    padding: 0 20px;
-  }
+  .card-title.sm { font-size: clamp(14px, 1.4vw, 18px); }
 
-  /* ─── Card interactivity ─────────────────────────────────────── */
-  .card {
-    transition:
-      transform .45s cubic-bezier(.2,.8,.2,1),
-      box-shadow .45s ease,
-      filter .45s ease;
-    will-change: transform;
-  }
-  .card:hover {
-    transform: translateY(-3px);
-    box-shadow:
-      inset 0 0 0 1px rgba(255,255,255,.06),
-      0 18px 40px -10px rgba(0,0,0,.55);
-    filter: brightness(1.05);
-    z-index: 2;
-  }
-  /* Exclure filter + overflow sur la carte launch pour ne pas casser le ShinyButton */
-  .c-launch {
-    overflow: visible;
-  }
-  .c-launch:hover {
-    filter: none;
-  }
-  /* Déclencher le shimmer dès le hover sur la carte (pas seulement sur le bouton) */
-  .c-launch:hover .shiny-cta {
-    --gradient-percent: 20%;
-    --gradient-angle-offset: 95deg;
-    --gradient-shine: var(--shiny-cta-highlight-subtle);
-  }
-  .c-launch:hover .shiny-cta,
-  .c-launch:hover .shiny-cta::before,
-  .c-launch:hover .shiny-cta::after {
-    animation-play-state: running;
-  }
-  .c-launch:hover .shiny-cta span::before { opacity: 1; }
-
-  /* ─── 1. Precompiled ─────────────────────────────────────────── */
-  .c-precompiled { padding: 26px 22px; }
+  /* ─── 1. Precompiled: the stack is the compile path ──────────── */
+  .c-precompiled { padding: 24px 22px 20px; }
   .c-precompiled .card-title { text-align: center; }
   .iso-stack {
     flex: 1;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
   }
   .iso {
-    width: 78%;
-    max-width: 280px;
+    width: 72%;
+    max-width: 260px;
     aspect-ratio: 1 / 1;
     position: relative;
     transform: rotateX(58deg) rotateZ(-45deg);
     transform-style: preserve-3d;
-    transition: transform .8s cubic-bezier(.2,.8,.2,1);
+    transition: transform .8s var(--ease);
   }
   .c-precompiled:hover .iso {
     transform: rotateX(58deg) rotateZ(-45deg) rotateY(24deg);
   }
-  .c-precompiled:hover .iso-l1 { transform: translateZ(54px); }
-  .c-precompiled:hover .iso-l3 { transform: translateZ(-54px); opacity: .35; }
-  .iso-l1, .iso-l3 { transition: transform .8s cubic-bezier(.2,.8,.2,1), opacity .8s ease; }
   .iso-layer {
     position: absolute;
     inset: 0;
-    border: 1.5px solid #6ecbff;
+    border: 1.5px solid var(--cyan);
     border-radius: 34px;
     background:
       linear-gradient(180deg, rgba(110,203,255,.12), rgba(110,203,255,0)),
@@ -169,9 +147,29 @@
   .iso-l1 { transform: translateZ(40px); opacity: 1; }
   .iso-l2 { transform: translateZ(0);    opacity: .55; }
   .iso-l3 { transform: translateZ(-40px); opacity: .22; }
+  .iso-l1, .iso-l3 { transition: transform .8s var(--ease), opacity .8s ease; }
+  .c-precompiled:hover .iso-l1 { transform: translateZ(54px); }
+  .c-precompiled:hover .iso-l3 { transform: translateZ(-54px); opacity: .35; }
+  /* entrance: the outer layers peel off the middle one */
+  @keyframes layer-out { from { transform: translateZ(0); opacity: 0; } }
+  .js .iso-l1, .js .iso-l3 { animation: layer-out .9s var(--ease) .42s backwards; }
 
-  /* ─── 2. Integrating native apps ─────────────────────────────── */
-  .c-integrating { padding: 26px 22px; }
+  .iso-legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .01em;
+  }
+  .iso-legend .k1 { color: var(--cyan); }
+  .iso-legend .k2 { color: rgba(110,203,255,.8); }
+  .iso-legend .k3 { color: var(--muted); }
+  .iso-legend i { font-style: normal; color: rgba(255,255,255,.38); }
+
+  /* ─── 2. iOS & Android: platform switch for the phone preview ── */
+  .c-integrating { padding: 18px 22px 16px; }
   .c-integrating .card-title { text-align: center; }
   .icons-row {
     flex: 1;
@@ -181,6 +179,7 @@
     gap: 14px;
   }
   .squircle {
+    position: relative;
     width: clamp(46px, 4.2vw, 56px);
     aspect-ratio: 1/1;
     border-radius: 14px;
@@ -190,8 +189,28 @@
       inset 0 1px 0 rgba(255,255,255,.07),
       inset 0 -1px 0 rgba(0,0,0,.5),
       0 6px 12px rgba(0,0,0,.4);
-    color: rgba(255,255,255,.9);
+    color: rgba(255,255,255,.55);
+    transition: transform .3s cubic-bezier(.3,.9,.3,1.2), color .2s ease;
   }
+  .squircle svg { width: 58%; height: 58%; }
+  button.squircle { cursor: pointer; }
+  button.squircle:hover { transform: translateY(-4px) scale(1.08); color: rgba(255,255,255,.85); }
+  button.squircle:active { transform: translateY(-1px) scale(.96); }
+  button.squircle[aria-pressed="true"] { color: #fff; }
+  /* dock-style dot under the platform being previewed */
+  button.squircle::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: -9px;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--cyan);
+    translate: -50% 0;
+    opacity: 0;
+    scale: .4;
+    transition: opacity .2s ease, scale .25s var(--ease);
+  }
+  button.squircle[aria-pressed="true"]::after { opacity: 1; scale: 1; }
   .squircle.primary {
     background:
       radial-gradient(circle at 50% 45%, #0b0f14 0%, #050608 100%);
@@ -200,25 +219,26 @@
       0 6px 18px rgba(110,203,255,.25),
       0 0 0 1px rgba(110,203,255,.25);
   }
-  .squircle svg { width: 58%; height: 58%; }
-  .squircle {
-    transition: transform .3s cubic-bezier(.3,.9,.3,1.2);
-    cursor: pointer;
-  }
-  .squircle:hover { transform: translateY(-4px) scale(1.08); }
-  .squircle:active { transform: translateY(-1px) scale(.96); }
   .expo-mark {
-    stroke: #6ecbff; fill: none; stroke-width: 2.2;
+    stroke: var(--cyan); fill: none; stroke-width: 2.2;
     stroke-linejoin: round; stroke-linecap: round;
   }
 
-  /* ─── 3. App Launch ──────────────────────────────────────────── */
+  /* ─── 3. Install command (the page's one action) ─────────────── */
   .c-launch {
-    padding: 0;
+    padding: 0 16px;
     background:
       radial-gradient(ellipse 70% 110% at 50% 110%, #4a6dff 0%, #2a36a8 35%, #0a0c1e 75%),
       #050610;
-    display: flex; align-items: center; justify-content: center;
+    align-items: center; justify-content: center;
+    gap: 11px;
+  }
+  .launch-note {
+    min-height: 1.35em;
+    font-size: 12px;
+    line-height: 1.35;
+    color: rgba(255,255,255,.8);
+    text-align: center;
   }
 
   /* ─── Shiny CTA Button ───────────────────────────────────────── */
@@ -251,7 +271,7 @@
     overflow: hidden;
     cursor: pointer;
     outline-offset: 4px;
-    padding: 12px 26px;
+    padding: 12px 22px;
     font-family: var(--font-bricolage);
     font-size: clamp(13px, 1.2vw, 16px);
     font-weight: 500;
@@ -274,6 +294,7 @@
     transition: var(--transition);
     transition-property: --gradient-angle-offset, --gradient-percent, --gradient-shine;
   }
+  .shiny-cta:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 
   .shiny-cta::before,
   .shiny-cta::after,
@@ -310,7 +331,10 @@
     opacity: 0.6;
   }
 
-  .shiny-cta span { z-index: 1; position: relative; }
+  .shiny-cta span {
+    z-index: 1; position: relative;
+    display: inline-flex; align-items: center; gap: 9px;
+  }
 
   .shiny-cta span::before {
     --size: calc(100% + 1rem);
@@ -329,17 +353,22 @@
     animation-composition: add;
   }
 
-  .shiny-cta:is(:hover, :focus-visible) {
+  .shiny-cta:is(:hover, :focus-visible),
+  .c-launch:hover .shiny-cta {
     --gradient-percent: 20%;
     --gradient-angle-offset: 95deg;
     --gradient-shine: var(--shiny-cta-highlight-subtle);
   }
   .shiny-cta:is(:hover, :focus-visible),
   .shiny-cta:is(:hover, :focus-visible)::before,
-  .shiny-cta:is(:hover, :focus-visible)::after {
+  .shiny-cta:is(:hover, :focus-visible)::after,
+  .c-launch:hover .shiny-cta,
+  .c-launch:hover .shiny-cta::before,
+  .c-launch:hover .shiny-cta::after {
     animation-play-state: running;
   }
-  .shiny-cta:is(:hover, :focus-visible) span::before { opacity: 1; }
+  .shiny-cta:is(:hover, :focus-visible) span::before,
+  .c-launch:hover .shiny-cta span::before { opacity: 1; }
 
   @keyframes gradient-angle { to { --gradient-angle: 360deg; } }
   @keyframes shimmer { to { rotate: 360deg; } }
@@ -348,10 +377,22 @@
     50% { scale: 1.2; }
   }
 
-  /* ─── 4. SDK 54 ──────────────────────────────────────────────── */
+  /* command inside the pill */
+  .shiny-cta code {
+    font-family: var(--mono);
+    font-size: clamp(12px, 1.05vw, 14px);
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .shiny-cta .prompt { font-weight: 400; color: rgba(255,255,255,.55); }
+  .cta-ico { width: 14px; height: 14px; flex-shrink: 0; }
+  .cta-ico.ok { display: none; color: #8fe3c0; }
+  .shiny-cta.is-copied .cta-ico.copy { display: none; }
+  .shiny-cta.is-copied .cta-ico.ok { display: block; }
+
+  /* ─── 4. v2.0 hero ───────────────────────────────────────────── */
   .c-sdk {
-    display: flex; align-items: center; justify-content: center;
-    overflow: hidden;
+    align-items: center; justify-content: center;
     background: radial-gradient(ellipse at center, #121216 0%, #050507 80%);
   }
   .sdk-stage {
@@ -371,16 +412,25 @@
       inset 0 1px 0 rgba(255,255,255,.12),
       0 20px 60px rgba(0,0,0,.4);
     border: 1px solid rgba(255,255,255,.06);
+    transition: transform .9s var(--ease), translate .5s var(--ease);
   }
-  .glass-card {
-    transition: transform .9s cubic-bezier(.2,.8,.2,1);
-  }
-  .glass-1 { transform: translate(-14%, -10%) rotate(-6deg); opacity: .35; }
-  .glass-2 { transform: translate(0, 0) rotate(-2deg); opacity: .6; }
-  .glass-3 { transform: translate(14%, 10%) rotate(3deg); opacity: .85; }
+  /* pointer parallax: deeper cards move less (--px/--py set by script, -1..1) */
+  .glass-1 { transform: translate(-14%, -10%) rotate(-6deg); opacity: .35;
+             translate: calc(var(--px, 0) * 3px) calc(var(--py, 0) * 3px); }
+  .glass-2 { transform: translate(0, 0) rotate(-2deg); opacity: .6;
+             translate: calc(var(--px, 0) * 6px) calc(var(--py, 0) * 6px); }
+  .glass-3 { transform: translate(14%, 10%) rotate(3deg); opacity: .85;
+             translate: calc(var(--px, 0) * 10px) calc(var(--py, 0) * 10px); }
   .c-sdk:hover .glass-1 { transform: translate(-20%, -14%) rotate(-10deg); }
   .c-sdk:hover .glass-2 { transform: translate(0, -2px) rotate(-1deg); }
   .c-sdk:hover .glass-3 { transform: translate(20%, 14%) rotate(7deg); }
+  /* entrance: the three cards are dealt out of one stack */
+  @keyframes glass-in { from { transform: none; opacity: 0; } }
+  .js .glass-card { animation: glass-in 1s var(--ease) backwards; }
+  .js .glass-1 { animation-delay: .1s; }
+  .js .glass-2 { animation-delay: .16s; }
+  .js .glass-3 { animation-delay: .22s; }
+
   .sdk-title {
     position: relative;
     z-index: 2;
@@ -388,6 +438,7 @@
     font-size: clamp(42px, 5.6vw, 78px);
     font-weight: 800;
     letter-spacing: -.04em;
+    line-height: 1;
     color: #fff;
     text-shadow:
       0 2px 0 rgba(0,0,0,.5),
@@ -396,15 +447,16 @@
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    transition: transform .9s cubic-bezier(.2,.8,.2,1);
+    translate: calc(var(--px, 0) * 13px) calc(var(--py, 0) * 13px);
+    transition: transform .9s var(--ease), translate .5s var(--ease);
   }
   .c-sdk:hover .sdk-title { transform: scale(1.04); }
+  @keyframes ver-in { from { opacity: 0; transform: scale(.92); } }
+  .js .sdk-title { animation: ver-in .9s var(--ease) .06s backwards; }
 
-  /* ─── 5. Liquid Glass (right tall) ───────────────────────────── */
+  /* ─── 5. Phone preview (switches with the platform toggle) ───── */
   .c-liquid {
     padding: 22px;
-    display: flex;
-    flex-direction: column;
     justify-content: space-between;
     background: radial-gradient(ellipse at 50% 0%, #151518 0%, #050507 70%);
   }
@@ -412,7 +464,7 @@
     width: 100%;
     flex: 1;
     border-radius: 22px;
-    padding: 14px 12px 0;
+    padding: 10px 12px 0;
     background:
       linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.01)),
       #0a0a0c;
@@ -420,7 +472,44 @@
     display: flex; flex-direction: column; gap: 10px;
     position: relative;
     overflow: hidden;
+    transition: opacity .15s ease, border-radius .25s ease;
   }
+  .phone-mock.is-swapping { opacity: .12; }
+
+  .status {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    height: 14px;
+    padding: 0 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,.88);
+    font-variant-numeric: tabular-nums;
+  }
+  .status-cam {
+    width: 44px; height: 13px;
+    border-radius: 8px;
+    background: #000;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.07);
+    transition: width .25s ease, height .25s ease;
+  }
+  .status-sys { justify-self: end; display: flex; align-items: center; gap: 4px; }
+  .sig { display: flex; align-items: flex-end; gap: 1.5px; height: 8px; }
+  .sig i { width: 2px; border-radius: 1px; background: currentColor; }
+  .sig i:nth-child(1) { height: 3px; }
+  .sig i:nth-child(2) { height: 5px; }
+  .sig i:nth-child(3) { height: 8px; }
+  .bat {
+    position: relative;
+    width: 15px; height: 7px;
+    padding: 1px;
+    border: 1px solid rgba(255,255,255,.6);
+    border-radius: 2px;
+  }
+  .bat::before { content: ''; display: block; width: 72%; height: 100%; border-radius: 1px; background: currentColor; }
+  .bat::after { content: ''; position: absolute; right: -3px; top: 1.5px; width: 1.5px; height: 3px; border-radius: 0 1px 1px 0; background: rgba(255,255,255,.6); }
+
   .speaker-card {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 12px;
@@ -440,12 +529,13 @@
     line-height: 1.2;
   }
   .speaker-meta .role {
-    font-size: 10px; color: rgba(255,255,255,.45);
+    font-size: 10px; color: var(--muted);
     line-height: 1.2;
   }
   .time-label {
-    font-size: 10px; color: rgba(255,255,255,.5);
+    font-size: 10px; color: var(--muted);
     padding: 0 4px;
+    font-variant-numeric: tabular-nums;
   }
   .session {
     padding: 12px;
@@ -459,22 +549,30 @@
   }
   .session-title { font-size: 12px; font-weight: 600; color: #fff; }
   .bookmark {
+    width: 24px; height: 24px;
+    margin: -5px -6px -5px 0;
+    display: grid; place-items: center;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .bookmark::before {
+    content: '';
     width: 12px; height: 14px;
     background: #3ec5b2;
     clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
-    cursor: pointer;
     transition: background .2s ease, transform .25s cubic-bezier(.3,.9,.3,1.3);
   }
-  .bookmark:hover { transform: translateY(-2px) scale(1.12); }
-  .bookmark.off { background: rgba(255,255,255,.25); }
+  .bookmark:hover::before { transform: translateY(-2px) scale(1.12); }
+  .bookmark[aria-pressed="false"]::before { background: rgba(255,255,255,.45); }
   .speaker-row {
     display: flex; align-items: center; gap: 10px;
   }
   .speaker-row .speaker-avatar { width: 22px; height: 22px; }
   .speaker-row.lauren .speaker-avatar { background: linear-gradient(135deg, #d88a7a, #8a4a40); }
   .speaker-row.joe .speaker-avatar    { background: linear-gradient(135deg, #a0a0a0, #505050); }
+
   .tab-bar {
-    margin-top: auto;
+    margin: auto 0 10px;
     display: flex; align-items: center; gap: 4px;
     padding: 6px;
     border-radius: 100px;
@@ -488,22 +586,55 @@
     display: flex; flex-direction: column; align-items: center;
     padding: 6px 4px;
     border-radius: 100px;
-    color: rgba(255,255,255,.45);
+    color: rgba(255,255,255,.62);
     gap: 2px;
     cursor: pointer;
-    transition: color .25s ease, background .25s ease;
+    transition: color .2s ease, background .2s ease;
   }
-  .tab:hover { color: rgba(255,255,255,.85); }
+  .tab:hover { color: rgba(255,255,255,.9); }
+  .tab .ico {
+    display: grid; place-items: center;
+    height: 16px;
+    border-radius: 12px;
+    transition: background .2s ease;
+  }
   .tab svg { width: 14px; height: 14px; }
   .tab .tab-label { font-size: 9px; font-weight: 500; }
-  .tab.active { color: #5ac8e8; background: rgba(255,255,255,.04); }
+  .tab.active { color: #5ac8e8; background: rgba(255,255,255,.06); }
   .tab.search {
     flex: 0 0 auto; width: 34px; height: 34px;
     padding: 0;
+    justify-content: center;
     border-radius: 50%;
     background: rgba(255,255,255,.06);
   }
+  .tab.search.active { background: rgba(90,200,232,.16); }
   .tab.search .tab-label { display: none; }
+
+  /* Android: punch-hole camera, flat navigation bar, pill indicator behind the icon */
+  .c-liquid[data-platform="android"] .phone-mock { border-radius: 16px; }
+  .c-liquid[data-platform="android"] .status-cam { width: 9px; height: 9px; border-radius: 50%; }
+  .c-liquid[data-platform="android"] .speaker-card,
+  .c-liquid[data-platform="android"] .session { border-radius: 10px; }
+  .c-liquid[data-platform="android"] .tab-bar {
+    margin: auto -12px 0;
+    padding: 6px 6px 9px;
+    border-radius: 0;
+    border-width: 1px 0 0;
+    background: #121215;
+    backdrop-filter: none;
+  }
+  .c-liquid[data-platform="android"] .tab,
+  .c-liquid[data-platform="android"] .tab.search {
+    flex: 1; width: auto; height: auto;
+    padding: 2px 0;
+    gap: 3px;
+    border-radius: 6px;
+    background: none;
+  }
+  .c-liquid[data-platform="android"] .tab .ico { width: 40px; height: 22px; }
+  .c-liquid[data-platform="android"] .tab.active .ico { background: rgba(90,200,232,.2); }
+  .c-liquid[data-platform="android"] .tab.search .tab-label { display: block; }
 
   .liquid-caption {
     margin-top: 14px;
@@ -515,73 +646,62 @@
   .liquid-tag {
     margin-top: 8px;
     display: inline-block;
-    font-family: var(--font-mono, ui-monospace, monospace);
+    font-family: var(--mono);
     font-size: 11px;
-    color: rgba(255,255,255,.8);
+    color: rgba(255,255,255,.88);
     padding: 3px 10px;
     border-radius: 8px;
     background: rgba(255,255,255,.08);
   }
+  .liquid-tag .dim { font-weight: 400; color: var(--muted); }
 
-  /* ─── 6. TypeScript First ───────────────────────────────────── */
+  /* ─── 6. Typed routes ────────────────────────────────────────── */
   .c-rn {
-    display: flex;
-    flex-direction: column;
     justify-content: space-between;
-    padding: 20px 22px 18px;
+    gap: 8px;
+    padding: 18px 22px 18px;
     background:
       radial-gradient(ellipse 120% 80% at 90% 110%, rgba(49,120,198,.18) 0%, transparent 65%),
       #070709;
-    overflow: hidden;
-  }
-  .ts-top {
-    display: flex; align-items: center; justify-content: space-between;
   }
   .ts-badge {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 38px; height: 38px;
-    border-radius: 10px;
+    width: 32px; height: 32px;
+    border-radius: 9px;
     background: #3178c6;
-    font-family: var(--font-mono, ui-monospace, monospace);
-    font-size: 14px;
+    font-family: var(--mono);
+    font-size: 13px;
     font-weight: 700;
     color: #fff;
-    flex-shrink: 0;
     transition: box-shadow .35s ease, transform .35s cubic-bezier(.3,.9,.3,1.2);
   }
   .c-rn:hover .ts-badge {
     box-shadow: 0 0 18px rgba(49,120,198,.6);
     transform: scale(1.08);
   }
-  .ts-dots {
-    display: flex; gap: 5px; align-items: center;
-  }
-  .ts-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: rgba(255,255,255,.15);
-    transition: background .3s ease;
-  }
-  .ts-dot.active { background: #3178c6; }
-  .c-rn:hover .ts-dot { background: rgba(49,120,198,.5); }
-  .c-rn:hover .ts-dot.active { background: #5a9edf; }
   .ts-code {
-    font-family: var(--font-mono, ui-monospace, monospace);
-    font-size: clamp(9px, .85vw, 11px);
-    color: rgba(255,255,255,.28);
+    font-family: var(--mono);
+    font-size: clamp(10px, .9vw, 12px);
     line-height: 1.7;
-    margin-top: 2px;
-    transition: color .35s ease;
+    color: rgba(255,255,255,.72);
+    white-space: pre-wrap;
   }
-  .ts-code .kw  { color: rgba(86,156,214,.7); }
-  .ts-code .tp  { color: rgba(78,201,176,.7); }
-  .c-rn:hover .ts-code { color: rgba(255,255,255,.45); }
-  .c-rn:hover .ts-code .kw  { color: #569cd6; }
-  .c-rn:hover .ts-code .tp  { color: #4ec9b0; }
+  .ts-code .v { color: #9cdcfe; }
+  .ts-code .f { color: #dcdcaa; }
+  .ts-code .s { color: #ce9178; }
+  .ts-code .err {
+    text-decoration: underline wavy #f48771;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  .ts-msg { color: #f48771; }
+  @keyframes squiggle-in { from { text-decoration-color: transparent; } }
+  @keyframes msg-in { from { opacity: 0; translate: 0 4px; } }
+  .js .ts-code .err { animation: squiggle-in .4s ease 1.05s backwards; }
+  .js .ts-msg { display: inline-block; animation: msg-in .45s var(--ease) 1.25s backwards; }
 
-  /* ─── 7. Instant Navigation ─────────────────────────────────── */
+  /* ─── 7. Navigation in one frame ─────────────────────────────── */
   .c-router {
-    display: flex;
-    flex-direction: column;
     justify-content: space-between;
     padding: 18px 22px 16px;
     background:
@@ -591,7 +711,6 @@
   .nav-flow {
     display: flex;
     align-items: center;
-    gap: 0;
     flex: 1;
     position: relative;
   }
@@ -634,7 +753,6 @@
     height: 1.5px;
     background: rgba(16,185,129,.18);
     position: relative;
-    overflow: visible;
   }
   .nav-line::after {
     content: '';
@@ -655,11 +773,12 @@
   }
   .c-router:hover .nav-line { background: rgba(16,185,129,.35); }
   .nav-bottom {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
     margin-top: 10px;
   }
   .nav-ms {
-    font-family: var(--font-mono, ui-monospace, monospace);
+    flex-shrink: 0;
+    font-family: var(--mono);
     font-size: 10px;
     color: #10b981;
     background: rgba(16,185,129,.1);
@@ -668,44 +787,72 @@
     padding: 2px 8px;
   }
 
-  /* ─── 8. Expo App Awards ────────────────────────────────────── */
-  .c-awards {
-    display: flex; align-items: center; justify-content: center;
+  /* ─── 8. Cold start: 1.9 vs 2.0 ──────────────────────────────── */
+  .c-coldstart {
+    justify-content: center;
+    gap: 9px;
+    padding: 16px 24px;
     background:
-      radial-gradient(ellipse 80% 140% at 50% 110%, #7a5a2e 0%, #3a2614 45%, #0a0703 80%);
+      radial-gradient(ellipse 80% 140% at 50% 130%, #6a4d26 0%, #3a2614 45%, #0a0703 80%);
   }
-  .awards-title {
-    display: inline-flex; align-items: center; gap: 14px;
+  .cs-head {
     font-family: var(--font-instrument);
     font-style: italic;
-    font-size: clamp(20px, 2.2vw, 30px);
+    font-size: clamp(20px, 2.05vw, 28px);
     font-weight: 400;
+    line-height: 1.05;
     letter-spacing: -.01em;
     background: linear-gradient(110deg, #f7e1b3 0%, #fff4d5 40%, #b88848 65%, #f7e1b3 100%);
     background-size: 220% 100%;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: awards-shimmer 5s linear infinite;
   }
-  @keyframes awards-shimmer {
-    from { background-position: 0% 0%; }
-    to   { background-position: 220% 0%; }
+  @keyframes gold-sweep { from { background-position: 120% 0; } to { background-position: 0% 0; } }
+  .js .cs-head { animation: gold-sweep 1.8s ease .7s backwards; }
+  .cs-bars { display: grid; gap: 6px; }
+  .cs-row {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    align-items: center;
+    gap: 10px;
   }
-  .c-awards:hover .laurel {
-    animation: laurel-sway 1.2s ease-in-out infinite alternate;
+  .cs-row dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: rgba(247,225,179,.8);
   }
-  @keyframes laurel-sway {
-    from { transform: rotate(-6deg); }
-    to   { transform: rotate(6deg); }
+  .cs-row dd { display: flex; align-items: center; gap: 10px; }
+  .cs-track {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(247,225,179,.08);
+    overflow: hidden;
   }
-  .laurel { font-size: .8em; -webkit-text-fill-color: #b88848; }
+  .cs-bar {
+    display: block;
+    height: 100%;
+    transform-origin: left center;
+    transform: scaleX(var(--s, 1));
+  }
+  .cs-bar.old { background: rgba(247,225,179,.4); }
+  .cs-bar.new { --s: .331; background: linear-gradient(90deg, #b88848, var(--gold)); }
+  .cs-val {
+    width: 52px;
+    text-align: right;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+  .cs-note { font-size: 10.5px; color: rgba(247,225,179,.78); }
 
   @media (max-width: 820px) {
     .frame {
       aspect-ratio: auto;
       grid-template-columns: 1fr 1fr;
-      grid-template-rows: repeat(8, minmax(110px, auto));
+      grid-template-rows: repeat(9, minmax(110px, auto));
     }
     .c-precompiled  { grid-column: 1 / 3; grid-row: 1 / 3; }
     .c-integrating  { grid-column: 1; grid-row: 3; }
@@ -714,79 +861,100 @@
     .c-liquid       { grid-column: 1 / 3; grid-row: 6 / 8; }
     .c-rn           { grid-column: 1; grid-row: 8; }
     .c-router       { grid-column: 2; grid-row: 8; }
-    .c-awards       { grid-column: 1 / 3; grid-row: 9; }
+    .c-coldstart    { grid-column: 1 / 3; grid-row: 9; }
+  }
+
+  /* Reduced motion: every tile, bar and number is shown at rest; loops stop */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation: none !important;
+      transition-duration: 0s !important;
+    }
+    .glass-card, .sdk-title { translate: none; }
+    .nav-line::after { left: calc(50% - 3.5px); opacity: 1; }
   }
 </style>
 </head>
 <body>
-<div class="stage">
+<main class="stage">
   <div class="frame">
 
-    <!-- 1 · Native Performance -->
-    <div class="card c-precompiled">
-      <div class="card-title">Native<br>Performance</div>
-      <div class="iso-stack">
+    <!-- 1 · Precompiled: what you write, what ships, what runs -->
+    <section class="card c-precompiled">
+      <h2 class="card-title">Precompiled to native</h2>
+      <div class="iso-stack" aria-hidden="true">
         <div class="iso">
           <div class="iso-layer iso-l1"><div class="cross"></div></div>
           <div class="iso-layer iso-l2"><div class="cross"></div></div>
           <div class="iso-layer iso-l3"><div class="cross"></div></div>
         </div>
       </div>
-    </div>
+      <p class="iso-legend"><span class="k1">.tsx</span><i aria-hidden="true">&rarr;</i><span class="k2">bytecode</span><i aria-hidden="true">&rarr;</i><span class="k3">native views</span></p>
+    </section>
 
-    <!-- 2 · iOS & Android -->
-    <div class="card c-integrating">
-      <div class="card-title">iOS &amp; Android</div>
-      <div class="icons-row">
-        <div class="squircle" title="Android">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 10.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm13 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7 12h10v6a2 2 0 0 1-2 2h-1v2h-2v-2h-2v2H8v-2H7a2 2 0 0 1-2-2v-6h2Zm-3 1v5a1 1 0 0 0 2 0v-5a1 1 0 0 0-2 0Zm14 0v5a1 1 0 0 0 2 0v-5a1 1 0 0 0-2 0ZM8.3 5.1 7.1 3.4a.4.4 0 0 1 .65-.47l1.27 1.83A7.1 7.1 0 0 1 12 4c1.05 0 2.04.2 2.98.58l1.27-1.83a.4.4 0 0 1 .65.47l-1.2 1.72A5.5 5.5 0 0 1 17.7 10h-11.4a5.5 5.5 0 0 1 2-4.9Zm2.2 2.9a.6.6 0 1 0 0-1.2.6.6 0 0 0 0 1.2Zm3 0a.6.6 0 1 0 0-1.2.6.6 0 0 0 0 1.2Z"/></svg>
-        </div>
-        <div class="squircle primary" title="Expo">
+    <!-- 2 · iOS & Android: switches the phone preview -->
+    <section class="card c-integrating">
+      <h2 class="card-title">iOS &amp; Android</h2>
+      <div class="icons-row" role="group" aria-label="Preview the app screen on">
+        <button type="button" class="squircle" data-plat="android" aria-pressed="false" aria-controls="phone">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.5 10.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm13 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7 12h10v6a2 2 0 0 1-2 2h-1v2h-2v-2h-2v2H8v-2H7a2 2 0 0 1-2-2v-6h2Zm-3 1v5a1 1 0 0 0 2 0v-5a1 1 0 0 0-2 0Zm14 0v5a1 1 0 0 0 2 0v-5a1 1 0 0 0-2 0ZM8.3 5.1 7.1 3.4a.4.4 0 0 1 .65-.47l1.27 1.83A7.1 7.1 0 0 1 12 4c1.05 0 2.04.2 2.98.58l1.27-1.83a.4.4 0 0 1 .65.47l-1.2 1.72A5.5 5.5 0 0 1 17.7 10h-11.4a5.5 5.5 0 0 1 2-4.9Zm2.2 2.9a.6.6 0 1 0 0-1.2.6.6 0 0 0 0 1.2Zm3 0a.6.6 0 1 0 0-1.2.6.6 0 0 0 0 1.2Z"/></svg>
+          <span class="sr-only">Android</span>
+        </button>
+        <span class="squircle primary" aria-hidden="true">
           <svg viewBox="0 0 48 48">
             <path class="expo-mark" d="M24 10 L10 36 L14 36 L24 18 L34 36 L38 36 Z"/>
             <circle cx="24" cy="24" r="17" stroke="#6ecbff" stroke-width="1.6" fill="none" opacity=".7"/>
           </svg>
-        </div>
-        <div class="squircle" title="Apple">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-2-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.5 1.3-.05 1.8-.8 3.3-.8 1.5 0 2 .8 3.3.8 1.4 0 2.3-1.2 3.1-2.5.7-1.1 1.2-2.2 1.5-3.4-.1 0-2.9-1.1-2.9-4.5Zm-2.4-8.4c.7-.9 1.2-2 1-3.2-1 .05-2.3.7-3 1.5-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3.1-1.4Z"/></svg>
-        </div>
+        </span>
+        <button type="button" class="squircle" data-plat="ios" aria-pressed="true" aria-controls="phone">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.8-1.2-1.7-3-2-3.6-2-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.5 1.3-.05 1.8-.8 3.3-.8 1.5 0 2 .8 3.3.8 1.4 0 2.3-1.2 3.1-2.5.7-1.1 1.2-2.2 1.5-3.4-.1 0-2.9-1.1-2.9-4.5Zm-2.4-8.4c.7-.9 1.2-2 1-3.2-1 .05-2.3.7-3 1.5-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3.1-1.4Z"/></svg>
+          <span class="sr-only">iOS</span>
+        </button>
       </div>
-    </div>
+    </section>
 
-    <!-- 3 · App Launch -->
-    <div class="card c-launch">
-      <button class="shiny-cta">
+    <!-- 3 · Install command -->
+    <section class="card c-launch">
+      <button type="button" class="shiny-cta" id="installCta" data-cmd="npx create-myapp@2" aria-label="Copy install command: npx create-myapp@2" aria-describedby="installNote">
         <span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:7px;margin-top:-2px"><path d="M12 2L12 16M12 16L7 11M12 16L17 11"/><path d="M3 19h18"/></svg>Download Now
+          <svg class="cta-ico copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+          <svg class="cta-ico ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+          <code><b class="prompt" aria-hidden="true">$ </b>npx create-myapp@2</code>
         </span>
       </button>
-    </div>
+      <p class="launch-note" id="installNote" aria-live="polite">Starts a new project on the 2.0 template</p>
+    </section>
 
-    <!-- 4 · SDK 54 -->
-    <div class="card c-sdk">
+    <!-- 4 · v2.0 hero -->
+    <section class="card c-sdk">
       <div class="sdk-stage">
-        <div class="glass-card glass-1"></div>
-        <div class="glass-card glass-2"></div>
-        <div class="glass-card glass-3"></div>
-        <div class="sdk-title">v2.0</div>
+        <div class="glass-card glass-1" aria-hidden="true"></div>
+        <div class="glass-card glass-2" aria-hidden="true"></div>
+        <div class="glass-card glass-3" aria-hidden="true"></div>
+        <h1 class="sdk-title"><span class="sr-only">myapp </span>v2.0</h1>
       </div>
-    </div>
+    </section>
 
-    <!-- 5 · Liquid Glass / Swift UI -->
-    <div class="card c-liquid">
-      <div class="phone-mock">
+    <!-- 5 · Phone preview -->
+    <section class="card c-liquid" data-platform="ios">
+      <div class="phone-mock" id="phone" role="group" aria-label="App screen preview">
+        <div class="status" aria-hidden="true">
+          <span>9:41</span>
+          <span class="status-cam"></span>
+          <span class="status-sys"><span class="sig"><i></i><i></i><i></i></span><span class="bat"></span></span>
+        </div>
         <div class="speaker-card">
           <div class="speaker-avatar"></div>
           <div class="speaker-meta">
             <div class="name">Jordan Kim</div>
-            <div class="role">Lead Designer @ Studio</div>
+            <div class="role">Opening keynote</div>
           </div>
         </div>
-        <div class="time-label">⭐ 4.9 · 50,000 reviews</div>
+        <div class="time-label">10:30 · Main stage</div>
         <div class="session">
           <div class="session-head">
             <div class="session-title">Onboarding Flow</div>
-            <div class="bookmark"></div>
+            <button type="button" class="bookmark" aria-pressed="true" aria-label="Save Onboarding Flow session"></button>
           </div>
           <div class="speaker-row lauren">
             <div class="speaker-avatar"></div>
@@ -803,52 +971,42 @@
             </div>
           </div>
         </div>
-        <div class="tab-bar">
-          <div class="tab active">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <div class="tab-label">Home</div>
-          </div>
-          <div class="tab">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            <div class="tab-label">Saved</div>
-          </div>
-          <div class="tab">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
-            <div class="tab-label">Explore</div>
-          </div>
-          <div class="tab search">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <div class="tab-label">Search</div>
-          </div>
+        <div class="tab-bar" role="group" aria-label="Tabs">
+          <button type="button" class="tab active" aria-pressed="true">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+            <span class="tab-label">Home</span>
+          </button>
+          <button type="button" class="tab" aria-pressed="false">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>
+            <span class="tab-label">Saved</span>
+          </button>
+          <button type="button" class="tab" aria-pressed="false">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></span>
+            <span class="tab-label">Explore</span>
+          </button>
+          <button type="button" class="tab search" aria-pressed="false" aria-label="Search">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <span class="tab-label">Search</span>
+          </button>
         </div>
       </div>
       <div class="liquid-caption">
-        <div class="card-title">Fluid UI &amp; Animations</div>
-        <div class="liquid-tag">@myapp/ui</div>
+        <h2 class="card-title">Same code, native chrome</h2>
+        <p class="liquid-tag"><b class="dim">TabBar &rarr;</b> <span id="tagTarget">UITabBar</span></p>
       </div>
-    </div>
+    </section>
 
-    <!-- 6 · TypeScript First -->
-    <div class="card c-rn">
-      <div class="ts-top">
-        <div class="ts-badge">TS</div>
-        <div class="ts-dots">
-          <div class="ts-dot active"></div>
-          <div class="ts-dot"></div>
-          <div class="ts-dot"></div>
-        </div>
-      </div>
-      <div class="ts-code">
-        <span class="kw">const</span> app: <span class="tp">App</span> = {<br>
-        &nbsp;&nbsp;type: <span class="tp">"safe"</span><br>
-        }
-      </div>
-      <div class="card-title" style="font-size:clamp(14px,1.4vw,18px)">TypeScript First</div>
-    </div>
+    <!-- 6 · Typed routes -->
+    <section class="card c-rn">
+      <div class="ts-badge" aria-hidden="true">TS</div>
+<pre class="ts-code"><code><span class="v">router</span>.<span class="f">push</span>(<span class="s err">"/setings"</span>)
+<span class="ts-msg"><span aria-hidden="true">&#x2715; </span>"/setings" is not a route</span></code></pre>
+      <h2 class="card-title sm">Typos fail the build</h2>
+    </section>
 
-    <!-- 7 · Instant Navigation -->
-    <div class="card c-router">
-      <div class="nav-flow">
+    <!-- 7 · Navigation in one frame -->
+    <section class="card c-router">
+      <div class="nav-flow" aria-hidden="true">
         <div class="nav-screen active"></div>
         <div class="nav-line"></div>
         <div class="nav-screen"></div>
@@ -856,37 +1014,165 @@
         <div class="nav-screen"></div>
       </div>
       <div class="nav-bottom">
-        <div class="card-title" style="font-size:clamp(14px,1.4vw,18px)">Instant Navigation</div>
-        <div class="nav-ms">&lt; 16ms</div>
+        <h2 class="card-title sm">Navigation in one frame</h2>
+        <span class="nav-ms">&lt; 16 ms</span>
       </div>
-    </div>
+    </section>
 
-    <!-- 8 · Expo App Awards -->
-    <div class="card c-awards">
-      <div class="awards-title">
-        <span class="laurel">❧</span>
-        App of the Year
-        <span class="laurel" style="transform:scaleX(-1)">❧</span>
-      </div>
-    </div>
+    <!-- 8 · Cold start, 1.9 vs 2.0 -->
+    <section class="card c-coldstart">
+      <h2 class="cs-head">Opens in a third of the time</h2>
+      <dl class="cs-bars">
+        <div class="cs-row">
+          <dt>1.9</dt>
+          <dd><span class="cs-track"><span class="cs-bar old"></span></span><span class="cs-val">640 ms</span></dd>
+        </div>
+        <div class="cs-row">
+          <dt>2.0</dt>
+          <dd><span class="cs-track"><span class="cs-bar new" id="csBar"></span></span><span class="cs-val" id="csVal">212 ms</span></dd>
+        </div>
+      </dl>
+      <p class="cs-note">Median cold start of the sample app</p>
+    </section>
 
   </div>
-</div>
+</main>
 
 <script>
-  /* Tab bar: click to switch active */
-  const tabs = document.querySelectorAll('.tab-bar .tab:not(.search)');
-  tabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      tabs.forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
+(function () {
+  var reduceQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function calm() { return reduceQuery.matches; }
+
+  /* Platform switch: the same screen, re-dressed as iOS or Android */
+  var liquid = document.querySelector('.c-liquid');
+  var phone = document.getElementById('phone');
+  var tagTarget = document.getElementById('tagTarget');
+  var platButtons = document.querySelectorAll('[data-plat]');
+  var componentFor = { ios: 'UITabBar', android: 'NavigationBar' };
+  var swapTimer = 0;
+  function setPlatform(platform) {
+    platButtons.forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-plat') === platform));
+    });
+    if (liquid.getAttribute('data-platform') === platform) return;
+    function apply() {
+      liquid.setAttribute('data-platform', platform);
+      tagTarget.textContent = componentFor[platform];
+      phone.classList.remove('is-swapping');
+    }
+    clearTimeout(swapTimer);
+    if (calm()) { apply(); return; }
+    phone.classList.add('is-swapping');
+    swapTimer = setTimeout(apply, 150);
+  }
+  platButtons.forEach(function (b) {
+    b.addEventListener('click', function () { setPlatform(b.getAttribute('data-plat')); });
+  });
+
+  /* Tab bar inside the preview */
+  var tabs = document.querySelectorAll('.tab-bar .tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+        t.setAttribute('aria-pressed', String(t === tab));
+      });
     });
   });
 
   /* Bookmark: toggle saved state */
-  document.querySelectorAll('.bookmark').forEach((bm) => {
-    bm.addEventListener('click', () => bm.classList.toggle('off'));
+  document.querySelectorAll('.bookmark').forEach(function (bm) {
+    bm.addEventListener('click', function () {
+      bm.setAttribute('aria-pressed', String(bm.getAttribute('aria-pressed') !== 'true'));
+    });
   });
+
+  /* Install command: copy, then say what happened */
+  var cta = document.getElementById('installCta');
+  var note = document.getElementById('installNote');
+  var restingNote = note.textContent;
+  var noteTimer = 0;
+  function report(message, copied) {
+    note.textContent = message;
+    cta.classList.toggle('is-copied', copied);
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () {
+      note.textContent = restingNote;
+      cta.classList.remove('is-copied');
+    }, 2600);
+  }
+  function legacyCopy(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    area.remove();
+    cta.focus();
+    return ok;
+  }
+  cta.addEventListener('click', function () {
+    var text = cta.getAttribute('data-cmd');
+    function done() { report('Copied. Paste it in a terminal.', true); }
+    function fallback() {
+      if (legacyCopy(text)) done();
+      else report('Clipboard is blocked in this frame.', false);
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+  });
+
+  /* Cold start: the 2.0 bar starts level with 1.9, then drops to its real value */
+  var csBar = document.getElementById('csBar');
+  var csVal = document.getElementById('csVal');
+  if (!calm()) {
+    var from = 640, to = 212, duration = 1100, start = 0;
+    csBar.style.transform = 'scaleX(1)';
+    csVal.textContent = from + ' ms';
+    var step = function (now) {
+      if (!start) start = now;
+      var k = Math.min(1, (now - start) / duration);
+      var eased = 1 - Math.pow(1 - k, 3);
+      var value = from + (to - from) * eased;
+      csBar.style.transform = 'scaleX(' + (value / from).toFixed(4) + ')';
+      csVal.textContent = Math.round(value) + ' ms';
+      if (k < 1) requestAnimationFrame(step);
+      else csBar.style.transform = '';
+    };
+    setTimeout(function () { requestAnimationFrame(step); }, 1000);
+  }
+
+  /* v2.0 hero: glass cards drift with the pointer, deepest the least */
+  var sdk = document.querySelector('.c-sdk');
+  if (window.matchMedia('(pointer: fine)').matches) {
+    var frame = 0, nx = 0, ny = 0;
+    sdk.addEventListener('pointermove', function (e) {
+      if (calm()) return;
+      var r = sdk.getBoundingClientRect();
+      nx = ((e.clientX - r.left) / r.width - 0.5) * 2;
+      ny = ((e.clientY - r.top) / r.height - 0.5) * 2;
+      if (!frame) {
+        frame = requestAnimationFrame(function () {
+          frame = 0;
+          sdk.style.setProperty('--px', nx.toFixed(3));
+          sdk.style.setProperty('--py', ny.toFixed(3));
+        });
+      }
+    });
+    sdk.addEventListener('pointerleave', function () {
+      if (frame) { cancelAnimationFrame(frame); frame = 0; }
+      sdk.style.setProperty('--px', '0');
+      sdk.style.setProperty('--py', '0');
+    });
+  }
+})();
 </script>
 
 </body>

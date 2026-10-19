@@ -7,16 +7,36 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="/ui/assets/fonts.css">
+<script>document.documentElement.classList.add('js');</script>
 <style>
+  :root {
+    --ink: #3a2415;
+    --ink-2: #5a3a22;            /* secondary text, 6:1 on the light sand */
+    --caramel: #c67d3e;
+    --caramel-deep: #9a5424;
+    --espresso: #733616;
+    --cream: #fffaf3;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);
+    --ease-press: cubic-bezier(.34, 1.45, .64, 1);
+    --sh-rest:  0 0 0 2px var(--cream), 0 2px 3px rgba(40,20,8,.18), 0 10px 22px -8px rgba(40,20,8,.45);
+    --sh-hover: 0 0 0 2px var(--cream), 0 4px 8px rgba(40,20,8,.2), 0 18px 30px -10px rgba(40,20,8,.5);
+    --sh-lift:  0 0 0 2px var(--cream), 0 16px 24px rgba(40,20,8,.1), 0 34px 50px -12px rgba(40,20,8,.32);
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     min-height: 100vh;
     font-family: var(--font-inter);
-    color: #3a2415;
+    color: var(--ink);
     background: #e8cfa8;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
+  button { font: inherit; color: inherit; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  :where(a, button):focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
   /* ─── Scene with bg image ───────────────────────────────────── */
   .scene {
@@ -33,150 +53,6 @@
     flex-direction: column;
     align-items: center;
     overflow: hidden;
-  }
-
-  /* ─── Fluffy terrain layers ─────────────────────────────────── */
-  .terrain {
-    position: absolute;
-    left: -5%;
-    right: -5%;
-    bottom: 0;
-    height: 55%;
-    pointer-events: none;
-    z-index: 2;
-  }
-  .hill {
-    position: absolute;
-    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-    filter: blur(1px);
-  }
-  .hill::before {
-    content: '';
-    position: absolute; inset: 0;
-    border-radius: inherit;
-    background-image:
-      radial-gradient(circle at 30% 20%, rgba(255,255,255,.6) 0 1.5px, transparent 2px),
-      radial-gradient(circle at 70% 60%, rgba(255,255,255,.45) 0 1.2px, transparent 1.8px),
-      radial-gradient(circle at 50% 80%, rgba(255,255,255,.35) 0 1px, transparent 1.6px),
-      radial-gradient(circle at 20% 70%, rgba(90,70,180,.3) 0 1.2px, transparent 1.8px),
-      radial-gradient(circle at 85% 30%, rgba(255,255,255,.5) 0 1px, transparent 1.6px);
-    background-size: 8px 8px, 11px 11px, 9px 9px, 13px 13px, 7px 7px;
-    mix-blend-mode: overlay;
-    opacity: .85;
-  }
-  .hill-back {
-    left: -10%; right: -10%;
-    bottom: 12%;
-    height: 60%;
-    background:
-      radial-gradient(ellipse at 30% 30%, #a293ea 0%, #7f6fd1 55%, #5f52a8 100%);
-    box-shadow: inset 0 40px 60px rgba(255,255,255,.35),
-                inset 0 -30px 40px rgba(40,30,90,.35);
-  }
-  .hill-mid-left {
-    left: -12%;
-    bottom: 0;
-    width: 62%;
-    height: 82%;
-    background:
-      radial-gradient(ellipse at 35% 40%, #b7a8f2 0%, #8877cf 50%, #4d4298 100%);
-    box-shadow: inset 0 40px 80px rgba(255,255,255,.45),
-                inset 0 -40px 60px rgba(30,20,80,.45);
-  }
-  .hill-mid-right {
-    right: -12%;
-    bottom: 0;
-    width: 62%;
-    height: 78%;
-    background:
-      radial-gradient(ellipse at 60% 40%, #b5a6f0 0%, #8676ce 50%, #49408f 100%);
-    box-shadow: inset 0 40px 80px rgba(255,255,255,.45),
-                inset 0 -40px 60px rgba(30,20,80,.45);
-  }
-  .hill-front {
-    left: 20%;
-    right: 20%;
-    bottom: -8%;
-    height: 45%;
-    background:
-      radial-gradient(ellipse at 50% 40%, #9f8fe4 0%, #6e5ebe 55%, #3d3480 100%);
-    box-shadow: inset 0 30px 60px rgba(255,255,255,.4),
-                inset 0 -30px 50px rgba(20,10,60,.5);
-  }
-
-  /* ─── Metallic coin spheres ─────────────────────────────────── */
-  .coin {
-    position: absolute;
-    width: 240px;
-    height: 240px;
-    border-radius: 50%;
-    z-index: 3;
-    filter: drop-shadow(0 30px 50px rgba(30,15,90,.45));
-  }
-  .coin-left {
-    bottom: 28%;
-    left: 6%;
-    transform: rotate(-10deg);
-  }
-  .coin-right {
-    bottom: 26%;
-    right: 6%;
-    transform: rotate(12deg);
-  }
-  .coin-face {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background:
-      radial-gradient(circle at 35% 28%,
-        #e8edff 0%, #a9b7ee 18%,
-        #6b7dcf 40%, #3f4fa5 65%,
-        #242b70 88%, #14184a 100%);
-    box-shadow:
-      inset 0 0 30px rgba(255,255,255,.35),
-      inset 0 -20px 40px rgba(10,5,40,.5);
-  }
-  .coin-face::before {
-    content: '';
-    position: absolute;
-    top: 12%; left: 18%;
-    width: 45%; height: 28%;
-    background: radial-gradient(ellipse, rgba(255,255,255,.7) 0%, transparent 70%);
-    border-radius: 50%;
-    filter: blur(6px);
-  }
-  .coin-face::after {
-    content: '';
-    position: absolute;
-    bottom: 14%; right: 22%;
-    width: 30%; height: 18%;
-    background: radial-gradient(ellipse, rgba(180,195,255,.5) 0%, transparent 70%);
-    border-radius: 50%;
-    filter: blur(8px);
-  }
-  .coin-edge {
-    position: absolute;
-    right: -14px;
-    top: 50%;
-    transform: translateY(-50%) rotate(8deg);
-    width: 28px;
-    height: 94%;
-    border-radius: 50%;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        #e4ebff 0px, #e4ebff 1px,
-        #8b9bd6 2px, #8b9bd6 3px,
-        #2b3478 4px, #2b3478 5px
-      ),
-      linear-gradient(90deg, #3f4ba0 0%, #1a1f5c 100%);
-    box-shadow: inset 2px 0 4px rgba(255,255,255,.3),
-                inset -2px 0 4px rgba(0,0,0,.5);
-    z-index: -1;
-  }
-  .coin-right .coin-edge {
-    right: auto; left: -14px;
-    transform: translateY(-50%) rotate(-8deg);
   }
 
   /* ─── Glass card overlay ────────────────────────────────────── */
@@ -206,6 +82,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px;
     padding: 10px 8px 18px;
     border-bottom: 1px solid rgba(255,240,220,.28);
   }
@@ -217,107 +94,100 @@
     font-size: 17px;
     font-weight: 700;
     letter-spacing: -.4px;
-    color: #3a2415;
+    color: var(--ink);
   }
-  .brand-mark {
-    width: 24px;
-    height: 24px;
-    position: relative;
-  }
-  .brand-mark svg { width: 100%; height: 100%; }
+  .brand-mark { width: 24px; height: 24px; }
+  .brand-mark svg { display: block; width: 100%; height: 100%; }
 
-  .navlinks {
-    display: flex;
-    gap: 4px;
-  }
+  .navlinks { display: flex; gap: 4px; }
   .navlink {
     font-family: var(--font-bricolage);
     padding: 7px 14px;
     font-size: 13.5px;
     font-weight: 500;
     letter-spacing: -.1px;
-    color: rgba(58,36,21,.72);
+    color: var(--ink-2);
     text-decoration: none;
     border-radius: 8px;
     transition: background 150ms, color 150ms;
   }
-  .navlink:hover { background: rgba(255,240,220,.3); color: #3a2415; }
-  .navlink.active { color: #3a2415; font-weight: 600; }
+  .navlink:hover { background: rgba(255,240,220,.3); color: var(--ink); }
+  .navlink[aria-current="page"] { color: var(--ink); font-weight: 600; background: rgba(255,244,228,.36); }
 
   .cta-primary {
     font-family: var(--font-bricolage);
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 22px;
+    padding: 10px 20px;
     font-size: 13.5px;
     font-weight: 600;
     letter-spacing: -.1px;
     color: #fff;
-    background: linear-gradient(180deg, #c67d3e 0%, #9a5424 60%, #733616 100%);
+    background: linear-gradient(180deg, #b8712f 0%, #9a5424 60%, #733616 100%);
     border-radius: 100px;
-    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
     box-shadow:
       0 8px 20px -4px rgba(120,60,25,.55),
       inset 0 1px 1px rgba(255,225,195,.4),
       inset 0 -2px 4px rgba(60,25,10,.35);
     transition: transform 150ms, box-shadow 150ms;
-    border: none;
-    cursor: pointer;
   }
   .cta-primary:hover {
-    transform: translateY(-1px);
     box-shadow:
       0 12px 26px -4px rgba(120,60,25,.65),
       inset 0 1px 1px rgba(255,225,195,.45),
       inset 0 -2px 4px rgba(60,25,10,.4);
   }
+  .cta-primary:active { transform: scale(.96); }
+  .cta-primary svg { flex: none; }
 
   /* ─── Hero content ──────────────────────────────────────────── */
   .hero-content {
     position: relative;
     z-index: 4;
     text-align: center;
-    padding: 48px 24px 0;
+    padding: 38px 24px 0;
   }
   .hero-title {
     font-family: var(--font-bricolage);
-    font-size: clamp(2.4rem, 5.2vw, 4.4rem);
+    font-size: clamp(2.3rem, 4.8vw, 4.1rem);
     font-weight: 700;
-    letter-spacing: -1.8px;
-    color: #3a2415;
+    letter-spacing: -.03em;
+    color: var(--ink);
     line-height: 1.05;
-    margin-bottom: 4px;
-    text-shadow: 0 2px 30px rgba(255,240,220,.4);
   }
+  /* each line is its own mask so the words can rise into place */
+  .hero-title .line { display: block; overflow: hidden; padding: .1em 0 .16em; margin: -.1em 0 -.16em; }
+  .hero-title .line > span { display: inline-block; }
   .hero-title .script {
     font-family: var(--font-instrument);
     font-weight: 400;
     font-style: italic;
     font-size: 1.15em;
-    background: linear-gradient(180deg, #d68a48 0%, #8a4620 100%);
+    background: linear-gradient(180deg, #a95f27 0%, #6e3414 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    letter-spacing: -0.5px;
+    letter-spacing: -.01em;
     padding: 0 6px;
   }
   .hero-sub {
-    font-family: var(--font-inter);
-    margin-top: 22px;
-    font-size: 14.5px;
-    font-weight: 400;
-    color: rgba(58,36,21,.72);
-    max-width: 460px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 20px auto 0;
+    max-width: 34em;
+    font-size: 15px;
     line-height: 1.55;
+    color: var(--ink-2);
+    text-wrap: pretty;
   }
 
-  /* ─── Input bar ─────────────────────────────────────────────── */
+  /* ─── Idea field ────────────────────────────────────────────── */
   .input-bar {
+    position: relative;
     margin: 22px auto 0;
-    max-width: 420px;
+    max-width: 430px;
     display: flex;
     align-items: center;
     padding: 6px 6px 6px 20px;
@@ -329,145 +199,95 @@
     box-shadow:
       0 10px 30px -8px rgba(90,50,20,.25),
       inset 0 1px 1px rgba(255,245,225,.5);
+    transition: background .2s, border-color .2s, box-shadow .2s;
+  }
+  .input-bar::after {               /* attention ring for the nav button */
+    content: '';
+    position: absolute; inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
   }
   .input-bar input {
     flex: 1;
+    min-width: 0;
     background: transparent;
     border: none;
     outline: none;
-    font-size: 14px;
-    color: #3a2415;
+    font-size: 14.5px;
+    color: var(--ink);
     font-family: var(--font-inter);
     padding: 10px 8px;
   }
-  .input-bar input::placeholder { color: rgba(58,36,21,.5); }
+  .input-bar input::placeholder { color: rgba(58,36,21,.62); }
+  .input-bar:focus-within {
+    background: rgba(255,245,225,.46);
+    border-color: rgba(255,240,220,.7);
+    box-shadow:
+      0 14px 36px -8px rgba(90,50,20,.3),
+      inset 0 1px 1px rgba(255,245,225,.6),
+      0 0 0 2px var(--espresso);
+  }
+  .input-bar.is-empty {
+    border-color: rgba(150,45,20,.55);
+    box-shadow:
+      0 10px 30px -8px rgba(90,50,20,.25),
+      0 0 0 2px #a3401f;
+  }
+  .input-bar.is-empty input::placeholder { color: #8a3418; }
   .input-bar-btn {
     width: 40px; height: 40px;
     border-radius: 50%;
     border: none;
     cursor: pointer;
-    background: linear-gradient(180deg, #c67d3e 0%, #9a5424 100%);
+    background: linear-gradient(180deg, var(--caramel) 0%, var(--caramel-deep) 100%);
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     box-shadow:
       0 6px 14px -2px rgba(120,60,25,.55),
       inset 0 1px 1px rgba(255,225,195,.4);
-    transition: transform 150ms;
-    flex-shrink: 0;
+    transition: transform 150ms, background .3s;
   }
   .input-bar-btn:hover { transform: translateX(2px); }
-
-  /* ─── Globe — only the top half is visible ──────────────────── */
-  .globe-wrap {
-    position: relative;
-    margin: 28px auto 0;               /* stays fully inside glass-card */
-    width: min(480px, 82%);
-    aspect-ratio: 2 / 1;               /* exact half-dome ratio */
-    overflow: hidden;                  /* crop the lower hemisphere */
-    pointer-events: none;
-  }
-  .globe-canvas-wrap {
-    position: absolute;
-    left: 50%;
-    top: 0;                            /* canvas top flush with wrap top */
-    transform: translateX(-50%);
-    width: 100%;
-    aspect-ratio: 1 / 1;               /* full sphere, wrap crops lower half */
-    pointer-events: auto;
-    filter: drop-shadow(0 -20px 40px rgba(90,50,20,.25));
-  }
-  .globe-canvas-wrap canvas {
-    width: 100% !important;
-    height: 100% !important;
-    border-radius: 50%;
-    cursor: grab;
-    opacity: 0;
-    transition: opacity 1.2s ease;
-    touch-action: none;
-  }
-
-  .globe-label {
-    --gl-rot: 0deg;
-    position: absolute;
-    padding: 6px 11px 5px;
-    color: #fff;
-    font-family: var(--font-bricolage);
-    font-size: 13.5px;
-    font-weight: 600;
-    letter-spacing: .01em;
-    white-space: nowrap;
-    border-radius: 5px;
-    box-shadow:
-      0 1px 3px rgba(0,0,0,.2),
-      0 6px 14px rgba(0,0,0,.12),
-      inset 0 -1px 0 rgba(0,0,0,.18);
-    text-shadow: 0 1px 1px rgba(0,0,0,.25);
-    overflow: hidden;
-    pointer-events: auto;
-    cursor: default;
-    z-index: 5;
-    transform-origin: center center;
-    animation:
-      gl-pop .6s ease-out backwards,
-      gl-float 5.5s ease-in-out infinite;
-    transition: box-shadow .3s ease, filter .3s ease, scale .25s ease;
-  }
-  .globe-label:hover {
-    box-shadow:
-      0 3px 8px rgba(0,0,0,.3),
-      0 14px 28px rgba(0,0,0,.22),
-      inset 0 -1px 0 rgba(0,0,0,.22);
-    filter: brightness(1.08);
-    scale: 1.08;
-    z-index: 9;
-  }
-  .globe-label::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 50%;
-    background: linear-gradient(180deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,.1) 60%, transparent 100%);
-    border-radius: 5px 5px 50% 50%;
-    pointer-events: none;
-  }
-  @keyframes gl-pop {
-    from { opacity: 0; transform: translateY(8px) scale(.9) rotate(var(--gl-rot)); }
-    to   { opacity: 1; transform: translateY(0)   scale(1)  rotate(var(--gl-rot)); }
-  }
-  @keyframes gl-float {
-    0%, 100% { transform: translateY(0)    rotate(var(--gl-rot)); }
-    50%      { transform: translateY(-6px) rotate(calc(var(--gl-rot) + 1.2deg)); }
-  }
-
-  /* ─── Interactive feedback ──────────────────────────────────── */
-  .input-bar:focus-within {
-    background: rgba(255,245,225,.42);
-    border-color: rgba(255,240,220,.7);
-    box-shadow:
-      0 14px 36px -8px rgba(90,50,20,.3),
-      inset 0 1px 1px rgba(255,245,225,.6),
-      0 0 0 3px rgba(198,125,62,.18);
-  }
+  .input-bar-btn:focus-visible { outline-offset: 2px; }
   .input-bar.success .input-bar-btn {
     background: linear-gradient(180deg, #4aa168 0%, #2e7a45 100%);
     box-shadow:
       0 6px 14px -2px rgba(46,122,69,.55),
       inset 0 1px 1px rgba(255,255,255,.3);
   }
-  .cta-primary:active { transform: scale(.96); }
 
-  .globe-canvas-wrap canvas {
-    transition: opacity 1.2s ease, filter .4s ease;
+  .tries {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    font-size: 12.5px;
   }
-  .globe-canvas-wrap:hover canvas { filter: saturate(1.12) brightness(1.04); }
+  /* this row sits over the darker band of sand: full ink plus a soft halo */
+  .tries-label { color: var(--ink); font-weight: 600; margin-right: 2px; text-shadow: 0 0 10px rgba(255,240,220,.7); }
+  .try {
+    font-family: var(--font-bricolage);
+    font-weight: 500;
+    padding: 5px 11px;
+    border-radius: 100px;
+    border: 1px solid rgba(58,36,21,.2);
+    background: rgba(255,244,228,.38);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .try:hover { background: rgba(255,247,236,.7); border-color: rgba(58,36,21,.35); }
 
   .sparkle {
     position: absolute;
     width: 6px; height: 6px;
     border-radius: 50%;
-    background: radial-gradient(circle, #fff 0%, #d68a48 60%, transparent 100%);
+    background: radial-gradient(circle, #fff 0%, var(--spark, var(--caramel)) 60%, transparent 100%);
     pointer-events: none;
     animation: sparkle-pop .7s ease-out forwards;
   }
@@ -476,19 +296,256 @@
     100% { opacity: 0; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(1); }
   }
 
+  /* ─── Stage: the half globe with the kit stuck around it ────── */
+  .stage {
+    /* the sample kit, overwritten by the generator */
+    --k-deep: #3c281b;
+    --k-primary: #a15f36;
+    --k-accent: #66adcc;
+    --k-paper: #f5ebe5;
+    --k-display: 'Darker Grotesque', 'Inter', sans-serif;
+    --k-display-w: 800;
+    --k-display-s: normal;
+    --k-text: 'Instrument Serif', Georgia, serif;
+    position: relative;
+    width: min(860px, 100%);
+    height: 290px;
+    margin: 22px auto 0;
+  }
+  .globe-wrap {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: min(480px, 60%);
+    aspect-ratio: 2 / 1;               /* exact half-dome ratio */
+    overflow: hidden;                  /* crop the lower hemisphere */
+    pointer-events: none;
+  }
+  .globe-canvas-wrap {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: 100%;
+    aspect-ratio: 1 / 1;               /* full sphere, wrap crops lower half */
+    pointer-events: auto;
+    filter: drop-shadow(0 -20px 40px rgba(90,50,20,.25));
+  }
+  .globe-canvas-wrap canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 50%;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 1.2s ease, filter .4s ease;
+    touch-action: pan-y;
+  }
+  .globe-canvas-wrap:hover canvas { filter: saturate(1.12) brightness(1.04); }
+  /* no WebGL or no network: a drawn dome takes the globe's place */
+  .globe-wrap.no-globe .globe-canvas-wrap { display: none; }
+  .globe-wrap.no-globe::before {
+    content: '';
+    position: absolute; left: 0; top: 0;
+    width: 100%; aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, rgba(160,95,45,.32) 1.1px, transparent 1.6px) 0 0 / 9px 9px,
+      radial-gradient(circle at 38% 28%, #fffaf0 0%, #f7e6ca 34%, #e4c49a 72%, #c99a68 100%);
+    box-shadow: inset 0 -30px 60px rgba(120,70,30,.25);
+  }
+
+  .kit { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+  .sticker {
+    --r: 0deg;
+    position: absolute;
+    pointer-events: auto;
+    cursor: default;
+    border-radius: 6px;
+    translate: var(--px, 0px) var(--py, 0px);
+    rotate: var(--r);
+    box-shadow: var(--sh-rest);
+    transition: box-shadow .25s ease;
+  }
+  .sticker:hover { box-shadow: var(--sh-hover); z-index: 2; }
+  .s-name::before, .s-voice::before {          /* printed gloss on the dark stickers */
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 50%;
+    border-radius: 6px 6px 50% 50% / 6px 6px 12px 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,.26), rgba(255,255,255,.05) 60%, transparent);
+    pointer-events: none;
+  }
+
+  .s-name {
+    --r: -6deg; --i: 0;
+    left: 8%; top: 24%;
+    padding: 6px 16px 8px;
+    font-family: var(--k-display);
+    font-weight: var(--k-display-w);
+    font-style: var(--k-display-s);
+    font-size: 32px;
+    line-height: 1;
+    letter-spacing: -.01em;
+    color: var(--cream);
+    background: var(--k-deep);
+  }
+  .s-mark {
+    --r: 8deg; --i: 1;
+    left: 54%; top: 1%;
+    width: 78px; height: 78px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--k-paper);
+  }
+  .s-mark svg { width: 58%; height: 58%; overflow: visible; }
+  .s-mark .mk-p { fill: var(--k-primary); fill-opacity: .94; }
+  .s-mark .mk-c { fill: var(--k-accent); }
+  .s-palette {
+    --r: -3deg; --i: 2;
+    right: 4%; top: 22%;
+    padding: 8px;
+    background: var(--cream);
+  }
+  .swatches { display: flex; gap: 6px; list-style: none; }
+  .swatches li { display: flex; flex-direction: column; gap: 5px; }
+  .sw { display: block; height: 26px; border-radius: 4px; }
+  .sw-deep    { background: var(--k-deep); }
+  .sw-primary { background: var(--k-primary); }
+  .sw-accent  { background: var(--k-accent); }
+  .sw-paper   { background: var(--k-paper); box-shadow: inset 0 0 0 1px rgba(58,36,21,.16); }
+  .hex {
+    font: 600 10.5px/1 var(--font-inter);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: .02em;
+    color: var(--ink-2);
+  }
+  .s-type {
+    --r: 5deg; --i: 3;
+    right: 15%; top: 62%;
+    padding: 8px 14px 9px;
+    background: var(--k-paper);
+    color: var(--ink);
+    text-align: left;
+  }
+  .ty-glyphs { display: flex; align-items: baseline; gap: 10px; line-height: 1; }
+  .ty-d { font-family: var(--k-display); font-weight: var(--k-display-w); font-style: var(--k-display-s); font-size: 34px; }
+  .ty-t { font-family: var(--k-text); font-size: 22px; }
+  .ty-n { display: block; margin-top: 6px; font: 500 11px/1 var(--font-inter); color: var(--ink-2); }
+  .s-voice {
+    --r: 4deg; --i: 4;
+    left: 3%; top: 66%;
+    padding: 7px 13px 7px;
+    font-family: var(--font-bricolage);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    background: var(--k-primary);
+  }
+
+  .kit-note {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    z-index: 6;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: min(440px, calc(100% - 24px));
+    padding: 5px 12px;
+    font: 500 11.5px/1.3 var(--font-inter);
+    color: var(--ink);
+    white-space: nowrap;
+    background: rgba(255,249,240,.9);
+    border: 1px solid rgba(58,36,21,.12);
+    border-radius: 100px;
+    box-shadow: 0 4px 14px -6px rgba(60,30,10,.35);
+  }
+  .kn-idea { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .kn-local { flex: none; color: var(--ink-2); }
+
+  /* ─── Motion: one entrance, then the kit regrows on demand ──── */
+  @media (prefers-reduced-motion: no-preference) {
+    .js .topnav { opacity: 0; translate: 0 -8px; }
+    .js .hero-title .line > span { translate: 0 118%; }
+    .js .hero-sub, .js .input-bar, .js .tries { opacity: 0; translate: 0 12px; }
+    .js .globe-wrap { opacity: 0; translate: 0 40px; }
+    .js .kit-note { opacity: 0; }
+    .js .sticker { opacity: 0; scale: 1.3; box-shadow: var(--sh-lift); }
+
+    .is-ready .topnav { opacity: 1; translate: none; transition: opacity .6s ease, translate .7s var(--ease-out); }
+    .is-ready .hero-title .line > span { translate: none; transition: translate 1s var(--ease-out) .08s; }
+    .is-ready .hero-title .line + .line > span { transition-delay: .17s; }
+    .is-ready .hero-sub, .is-ready .input-bar, .is-ready .tries {
+      opacity: 1; translate: none;
+      transition: opacity .6s ease, translate .8s var(--ease-out), background .2s, border-color .2s, box-shadow .2s;
+    }
+    .is-ready .hero-sub { transition-delay: .32s, .32s, 0s, 0s, 0s; }
+    .is-ready .input-bar { transition-delay: .4s, .4s, 0s, 0s, 0s; }
+    .is-ready .tries { transition-delay: .46s, .46s, 0s, 0s, 0s; }
+    .is-ready .globe-wrap { opacity: 1; translate: none; transition: opacity .9s ease .5s, translate 1.2s var(--ease-out) .5s; }
+    .is-ready .kit-note { opacity: 1; transition: opacity .5s ease 1.5s; }
+
+    /* stickers are pressed on one by one: big soft shadow → tight shadow */
+    .is-ready .sticker {
+      opacity: 1; scale: 1; box-shadow: var(--sh-rest);
+      transition: opacity .3s ease, scale .6s var(--ease-press), box-shadow .6s var(--ease-out);
+      transition-delay: calc(.95s + var(--i) * 90ms);
+    }
+    .is-ready .stage.is-settled .sticker { transition-delay: 0s; }
+    .is-ready .stage.is-regrowing .sticker { transition-delay: calc(var(--i) * 80ms); }
+    .is-ready .stage .sticker.is-lifted {
+      opacity: 0; scale: .7;
+      transition: opacity .16s ease, scale .2s ease-in, box-shadow .2s ease;
+      transition-delay: calc(var(--i) * 30ms);
+    }
+    .is-ready .stage .sticker:hover { scale: 1.06; box-shadow: var(--sh-hover); transition-delay: 0s; }
+
+    .input-bar.is-empty { animation: nudge-x .42s ease; }
+    .input-bar.is-nudged::after { animation: ring .9s var(--ease-out); }
+  }
+  @keyframes nudge-x {
+    0%, 100% { translate: 0 0; }
+    20% { translate: -6px 0; }
+    40% { translate: 5px 0; }
+    60% { translate: -3px 0; }
+    80% { translate: 2px 0; }
+  }
+  @keyframes ring {
+    from { box-shadow: 0 0 0 0 rgba(115,54,22,.5); }
+    to   { box-shadow: 0 0 0 14px rgba(115,54,22,0); }
+  }
+
   @media (max-width: 860px) {
     .navlinks { display: none; }
-    .coin { width: 170px; height: 170px; }
-    .coin-left { left: -4%; }
-    .coin-right { right: -4%; }
+  }
+  @media (max-width: 720px) {
+    .stage { height: auto; margin-top: 20px; }
+    .kit {
+      position: static;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 14px 12px;
+      padding: 4px 6px 18px;
+    }
+    .sticker { position: relative; left: auto; right: auto; top: auto; }
+    .s-name { font-size: 26px; }
+    .s-mark { width: 64px; height: 64px; }
+    .globe-wrap { position: relative; left: auto; transform: none; width: min(420px, 100%); margin: 0 auto; }
   }
   @media (max-width: 560px) {
     .scene { padding: 18px 14px 0; }
-    .glass-card { padding: 12px 18px 0; border-radius: 22px; }
+    .glass-card { padding: 12px 16px 0; border-radius: 22px; }
     .brand { font-size: 15px; }
-    .cta-primary { padding: 8px 16px; font-size: 12.5px; }
-    .hero-content { padding: 48px 14px 120px; }
-    .coin { width: 130px; height: 130px; }
+    .cta-primary { padding: 8px 14px; font-size: 12.5px; }
+    .hero-content { padding: 30px 4px 0; }
+    .hero-sub { font-size: 14px; }
+    .s-voice { white-space: normal; }
   }
 </style>
 </head>
@@ -496,9 +553,9 @@
 
 <div class="scene">
   <div class="glass-card">
-    <nav class="topnav">
+    <nav class="topnav" aria-label="Main">
       <div class="brand">
-        <div class="brand-mark">
+        <div class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 32 32" fill="none">
             <defs>
               <linearGradient id="sx-grad" x1="0" y1="0" x2="1" y2="1">
@@ -512,196 +569,454 @@
         Bloomly
       </div>
       <div class="navlinks">
-        <a href="#" class="navlink active">Home</a>
-        <a href="#" class="navlink">Studio</a>
-        <a href="#" class="navlink">Templates</a>
+        <a href="#" class="navlink" aria-current="page">Studio</a>
+        <a href="#" class="navlink">Kits</a>
         <a href="#" class="navlink">Pricing</a>
-        <a href="#" class="navlink">Showcase</a>
-        <a href="#" class="navlink">Contact</a>
+        <a href="#" class="navlink">Journal</a>
       </div>
-      <a href="#" class="cta-primary">Get Started</a>
+      <button type="button" class="cta-primary" id="plant">
+        Plant an idea
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21v-9"/><path d="M12 12c0-4 3-7 7-7 0 4-3 7-7 7z"/><path d="M12 15c0-3-2.5-5.5-5.5-5.5 0 3 2.5 5.5 5.5 5.5z"/></svg>
+      </button>
     </nav>
 
-    <div class="hero-content">
+    <main class="hero-content">
       <h1 class="hero-title">
-        Where Ideas Bloom into<br>
-        <span class="script">Living Brands</span>
+        <span class="line"><span>Where ideas bloom into</span></span>
+        <span class="line"><span class="script">living brands</span></span>
       </h1>
       <p class="hero-sub">
-        Craft your brand's universe with AI-powered design tools — from logo
-        to launch, built for founders who want to move fast and feel premium.
+        Describe what you’re making in one line. Bloomly grows the name, mark,
+        palette and voice from it, then keeps them in tune as the company changes.
       </p>
-      <form class="input-bar" onsubmit="event.preventDefault()">
-        <input type="email" placeholder="Enter email address" />
-        <button type="submit" class="input-bar-btn" aria-label="Submit">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      <form class="input-bar" id="idea-form" novalidate>
+        <label class="sr-only" for="idea">Your idea, in one line</label>
+        <input id="idea" name="idea" type="text" maxlength="60" autocomplete="off" spellcheck="false"
+               placeholder="a night bakery in Lyon" aria-describedby="idea-error">
+        <button type="submit" class="input-bar-btn" aria-label="Grow a brand kit">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
+        <span class="sr-only" id="idea-error" aria-live="assertive"></span>
       </form>
-
-      <div class="globe-wrap" id="globe-wrap">
-        <div class="globe-canvas-wrap">
-          <canvas id="cobe-globe"></canvas>
-        </div>
-        <!-- Decorative floating labels around the visible (top) hemisphere -->
-        <div class="globe-label" style="--gl-rot:-8deg; background:#c67d3e; top: 12%; left: 10%;  animation-delay:.10s, 0s;">bold identity</div>
-        <div class="globe-label" style="--gl-rot:5deg;  background:#8a4620; top: 28%; left: 50%; margin-left:-60px; animation-delay:.25s, .6s;">brand magic</div>
-        <div class="globe-label" style="--gl-rot:-3deg; background:#d68a48; top: 10%; right: 12%; animation-delay:.40s, 1.2s;">logo love</div>
-        <div class="globe-label" style="--gl-rot:7deg;  background:#6b3820; top: 62%; left: 4%;   animation-delay:.55s, .3s;">made to bloom</div>
-        <div class="globe-label" style="--gl-rot:-5deg; background:#e8a96a; top: 66%; right: 5%;  animation-delay:.70s, .9s;">premium feel</div>
-        <div class="globe-label" style="--gl-rot:4deg;  background:#9a5424; top: 48%; left: 20%;  animation-delay:.85s, 1.5s;">founder-first</div>
-        <div class="globe-label" style="--gl-rot:-6deg; background:#733616; top: 46%; right: 22%; animation-delay:1.00s, 2s;">brand soul</div>
+      <div class="tries">
+        <span class="tries-label">Try</span>
+        <button type="button" class="try" data-idea="a bike repair co-op">bike repair co-op</button>
+        <button type="button" class="try" data-idea="a swim club in Brest">swim club in Brest</button>
+        <button type="button" class="try" data-idea="a jazz bar">jazz bar</button>
       </div>
-    </div>
+
+      <section class="stage" id="stage" aria-label="Sample brand kit">
+        <div class="globe-wrap" id="globe-wrap">
+          <div class="globe-canvas-wrap">
+            <canvas id="cobe-globe" aria-hidden="true"></canvas>
+          </div>
+        </div>
+
+        <div class="kit">
+          <div class="sticker s-name" data-d="14"><span class="sr-only">Name:</span> <span data-k="name">Alder</span></div>
+          <div class="sticker s-mark" data-d="6">
+            <svg viewBox="-30 -30 60 60" aria-hidden="true" data-k="mark"><g class="mk-p"><ellipse cx="0" cy="-13" rx="8.7" ry="12" transform="rotate(15.0)"/><ellipse cx="0" cy="-13" rx="8.7" ry="12" transform="rotate(105.0)"/><ellipse cx="0" cy="-13" rx="8.7" ry="12" transform="rotate(195.0)"/><ellipse cx="0" cy="-13" rx="8.7" ry="12" transform="rotate(285.0)"/></g><circle class="mk-c" r="6"/></svg>
+            <span class="sr-only" data-k="mark-label">Mark: a bloom with 4 petals</span>
+          </div>
+          <div class="sticker s-palette" data-d="10">
+            <span class="sr-only">Palette:</span>
+            <ul class="swatches">
+              <li><i class="sw sw-deep" aria-hidden="true"></i><span class="hex" data-k="hex-deep">#3C281B</span></li>
+              <li><i class="sw sw-primary" aria-hidden="true"></i><span class="hex" data-k="hex-primary">#A15F36</span></li>
+              <li><i class="sw sw-accent" aria-hidden="true"></i><span class="hex" data-k="hex-accent">#66ADCC</span></li>
+              <li><i class="sw sw-paper" aria-hidden="true"></i><span class="hex" data-k="hex-paper">#F5EBE5</span></li>
+            </ul>
+          </div>
+          <div class="sticker s-type" data-d="8">
+            <span class="sr-only">Type pairing:</span>
+            <span class="ty-glyphs" aria-hidden="true"><span class="ty-d">Aa</span><span class="ty-t">Aa</span></span>
+            <span class="ty-n" data-k="type">Darker / Instrument</span>
+          </div>
+          <div class="sticker s-voice" data-d="12"><span class="sr-only">Voice:</span> <span data-k="voice">plainspoken · neighbourly · bright</span></div>
+        </div>
+
+        <p class="kit-note" role="status">
+          <span class="kn-idea" data-k="note">Sample kit · “a night bakery in Lyon”</span>
+          <span class="kn-local">made in your browser</span>
+        </p>
+      </section>
+    </main>
 
   </div>
 </div>
 
-<script type="module">
-  import createGlobe from 'https://cdn.jsdelivr.net/npm/cobe@0.6.3/+esm';
+<script>
+  /* Entrance gate: kept apart from the main script so the page always appears. */
+  (function () {
+    var root = document.documentElement, done = false;
+    function ready() {
+      if (done) return;
+      done = true;
+      root.classList.add('is-ready');
+      setTimeout(function () {
+        var s = document.getElementById('stage');
+        if (s) s.classList.add('is-settled');
+      }, 2000);
+    }
+    function go() {
+      requestAnimationFrame(function () { requestAnimationFrame(ready); });
+    }
+    var fonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    Promise.race([fonts, new Promise(function (r) { setTimeout(r, 700); })]).then(go, go);
+    setTimeout(ready, 2500);   /* never leave the page hidden if frames are throttled */
+  })();
+</script>
 
-  const canvas = document.getElementById('cobe-globe');
-  const wrap = document.getElementById('globe-wrap');
-  if (canvas && wrap) {
-    let phi = 0;
-    let width = 0;
-    let dragging = null;
-    let phiOff = 0, thetaOff = 0;
-    let dragPhi = 0, dragTheta = 0;
-    let paused = false;
+<script>
+(function () {
+  var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var FINE = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  var $ = function (s, el) { return (el || document).querySelector(s); };
+  var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
 
-    const markers = [
-      { location: [48.86, 2.35],    size: .04 },
-      { location: [35.68, 139.65],  size: .04 },
-      { location: [40.71, -74.01],  size: .05 },
-      { location: [-33.87, 151.21], size: .04 },
-      { location: [51.51, -0.13],   size: .04 },
-      { location: [-22.91, -43.17], size: .04 },
-      { location: [55.75, 37.62],   size: .04 },
-      { location: [25.2, 55.27],    size: .04 },
-      { location: [1.35, 103.82],   size: .04 },
-      { location: [-34.6, -58.38],  size: .04 },
-    ];
+  /* ─── Kit generator: deterministic, runs in the page, sends nothing ── */
+  var NAMES = ['Morrow','Fenna','Ostra','Halde','Brisa','Oriel','Sorrel','Tallow','Pell','Quill',
+    'Sable','Umber','Calla','Ember','Hollis','Kiln','Larch','Nettle','Plume','Rook','Tansy','Vela',
+    'Wren','Alder','Bramble','Cove','Dorie','Fable','Gild','Hearth','Isla','Juniper','Loam','Mira','Nook','Odile'];
+  var TONES = ['warm','plainspoken','unhurried','exact','curious','generous','calm','bright','steady',
+    'playful','candid','neighbourly','quiet','bold'];
+  var PAIRS = [
+    { d: "'Bricolage Grotesque'", w: 700, s: 'normal', dn: 'Bricolage', t: "'Inter'", tn: 'Inter' },
+    { d: "'Instrument Serif'", w: 400, s: 'italic', dn: 'Instrument', t: "'Inter'", tn: 'Inter' },
+    { d: "'Darker Grotesque'", w: 800, s: 'normal', dn: 'Darker', t: "'Instrument Serif'", tn: 'Instrument' },
+    { d: "'Instrument Serif'", w: 400, s: 'normal', dn: 'Instrument', t: "'Bricolage Grotesque'", tn: 'Bricolage' },
+    { d: "'Bricolage Grotesque'", w: 300, s: 'normal', dn: 'Bricolage Light', t: "'Instrument Serif'", tn: 'Instrument' }
+  ];
+  /* words in the idea steer the hue family, so a bakery comes out warm and a swim club cool */
+  var FAMILIES = [
+    { re: /bak|bread|coffee|roast|caf|choc|pastr|cook|kitchen|food|pizza|wine|beer|brew/, h: [18, 34] },
+    { re: /sea|surf|swim|boat|sail|fish|ocean|water|lake|river|pool/, h: [192, 212] },
+    { re: /garden|plant|flower|tea|herb|farm|forest|tree|seed|veg/, h: [100, 150] },
+    { re: /night|bar\b|jazz|music|cinema|theat|dream|sleep|moon/, h: [262, 296] },
+    { re: /bike|cycl|repair|tool|climb|gym|sport|fit|skate|garage/, h: [4, 16] },
+    { re: /kid|toy|candy|sweet|baby|play|school/, h: [328, 348] },
+    { re: /book|paper|print|letter|studio|design|craft|wood/, h: [36, 48] }
+  ];
 
-    const onResize = () => {
-      const r = canvas.getBoundingClientRect();
-      width = r.width;
+  function hash(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function rngFrom(seed) {
+    var a = seed;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
-    onResize();
-    window.addEventListener('resize', onResize);
-
-    const W = Math.max(640, width * 2);
-    let currentSpeed = 0.003;
-    let targetSpeed = 0.003;
-
-    const globe = createGlobe(canvas, {
-      devicePixelRatio: 2,
-      width: W,
-      height: W,
-      phi: 0,
-      theta: 0.22,
-      dark: 0,
-      diffuse: 1.2,
-      mapSamples: 16000,
-      mapBrightness: 6,
-      baseColor:   [0.98, 0.90, 0.78],
-      markerColor: [0.78, 0.45, 0.20],
-      glowColor:   [1, 0.95, 0.85],
-      markers,
-      onRender: (state) => {
-        currentSpeed += (targetSpeed - currentSpeed) * 0.05;
-        if (!paused) phi += currentSpeed;
-        state.phi = phi + phiOff + dragPhi;
-        state.theta = 0.22 + thetaOff + dragTheta;
-      },
+  }
+  function hsl(h, s, l) {
+    s /= 100; l /= 100;
+    var k = function (n) { return (n + h / 30) % 12; };
+    var a = s * Math.min(l, 1 - l);
+    var f = function (n) { return l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); };
+    return '#' + [f(0), f(8), f(4)].map(function (x) { return Math.round(x * 255).toString(16).padStart(2, '0'); }).join('');
+  }
+  function lum(hex) {
+    var c = [1, 3, 5].map(function (i) {
+      var v = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
     });
-
-    requestAnimationFrame(() => canvas.style.opacity = '1');
-
-    // Globe accelerates on hover
-    const cWrap = canvas.closest('.globe-canvas-wrap');
-    cWrap?.addEventListener('pointerenter', () => { targetSpeed = 0.010; });
-    cWrap?.addEventListener('pointerleave', () => { targetSpeed = 0.003; });
-
-    // Drag interaction
-    canvas.addEventListener('pointerdown', (e) => {
-      dragging = { x: e.clientX, y: e.clientY };
-      canvas.style.cursor = 'grabbing';
-      paused = true;
-    });
-    window.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      dragPhi   = (e.clientX - dragging.x) / 300;
-      dragTheta = (e.clientY - dragging.y) / 1000;
-    }, { passive: true });
-    window.addEventListener('pointerup', () => {
-      if (dragging) {
-        phiOff += dragPhi;
-        thetaOff += dragTheta;
-        dragPhi = 0; dragTheta = 0;
-      }
-      dragging = null;
-      canvas.style.cursor = 'grab';
-      paused = false;
-    });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  function contrast(a, b) {
+    var x = lum(a), y = lum(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
   }
 
-  /* ─── Nav link click → active state ─────────────────────────── */
-  document.querySelectorAll('.navlink').forEach((link) => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      document.querySelectorAll('.navlink').forEach(l => l.classList.remove('active'));
-      link.classList.add('active');
-    });
+  function grow(raw) {
+    var idea = raw.trim().replace(/\s+/g, ' ').slice(0, 60);
+    var key = idea.toLowerCase();
+    var rnd = rngFrom(hash(key));
+    var pick = function (arr) { return arr[Math.floor(rnd() * arr.length)]; };
+    var fam = null;
+    for (var i = 0; i < FAMILIES.length; i++) { if (FAMILIES[i].re.test(key)) { fam = FAMILIES[i]; break; } }
+    var h = Math.round(fam ? fam.h[0] + rnd() * (fam.h[1] - fam.h[0]) : rnd() * 360);
+    var ha = Math.round(h + (rnd() < 0.5 ? 34 + rnd() * 30 : 160 + rnd() * 40)) % 360;
+    /* the voice sticker carries white text: darken the primary until it holds 4.6:1 */
+    var pl = 42, primary = hsl(h, 50, pl);
+    while (contrast(primary, '#ffffff') < 4.6 && pl > 22) { pl -= 2; primary = hsl(h, 50, pl); }
+    var deep = hsl(h, 38, 17), accent = hsl(ha, 50, 60), paper = hsl(h, 45, 93);
+    var tones = [];
+    while (tones.length < 3) { var t = pick(TONES); if (tones.indexOf(t) < 0) tones.push(t); }
+    var pair = pick(PAIRS);
+    var petals = 4 + Math.floor(rnd() * 5);
+    var shape = pick(['round', 'leaf', 'disc']);
+    var turn = Math.round(rnd() * 45);
+    var name = pick(NAMES);
+    var lower = pair.s === 'normal' && rnd() < 0.35;
+    return {
+      idea: idea, name: lower ? name.toLowerCase() : name,
+      deep: deep, primary: primary, accent: accent, paper: paper,
+      tones: tones, pair: pair, petals: petals, shape: shape, turn: turn
+    };
+  }
+
+  function markSVG(k) {
+    var n = k.petals, step = 360 / n, out = '';
+    for (var i = 0; i < n; i++) {
+      var a = (i * step + k.turn).toFixed(1);
+      if (k.shape === 'round') {
+        out += '<ellipse cx="0" cy="-13" rx="' + (26 / n + 2.2).toFixed(1) + '" ry="12" transform="rotate(' + a + ')"/>';
+      } else if (k.shape === 'leaf') {
+        out += '<path d="M0 -3C7 -9 7 -21 0 -27C-7 -21 -7 -9 0 -3Z" transform="rotate(' + a + ')"/>';
+      } else {
+        out += '<circle cx="0" cy="-15" r="' + (15 * Math.sin(Math.PI / n) + 1.5).toFixed(1) + '" transform="rotate(' + a + ')"/>';
+      }
+    }
+    return '<g class="mk-p">' + out + '</g><circle class="mk-c" r="' + (k.shape === 'disc' ? 7 : 6) + '"/>';
+  }
+
+  /* ─── Painting the kit onto the stickers ─────────────────────────── */
+  var stage = $('#stage');
+  var stickers = $$('.sticker', stage);
+  var slot = function (k) { return stage.querySelector('[data-k="' + k + '"]'); };
+
+  function paint(kit) {
+    var st = stage.style;
+    st.setProperty('--k-deep', kit.deep);
+    st.setProperty('--k-primary', kit.primary);
+    st.setProperty('--k-accent', kit.accent);
+    st.setProperty('--k-paper', kit.paper);
+    st.setProperty('--k-display', kit.pair.d + ', sans-serif');
+    st.setProperty('--k-display-w', String(kit.pair.w));
+    st.setProperty('--k-display-s', kit.pair.s);
+    st.setProperty('--k-text', kit.pair.t + ', serif');
+    slot('name').textContent = kit.name;
+    slot('mark').innerHTML = markSVG(kit);
+    slot('mark-label').textContent = 'Mark: a bloom with ' + kit.petals + ' petals';
+    ['deep', 'primary', 'accent', 'paper'].forEach(function (c) { slot('hex-' + c).textContent = kit[c].toUpperCase(); });
+    slot('type').textContent = kit.pair.dn + ' / ' + kit.pair.tn;
+    slot('voice').textContent = kit.tones.join(' · ');
+    slot('note').textContent = 'Sample kit · “' + kit.idea + '”';
+  }
+
+  var timers = [];
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function regrow(kit) {
+    timers.forEach(clearTimeout); timers = [];
+    if (REDUCED) { paint(kit); return; }
+    stage.classList.add('is-regrowing');
+    stickers.forEach(function (s) { s.classList.add('is-lifted'); });
+    later(function () {
+      paint(kit);
+      stickers.forEach(function (s) { s.classList.remove('is-lifted'); });
+      later(function () { stage.classList.remove('is-regrowing'); }, 1100);
+    }, 280);
+  }
+
+  /* ─── Idea form ──────────────────────────────────────────────────── */
+  var form = $('#idea-form'), input = $('#idea'), err = $('#idea-error');
+  var btn = form.querySelector('.input-bar-btn');
+  var ICON_GO = btn.innerHTML;
+  var ICON_DONE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+  var PLACEHOLDER = input.placeholder;
+  var doneT = 0;
+
+  function restart(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+  function flagEmpty() {
+    restart(form, 'is-empty');
+    input.setAttribute('aria-invalid', 'true');
+    input.placeholder = 'Write a few words first';
+    err.textContent = 'Write a few words first, or pick one of the examples.';
+    input.focus();
+  }
+  input.addEventListener('input', function () {
+    if (!form.classList.contains('is-empty')) return;
+    form.classList.remove('is-empty');
+    input.removeAttribute('aria-invalid');
+    input.placeholder = PLACEHOLDER;
+    err.textContent = '';
   });
 
-  /* ─── CTA magnet effect ─────────────────────────────────────── */
-  const cta = document.querySelector('.cta-primary');
-  if (cta) {
-    const strength = 0.35;
-    cta.addEventListener('pointermove', (e) => {
-      const r = cta.getBoundingClientRect();
-      const x = (e.clientX - r.left - r.width / 2) * strength;
-      const y = (e.clientY - r.top  - r.height / 2) * strength;
-      cta.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    });
-    cta.addEventListener('pointerleave', () => { cta.style.transform = ''; });
-  }
-
-  /* ─── Email submit → success animation + sparkle burst ────── */
-  const form = document.querySelector('.input-bar');
-  const btn = form?.querySelector('.input-bar-btn');
-  form?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const input = form.querySelector('input');
-    if (!input?.value) { input?.focus(); return; }
-
-    form.classList.add('success');
-    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-
-    // Sparkle burst around the submit button
-    const brect = btn.getBoundingClientRect();
-    const frect = form.getBoundingClientRect();
-    const cx = brect.left - frect.left + brect.width / 2;
-    const cy = brect.top  - frect.top  + brect.height / 2;
-    for (let i = 0; i < 12; i++) {
-      const s = document.createElement('span');
+  function sparkle(color) {
+    if (REDUCED) return;
+    form.style.setProperty('--spark', color);
+    var b = btn.getBoundingClientRect(), f = form.getBoundingClientRect();
+    var cx = b.left - f.left + b.width / 2, cy = b.top - f.top + b.height / 2;
+    for (var i = 0; i < 12; i++) {
+      var s = document.createElement('span');
       s.className = 'sparkle';
+      s.setAttribute('aria-hidden', 'true');
       s.style.left = cx + 'px';
-      s.style.top  = cy + 'px';
-      const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.4;
-      const dist = 40 + Math.random() * 30;
+      s.style.top = cy + 'px';
+      var angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.4;
+      var dist = 40 + Math.random() * 30;
       s.style.setProperty('--sx', Math.cos(angle) * dist + 'px');
       s.style.setProperty('--sy', Math.sin(angle) * dist + 'px');
       form.appendChild(s);
-      setTimeout(() => s.remove(), 750);
+      setTimeout(s.remove.bind(s), 750);
     }
+  }
 
-    setTimeout(() => {
-      form.classList.remove('success');
-      input.value = '';
-      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
-    }, 2200);
+  function submitIdea() {
+    var idea = input.value.trim();
+    if (!idea) { flagEmpty(); return; }
+    var kit = grow(idea);
+    regrow(kit);
+    form.classList.add('success');
+    btn.innerHTML = ICON_DONE;
+    sparkle(kit.accent);
+    clearTimeout(doneT);
+    doneT = setTimeout(function () { form.classList.remove('success'); btn.innerHTML = ICON_GO; }, 1600);
+  }
+  form.addEventListener('submit', function (e) { e.preventDefault(); submitIdea(); });
+
+  $$('.try').forEach(function (b) {
+    b.addEventListener('click', function () {
+      input.value = b.getAttribute('data-idea');
+      input.dispatchEvent(new Event('input'));
+      submitIdea();
+    });
   });
+
+  /* ─── Nav: active state + the CTA hands focus to the idea field ───── */
+  $$('.navlink').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      $$('.navlink').forEach(function (l) { l.removeAttribute('aria-current'); });
+      link.setAttribute('aria-current', 'page');
+    });
+  });
+
+  var cta = $('#plant');
+  cta.addEventListener('click', function () {
+    input.focus({ preventScroll: true });
+    input.select();
+    if (!REDUCED) restart(form, 'is-nudged');
+  });
+  if (FINE && !REDUCED) {
+    cta.addEventListener('pointermove', function (e) {
+      var r = cta.getBoundingClientRect();
+      var x = (e.clientX - r.left - r.width / 2) * 0.3;
+      var y = (e.clientY - r.top - r.height / 2) * 0.3;
+      cta.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
+    });
+    cta.addEventListener('pointerleave', function () { cta.style.transform = ''; });
+  }
+
+  /* ─── Stickers lean with the pointer, each at its own depth ──────── */
+  if (FINE && !REDUCED) {
+    var tx = 0, ty = 0, px = 0, py = 0, raf = 0;
+    var step = function () {
+      px += (tx - px) * 0.08; py += (ty - py) * 0.08;
+      stickers.forEach(function (s) {
+        var d = +s.getAttribute('data-d') || 8;
+        s.style.setProperty('--px', (px * d).toFixed(2) + 'px');
+        s.style.setProperty('--py', (py * d).toFixed(2) + 'px');
+      });
+      raf = (Math.abs(tx - px) > 0.002 || Math.abs(ty - py) > 0.002) ? requestAnimationFrame(step) : 0;
+    };
+    var kick = function () { if (!raf) raf = requestAnimationFrame(step); };
+    document.addEventListener('pointermove', function (e) {
+      if (window.innerWidth <= 720) { tx = ty = 0; kick(); return; }
+      var r = stage.getBoundingClientRect();
+      tx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 2)));
+      ty = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / r.height));
+      kick();
+    }, { passive: true });
+    document.documentElement.addEventListener('pointerleave', function () { tx = ty = 0; kick(); });
+  }
+
+  /* ─── Globe (cobe), loaded on demand; a drawn dome if it can't start ── */
+  var canvas = $('#cobe-globe'), gwrap = $('#globe-wrap');
+  var MARKERS = [
+    { location: [48.86, 2.35],    size: .04 },
+    { location: [35.68, 139.65],  size: .04 },
+    { location: [40.71, -74.01],  size: .05 },
+    { location: [-33.87, 151.21], size: .04 },
+    { location: [51.51, -0.13],   size: .04 },
+    { location: [-22.91, -43.17], size: .04 },
+    { location: [55.75, 37.62],   size: .04 },
+    { location: [25.2, 55.27],    size: .04 },
+    { location: [1.35, 103.82],   size: .04 },
+    { location: [-34.6, -58.38],  size: .04 }
+  ];
+  function noGlobe() { gwrap.classList.add('no-globe'); }
+
+  function startGlobe(createGlobe) {
+    var size = canvas.getBoundingClientRect().width || 480;
+    var W = Math.max(640, Math.round(size * 2));
+    var BASE = REDUCED ? 0 : 0.003;
+    var speed = BASE, target = BASE;
+    var phi = 0, phiOff = 0, thetaOff = 0, dPhi = 0, dTheta = 0, drag = null;
+    var clampT = function (t) { return Math.max(-0.2, Math.min(0.5, t)); };
+    var globe;
+    try {
+      globe = createGlobe(canvas, {
+        devicePixelRatio: 2,
+        width: W,
+        height: W,
+        phi: 0,
+        theta: 0.22,
+        dark: 0,
+        diffuse: 1.2,
+        mapSamples: 16000,
+        mapBrightness: 6,
+        baseColor:   [0.98, 0.90, 0.78],
+        markerColor: [0.78, 0.45, 0.20],
+        glowColor:   [1, 0.95, 0.85],
+        markers: MARKERS,
+        onRender: function (state) {
+          speed += (target - speed) * 0.05;
+          if (!drag) phi += speed;
+          state.phi = phi + phiOff + dPhi;
+          state.theta = 0.22 + clampT(thetaOff + dTheta);
+        }
+      });
+    } catch (e) { noGlobe(); return; }
+    requestAnimationFrame(function () { canvas.style.opacity = '1'; });
+
+    var cWrap = canvas.parentNode;
+    cWrap.addEventListener('pointerenter', function () { if (!REDUCED) target = 0.01; });
+    cWrap.addEventListener('pointerleave', function () { target = BASE; });
+
+    canvas.addEventListener('pointerdown', function (e) {
+      drag = { x: e.clientX, y: e.clientY };
+      canvas.style.cursor = 'grabbing';
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* capture is optional */ }
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      dPhi = (e.clientX - drag.x) / 300;
+      dTheta = (e.clientY - drag.y) / 1000;
+    });
+    var end = function () {
+      if (!drag) return;
+      phiOff += dPhi;
+      thetaOff = clampT(thetaOff + dTheta);
+      dPhi = 0; dTheta = 0; drag = null;
+      canvas.style.cursor = '';
+    };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('lostpointercapture', end);
+
+    /* stop drawing while the globe is off screen or the tab is hidden */
+    if (globe && typeof globe.toggle === 'function') {
+      var onScreen = true;
+      var sync = function () { globe.toggle(onScreen && !document.hidden); };
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (es) { onScreen = es[0].isIntersecting; sync(); }).observe(gwrap);
+      }
+      document.addEventListener('visibilitychange', sync);
+    }
+  }
+
+  if (canvas && gwrap) {
+    import('https://cdn.jsdelivr.net/npm/cobe@0.6.3/+esm')
+      .then(function (m) { startGlobe(m.default); })
+      .catch(noGlobe);
+  }
+})();
 </script>
 
 </body>

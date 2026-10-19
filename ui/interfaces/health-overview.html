@@ -3,24 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>Health Overview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="/ui/assets/fonts.css">
 <style>
+  :root {
+    --bg: #141a12;
+    --card: #1f241d;
+    --line: rgba(255,255,255,.07);
+    --ink: #fff;
+    --ink-2: rgba(255,255,255,.74);
+    --ink-3: rgba(255,255,255,.58);
+    --lime: #d4e660;
+    --cream: #ece0a0;
+    --lav: #caaade;
+    --amber: #e89040;
+    --ease: cubic-bezier(.22,1,.36,1);
+    --gut: 12px;
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     width: 100%; height: 100%;
-    font-family: var(--font-inter);
-    background: #141a12;
-    color: #fff;
+    font-family: var(--font-inter, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+    background: var(--bg);
+    color: var(--ink);
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
+  button {
+    appearance: none; background: none; border: 0; color: inherit; font: inherit;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+
+  /* The phone frame can be shorter than the content: the screen scrolls, the page never does. */
   .screen {
     width: 100%; height: 100%;
+    max-width: 440px; margin: 0 auto;
     display: flex; flex-direction: column;
-    overflow: hidden;
+    overflow-x: hidden; overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    padding-bottom: var(--gut);
   }
+  .screen::-webkit-scrollbar { display: none; }
 
   /* ── STATUS BAR ── */
   .status {
@@ -32,156 +60,228 @@
   .status-icons { display: flex; align-items: center; gap: 5px; }
 
   /* ── NAV ── */
-  .nav {
-    display: flex; align-items: center; justify-content: center;
-    padding: 10px 20px 4px;
-    position: relative; flex-shrink: 0;
-  }
-  .nav-back { position: absolute; left: 20px; font-size: 22px; font-weight: 200; color: rgba(255,255,255,.7); line-height: 1; }
-  .nav-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+  .nav { padding: 10px 20px 2px; flex-shrink: 0; text-align: center; }
+  .nav h1 { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
 
   /* ── RINGS ── */
   .rings-wrap {
+    position: relative;
     display: flex; align-items: center; justify-content: center;
-    padding: 4px 0 2px;
+    padding: 4px 0;
     flex-shrink: 0;
   }
+  /* Grows on a tall phone (390x844), stays compact in a short frame */
+  .rings-wrap svg { display: block; width: clamp(168px, 27vh, 216px); height: auto; aspect-ratio: 1; }
+  .ring { cursor: pointer; transition: opacity .24s var(--ease); }
+  .rings-wrap[data-focus] .ring { opacity: .18; }
+  .rings-wrap[data-focus="stress"] .ring[data-ring="stress"],
+  .rings-wrap[data-focus="sleep"]  .ring[data-ring="sleep"],
+  .rings-wrap[data-focus="calm"]   .ring[data-ring="calm"] { opacity: 1; }
 
-  /* Ring fill animations — from 0 to final dasharray */
-  @keyframes ring-outer {
-    from { stroke-dasharray: 0 490; }
-    to   { stroke-dasharray: 392 490; }
+  /* Arc and end cap share duration and easing, so the darker cap rides the tip of its arc. */
+  .arc { animation: arc-draw 1.1s var(--ease) var(--d) backwards; }
+  .cap-end {
+    transform-origin: 100px 100px;
+    transform: rotate(var(--a));
+    animation: cap-sweep 1.1s var(--ease) var(--d) backwards;
   }
-  @keyframes ring-mid {
-    from { stroke-dasharray: 0 383; }
-    to   { stroke-dasharray: 276 383; }
-  }
-  @keyframes ring-inner {
-    from { stroke-dasharray: 0 276; }
-    to   { stroke-dasharray: 166 276; }
-  }
-  /* End caps fade in when their ring finishes */
-  @keyframes cap-in {
-    from { opacity: 0; transform-origin: 100px 100px; scale: 0; }
-    to   { opacity: 1; scale: 1; }
-  }
-  .ring-outer { animation: ring-outer 1.4s cubic-bezier(.4,0,.2,1) .3s both; }
-  .ring-mid   { animation: ring-mid   1.4s cubic-bezier(.4,0,.2,1) .5s both; }
-  .ring-inner { animation: ring-inner 1.4s cubic-bezier(.4,0,.2,1) .7s both; }
+  @keyframes arc-draw  { from { stroke-dasharray: 0 999; } }
+  @keyframes cap-sweep { from { transform: rotate(0deg); } }
 
-  .cap-end-outer { animation: cap-in .25s ease .3s both; }
-  .cap-end-mid   { animation: cap-in .25s ease .5s both; }
-  .cap-end-inner { animation: cap-in .25s ease .7s both; }
+  .ring-center {
+    position: absolute; left: 50%; top: 50%;
+    width: 64px;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; pointer-events: none;
+    opacity: 0; transform: translate(-50%,-50%) scale(.92);
+    transition: opacity .2s var(--ease), transform .26s var(--ease);
+  }
+  .rings-wrap[data-focus] .ring-center { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  .ring-center span { font-size: 19px; font-weight: 700; letter-spacing: -.6px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ring-center small { margin-top: 3px; font-size: 10px; color: var(--ink-2); white-space: nowrap; }
 
-  /* ── STATS ── */
+  /* ── STATS (they are the rings' legend: pressing one isolates its ring) ── */
   .stats {
-    display: flex; justify-content: center; align-items: flex-start; gap: 16px;
-    padding: 2px 16px 10px;
+    display: flex; justify-content: center; gap: 2px;
+    padding: 0 8px 6px;
     flex-shrink: 0;
   }
-  .stat { display: flex; flex-direction: column; align-items: flex-start; }
-  .stat-num {
-    font-size: 18px; font-weight: 700; letter-spacing: -.5px; line-height: 1.15; color: #fff;
+  .stat {
+    display: flex; flex-direction: column; align-items: flex-start;
+    padding: 6px 8px; border-radius: 12px; text-align: left;
+    transition: background-color .18s var(--ease), box-shadow .18s var(--ease);
+    animation: rise .5s var(--ease) calc(.3s + var(--i) * 60ms) backwards;
   }
-  .stat-num small { font-size: 12px; font-weight: 400; letter-spacing: 0; color: rgba(255,255,255,.5); }
+  .stat[aria-pressed="true"] { background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+  .stat-num { font-size: 18px; font-weight: 700; letter-spacing: -.5px; line-height: 1.15; white-space: nowrap; }
+  .stat-num small { font-size: 12px; font-weight: 400; letter-spacing: 0; color: var(--ink-2); }
+  .count { display: inline-block; font-variant-numeric: tabular-nums; }
   .stat-label {
-    display: flex; align-items: center; gap: 4px;
-    font-size: 10px; color: rgba(255,255,255,.38); margin-top: 2px; white-space: nowrap;
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--ink-3); margin-top: 2px; white-space: nowrap;
   }
   .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-lime { background: var(--lime); }
+  .dot-cream { background: var(--cream); }
+  .dot-lav { background: var(--lav); }
 
-  /* Stats fade+slide up */
-  @keyframes stat-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: none; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
   }
-  .stats .stat:nth-child(1) { animation: stat-in .5s ease 1.4s both; }
-  .stats .stat:nth-child(2) { animation: stat-in .5s ease 1.55s both; }
-  .stats .stat:nth-child(3) { animation: stat-in .5s ease 1.7s both; }
 
   /* ── CARDS ── */
   .card {
-    margin: 0 12px 7px;
-    background: rgba(255,255,255,.045);
-    border: 1px solid rgba(255,255,255,.07);
+    margin: 0 var(--gut) var(--gut);
+    background: var(--card);
+    border: 1px solid var(--line);
     border-radius: 16px;
-    padding: 12px 14px;
+    padding: 14px;
     flex-shrink: 0;
+    animation: rise .6s var(--ease) var(--d) backwards;
   }
   .card-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+    margin-bottom: 10px;
   }
-  .card-title { font-size: 13px; font-weight: 600; }
-  .pill {
-    display: flex; align-items: center; gap: 3px;
-    font-size: 10px; font-weight: 500; color: rgba(255,255,255,.35);
-    background: rgba(255,255,255,.08); border-radius: 20px;
-    padding: 3px 9px;
-  }
-
-  @keyframes card-in {
-    from { opacity: 0; transform: translateY(18px); }
-    to   { opacity: 1; transform: none; }
-  }
-  .card:nth-of-type(1) { animation: card-in .55s cubic-bezier(.25,1,.5,1) 1.85s both; }
-  .card:nth-of-type(2) { animation: card-in .55s cubic-bezier(.25,1,.5,1) 2.05s both; }
+  .card-head h2 { font-size: 13px; font-weight: 600; }
+  .card-cap { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   /* ── MOOD CHART ── */
-  .mood-area { position: relative; height: 76px; }
-  .mood-col {
-    position: absolute; display: flex; flex-direction: column; align-items: center;
-    width: 14.28%;
+  .mood-plot { position: relative; height: 94px; }
+  .mood-svg {
+    position: absolute; left: 0; top: 0;
+    width: 100%; height: 74px;
+    overflow: visible;
+    animation: wipe .9s var(--ease) .62s backwards;
   }
-  .mood-emoji { position: absolute; font-size: 18px; line-height: 1; }
-  .mood-tick {
-    position: absolute; bottom: 16px;
-    width: 1px; background: rgba(255,255,255,.09);
-  }
-  .mood-date {
-    position: absolute; bottom: 0;
-    font-size: 9px; color: rgba(255,255,255,.25); white-space: nowrap;
-    transform: translateX(-50%); left: 50%;
+  .mood-line { fill: none; stroke: var(--lime); stroke-width: 1.75; stroke-linecap: round; opacity: .85; }
+  @keyframes wipe {
+    from { clip-path: inset(0 100% 0 0); }
+    to   { clip-path: inset(0 0 0 0); }
   }
 
-  /* Mood emojis staggered bounce in */
-  @keyframes emoji-in {
-    0%   { opacity: 0; transform: scale(0) translateY(-6px); }
-    60%  { transform: scale(1.25) translateY(2px); }
-    100% { opacity: 1; transform: scale(1) translateY(0); }
+  .mood-days {
+    position: absolute; inset: 0;
+    display: grid; grid-template-columns: repeat(7, 1fr);
   }
-  .mood-col:nth-child(1) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.1s  both; }
-  .mood-col:nth-child(2) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.22s both; }
-  .mood-col:nth-child(3) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.34s both; }
-  .mood-col:nth-child(4) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.46s both; }
-  .mood-col:nth-child(5) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.58s both; }
-  .mood-col:nth-child(6) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.70s both; }
-  .mood-col:nth-child(7) .mood-emoji { animation: emoji-in .4s cubic-bezier(.34,1.56,.64,1) 2.82s both; }
+  .day { position: relative; height: 100%; border-radius: 10px; transition: background-color .18s var(--ease); }
+  .day:focus-visible { outline-offset: -2px; }
+  .day-emoji {
+    position: absolute; left: 50%; top: calc(var(--y) * 1px);
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 16px; line-height: 1;
+    background: var(--card);
+    transform: translate(-50%, calc(-50% + var(--lift, 0px))) scale(var(--sc, 1));
+    transition: transform .22s var(--ease), box-shadow .22s var(--ease);
+    animation: pop .45s var(--ease) calc(.7s + var(--i) * 60ms) backwards;
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
+  }
+  .day[aria-checked="true"] .day-emoji { --sc: 1.12; box-shadow: 0 0 0 1.5px var(--lime); }
+  .day-rule {
+    position: absolute; left: 50%; width: 1px;
+    top: calc(var(--y) * 1px + 15px); bottom: 18px;
+    background: linear-gradient(rgba(212,230,96,.55), rgba(212,230,96,0));
+    opacity: 0; transition: opacity .2s var(--ease);
+  }
+  .day[aria-checked="true"] .day-rule { opacity: 1; }
+  .day-date {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    font-size: 11px; line-height: 16px; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+    transition: color .18s var(--ease);
+  }
+  .day[aria-checked="true"] .day-date { color: var(--ink); font-weight: 600; }
 
-  /* ── PROGRESS ── */
-  .prog { margin-top: 9px; }
-  .prog:first-child { margin-top: 0; }
-  .prog-row {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 5px;
+  .mood-readout {
+    margin-top: 8px;
+    font-size: 12px; line-height: 16px; color: var(--ink-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .prog-label { font-size: 12px; color: rgba(255,255,255,.5); }
-  .prog-value { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.6); }
-  .prog-track { height: 6px; background: rgba(255,255,255,.08); border-radius: 100px; overflow: hidden; }
-  .prog-fill { height: 100%; border-radius: 100px; }
+  .mood-readout b { color: var(--ink); font-weight: 600; }
 
-  @keyframes bar-in {
-    from { width: 0; }
+  /* ── WORK / LIFE: one day on a 24 h ribbon ── */
+  .ribbon {
+    position: relative; height: 14px; border-radius: 7px;
+    background-color: rgba(255,255,255,.06);
+    background-image:
+      linear-gradient(90deg, transparent calc(25% - .5px), rgba(255,255,255,.14) 0 calc(25% + .5px), transparent 0),
+      linear-gradient(90deg, transparent calc(50% - .5px), rgba(255,255,255,.14) 0 calc(50% + .5px), transparent 0),
+      linear-gradient(90deg, transparent calc(75% - .5px), rgba(255,255,255,.14) 0 calc(75% + .5px), transparent 0);
   }
-  .bar-work  { animation: bar-in .9s cubic-bezier(.4,0,.2,1) 2.2s both; }
-  .bar-sleep { animation: bar-in .9s cubic-bezier(.4,0,.2,1) 2.4s both; }
+  .ribbon-fill {
+    position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+    animation: wipe .8s var(--ease) .78s backwards;
+  }
+  .seg {
+    position: absolute; top: 0; bottom: 0; border-radius: 4px;
+    transition: left .32s var(--ease), width .32s var(--ease), opacity .2s var(--ease);
+  }
+  .seg-sleep { background: linear-gradient(90deg, #c8b450, var(--cream)); }
+  .seg-work  { background: linear-gradient(90deg, #d27c34, var(--amber)); }
+  .seg-future {
+    top: 0; bottom: 0; right: 0;
+    background: repeating-linear-gradient(-45deg, rgba(255,255,255,.09) 0 2px, transparent 2px 5px);
+    opacity: 0;
+    transition: left .32s var(--ease), opacity .2s var(--ease);
+  }
+  .ribbon.is-today .seg-future { opacity: 1; }
+  .now {
+    position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px;
+    background: var(--ink); border-radius: 1px;
+    opacity: 0; visibility: hidden;
+    transition: opacity .2s var(--ease), visibility .2s;
+    animation: fade .3s var(--ease) 1.5s backwards; /* once, after the ribbon wipe */
+  }
+  .ribbon.is-today .now { opacity: 1; visibility: visible; }
+  .ribbon:not(.is-today) .now::after { animation-play-state: paused; }
+  .now::before, .now::after {
+    content: ""; position: absolute; left: 50%; top: -3px;
+    width: 6px; height: 6px; margin-left: -3px; border-radius: 50%;
+    background: var(--ink);
+  }
+  .now::after { animation: pulse 2.4s ease-out 1.8s infinite; }
+  @keyframes pulse {
+    from { transform: scale(1); opacity: .7; }
+    to   { transform: scale(3.2); opacity: 0; }
+  }
+  @keyframes fade { from { opacity: 0; } }
+
+  .ribbon-scale {
+    display: flex; justify-content: space-between;
+    margin-top: 5px;
+    font-size: 10px; line-height: 12px; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .wl-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; }
+  .wl-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+  .wl-item b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .key { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .key-work { background: var(--amber); }
+  .key-sleep { background: var(--cream); }
+  .key-free { box-shadow: inset 0 0 0 1px rgba(255,255,255,.4); }
+  .wl-insight { margin-top: 8px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+
+  /* Hover only where a pointer can hover: a tap on the phone must not leave a stuck state */
+  @media (hover: hover) {
+    .stat:hover:not([aria-pressed="true"]) { background: rgba(255,255,255,.04); }
+    .day:hover { background: rgba(255,255,255,.03); }
+    .day:hover .day-emoji { --lift: -2px; }
+    .day:hover .day-date { color: var(--ink-2); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
-<div class="screen">
+<main class="screen">
 
-  <!-- Status bar -->
-  <div class="status">
+  <!-- Status bar (decorative) -->
+  <div class="status" aria-hidden="true">
     <div class="status-time">9:41</div>
     <div class="status-icons">
       <svg width="16" height="11" viewBox="0 0 16 11" fill="white">
@@ -204,15 +304,14 @@
     </div>
   </div>
 
-  <!-- Nav -->
-  <div class="nav">
-    <div class="nav-back">‹</div>
-    <div class="nav-title">Health Overview</div>
-  </div>
+  <header class="nav">
+    <h1>Health Overview</h1>
+  </header>
 
-  <!-- Activity rings -->
-  <div class="rings-wrap">
-    <svg width="192" height="192" viewBox="0 0 200 200" overflow="visible">
+  <!-- Goal rings: each arc is the stat below it, as a share of its goal -->
+  <div class="rings-wrap" id="rings">
+    <svg width="176" height="176" viewBox="0 0 200 200" overflow="visible" role="img"
+      aria-label="Goals: no stress 56 of 70 days, sleep quality 79 percent, meditation 23 of 40 days">
       <defs>
         <linearGradient id="g-lime" x1="1" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#d4e660"/>
@@ -228,144 +327,263 @@
         </linearGradient>
       </defs>
 
-      <!-- Tracks -->
-      <circle cx="100" cy="100" r="78" fill="none" stroke="rgba(212,230,96,.1)"  stroke-width="13"/>
-      <circle cx="100" cy="100" r="61" fill="none" stroke="rgba(236,224,160,.1)" stroke-width="13"/>
-      <circle cx="100" cy="100" r="44" fill="none" stroke="rgba(202,170,222,.1)" stroke-width="13"/>
+      <!-- No stress: 56 / 70 days = 80% -->
+      <g class="ring" data-ring="stress">
+        <circle cx="100" cy="100" r="78" fill="none" stroke="rgba(212,230,96,.1)" stroke-width="13"/>
+        <circle class="arc" style="--d:.1s" cx="100" cy="100" r="78" fill="none" stroke="url(#g-lime)" stroke-width="13"
+          stroke-dasharray="392.07 490.09" stroke-linecap="round" transform="rotate(-90 100 100)"/>
+        <circle cx="100" cy="22" r="6.5" fill="#d4e660"/>
+        <circle class="cap-end" style="--d:.1s;--a:288deg" cx="100" cy="22" r="6.5" fill="#a0bc30"/>
+      </g>
 
-      <!-- Outer ring — lime — 80% -->
-      <circle class="ring-outer" cx="100" cy="100" r="78" fill="none" stroke="url(#g-lime)" stroke-width="13"
-        stroke-dasharray="392 490" stroke-linecap="round"
-        transform="rotate(-90 100 100)"/>
+      <!-- Sleep quality: 79% -->
+      <g class="ring" data-ring="sleep">
+        <circle cx="100" cy="100" r="61" fill="none" stroke="rgba(236,224,160,.1)" stroke-width="13"/>
+        <circle class="arc" style="--d:.18s" cx="100" cy="100" r="61" fill="none" stroke="url(#g-cream)" stroke-width="13"
+          stroke-dasharray="302.78 383.27" stroke-linecap="round" transform="rotate(-90 100 100)"/>
+        <circle cx="100" cy="39" r="6.5" fill="#ece0a0"/>
+        <circle class="cap-end" style="--d:.18s;--a:284.4deg" cx="100" cy="39" r="6.5" fill="#c4a840"/>
+      </g>
 
-      <!-- Middle ring — cream — 72% -->
-      <circle class="ring-mid" cx="100" cy="100" r="61" fill="none" stroke="url(#g-cream)" stroke-width="13"
-        stroke-dasharray="276 383" stroke-linecap="round"
-        transform="rotate(-90 100 100)"/>
-
-      <!-- Inner ring — lavender — 60% -->
-      <circle class="ring-inner" cx="100" cy="100" r="44" fill="none" stroke="url(#g-lav)" stroke-width="13"
-        stroke-dasharray="166 276" stroke-linecap="round"
-        transform="rotate(-90 100 100)"/>
-
-      <!-- Start caps at 12 o'clock -->
-      <circle cx="100" cy="22" r="6.5" fill="#d4e660"/>
-      <circle cx="100" cy="39" r="6.5" fill="#ece0a0"/>
-      <circle cx="100" cy="56" r="6.5" fill="#caaade"/>
-
-      <!-- End caps (fade in after ring fills) -->
-      <circle class="cap-end-outer" cx="100" cy="22" r="6.5" fill="#a0bc30" transform="rotate(288 100 100)"/>
-      <circle class="cap-end-mid"   cx="100" cy="39" r="6.5" fill="#c4a840" transform="rotate(259 100 100)"/>
-      <circle class="cap-end-inner" cx="100" cy="56" r="6.5" fill="#9060bc" transform="rotate(216 100 100)"/>
+      <!-- Meditation: 23 / 40 days = 57.5% -->
+      <g class="ring" data-ring="calm">
+        <circle cx="100" cy="100" r="44" fill="none" stroke="rgba(202,170,222,.1)" stroke-width="13"/>
+        <circle class="arc" style="--d:.26s" cx="100" cy="100" r="44" fill="none" stroke="url(#g-lav)" stroke-width="13"
+          stroke-dasharray="158.96 276.46" stroke-linecap="round" transform="rotate(-90 100 100)"/>
+        <circle cx="100" cy="56" r="6.5" fill="#caaade"/>
+        <circle class="cap-end" style="--d:.26s;--a:207deg" cx="100" cy="56" r="6.5" fill="#9060bc"/>
+      </g>
     </svg>
-  </div>
-
-  <!-- Stats -->
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-num"><span class="count" data-target="56">0</span> <small>days</small></div>
-      <div class="stat-label"><span class="dot" style="background:#d4e660"></span>No Stress</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num"><span class="count" data-target="79">0</span><small>%</small></div>
-      <div class="stat-label"><span class="dot" style="background:#ece0a0"></span>Sleep Quality</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num"><span class="count" data-target="23">0</span> <small>days</small></div>
-      <div class="stat-label"><span class="dot" style="background:#caaade"></span>Meditation</div>
+    <div class="ring-center" id="ring-center" aria-hidden="true">
+      <span><b>0</b>%</span>
+      <small></small>
     </div>
   </div>
 
-  <!-- Mood tracker -->
-  <div class="card">
+  <div class="stats" role="group" aria-label="Show one ring">
+    <button class="stat" type="button" aria-pressed="false" style="--i:0" data-ring="stress" data-pct="80" data-sub="of 70 days">
+      <span class="stat-num"><span class="count">56</span><small>/70 days</small></span>
+      <span class="stat-label"><span class="dot dot-lime"></span>No stress</span>
+    </button>
+    <button class="stat" type="button" aria-pressed="false" style="--i:1" data-ring="sleep" data-pct="79" data-sub="quality">
+      <span class="stat-num"><span class="count">79</span><small>%</small></span>
+      <span class="stat-label"><span class="dot dot-cream"></span>Sleep quality</span>
+    </button>
+    <button class="stat" type="button" aria-pressed="false" style="--i:2" data-ring="calm" data-pct="58" data-sub="of 40 days">
+      <span class="stat-num"><span class="count">23</span><small>/40 days</small></span>
+      <span class="stat-label"><span class="dot dot-lav"></span>Meditation</span>
+    </button>
+  </div>
+
+  <!-- Mood: one point per day; picking a day also drives the work/life ribbon below -->
+  <section class="card" style="--d:.45s" aria-labelledby="mood-h">
     <div class="card-head">
-      <div class="card-title">Mood tracker</div>
-      <div class="pill">Week <svg width="8" height="6" viewBox="0 0 8 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 1.5 4 4.5 7 1.5"/></svg></div>
+      <h2 id="mood-h">Mood tracker</h2>
+      <span class="card-cap">9–15 Oct</span>
     </div>
-    <div class="mood-area">
-      <div class="mood-col" style="left:0%">
-        <div class="mood-emoji" style="top:0px">😊</div>
-        <div class="mood-tick" style="top:22px;height:36px"></div>
-        <div class="mood-date">09/10</div>
-      </div>
-      <div class="mood-col" style="left:14.28%">
-        <div class="mood-emoji" style="top:6px">😊</div>
-        <div class="mood-tick" style="top:28px;height:30px"></div>
-        <div class="mood-date">10/10</div>
-      </div>
-      <div class="mood-col" style="left:28.56%">
-        <div class="mood-emoji" style="top:16px">😟</div>
-        <div class="mood-tick" style="top:38px;height:20px"></div>
-        <div class="mood-date">11/10</div>
-      </div>
-      <div class="mood-col" style="left:42.84%">
-        <div class="mood-emoji" style="top:0px">😊</div>
-        <div class="mood-tick" style="top:22px;height:36px"></div>
-        <div class="mood-date">12/10</div>
-      </div>
-      <div class="mood-col" style="left:57.12%">
-        <div class="mood-emoji" style="top:28px">😤</div>
-        <div class="mood-tick" style="top:50px;height:8px"></div>
-        <div class="mood-date">13/10</div>
-      </div>
-      <div class="mood-col" style="left:71.4%">
-        <div class="mood-emoji" style="top:38px">😠</div>
-        <div class="mood-tick" style="top:58px;height:0px"></div>
-        <div class="mood-date">14/10</div>
-      </div>
-      <div class="mood-col" style="left:85.68%">
-        <div class="mood-emoji" style="top:8px">😌</div>
-        <div class="mood-tick" style="top:30px;height:28px"></div>
-        <div class="mood-date">15/10</div>
+    <div class="mood-plot">
+      <svg class="mood-svg" viewBox="0 0 100 74" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="g-mood" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#d4e660" stop-opacity=".2"/>
+            <stop offset="100%" stop-color="#d4e660" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path id="mood-area" fill="url(#g-mood)"/>
+        <path id="mood-line" class="mood-line" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <div class="mood-days" role="radiogroup" aria-label="Pick a day">
+        <button class="day" type="button" role="radio" aria-checked="false" tabindex="-1" style="--y:13;--i:0" aria-label="Fri 9 Oct, happy"
+          data-label="Fri 9 Oct" data-mood="Happy" data-note="Long walk at lunch" data-sleep="0,7.5" data-work="9,17.5">
+          <span class="day-rule"></span><span class="day-emoji" aria-hidden="true">😊</span><span class="day-date">9</span>
+        </button>
+        <button class="day" type="button" role="radio" aria-checked="false" tabindex="-1" style="--y:20.7;--i:1" aria-label="Sat 10 Oct, happy"
+          data-label="Sat 10 Oct" data-mood="Happy" data-note="No alarm, slow breakfast" data-sleep="0.5,8.5" data-work="">
+          <span class="day-rule"></span><span class="day-emoji" aria-hidden="true">😊</span><span class="day-date">10</span>
+        </button>
+        <button class="day" type="button" role="radio" aria-checked="false" tabindex="-1" style="--y:33.2;--i:2" aria-label="Sun 11 Oct, worried"
+          data-label="Sun 11 Oct" data-mood="Worried" data-note="Opened the work inbox" data-sleep="1,7" data-work="14,17">
+          <span class="day-rule"></span><span class="day-emoji" aria-hidden="true">😟</span><span class="day-date">11</span>
+        </button>
+        <button class="day" type="button" role="radio" aria-checked="false" tabindex="-1" style="--y:13;--i:3" aria-label="Mon 12 Oct, happy"
+          data-label="Mon 12 Oct" data-mood="Happy" data-note="Good team sync" data-sleep="0,7.5" data-work="9,18">
+          <span class="day-rule"></span><span class="day-emoji" aria-hidden="true">😊</span><span class="day-date">12</span>
+        </button>
+        <button class="day" type="button" role="radio" aria-checked="false" tabindex="-1" style="--y:48.5;--i:4" aria-label="Tue 13 Oct, frustrated"
+          data-label="Tue 13 Oct" data-mood="Frustrated" data-note="Deadline moved up" data-sleep="0.5,6.5" data-work="8.5,19.5">
+          <span class="day-rule"></span><span class="day-emoji" aria-hidden="true">😤</span><span class="day-date">13</span>
+        </button>
+        <button class="day" type="button" role="radio" aria-checked="false" tabindex="-1" style="--y:61;--i:5" aria-label="Wed 14 Oct, angry"
+          data-label="Wed 14 Oct" data-mood="Angry" data-note="Skipped lunch, late call" data-sleep="0.75,6.25" data-work="8.5,19">
+          <span class="day-rule"></span><span class="day-emoji" aria-hidden="true">😠</span><span class="day-date">14</span>
+        </button>
+        <button class="day" type="button" role="radio" aria-checked="true" tabindex="0" style="--y:23.1;--i:6" aria-label="Today, Thu 15 Oct, relieved"
+          data-label="Thu 15 Oct" data-mood="Relieved" data-note="Slept in, calmer start" data-sleep="0,7.5" data-work="9,9.683" data-now="9.683">
+          <span class="day-rule"></span><span class="day-emoji" aria-hidden="true">😌</span><span class="day-date">Today</span>
+        </button>
       </div>
     </div>
-  </div>
+    <p class="mood-readout"><b id="mood-word">Relieved</b> · <span id="mood-note" aria-live="polite">Slept in, calmer start</span></p>
+  </section>
 
-  <!-- Work / Life Balance -->
-  <div class="card">
+  <!-- Work / life balance for the picked day -->
+  <section class="card" style="--d:.55s" aria-labelledby="wl-h">
     <div class="card-head">
-      <div class="card-title">Work/Life Balance</div>
-      <div class="pill">Today <svg width="8" height="6" viewBox="0 0 8 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 1.5 4 4.5 7 1.5"/></svg></div>
+      <h2 id="wl-h">Work/life balance</h2>
+      <span class="card-cap" id="wl-day">Today, so far</span>
     </div>
-    <div class="prog">
-      <div class="prog-row">
-        <div class="prog-label">Work</div>
-        <div class="prog-value">10.5h</div>
+    <div class="ribbon is-today" id="wl-ribbon" role="img" aria-label="Today so far: sleep 7.5h, work 41m, free 1.5h">
+      <div class="ribbon-fill">
+        <span class="seg seg-sleep" id="seg-sleep" style="left:0%;width:31.25%"></span>
+        <span class="seg seg-work" id="seg-work" style="left:37.5%;width:2.846%"></span>
+        <span class="seg seg-future" id="seg-future" style="left:40.346%"></span>
       </div>
-      <div class="prog-track">
-        <div class="bar-work prog-fill" style="width:68%;background:linear-gradient(90deg,#c0aa40,#dece68)"></div>
-      </div>
+      <span class="now" id="seg-now" style="left:40.346%"></span>
     </div>
-    <div class="prog">
-      <div class="prog-row">
-        <div class="prog-label">Sleep</div>
-        <div class="prog-value">5.5h</div>
-      </div>
-      <div class="prog-track">
-        <div class="bar-sleep prog-fill" style="width:36%;background:linear-gradient(90deg,#6a9828,#96c840)"></div>
-      </div>
+    <div class="ribbon-scale" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+    <div class="wl-legend">
+      <span class="wl-item"><i class="key key-work"></i>Work <b id="v-work">41m</b></span>
+      <span class="wl-item"><i class="key key-sleep"></i>Sleep <b id="v-sleep">7.5h</b></span>
+      <span class="wl-item"><i class="key key-free"></i>Free <b id="v-free">1.5h</b></span>
     </div>
-  </div>
+    <p class="wl-insight" id="wl-insight">Day in progress. Sleep goal met.</p>
+  </section>
 
-</div>
+</main>
 <script>
-  /* Count-up for stat numbers, triggered at animation delay */
-  function countUp(el, target, duration, delay) {
-    setTimeout(() => {
-      const start = performance.now();
-      const tick = (now) => {
-        const t = Math.min((now - start) / duration, 1);
-        const ease = 1 - Math.pow(1 - t, 3);
-        el.textContent = Math.round(ease * target);
-        if (t < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }, delay);
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var SLEEP_GOAL = 7.5, WORK_CAP = 9;
+
+  function $(id) { return document.getElementById(id); }
+  function fmt(h) {
+    if (h <= 0) return '0h';
+    if (h < 1) return Math.round(h * 60) + 'm';
+    return (Math.round(h * 10) / 10) + 'h';
+  }
+  function tween(el, from, to, dur, delay) {
+    cancelAnimationFrame(el._raf); clearTimeout(el._wait);
+    if (reduce) { el.textContent = to; return; }
+    el._wait = setTimeout(function () {
+      var t0 = null;
+      function step(now) {
+        if (t0 === null) t0 = now;
+        var t = Math.min((now - t0) / dur, 1);
+        el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - t, 3)));
+        if (t < 1) el._raf = requestAnimationFrame(step);
+      }
+      el._raf = requestAnimationFrame(step);
+    }, delay || 0);
   }
 
-  document.querySelectorAll('.count').forEach((el, i) => {
-    countUp(el, +el.dataset.target, 700, 1400 + i * 150);
+  /* Stat count-up, timed with the stats' rise. Width is reserved so the row does not jitter. */
+  document.querySelectorAll('.count').forEach(function (el, i) {
+    var target = +el.textContent;
+    el.style.minWidth = String(target).length + 'ch';
+    if (reduce) return;
+    el.textContent = '0';
+    tween(el, 0, target, 900, 300 + i * 60);
   });
+
+  /* Stats as the rings' legend: press one to isolate its ring and read its share of the goal. */
+  var rings = $('rings'), cNum = $('ring-center').querySelector('b'), cSub = $('ring-center').querySelector('small');
+  var stats = [].slice.call(document.querySelectorAll('.stat'));
+  stats.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var on = b.getAttribute('aria-pressed') !== 'true';
+      stats.forEach(function (x) { x.setAttribute('aria-pressed', String(on && x === b)); });
+      if (!on) { rings.removeAttribute('data-focus'); return; }
+      var from = rings.hasAttribute('data-focus') ? (+cNum.textContent || 0) : 0;
+      rings.setAttribute('data-focus', b.dataset.ring);
+      cSub.textContent = b.dataset.sub;
+      tween(cNum, from, +b.dataset.pct, 420, 0);
+    });
+  });
+  /* A tap on a ring does the same as its stat (the stats stay the keyboard path). */
+  [].slice.call(document.querySelectorAll('.ring')).forEach(function (g) {
+    g.addEventListener('click', function () {
+      var b = stats.filter(function (x) { return x.dataset.ring === g.dataset.ring; })[0];
+      if (b) b.click();
+    });
+  });
+
+  /* Mood curve: a Catmull-Rom spline through the emoji centres, flat to both edges. */
+  var days = [].slice.call(document.querySelectorAll('.day'));
+  var pts = days.map(function (b, i) {
+    return [(i + 0.5) / days.length * 100, parseFloat(b.style.getPropertyValue('--y'))];
+  });
+  pts.unshift([0, pts[0][1]]);
+  pts.push([100, pts[pts.length - 1][1]]);
+  function r(n) { return Math.round(n * 100) / 100; }
+  var d = 'M' + r(pts[0][0]) + ',' + r(pts[0][1]);
+  for (var i = 0; i < pts.length - 1; i++) {
+    var p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += ' C' + r(p1[0] + (p2[0] - p0[0]) / 6) + ',' + r(p1[1] + (p2[1] - p0[1]) / 6) +
+         ' ' + r(p2[0] - (p3[0] - p1[0]) / 6) + ',' + r(p2[1] - (p3[1] - p1[1]) / 6) +
+         ' ' + r(p2[0]) + ',' + r(p2[1]);
+  }
+  $('mood-line').setAttribute('d', d);
+  $('mood-area').setAttribute('d', d + ' L100,74 L0,74 Z');
+
+  /* One picked day drives the mood readout and the 24 h ribbon. */
+  var ribbon = $('wl-ribbon'), segSleep = $('seg-sleep'), segWork = $('seg-work');
+  var segFuture = $('seg-future'), segNow = $('seg-now');
+  function span(s) { return s ? s.split(',').map(Number) : null; }
+  function place(el, range) {
+    if (!range) { el.style.width = '0%'; el.style.opacity = '0'; return; }
+    el.style.opacity = '';
+    el.style.left = (range[0] / 24 * 100) + '%';
+    el.style.width = ((range[1] - range[0]) / 24 * 100) + '%';
+  }
+  function insight(sleep, work, today) {
+    var parts = [];
+    if (work > WORK_CAP) parts.push('work ' + fmt(work - WORK_CAP) + ' over the ' + WORK_CAP + 'h cap');
+    if (sleep < SLEEP_GOAL) parts.push('sleep ' + fmt(SLEEP_GOAL - sleep) + ' short of ' + SLEEP_GOAL + 'h');
+    var s;
+    if (parts.length) s = parts.join(', ');
+    else if (today) s = 'sleep goal met';
+    else s = work ? 'within the ' + WORK_CAP + 'h work cap and ' + SLEEP_GOAL + 'h sleep goal' : 'rest day, sleep goal met';
+    s = s.charAt(0).toUpperCase() + s.slice(1) + '.';
+    return today ? 'Day in progress. ' + s : s;
+  }
+  function select(i, moveFocus) {
+    days.forEach(function (b, j) {
+      b.setAttribute('aria-checked', String(j === i));
+      b.tabIndex = j === i ? 0 : -1;
+    });
+    var b = days[i], ds = b.dataset;
+    if (moveFocus) b.focus();
+    $('mood-word').textContent = ds.mood;
+    $('mood-note').textContent = ds.note;
+
+    var sleep = span(ds.sleep), work = span(ds.work);
+    var today = ds.now !== undefined, now = today ? +ds.now : 24;
+    var hS = sleep ? sleep[1] - sleep[0] : 0, hW = work ? work[1] - work[0] : 0, hF = now - hS - hW;
+    place(segSleep, sleep);
+    place(segWork, work);
+    ribbon.classList.toggle('is-today', today);
+    if (today) { segFuture.style.left = segNow.style.left = (now / 24 * 100) + '%'; }
+    $('v-work').textContent = fmt(hW);
+    $('v-sleep').textContent = fmt(hS);
+    $('v-free').textContent = fmt(hF);
+    $('wl-day').textContent = today ? 'Today, so far' : ds.label;
+    $('wl-insight').textContent = insight(hS, hW, today);
+    ribbon.setAttribute('aria-label', (today ? 'Today so far' : ds.label) +
+      ': sleep ' + fmt(hS) + ', work ' + fmt(hW) + ', free ' + fmt(hF));
+  }
+  days.forEach(function (b, i) {
+    b.addEventListener('click', function () { select(i); });
+    b.addEventListener('keydown', function (e) {
+      var n = days.length, j = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') j = (i + 1) % n;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') j = (i - 1 + n) % n;
+      else if (e.key === 'Home') j = 0;
+      else if (e.key === 'End') j = n - 1;
+      if (j !== null) { e.preventDefault(); select(j, true); }
+    });
+  });
+  select(days.length - 1);
+})();
 </script>
 </body>
 </html>
