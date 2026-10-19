@@ -24,6 +24,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as acorn from 'acorn';
+import { isMainModule } from '../lib/is-main-module.mjs';
 import { AGENCE_LANGS, MACHINE_LANGS, i18nKey } from '../lib/agence-i18n.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -280,6 +281,7 @@ async function main() {
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+// Main CLI execution guard (repo convention: lib/is-main-module.mjs, #3170)
+if (isMainModule(import.meta.url)) {
   main().catch((err) => { console.error(err); process.exit(1); });
 }
