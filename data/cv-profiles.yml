@@ -422,13 +422,14 @@ complete_paris:
   maxim: From user research to working products.
   experience_note: Agency (Agence V0) and freelance client missions ran in parallel, so some dates overlap.
   summary: >-
-    Senior Product Designer and Product Lead for AI products, with 12 years across SaaS, enterprise and fintech.
-    At OneAsset, I shipped the full product in 6 months with one Product Owner. I founded and built Creads.io,
-    an AI advertising SaaS with 1,200 registered users and 20 paying clients, with zero paid acquisition.
+    Senior Product Designer and Product Lead with 12 years across SaaS, enterprise platforms and financial
+    services. I turn ambiguous, regulated or complex problems into shipped products: user research and
+    interviews, complex journeys, information architecture, design systems and hi-fi prototyping, backed by
+    workshops and stakeholder alignment, leading design with product and engineering.
 
 
-    I work AI-native: prototypes in Cursor and Claude Code, reviewed in Figmol, the tool I built for
-    live-prototype design reviews.
+    For 4 years I have built AI products (agents, multi-agent orchestration, LLM workflows, prompt
+    engineering) and prototyped in code with Cursor and Claude Code to ship with engineering.
 
 
     Seeking a full-time role, full remote. Start date to be agreed.
@@ -482,43 +483,31 @@ complete_paris:
         - Workshop Facilitation
         - Team Management
   projects_title: Selected work
+  knowhow:
+    - title: Product user-centric
+      items: [UX research, User flows, Hi-fi prototypes, Design systems]
+    - title: AI builder
+      items: [AI agents, Multi-agent orchestration, Prompt engineering, LLM workflows]
+    - title: Leadership
+      items: [Product leadership, Stakeholder management, Workshop facilitation, Team management]
   projects:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
       tag: Product Lead
-      bullets:
-        - 'Regulated real-world asset investment platform: investor app, admin panel, marketing site and OTC product.'
-        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads-logo.webp
       screenshot: screenshot_creads.webp
       url: https://creads.io
-      desc: AI advertising SaaS, from brand context to checked creative outputs
       tag: 1,200 registered users
-      bullets:
-        - Founded and built the product, from user flows through AI orchestration and deployment.
-        - Brand memory, structured briefs and a second prompt checking output compliance.
-        - >-
-          1,200 registered users, 20 paying clients and 5,000 monthly visits (September 2026). Zero paid
-          acquisition.
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.webp
-      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
-      bullets:
-        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
-      desc: Renew international marketplace and multi-country design system
       tag: Design systems
-      bullets:
-        - Sole design lead across the front and back office, with cross-team stakeholder workshops.
-        - Recorded 20% reduction in development time through the shared design system.
   founder_projects:
     - name: Creads.io
       logo: creads-logo.webp
@@ -557,13 +546,14 @@ complete_bangkok:
   maxim: From user research to working products.
   experience_note: Agency (Agence V0) and freelance client missions ran in parallel, so some dates overlap.
   summary: >-
-    Senior Product Designer and Product Lead for AI products, with 12 years across SaaS, enterprise and fintech.
-    At OneAsset, I shipped the full product in 6 months with one Product Owner. I founded and built Creads.io,
-    an AI advertising SaaS with 1,200 registered users and 20 paying clients, with zero paid acquisition.
+    Senior Product Designer and Product Lead with 12 years across SaaS, enterprise platforms and financial
+    services. I turn ambiguous, regulated or complex problems into shipped products: user research and
+    interviews, complex journeys, information architecture, design systems and hi-fi prototyping, backed by
+    workshops and stakeholder alignment, leading design with product and engineering.
 
 
-    I work AI-native: prototypes in Cursor and Claude Code, reviewed in Figmol, the tool I built for
-    live-prototype design reviews.
+    For 4 years I have built AI products (agents, multi-agent orchestration, LLM workflows, prompt
+    engineering) and prototyped in code with Cursor and Claude Code to ship with engineering.
 
 
     Seeking a full-time role, full remote. Start date to be agreed.
@@ -617,43 +607,31 @@ complete_bangkok:
         - Workshop Facilitation
         - Team Management
   projects_title: Selected work
+  knowhow:
+    - title: Product user-centric
+      items: [UX research, User flows, Hi-fi prototypes, Design systems]
+    - title: AI builder
+      items: [AI agents, Multi-agent orchestration, Prompt engineering, LLM workflows]
+    - title: Leadership
+      items: [Product leadership, Stakeholder management, Workshop facilitation, Team management]
   projects:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
       tag: Product Lead
-      bullets:
-        - 'Regulated real-world asset investment platform: investor app, admin panel, marketing site and OTC product.'
-        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
     - name: Creads.io
       logo: creads-logo.webp
       screenshot: screenshot_creads.webp
       url: https://creads.io
-      desc: AI advertising SaaS, from brand context to checked creative outputs
       tag: 1,200 registered users
-      bullets:
-        - Founded and built the product, from user flows through AI orchestration and deployment.
-        - Brand memory, structured briefs and a second prompt checking output compliance.
-        - >-
-          1,200 registered users, 20 paying clients and 5,000 monthly visits (September 2026). Zero paid
-          acquisition.
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.webp
-      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
       tag: Enterprise UX
-      bullets:
-        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
-      desc: Renew international marketplace and multi-country design system
       tag: Design systems
-      bullets:
-        - Sole design lead across the front and back office, with cross-team stakeholder workshops.
-        - Recorded 20% reduction in development time through the shared design system.
   founder_projects:
     - name: Creads.io
       logo: creads-logo.webp

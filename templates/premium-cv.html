@@ -504,6 +504,13 @@
     border-radius: 20px;
   }
 
+  /* KNOW-HOW BAND */
+  .knowhow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .knowhow-col { background: var(--accent-soft); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 10px 12px; }
+  .knowhow-title { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .knowhow-items span:not(:last-child)::after { content: " \00b7 "; white-space: pre; color: var(--accent); }
+  .knowhow-items { font-size: 9.5px; line-height: 1.5; color: var(--primary); font-weight: 500; }
+
   @media print {
     @page { margin: 0; size: A4; }
     html, body { width: 210mm; height: 297mm; }
@@ -731,7 +738,7 @@
               {{/if}}
               <div class="project-name">{{this.name}}</div>
             </div>
-            <div class="project-desc">{{this.desc}}</div>
+            {{#if this.desc}}<div class="project-desc">{{this.desc}}</div>{{/if}}
             {{#if this.tag}}<span class="project-tag">{{this.tag}}</span>{{/if}}
             {{#if this.bullets}}
             <ul style="margin-top:8px;">
@@ -743,6 +750,20 @@
           </div>
         </a>
         {{/if}}
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
+    {{#if profile.knowhow}}
+    <div class="section">
+      <div class="section-title">Know-how</div>
+      <div class="knowhow">
+        {{#each profile.knowhow}}
+        <div class="knowhow-col">
+          <div class="knowhow-title">{{this.title}}</div>
+          <div class="knowhow-items">{{#each this.items}}<span>{{this}}</span>{{/each}}</div>
+        </div>
         {{/each}}
       </div>
     </div>
