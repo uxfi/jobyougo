@@ -61,6 +61,7 @@ import { assembleUiPrompt, candidateFacts, compactCv, coverLetterTask, indexCare
 import { applicationEmailLanguage, configuredOutputLanguage } from '../profile-language.mjs';
 import { evalModelForTier } from '../lib/spend-tier.mjs';
 import { writeFormAnswer } from '../lib/form-answer.mjs';
+import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { createPageFetcher, findContacts, providersFromEnv } from '../lib/contact-finder.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
@@ -5029,11 +5030,20 @@ const PINCHTAB_SCROLL_SCRIPT = `(async () => {
   return true;
 })()`;
 
-const CAREER_NAVIGATION_TITLE_SOURCE = String.raw`^(?:search\s+(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|(?:careers?|jobs?)\s+(?:at|for|with)\s+.{1,100}|(?:view|see|browse|explore)\s+(?:all\s+)?(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|je\s+consulte\s+les\s+offres|nos\s+offres(?:\b.*)?|offres?\s+d['’]emploi(?:\s+en\b.*)?|offres?\s+en\s+t[ée]l[ée]travail|missions?\s+en\s+management\s+de\s+transition|outil\s+job\s+match|secteur\s+public\s*&\s*int[ée]r[ée]t\s+g[ée]n[ée]ral|technology\s+and\s+product|product\s+management\s*\d+\s+positions?|stillinger|opportunities\s+for\s+young\s+talents|banyan\s+tree|21c\s+museum\s+hotel|25hours\s+hotels?|delano|hyde|mama\s+shelter|morgans\s+orginals|(?:contrat\s+permanent|permanent\s+contract|creative\s*&\s*design|creation\s*&\s*design))$`;
+const CAREER_NAVIGATION_TITLE_BASE_SOURCE = String.raw`^(?:search\s+(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|(?:careers?|jobs?)\s+(?:at|for|with)\s+.{1,100}|(?:view|see|browse|explore)\s+(?:all\s+)?(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|je\s+consulte\s+les\s+offres|nos\s+offres(?:\b.*)?|offres?\s+d['’]emploi(?:\s+en\b.*)?|offres?\s+en\s+t[ée]l[ée]travail|missions?\s+en\s+management\s+de\s+transition|outil\s+job\s+match|secteur\s+public\s*&\s*int[ée]r[ée]t\s+g[ée]n[ée]ral|technology\s+and\s+product|product\s+management\s*\d+\s+positions?|stillinger|opportunities\s+for\s+young\s+talents|banyan\s+tree|21c\s+museum\s+hotel|25hours\s+hotels?|delano|hyde|mama\s+shelter|morgans\s+orginals|(?:contrat\s+permanent|permanent\s+contract|creative\s*&\s*design|creation\s*&\s*design))$`;
+// The page chrome and category names every careers scraper trips on (lib/scan-title-junk.mjs) are added.
+const CAREER_NAVIGATION_TITLE_SOURCE = withNonJobTitles(CAREER_NAVIGATION_TITLE_BASE_SOURCE);
 const CAREER_NAVIGATION_TITLE_RE = new RegExp(CAREER_NAVIGATION_TITLE_SOURCE, 'i');
 
 function isCareerNavigationTitle(title = '') {
   return CAREER_NAVIGATION_TITLE_RE.test(cleanString(title).replace(/\s+/g, ' '));
+}
+
+// Page chrome / listing headings read as job titles (also after a detail page replaced the title): dropped, counted in the log.
+function dropNonJobTitles(jobs = [], label = '') {
+  const kept = jobs.filter(job => !isCareerNavigationTitle(job.title));
+  if (kept.length !== jobs.length) console.log(`[scan] ${label} ${jobs.length - kept.length} non-job title(s) ignored (page navigation or listing headings)`);
+  return kept;
 }
 
 const PINCHTAB_EXTRACT_SCRIPT = `(() => {
@@ -5349,7 +5359,7 @@ function usableDetailTitle(title = '') {
   if (/^(apply|apply now|view role|learn more|jobs?|careers?|open roles?|open positions?|job details?)$/i.test(value)) return false;
   if (/^(accéder au contenu|offres d'emploi|offres d’emploi|missions en|technology|finance et|logistique|ressources humaines)$/i.test(value)) return false;
   if (/^(on-site|onsite|hybrid|remote|full[- ]?time|part[- ]?time)$/i.test(value)) return false;
-  return true;
+  return !isNonJobTitle(value);
 }
 
 function isPlausibleListingCandidate(job = {}) {
@@ -5559,6 +5569,7 @@ async function fetchPlaywrightSectionsLocal(companies = []) {
           console.warn(`[scan] [local-browser] "${company.name}" no jobs after waiting for client-rendered listings`);
         }
         jobs = await enrichLocalJobsWithDetails(ctx, jobs, company.name);
+        jobs = dropNonJobTitles(jobs, `[local-browser] "${company.name}"`);
 
         console.log(`[scan] [local-browser] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
         results.push({
@@ -5637,6 +5648,7 @@ async function fetchPlaywrightSections(companies = []) {
         console.warn(`[scan] [pinchtab] "${company.name}" no jobs after waiting for client-rendered listings`);
       }
       jobs = await enrichPinchtabJobsWithDetails(jobs, company.name);
+      jobs = dropNonJobTitles(jobs, `[pinchtab] "${company.name}"`);
 
       console.log(`[scan] [pinchtab] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
       results.push({
