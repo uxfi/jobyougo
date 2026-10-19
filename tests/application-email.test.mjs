@@ -32,6 +32,9 @@ import {
   fixCurrentRoleAttribution,
   ensureRoleOpener,
   ensureAvailability,
+  stripProcessDetail,
+  cleanSentenceQuality,
+  trimToWordBudget,
   availabilityLine,
   numberCvLines,
   validatePostingMatches,
@@ -1375,4 +1378,112 @@ test('formatApplicationEmail greets in the email language even when the model di
   assert.match(en, /^Hello,/);
   const fr = formatApplicationEmail('Hello,\n\nVotre poste porte sur la recherche.\n\nPouvons-nous \u00e9changer ?', { language: 'fr', profileData: PROFILE });
   assert.match(fr, /^Bonjour,/);
+});
+
+const E2E_CV = [
+  '# Hugo Vermot', '**Location:** Full remote', '',
+  '## Summary',
+  'Senior Product Designer with 12 years across consumer apps, SaaS platforms and financial services. I am looking to move into a new contract or CDI role, fully remote.', '',
+  '## Experience',
+  '### OneAsset - Senior Product Designer / Product Lead', 'Feb 2026 - Present',
+  '- Shipped a regulated fintech platform: investor app, admin panel, marketing site and an OTC product in six months with one Product Owner.',
+  '- Ran user interviews and designed complex journeys with engineering.',
+  '### Creads.io - Founder', '2022 - 2025',
+  '- Built a bootstrapped AI advertising SaaS with 1,200 registered users and 20 paying clients.',
+].join('\n');
+const E2E_JOB = 'Product Designer\n555GROUP PTE. LTD. Remote.\nWe need user research, design systems and AI prototyping for SaaS.';
+const e2e = body => generateApplicationEmail({
+  chat: async () => `COMPANY: 555GROUP PTE. LTD.\nROLE: Product Designer\nLANGUAGE: en\nSUBJECT: Product Designer at 555GROUP PTE. LTD. - Hugo Vermot\nBODY:\n${body}`,
+  model: 'x', cv: E2E_CV, compactedCv: E2E_CV, profileData: PROFILE, jobText: E2E_JOB, language: 'en',
+  roleHint: 'Product Designer', companyHint: '555GROUP PTE. LTD.', matcher: 'rules',
+});
+
+test('end to end: the 555GROUP PTE. LTD. opener, motivation and grounded claims are never removed or flagged', async () => {
+  const body = [
+    'Hello,',
+    "I'm applying for the Product Designer role at 555GROUP PTE. LTD. You need someone who runs user research and ships complex flows.",
+    "I've led end-to-end product design for consumer apps and SaaS platforms over 12 years, with a focus on user journeys, constraints, and delivery. I've worked across consumer and SaaS products, including a bootstrapped AI SaaS with 1,200 users and a regulated fintech platform.",
+    "I'd like to join 555GROUP PTE. LTD. because operations teams need clear tools. My CV is attached. Could we talk this week?",
+  ].join('\n\n');
+  const draft = await e2e(body);
+  assert.deepEqual(draft.removed, []);
+  assert.equal(draft.ungrounded, 0);
+  assert.doesNotMatch(draft.issues.join('\n'), /LTD\.|Fragment|Phrase retir/);
+  assert.match(draft.body, /I'm applying for the Product Designer role at 555GROUP PTE\. LTD\./);
+  assert.match(draft.body, /I'd like to join 555GROUP PTE\. LTD\./);
+  assert.match(draft.body, /1,200 users/);
+});
+
+test('end to end: a 190-word draft is trimmed to the budget and passes the length audit', async () => {
+  const filler = ['I shipped the investor app, admin panel, marketing site and an OTC product in six months with one Product Owner.', 'Interviews with real customers shaped every structural product decision I made at UpViral across several research rounds.', 'Creads.io, my bootstrapped AI advertising SaaS, reached 1,200 registered users and 20 paying clients through founder-led sales.', 'Regulated fintech journeys took design work alongside engineering, compliance reviewers and several investor profile validations.', 'Enterprise retail and finance clients at Agence V0 received dozens of delivered projects over five freelance years.', 'Complex navigation structures and data-heavy screens were reworked with product owners during discovery workshops.'].join(' ');
+  const body = ['Hello,', "I'm applying for the Product Designer role at 555GROUP PTE. LTD. You need someone who runs user research.", filler + ' ' + ['Multi-country design systems cut development time at Renault through shared components and governance.', 'Dashboards for marketing teams across fifteen luxury maisons followed from workshops with data analysts.', 'Mobile banking journeys for retail customers were prototyped, tested weekly, then released by squads.', 'Onboarding flows for investors replaced paper forms with guided identity checks and clear progress states.'].join(' '), "I'd like to join 555GROUP PTE. LTD. because operations teams need clear tools. My CV is attached. Could we talk this week?"].join('\n\n');
+  const draft = await e2e(body);
+  assert.ok(draft.trimmed.length >= 1);
+  const prose = draft.body.split('\n\n').slice(1, -1).join(' ');
+  assert.ok(prose.split(/\s+/).length <= 145, 'words: ' + prose.split(/\s+/).length);
+  assert.doesNotMatch(draft.issues.join('\n'), /Trop long/);
+  assert.match(draft.body, /I'm applying for the Product Designer role at 555GROUP PTE\. LTD\./);
+});
+
+test('stripProcessDetail cuts GitHub and PR clauses, and a pure process sentence, but never empties a paragraph', () => {
+  const body = 'Hello,\n\nHook.\n\nI shipped the investor app in six months. I prototype in Cursor and then push the designs to GitHub for engineering. Work moves through pull requests.\n\nCould we talk?\n\nBest,\nHugo';
+  const out = stripProcessDetail(body);
+  assert.doesNotMatch(out, /GitHub|pull request/i);
+  assert.match(out, /I shipped the investor app in six months\./);
+  const only = stripProcessDetail('Hello,\n\nHook.\n\nWork moves through pull requests.\n\nCould we talk?\n\nBest,\nHugo');
+  assert.match(only, /pull requests/);
+});
+
+test('trimToWordBudget leaves a short email alone and never cuts the hook or the last paragraph', () => {
+  const short = 'Hello,\n\nHook sentence here.\n\nOne proof. Another proof.\n\nAsk.\n\nBest,\nHugo';
+  assert.equal(trimToWordBudget(short).body, short);
+  const long = 'Hello,\n\nHook sentence here ' + 'x '.repeat(30) + '.\n\n' + Array.from({ length: 8 }, (_, i) => 'Proof number ' + i + ' ' + 'word '.repeat(12) + 'end.').join(' ') + '\n\nThe ask stays.\n\nBest,\nHugo';
+  const { body, dropped } = trimToWordBudget(long);
+  assert.ok(dropped.length > 0);
+  assert.match(body, /Hook sentence here/);
+  assert.match(body, /The ask stays\./);
+});
+
+test('the voice rules no longer list GitHub as a tool to name', async () => {
+  const { EMAIL_VOICE_RULES } = await import('../lib/application-email.mjs');
+  assert.match(EMAIL_VOICE_RULES, /Never GitHub, Git, PRD, branch or pull request/);
+  assert.doesNotMatch(EMAIL_VOICE_RULES, /\(Figma, Cursor, Claude Code, GitHub\)/);
+});
+
+test('cleanSentenceQuality drops the repeated tool sentence, the garbled one and the vague filler, never the hook', () => {
+  const body = [
+    'Hello,',
+    'Your Product Designer opening at 555 is about owning end-to-end flows. You need someone who has maintained design systems in Figma.',
+    "In my current role, I replaced Figma mockups as the source of truth with prototypes coded in Cursor and Claude Code. I built interactive prototypes entirely in Cursor and Claude Code, and ran engineering. At a company I founded, I recorded a +40% SaaS efficiency improvement.",
+    "The 555 diner app is the kind of product I want to work on, because it solves everyday friction. I've shipped similar systems across SaaS and consumer apps, and I'm ready to bring that experience to 555. My CV is attached.",
+    'Best,\nHugo Vermot',
+  ].join('\n\n');
+  const { body: out, dropped } = cleanSentenceQuality(body, { company: '555', role: 'Product Designer' });
+  assert.equal(dropped.length, 2);
+  assert.match(out, /^Hello,\n\nYour Product Designer opening at 555 is about/);
+  assert.match(out, /replaced Figma mockups/);
+  assert.doesNotMatch(out, /and ran engineering|similar systems|ready to bring/);
+  assert.match(out, /\+40% SaaS efficiency improvement/);
+  assert.match(out, /My CV is attached\./);
+});
+
+test('cleanSentenceQuality does not treat the company repeated in the hook and the reason as a duplicate', () => {
+  const body = 'Hello,\n\nI\'m applying for the Product Designer role at 555GROUP PTE. LTD. You need someone who runs user research.\n\nI shipped the investor app in six months.\n\nI\'d like to join 555GROUP PTE. LTD. because operations teams need clear tools. Could we talk?\n\nBest,\nHugo';
+  assert.deepEqual(cleanSentenceQuality(body, { company: '555GROUP PTE. LTD.', role: 'Product Designer' }).dropped, []);
+});
+
+test('end to end: duplicate and garbled sentences are cleaned and the Galian figure keeps its CV source', async () => {
+  const cv = E2E_CV + '\n### Agence V0 - Founder\n- GALIAN-SMABTP: recorded +40% SaaS efficiency improvement.';
+  const body = ['Hello,', "Your Product Designer opening at 555GROUP PTE. LTD. is about SaaS flows. You need someone who ships with engineering.", "I shipped the investor app, admin panel, marketing site and an OTC product in six months with one Product Owner. I shipped the investor app and OTC product in six months with one Product Owner, and ran engineering. At a company I founded, I recorded a +40% SaaS efficiency improvement.", "Operations tools are the kind of product I want to work on, because they need clarity. Could we talk this week?"].join('\n\n');
+  const draft = await generateApplicationEmail({ chat: async () => `COMPANY: 555GROUP PTE. LTD.\nROLE: Product Designer\nLANGUAGE: en\nSUBJECT: Product Designer - Hugo Vermot\nBODY:\n${body}`, model: 'x', cv, compactedCv: cv, profileData: PROFILE, jobText: E2E_JOB, language: 'en', roleHint: 'Product Designer', companyHint: '555GROUP PTE. LTD.', matcher: 'rules' });
+  assert.doesNotMatch(draft.body, /and ran engineering/);
+  assert.equal((draft.body.match(/six months/g) || []).length, 1);
+  assert.doesNotMatch(draft.issues.join('\n'), /Qualit\u00e9/);
+});
+
+test('availability comes from the profile when the CV text does not state it, and says contract or CDI', () => {
+  const profile = { availability: { desired_engagement: 'New contract or CDI role' } };
+  assert.equal(availabilityLine('Designer, full remote.', 'en', profile), "I'm available for a contract or CDI role, full remote.");
+  assert.equal(availabilityLine('Designer, full remote.', 'en', {}), "I'm available for a role, full remote.");
+  assert.equal(availabilityLine('Designer.', 'en', { search: { contract_types: ['Contract', 'CDI'] } }), "I'm available for a contract or CDI role.");
 });
