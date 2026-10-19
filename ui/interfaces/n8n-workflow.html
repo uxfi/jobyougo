@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="/ui/assets/fonts.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  button, input, select, textarea { font-family: inherit; }
+  [hidden] { display: none !important; }
 
   :root {
     --bg: #090914;
@@ -24,6 +26,10 @@
     --green: #38d17a;
     --danger: #ff7b5d;
     --shadow: 0 24px 64px rgba(0,0,0,.45);
+    --glass: rgba(14,15,28,.9);
+    --glass-shadow: 0 12px 28px rgba(0,0,0,.22);
+    --ease: cubic-bezier(.4,0,.2,1);
+    --ease-out: cubic-bezier(.2,.7,.2,1);
     --sidebar-fit: 1;
     --sidebar-w: calc(172px * var(--sidebar-fit));
     --sidebar-collapsed-w: calc(76px * var(--sidebar-fit));
@@ -45,24 +51,26 @@
     --sidebar-item-px: calc(10px * var(--sidebar-fit));
     --sidebar-item-gap: calc(10px * var(--sidebar-fit));
     --sidebar-icon-size: calc(15px * var(--sidebar-fit));
-    --sidebar-badge-font: calc(9px * var(--sidebar-fit));
+    --sidebar-badge-font: 10px;
     --sidebar-avatar-size: calc(34px * var(--sidebar-fit));
-    --sidebar-avatar-font: calc(12px * var(--sidebar-fit));
-    --sidebar-name-font: calc(12px * var(--sidebar-fit));
-    --sidebar-mail-font: calc(10px * var(--sidebar-fit));
+    --sidebar-avatar-font: 12px;
+    --sidebar-name-font: 12px;
+    --sidebar-mail-font: 11px;
     --canvas-scale: 1;
     --map-zoom: 1;
     --map-x: 0px;
     --map-y: 0px;
+    --glass: rgba(14,15,28,.9);
+    --glass-shadow: 0 12px 28px rgba(0,0,0,.22);
+    --focus: #c49aff;
+    --ease: cubic-bezier(.4,0,.2,1);
+    color-scheme: dark;
   }
 
   html, body {
     height: 100%;
     overflow: hidden;
-    background:
-      radial-gradient(circle at top left, rgba(141,77,255,.18), transparent 26%),
-      radial-gradient(circle at top right, rgba(255,122,47,.08), transparent 22%),
-      var(--bg);
+    background: var(--bg);
     color: var(--text);
     font-family: var(--font-inter);
     -webkit-font-smoothing: antialiased;
@@ -84,9 +92,7 @@
   }
 
   .sidebar {
-    position: sticky;
-    top: 0;
-    align-self: start;
+    align-self: stretch;
     border-right: 1px solid var(--stroke);
     background: linear-gradient(180deg, rgba(12,12,22,.84), rgba(8,8,18,.93));
     backdrop-filter: blur(14px);
@@ -94,7 +100,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--sidebar-gap);
-    min-height: 100vh;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -174,7 +180,7 @@
     color: rgba(255,255,255,.78);
     text-decoration: none;
     border: 1px solid transparent;
-    transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, color 160ms ease;
+    transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
   }
 
   .nav-link svg,
@@ -193,7 +199,6 @@
   .nav-link-secondary:hover {
     background: rgba(255,255,255,.03);
     border-color: rgba(255,255,255,.06);
-    transform: translateX(1px);
   }
 
   .nav-link.active {
@@ -262,7 +267,7 @@
 
   .profile-mail {
     font-size: var(--sidebar-mail-font);
-    color: var(--muted-2);
+    color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -342,6 +347,42 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
   }
 
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-list:empty { display: none; }
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 28px;
+    padding: 0 4px 0 11px;
+    border-radius: 999px;
+    border: 1px solid rgba(141,77,255,.3);
+    background: rgba(141,77,255,.14);
+    color: #dcc8ff;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tag-chip button {
+    width: 20px; height: 20px;
+    border: 0; border-radius: 50%;
+    background: transparent; color: inherit;
+    display: grid; place-items: center;
+    cursor: pointer;
+  }
+  .tag-chip button:hover { background: rgba(255,255,255,.1); }
+  .tag-chip svg { width: 10px; height: 10px; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; }
+  .tag-input {
+    height: 34px;
+    width: 128px;
+    padding: 0 11px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(141,77,255,.55);
+    background: rgba(11,11,20,.6);
+    color: #fff;
+    font-size: 13px;
+  }
+  .tag-input::placeholder { color: rgba(255,255,255,.45); }
+
   .pill-btn svg,
   .top-icon-btn svg {
     width: 15px;
@@ -380,9 +421,10 @@
     border-radius: var(--radius-md);
     border: 1px solid rgba(255,255,255,.08);
     background: rgba(255,255,255,.04);
-    color: rgba(255,255,255,.38);
+    color: rgba(255,255,255,.6);
     font-size: 13px;
-    cursor: text;
+    text-align: left;
+    cursor: pointer;
     transition: border-color 150ms ease, background 150ms ease;
   }
   .topbar-search:hover {
@@ -402,7 +444,7 @@
     border-radius: 5px;
     border: 1px solid rgba(255,255,255,.1);
     background: rgba(255,255,255,.06);
-    color: rgba(255,255,255,.3);
+    color: rgba(255,255,255,.55);
     font-family: inherit;
     flex-shrink: 0;
   }
@@ -414,29 +456,35 @@
     color: var(--muted);
     font-size: 13px;
   }
+  .toggle-wrap.is-on { color: #fff; }
 
   .toggle {
     width: 46px;
     height: 26px;
+    padding: 0;
     border-radius: 999px;
     background: rgba(255,255,255,.14);
     border: 1px solid rgba(255,255,255,.08);
     position: relative;
+    cursor: pointer;
   }
 
   .toggle::after {
     content: "";
     position: absolute;
-    top: 3px;
-    left: 3px;
+    top: 2px;
+    left: 2px;
     width: 20px;
     height: 20px;
     border-radius: 50%;
     background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    transition: transform 180ms var(--ease);
   }
+  .toggle[aria-checked="true"] { background: linear-gradient(90deg, #7338df, #a954ff); border-color: rgba(190,155,255,.3); }
+  .toggle[aria-checked="true"]::after { transform: translateX(20px); }
 
-  .top-icon-btn,
-  .upgrade-btn {
+  .top-icon-btn {
     min-height: 40px;
     padding: 0 15px;
     border-radius: var(--radius-md);
@@ -450,18 +498,11 @@
     gap: 9px;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
   }
-
-  .upgrade-btn {
-    background: linear-gradient(90deg, #22c55e, #16a34a);
-    border-color: rgba(255,255,255,.1);
-    box-shadow: 0 14px 32px rgba(34,197,94,.28), inset 0 1px 0 rgba(255,255,255,.24);
-  }
-  .upgrade-btn:hover {
-    filter: brightness(1.08);
-    box-shadow: 0 16px 40px rgba(34,197,94,.4), inset 0 1px 0 rgba(255,255,255,.24);
-  }
+  .star-btn svg { transition: fill 160ms ease, stroke 160ms ease; }
+  .star-btn[aria-pressed="true"] svg { fill: var(--orange); stroke: var(--orange); }
 
   .main {
+    position: relative;
     flex: 1;
     min-height: 0;
     display: flex;
@@ -486,9 +527,12 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: width 240ms cubic-bezier(.4,0,.2,1), opacity 200ms ease;
+    transition: width 240ms var(--ease), opacity 200ms ease, transform 240ms var(--ease), visibility 0s linear 0s;
   }
-  .right-panel.is-hidden { width: 0; opacity: 0; pointer-events: none; }
+  .right-panel.is-hidden {
+    width: 0; opacity: 0; pointer-events: none; visibility: hidden;
+    transition: width 240ms var(--ease), opacity 200ms ease, transform 240ms var(--ease), visibility 0s linear 240ms;
+  }
 
   .inspector {
     flex: 1;
@@ -577,10 +621,10 @@
     border: 1px solid rgba(255,255,255,.1);
     background: rgba(11,11,22,.6); color: rgba(255,255,255,.86);
     font-size: 13px; font-family: inherit; resize: none; outline: none;
-    transition: border-color 150ms ease;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
   }
-  .ai-chat-input::placeholder { color: rgba(255,255,255,.28); }
-  .ai-chat-input:focus { border-color: rgba(141,77,255,.5); }
+  .ai-chat-input::placeholder { color: rgba(255,255,255,.45); }
+  .ai-chat-input:focus { border-color: rgba(141,77,255,.6); box-shadow: 0 0 0 2px rgba(141,77,255,.35); }
   .ai-send-btn {
     width: 36px; height: 36px; flex-shrink: 0;
     border-radius: var(--radius-md); border: 0;
@@ -698,9 +742,9 @@
   .map-controls {
     pointer-events: auto;
     border: 1px solid rgba(255,255,255,.08);
-    background: rgba(14,15,28,.88);
+    background: var(--glass);
     backdrop-filter: blur(14px);
-    box-shadow: 0 8px 20px rgba(0,0,0,.22);
+    box-shadow: var(--glass-shadow);
     display: flex;
     align-items: center;
     gap: 1px;
@@ -711,28 +755,36 @@
   .map-hint {
     pointer-events: none;
     border: 1px solid rgba(255,255,255,.07);
-    background: rgba(14,15,28,.88);
+    background: var(--glass);
     backdrop-filter: blur(14px);
     padding: 5px 10px;
     border-radius: var(--radius-sm);
-    color: rgba(255,255,255,.5);
+    color: rgba(255,255,255,.72);
     font-size: 11px;
     letter-spacing: -.01em;
     opacity: 0;
     transform: translateY(4px);
     transition: opacity 160ms ease, transform 160ms ease;
   }
-  .map-hud:hover .map-hint {
+  .map-hud:hover .map-hint,
+  .map-hud:focus-within .map-hint,
+  .map-hint.show {
     opacity: 1;
     transform: translateY(0);
   }
 
   .map-btn,
   .map-zoom-readout {
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     display: grid;
     place-items: center;
   }
+  .map-btn svg {
+    width: 14px; height: 14px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .map-zoom-readout { font-variant-numeric: tabular-nums; }
 
   .map-btn {
     width: 28px;
@@ -768,9 +820,9 @@
     padding: 4px;
     border-radius: var(--radius-md);
     border: 1px solid var(--stroke-strong);
-    background: rgba(16,17,30,.92);
+    background: var(--glass);
     backdrop-filter: blur(14px);
-    box-shadow: 0 14px 30px rgba(0,0,0,.2);
+    box-shadow: var(--glass-shadow);
   }
 
   .mode-btn {
@@ -815,10 +867,10 @@
     padding: 4px;
     border-radius: var(--radius-lg);
     border: 1px solid var(--stroke);
-    background: rgba(20,20,34,.85);
+    background: var(--glass);
     display: flex;
     gap: 4px;
-    box-shadow: 0 12px 28px rgba(0,0,0,.22);
+    box-shadow: var(--glass-shadow);
     transform: translateX(-50%);
   }
 
@@ -838,34 +890,6 @@
     background: rgba(255,255,255,.1);
     color: #fff;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
-  }
-
-  .template-chip {
-    position: absolute;
-    top: 54px;
-    left: 12px;
-    min-height: 38px;
-    padding: 0 14px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--stroke);
-    background: rgba(27,28,41,.9);
-    color: rgba(255,255,255,.82);
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    font-size: 13px;
-    box-shadow: 0 10px 24px rgba(0,0,0,.18);
-  }
-
-  .template-chip svg,
-  .tool-btn svg {
-    width: 18px;
-    height: 18px;
-    stroke: currentColor;
-    fill: none;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
 
   .canvas-bottom-bar {
@@ -892,9 +916,8 @@
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    outline: 1.5px solid #b83d10;
-    outline-offset: -1px;
     box-shadow:
+      inset 0 0 0 1.5px #b83d10,
       inset 0 1px 0 rgba(255,255,255,.28),
       inset 0 -1px 0 rgba(0,0,0,.22),
       0 2px 0 #7a2408,
@@ -902,16 +925,58 @@
     transition: filter 100ms ease, transform 80ms ease, box-shadow 80ms ease;
   }
   .execute-btn svg { width: 14px; height: 14px; fill: currentColor; stroke: currentColor; stroke-width: 0; }
-  .execute-btn#add-node-btn svg { fill: none; stroke-width: 2.5; }
   .execute-btn:hover { filter: brightness(1.06); }
   .execute-btn:active {
     transform: translateY(2px);
     box-shadow:
+      inset 0 0 0 1.5px #b83d10,
       inset 0 1px 0 rgba(255,255,255,.18),
       inset 0 2px 4px rgba(0,0,0,.2),
       0 0 0 #7a2408,
       0 2px 6px rgba(0,0,0,.25);
   }
+  .exec-label { min-width: 118px; text-align: left; }
+  .exec-spinner {
+    display: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.35);
+    border-top-color: #fff;
+    animation: spin 700ms linear infinite;
+  }
+  .execute-run.is-running { cursor: progress; filter: saturate(.8); }
+  .execute-run.is-running:active { transform: none; }
+  .execute-run.is-running .exec-spinner { display: block; }
+  .execute-run.is-running .exec-icon { display: none; }
+  .exec-icon { display: grid; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .add-node-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke-strong);
+    background: var(--glass);
+    color: rgba(255,255,255,.86);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    box-shadow: var(--glass-shadow);
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  }
+  .add-node-btn:hover,
+  .add-node-btn[aria-expanded="true"] {
+    background: rgba(141,77,255,.18);
+    border-color: rgba(171,111,255,.5);
+    color: #fff;
+  }
+  .add-node-btn svg {
+    width: 16px; height: 16px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2.2; stroke-linecap: round;
+    transition: transform 180ms var(--ease);
+  }
+  .add-node-btn[aria-expanded="true"] svg { transform: rotate(45deg); }
 
   .canvas {
     position: relative;
@@ -942,10 +1007,32 @@
     stroke-dasharray: none;
   }
 
+  .flow-lines path.slot {
+    stroke: rgba(255,255,255,.22);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 6;
+  }
+
+  .flow-lines path.is-live { stroke: #c49aff; opacity: 1; }
+  .flow-lines path.is-live:not(.main) { animation: dash-flow 600ms linear infinite; }
+  @keyframes dash-flow { to { stroke-dashoffset: -36; } }
+
   .flow-lines circle {
     fill: #a35fff;
-    filter: drop-shadow(0 0 8px rgba(163,95,255,.6));
+    stroke: rgba(163,95,255,.22);
+    stroke-width: 6;
   }
+
+  .flow-pulses {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .pulse-halo { fill: rgba(196,154,255,.24); }
+  .pulse-core { fill: #fff; }
 
   .node,
   .mini-node {
@@ -954,11 +1041,12 @@
     border-radius: var(--radius-lg);
     border: 1px solid rgba(255,255,255,.14);
     background: linear-gradient(180deg, rgba(27,28,41,.98), rgba(22,23,35,.98));
-    box-shadow: 0 18px 42px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.04);
+    box-shadow: 0 10px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);
     color: #fff;
     cursor: grab;
     user-select: none;
     touch-action: none;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
   }
 
   .draggable-node.is-dragging {
@@ -969,9 +1057,66 @@
     border-color: rgba(171,111,255,.92);
     box-shadow:
       0 0 0 2px rgba(171,111,255,.22),
-      0 18px 42px rgba(76,30,166,.18),
-      inset 0 1px 0 rgba(255,255,255,.04);
+      0 18px 42px rgba(76,30,166,.18);
   }
+
+  .canvas .draggable-node:focus-visible { outline: 2px solid var(--focus); outline-offset: 5px; }
+
+  /* run states: a ring while a node works, a badge once it is done */
+  .draggable-node::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: calc(var(--radius-lg) + 6px);
+    border: 2px solid rgba(171,111,255,.7);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .draggable-node.is-running { border-color: rgba(171,111,255,.92); }
+  .draggable-node.is-running::after { animation: node-ring 900ms ease-out infinite; }
+  @keyframes node-ring {
+    0% { opacity: .85; transform: scale(.99); }
+    100% { opacity: 0; transform: scale(1.045); }
+  }
+  .draggable-node.is-error { border-color: rgba(255,123,93,.85); }
+
+  .node-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: none;
+    place-items: center;
+    pointer-events: none;
+  }
+  .mini-node .node-badge { top: 6px; right: 6px; }
+  .node-badge svg {
+    width: 12px; height: 12px;
+    fill: none; stroke: currentColor;
+    stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .has-warning .node-badge,
+  .is-done .node-badge,
+  .is-error .node-badge { display: grid; }
+  .has-warning .node-badge { color: var(--danger); }
+  .is-done .node-badge {
+    color: var(--green);
+    background: rgba(56,209,122,.14);
+    border: 1px solid rgba(56,209,122,.42);
+    animation: badge-in 180ms ease-out;
+  }
+  .is-error .node-badge {
+    color: var(--danger);
+    background: rgba(255,123,93,.16);
+    border: 1px solid rgba(255,123,93,.5);
+    animation: badge-in 180ms ease-out;
+  }
+  @keyframes badge-in { from { opacity: 0; transform: scale(.6); } }
+
+  @keyframes node-enter { from { opacity: 0; transform: scale(.96); } }
+  .draggable-node.is-new { animation: node-enter 220ms ease-out; }
 
   .node {
     width: 220px;
@@ -980,11 +1125,6 @@
     display: flex;
     align-items: center;
     gap: 14px;
-  }
-
-  .node.active {
-    border-color: rgba(171,111,255,.8);
-    box-shadow: 0 0 0 1px rgba(171,111,255,.45), 0 24px 48px rgba(76,30,166,.28);
   }
 
   .node-icon {
@@ -1019,26 +1159,6 @@
     color: #b4aec6;
   }
 
-  .node-check,
-  .node-warning {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-  }
-
-  .node-check {
-    background: rgba(141,77,255,.2);
-    color: #d8b6ff;
-    border: 1px solid rgba(186,131,255,.36);
-  }
-
-  .node-warning { color: var(--danger); }
-
   .port {
     position: absolute;
     width: 14px;
@@ -1065,31 +1185,47 @@
     fill: currentColor;
   }
 
-  .label-row {
+  /* sub-node captions sit under the agent's three bottom ports; their fill masks the connector */
+  .slot-row {
     position: absolute;
-    top: 326px;
-    left: 346px;
-    display: flex;
-    gap: 34px;
-    color: rgba(255,255,255,.78);
-    font-size: 14px;
+    left: 0;
+    right: 0;
+    top: calc(100% + 12px);
+    height: 18px;
+    pointer-events: none;
   }
+  .slot-row span {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .slot-row span:nth-child(1) { left: 25%; }
+  .slot-row span:nth-child(2) { left: 50%; }
+  .slot-row span:nth-child(3) { left: 75%; }
 
-  .label-chip { text-align: center; }
-
-  .plus-slot {
-    width: 32px;
-    height: 32px;
-    margin: 12px auto 0;
+  .slot-add {
+    position: absolute;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    border: 1px solid rgba(255,255,255,.18);
-    background: rgba(255,255,255,.03);
+    border: 1px dashed rgba(255,255,255,.3);
+    background: var(--bg);
+    color: rgba(255,255,255,.75);
     display: grid;
     place-items: center;
-    font-size: 22px;
-    color: rgba(255,255,255,.84);
-    line-height: 1;
+    cursor: pointer;
+    transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
   }
+  .slot-add:hover { border-color: rgba(171,111,255,.85); background: rgba(141,77,255,.16); color: #fff; }
+  .slot-add svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+  .slot-add[hidden] { display: none; }
 
   .mini-node {
     width: 122px;
@@ -1115,40 +1251,7 @@
     font-size: 12px;
   }
 
-  .canvas-actions {
-    position: absolute;
-    left: 0;
-    bottom: 8px;
-    display: flex;
-    gap: 10px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 160ms ease;
-  }
-  .is-pointer-mode .canvas-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .tool-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--stroke);
-    background: rgba(20,20,35,.88);
-    color: rgba(255,255,255,.85);
-    display: grid;
-    place-items: center;
-    box-shadow: 0 10px 24px rgba(0,0,0,.18);
-  }
-
-
-  /* inspector styles merged into right-panel section above */
-
-  .panel {
-    height: 100%;
-    padding: 18px 16px;
-  }
+  .panel { min-height: 100%; }
 
   .panel-header {
     display: flex;
@@ -1164,31 +1267,44 @@
     gap: 10px;
   }
 
-  .panel-bolt {
-    width: 20px;
-    height: 20px;
-    color: var(--orange);
+  .panel-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,.06);
+    display: grid;
+    place-items: center;
     flex-shrink: 0;
   }
 
-  .panel-bolt svg {
-    width: 100%;
-    height: 100%;
-    fill: currentColor;
+  .panel-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: #c8c2df;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
+  .panel-icon.is-trigger { background: rgba(255,122,47,.12); }
+  .panel-icon.is-trigger svg { fill: var(--orange); stroke: none; }
 
   .panel-title {
     font-size: 15px;
     font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .panel-sub {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--muted);
   }
 
-  .icon-close {
-    width: 18px;
-    height: 18px;
-    stroke: rgba(255,255,255,.68);
-    fill: none;
-    stroke-width: 1.8;
-    stroke-linecap: round;
+  .inspector-empty {
+    padding: 28px 4px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
   }
 
   .tabs {
@@ -1200,10 +1316,15 @@
 
   .tab {
     position: relative;
-    padding-bottom: 12px;
+    padding: 0 0 12px;
+    border: 0;
+    background: none;
     font-size: 13px;
     color: var(--muted);
+    cursor: pointer;
+    transition: color 140ms ease;
   }
+  .tab:hover { color: #fff; }
 
   .tab.active {
     color: #fff;
@@ -1224,7 +1345,8 @@
   .field-group + .field-group { margin-top: 20px; }
 
   .field-label {
-    margin-bottom: 10px;
+    display: block;
+    margin-bottom: 8px;
     font-size: 12px;
     font-weight: 500;
     color: rgba(255,255,255,.92);
@@ -1237,31 +1359,74 @@
     border-radius: var(--radius-sm);
     border: 1px solid rgba(255,255,255,.1);
     background: rgba(11,11,20,.5);
-    color: rgba(255,255,255,.84);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    color: rgba(255,255,255,.88);
+    display: block;
     font-size: 13px;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
   }
+  .field:hover { border-color: rgba(255,255,255,.18); }
+  .field:focus { outline: none; border-color: rgba(141,77,255,.65); box-shadow: 0 0 0 2px rgba(141,77,255,.3); }
+  .field::placeholder { color: rgba(255,255,255,.45); }
 
-  .field svg {
+  .select-wrap { position: relative; }
+  .select-wrap .field { appearance: none; -webkit-appearance: none; padding-right: 34px; cursor: pointer; }
+  .select-wrap svg {
+    position: absolute;
+    right: 11px;
+    top: 50%;
     width: 16px;
     height: 16px;
+    margin-top: -8px;
     stroke: var(--muted);
     fill: none;
     stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
+    pointer-events: none;
   }
+  select.field option { background: var(--panel); color: var(--text); }
 
   .field.textarea {
     min-height: 84px;
-    padding-top: 12px;
-    align-items: flex-start;
-    justify-content: flex-start;
-    color: var(--muted);
+    padding: 10px 12px;
+    line-height: 1.45;
+    resize: vertical;
   }
+
+  .cred-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 40px;
+    padding: 0 6px 0 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255,123,93,.35);
+    background: rgba(255,123,93,.06);
+    font-size: 12.5px;
+    color: rgba(255,255,255,.88);
+  }
+  .cred-row.is-ready { border-color: rgba(56,209,122,.32); background: rgba(56,209,122,.06); }
+  .cred-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex-shrink: 0; }
+  .cred-row.is-ready .cred-dot { background: var(--green); }
+  .cred-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cred-btn {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--stroke-strong);
+    background: rgba(255,255,255,.06);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .cred-btn:hover { background: rgba(255,255,255,.1); }
+  .cred-btn[aria-busy="true"] { cursor: progress; color: var(--muted); }
+
+  .docs-text { font-size: 13px; line-height: 1.6; color: rgba(255,255,255,.8); }
+  .docs-text + .docs-text { margin-top: 10px; }
+  .docs-meta { margin-top: 14px; font-size: 12px; color: var(--muted); }
 
   .switch-row {
     display: flex;
@@ -1272,41 +1437,51 @@
     font-size: 13px;
   }
 
-  .switch-row:last-of-type { margin-bottom: 0; }
+  .switch-row:last-child { margin-bottom: 0; }
 
   .switch {
     width: 40px;
     height: 24px;
+    padding: 0;
+    border: 0;
     border-radius: 999px;
-    background: linear-gradient(90deg, #7338df, #a954ff);
+    background: rgba(255,255,255,.14);
     position: relative;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
+    flex-shrink: 0;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
   }
+  .switch[aria-checked="true"] { background: linear-gradient(90deg, #7338df, #a954ff); }
 
   .switch::after {
     content: "";
     position: absolute;
     top: 3px;
-    right: 3px;
+    left: 3px;
     width: 18px;
     height: 18px;
     border-radius: 50%;
     background: #fff;
+    transition: transform 180ms var(--ease);
   }
+  .switch[aria-checked="true"]::after { transform: translateX(16px); }
 
   .save-btn {
     width: 100%;
     height: 44px;
-    margin-top: 18px;
-    border: 0;
+    margin-top: 22px;
     border-radius: var(--radius-md);
     color: #fff;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     background: #1a1a2e;
     border: 1px solid rgba(255,255,255,.1);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
   }
+  .save-btn.is-dirty { background: rgba(141,77,255,.22); border-color: rgba(171,111,255,.5); }
+  .save-btn[aria-disabled="true"] { color: rgba(255,255,255,.55); cursor: default; }
+  .save-btn.is-saved { color: var(--green); border-color: rgba(56,209,122,.35); }
 
   .bottom {
     border-top: 1px solid var(--stroke);
@@ -1317,14 +1492,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 11px 18px 10px;
-    cursor: pointer;
+    padding: 8px 14px 7px 18px;
     user-select: none;
     border-bottom: 1px solid transparent;
     transition: border-color 200ms ease;
   }
   .bottom-head.open { border-bottom-color: var(--stroke); }
-  .bottom-head:hover .section-title { color: #fff; }
 
   .bottom-head-tabs {
     display: flex;
@@ -1333,20 +1506,26 @@
   }
 
   .section-title {
+    padding: 6px 0;
+    border: 0;
+    background: none;
     font-size: 13px;
     font-weight: 700;
     color: var(--muted);
+    cursor: pointer;
     transition: color 140ms ease;
   }
+  .section-title:hover { color: #fff; }
   .section-title.active { color: #fff; }
 
   .collapse-toggle {
-    width: 22px; height: 22px;
+    width: 28px; height: 28px;
     display: grid; place-items: center;
     border: 0; background: none;
-    border-radius: 6px;
-    color: rgba(255,255,255,.35);
-    transition: background 140ms ease, color 140ms ease, transform 240ms cubic-bezier(.4,0,.2,1);
+    border-radius: var(--radius-xs);
+    color: rgba(255,255,255,.6);
+    cursor: pointer;
+    transition: background 140ms ease, color 140ms ease, transform 240ms var(--ease);
     flex-shrink: 0;
   }
   .collapse-toggle svg {
@@ -1358,22 +1537,27 @@
   .bottom.is-collapsed .collapse-toggle { transform: rotate(-90deg); }
 
   .bottom-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 1.1fr;
     overflow: hidden;
-    transition: height 260ms cubic-bezier(.4,0,.2,1);
+    transition: height 260ms var(--ease), visibility 0s linear 0s;
+  }
+  .bottom.is-collapsed .bottom-body {
+    visibility: hidden;
+    transition: height 260ms var(--ease), visibility 0s linear 260ms;
   }
   .bottom-body.no-anim { transition: none; }
 
   .logs,
   .stats {
-    padding: 14px 18px 18px;
+    padding: 12px 18px 16px;
+    max-height: 212px;
+    overflow-y: auto;
   }
-  .logs { border-right: 1px solid var(--stroke); }
+
+  .log-list { list-style: none; display: grid; gap: 8px; }
 
   .log-card {
-    min-height: 58px;
-    padding: 16px 18px;
+    min-height: 50px;
+    padding: 12px 16px;
     border-radius: var(--radius-md);
     border: 1px solid var(--stroke);
     background: rgba(16,17,29,.84);
@@ -1381,7 +1565,11 @@
     align-items: center;
     gap: 14px;
     color: rgba(255,255,255,.82);
+    font-size: 13px;
   }
+  .log-card.is-new { animation: log-in 240ms ease-out; }
+  @keyframes log-in { from { opacity: 0; transform: translateY(-6px); } }
+  .log-card + .log-card { opacity: .82; }
 
   .status-dot {
     width: 14px;
@@ -1400,6 +1588,13 @@
     border-radius: 50%;
     background: var(--green);
   }
+  .is-running .status-dot { background: rgba(141,77,255,.18); border-color: rgba(171,111,255,.5); }
+  .is-running .status-dot::after { background: #c49aff; animation: dot-pulse 1.2s ease-in-out infinite; }
+  .is-error .status-dot { background: rgba(255,123,93,.16); border-color: rgba(255,123,93,.5); }
+  .is-error .status-dot::after { background: var(--danger); }
+  .log-num { font-variant-numeric: tabular-nums; }
+  .log-card .log-status { color: #fff; }
+  .log-card.is-error .log-status { color: var(--danger); }
 
   .log-line {
     display: flex;
@@ -1421,7 +1616,7 @@
 
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
   }
 
@@ -1442,7 +1637,11 @@
     margin-top: 7px;
     font-size: 17px;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
+  .stat-value.bump { animation: stat-bump 260ms ease-out; }
+  @keyframes stat-bump { from { opacity: .3; transform: translateY(5px); } }
+  .spark-last { fill: #c49aff; }
 
   .spark {
     width: 100%;
@@ -1463,20 +1662,17 @@
 
   /* ── Generic button interactivity ── */
   .execute-btn,
-  .tool-btn, .map-btn, .mode-btn, .segmented button,
-  .top-icon-btn, .upgrade-btn, .pill-btn, .save-btn,
+  .map-btn, .mode-btn, .segmented button,
+  .top-icon-btn, .pill-btn, .save-btn,
   .nav-link, .nav-link-secondary,
-  .picker-item {
+  .picker-item, .icon-only-btn, .sidebar-toggle-btn {
     cursor: pointer;
   }
-  .tool-btn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.12); }
   .top-icon-btn:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.14); }
   .pill-btn:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); }
-  .save-btn:hover { filter: brightness(1.08); }
-  .save-btn:active { filter: brightness(.95); transform: translateY(1px); }
-  .upgrade-btn:hover { filter: brightness(1.07); box-shadow: 0 16px 40px rgba(141,77,255,.35), inset 0 1px 0 rgba(255,255,255,.24); }
+  .save-btn:not([aria-disabled="true"]):hover { filter: brightness(1.12); }
+  .save-btn:not([aria-disabled="true"]):active { filter: brightness(.95); transform: translateY(1px); }
   .segmented button:not(.active):hover { background: rgba(255,255,255,.06); }
-  .map-btn:hover { background: rgba(255,255,255,.07); }
 
   /* toast feedback */
   .btn-toast {
@@ -1509,20 +1705,23 @@
     left: 12px;
     right: 12px;
     width: auto;
-    border-radius: 18px;
+    max-height: calc(100% - 140px);
+    overflow-y: auto;
+    border-radius: var(--radius-lg);
     border: 1px solid rgba(255,255,255,.1);
-    background: rgba(14,14,28,.98);
-    backdrop-filter: blur(28px);
-    box-shadow: 0 -4px 24px rgba(0,0,0,.2), 0 24px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(141,77,255,.08);
-    overflow: hidden;
+    background: rgba(14,15,28,.97);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 24px 64px rgba(0,0,0,.55), 0 0 0 1px rgba(141,77,255,.08);
     transform-origin: bottom center;
-    transition: opacity 170ms ease, transform 170ms ease;
+    transition: opacity 170ms ease, transform 170ms ease, visibility 0s linear 0s;
     z-index: 10;
   }
   .node-picker.hidden {
     opacity: 0;
     transform: scale(.98) translateY(8px);
     pointer-events: none;
+    visibility: hidden;
+    transition: opacity 170ms ease, transform 170ms ease, visibility 0s linear 170ms;
   }
   .picker-search {
     display: flex;
@@ -1531,10 +1730,12 @@
     gap: 10px;
     padding: 11px 16px;
     border-bottom: 1px solid rgba(255,255,255,.06);
+    transition: box-shadow 140ms ease;
   }
+  .picker-search:focus-within { box-shadow: inset 0 -2px 0 rgba(171,111,255,.7); }
   .picker-search svg {
     width: 13px; height: 13px;
-    stroke: rgba(255,255,255,.3);
+    stroke: rgba(255,255,255,.5);
     fill: none; stroke-width: 1.9;
     stroke-linecap: round; stroke-linejoin: round;
     flex-shrink: 0;
@@ -1542,32 +1743,37 @@
   .picker-search input {
     flex: 1; background: none; border: none; outline: none;
     color: rgba(255,255,255,.86); font-size: 12.5px; font-family: inherit;
-    min-width: 160px;
+    min-width: 0;
   }
-  .picker-search input::placeholder { color: rgba(255,255,255,.24); }
+  .picker-search input::placeholder { color: rgba(255,255,255,.45); }
+  .picker-empty { padding: 14px 16px 16px; font-size: 12px; color: var(--muted); }
 
   .picker-items {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     padding: 8px 8px 10px;
     gap: 4px;
   }
   .picker-item {
-    flex: 1;
     display: flex;
     flex-direction: row;
     align-items: flex-start;
     gap: 10px;
-    padding: 12px 12px;
-    border-radius: 10px;
+    padding: 12px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    text-align: left;
     cursor: pointer;
     transition: background 130ms ease;
     min-width: 0;
   }
-  .picker-item:hover { background: rgba(255,255,255,.06); }
+  .picker-item:hover,
+  .picker-item:focus-visible { background: rgba(255,255,255,.06); }
   .picker-icon {
     width: 36px; height: 36px;
-    border-radius: 9px;
+    border-radius: var(--radius-xs);
     background: rgba(255,255,255,.05);
     display: grid; place-items: center; flex-shrink: 0;
   }
@@ -1592,17 +1798,13 @@
   .picker-icon.bolt svg { stroke: none; fill: var(--orange); }
 
   .picker-text { flex: 1; min-width: 0; }
-  .picker-label { font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; }
+  .picker-label { display: block; font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .picker-item.trigger .picker-label { color: var(--orange); }
   .picker-desc {
     display: block;
-    margin-top: 3px; font-size: 11px; color: rgba(255,255,255,.38);
+    margin-top: 3px; font-size: 11px; color: rgba(255,255,255,.62);
     line-height: 1.4;
     white-space: normal;
-  }
-  .picker-arrow { display: none; }
-  .picker-rule {
-    display: none;
   }
 
   .app.sidebar-collapsed .brand-word,
@@ -1677,10 +1879,6 @@
 
   @media (max-width: 1280px) {
     :root { --canvas-scale: .9; }
-    .main { grid-template-columns: minmax(0, 1fr); }
-    .inspector { border-top: 1px solid var(--stroke); }
-    .bottom { grid-template-columns: 1fr; }
-    .logs { border-right: 0; border-bottom: 1px solid var(--stroke); }
   }
 
   @media (max-width: 1160px) {
@@ -1695,73 +1893,98 @@
     :root { --canvas-scale: .74; }
   }
 
+  /* narrow frames: the sidebar becomes a one-line strip, the inspector floats over the canvas */
   @media (max-width: 900px) {
     .app,
-    .app.sidebar-collapsed { grid-template-columns: 1fr; }
-    .sidebar {
-      position: relative;
-      top: auto;
-      align-self: stretch;
-      padding: 10px 12px;
+    .app.sidebar-collapsed {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .sidebar,
+    .app.sidebar-collapsed .sidebar {
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px;
       border-right: 0;
       border-bottom: 1px solid var(--stroke);
-      min-height: auto;
-      overflow: visible;
+      overflow-x: auto;
     }
-    .sidebar-top { flex-direction: row; }
+    .app.sidebar-collapsed .sidebar-top { flex-direction: row; }
+    .app.sidebar-collapsed .brand { width: auto; }
+    .sidebar-toggle-btn,
+    .sidebar-group,
+    .sidebar-rule,
+    .profile { display: none; }
     .sidebar-nav,
-    .sidebar-group { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .app.sidebar-collapsed .brand-word,
-    .app.sidebar-collapsed .nav-text,
-    .app.sidebar-collapsed .profile-meta,
-    .app.sidebar-collapsed .beta {
-      opacity: 1;
-      width: auto;
-      pointer-events: auto;
+    .app.sidebar-collapsed .sidebar-nav { display: flex; gap: 4px; }
+    .topbar { min-height: 0; padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+    .topbar-center { display: none; }
+    .builder { padding: 10px 10px 8px; }
+    .right-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 20;
+      width: min(320px, 92%);
+      border-left: 1px solid var(--stroke-strong);
+      box-shadow: var(--shadow);
     }
-    .app.sidebar-collapsed .nav-link,
-    .app.sidebar-collapsed .nav-link-secondary {
-      width: auto;
-      min-height: 36px;
-      padding: 0 10px;
-      justify-content: flex-start;
-      gap: 10px;
-    }
-    .sidebar-group { margin-top: 0; }
-    .topbar {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .topbar-right { justify-content: flex-start; }
-    .builder-viewport {
-      min-height: 520px;
-    }
-    .stats-grid { grid-template-columns: 1fr; }
+    .right-panel.is-hidden { width: min(320px, 92%); transform: translateX(24px); }
   }
 
   @media (max-width: 640px) {
-    .sidebar-nav,
-    .sidebar-group { grid-template-columns: 1fr 1fr; }
-    .topbar { padding: 16px 14px; }
+    .crumb-label,
+    .crumb-divider,
+    .breadcrumb svg,
+    .star-btn span { display: none; }
+    .top-icon-btn, .pill-btn { min-height: 34px; padding: 0 11px; }
     .logs, .stats, .inspector { padding-left: 14px; padding-right: 14px; }
-    .builder-viewport {
-      min-height: 460px;
-    }
+    .segmented button { min-width: 0; height: 34px; padding: 0 10px; font-size: 12px; }
+    .mode-switch { top: 54px; }
     .map-hud {
       right: 12px;
-      bottom: 12px;
+      bottom: 64px;
       gap: 8px;
-    }
-    .map-hint {
-      font-size: 11px;
-      padding: 8px 10px;
     }
     .mode-btn {
       width: 30px;
       height: 30px;
-      padding: 0 10px;
-      font-size: 11px;
     }
+  }
+
+  /* focus: one visible ring for every control */
+  :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .picker-search input:focus-visible,
+  .ai-chat-input:focus-visible,
+  .field:focus-visible { outline: none; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* reduced motion: every state still lands, nothing travels */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+      scroll-behavior: auto !important;
+    }
+    .ai-typing span { opacity: .6; }
+    .is-running .status-dot::after { opacity: .8; }
   }
 </style>
 </head>
@@ -1848,277 +2071,262 @@
       <header class="topbar">
         <div class="topbar-left">
           <div class="breadcrumb">
-            <svg viewBox="0 0 24 24"><path d="M16 19a4 4 0 0 0-8 0"/><circle cx="12" cy="8" r="4"/></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"/><circle cx="12" cy="8" r="4"/></svg>
             <span class="crumb-label">Personal</span>
-            <span class="crumb-divider">/</span>
+            <span class="crumb-divider" aria-hidden="true">/</span>
             <span class="crumb-title">AI Agent workflow</span>
           </div>
-          <div class="pill-btn">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          <div class="tag-list" id="tag-list" aria-label="Tags"></div>
+          <button class="pill-btn" id="add-tag-btn" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
             <span>Add tag</span>
-          </div>
+          </button>
+          <input class="tag-input" id="tag-input" type="text" maxlength="20" placeholder="Tag name" aria-label="New tag name" autocomplete="off" hidden>
         </div>
 
         <div class="topbar-center">
-          <div class="topbar-search" id="topbar-search-btn">
-            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></svg>
-            <span>Search or type command</span>
-            <kbd>⌘K</kbd>
-          </div>
+          <button class="topbar-search" id="topbar-search-btn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="node-picker">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></svg>
+            <span>Search nodes</span>
+            <kbd id="search-kbd">Ctrl K</kbd>
+          </button>
         </div>
 
         <div class="topbar-right">
-          <div class="toggle-wrap">
-            <span>Inactive</span>
-            <div class="toggle"></div>
+          <div class="toggle-wrap" id="active-wrap">
+            <span id="active-label">Inactive</span>
+            <button class="toggle" id="active-toggle" type="button" role="switch" aria-checked="false" aria-label="Workflow active"></button>
           </div>
-          <button class="top-icon-btn">Share</button>
-          <button class="top-icon-btn">···</button>
-          <button class="top-icon-btn">
-            <svg viewBox="0 0 24 24"><path d="m12 17.3-5.56 3.2 1.52-6.21L3 10.17l6.47-.52L12 3.8l2.53 5.85 6.47.52-4.96 4.12 1.52 6.21z"/></svg>
+          <button class="top-icon-btn" id="share-btn" type="button">Share</button>
+          <button class="top-icon-btn star-btn" id="star-btn" type="button" aria-pressed="false" aria-label="Star workflow">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 17.3-5.56 3.2 1.52-6.21L3 10.17l6.47-.52L12 3.8l2.53 5.85 6.47.52-4.96 4.12 1.52 6.21z"/></svg>
             <span>Star</span>
-            <span style="color:rgba(255,255,255,.8);font-weight:500;">185,352</span>
           </button>
-          <button class="upgrade-btn">
-            <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
-            <span>Upgrade Now</span>
+          <div class="topbar-divider" aria-hidden="true"></div>
+          <button class="icon-only-btn active" id="btn-inspector-toggle" type="button" aria-label="Node inspector" aria-pressed="true" aria-controls="right-panel" title="Node inspector">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
           </button>
-          <div class="topbar-divider"></div>
-          <button class="icon-only-btn" id="btn-inspector-toggle" title="Toggle inspector">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
-          </button>
-          <button class="icon-only-btn" id="btn-ai-chat" title="AI Assistant">
-            <svg viewBox="0 0 24 24"><path d="M12 2c-1 2.8-2.8 4.6-5.5 5.5C9.2 8.4 11 10.2 12 13c1-2.8 2.8-4.6 5.5-5.5C14.8 6.6 13 4.8 12 2z"/><path d="M4.5 14c-.5 1.3-1.3 2.1-2.8 2.6 1.5.5 2.3 1.3 2.8 2.6.5-1.3 1.3-2.1 2.8-2.6C5.8 16.1 5 15.3 4.5 14z"/><path d="M19.5 3c-.4 1-1 1.6-2 2 1 .4 1.6 1 2 2 .4-1 1-1.6 2-2-1-.4-1.6-1-2-2z"/></svg>
+          <button class="icon-only-btn" id="btn-ai-chat" type="button" aria-label="AI Assistant" aria-pressed="false" aria-controls="right-panel" title="AI Assistant">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c-1 2.8-2.8 4.6-5.5 5.5C9.2 8.4 11 10.2 12 13c1-2.8 2.8-4.6 5.5-5.5C14.8 6.6 13 4.8 12 2z"/><path d="M4.5 14c-.5 1.3-1.3 2.1-2.8 2.6 1.5.5 2.3 1.3 2.8 2.6.5-1.3 1.3-2.1 2.8-2.6C5.8 16.1 5 15.3 4.5 14z"/><path d="M19.5 3c-.4 1-1 1.6-2 2 1 .4 1.6 1 2 2 .4-1 1-1.6 2-2-1-.4-1.6-1-2-2z"/></svg>
           </button>
         </div>
       </header>
 
       <div class="main">
-        <section class="canvas-panel">
+        <section class="canvas-panel" aria-label="Workflow canvas">
           <div class="builder" id="builder-map">
             <div class="builder-viewport" id="builder-viewport">
               <div class="builder-overlay">
                 <div class="selection-marquee" id="selection-marquee"></div>
-                <div class="segmented">
-                  <button class="active">Editor</button>
-                  <button>Executions</button>
-                  <button>Evaluations</button>
+                <div class="segmented" role="group" aria-label="View">
+                  <button type="button" class="active" aria-pressed="true">Editor</button>
+                  <button type="button" aria-pressed="false">Executions</button>
+                  <button type="button" aria-pressed="false">Evaluations</button>
                 </div>
 
-
-
-                <div class="mode-switch" id="mode-switch">
-                  <button class="mode-btn active" id="mode-hand" aria-pressed="true" title="Hand">
-                    <svg viewBox="0 0 24 24"><path d="M9 11V5a1.5 1.5 0 0 1 3 0v5"/><path d="M12 10V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11V6a1.5 1.5 0 0 1 3 0v7"/><path d="M9 11 7.8 9.8a1.7 1.7 0 0 0-2.4 2.4l4.5 4.5A4 4 0 0 0 12.8 18H16a4 4 0 0 0 4-4v-3"/></svg>
+                <div class="mode-switch" id="mode-switch" role="group" aria-label="Canvas mode">
+                  <button class="mode-btn active" id="mode-hand" type="button" aria-pressed="true" aria-label="Hand, drag to pan" title="Hand (H)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11V5a1.5 1.5 0 0 1 3 0v5"/><path d="M12 10V4.5a1.5 1.5 0 0 1 3 0V11"/><path d="M15 11V6a1.5 1.5 0 0 1 3 0v7"/><path d="M9 11 7.8 9.8a1.7 1.7 0 0 0-2.4 2.4l4.5 4.5A4 4 0 0 0 12.8 18H16a4 4 0 0 0 4-4v-3"/></svg>
                   </button>
-                  <button class="mode-btn" id="mode-pointer" aria-pressed="false" title="Pointer">
-                    <svg viewBox="0 0 24 24"><path d="m5 3 12 8-5 1 3 7-2.5 1-3-7-4.5 3z"/></svg>
+                  <button class="mode-btn" id="mode-pointer" type="button" aria-pressed="false" aria-label="Pointer, select and move nodes" title="Pointer (V)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 12 8-5 1 3 7-2.5 1-3-7-4.5 3z"/></svg>
                   </button>
                 </div>
 
-
-                <!-- Node Picker -->
-                <div class="node-picker hidden" id="node-picker" role="menu">
+                <!-- Node picker -->
+                <div class="node-picker hidden" id="node-picker" role="dialog" aria-label="Add a node">
                   <div class="picker-search">
-                    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></svg>
-                    <input type="text" id="picker-search-input" placeholder="Search nodes…" autocomplete="off">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></svg>
+                    <input type="text" id="picker-search-input" placeholder="Search nodes…" autocomplete="off" aria-label="Search nodes">
                   </div>
                   <div class="picker-items" id="picker-items">
-
-                    <div class="picker-item" role="menuitem" tabindex="0">
-                      <div class="picker-icon purple">
+                    <button class="picker-item" type="button" data-add="ai" data-keywords="openai llm chat model classifier">
+                      <span class="picker-icon purple" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
-                      </div>
-                      <div class="picker-text">
-                        <div class="picker-label">AI & Agents</div>
-                        <div class="picker-desc">LLMs, autonomous agents, document Q&A</div>
-                      </div>
-                      <span class="picker-arrow">›</span>
-                    </div>
+                      </span>
+                      <span class="picker-text">
+                        <span class="picker-label">AI &amp; Agents</span>
+                        <span class="picker-desc">LLMs, autonomous agents, document Q&amp;A</span>
+                      </span>
+                    </button>
 
-                    <div class="picker-item" role="menuitem" tabindex="0">
-                      <div class="picker-icon blue">
+                    <button class="picker-item" type="button" data-add="apps" data-keywords="gmail google sheets email notion airtable">
+                      <span class="picker-icon blue" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2z"/><path d="M7 7h.01"/></svg>
-                      </div>
-                      <div class="picker-text">
-                        <div class="picker-label">App Integrations</div>
-                        <div class="picker-desc">Google, Slack, Notion, Airtable & 400+ apps</div>
-                      </div>
-                      <span class="picker-arrow">›</span>
-                    </div>
+                      </span>
+                      <span class="picker-text">
+                        <span class="picker-label">App Integrations</span>
+                        <span class="picker-desc">Google, Slack, Notion, Airtable and more</span>
+                      </span>
+                    </button>
 
-                    <div class="picker-item" role="menuitem" tabindex="0">
-                      <div class="picker-icon cyan">
+                    <button class="picker-item" type="button" data-add="transform" data-keywords="set edit fields rename">
+                      <span class="picker-icon cyan" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
-                      </div>
-                      <div class="picker-text">
-                        <div class="picker-label">Transform</div>
-                        <div class="picker-desc">Filter, map, merge or reshape data</div>
-                      </div>
-                      <span class="picker-arrow">›</span>
-                    </div>
+                      </span>
+                      <span class="picker-text">
+                        <span class="picker-label">Transform</span>
+                        <span class="picker-desc">Filter, map, merge or reshape data</span>
+                      </span>
+                    </button>
 
-                    <div class="picker-item" role="menuitem" tabindex="0">
-                      <div class="picker-icon green">
+                    <button class="picker-item" type="button" data-add="logic" data-keywords="if switch condition">
+                      <span class="picker-icon green" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6H9a6 6 0 0 0 0 12h3"/></svg>
-                      </div>
-                      <div class="picker-text">
-                        <div class="picker-label">Logic & Flow</div>
-                        <div class="picker-desc">Branch, loop, merge, wait, retry</div>
-                      </div>
-                      <span class="picker-arrow">›</span>
-                    </div>
+                      </span>
+                      <span class="picker-text">
+                        <span class="picker-label">Logic &amp; Flow</span>
+                        <span class="picker-desc">Branch, loop, merge, wait, retry</span>
+                      </span>
+                    </button>
 
-                    <div class="picker-item" role="menuitem" tabindex="0">
-                      <div class="picker-icon orange">
+                    <button class="picker-item" type="button" data-add="http" data-keywords="api request javascript">
+                      <span class="picker-icon orange" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                      </div>
-                      <div class="picker-text">
-                        <div class="picker-label">HTTP & Code</div>
-                        <div class="picker-desc">REST calls, webhooks, custom JS / Python</div>
-                      </div>
-                      <span class="picker-arrow">›</span>
-                    </div>
+                      </span>
+                      <span class="picker-text">
+                        <span class="picker-label">HTTP &amp; Code</span>
+                        <span class="picker-desc">REST calls, webhooks, custom JS / Python</span>
+                      </span>
+                    </button>
 
-                    <div class="picker-item" role="menuitem" tabindex="0">
-                      <div class="picker-icon rose">
+                    <button class="picker-item" type="button" data-add="human" data-keywords="approval review">
+                      <span class="picker-icon rose" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
-                      </div>
-                      <div class="picker-text">
-                        <div class="picker-label">Human in the Loop</div>
-                        <div class="picker-desc">Pause for approval before proceeding</div>
-                      </div>
-                      <span class="picker-arrow">›</span>
-                    </div>
+                      </span>
+                      <span class="picker-text">
+                        <span class="picker-label">Human in the Loop</span>
+                        <span class="picker-desc">Pause for approval before proceeding</span>
+                      </span>
+                    </button>
 
-                    <div class="picker-rule" id="picker-rule"></div>
-
-                    <div class="picker-item trigger" role="menuitem" tabindex="0">
-                      <div class="picker-icon bolt">
+                    <button class="picker-item trigger" type="button" data-add="trigger" data-keywords="schedule cron">
+                      <span class="picker-icon bolt" aria-hidden="true">
                         <svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
-                      </div>
-                      <div class="picker-text">
-                        <div class="picker-label">Add Trigger</div>
-                        <div class="picker-desc">Schedule, webhook or event — multiple triggers supported</div>
-                      </div>
-                      <span class="picker-arrow">›</span>
-                    </div>
-
+                      </span>
+                      <span class="picker-text">
+                        <span class="picker-label">Add Trigger</span>
+                        <span class="picker-desc">Schedule, webhook or event — multiple triggers supported</span>
+                      </span>
+                    </button>
                   </div>
-                </div>
-
-                <div class="canvas-actions">
-                  <div class="tool-btn"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M21 15v4a2 2 0 0 1-2 2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg></div>
-                  <div class="tool-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/><path d="M11 8v6"/><path d="M8 11h6"/></svg></div>
-                  <div class="tool-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/><path d="M8.5 11H13.5"/></svg></div>
-                  <div class="tool-btn"><svg viewBox="0 0 24 24"><path d="m9 14-4-4 4-4"/><path d="M5 10h8a5 5 0 0 1 5 5"/></svg></div>
-                  <div class="tool-btn"><svg viewBox="0 0 24 24"><path d="m5 3 14 9-14 9 3-9z"/></svg></div>
+                  <p class="picker-empty" id="picker-empty" hidden>No node matches that search.</p>
                 </div>
 
                 <div class="canvas-bottom-bar">
-                  <button class="execute-btn" id="add-node-btn" aria-label="Add node" aria-expanded="false">
-                    <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  <button class="add-node-btn" id="add-node-btn" type="button" aria-label="Add node" aria-haspopup="dialog" aria-expanded="false" aria-controls="node-picker">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                   </button>
-                  <button class="execute-btn execute-run">
-                    <svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></svg>
-                    <span>Execute workflow</span>
+                  <button class="execute-btn execute-run" id="execute-btn" type="button" aria-disabled="false">
+                    <span class="exec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></svg></span>
+                    <span class="exec-spinner" aria-hidden="true"></span>
+                    <span class="exec-label" id="exec-label">Execute workflow</span>
                   </button>
                 </div>
               </div>
               <div class="builder-camera" id="builder-camera">
                 <div class="builder-inner" id="builder-inner">
-                <div class="canvas">
+                <div class="canvas" id="canvas">
                   <svg class="flow-lines" id="flow-lines" viewBox="0 0 2400 1600" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  <svg class="flow-pulses" id="flow-pulses" viewBox="0 0 2400 1600" preserveAspectRatio="none" aria-hidden="true"></svg>
 
-                  <div class="node active draggable-node" data-node="trigger" style="left:753px;top:681px;">
-                    <div class="trigger-bolt"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
+                  <div class="node draggable-node" data-node="trigger" tabindex="0" role="button" aria-pressed="false" style="left:753px;top:681px;">
+                    <div class="trigger-bolt" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
                     <div class="node-icon">
-                      <svg viewBox="0 0 24 24"><path d="m12 19 7-7-7-7"/><path d="M5 12h14"/></svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19 7-7-7-7"/><path d="M5 12h14"/></svg>
                     </div>
                     <div>
                       <div class="node-title">Trigger</div>
                       <div class="node-sub">Workflow trigger</div>
                     </div>
-                    <div class="node-check">✓</div>
+                    <div class="node-badge"></div>
                     <div class="port right"></div>
                   </div>
 
-                  <div class="node draggable-node" data-node="agent" style="left:1023px;top:681px;width:240px;">
+                  <div class="node draggable-node" data-node="agent" tabindex="0" role="button" aria-pressed="false" style="left:1023px;top:681px;width:240px;">
                     <div class="node-icon">
-                      <svg viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="10" rx="3"/><path d="M9 19h6"/><path d="M12 6V3"/><path d="M7 11h.01"/><path d="M17 11h.01"/></svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="10" rx="3"/><path d="M9 19h6"/><path d="M12 6V3"/><path d="M7 11h.01"/><path d="M17 11h.01"/></svg>
                     </div>
                     <div>
                       <div class="node-title">AI Agent</div>
-                      <div class="node-sub">Double-click to open</div>
+                      <div class="node-sub">Summarizes the news</div>
                     </div>
+                    <div class="node-badge"></div>
                     <div class="port left"></div>
                     <div class="port right"></div>
                     <div class="port bottom" style="left:25%;"></div>
                     <div class="port bottom"></div>
                     <div class="port bottom" style="left:75%;"></div>
+                    <div class="slot-row" aria-hidden="true"><span>Model</span><span>Memory</span><span>Tools</span></div>
                   </div>
 
-                  <div class="node draggable-node" data-node="output" style="left:1311px;top:681px;width:220px;">
+                  <div class="node draggable-node" data-node="output" tabindex="0" role="button" aria-pressed="false" style="left:1311px;top:681px;width:220px;">
                     <div class="node-icon">
-                      <svg viewBox="0 0 24 24"><path d="M8 16h8"/><path d="M8 12h8"/><path d="M8 8h5"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16h8"/><path d="M8 12h8"/><path d="M8 8h5"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg>
                     </div>
                     <div>
                       <div class="node-title">Output</div>
                       <div class="node-sub">News summary</div>
                     </div>
+                    <div class="node-badge"></div>
                     <div class="port left"></div>
                     <div class="port right"></div>
                   </div>
 
-                  <div class="node draggable-node" data-node="gmail" style="left:1579px;top:681px;width:220px;">
+                  <div class="node draggable-node" data-node="gmail" tabindex="0" role="button" aria-pressed="false" style="left:1579px;top:681px;width:220px;">
                     <div class="node-icon">
-                      <svg viewBox="0 0 24 24"><path d="M4 7.5 12 13l8-5.5"/><rect x="3.5" y="5" width="17" height="14" rx="3"/></svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 13l8-5.5"/><rect x="3.5" y="5" width="17" height="14" rx="3"/></svg>
                     </div>
                     <div>
                       <div class="node-title">Gmail</div>
                       <div class="node-sub">Send summary</div>
                     </div>
-                    <div class="node-warning">△</div>
+                    <div class="node-badge"></div>
                     <div class="port left"></div>
                   </div>
 
-                  <div class="label-row">
-                    <div class="label-chip">Model<div class="plus-slot">+</div></div>
-                    <div class="label-chip">Memory<div class="plus-slot">+</div></div>
-                    <div class="label-chip">Tools<div class="plus-slot">+</div></div>
-                  </div>
-
-                  <div class="mini-node draggable-node" data-node="model" style="left:989px;top:919px;">
+                  <div class="mini-node draggable-node" data-node="model" tabindex="0" role="button" aria-pressed="false" style="left:869px;top:919px;">
                     <div class="node-icon">
-                      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9.5 9.5c.8-1 1.6-1.5 2.5-1.5 2.4 0 4 3.2 4 5.2 0 2.5-1.6 4.3-4 4.3-1.6 0-2.8-.8-3.7-2.3"/><path d="M8.6 14.1c.3 1.8 1.7 3.4 3.4 3.4"/></svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M9.5 9.5c.8-1 1.6-1.5 2.5-1.5 2.4 0 4 3.2 4 5.2 0 2.5-1.6 4.3-4 4.3-1.6 0-2.8-.8-3.7-2.3"/><path d="M8.6 14.1c.3 1.8 1.7 3.4 3.4 3.4"/></svg>
                     </div>
                     <div class="node-title">OpenAI Model</div>
-                    <div class="node-sub">Free plan</div>
+                    <div class="node-sub">Chat model</div>
+                    <div class="node-badge"></div>
                   </div>
 
-                  <div class="mini-node draggable-node" data-node="tech" style="left:1119px;top:919px;">
+                  <button class="slot-add" id="memory-slot" type="button" aria-label="Add a memory sub-node" title="Add memory" style="left:1128px;top:851px;">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  </button>
+
+                  <div class="mini-node draggable-node" data-node="tech" tabindex="0" role="button" aria-pressed="false" style="left:1249px;top:919px;">
                     <div class="node-icon">
-                      <svg viewBox="0 0 24 24"><path d="M6 17a8 8 0 0 1 12 0"/><path d="M8.8 14.2a4.2 4.2 0 0 1 6.4 0"/><circle cx="12" cy="18" r="1.4"/></svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17a8 8 0 0 1 12 0"/><path d="M8.8 14.2a4.2 4.2 0 0 1 6.4 0"/><circle cx="12" cy="18" r="1.4"/></svg>
                     </div>
                     <div class="node-title">Get Tech News</div>
+                    <div class="node-sub">Tool</div>
+                    <div class="node-badge"></div>
                   </div>
 
-                  <div class="mini-node draggable-node" data-node="world" style="left:1259px;top:919px;">
+                  <div class="mini-node draggable-node" data-node="world" tabindex="0" role="button" aria-pressed="false" style="left:1389px;top:919px;">
                     <div class="node-icon">
-                      <svg viewBox="0 0 24 24"><path d="M6 17a8 8 0 0 1 12 0"/><path d="M8.8 14.2a4.2 4.2 0 0 1 6.4 0"/><circle cx="12" cy="18" r="1.4"/></svg>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17a8 8 0 0 1 12 0"/><path d="M8.8 14.2a4.2 4.2 0 0 1 6.4 0"/><circle cx="12" cy="18" r="1.4"/></svg>
                     </div>
                     <div class="node-title">Get World News</div>
+                    <div class="node-sub">Tool</div>
+                    <div class="node-badge"></div>
                   </div>
                 </div>
               </div>
               </div>
               <div class="map-hud">
-                <div class="map-hint">Drag to move · Scroll to zoom</div>
+                <div class="map-hint" id="map-hint">Hand mode · Drag to move · Scroll to zoom</div>
                 <div class="map-controls">
-                  <button class="map-btn" id="map-zoom-out" aria-label="Zoom out">−</button>
+                  <button class="map-btn" id="map-zoom-out" type="button" aria-label="Zoom out">−</button>
                   <div class="map-zoom-readout" id="map-zoom-readout">100%</div>
-                  <button class="map-btn" id="map-zoom-in" aria-label="Zoom in">+</button>
-                  <button class="map-btn" id="map-reset" aria-label="Reset view">⌂</button>
+                  <button class="map-btn" id="map-zoom-in" type="button" aria-label="Zoom in">+</button>
+                  <button class="map-btn" id="map-reset" type="button" aria-label="Fit to screen" title="Fit to screen">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M15 4h4a1 1 0 0 1 1 1v4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/><path d="M9 20H5a1 1 0 0 1-1-1v-4"/></svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -2126,48 +2334,50 @@
 
           <div class="bottom is-collapsed" id="bottom-panel">
             <div class="bottom-head" id="bottom-head">
-              <div class="bottom-head-tabs">
-                <div class="section-title active">Logs</div>
-                <div class="section-title">Workflow Stats</div>
+              <div class="bottom-head-tabs" role="tablist" aria-label="Run details">
+                <button class="section-title active" id="tab-logs" type="button" role="tab" aria-selected="true" aria-controls="panel-logs">Logs</button>
+                <button class="section-title" id="tab-stats" type="button" role="tab" aria-selected="false" aria-controls="panel-stats" tabindex="-1">Workflow Stats</button>
               </div>
-              <button class="collapse-toggle" aria-label="Toggle panel">
-                <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              <button class="collapse-toggle" id="collapse-toggle" type="button" aria-label="Run details" aria-expanded="false" aria-controls="bottom-body">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
               </button>
             </div>
             <div class="bottom-body" id="bottom-body">
-              <div class="logs">
-                <div class="log-card">
-                  <div class="status-dot"></div>
-                  <div class="log-line">
-                    <strong>13:45:30</strong>
-                    <span>Workflow executed successfully</span>
-                    <span class="divider"></span>
-                    <span>Execution time: 2.45s</span>
-                    <span class="divider"></span>
-                    <span>ID: #89342</span>
-                  </div>
-                  <span style="font-size:20px;color:rgba(255,255,255,.55);">›</span>
-                </div>
+              <div class="logs" id="panel-logs" role="tabpanel" aria-labelledby="tab-logs" tabindex="0">
+                <ol class="log-list" id="log-list">
+                  <li class="log-card">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <div class="log-line">
+                      <strong class="log-num">13:45:30</strong>
+                      <span class="log-status">Workflow executed successfully</span>
+                      <span class="divider" aria-hidden="true"></span>
+                      <span class="log-num">2.45s</span>
+                      <span class="divider" aria-hidden="true"></span>
+                      <span class="log-num">ID #89342</span>
+                    </div>
+                  </li>
+                </ol>
               </div>
-              <div class="stats">
+              <div class="stats" id="panel-stats" role="tabpanel" aria-labelledby="tab-stats" tabindex="0" hidden>
                 <div class="stats-grid">
                   <div class="stat-card">
                     <div class="stat-label">Success Rate</div>
-                    <div class="stat-value">98.6%</div>
+                    <div class="stat-value" id="stat-rate">98.6%</div>
                     <svg class="spark spark-green" viewBox="0 0 120 32" aria-hidden="true">
                       <polyline points="0,26 14,19 28,23 42,14 56,18 70,8 84,21 98,17 112,7 120,8"/>
                     </svg>
                   </div>
                   <div class="stat-card">
                     <div class="stat-label">Avg. Execution Time</div>
-                    <div class="stat-value">2.45s</div>
+                    <div class="stat-value" id="stat-avg">2.45s</div>
                     <svg class="spark spark-purple" viewBox="0 0 120 32" aria-hidden="true">
-                      <polyline points="0,24 12,18 24,12 36,19 48,10 60,14 72,8 84,21 96,16 108,9 120,4"/>
+                      <polyline id="spark-time" points="0,24 12,18 24,12 36,19 48,10 60,14 72,8 84,21 96,16 108,9 120,4"/>
+                      <circle class="spark-last" id="spark-time-last" cx="120" cy="4" r="2.6"/>
                     </svg>
                   </div>
                   <div class="stat-card">
                     <div class="stat-label">Total Executions</div>
-                    <div class="stat-value">12,429</div>
+                    <div class="stat-value" id="stat-total">12,429</div>
                     <svg class="spark spark-orange" viewBox="0 0 120 32" aria-hidden="true">
                       <polyline points="0,23 12,17 24,24 36,10 48,19 60,11 72,22 84,12 96,21 108,9 120,15"/>
                     </svg>
@@ -2180,106 +2390,233 @@
 
         <div class="right-panel" id="right-panel">
 
-        <!-- AI Chat -->
-        <div class="ai-chat" id="ai-chat-panel">
-          <div class="ai-chat-header">
-            <div class="ai-chat-title">
-              <svg viewBox="0 0 24 24"><path d="M12 2c-1 2.8-2.8 4.6-5.5 5.5C9.2 8.4 11 10.2 12 13c1-2.8 2.8-4.6 5.5-5.5C14.8 6.6 13 4.8 12 2z"/><path d="M4.5 14c-.5 1.3-1.3 2.1-2.8 2.6 1.5.5 2.3 1.3 2.8 2.6.5-1.3 1.3-2.1 2.8-2.6C5.8 16.1 5 15.3 4.5 14z"/><path d="M19.5 3c-.4 1-1 1.6-2 2 1 .4 1.6 1 2 2 .4-1 1-1.6 2-2-1-.4-1.6-1-2-2z"/></svg>
-              AI Assistant
-              <span class="ai-chat-badge">Beta</span>
-            </div>
-          </div>
-          <div class="ai-chat-messages" id="ai-messages">
-            <div class="ai-msg">Hi! I can help you <strong>build, debug, and optimize</strong> this workflow. What would you like to do?</div>
-          </div>
-          <div class="ai-chat-footer">
-            <textarea class="ai-chat-input" id="ai-input" placeholder="Ask about your workflow…" rows="1"></textarea>
-            <button class="ai-send-btn" id="ai-send-btn">
-              <svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7z"/><path d="M22 2 11 13"/></svg>
-            </button>
-          </div>
-        </div>
-
-        <aside class="inspector">
-          <div class="panel">
-            <div class="panel-header">
-              <div class="panel-title-wrap">
-                <div class="panel-bolt"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
-                <div class="panel-title">Workflow Trigger</div>
+          <!-- AI chat -->
+          <div class="ai-chat" id="ai-chat-panel" role="region" aria-label="AI Assistant">
+            <div class="ai-chat-header">
+              <div class="ai-chat-title">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c-1 2.8-2.8 4.6-5.5 5.5C9.2 8.4 11 10.2 12 13c1-2.8 2.8-4.6 5.5-5.5C14.8 6.6 13 4.8 12 2z"/><path d="M4.5 14c-.5 1.3-1.3 2.1-2.8 2.6 1.5.5 2.3 1.3 2.8 2.6.5-1.3 1.3-2.1 2.8-2.6C5.8 16.1 5 15.3 4.5 14z"/><path d="M19.5 3c-.4 1-1 1.6-2 2 1 .4 1.6 1 2 2 .4-1 1-1.6 2-2-1-.4-1.6-1-2-2z"/></svg>
+                AI Assistant
+                <span class="ai-chat-badge">Beta</span>
               </div>
             </div>
-
-            <div class="tabs">
-              <div class="tab active">Parameters</div>
-              <div class="tab">Settings</div>
-              <div class="tab">Docs ↗</div>
+            <div class="ai-chat-messages" id="ai-messages" aria-live="polite">
+              <div class="ai-msg">The <strong>Gmail</strong> sign-in has expired, so the last step cannot send. Want me to walk you through reconnecting it?</div>
             </div>
-
-            <div class="field-group">
-              <div class="field-label">Trigger Mode</div>
-              <div class="field">
-                <span>On Workflow Start</span>
-                <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
+            <div class="ai-chat-footer">
+              <textarea class="ai-chat-input" id="ai-input" placeholder="Ask about your workflow…" rows="1" aria-label="Message the AI Assistant"></textarea>
+              <button class="ai-send-btn" id="ai-send-btn" type="button" aria-label="Send message">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7z"/><path d="M22 2 11 13"/></svg>
+              </button>
             </div>
-
-            <div class="field-group">
-              <div class="field-label">Input Data (optional)</div>
-              <div class="field textarea">No input data</div>
-            </div>
-
-            <div class="field-group">
-              <div class="field-label">Options</div>
-              <div class="switch-row">
-                <span>Execute Once</span>
-                <div class="switch"></div>
-              </div>
-              <div class="switch-row">
-                <span>Save Execution Logs</span>
-                <div class="switch"></div>
-              </div>
-            </div>
-
-            <div class="field-group">
-              <div class="field-label">Timeout (seconds)</div>
-              <div class="field"><span>300</span></div>
-            </div>
-
-            <button class="save-btn">Save</button>
           </div>
-        </aside>
+
+          <aside class="inspector" id="inspector" aria-label="Node settings">
+            <div class="panel" id="inspector-panel">
+              <div class="panel-header">
+                <div class="panel-title-wrap">
+                  <div class="panel-icon is-trigger" id="inspector-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></div>
+                  <div>
+                    <div class="panel-title" id="inspector-title">Trigger</div>
+                    <div class="panel-sub" id="inspector-sub">Workflow trigger</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tabs" role="tablist" aria-label="Node settings">
+                <button class="tab active" id="itab-params" type="button" role="tab" aria-selected="true" aria-controls="ipanel-params">Parameters</button>
+                <button class="tab" id="itab-settings" type="button" role="tab" aria-selected="false" aria-controls="ipanel-settings" tabindex="-1">Settings</button>
+                <button class="tab" id="itab-docs" type="button" role="tab" aria-selected="false" aria-controls="ipanel-docs" tabindex="-1">Docs</button>
+              </div>
+
+              <form id="inspector-form" autocomplete="off" novalidate>
+                <div class="tab-panel" id="ipanel-params" role="tabpanel" aria-labelledby="itab-params"></div>
+                <div class="tab-panel" id="ipanel-settings" role="tabpanel" aria-labelledby="itab-settings" hidden></div>
+                <div class="tab-panel" id="ipanel-docs" role="tabpanel" aria-labelledby="itab-docs" hidden></div>
+                <button class="save-btn" id="save-btn" type="submit" aria-disabled="true">Save</button>
+              </form>
+            </div>
+            <p class="inspector-empty" id="inspector-empty" hidden>Select a node on the canvas to edit it here. Double-click a node, or press Enter on it, to open it from anywhere.</p>
+          </aside>
         </div><!-- /.right-panel -->
       </div>
     </div>
+    <p class="sr-only" id="run-status" role="status" aria-live="polite"></p>
   </div>
 
   <script>
-    const app = document.getElementById('app-shell');
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    const root = document.documentElement;
-    const builderMap = document.getElementById('builder-map');
-    const builderViewport = document.getElementById('builder-viewport');
-    const selectionMarquee = document.getElementById('selection-marquee');
-    const flowLines = document.getElementById('flow-lines');
-    const canvasEl = document.querySelector('.canvas');
-    const zoomReadout = document.getElementById('map-zoom-readout');
-    const zoomInBtn = document.getElementById('map-zoom-in');
-    const zoomOutBtn = document.getElementById('map-zoom-out');
-    const resetMapBtn = document.getElementById('map-reset');
-    const modeHandBtn = document.getElementById('mode-hand');
-    const modePointerBtn = document.getElementById('mode-pointer');
-    const nodeElements = Object.fromEntries(
-      [...document.querySelectorAll('[data-node]')].map((el) => [el.dataset.node, el])
-    );
-    const allNodes = Object.values(nodeElements);
+  (() => {
+    'use strict';
 
+    const $ = (sel, ctx = document) => ctx.querySelector(sel);
+    const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+    const RM = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const reduced = () => RM.matches;
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const pace = (ms) => wait(reduced() ? 0 : ms);
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const isTyping = (t) => !!(t && t.closest && t.closest('input, textarea, select, [contenteditable="true"]'));
+    const focusVisible = (el) => { try { return el.matches(':focus-visible'); } catch (e) { return false; } };
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const CANVAS_W = 2400;
+    const CANVAS_H = 1600;
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+    const MOD = isMac ? '⌘' : 'Ctrl';
+    const NF = new Intl.NumberFormat('en-US');
+
+    const ICON = {
+      check: '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+      warn: '<svg viewBox="0 0 24 24"><path d="M12 4 2.8 20h18.4Z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg>',
+      error: '<svg viewBox="0 0 24 24"><path d="M12 6.5v7"/><path d="M12 17.5h.01"/></svg>',
+      bolt: '<svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>',
+      close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>',
+      chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+      clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+      memory: '<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/></svg>',
+    };
+
+    // ── Elements ──
+    const app = $('#app-shell');
+    const root = document.documentElement;
+    const sidebarToggle = $('#sidebar-toggle');
+    const builderMap = $('#builder-map');
+    const builderViewport = $('#builder-viewport');
+    const selectionMarquee = $('#selection-marquee');
+    const canvasEl = $('#canvas');
+    const flowLines = $('#flow-lines');
+    const flowPulses = $('#flow-pulses');
+    const memorySlot = $('#memory-slot');
+    const zoomReadout = $('#map-zoom-readout');
+    const mapHint = $('#map-hint');
+    const modeHandBtn = $('#mode-hand');
+    const modePointerBtn = $('#mode-pointer');
+    const rightPanel = $('#right-panel');
+    const btnInspector = $('#btn-inspector-toggle');
+    const btnAiChat = $('#btn-ai-chat');
+    const runStatus = $('#run-status');
+
+    flowLines.innerHTML = '<g class="flow-paths"></g><g class="flow-dots"></g>';
+    const pathLayer = $('.flow-paths', flowLines);
+    const dotLayer = $('.flow-dots', flowLines);
+
+    // ── Toast (confirmations only) ──
+    const toast = document.createElement('div');
+    toast.className = 'btn-toast';
+    toast.setAttribute('role', 'status');
+    document.body.appendChild(toast);
+    let toastTimer;
+    function showToast(msg) {
+      clearTimeout(toastTimer);
+      toast.textContent = msg;
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    function announce(msg) {
+      runStatus.textContent = '';
+      requestAnimationFrame(() => { runStatus.textContent = msg; });
+    }
+
+    // ── Graph model ──
+    const nodeElements = new Map();
+    const allNodes = () => [...nodeElements.values()];
+    $$('[data-node]', canvasEl).forEach((el) => nodeElements.set(el.dataset.node, el));
+
+    const PORT_X = { model: 0.25, memory: 0.5, tools: 0.75 };
+    const connections = [
+      { id: 'trigger>agent', from: 'trigger', to: 'agent', kind: 'main' },
+      { id: 'agent>output', from: 'agent', to: 'output', kind: 'main' },
+      { id: 'output>gmail', from: 'output', to: 'gmail', kind: 'main' },
+      { id: 'agent>model', from: 'agent', to: 'model', kind: 'sub', port: 'model' },
+      { id: 'agent>memory-slot', from: 'agent', to: 'memory-slot', kind: 'slot', port: 'memory' },
+      { id: 'agent>tech', from: 'agent', to: 'tech', kind: 'sub', port: 'tools' },
+      { id: 'agent>world', from: 'agent', to: 'world', kind: 'sub', port: 'tools' },
+    ];
+    const lineEls = new Map();
+
+    function boxOf(el) {
+      const x = el.offsetLeft;
+      const y = el.offsetTop;
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      return { x, y, w, h, left: x, top: y, right: x + w, bottom: y + h, cx: x + w / 2, cy: y + h / 2 };
+    }
+    const getNodeBox = (id) => boxOf(id === 'memory-slot' ? memorySlot : nodeElements.get(id));
+    const titleOf = (id) => nodeElements.get(id)?.querySelector('.node-title')?.textContent || id;
+
+    function curveHorizontal(x1, y1, x2, y2) {
+      const bend = Math.min(76, Math.max(42, Math.abs(x2 - x1) * 0.4));
+      return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+    }
+
+    function curveDown(x1, y1, x2, y2) {
+      const midY = y1 + Math.max(42, (y2 - y1) * 0.36);
+      return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+    }
+
+    function geometry(c) {
+      const a = getNodeBox(c.from);
+      const b = getNodeBox(c.to);
+      if (c.kind === 'main') return { d: curveHorizontal(a.right, a.cy, b.left, b.cy), p1: [a.right, a.cy], p2: [b.left, b.cy] };
+      if (c.kind === 'down') return { d: curveDown(a.cx, a.bottom, b.cx, b.top), p1: [a.cx, a.bottom], p2: [b.cx, b.top] };
+      const px = a.left + a.w * PORT_X[c.port];
+      return { d: curveDown(px, a.bottom, b.cx, b.top), p1: [px, a.bottom], p2: [b.cx, b.top] };
+    }
+
+    function placeMemorySlot() {
+      if (memorySlot.hidden) return;
+      const a = getNodeBox('agent');
+      memorySlot.style.left = `${Math.round(a.left + a.w * PORT_X.memory - 15)}px`;
+      memorySlot.style.top = `${Math.round(a.bottom + 64)}px`;
+    }
+
+    // Paths and port dots are built once per connection, then only their attributes move.
+    function updateConnections() {
+      placeMemorySlot();
+      const live = new Set();
+      connections.forEach((c) => {
+        live.add(c.id);
+        let rec = lineEls.get(c.id);
+        if (!rec) {
+          rec = {
+            path: document.createElementNS(SVG_NS, 'path'),
+            a: document.createElementNS(SVG_NS, 'circle'),
+            b: document.createElementNS(SVG_NS, 'circle'),
+          };
+          if (c.kind === 'main' || c.kind === 'down') rec.path.setAttribute('class', 'main');
+          if (c.kind === 'slot') rec.path.setAttribute('class', 'slot');
+          rec.a.setAttribute('r', '6');
+          rec.b.setAttribute('r', c.kind === 'slot' ? '0' : '6');
+          pathLayer.append(rec.path);
+          dotLayer.append(rec.a, rec.b);
+          lineEls.set(c.id, rec);
+        }
+        const g = geometry(c);
+        rec.path.setAttribute('d', g.d);
+        rec.a.setAttribute('cx', g.p1[0]);
+        rec.a.setAttribute('cy', g.p1[1]);
+        rec.b.setAttribute('cx', g.p2[0]);
+        rec.b.setAttribute('cy', g.p2[1]);
+      });
+      lineEls.forEach((rec, id) => {
+        if (live.has(id)) return;
+        rec.path.remove();
+        rec.a.remove();
+        rec.b.remove();
+        lineEls.delete(id);
+      });
+    }
+
+    // ── Map state ──
     const mapState = {
       x: 0,
       y: 0,
       zoom: 0.82,
       minZoom: 0.72,
       maxZoom: 1.5,
+      pending: false,
       isDragging: false,
+      userMoved: false,
       startX: 0,
       startY: 0,
       originX: 0,
@@ -2289,11 +2626,7 @@
     const interactionState = {
       mode: 'hand',
       selectedNodes: new Set(),
-      marquee: {
-        active: false,
-        startX: 0,
-        startY: 0,
-      },
+      marquee: { active: false, startX: 0, startY: 0 },
     };
 
     const nodeDragState = {
@@ -2305,20 +2638,139 @@
       nodePositions: [],
     };
 
+    const run = { active: false };
+
     function getBaseScale() {
       return parseFloat(getComputedStyle(root).getPropertyValue('--canvas-scale')) || 1;
     }
 
-    function clamp(value, min, max) {
-      return Math.min(Math.max(value, min), max);
-    }
-
     function updateSidebarFit() {
-      const previewHeight = window.innerHeight;
-      const fit = clamp(previewHeight / 900, 0.68, 1);
+      const fit = clamp(window.innerHeight / 900, 0.85, 1);
       root.style.setProperty('--sidebar-fit', fit.toFixed(3));
     }
 
+    function clampMapPosition(nextX = mapState.x, nextY = mapState.y, nextZoom = mapState.zoom) {
+      const rect = builderViewport.getBoundingClientRect();
+      const contentWidth = CANVAS_W * getBaseScale() * nextZoom;
+      const contentHeight = CANVAS_H * getBaseScale() * nextZoom;
+      const maxX = Math.max(48, (contentWidth - rect.width) / 2 + 120);
+      const maxY = Math.max(36, (contentHeight - rect.height) / 2 + 120);
+      return { x: clamp(nextX, -maxX, maxX), y: clamp(nextY, -maxY, maxY) };
+    }
+
+    function applyMapState() {
+      const clamped = clampMapPosition(mapState.x, mapState.y, mapState.zoom);
+      mapState.x = clamped.x;
+      mapState.y = clamped.y;
+      root.style.setProperty('--map-x', `${mapState.x}px`);
+      root.style.setProperty('--map-y', `${mapState.y}px`);
+      root.style.setProperty('--map-zoom', mapState.zoom.toFixed(3));
+      zoomReadout.textContent = `${Math.round(mapState.zoom * 100)}%`;
+    }
+
+    let mapTween = 0;
+    function cancelMapTween() {
+      cancelAnimationFrame(mapTween);
+      mapTween = 0;
+    }
+    function tweenMap(x, y, zoom, duration = 380) {
+      cancelMapTween();
+      if (reduced()) {
+        mapState.x = x; mapState.y = y; mapState.zoom = zoom;
+        applyMapState();
+        return;
+      }
+      const fx = mapState.x;
+      const fy = mapState.y;
+      const fz = mapState.zoom;
+      const t0 = performance.now();
+      const frame = (now) => {
+        const t = Math.min(1, (now - t0) / duration);
+        const e = 1 - Math.pow(1 - t, 3);
+        mapState.zoom = fz + (zoom - fz) * e;
+        mapState.x = fx + (x - fx) * e;
+        mapState.y = fy + (y - fy) * e;
+        applyMapState();
+        mapTween = t < 1 ? requestAnimationFrame(frame) : 0;
+      };
+      mapTween = requestAnimationFrame(frame);
+    }
+
+    function zoomTo(nextZoom, clientX, clientY) {
+      cancelMapTween();
+      mapState.userMoved = true;
+      const rect = builderViewport.getBoundingClientRect();
+      const baseScale = getBaseScale();
+      const targetZoom = clamp(nextZoom, mapState.minZoom, mapState.maxZoom);
+      const oldScale = baseScale * mapState.zoom;
+      const newScale = baseScale * targetZoom;
+      const focusX = (clientX ?? (rect.left + rect.width / 2)) - rect.left - rect.width / 2;
+      const focusY = (clientY ?? (rect.top + rect.height / 2)) - rect.top - rect.height / 2;
+      const worldX = (focusX - mapState.x) / oldScale;
+      const worldY = (focusY - mapState.y) / oldScale;
+      mapState.zoom = targetZoom;
+      mapState.x = focusX - worldX * newScale;
+      mapState.y = focusY - worldY * newScale;
+      applyMapState();
+    }
+
+    // Fit every node into the free part of the viewport (below the view switch, above the run bar).
+    function fitView(animate) {
+      const v = builderViewport.getBoundingClientRect();
+      if (v.width < 40 || v.height < 40) return;
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      allNodes().forEach((el) => {
+        const b = boxOf(el);
+        minX = Math.min(minX, b.left - 24);
+        minY = Math.min(minY, b.top);
+        maxX = Math.max(maxX, b.right);
+        maxY = Math.max(maxY, b.bottom);
+      });
+      if (!memorySlot.hidden) maxY = Math.max(maxY, boxOf(memorySlot).bottom);
+      const base = getBaseScale();
+      const padX = 40;
+      const padTop = 64;
+      const padBottom = 76;
+      const availW = Math.max(80, v.width - padX * 2);
+      const availH = Math.max(80, v.height - padTop - padBottom);
+      const zoom = clamp(Math.min(availW / ((maxX - minX) * base), availH / ((maxY - minY) * base)), mapState.minZoom, 1);
+      const s = base * zoom;
+      const c = canvasEl.getBoundingClientRect();
+      const sNow = c.width / CANVAS_W || s;
+      const vcx = v.left + v.width / 2;
+      const vcy = v.top + v.height / 2;
+      const offX = c.left - (vcx + mapState.x - (CANVAS_W / 2) * sNow);
+      const offY = c.top - (vcy + mapState.y - (CANVAS_H / 2) * sNow);
+      const bx = (minX + maxX) / 2;
+      const by = (minY + maxY) / 2;
+      const ty = v.top + padTop + availH / 2;
+      const x = -offX - (bx - CANVAS_W / 2) * s;
+      const y = ty - vcy - offY - (by - CANVAS_H / 2) * s;
+      if (animate) tweenMap(x, y, zoom);
+      else {
+        mapState.x = x; mapState.y = y; mapState.zoom = zoom;
+        applyMapState();
+      }
+    }
+
+    function panIntoView(el) {
+      const v = builderViewport.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      if (!v.width) return;
+      let dx = 0;
+      let dy = 0;
+      if (r.right > v.right - 48) dx = v.right - 48 - r.right;
+      if (r.left + dx < v.left + 48) dx = v.left + 48 - r.left;
+      if (r.bottom > v.bottom - 76) dy = v.bottom - 76 - r.bottom;
+      if (r.top + dy < v.top + 64) dy = v.top + 64 - r.top;
+      if (dx || dy) tweenMap(mapState.x + dx, mapState.y + dy, mapState.zoom);
+    }
+
+    // ── Modes ──
+    let hintTimer;
     function updateModeUI() {
       const isHand = interactionState.mode === 'hand';
       builderMap.classList.toggle('is-pointer-mode', !isHand);
@@ -2326,7 +2778,7 @@
       modePointerBtn.classList.toggle('active', !isHand);
       modeHandBtn.setAttribute('aria-pressed', String(isHand));
       modePointerBtn.setAttribute('aria-pressed', String(!isHand));
-      document.querySelector('.map-hint').textContent = isHand
+      mapHint.textContent = isHand
         ? 'Hand mode · Drag to move · Scroll to zoom'
         : 'Pointer mode · Drag to select · Drag nodes to move';
     }
@@ -2336,12 +2788,24 @@
       interactionState.marquee.active = false;
       selectionMarquee.style.display = 'none';
       updateModeUI();
+      mapHint.classList.add('show');
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => mapHint.classList.remove('show'), 2400);
     }
 
+    modeHandBtn.addEventListener('click', () => setInteractionMode('hand'));
+    modePointerBtn.addEventListener('click', () => setInteractionMode('pointer'));
+
+    // ── Selection ──
+    let inspectedId;
     function renderSelection() {
-      allNodes.forEach((node) => {
-        node.classList.toggle('is-selected', interactionState.selectedNodes.has(node.dataset.node));
+      allNodes().forEach((node) => {
+        const on = interactionState.selectedNodes.has(node.dataset.node);
+        node.classList.toggle('is-selected', on);
+        node.setAttribute('aria-pressed', String(on));
       });
+      const first = interactionState.selectedNodes.values().next().value || null;
+      if (first !== inspectedId) renderInspector(first);
     }
 
     function clearSelection() {
@@ -2360,101 +2824,6 @@
       renderSelection();
     }
 
-    function clampMapPosition(nextX = mapState.x, nextY = mapState.y, nextZoom = mapState.zoom) {
-      const rect = builderViewport.getBoundingClientRect();
-      const contentWidth = 2400 * getBaseScale() * nextZoom;
-      const contentHeight = 1600 * getBaseScale() * nextZoom;
-      const maxX = Math.max(48, (contentWidth - rect.width) / 2 + 120);
-      const maxY = Math.max(36, (contentHeight - rect.height) / 2 + 120);
-
-      return {
-        x: clamp(nextX, -maxX, maxX),
-        y: clamp(nextY, -maxY, maxY),
-      };
-    }
-
-    function applyMapState() {
-      const clamped = clampMapPosition(mapState.x, mapState.y, mapState.zoom);
-      mapState.x = clamped.x;
-      mapState.y = clamped.y;
-      root.style.setProperty('--map-x', `${mapState.x}px`);
-      root.style.setProperty('--map-y', `${mapState.y}px`);
-      root.style.setProperty('--map-zoom', mapState.zoom.toFixed(3));
-      zoomReadout.textContent = `${Math.round(mapState.zoom * 100)}%`;
-    }
-
-    function getNodeBox(id) {
-      const el = nodeElements[id];
-      return {
-        el,
-        x: el.offsetLeft,
-        y: el.offsetTop,
-        w: el.offsetWidth,
-        h: el.offsetHeight,
-        cx: el.offsetLeft + el.offsetWidth / 2,
-        cy: el.offsetTop + el.offsetHeight / 2,
-        left: el.offsetLeft,
-        right: el.offsetLeft + el.offsetWidth,
-        top: el.offsetTop,
-        bottom: el.offsetTop + el.offsetHeight,
-      };
-    }
-
-    function curveHorizontal(x1, y1, x2, y2) {
-      const bend = Math.min(76, Math.max(42, Math.abs(x2 - x1) * 0.4));
-      return `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
-    }
-
-    function curveDown(x1, y1, x2, y2) {
-      const midY = y1 + Math.max(42, (y2 - y1) * 0.36);
-      return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
-    }
-
-    function updateConnections() {
-      const trigger = getNodeBox('trigger');
-      const agent = getNodeBox('agent');
-      const output = getNodeBox('output');
-      const gmail = getNodeBox('gmail');
-      const model = getNodeBox('model');
-      const tech = getNodeBox('tech');
-      const world = getNodeBox('world');
-
-      const agentPorts = {
-        model: { x: agent.left + agent.w * 0.25, y: agent.bottom },
-        tech:  { x: agent.left + agent.w * 0.5,  y: agent.bottom },
-        world: { x: agent.left + agent.w * 0.75, y: agent.bottom },
-      };
-
-      const paths = [
-        { cls: 'main', d: curveHorizontal(trigger.right, trigger.cy, agent.left, agent.cy) },
-        { cls: 'main', d: curveHorizontal(agent.right, agent.cy, output.left, output.cy) },
-        { cls: 'main', d: curveHorizontal(output.right, output.cy, gmail.left, gmail.cy) },
-        { cls: '', d: curveDown(agentPorts.model.x, agentPorts.model.y, model.cx, model.top) },
-        { cls: '', d: curveDown(agentPorts.tech.x, agentPorts.tech.y, tech.cx, tech.top) },
-        { cls: '', d: curveDown(agentPorts.world.x, agentPorts.world.y, world.cx, world.top) },
-      ];
-
-      const dots = [
-        { x: trigger.right, y: trigger.cy },
-        { x: agent.left, y: agent.cy },
-        { x: agent.right, y: agent.cy },
-        { x: output.left, y: output.cy },
-        { x: output.right, y: output.cy },
-        { x: gmail.left, y: gmail.cy },
-        { x: agentPorts.model.x, y: agentPorts.model.y },
-        { x: agentPorts.tech.x, y: agentPorts.tech.y },
-        { x: agentPorts.world.x, y: agentPorts.world.y },
-        { x: model.cx, y: model.top },
-        { x: tech.cx, y: tech.top },
-        { x: world.cx, y: world.top },
-      ];
-
-      flowLines.innerHTML = `
-        ${paths.map((path) => `<path${path.cls ? ` class="${path.cls}"` : ''} d="${path.d}"></path>`).join('')}
-        ${dots.map((dot) => `<circle cx="${dot.x}" cy="${dot.y}" r="6"></circle>`).join('')}
-      `;
-    }
-
     function updateMarquee(x1, y1, x2, y2) {
       const left = Math.min(x1, x2);
       const top = Math.min(y1, y2);
@@ -2471,7 +2840,7 @@
       const viewportRect = builderViewport.getBoundingClientRect();
 
       interactionState.selectedNodes = new Set(
-        allNodes.filter((node) => {
+        allNodes().filter((node) => {
           const rect = node.getBoundingClientRect();
           const nodeRect = {
             left: rect.left - viewportRect.left,
@@ -2479,7 +2848,6 @@
             right: rect.right - viewportRect.left,
             bottom: rect.bottom - viewportRect.top,
           };
-
           return !(
             nodeRect.right < marqueeRect.left ||
             nodeRect.left > marqueeRect.right ||
@@ -2492,67 +2860,19 @@
       renderSelection();
     }
 
-    function zoomTo(nextZoom, clientX, clientY) {
-      const rect = builderViewport.getBoundingClientRect();
-      const baseScale = getBaseScale();
-      const targetZoom = clamp(nextZoom, mapState.minZoom, mapState.maxZoom);
-      const oldScale = baseScale * mapState.zoom;
-      const newScale = baseScale * targetZoom;
-
-      const focusX = (clientX ?? (rect.left + rect.width / 2)) - rect.left - rect.width / 2;
-      const focusY = (clientY ?? (rect.top + rect.height / 2)) - rect.top - rect.height / 2;
-
-      const worldX = (focusX - mapState.x) / oldScale;
-      const worldY = (focusY - mapState.y) / oldScale;
-
-      mapState.zoom = targetZoom;
-      mapState.x = focusX - worldX * newScale;
-      mapState.y = focusY - worldY * newScale;
-      applyMapState();
-    }
-
-    function syncSidebarButton() {
-      const expanded = !app.classList.contains('sidebar-collapsed');
-      sidebarToggle.setAttribute('aria-expanded', String(expanded));
-    }
-
-    function applyAutoSidebar() {
-      if (window.innerWidth <= 1280 || (window.innerHeight <= 760 && window.innerWidth > 900)) {
-        app.classList.add('sidebar-collapsed');
-      } else if (!app.dataset.sidebarManual) {
-        app.classList.remove('sidebar-collapsed');
-      }
-      syncSidebarButton();
-    }
-
-    sidebarToggle.addEventListener('click', () => {
-      app.dataset.sidebarManual = 'true';
-      app.classList.toggle('sidebar-collapsed');
-      syncSidebarButton();
-    });
-
-    modeHandBtn.addEventListener('click', () => setInteractionMode('hand'));
-    modePointerBtn.addEventListener('click', () => setInteractionMode('pointer'));
-
-    window.addEventListener('resize', () => {
-      updateSidebarFit();
-      if (!app.dataset.sidebarManual) applyAutoSidebar();
-      else syncSidebarButton();
-      applyMapState();
-    });
-
+    // ── Canvas pan / marquee ──
     builderViewport.addEventListener('pointerdown', (event) => {
-      const target = event.target.closest('button, a');
-      if (target) return;
+      if (event.button !== 0) return;
+      if (event.target.closest('button, a, input, textarea, select, .node-picker, .map-hud')) return;
+      cancelMapTween();
 
       if (interactionState.mode === 'hand') {
-        mapState.isDragging = true;
+        // the pan only starts after a few pixels, so a plain click still selects a node
+        mapState.pending = true;
         mapState.startX = event.clientX;
         mapState.startY = event.clientY;
         mapState.originX = mapState.x;
         mapState.originY = mapState.y;
-        builderMap.classList.add('is-dragging');
-        builderViewport.setPointerCapture(event.pointerId);
         return;
       }
 
@@ -2571,6 +2891,15 @@
     });
 
     builderViewport.addEventListener('pointermove', (event) => {
+      if (mapState.pending && !(event.buttons & 1)) mapState.pending = false;
+      if (mapState.pending && Math.hypot(event.clientX - mapState.startX, event.clientY - mapState.startY) > 3) {
+        mapState.pending = false;
+        mapState.isDragging = true;
+        mapState.userMoved = true;
+        builderMap.classList.add('is-dragging');
+        builderViewport.setPointerCapture?.(event.pointerId);
+      }
+
       if (mapState.isDragging) {
         mapState.x = mapState.originX + (event.clientX - mapState.startX);
         mapState.y = mapState.originY + (event.clientY - mapState.startY);
@@ -2592,6 +2921,7 @@
       if (event && builderViewport.hasPointerCapture?.(event.pointerId)) {
         builderViewport.releasePointerCapture(event.pointerId);
       }
+      mapState.pending = false;
       mapState.isDragging = false;
       builderMap.classList.remove('is-dragging');
       interactionState.marquee.active = false;
@@ -2601,44 +2931,85 @@
     builderViewport.addEventListener('pointerup', stopDragging);
     builderViewport.addEventListener('pointercancel', stopDragging);
     builderViewport.addEventListener('pointerleave', (event) => {
-      if (mapState.isDragging && event.buttons === 0) stopDragging(event);
+      if (event.buttons === 0) stopDragging(event);
     });
 
+    window.addEventListener('pointerup', () => { mapState.pending = false; });
+
     builderViewport.addEventListener('wheel', (event) => {
+      if (event.target.closest('.node-picker')) return;
       event.preventDefault();
       const direction = event.deltaY > 0 ? -0.1 : 0.1;
       zoomTo(mapState.zoom + direction, event.clientX, event.clientY);
     }, { passive: false });
 
-    Object.values(nodeElements).forEach((nodeEl) => {
-      nodeEl.addEventListener('pointerdown', (event) => {
+    // Focusing an off-screen node would scroll these clipped boxes; keep them still and pan the camera instead.
+    [builderViewport, builderMap].forEach((box) => {
+      box.addEventListener('scroll', () => {
+        if (box.scrollTop || box.scrollLeft) {
+          box.scrollTop = 0;
+          box.scrollLeft = 0;
+        }
+      });
+    });
+
+    // ── Nodes ──
+    function wireNode(el) {
+      const id = el.dataset.node;
+      if (!el.dataset.title) el.dataset.title = titleOf(id);
+
+      el.addEventListener('pointerdown', (event) => {
         if (interactionState.mode === 'hand') return;
         event.stopPropagation();
 
-        if (event.shiftKey || event.metaKey || event.ctrlKey) {
-          toggleNodeSelection(nodeEl.dataset.node);
-        } else if (!interactionState.selectedNodes.has(nodeEl.dataset.node)) {
-          selectOnly(nodeEl.dataset.node);
-        }
+        if (event.shiftKey || event.metaKey || event.ctrlKey) toggleNodeSelection(id);
+        else if (!interactionState.selectedNodes.has(id)) selectOnly(id);
+        if (run.active) return;
 
-        nodeDragState.active = nodeEl;
+        nodeDragState.active = el;
         nodeDragState.pointerId = event.pointerId;
         nodeDragState.startX = event.clientX;
         nodeDragState.startY = event.clientY;
         nodeDragState.moved = false;
         nodeDragState.nodePositions = [...interactionState.selectedNodes].map((nodeId) => {
-          const current = nodeElements[nodeId];
-          return {
-            id: nodeId,
-            el: current,
-            left: current.offsetLeft,
-            top: current.offsetTop,
-          };
+          const current = nodeElements.get(nodeId);
+          return { id: nodeId, el: current, left: current.offsetLeft, top: current.offsetTop };
         });
-        nodeDragState.nodePositions.forEach(({ el }) => el.classList.add('is-dragging'));
-        nodeEl.setPointerCapture?.(event.pointerId);
+        nodeDragState.nodePositions.forEach(({ el: node }) => node.classList.add('is-dragging'));
+        el.setPointerCapture?.(event.pointerId);
       });
-    });
+
+      el.addEventListener('click', (event) => {
+        if (interactionState.mode !== 'hand') return;
+        if (event.shiftKey || event.metaKey || event.ctrlKey) toggleNodeSelection(id);
+        else selectOnly(id);
+      });
+
+      el.addEventListener('dblclick', () => openInspector(id));
+
+      el.addEventListener('keydown', (event) => {
+        if (event.target !== el) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          if (event.key === 'Enter') openInspector(id);
+          else selectOnly(id);
+          return;
+        }
+        const step = event.shiftKey ? 40 : 10;
+        const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+        const move = moves[event.key];
+        if (!move || run.active) return;
+        event.preventDefault();
+        el.style.left = `${clamp(el.offsetLeft + move[0], 0, CANVAS_W - el.offsetWidth)}px`;
+        el.style.top = `${clamp(el.offsetTop + move[1], 0, CANVAS_H - el.offsetHeight)}px`;
+        updateConnections();
+        panIntoView(el);
+      });
+
+      el.addEventListener('focus', () => {
+        if (focusVisible(el)) panIntoView(el);
+      });
+    }
 
     window.addEventListener('pointermove', (event) => {
       if (!nodeDragState.active) return;
@@ -2647,15 +3018,13 @@
       const dy = (event.clientY - nodeDragState.startY) / zoomFactor;
       nodeDragState.moved = nodeDragState.moved || Math.abs(dx) > 1 || Math.abs(dy) > 1;
       nodeDragState.nodePositions.forEach(({ el, left, top }) => {
-        const nextLeft = clamp(left + dx, 0, canvasEl.clientWidth - el.offsetWidth);
-        const nextTop = clamp(top + dy, 0, canvasEl.clientHeight - el.offsetHeight);
-        el.style.left = `${nextLeft}px`;
-        el.style.top = `${nextTop}px`;
+        el.style.left = `${clamp(left + dx, 0, canvasEl.clientWidth - el.offsetWidth)}px`;
+        el.style.top = `${clamp(top + dy, 0, canvasEl.clientHeight - el.offsetHeight)}px`;
       });
       updateConnections();
     });
 
-    function stopNodeDrag(event) {
+    function stopNodeDrag() {
       if (!nodeDragState.active) return;
       nodeDragState.active.releasePointerCapture?.(nodeDragState.pointerId);
       nodeDragState.nodePositions.forEach(({ el }) => el.classList.remove('is-dragging'));
@@ -2667,64 +3036,950 @@
     window.addEventListener('pointerup', stopNodeDrag);
     window.addEventListener('pointercancel', stopNodeDrag);
 
-    zoomInBtn.addEventListener('click', () => zoomTo(mapState.zoom + 0.12));
-    zoomOutBtn.addEventListener('click', () => zoomTo(mapState.zoom - 0.12));
-    resetMapBtn.addEventListener('click', () => {
-      mapState.x = 0;
-      mapState.y = 0;
-      mapState.zoom = 1;
-      applyMapState();
+    $('#map-zoom-in').addEventListener('click', () => zoomTo(mapState.zoom + 0.12));
+    $('#map-zoom-out').addEventListener('click', () => zoomTo(mapState.zoom - 0.12));
+    $('#map-reset').addEventListener('click', () => {
+      mapState.userMoved = false;
+      fitView(true);
     });
 
-    updateSidebarFit();
-    updateModeUI();
-    renderSelection();
-    applyAutoSidebar();
-    applyMapState();
-    updateConnections();
-
-    // ── Right panel controls ──
-    const rightPanel   = document.getElementById('right-panel');
-    const btnInspector = document.getElementById('btn-inspector-toggle');
-    const btnAiChat    = document.getElementById('btn-ai-chat');
-
-    // Collapse / show the inspector panel
-    btnInspector.addEventListener('click', () => {
-      const willHide = !rightPanel.classList.contains('is-hidden');
-      rightPanel.classList.toggle('is-hidden', willHide);
-      if (willHide) {
-        rightPanel.classList.remove('ai-mode');
-        btnAiChat.classList.remove('active');
+    // ── Run states on nodes ──
+    function renderBadge(el) {
+      const badge = el.querySelector('.node-badge');
+      if (!badge) return;
+      let icon = '';
+      let label = '';
+      if (el.classList.contains('is-error')) {
+        icon = ICON.error;
+        label = 'Failed: sign-in expired';
+      } else if (el.classList.contains('is-done')) {
+        icon = ICON.check;
+        label = 'Succeeded in the last run';
+      } else if (el.classList.contains('has-warning')) {
+        icon = ICON.warn;
+        label = 'Sign-in expired';
       }
-    });
-
-    // Switch to AI chat (opens panel if collapsed, then sets ai-mode)
-    btnAiChat.addEventListener('click', () => {
-      const isAlreadyAi = rightPanel.classList.contains('ai-mode') && !rightPanel.classList.contains('is-hidden');
-      if (isAlreadyAi) {
-        // Toggle off — go back to inspector
-        rightPanel.classList.remove('ai-mode');
-        btnAiChat.classList.remove('active');
+      badge.innerHTML = icon;
+      badge.title = label;
+      if (label) {
+        badge.setAttribute('role', 'img');
+        badge.setAttribute('aria-label', label);
       } else {
-        rightPanel.classList.remove('is-hidden');
-        rightPanel.classList.add('ai-mode');
-        btnAiChat.classList.add('active');
+        badge.removeAttribute('role');
+        badge.removeAttribute('aria-label');
+      }
+    }
+
+    function setRunState(id, state) {
+      const el = nodeElements.get(id);
+      if (!el) return;
+      el.classList.toggle('is-running', state === 'running');
+      el.classList.toggle('is-done', state === 'done');
+      el.classList.toggle('is-error', state === 'error');
+      renderBadge(el);
+    }
+
+    // ── Inspector ──
+    const SPEC = {
+      trigger: {
+        trigger: true,
+        params: [
+          { key: 'mode', label: 'Trigger Mode', type: 'select', value: 'On workflow start', options: ['On workflow start', 'On a schedule', 'On webhook call'] },
+          { key: 'input', label: 'Input Data (optional)', type: 'textarea', value: '', placeholder: 'No input data' },
+          { key: 'timeout', label: 'Timeout (seconds)', type: 'number', value: '300' },
+        ],
+        settings: { 'Execute Once': true, 'Save Execution Logs': true },
+        docs: ['Starts the workflow when you press Execute workflow, or on its own once the workflow is switched to Active.'],
+      },
+      agent: {
+        params: [
+          { key: 'agentType', label: 'Agent Type', type: 'select', value: 'Tools Agent', options: ['Tools Agent', 'Conversational Agent', 'Plan and Execute Agent'] },
+          { key: 'prompt', label: 'System Message', type: 'textarea', value: 'Summarize today\'s tech and world news in five short bullets. Plain words, no hype.' },
+          { key: 'maxIter', label: 'Max Iterations', type: 'number', value: '10' },
+        ],
+        settings: { 'Always Output Data': false, 'Retry On Fail': true },
+        docs: [
+          'Plans each step with the connected model, calls the two news tools, then hands one summary to Output.',
+          'Sub-nodes plug into the three ports underneath it: Model, Memory and Tools.',
+        ],
+      },
+      output: {
+        params: [
+          { key: 'format', label: 'Format', type: 'select', value: 'Markdown', options: ['Markdown', 'Plain text', 'HTML'] },
+          { key: 'field', label: 'Field Name', type: 'text', value: 'summary' },
+        ],
+        settings: { 'Keep Only Set Fields': true, 'Include Run Metadata': false },
+        docs: ['Shapes the agent\'s answer into a single field the next node can read.'],
+      },
+      gmail: {
+        credential: true,
+        params: [
+          { key: 'to', label: 'To', type: 'text', value: 'alex@example.com' },
+          { key: 'subject', label: 'Subject', type: 'text', value: 'Your morning news summary' },
+        ],
+        settings: { 'Send As HTML': true, 'Retry On Fail': false },
+        docs: ['Sends the summary from your Gmail account. It needs a signed-in Google credential to run.'],
+      },
+      model: {
+        params: [
+          { key: 'model', label: 'Model', type: 'select', value: 'gpt-4o-mini', options: ['gpt-4o-mini', 'gpt-4o'] },
+          { key: 'temperature', label: 'Sampling Temperature', type: 'number', value: '0.3', step: '0.1' },
+        ],
+        settings: { 'Retry On Fail': true },
+        docs: ['The chat model the agent thinks with. A low temperature keeps the summary steady from one run to the next.'],
+      },
+      tech: {
+        params: [
+          { key: 'url', label: 'Feed URL', type: 'text', value: 'https://news.example.com/tech.rss' },
+          { key: 'limit', label: 'Max Items', type: 'number', value: '10' },
+        ],
+        settings: { 'Retry On Fail': true },
+        docs: ['A tool the agent can call: reads the tech feed and returns the latest stories.'],
+      },
+      world: {
+        params: [
+          { key: 'url', label: 'Feed URL', type: 'text', value: 'https://news.example.com/world.rss' },
+          { key: 'limit', label: 'Max Items', type: 'number', value: '10' },
+        ],
+        settings: { 'Retry On Fail': true },
+        docs: ['A tool the agent can call: reads the world feed and returns the latest stories.'],
+      },
+    };
+    const specFor = (id) => SPEC[id] || (SPEC[id] = { params: [], settings: {}, docs: [] });
+
+    const inspectorPanel = $('#inspector-panel');
+    const inspectorEmpty = $('#inspector-empty');
+    const inspectorTitle = $('#inspector-title');
+    const inspectorSub = $('#inspector-sub');
+    const inspectorIcon = $('#inspector-icon');
+    const inspectorForm = $('#inspector-form');
+    const saveBtn = $('#save-btn');
+    const ipanels = { params: $('#ipanel-params'), settings: $('#ipanel-settings'), docs: $('#ipanel-docs') };
+    let dirty = false;
+    let saveTimer;
+    let gmailReady = false;
+
+    function setDirty(value) {
+      dirty = value;
+      saveBtn.setAttribute('aria-disabled', String(!value));
+      saveBtn.classList.toggle('is-dirty', value);
+      if (value) {
+        clearTimeout(saveTimer);
+        saveBtn.textContent = 'Save';
+        saveBtn.classList.remove('is-saved');
+      }
+    }
+
+    function fieldHTML(id, f) {
+      const fid = `f-${id}-${f.key}`;
+      const label = `<label class="field-label" for="${fid}">${esc(f.label)}</label>`;
+      let control;
+      if (f.type === 'select') {
+        const options = f.options.map((o) => `<option${o === f.value ? ' selected' : ''}>${esc(o)}</option>`).join('');
+        control = `<div class="select-wrap"><select class="field" id="${fid}" data-key="${f.key}">${options}</select>${ICON.chevron}</div>`;
+      } else if (f.type === 'textarea') {
+        control = `<textarea class="field textarea" id="${fid}" data-key="${f.key}" rows="3" placeholder="${esc(f.placeholder || '')}">${esc(f.value)}</textarea>`;
+      } else {
+        const num = f.type === 'number';
+        const extra = num ? ` inputmode="decimal" min="0" step="${f.step || 1}"` : ' spellcheck="false"';
+        control = `<input class="field" id="${fid}" data-key="${f.key}" type="${num ? 'number' : 'text'}"${extra} value="${esc(f.value)}">`;
+      }
+      return `<div class="field-group">${label}${control}</div>`;
+    }
+
+    function credentialHTML() {
+      return `<div class="field-group">
+        <div class="field-label">Credential</div>
+        <div class="cred-row${gmailReady ? ' is-ready' : ''}" id="cred-row">
+          <span class="cred-dot" aria-hidden="true"></span>
+          <span class="cred-text" id="cred-text">${gmailReady ? 'alex@example.com · OAuth2' : 'Gmail account · sign-in expired'}</span>
+          <button type="button" class="cred-btn" id="cred-btn" aria-describedby="cred-text">${gmailReady ? 'Disconnect' : 'Reconnect'}</button>
+        </div>
+      </div>`;
+    }
+
+    function renderInspector(id) {
+      inspectedId = id;
+      const el = id ? nodeElements.get(id) : null;
+      inspectorPanel.hidden = !el;
+      inspectorEmpty.hidden = !!el;
+      if (!el) return;
+      const spec = specFor(id);
+      const title = titleOf(id);
+      inspectorTitle.textContent = title;
+      inspectorSub.textContent = el.querySelector('.node-sub')?.textContent || '';
+      inspectorIcon.classList.toggle('is-trigger', !!spec.trigger);
+      inspectorIcon.innerHTML = spec.trigger ? ICON.bolt : (el.querySelector('.node-icon svg')?.outerHTML || '');
+      const fields = [{ key: 'name', label: 'Node Name', type: 'text', value: title }, ...spec.params];
+      ipanels.params.innerHTML = (spec.credential ? credentialHTML() : '') + fields.map((f) => fieldHTML(id, f)).join('');
+      const switches = Object.entries(spec.settings);
+      ipanels.settings.innerHTML = switches.length
+        ? `<div class="field-group">${switches.map(([label, on], i) => `<div class="switch-row"><span id="sw-${id}-${i}">${esc(label)}</span><button type="button" class="switch" role="switch" aria-checked="${on}" aria-labelledby="sw-${id}-${i}" data-label="${esc(label)}"></button></div>`).join('')}</div>`
+        : '<p class="docs-text">This node has no extra settings.</p>';
+      ipanels.docs.innerHTML = spec.docs.map((t) => `<p class="docs-text">${esc(t)}</p>`).join('');
+      setDirty(false);
+    }
+
+    function setNodeSub(el, text) {
+      const sub = el.querySelector('.node-sub');
+      if (sub) sub.textContent = text;
+      if (el.dataset.node === inspectedId) inspectorSub.textContent = text;
+    }
+
+    inspectorForm.addEventListener('input', (event) => {
+      const key = event.target.dataset?.key;
+      if (!key || !inspectedId) return;
+      const el = nodeElements.get(inspectedId);
+      if (key === 'name') {
+        const name = event.target.value.trim() || el.dataset.title;
+        el.querySelector('.node-title').textContent = name;
+        inspectorTitle.textContent = name;
+        updateConnections();
+      } else {
+        const f = specFor(inspectedId).params.find((p) => p.key === key);
+        if (f) {
+          f.value = event.target.value;
+          if (f.sub) setNodeSub(el, f.sub(f.value));
+        }
+      }
+      setDirty(true);
+    });
+
+    inspectorForm.addEventListener('click', (event) => {
+      const sw = event.target.closest('.switch');
+      if (sw && inspectedId) {
+        const on = sw.getAttribute('aria-checked') !== 'true';
+        sw.setAttribute('aria-checked', String(on));
+        specFor(inspectedId).settings[sw.dataset.label] = on;
+        setDirty(true);
+        return;
+      }
+      const cred = event.target.closest('#cred-btn');
+      if (cred) toggleCredential(cred);
+    });
+
+    inspectorForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!dirty) return;
+      setDirty(false);
+      saveBtn.textContent = 'Saved';
+      saveBtn.classList.add('is-saved');
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        saveBtn.textContent = 'Save';
+        saveBtn.classList.remove('is-saved');
+      }, 1400);
+    });
+
+    function toggleCredential(btn) {
+      if (btn.getAttribute('aria-busy') === 'true') return;
+      if (gmailReady) {
+        setGmailReady(false);
+        return;
+      }
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = 'Connecting…';
+      setTimeout(() => setGmailReady(true), 700);
+    }
+
+    function setGmailReady(ready) {
+      gmailReady = ready;
+      const gm = nodeElements.get('gmail');
+      gm.classList.toggle('has-warning', !ready);
+      if (ready && gm.classList.contains('is-error')) gm.classList.remove('is-error');
+      renderBadge(gm);
+      const row = $('#cred-row');
+      if (row) {
+        row.classList.toggle('is-ready', ready);
+        $('#cred-text').textContent = ready ? 'alex@example.com · OAuth2' : 'Gmail account · sign-in expired';
+        const btn = $('#cred-btn');
+        btn.textContent = ready ? 'Disconnect' : 'Reconnect';
+        btn.removeAttribute('aria-busy');
+      }
+      announce(ready ? 'Gmail connected' : 'Gmail disconnected');
+    }
+
+    // Accessible tabs: click, arrow keys, roving tabindex.
+    function wireTabs(tabs, panels, onUserSelect) {
+      function select(index, focus) {
+        tabs.forEach((tab, i) => {
+          const on = i === index;
+          tab.classList.toggle('active', on);
+          tab.setAttribute('aria-selected', String(on));
+          tab.tabIndex = on ? 0 : -1;
+          panels[i].hidden = !on;
+        });
+        if (focus) tabs[index].focus();
+      }
+      tabs.forEach((tab, i) => {
+        tab.addEventListener('click', () => {
+          select(i);
+          onUserSelect?.(i);
+        });
+        tab.addEventListener('keydown', (event) => {
+          if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+          event.preventDefault();
+          const next = (i + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+          select(next, true);
+          onUserSelect?.(next);
+        });
+      });
+      return select;
+    }
+
+    const selectInspectorTab = wireTabs(
+      [$('#itab-params'), $('#itab-settings'), $('#itab-docs')],
+      [ipanels.params, ipanels.settings, ipanels.docs]
+    );
+
+    // ── Right panel: inspector / AI chat / hidden ──
+    let panelMode = 'inspector';
+    function setPanel(mode) {
+      panelMode = mode;
+      rightPanel.classList.toggle('is-hidden', mode === 'hidden');
+      rightPanel.classList.toggle('ai-mode', mode === 'ai');
+      btnInspector.classList.toggle('active', mode === 'inspector');
+      btnInspector.setAttribute('aria-pressed', String(mode === 'inspector'));
+      btnAiChat.classList.toggle('active', mode === 'ai');
+      btnAiChat.setAttribute('aria-pressed', String(mode === 'ai'));
+    }
+
+    function openInspector(id) {
+      selectOnly(id);
+      if (panelMode !== 'inspector') {
+        rightPanel.dataset.manual = 'true';
+        setPanel('inspector');
+      }
+      selectInspectorTab(0);
+    }
+
+    btnInspector.addEventListener('click', () => {
+      rightPanel.dataset.manual = 'true';
+      setPanel(panelMode === 'inspector' ? 'hidden' : 'inspector');
+    });
+
+    btnAiChat.addEventListener('click', () => {
+      rightPanel.dataset.manual = 'true';
+      setPanel(panelMode === 'ai' ? 'inspector' : 'ai');
+      if (panelMode === 'ai') aiInput.focus();
+    });
+
+    // ── Sidebar + responsive layout ──
+    function syncSidebarButton() {
+      sidebarToggle.setAttribute('aria-expanded', String(!app.classList.contains('sidebar-collapsed')));
+    }
+
+    function applyAutoLayout() {
+      if (!app.dataset.sidebarManual) {
+        const collapse = window.innerWidth <= 1280 || (window.innerHeight <= 760 && window.innerWidth > 900);
+        app.classList.toggle('sidebar-collapsed', collapse);
+      }
+      syncSidebarButton();
+      if (!rightPanel.dataset.manual) {
+        if (window.innerWidth <= 1100) setPanel('hidden');
+        else if (panelMode === 'hidden') setPanel('inspector');
+      }
+    }
+
+    sidebarToggle.addEventListener('click', () => {
+      app.dataset.sidebarManual = 'true';
+      app.classList.toggle('sidebar-collapsed');
+      syncSidebarButton();
+    });
+
+    // The canvas refits once the sidebar or the inspector has finished sliding.
+    app.addEventListener('transitionend', (event) => {
+      if (event.target === app && event.propertyName === 'grid-template-columns' && !mapState.userMoved) fitView(true);
+    });
+    rightPanel.addEventListener('transitionend', (event) => {
+      if (event.target === rightPanel && event.propertyName === 'width' && !mapState.userMoved) fitView(true);
+    });
+
+    // ── Topbar ──
+    const activeToggle = $('#active-toggle');
+    activeToggle.addEventListener('click', () => {
+      const on = activeToggle.getAttribute('aria-checked') !== 'true';
+      activeToggle.setAttribute('aria-checked', String(on));
+      $('#active-label').textContent = on ? 'Active' : 'Inactive';
+      $('#active-wrap').classList.toggle('is-on', on);
+    });
+
+    $('#share-btn').addEventListener('click', () => {
+      const fail = () => showToast('Copying is blocked in this preview');
+      try {
+        if (!navigator.clipboard) { fail(); return; }
+        navigator.clipboard.writeText(location.href).then(() => showToast('Link copied'), fail);
+      } catch (e) {
+        fail();
       }
     });
 
-    // AI chat send
-    const aiInput    = document.getElementById('ai-input');
-    const aiSendBtn  = document.getElementById('ai-send-btn');
-    const aiMessages = document.getElementById('ai-messages');
+    const starBtn = $('#star-btn');
+    starBtn.addEventListener('click', () => {
+      const on = starBtn.getAttribute('aria-pressed') !== 'true';
+      starBtn.setAttribute('aria-pressed', String(on));
+      $('span', starBtn).textContent = on ? 'Starred' : 'Star';
+    });
 
-    const aiResponses = [
-      'The <strong>AI Agent</strong> node looks good. Try connecting a <strong>Memory</strong> sub-node to retain context across runs.',
-      'Your Gmail node has a warning — double-check the OAuth credentials in the node settings.',
-      'To add error handling, insert an <strong>IF</strong> node after the AI Agent and branch on failure.',
-      'You can add a <strong>Schedule Trigger</strong> to run this workflow automatically every morning.',
-      'Consider adding a <strong>Set</strong> node before Output to clean up the data structure.',
+    // Tags: inline input, up to three chips.
+    const tagList = $('#tag-list');
+    const addTagBtn = $('#add-tag-btn');
+    const tagInput = $('#tag-input');
+
+    function addTag(name) {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.dataset.tag = name;
+      const label = document.createElement('span');
+      label.textContent = name;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', `Remove tag ${name}`);
+      remove.innerHTML = ICON.close;
+      remove.addEventListener('click', () => {
+        chip.remove();
+        addTagBtn.hidden = false;
+        addTagBtn.focus();
+      });
+      chip.append(label, remove);
+      tagList.append(chip);
+    }
+
+    function closeTagInput(commit, refocus) {
+      const value = tagInput.value.trim().replace(/\s+/g, ' ');
+      const exists = [...tagList.children].some((chip) => chip.dataset.tag.toLowerCase() === value.toLowerCase());
+      if (commit && value && !exists) addTag(value);
+      tagInput.hidden = true;
+      addTagBtn.hidden = tagList.children.length >= 3;
+      if (!refocus) return;
+      const target = addTagBtn.hidden ? tagList.lastElementChild?.querySelector('button') : addTagBtn;
+      target?.focus();
+    }
+
+    addTagBtn.addEventListener('click', () => {
+      addTagBtn.hidden = true;
+      tagInput.hidden = false;
+      tagInput.value = '';
+      tagInput.focus();
+    });
+    tagInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        closeTagInput(true, true);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeTagInput(false, true);
+      }
+    });
+    tagInput.addEventListener('blur', () => {
+      if (!tagInput.hidden) closeTagInput(true, false);
+    });
+
+    // View switch (Editor / Executions / Evaluations)
+    const segButtons = $$('.segmented button');
+    segButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        segButtons.forEach((b) => {
+          b.classList.toggle('active', b === btn);
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
+      });
+    });
+
+    // ── Node picker ──
+    const nodePicker = $('#node-picker');
+    const addNodeBtn = $('#add-node-btn');
+    const searchBtn = $('#topbar-search-btn');
+    const pickerSearchInput = $('#picker-search-input');
+    const pickerEmpty = $('#picker-empty');
+    const pickerItems = $$('#picker-items .picker-item');
+    let pickerReturn = null;
+    $('#search-kbd').textContent = isMac ? '⌘K' : 'Ctrl K';
+
+    const pickerOpen = () => !nodePicker.classList.contains('hidden');
+
+    function filterPicker(query) {
+      const q = query.trim().toLowerCase();
+      let any = false;
+      pickerItems.forEach((item) => {
+        const hay = `${item.textContent} ${item.dataset.keywords || ''}`.toLowerCase();
+        const match = !q || hay.includes(q);
+        item.style.display = match ? '' : 'none';
+        if (match) any = true;
+      });
+      pickerEmpty.hidden = any;
+    }
+
+    function openPicker(from) {
+      pickerReturn = from || addNodeBtn;
+      nodePicker.classList.remove('hidden');
+      addNodeBtn.setAttribute('aria-expanded', 'true');
+      searchBtn.setAttribute('aria-expanded', 'true');
+      pickerSearchInput.focus();
+    }
+
+    function closePicker(restoreFocus) {
+      if (!pickerOpen()) return;
+      nodePicker.classList.add('hidden');
+      addNodeBtn.setAttribute('aria-expanded', 'false');
+      searchBtn.setAttribute('aria-expanded', 'false');
+      pickerSearchInput.value = '';
+      filterPicker('');
+      if (restoreFocus && pickerReturn) pickerReturn.focus();
+    }
+
+    addNodeBtn.addEventListener('click', () => (pickerOpen() ? closePicker(true) : openPicker(addNodeBtn)));
+    searchBtn.addEventListener('click', () => (pickerOpen() ? closePicker(true) : openPicker(searchBtn)));
+
+    document.addEventListener('click', (event) => {
+      if (!pickerOpen()) return;
+      if (nodePicker.contains(event.target) || event.target.closest('#add-node-btn, #topbar-search-btn')) return;
+      closePicker(false);
+    });
+
+    pickerSearchInput.addEventListener('input', () => filterPicker(pickerSearchInput.value));
+
+    nodePicker.addEventListener('keydown', (event) => {
+      const items = pickerItems.filter((item) => item.style.display !== 'none');
+      if (!items.length) return;
+      const index = items.indexOf(document.activeElement);
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        (items[index + 1] || items[0]).focus();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (index <= 0) pickerSearchInput.focus();
+        else items[index - 1].focus();
+      } else if (event.key === 'Enter' && document.activeElement === pickerSearchInput) {
+        event.preventDefault();
+        pickNode(items[0]);
+      }
+    });
+
+    pickerItems.forEach((item) => item.addEventListener('click', () => pickNode(item)));
+
+    // ── Adding nodes ──
+    const PICKS = {
+      ai: { title: 'Text Classifier', sub: 'Tag each story', docs: 'Sorts each story into a topic before the summary is sent.' },
+      apps: { title: 'Slack', sub: 'Post to #news', docs: 'Posts the summary to a channel.' },
+      transform: { title: 'Edit Fields', sub: 'Rename keys', docs: 'Renames, adds or removes fields on every item.' },
+      logic: { title: 'If', sub: 'Route by topic', docs: 'Sends each item down one of two branches.' },
+      http: { title: 'HTTP Request', sub: 'Call an API', docs: 'Calls any REST endpoint and passes its response on.' },
+      human: { title: 'Wait for Approval', sub: 'Ask before sending', docs: 'Pauses the run until someone approves it.' },
+    };
+    let nodeSeq = 0;
+
+    function ensurePort(el, side) {
+      if (el.querySelector(`.port.${side}`)) return;
+      const port = document.createElement('div');
+      port.className = `port ${side}`;
+      el.append(port);
+    }
+
+    function makeNode({ id, cls, title, sub, icon, x, y, ports = [], trigger = false }) {
+      const el = document.createElement('div');
+      el.className = `${cls} draggable-node`;
+      el.dataset.node = id;
+      el.dataset.title = title;
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-pressed', 'false');
+      el.style.left = `${Math.round(x)}px`;
+      el.style.top = `${Math.round(y)}px`;
+      const iconBox = document.createElement('div');
+      iconBox.className = 'node-icon';
+      iconBox.innerHTML = icon;
+      const titleEl = document.createElement('div');
+      titleEl.className = 'node-title';
+      titleEl.textContent = title;
+      const subEl = document.createElement('div');
+      subEl.className = 'node-sub';
+      subEl.textContent = sub;
+      if (cls === 'node') {
+        const text = document.createElement('div');
+        text.append(titleEl, subEl);
+        el.append(iconBox, text);
+      } else {
+        el.append(iconBox, titleEl, subEl);
+      }
+      if (trigger) {
+        const bolt = document.createElement('div');
+        bolt.className = 'trigger-bolt';
+        bolt.setAttribute('aria-hidden', 'true');
+        bolt.innerHTML = ICON.bolt;
+        el.prepend(bolt);
+      }
+      const badge = document.createElement('div');
+      badge.className = 'node-badge';
+      el.append(badge);
+      ports.forEach((side) => ensurePort(el, side));
+      canvasEl.append(el);
+      nodeElements.set(id, el);
+      wireNode(el);
+      return el;
+    }
+
+    function chainEnd() {
+      let cur = 'trigger';
+      for (;;) {
+        const next = connections.find((c) => c.from === cur && (c.kind === 'main' || c.kind === 'down'));
+        if (!next) return cur;
+        cur = next.to;
+      }
+    }
+
+    function addChainNode(key, icon) {
+      const pick = PICKS[key];
+      const fromId = chainEnd();
+      const last = getNodeBox(fromId);
+      let x = last.right + 68;
+      let y = last.top;
+      let kind = 'main';
+      if (x + 220 > CANVAS_W - 24) {
+        x = last.left;
+        y = last.bottom + 90;
+        kind = 'down';
+      }
+      if (y + 120 > CANVAS_H - 24) {
+        showToast('No free space left on this canvas');
+        return null;
+      }
+      const id = `n${++nodeSeq}`;
+      if (kind === 'main') ensurePort(nodeElements.get(fromId), 'right');
+      const el = makeNode({ id, cls: 'node', title: pick.title, sub: pick.sub, icon, x, y, ports: kind === 'main' ? ['left'] : [] });
+      connections.push({ id: `${fromId}>${id}`, from: fromId, to: id, kind });
+      SPEC[id] = {
+        params: [{ key: 'notes', label: 'Notes', type: 'textarea', value: '', placeholder: 'What should this step do?' }],
+        settings: { 'Retry On Fail': false, 'Always Output Data': false },
+        docs: [pick.docs],
+      };
+      return el;
+    }
+
+    function addScheduleTrigger() {
+      if (nodeElements.has('schedule')) {
+        selectOnly('schedule');
+        panIntoView(nodeElements.get('schedule'));
+        showToast('A Schedule Trigger is already on the canvas');
+        return null;
+      }
+      const t = getNodeBox('trigger');
+      const el = makeNode({
+        id: 'schedule', cls: 'node', title: 'Schedule Trigger', sub: 'Every day at 07:00', icon: ICON.clock,
+        x: t.left, y: Math.max(24, t.top - 170), ports: ['right'], trigger: true,
+      });
+      connections.push({ id: 'schedule>agent', from: 'schedule', to: 'agent', kind: 'main' });
+      SPEC.schedule = {
+        trigger: true,
+        params: [{ key: 'hour', label: 'Trigger at', type: 'select', value: '07:00', options: ['06:00', '07:00', '08:00', '09:00'], sub: (v) => `Every day at ${v}` }],
+        settings: { 'Save Execution Logs': true },
+        docs: ['Runs the workflow by itself every day once the workflow is Active. A manual run still starts from the first trigger.'],
+      };
+      return el;
+    }
+
+    function afterAdd(el) {
+      updateConnections();
+      selectOnly(el.dataset.node);
+      if (!reduced()) {
+        el.classList.add('is-new');
+        el.addEventListener('animationend', () => el.classList.remove('is-new'), { once: true });
+      }
+      panIntoView(el);
+      el.focus({ preventScroll: true });
+    }
+
+    function pickNode(item) {
+      if (run.active) {
+        showToast('Wait for the run to finish');
+        return;
+      }
+      const key = item.dataset.add;
+      const el = key === 'trigger'
+        ? addScheduleTrigger()
+        : addChainNode(key, $('.picker-icon', item).innerHTML);
+      closePicker(!el);
+      if (el) afterAdd(el);
+    }
+
+    memorySlot.addEventListener('click', () => {
+      if (run.active) {
+        showToast('Wait for the run to finish');
+        return;
+      }
+      const a = getNodeBox('agent');
+      memorySlot.hidden = true;
+      const slotIndex = connections.findIndex((c) => c.id === 'agent>memory-slot');
+      if (slotIndex > -1) connections.splice(slotIndex, 1);
+      const el = makeNode({
+        id: 'memory', cls: 'mini-node', title: 'Window Buffer Memory', sub: 'Last 5 messages', icon: ICON.memory,
+        x: a.left + a.w * PORT_X.memory - 61, y: a.bottom + 132,
+      });
+      connections.push({ id: 'agent>memory', from: 'agent', to: 'memory', kind: 'sub', port: 'memory' });
+      SPEC.memory = {
+        params: [{ key: 'window', label: 'Context Window Length', type: 'number', value: '5', sub: (v) => `Last ${v || 0} messages` }],
+        settings: { 'Retry On Fail': false },
+        docs: ['Keeps the last few exchanges, so the agent can refer back to earlier runs.'],
+      };
+      afterAdd(el);
+    });
+
+    // ── Execute workflow: a pulse travels each connector, nodes light up, a log line is written ──
+    const execBtn = $('#execute-btn');
+    const execLabel = $('#exec-label');
+    const bottomPanel = $('#bottom-panel');
+    const bottomHead = $('#bottom-head');
+    const bottomBody = $('#bottom-body');
+    const collapseToggle = $('#collapse-toggle');
+    const logList = $('#log-list');
+    const panelLogs = $('#panel-logs');
+    const statTotal = $('#stat-total');
+    const statRate = $('#stat-rate');
+    const statAvg = $('#stat-avg');
+    const sparkTime = $('#spark-time');
+    const sparkLast = $('#spark-time-last');
+    const stats = { total: 12429, ok: 12255, avg: 2.45 };
+    let execSeq = 89342;
+
+    const fmtSec = (s) => `${s.toFixed(2)}s`;
+
+    function setExecRunning(on) {
+      execBtn.classList.toggle('is-running', on);
+      execBtn.setAttribute('aria-disabled', String(on));
+      execLabel.textContent = on ? 'Running…' : 'Execute workflow';
+    }
+
+    function travel(connId, { duration = 520, reverse = false } = {}) {
+      const rec = lineEls.get(connId);
+      if (!rec || reduced()) return Promise.resolve();
+      const path = rec.path;
+      const length = path.getTotalLength();
+      const pulse = document.createElementNS(SVG_NS, 'g');
+      pulse.innerHTML = '<circle class="pulse-halo" r="11"></circle><circle class="pulse-core" r="4.5"></circle>';
+      flowPulses.append(pulse);
+      path.classList.add('is-live');
+      return new Promise((resolve) => {
+        const t0 = performance.now();
+        const frame = (now) => {
+          const t = Math.min(1, (now - t0) / duration);
+          const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          const p = path.getPointAtLength(length * (reverse ? 1 - e : e));
+          pulse.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+          if (t < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            pulse.remove();
+            path.classList.remove('is-live');
+            resolve();
+          }
+        };
+        requestAnimationFrame(frame);
+      });
+    }
+
+    const hop = (ids, opts = {}) => Promise.all(ids.map((id, i) => wait(i * (opts.stagger || 0)).then(() => travel(id, opts))));
+
+    function addLogRow(id) {
+      const li = document.createElement('li');
+      li.className = `log-card is-running${reduced() ? '' : ' is-new'}`;
+      const clock = new Date().toLocaleTimeString('en-GB', { hour12: false });
+      li.innerHTML = `<span class="status-dot" aria-hidden="true"></span>
+        <div class="log-line">
+          <strong class="log-num">${clock}</strong>
+          <span class="log-status">Running</span>
+          <span class="divider" aria-hidden="true"></span>
+          <span class="log-num" data-role="time">0.00s</span>
+          <span class="divider" aria-hidden="true"></span>
+          <span class="log-num">ID #${id}</span>
+        </div>`;
+      logList.prepend(li);
+      while (logList.children.length > 6) logList.lastElementChild.remove();
+      panelLogs.scrollTop = 0;
+      return { li, status: $('.log-status', li), time: $('[data-role="time"]', li) };
+    }
+
+    function setStat(el, text) {
+      if (el.textContent === text) return;
+      el.textContent = text;
+      if (reduced()) return;
+      el.classList.remove('bump');
+      void el.offsetWidth;
+      el.classList.add('bump');
+    }
+
+    function pushSpark(secs) {
+      const ys = sparkTime.getAttribute('points').trim().split(/\s+/).map((pt) => Number(pt.split(',')[1]));
+      ys.shift();
+      ys.push(Math.round(clamp(30 - (secs / 5) * 26, 3, 29) * 10) / 10);
+      const step = 120 / (ys.length - 1);
+      sparkTime.setAttribute('points', ys.map((y, i) => `${Math.round(i * step * 10) / 10},${y}`).join(' '));
+      sparkLast.setAttribute('cy', String(ys[ys.length - 1]));
+    }
+
+    function recordStats(ok, secs) {
+      stats.total += 1;
+      if (ok) stats.ok += 1;
+      stats.avg += (secs - stats.avg) / stats.total;
+      setStat(statTotal, NF.format(stats.total));
+      setStat(statRate, `${((stats.ok / stats.total) * 100).toFixed(1)}%`);
+      setStat(statAvg, fmtSec(stats.avg));
+      pushSpark(secs);
+    }
+
+    async function runWorkflow() {
+      if (run.active) return;
+      run.active = true;
+      closePicker(false);
+      stopNodeDrag();
+      const t0 = performance.now();
+      const id = ++execSeq;
+      setExecRunning(true);
+      allNodes().forEach((el) => {
+        el.classList.remove('is-running', 'is-done', 'is-error');
+        renderBadge(el);
+      });
+      selectRunTab(0);
+      if (bottomPanel.classList.contains('is-collapsed')) expandBottom();
+      const row = addLogRow(id);
+      announce('Workflow running');
+      const tick = setInterval(() => { row.time.textContent = fmtSec((performance.now() - t0) / 1000); }, 100);
+      const step = (name) => { row.status.textContent = `Running · ${name}`; };
+      let failedAt = null;
+
+      try {
+        if (reduced()) await wait(300);
+
+        setRunState('trigger', 'running');
+        step(titleOf('trigger'));
+        await pace(240);
+        setRunState('trigger', 'done');
+        await hop(['trigger>agent']);
+
+        setRunState('agent', 'running');
+        step(titleOf('agent'));
+        await pace(160);
+        for (const port of ['model', 'memory', 'tools']) {
+          const group = connections.filter((c) => c.from === 'agent' && c.kind === 'sub' && c.port === port);
+          if (!group.length) continue;
+          const ids = group.map((c) => c.id);
+          await hop(ids, { duration: 320, stagger: 60 });
+          group.forEach((c) => setRunState(c.to, 'running'));
+          step(group.length > 1 ? 'Tools' : titleOf(group[0].to));
+          await pace(200);
+          group.forEach((c) => setRunState(c.to, 'done'));
+          await hop(ids, { duration: 320, stagger: 60, reverse: true });
+        }
+        setRunState('agent', 'done');
+
+        let cur = 'agent';
+        for (;;) {
+          const next = connections.find((c) => c.from === cur && (c.kind === 'main' || c.kind === 'down'));
+          if (!next) break;
+          await hop([next.id]);
+          setRunState(next.to, 'running');
+          step(titleOf(next.to));
+          await pace(280);
+          if (next.to === 'gmail' && !gmailReady) {
+            setRunState('gmail', 'error');
+            failedAt = 'gmail';
+            break;
+          }
+          setRunState(next.to, 'done');
+          cur = next.to;
+        }
+      } catch (err) {
+        failedAt = failedAt || 'trigger';
+      } finally {
+        clearInterval(tick);
+      }
+
+      const secs = (performance.now() - t0) / 1000;
+      row.li.classList.remove('is-running');
+      row.li.classList.toggle('is-error', !!failedAt);
+      row.status.textContent = failedAt === 'gmail'
+        ? `Stopped at ${titleOf('gmail')} · sign-in expired`
+        : failedAt ? 'Run stopped' : 'Workflow executed successfully';
+      row.time.textContent = fmtSec(secs);
+      recordStats(!failedAt, secs);
+      announce(failedAt
+        ? `Run stopped at ${titleOf(failedAt)}. The Gmail sign-in has expired.`
+        : `Workflow executed successfully in ${secs.toFixed(2)} seconds.`);
+      await pace(500);
+      setExecRunning(false);
+      run.active = false;
+    }
+
+    execBtn.addEventListener('click', () => {
+      if (execBtn.getAttribute('aria-disabled') === 'true') return;
+      runWorkflow();
+    });
+
+    // ── Bottom panel: Logs / Workflow Stats ──
+    function expandBottom() {
+      bottomPanel.classList.remove('is-collapsed');
+      bottomHead.classList.add('open');
+      collapseToggle.setAttribute('aria-expanded', 'true');
+      bottomBody.style.height = `${bottomBody.scrollHeight}px`;
+      const settle = () => {
+        if (!bottomPanel.classList.contains('is-collapsed')) bottomBody.style.height = '';
+      };
+      bottomBody.addEventListener('transitionend', settle, { once: true });
+      setTimeout(settle, 320);
+    }
+
+    function collapseBottom() {
+      bottomBody.style.height = `${bottomBody.scrollHeight}px`;
+      bottomPanel.classList.add('is-collapsed');
+      bottomHead.classList.remove('open');
+      collapseToggle.setAttribute('aria-expanded', 'false');
+      requestAnimationFrame(() => requestAnimationFrame(() => { bottomBody.style.height = '0'; }));
+    }
+
+    collapseToggle.addEventListener('click', () => {
+      if (bottomPanel.classList.contains('is-collapsed')) expandBottom();
+      else collapseBottom();
+    });
+
+    const selectRunTab = wireTabs(
+      [$('#tab-logs'), $('#tab-stats')],
+      [panelLogs, $('#panel-stats')],
+      () => { if (bottomPanel.classList.contains('is-collapsed')) expandBottom(); }
+    );
+
+    // start collapsed, without animating
+    bottomBody.classList.add('no-anim');
+    bottomBody.style.height = '0';
+    requestAnimationFrame(() => bottomBody.classList.remove('no-anim'));
+
+    // ── AI chat ──
+    const aiInput = $('#ai-input');
+    const aiSendBtn = $('#ai-send-btn');
+    const aiMessages = $('#ai-messages');
+    const aiFallback = [
+      'To catch failures, insert an <strong>If</strong> node after the AI Agent and branch on the error.',
+      'A <strong>Schedule Trigger</strong> can run this every morning once the workflow is Active.',
+      'An <strong>Edit Fields</strong> node before Output would keep only the fields Gmail needs.',
     ];
     let aiIdx = 0;
+
+    function aiReply(text) {
+      const t = text.toLowerCase();
+      if (/\b(gmail|credential|connect|reconnect|sign[- ]?in|yes|sure|ok|okay|how)\b/.test(t)) {
+        return gmailReady
+          ? 'Gmail is signed in again. Press <strong>Execute workflow</strong> to send a test summary.'
+          : 'Select the <strong>Gmail</strong> node, then press <strong>Reconnect</strong> next to Credential in Parameters. The next run will reach the last step.';
+      }
+      if (/\b(memory|remember|context)\b/.test(t)) {
+        return nodeElements.has('memory')
+          ? 'Memory is connected. The agent now keeps the last few exchanges between runs.'
+          : 'Press the <strong>+</strong> under the Memory port to add a <strong>Window Buffer Memory</strong> sub-node.';
+      }
+      if (/\b(run|execute|test)\b/.test(t)) {
+        return `Press <strong>Execute workflow</strong>, or ${MOD}+Enter. Each step lights up as it runs, and the result lands in Logs.`;
+      }
+      return aiFallback[aiIdx++ % aiFallback.length];
+    }
 
     function sendAiMessage() {
       const text = aiInput.value.trim();
@@ -2739,6 +3994,7 @@
 
       const typing = document.createElement('div');
       typing.className = 'ai-typing';
+      typing.setAttribute('aria-label', 'Assistant is typing');
       typing.innerHTML = '<span></span><span></span><span></span>';
       aiMessages.appendChild(typing);
       aiMessages.scrollTop = aiMessages.scrollHeight;
@@ -2747,175 +4003,113 @@
         typing.remove();
         const reply = document.createElement('div');
         reply.className = 'ai-msg';
-        reply.innerHTML = aiResponses[aiIdx % aiResponses.length];
-        aiIdx++;
+        reply.innerHTML = aiReply(text);
         aiMessages.appendChild(reply);
         aiMessages.scrollTop = aiMessages.scrollHeight;
       }, 1200);
     }
 
     aiSendBtn.addEventListener('click', sendAiMessage);
-    aiInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage(); }
+    aiInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        sendAiMessage();
+      }
     });
     aiInput.addEventListener('input', () => {
       aiInput.style.height = 'auto';
-      aiInput.style.height = Math.min(aiInput.scrollHeight, 96) + 'px';
+      aiInput.style.height = `${Math.min(aiInput.scrollHeight, 96)}px`;
     });
 
-    // ── Button interactivity ──
-    const toast = document.createElement('div');
-    toast.className = 'btn-toast';
-    document.body.appendChild(toast);
-    let toastTimer;
-    function showToast(msg) {
-      clearTimeout(toastTimer);
-      toast.textContent = msg;
-      toast.classList.add('show');
-      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    // ── Keyboard shortcuts ──
+    document.addEventListener('keydown', (event) => {
+      const mod = event.metaKey || event.ctrlKey;
+      if (mod && (event.key === 'k' || event.key === 'K')) {
+        event.preventDefault();
+        if (pickerOpen()) closePicker(true);
+        else openPicker(searchBtn);
+        return;
+      }
+      if (mod && event.key === 'Enter') {
+        event.preventDefault();
+        runWorkflow();
+        return;
+      }
+      if (event.key === 'Escape') {
+        if (pickerOpen()) {
+          event.preventDefault();
+          closePicker(true);
+        }
+        return;
+      }
+      if (mod || event.altKey || isTyping(event.target)) return;
+      if (event.key === 'h' || event.key === 'H') setInteractionMode('hand');
+      else if (event.key === 'v' || event.key === 'V') setInteractionMode('pointer');
+    });
+
+    // ── Entrance: the workflow assembles once, in reading order ──
+    let entered = false;
+    function playEntrance() {
+      if (entered) return;
+      const v = builderViewport.getBoundingClientRect();
+      if (v.width < 40 || document.visibilityState !== 'visible') return;
+      entered = true;
+      if (reduced() || typeof Element.prototype.animate !== 'function') return;
+      const order = ['trigger', 'agent', 'output', 'gmail', 'model', 'tech', 'world'];
+      const delayOf = {};
+      order.forEach((id, i) => {
+        const el = nodeElements.get(id);
+        if (!el) return;
+        delayOf[id] = 120 + i * 70;
+        el.animate(
+          [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'translateY(0)' }],
+          { duration: 420, delay: delayOf[id], easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' }
+        );
+      });
+      delayOf['memory-slot'] = delayOf.tech;
+      memorySlot.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: delayOf.tech + 120, fill: 'backwards' });
+      connections.forEach((c) => {
+        const rec = lineEls.get(c.id);
+        if (!rec) return;
+        const delay = (delayOf[c.to] ?? 400) + 140;
+        if (c.kind === 'main') {
+          const length = rec.path.getTotalLength();
+          rec.path.animate(
+            [
+              { strokeDasharray: `${length} ${length}`, strokeDashoffset: `${length}` },
+              { strokeDasharray: `${length} ${length}`, strokeDashoffset: '0' },
+            ],
+            { duration: 360, delay, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'backwards' }
+          );
+        } else {
+          rec.path.animate([{ opacity: 0 }, { opacity: 0.9 }], { duration: 320, delay, fill: 'backwards' });
+        }
+        [rec.a, rec.b].forEach((dot) => dot.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, delay: delay + 120, fill: 'backwards' }));
+      });
     }
 
-    // Topbar buttons
-    document.querySelector('.toggle').addEventListener('click', function() {
-      const isActive = this.style.background.includes('linear');
-      this.style.background = isActive ? '' : 'linear-gradient(90deg,#7338df,#a954ff)';
-      this.style.justifyContent = isActive ? '' : 'flex-end';
-      this.style.display = 'flex'; this.style.alignItems = 'center'; this.style.padding = '3px';
-      const knob = this.querySelector('::after') || this;
-      showToast(isActive ? 'Workflow inactive' : 'Workflow active');
+    // ── Init ──
+    allNodes().forEach(wireNode);
+    nodeElements.get('gmail').classList.add('has-warning');
+    allNodes().forEach(renderBadge);
+    updateSidebarFit();
+    updateModeUI();
+    applyAutoLayout();
+    updateConnections();
+    applyMapState();
+    fitView(false);
+    selectOnly('trigger');
+    playEntrance();
+
+    window.addEventListener('resize', () => {
+      updateSidebarFit();
+      applyAutoLayout();
+      if (!mapState.userMoved) fitView(false);
+      else applyMapState();
+      playEntrance();
     });
-    document.querySelector('.pill-btn').addEventListener('click', () => showToast('Tag added'));
-    document.querySelectorAll('.top-icon-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const t = btn.textContent.trim();
-        if (t === 'Share') showToast('Share link copied');
-        else if (t.includes('Star')) showToast('Workflow starred ★');
-        else if (t === '···') showToast('More options');
-      });
-    });
-    document.querySelector('.upgrade-btn').addEventListener('click', () => showToast('Redirecting to pricing…'));
-
-    // Segmented tabs
-    document.querySelectorAll('.segmented button').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.segmented button').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-      });
-    });
-
-    // Panel tabs
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', function() {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        this.classList.add('active');
-      });
-    });
-
-    // Mode switch
-    document.getElementById('mode-hand').addEventListener('click', () => showToast('Hand mode'));
-    document.getElementById('mode-pointer').addEventListener('click', () => showToast('Pointer mode'));
-
-    // Save button
-    document.querySelector('.save-btn')?.addEventListener('click', () => showToast('Node settings saved'));
-
-    // Execute
-    document.querySelector('.execute-run')?.addEventListener('click', () => showToast('Workflow executing…'));
-
-    // Canvas tools
-    document.querySelectorAll('.tool-btn').forEach((btn, i) => {
-      const labels = ['Fit to screen','Zoom in','Zoom out','Undo','Run test'];
-      btn.addEventListener('click', () => showToast(labels[i] || 'Action'));
-    });
-
-
-    // Search bar
-    document.getElementById('topbar-search-btn')?.addEventListener('click', () => showToast('⌘K — Command palette'));
-
-    // Template chip
-    document.querySelector('.template-chip')?.addEventListener('click', () => showToast('Open template library'));
-
-    // Node double-click to show toast
-    allNodes.forEach(node => {
-      node.addEventListener('dblclick', () => {
-        const title = node.querySelector('.node-title')?.textContent || 'Node';
-        showToast(`Opening ${title} settings…`);
-      });
-    });
-
-    // ── Single collapsible bottom panel ──
-    const bottomPanel = document.getElementById('bottom-panel');
-    const bottomHead  = document.getElementById('bottom-head');
-    const bottomBody  = document.getElementById('bottom-body');
-
-    function collapseBottom() {
-      bottomBody.style.height = bottomBody.scrollHeight + 'px';
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        bottomBody.style.height = '0';
-        bottomPanel.classList.add('is-collapsed');
-        bottomHead.classList.remove('open');
-      }));
-    }
-    function expandBottom() {
-      bottomPanel.classList.remove('is-collapsed');
-      bottomHead.classList.add('open');
-      bottomBody.style.height = bottomBody.scrollHeight + 'px';
-      bottomBody.addEventListener('transitionend', () => { bottomBody.style.height = ''; }, { once: true });
-    }
-    bottomHead.addEventListener('click', () => {
-      bottomPanel.classList.contains('is-collapsed') ? expandBottom() : collapseBottom();
-    });
-    // start collapsed
-    bottomBody.classList.add('no-anim');
-    bottomBody.style.height = '0';
-    requestAnimationFrame(() => bottomBody.classList.remove('no-anim'));
-
-    // Node picker
-    const nodePicker = document.getElementById('node-picker');
-    const addNodeBtn = document.getElementById('add-node-btn');
-    const pickerSearchInput = document.getElementById('picker-search-input');
-    const pickerRule = document.getElementById('picker-rule');
-    const pickerItemEls = document.querySelectorAll('#picker-items .picker-item');
-
-    function openPicker() {
-      nodePicker.classList.remove('hidden');
-      addNodeBtn.setAttribute('aria-expanded', 'true');
-      pickerSearchInput.focus();
-    }
-
-    function closePicker() {
-      nodePicker.classList.add('hidden');
-      addNodeBtn.setAttribute('aria-expanded', 'false');
-      pickerSearchInput.value = '';
-      pickerItemEls.forEach(el => el.style.display = '');
-      pickerRule.style.display = '';
-    }
-
-    addNodeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      nodePicker.classList.contains('hidden') ? openPicker() : closePicker();
-    });
-
-    document.addEventListener('click', (e) => {
-      if (!nodePicker.contains(e.target) && e.target !== addNodeBtn) closePicker();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closePicker();
-    });
-
-    pickerSearchInput.addEventListener('input', () => {
-      const q = pickerSearchInput.value.toLowerCase();
-      let anyVisible = false;
-      pickerItemEls.forEach(el => {
-        if (el.classList.contains('trigger')) { el.style.display = q ? 'none' : ''; return; }
-        const label = el.querySelector('.picker-label')?.textContent.toLowerCase() || '';
-        const desc  = el.querySelector('.picker-desc')?.textContent.toLowerCase() || '';
-        const match = !q || label.includes(q) || desc.includes(q);
-        el.style.display = match ? '' : 'none';
-        if (match) anyVisible = true;
-      });
-      pickerRule.style.display = q ? 'none' : '';
-    });
+    document.addEventListener('visibilitychange', playEntrance);
+  })();
   </script>
 </body>
 </html>

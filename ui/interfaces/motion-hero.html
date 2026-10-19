@@ -87,7 +87,7 @@ nav {
 body.dark .theme-thumb { transform: translateX(18px); }
 
 /* ── PHOTO STRIP ── */
-.strip { position: fixed; inset: 0; z-index: 1; cursor: crosshair; }
+.strip { position: fixed; inset: 0; z-index: 1; cursor: crosshair; --s: 1; }
 
 .photo {
   position: absolute; border-radius: 8px; overflow: hidden;
@@ -108,7 +108,7 @@ body.dark .theme-thumb { transform: translateX(18px); }
   pointer-events: none; transition: box-shadow 200ms;
 }
 body.dark .photo::after { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
-.photo.is-near::after, .photo:hover::after { box-shadow: inset 0 0 0 1px var(--ink); }
+.photo:hover::after { box-shadow: inset 0 0 0 1px var(--ink); }
 
 .photo-img {
   position: relative; z-index: 1;
@@ -123,12 +123,42 @@ body.dark .photo::after { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
 
 .photo-cap {
   position: absolute; z-index: 3; left: 6px; bottom: 6px;
+  max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis;
   font-size: 11px; line-height: 1; padding: 4px 6px; border-radius: 3px;
   background: var(--bg); color: var(--ink); white-space: nowrap;
   opacity: 0; transition: opacity 200ms var(--ease);
   pointer-events: none;
+  /* in the contact sheet the tile is scaled by --k; keep the label at 11 px */
+  transform: scale(calc(1 / var(--k, 1))); transform-origin: 0 100%;
 }
-.photo.is-missing .photo-cap, body.archive .photo-cap { opacity: 1; }
+.photo-cap b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.cap-name { margin-left: 5px; }
+.photo.is-missing .photo-cap { opacity: 1; }
+/* contact sheet: film-edge numbers print once the frames have landed */
+body.archive .photo-cap { opacity: 1; transition-delay: 420ms; }
+body.archive .cap-name { display: none; }
+
+/* viewfinder: AF brackets lock onto the frame a click will open */
+.af {
+  position: absolute; left: 0; top: 0; z-index: 20;
+  pointer-events: none; opacity: 0;
+  transition: opacity 160ms var(--ease);
+}
+.af.is-on { opacity: 1; }
+.af-b {
+  position: absolute; inset: 0;
+  --c: var(--ink); --l: 10px; --w: 1.5px;
+  background:
+    linear-gradient(var(--c), var(--c)) 0 0 / var(--l) var(--w),
+    linear-gradient(var(--c), var(--c)) 0 0 / var(--w) var(--l),
+    linear-gradient(var(--c), var(--c)) 100% 0 / var(--l) var(--w),
+    linear-gradient(var(--c), var(--c)) 100% 0 / var(--w) var(--l),
+    linear-gradient(var(--c), var(--c)) 0 100% / var(--l) var(--w),
+    linear-gradient(var(--c), var(--c)) 0 100% / var(--w) var(--l),
+    linear-gradient(var(--c), var(--c)) 100% 100% / var(--l) var(--w),
+    linear-gradient(var(--c), var(--c)) 100% 100% / var(--w) var(--l);
+  background-repeat: no-repeat;
+}
 
 /* entrance: frames develop one by one along the diagonal */
 body.js .photo { opacity: 0; transition: opacity 600ms var(--ease); }
@@ -167,7 +197,7 @@ body.js .photo.is-in { opacity: 1; }
   font-style: italic; font-weight: 400;
   font-size: 1.08em; letter-spacing: -.01em;
 }
-.hero p {
+.hero-lede {
   font-size: 13px; line-height: 1.6; color: var(--t2);
   margin-bottom: 22px; max-width: 32ch;
   transition: color var(--tr);
@@ -232,7 +262,7 @@ body.js.ready .hero h1 .line > span { transform: none; }
 body.js.ready .hero-eyebrow { transition-delay: 120ms, 120ms, 0ms; }
 body.js.ready .hero h1 .line:nth-child(1) > span { transition-delay: 180ms; }
 body.js.ready .hero h1 .line:nth-child(2) > span { transition-delay: 260ms; }
-body.js.ready .hero p { transition-delay: 380ms, 380ms, 0ms; }
+body.js.ready .hero-lede { transition-delay: 380ms, 380ms, 0ms; }
 body.js.ready .hero-foot { transition-delay: 460ms, 460ms, 0ms; }
 
 /* ── CAPTION RAIL ── */
@@ -253,16 +283,19 @@ body.js.ready .hero-foot { transition-delay: 460ms, 460ms, 0ms; }
   display: block; width: 1px; height: 4px; background: var(--t3);
   transition: height 160ms var(--ease), background 160ms;
 }
+.bar-ticks i.seen { height: 6px; background: var(--t2); }   /* frames opened this visit */
 .bar-ticks i.on { height: 8px; background: var(--ink); }
 
 /* ── VIEW (lightbox) ── */
 .view {
   position: fixed; inset: 0; z-index: 200;
   display: grid; place-items: center;
+  background: var(--bg);
   background: color-mix(in srgb, var(--bg) 94%, transparent);
   opacity: 0; transition: opacity 400ms var(--ease);
+  pointer-events: none;   /* a closing view never swallows clicks meant for the page */
 }
-.view.is-open { opacity: 1; }
+.view.is-open { opacity: 1; pointer-events: auto; }
 .view-fig { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
 .view-frame {
   position: relative;
@@ -304,7 +337,7 @@ body.js.ready .hero-foot { transition-delay: 460ms, 460ms, 0ms; }
   .nav-right { right: 16px; }
   .hero { left: 20px; right: 20px; bottom: 64px; max-width: none; }
   .hero h1 { font-size: clamp(30px, 9vw, 40px); }
-  .hero p { max-width: none; }
+  .strip { --s: .66; }   /* same composition, frames at two thirds */
   .bottom-bar { left: 20px; right: 20px; }
   .view-frame { width: min(92vw, calc(70vh * var(--ar, 1.3))); }
   .view-close { top: 12px; right: 12px; }
@@ -350,7 +383,7 @@ body.js.ready .hero-foot { transition-delay: 460ms, 460ms, 0ms; }
 <div class="hero">
   <div class="hero-eyebrow">Selected work &nbsp;·&nbsp; 2014 – 2026</div>
   <h1><span class="line"><span>Every frame,</span></span><span class="line"><span><em>every story.</em></span></span></h1>
-  <p>Seventeen frames from twelve years on the road. Move the cursor to stir the strip, click to open the nearest frame, or lay the whole sheet out.</p>
+  <p class="hero-lede">Seventeen frames from twelve years on the road. Move the cursor to stir the strip, click to open the frame held in the brackets, or lay the whole sheet out.</p>
   <div class="hero-foot">
     <div class="hero-cta">
       <button class="btn-book" id="bookBtn" type="button" aria-expanded="false" aria-controls="bookLine">Book a session <span class="btn-arrow" aria-hidden="true">→</span></button>
@@ -406,7 +439,7 @@ const PHYS    = !REDUCED && !COARSE;   /* cursor physics only for fine pointers 
 
 body.classList.add('js', 'no-tr');
 if (matchMedia('(prefers-color-scheme: dark)').matches) body.classList.add('dark');
-requestAnimationFrame(() => requestAnimationFrame(() => body.classList.remove('no-tr')));
+/* no-tr is lifted by the entrance gate below, once the hidden start state has been painted */
 
 /* ═══════════════════════════════
    GRID CANVAS — distorts near cursor
@@ -430,6 +463,16 @@ const grid = (() => {
   let mx = -9999, my = -9999; /* smoothed */
   let str = 0, tStr = 0;      /* effect strength 0→1 */
   let running = false, themeUntil = 0;
+  /* stroke tone 0 = light, 1 = dark; eased over the same 650 ms as the body fade */
+  let dk = body.classList.contains('dark') ? 1 : 0, dkFrom = dk, dkT0 = -1e4;
+
+  function stroke() {
+    const target = body.classList.contains('dark') ? 1 : 0;
+    const p = Math.min(1, (performance.now() - dkT0) / 650);
+    dk = dkFrom + (target - dkFrom) * p * p * (3 - 2 * p);
+    const c = Math.round(255 * dk);
+    return `rgba(${c},${c},${c},${(.042 + .013 * dk).toFixed(3)})`;
+  }
 
   function push(px, py) {
     if (str < 0.002) return [px, py];
@@ -444,7 +487,7 @@ const grid = (() => {
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    ctx.strokeStyle = body.classList.contains('dark') ? 'rgba(255,255,255,.055)' : 'rgba(0,0,0,.042)';
+    ctx.strokeStyle = stroke();
     ctx.lineWidth   = 1;
 
     for (let y = 0; y <= H + STEP; y += STEP) {
@@ -498,8 +541,14 @@ const grid = (() => {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
 
   return {
-    /* the body colours fade over 650 ms; follow them, then idle again */
-    theme() { if (REDUCED) { draw(); return; } themeUntil = performance.now() + 720; wake(); }
+    /* the body colours fade over 650 ms; the grid strokes fade with them, then idle again */
+    theme() {
+      dkFrom = dk;
+      if (REDUCED) { dkT0 = -1e4; draw(); return; }
+      dkT0 = performance.now();
+      themeUntil = dkT0 + 700;
+      wake();
+    }
   };
 })();
 
@@ -590,7 +639,7 @@ PHOTOS.forEach((p, i) => {
   const [lp, tp, w, h, rot, id, zi, cap, year, tone] = p;
   const el = document.createElement('div');
   el.className = 'photo';
-  el.style.cssText = `left:${lp}%;top:${tp}%;width:${w}px;height:${h}px;z-index:${zi};--tone:${tone};transform:rotate(${rot}deg);`;
+  el.style.cssText = `left:${lp}%;top:${tp}%;width:calc(${w}px * var(--s));height:calc(${h}px * var(--s));z-index:${zi};--tone:${tone};transform:rotate(${rot}deg);`;
   el.setAttribute('role', 'button');
   el.tabIndex = 0;
   el.setAttribute('aria-label', `${cap}, ${year}, frame ${i + 1} of ${N}`);
@@ -606,7 +655,12 @@ PHOTOS.forEach((p, i) => {
 
   const capEl = document.createElement('span');
   capEl.className = 'photo-cap';
-  capEl.textContent = cap;
+  const num = document.createElement('b');
+  num.textContent = pad(i + 1);
+  const name = document.createElement('span');
+  name.className = 'cap-name';
+  name.textContent = cap;
+  capEl.append(num, name);
 
   el.append(img, capEl);
   el.addEventListener('click', e => { e.stopPropagation(); openView(i); });
@@ -617,9 +671,66 @@ PHOTOS.forEach((p, i) => {
   el.addEventListener('pointerenter', () => { if (mode === 'archive') setRail(i); });
   stripEl.appendChild(el);
 
-  els.push({ el, rot, w, h, lp, tp, ox: 0, oy: 0, vx: 0, vy: 0, hold: Infinity, live: false });
+  const a = rot * Math.PI / 180;
+  els.push({ el, rot, cos: Math.cos(a), sin: Math.sin(a), lp, tp,
+             ow: w, oh: h, cx: 0, cy: 0, k: 1,
+             ox: 0, oy: 0, vx: 0, vy: 0, hold: Infinity, live: false });
 });
 setRail(0);
+
+/* Geometry cache: strip size and each tile's untransformed box, read once per
+   resize. Centres are then computed, so the physics never reads layout per frame. */
+let SW = 0, SH = 0;
+function measure() {
+  SW = stripEl.clientWidth;
+  SH = stripEl.clientHeight;
+  els.forEach(s => {
+    s.ow = s.el.offsetWidth; s.oh = s.el.offsetHeight;
+    /* the strip bleeds past both edges (frames 16 and 17 start beyond the right border
+       on most screens): a frame less than 40% on screen is "off" on the reel */
+    const x = s.lp / 100 * SW;
+    s.off = Math.min(x + s.ow, SW) - Math.max(x, 0) < s.ow * .4;
+  });
+  syncTabs();
+}
+/* off frames are neither aimed at nor tab stops on the reel (focus would vanish);
+   the contact sheet and the view's arrows still reach all seventeen */
+function syncTabs() {
+  els.forEach(s => { s.el.tabIndex = mode !== 'archive' && s.off ? -1 : 0; });
+}
+/* where focus lands after the view closes: the frame itself, or the closest visible one */
+function focusTarget(i) {
+  for (let j = i; j >= 0; j--) if (els[j].el.tabIndex === 0) return els[j].el;
+  for (let j = i + 1; j < N; j++) if (els[j].el.tabIndex === 0) return els[j].el;
+  return null;
+}
+/* centre of tile s as drawn by rotate(rot) translate(ox, oy) */
+function centerOf(s) {
+  s.cx = s.lp / 100 * SW + s.ow / 2 + s.ox * s.cos - s.oy * s.sin;
+  s.cy = s.tp / 100 * SH + s.oh / 2 + s.ox * s.sin + s.oy * s.cos;
+}
+measure();
+
+/* ── VIEWFINDER ── */
+const af  = document.createElement('div');
+const afB = document.createElement('i');
+af.className = 'af';
+afB.className = 'af-b';
+af.setAttribute('aria-hidden', 'true');
+af.appendChild(afB);
+stripEl.appendChild(af);
+const AF_PAD = 7;
+
+function placeAF() {
+  if (COARSE || nearIdx < 0 || mode !== 'reel' || viewOpen) { af.classList.remove('is-on'); return; }
+  const s = els[nearIdx];
+  centerOf(s);
+  const w = s.ow + AF_PAD * 2, h = s.oh + AF_PAD * 2;
+  af.style.width  = `${w}px`;
+  af.style.height = `${h}px`;
+  af.style.transform = `translate(${(s.cx - w / 2).toFixed(1)}px,${(s.cy - h / 2).toFixed(1)}px) rotate(${s.rot}deg)`;
+  af.classList.add('is-on');
+}
 
 /* ═══════════════════════════════
    HOVER PHYSICS
@@ -644,15 +755,25 @@ stripEl.addEventListener('mouseleave', () => {
   if (mode === 'archive') setRail(-1);
   kick();
 });
+/* a click on empty strip opens the frame in the brackets; on touch only a tapped frame opens */
 stripEl.addEventListener('click', () => {
-  if (mode === 'reel' && !viewOpen && nearIdx >= 0) openView(nearIdx);
+  if (!COARSE && mode === 'reel' && !viewOpen && nearIdx >= 0) openView(nearIdx);
 });
 
 function setNear(i) {
   if (i === nearIdx) return;
   if (nearIdx >= 0) els[nearIdx].el.classList.remove('is-near');
   nearIdx = i;
-  if (i >= 0) { els[i].el.classList.add('is-near'); setRail(i); }
+  if (i >= 0) {
+    els[i].el.classList.add('is-near');
+    setRail(i);
+    /* the brackets re-acquire: a short pull-in, skipped under reduced motion */
+    if (!REDUCED && !COARSE && afB.animate) {
+      afB.animate([{ transform: 'scale(1.14)', opacity: 0 }, { transform: 'none', opacity: 1 }],
+                  { duration: 200, easing: 'cubic-bezier(.22,.61,.36,1)' });
+    }
+  }
+  placeAF();
 }
 
 function tick() {
@@ -666,11 +787,11 @@ function tick() {
     if (PHYS && now < s.hold) { anyMoving = true; continue; }       /* entrance stagger */
     if (PHYS && !s.live) { s.live = true; s.el.classList.add('is-in'); }
 
-    const r    = s.el.getBoundingClientRect();
-    const dx   = r.left + r.width  / 2 - mouseX;
-    const dy   = r.top  + r.height / 2 - mouseY;
+    centerOf(s);
+    const dx   = s.cx - mouseX;
+    const dy   = s.cy - mouseY;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    if (dist < nearestD) { nearestD = dist; nearest = i; }
+    if (!s.off && dist < nearestD) { nearestD = dist; nearest = i; }
     if (!PHYS) continue;
 
     if (dist < RADIUS) {
@@ -690,7 +811,9 @@ function tick() {
     if (Math.abs(s.vx) > .02 || Math.abs(s.vy) > .02 || Math.abs(s.ox) > .1 || Math.abs(s.oy) > .1) anyMoving = true;
   }
 
-  setNear(mouseX > -9000 && nearestD < AIM ? nearest : -1);
+  const target = mouseX > -9000 && nearestD < AIM ? nearest : -1;
+  if (target !== nearIdx) setNear(target);
+  else placeAF();                        /* follow the held frame while it moves */
   if (anyMoving) raf = requestAnimationFrame(tick);
 }
 
@@ -701,19 +824,43 @@ let started = false;
 function start() {
   if (started) return;
   started = true;
+  body.classList.remove('no-tr');
   body.classList.add('ready');
   if (PHYS) {
     const t0 = performance.now() + 160;
-    els.forEach((s, i) => { s.hold = t0 + i * 55; s.oy = 16; });   /* each frame settles up into place */
+    els.forEach((s, i) => {
+      if (s.live) return;                       /* already shown by the contact sheet */
+      s.hold = t0 + i * 55;
+      s.oy = 16;                                /* each frame settles up into place */
+    });
     kick();
   } else if (REDUCED) {
-    els.forEach(s => s.el.classList.add('is-in'));
+    revealAll();
   } else {
     els.forEach((s, i) => setTimeout(() => s.el.classList.add('is-in'), 160 + i * 55));
   }
 }
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(start, start);
-setTimeout(start, 1800);
+/* show every frame now (the contact sheet cannot wait for the stagger) */
+function revealAll() {
+  els.forEach(s => {
+    s.hold = 0;
+    if (!s.live) { s.live = true; s.el.classList.add('is-in'); }
+  });
+}
+
+/* Gate: both display faces resolved AND the hidden start state painted. Without the
+   paint half, cached fonts resolve before the first frame and the entrance is skipped. */
+let facesOk = false, paintOk = false;
+function gate() { if (facesOk && paintOk) start(); }
+const faces = document.fonts && document.fonts.load
+  ? Promise.all([
+      document.fonts.load('800 52px "Bricolage Grotesque"'),
+      document.fonts.load('italic 400 52px "Instrument Serif"'),
+    ])
+  : Promise.resolve();
+faces.then(() => { facesOk = true; gate(); }, () => { facesOk = true; gate(); });
+requestAnimationFrame(() => requestAnimationFrame(() => { paintOk = true; gate(); }));
+setTimeout(start, 1800);   /* slow font host or a background tab: never stay hidden */
 
 /* ═══════════════════════════════
    CONTACT SHEET — the same 17 tiles, ordered
@@ -722,23 +869,35 @@ const archiveBtn = document.getElementById('archiveBtn');
 const archiveNav = document.getElementById('archiveNav');
 let archiveTimer = 0;
 
+const heroEl = document.querySelector('.hero');
+
+/* The sheet fills the band between the nav and the hero copy, never under it:
+   try 3 to 9 columns and keep the one that gives the largest cell. */
 function layoutArchive(animate) {
-  const W = window.innerWidth, H = window.innerHeight, gap = 14;
-  const cols = W < 600 ? 3 : 6, rows = Math.ceil(N / cols);
-  const cell = Math.max(48, Math.min(150,
-    (W - 104 - gap * (cols - 1)) / cols,
-    (H - 380 - gap * (rows - 1)) / rows));
-  const x0 = (W - (cols * cell + (cols - 1) * gap)) / 2;
-  const y0 = 64;
+  const narrow = SW < 600;
+  const side = narrow ? 20 : 52, gap = narrow ? 8 : 14, top = 64;
+  const availW = SW - side * 2;
+  const availH = Math.max(120, heroEl.getBoundingClientRect().top - 28 - top);
+  let cols = 6, cell = 0;
+  for (let c = 3; c <= 9; c++) {
+    const r = Math.ceil(N / c);
+    const fit = Math.min(170, (availW - gap * (c - 1)) / c, (availH - gap * (r - 1)) / r);
+    if (fit > cell) { cell = fit; cols = c; }
+  }
+  cell = Math.max(36, Math.floor(cell));
+  const rows = Math.ceil(N / cols);
+  const x0 = (SW - (cols * cell + (cols - 1) * gap)) / 2;
+  const y0 = top + Math.max(0, (availH - (rows * cell + (rows - 1) * gap)) / 2);
   els.forEach((s, i) => {
     const col = i % cols, row = (i / cols) | 0;
     const cx = x0 + col * (cell + gap) + cell / 2;
     const cy = y0 + row * (cell + gap) + cell / 2;
-    const rx = s.lp / 100 * W + s.w / 2;
-    const ry = s.tp / 100 * H + s.h / 2;
-    const k  = Math.min(cell / s.w, cell / s.h);
+    const rx = s.lp / 100 * SW + s.ow / 2;
+    const ry = s.tp / 100 * SH + s.oh / 2;
+    s.k = Math.min(cell / s.ow, cell / s.oh);
+    s.el.style.setProperty('--k', s.k.toFixed(3));
     s.el.style.transition = animate ? `transform 600ms var(--ease) ${i * 30}ms` : 'none';
-    s.el.style.transform  = `translate(${(cx - rx).toFixed(1)}px,${(cy - ry).toFixed(1)}px) scale(${k.toFixed(3)})`;
+    s.el.style.transform  = `translate(${(cx - rx).toFixed(1)}px,${(cy - ry).toFixed(1)}px) scale(${s.k.toFixed(3)})`;
   });
   if (!animate) requestAnimationFrame(() => els.forEach(s => { s.el.style.transition = ''; }));
 }
@@ -752,7 +911,12 @@ function setArchive(on) {
   archiveNav.setAttribute('aria-pressed', String(on));
   archiveBtn.textContent = on ? 'Back to the reel' : 'View contact sheet';
   setNear(-1);
+  /* leaving the sheet from a frame that bleeds off the reel: keep focus on something visible */
+  const held = els.find(s => s.el === document.activeElement);
+  syncTabs();
+  if (held && held.el.tabIndex < 0) archiveBtn.focus({ preventScroll: true });
   if (on) {
+    revealAll();
     layoutArchive(!REDUCED);
     setRail(-1);
   } else {
@@ -764,13 +928,20 @@ function setArchive(on) {
     setRail(0);
   }
   archiveTimer = setTimeout(() => {
-    els.forEach(s => { s.el.style.transition = ''; });
+    els.forEach(s => {
+      s.el.style.transition = '';
+      if (!on) { s.k = 1; s.el.style.removeProperty('--k'); }
+    });
     if (!on) { mode = 'reel'; kick(); }
   }, REDUCED ? 0 : 600 + N * 30 + 60);
 }
 archiveBtn.addEventListener('click', () => setArchive(mode !== 'archive'));
 archiveNav.addEventListener('click', () => setArchive(mode !== 'archive'));
-window.addEventListener('resize', () => { if (mode === 'archive') layoutArchive(false); });
+window.addEventListener('resize', () => {
+  measure();
+  if (mode === 'archive') layoutArchive(false);
+  else { setNear(-1); kick(); }
+});
 
 /* ═══════════════════════════════
    VIEW — one frame full, FLIP from its tile
@@ -785,7 +956,7 @@ const viewClose   = document.getElementById('viewClose');
 const viewPrev    = document.getElementById('viewPrev');
 const viewNext    = document.getElementById('viewNext');
 const inertEls    = [document.querySelector('nav'), stripEl, document.querySelector('.hero'), document.querySelector('.bottom-bar')];
-let cur = -1, lastFocus = null, closeTimer = 0;
+let cur = -1, closeTimer = 0;
 
 viewImg.addEventListener('load', () => viewImg.classList.add('is-loaded'));
 
@@ -802,17 +973,28 @@ function fill(i) {
   viewIndex.textContent   = `${pad(i + 1)} / ${N}`;
   viewCaption.textContent = p[7];
   viewYear.textContent    = p[8];
+  ticks[i].classList.add('seen');          /* the rail keeps a mark for every frame opened */
 }
 
-/* transform that lays the big frame exactly over tile i */
+/* Transform that lays the big frame exactly over tile i. On the reel the tile is
+   rotated, so its bounding box is larger than the frame itself: use the computed
+   centre and the untransformed size instead, or the FLIP lands up to 15% too big. */
 function tileTransform(i) {
-  const t = els[i].el.getBoundingClientRect();
+  const s = els[i];
   const f = frame.getBoundingClientRect();
-  if (!f.width || !t.width) return 'none';
-  const rot = mode === 'reel' ? els[i].rot : 0;
-  const dx  = t.left + t.width  / 2 - (f.left + f.width  / 2);
-  const dy  = t.top  + t.height / 2 - (f.top  + f.height / 2);
-  return `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px) rotate(${rot}deg) scale(${(t.width / f.width).toFixed(4)},${(t.height / f.height).toFixed(4)})`;
+  if (!f.width || !s.ow) return 'none';
+  let cx, cy, w, h, rot;
+  if (mode === 'archive') {               /* axis-aligned in the sheet: the box is exact */
+    const t = s.el.getBoundingClientRect();
+    cx = t.left + t.width / 2; cy = t.top + t.height / 2;
+    w = t.width; h = t.height; rot = 0;
+  } else {
+    centerOf(s);
+    cx = s.cx; cy = s.cy; w = s.ow; h = s.oh; rot = s.rot;
+  }
+  const dx = cx - (f.left + f.width  / 2);
+  const dy = cy - (f.top  + f.height / 2);
+  return `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px) rotate(${rot}deg) scale(${(w / f.width).toFixed(4)},${(h / f.height).toFixed(4)})`;
 }
 
 function openView(i) {
@@ -820,7 +1002,6 @@ function openView(i) {
   clearTimeout(closeTimer);
   viewOpen = true;
   cur = i;
-  lastFocus = els[i].el;
   setNear(-1);
   fill(i);
   view.hidden = false;
@@ -843,7 +1024,8 @@ function closeView() {
   view.classList.remove('is-open');
   frame.style.transform = tileTransform(cur);
   inertEls.forEach(el => { el.inert = false; });
-  const back = lastFocus;
+  if (mode !== 'archive') setRail(cur);   /* the rail names the frame last seen */
+  const back = focusTarget(cur);
   closeTimer = setTimeout(() => {
     view.hidden = true;
     frame.style.transform = '';
@@ -855,7 +1037,12 @@ function closeView() {
 function step(d) {
   cur = (cur + d + N) % N;
   fill(cur);
-  lastFocus = els[cur].el;
+  /* the next frame arrives from the side it was asked for. It animates `translate`,
+     not `transform`, so it never fights the FLIP transition that owns `transform`. */
+  if (!REDUCED && frame.animate) {
+    frame.animate([{ translate: `${d * 18}px 0`, opacity: .35 }, { translate: '0 0', opacity: 1 }],
+                  { duration: 280, easing: 'cubic-bezier(.22,.61,.36,1)' });
+  }
 }
 
 viewClose.addEventListener('click', closeView);
@@ -864,7 +1051,10 @@ viewNext.addEventListener('click', () => step(1));
 view.addEventListener('click', e => { if (e.target === view) closeView(); });
 
 document.addEventListener('keydown', e => {
-  if (!viewOpen) return;
+  if (!viewOpen) {
+    if (e.key === 'Escape' && mode === 'archive') { e.preventDefault(); setArchive(false); }
+    return;
+  }
   if (e.key === 'Escape')          { e.preventDefault(); closeView(); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
   else if (e.key === 'ArrowLeft')  { e.preventDefault(); step(-1); }
@@ -887,6 +1077,8 @@ bookBtn.addEventListener('click', () => {
   const open = bookBtn.getAttribute('aria-expanded') !== 'true';
   bookBtn.setAttribute('aria-expanded', String(open));
   bookLine.classList.toggle('is-open', open);
+  /* the hero grows upward; let an open contact sheet make room once it has */
+  if (mode === 'archive') setTimeout(() => { if (mode === 'archive') layoutArchive(!REDUCED); }, REDUCED ? 0 : 340);
 });
 })();
 </script>

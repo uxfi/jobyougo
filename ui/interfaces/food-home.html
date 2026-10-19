@@ -7,7 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="../assets/fonts.css">
-<script>document.documentElement.classList.add('js');</script>
+<script>
+/* Entrance gate; the timeout is a failsafe so the page still shows if the main script never runs. */
+document.documentElement.classList.add('js');
+setTimeout(function () { document.documentElement.classList.add('is-in'); }, 2500);
+</script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -16,12 +20,9 @@
   --card: rgba(255,255,255,.95);
   --ink: #141414;
   --muted: rgba(20,20,20,.66);
-  --soft: rgba(255,255,255,.72);
   --orange: #f47a4b;
   --orange-text: #d44f1d;
   --blue: #539ae9;
-  --green: #d6ef73;
-  --green-deep: #b6dc49;
   --green-text: #6f9a3a;
   --shadow: 0 24px 44px rgba(94,71,26,.12);
   --ease: cubic-bezier(.2,.7,.2,1);
@@ -83,6 +84,8 @@ button:active { transform: scale(.96); }
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
+  /* keyboard focus never lands under the sticky nav */
+  scroll-padding-bottom: 96px;
   background:
     radial-gradient(circle at 62% 8%, rgba(255,197,108,.42), transparent 18%),
     radial-gradient(circle at 14% 30%, rgba(255,255,255,.25), transparent 18%),
@@ -301,14 +304,24 @@ button:active { transform: scale(.96); }
   flex-shrink: 0;
   opacity: 0;
   transform: scale(.6);
-  pointer-events: none;
-  transition: opacity var(--t-micro) var(--ease), transform var(--t-micro) var(--ease), background-color var(--t-ui) var(--ease);
+  /* hidden also from Tab and screen readers while the field is empty */
+  visibility: hidden;
+  transition:
+    opacity var(--t-micro) var(--ease),
+    transform var(--t-micro) var(--ease),
+    background-color var(--t-ui) var(--ease),
+    visibility 0s linear var(--t-micro);
 }
 
 .search-box.has-text .search-clear {
   opacity: 1;
   transform: none;
-  pointer-events: auto;
+  visibility: visible;
+  transition:
+    opacity var(--t-micro) var(--ease),
+    transform var(--t-micro) var(--ease),
+    background-color var(--t-ui) var(--ease),
+    visibility 0s;
 }
 
 .filter-btn {
@@ -331,9 +344,15 @@ button:active { transform: scale(.96); }
   box-shadow: var(--shadow);
 }
 
-.ring {
+.ring-wrap {
+  position: relative;
   width: 72px;
   height: 72px;
+}
+
+.ring {
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
@@ -343,21 +362,64 @@ button:active { transform: scale(.96); }
   stroke-width: 9;
 }
 
-.ring-fill {
+/* The ring is split by macro: each arc is that macro's share of the energy eaten, so the
+   legend dots below are the ring's key. Arc geometry is written by the script (same tween
+   as the counter); the dash attributes in the markup are the static 1,240 kcal state. */
+.arc {
   fill: none;
-  stroke: var(--orange);
+  stroke: var(--c);
   stroke-width: 9;
   stroke-linecap: round;
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-  stroke-dasharray: 100;
-  stroke-dashoffset: var(--off, 38);
-  transition: stroke-dashoffset var(--t-draw) var(--ease), stroke var(--t-ui) var(--ease);
 }
 
-.js:not(.is-in) .ring-fill { stroke-dashoffset: 100; }
-.js.is-in:not(.is-settled) .ring-fill { transition-delay: 180ms; }
-.today.near-goal .ring-fill { stroke: var(--orange-text); }
+/* Preview of the recommended meal: a pale arc from today's total to where "Add" would land.
+   Shown on hover or keyboard focus of Add; clicking Add gives the same information. */
+.ring-ghost {
+  fill: none;
+  stroke: var(--ink);
+  stroke-opacity: .2;
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-dasharray: 0 400;
+  stroke-dashoffset: var(--g-off, -163);
+  opacity: 0;
+  transition: opacity var(--t-ui) var(--ease), stroke-dasharray var(--t-enter) var(--ease);
+}
+
+.today.is-preview .ring-ghost {
+  opacity: 1;
+  stroke-dasharray: var(--g-dash, 68) 400;
+}
+
+.ring-pct,
+.ring-delta {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-bricolage, 'Inter', sans-serif);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  transition: opacity var(--t-ui) var(--ease), transform var(--t-ui) var(--ease);
+}
+
+.ring-delta {
+  opacity: 0;
+  transform: translateY(5px);
+}
+
+.today.is-preview .ring-pct {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+.today.is-preview .ring-delta {
+  opacity: 1;
+  transform: none;
+}
 
 .today-kcal {
   display: flex;
@@ -416,23 +478,31 @@ button:active { transform: scale(.96); }
   color: var(--ink);
 }
 
+/* Full-bleed scroll row: the padding keeps focus rings and chip shadows inside the
+   scroll box (an overflow container clips both), the mask says "more this way". */
 .chips {
-  position: relative;
+  position: relative; /* offsetParent for the chip scroll math in the script */
   display: flex;
   gap: 12px;
-  margin-top: 24px;
+  margin: 18px -18px -6px;
+  padding: 6px 18px 18px;
   overflow-x: auto;
-  padding-bottom: 2px;
   scrollbar-width: none;
   scroll-snap-type: x proximity;
-  scroll-padding-inline: 4px;
+  scroll-padding-inline: 18px;
+  --fade-l: 0px;
+  --fade-r: 0px;
 }
 
 .chips::-webkit-scrollbar { display: none; }
 
-.chips.has-more {
-  -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent);
-  mask-image: linear-gradient(90deg, #000 82%, transparent);
+.chips.fade-l { --fade-l: 28px; }
+.chips.fade-r { --fade-r: 48px; }
+
+.chips.fade-l,
+.chips.fade-r {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
 }
 
 .chip {
@@ -443,7 +513,7 @@ button:active { transform: scale(.96); }
   padding: 0 18px;
   border-radius: 18px;
   background: rgba(255,255,255,.9);
-  box-shadow: 0 14px 24px rgba(94,71,26,.08);
+  box-shadow: 0 6px 14px rgba(94,71,26,.09);
   font-family: var(--font-bricolage, 'Inter', sans-serif);
   font-size: 16px;
   color: #181818;
@@ -453,14 +523,14 @@ button:active { transform: scale(.96); }
 .chip[aria-pressed="true"] {
   background: var(--ink);
   color: #fff;
-  box-shadow: 0 14px 24px rgba(20,20,20,.16);
+  box-shadow: 0 8px 16px rgba(20,20,20,.18);
 }
 
 .section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 24px;
+  margin-top: 14px;
 }
 
 .section-head h2 {
@@ -522,7 +592,6 @@ button:active { transform: scale(.96); }
 .wish-btn {
   width: 50px;
   height: 50px;
-  border: none;
   border-radius: 20px;
   background: rgba(255,255,255,.24);
   border: 1px solid rgba(255,255,255,.42);
@@ -623,10 +692,29 @@ button:active { transform: scale(.96); }
   font-size: 15px;
 }
 
+/* After "Add": what is left of today's goal, said where the tap happened
+   (on a phone the ring has usually scrolled out of view by then). */
+.kcal-left {
+  display: inline-block;
+  margin-left: .3em;
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity var(--t-ui) var(--ease), transform var(--t-ui) var(--ease);
+}
+
+.food-card.is-logged .kcal-left {
+  opacity: 1;
+  transform: none;
+}
+
 .add-btn {
   flex: 0 0 auto;
   min-width: 104px;
   height: 52px;
+  padding: 0 16px;
   border: none;
   border-radius: 20px;
   background: rgba(255,255,255,.7);
@@ -701,7 +789,7 @@ button:active { transform: scale(.96); }
   .search-clear:hover { background: rgba(20,20,20,.06); }
   .chip:not([aria-pressed="true"]):hover {
     transform: translateY(-1px);
-    box-shadow: 0 16px 26px rgba(94,71,26,.14);
+    box-shadow: 0 8px 16px rgba(94,71,26,.13);
   }
   .chip:not([aria-pressed="true"]):hover:active { transform: scale(.96); }
   .filter-btn:hover { box-shadow: var(--shadow), 0 0 0 1px rgba(20,20,20,.1); }
@@ -719,11 +807,13 @@ button:active { transform: scale(.96); }
 @media (max-width: 320px) {
   .screen {
     padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+    scroll-padding-bottom: 80px;
   }
 
   .header {
     align-items: flex-start;
     gap: 10px;
+    margin-top: 12px;
   }
 
   .profile {
@@ -790,9 +880,14 @@ button:active { transform: scale(.96); }
     border-radius: 20px;
   }
 
-  .ring {
+  .ring-wrap {
     width: 60px;
     height: 60px;
+  }
+
+  .ring-pct,
+  .ring-delta {
+    font-size: 13px;
   }
 
   .today-kcal {
@@ -811,7 +906,9 @@ button:active { transform: scale(.96); }
 
   .chips {
     gap: 10px;
-    margin-top: 14px;
+    margin: 8px -14px -6px;
+    padding: 6px 14px 16px;
+    scroll-padding-inline: 14px;
   }
 
   .chip {
@@ -823,7 +920,7 @@ button:active { transform: scale(.96); }
   }
 
   .section-head {
-    margin-top: 16px;
+    margin-top: 8px;
   }
 
   .section-head h2 {
@@ -889,6 +986,8 @@ button:active { transform: scale(.96); }
   .add-btn {
     min-width: 84px;
     height: 42px;
+    padding: 0 12px;
+    gap: 6px;
     border-radius: 16px;
     font-size: 13px;
   }
@@ -898,7 +997,6 @@ button:active { transform: scale(.96); }
     margin-top: 10px;
     padding: 7px;
     border-radius: 24px;
-    bottom: 0;
   }
 
   .nav-item {
@@ -920,9 +1018,6 @@ button:active { transform: scale(.96); }
   }
   .js:not(.is-in) .food-visual img {
     transform: rotate(-5deg);
-  }
-  .js:not(.is-in) .ring-fill {
-    stroke-dashoffset: var(--off, 38);
   }
 }
 </style>
@@ -1008,10 +1103,19 @@ button:active { transform: scale(.96); }
   </div>
 
   <section class="today" id="today" aria-label="Today's intake" data-enter style="--i:4">
-    <svg class="ring" viewBox="0 0 96 96" aria-hidden="true">
-      <circle class="ring-track" cx="48" cy="48" r="40"/>
-      <circle class="ring-fill" id="ringFill" cx="48" cy="48" r="40" pathLength="100"/>
-    </svg>
+    <div class="ring-wrap" aria-hidden="true">
+      <svg class="ring" viewBox="0 0 96 96">
+        <circle class="ring-track" cx="48" cy="48" r="40"/>
+        <g transform="rotate(-90 48 48)">
+          <circle class="ring-ghost" id="ringGhost" cx="48" cy="48" r="40"/>
+          <circle class="arc" data-macro="carb" style="--c:var(--orange)" cx="48" cy="48" r="40" stroke-dasharray="61.40 251.33" stroke-dashoffset="-7"/>
+          <circle class="arc" data-macro="fat" style="--c:var(--blue)" cx="48" cy="48" r="40" stroke-dasharray="31.24 251.33" stroke-dashoffset="-82.40"/>
+          <circle class="arc" data-macro="pro" style="--c:var(--green-text)" cx="48" cy="48" r="40" stroke-dasharray="21.19 251.33" stroke-dashoffset="-127.64"/>
+        </g>
+      </svg>
+      <span class="ring-pct" id="ringPct">62%</span>
+      <span class="ring-delta" id="ringDelta">+650</span>
+    </div>
     <div class="today-copy">
       <p class="today-kcal"><span class="num" id="kcalNum">1,240</span><span class="unit">/ 2,000 kcal</span></p>
       <ul class="macros">
@@ -1050,10 +1154,10 @@ button:active { transform: scale(.96); }
 
     <div class="food-bottom">
       <div class="food-info">
-        <h3>Black Label Burger</h3>
-        <p>650 Kcal</p>
+        <h3 id="foodName">Black Label Burger</h3>
+        <p>650 Kcal<span class="kcal-left" id="kcalLeft" aria-hidden="true"></span></p>
       </div>
-      <button class="add-btn" id="addBtn" type="button" aria-pressed="false">
+      <button class="add-btn" id="addBtn" type="button" aria-pressed="false" aria-describedby="foodName">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path class="p-plus" d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
           <path class="p-check" d="M5.5 12.5l4 4 9-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1111,28 +1215,61 @@ button:active { transform: scale(.96); }
   var GOAL = 2000;
   var base = { kcal: 1240, carb: 150, fat: 40, pro: 70 };
   var meal = { kcal: 650, carb: 60.5, fat: 7.8, pro: 5 };
-  var shown = { kcal: 0, carb: base.carb, fat: base.fat, pro: base.pro };
-  var out = { kcal: $('#kcalNum'), carb: $('#mCarb'), fat: $('#mFat'), pro: $('#mPro') };
+  var shown = { kcal: base.kcal, carb: base.carb, fat: base.fat, pro: base.pro };
+  var out = { kcal: $('#kcalNum'), carb: $('#mCarb'), fat: $('#mFat'), pro: $('#mPro'), pct: $('#ringPct') };
   var today = $('#today');
-  var ring = $('#ringFill');
+  var ghost = $('#ringGhost');
+  var arcs = Array.prototype.slice.call(document.querySelectorAll('.arc'));
   var live = $('#liveNote');
   var raf = 0;
 
+  /* Ring geometry, in viewBox units: r = 40, stroke 9, 5 between segments. */
+  var C = 2 * Math.PI * 40;
+  var SW = 9;
+  var GAP = 5;
+  var KCAL_PER_G = { carb: 4, fat: 9, pro: 4 };
+
   function sum(a, b) { return { kcal: a.kcal + b.kcal, carb: a.carb + b.carb, fat: a.fat + b.fat, pro: a.pro + b.pro }; }
   function copy(o) { return { kcal: o.kcal, carb: o.carb, fat: o.fat, pro: o.pro }; }
+  function pctOf(kcal) { return Math.min(100, Math.round(kcal / GOAL * 100)); }
+  function along(kcal) { return Math.max(0, Math.min(1, kcal / GOAL)) * C; }
+
+  /* One round-capped segment over [start, start + len], GAP / 2 kept clear at each end.
+     Segments too short to read fade out instead of collapsing into a dot. */
+  function lay(el, start, len) {
+    var dash = len - SW - GAP;
+    el.setAttribute('stroke-dasharray', Math.max(0, dash).toFixed(2) + ' ' + C.toFixed(2));
+    el.setAttribute('stroke-dashoffset', (-(start + (SW + GAP) / 2)).toFixed(2));
+    el.style.opacity = dash >= 4 ? '' : String(Math.max(0, dash / 4));
+  }
+
+  /* Each arc is its macro's share of the energy eaten, laid end to end up to kcal / goal. */
+  function paintRing(v) {
+    var energy = v.carb * KCAL_PER_G.carb + v.fat * KCAL_PER_G.fat + v.pro * KCAL_PER_G.pro;
+    var filled = along(v.kcal);
+    var start = 0;
+    for (var i = 0; i < arcs.length; i++) {
+      var m = arcs[i].getAttribute('data-macro');
+      var len = energy > 0 ? filled * (v[m] * KCAL_PER_G[m]) / energy : 0;
+      lay(arcs[i], start, len);
+      start += len;
+    }
+  }
 
   function paint(v) {
     out.kcal.textContent = fmt(v.kcal);
     out.carb.textContent = fmt(v.carb);
     out.fat.textContent = fmt(v.fat);
     out.pro.textContent = fmt(v.pro);
+    out.pct.textContent = pctOf(v.kcal) + '%';
+    paintRing(v);
   }
 
-  function setRing(kcal) {
-    var pct = Math.min(100, Math.round(kcal / GOAL * 100));
-    ring.style.setProperty('--off', String(100 - pct));
-    today.classList.toggle('near-goal', pct >= 90);
-  }
+  /* The preview arc runs from today's total to today + the recommended meal. */
+  var s0 = along(base.kcal);
+  ghost.style.setProperty('--g-off', (-(s0 + (SW + GAP) / 2)).toFixed(2));
+  ghost.style.setProperty('--g-dash', Math.max(0, along(base.kcal + meal.kcal) - s0 - SW - GAP).toFixed(2));
+  $('#ringDelta').textContent = '+' + fmt(meal.kcal);
 
   function tween(to, ms) {
     cancelAnimationFrame(raf);
@@ -1154,31 +1291,36 @@ button:active { transform: scale(.96); }
 
   /* Entrance: once, after fonts settle, capped at 300 ms so an offline page never waits. */
   var entered = false;
+  function current() { return added ? sum(base, meal) : base; }
   function enter() {
     if (entered) return;
     entered = true;
+    /* The head failsafe already showed the page (rAF was paused, e.g. an off-screen frame):
+       keep the real numbers on screen rather than replaying the count from zero. */
+    var late = doc.classList.contains('is-in');
     doc.classList.add('is-in');
-    setRing(base.kcal);
-    if (reduced()) {
-      shown = copy(base);
-      paint(shown);
+    if (reduced() || late) {
+      tween(current(), 0);
       doc.classList.add('is-settled');
       return;
     }
-    setTimeout(function () { tween(base, 900); }, 200);
+    /* Still hidden at this point: start the count and the ring from zero, then draw both together. */
+    shown = copy(current());
+    shown.kcal = 0;
+    paint(shown);
+    setTimeout(function () { tween(current(), 900); }, 200);
     setTimeout(function () { doc.classList.add('is-settled'); }, 1200);
   }
 
   if (reduced()) {
     enter();
   } else {
-    paint(shown); /* kcal reads 0 while still hidden, then counts up */
     var armed = false;
-    function go() {
+    var go = function () {
       if (armed) return;
       armed = true;
       requestAnimationFrame(function () { requestAnimationFrame(enter); });
-    }
+    };
     setTimeout(go, 300);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(go, go);
   }
@@ -1187,14 +1329,40 @@ button:active { transform: scale(.96); }
   var addBtn = $('#addBtn');
   var addLabel = addBtn.querySelector('span');
   var added = false;
+  var hovering = false;
+
+  /* Hover (mouse) or keyboard focus on Add previews where the meal lands on the ring. */
+  function preview(on) { today.classList.toggle('is-preview', on && !added); }
+
+  addBtn.addEventListener('pointerenter', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    hovering = true;
+    preview(true);
+  });
+  addBtn.addEventListener('pointerleave', function () {
+    hovering = false;
+    preview(false);
+  });
+  addBtn.addEventListener('focus', function () {
+    var keyboard = true;
+    try { keyboard = addBtn.matches(':focus-visible'); } catch (e) { /* older engines: treat as keyboard */ }
+    if (keyboard) preview(true);
+  });
+  addBtn.addEventListener('blur', function () { preview(hovering); });
+
+  var foodCard = $('#foodCard');
+  var leftNote = $('#kcalLeft');
   addBtn.addEventListener('click', function () {
     added = !added;
     addBtn.setAttribute('aria-pressed', String(added));
     addLabel.textContent = added ? 'Added' : 'Add';
-    var to = added ? sum(base, meal) : base;
-    setRing(to.kcal);
+    preview(false);
+    var to = current();
+    var left = Math.max(0, GOAL - to.kcal);
+    if (added) leftNote.textContent = '· ' + fmt(left) + ' left';
+    foodCard.classList.toggle('is-logged', added);
     tween(to, 600);
-    live.textContent = (added ? 'Black Label Burger added. ' : 'Black Label Burger removed. ') + fmt(to.kcal) + ' of ' + fmt(GOAL) + ' kcal today.';
+    live.textContent = (added ? 'Black Label Burger added. ' : 'Black Label Burger removed. ') + fmt(to.kcal) + ' of ' + fmt(GOAL) + ' kcal today, ' + fmt(left) + ' left.';
   });
 
   /* Favourite: pressed state + one pop. */
@@ -1222,6 +1390,7 @@ button:active { transform: scale(.96); }
   var clearBtn = box.querySelector('.search-clear');
   function syncClear() { box.classList.toggle('has-text', input.value.length > 0); }
   input.addEventListener('input', syncClear);
+  input.addEventListener('search', syncClear); /* Escape clears a search field natively */
   clearBtn.addEventListener('click', function () {
     input.value = '';
     syncClear();
@@ -1232,14 +1401,15 @@ button:active { transform: scale(.96); }
   /* Chips: single select, kept in view without touching the parent frame's scroll. */
   var chips = $('.chips');
   function moreCheck() {
-    chips.classList.toggle('has-more', chips.scrollLeft + chips.clientWidth < chips.scrollWidth - 1);
+    chips.classList.toggle('fade-l', chips.scrollLeft > 1);
+    chips.classList.toggle('fade-r', chips.scrollLeft + chips.clientWidth < chips.scrollWidth - 1);
   }
   chips.addEventListener('click', function (e) {
     var b = e.target.closest('.chip');
     if (!b) return;
     var all = chips.querySelectorAll('.chip');
     for (var i = 0; i < all.length; i++) all[i].setAttribute('aria-pressed', String(all[i] === b));
-    var pad = 12;
+    var pad = parseFloat(getComputedStyle(chips).paddingLeft) || 12;
     var left = b.offsetLeft;
     var right = left + b.offsetWidth;
     var target = null;
@@ -1253,8 +1423,8 @@ button:active { transform: scale(.96); }
   moreCheck();
 
   /* Pointer tilt on the card: desktop pointers only, after the entrance, never under reduced motion. */
-  var card = $('#foodCard');
-  var fine = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+  var card = foodCard;
+  var fine =window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
   if (fine) {
     var tx = 0, ty = 0, queued = false;
     card.addEventListener('pointermove', function (e) {

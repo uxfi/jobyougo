@@ -5,21 +5,36 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Maritana Minerals — Investor Home Page</title>
 <link rel="stylesheet" href="/ui/assets/fonts.css">
+<script>
+  (function () {
+    var root = document.documentElement;
+    var done = false;
+    root.classList.add("js");
+    function ready() {
+      if (done) return;
+      done = true;
+      root.classList.add("is-ready");
+    }
+    setTimeout(ready, 700);
+    document.addEventListener("DOMContentLoaded", function () {
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(ready, ready);
+      else ready();
+    });
+  })();
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --sand: #f8f4ef;
+    --sand: #f8f3ec;
     --paper: #fffdfa;
     --ink: #141518;
     --muted: #596273;
-    --line: rgba(242, 112, 36, 0.11);
     --border: rgba(20, 21, 24, 0.12);
     --orange: #ff5a16;
     --orange-deep: #ee4710;
-    --orange-soft: #fff1e8;
-    --ring: rgba(20, 21, 24, 0.08) 0 0 0 1px;
-    --shadow: 0 24px 60px rgba(163, 103, 52, 0.12);
+    --orange-text: #b94a26;
+    --ease-out: cubic-bezier(.2, .7, .2, 1);
     --card-shadow:
       rgba(20, 21, 24, 0.08) 0 0 0 1px,
       rgba(20, 21, 24, 0.05) 0 10px 24px -14px,
@@ -31,26 +46,27 @@
     min-height: 100vh;
     font-family: var(--font-inter);
     color: var(--ink);
-    background: linear-gradient(180deg, #fffdfa 0%, #f8f3ec 100%);
+    background: linear-gradient(180deg, var(--paper) 0%, var(--sand) 100%);
     overflow-x: hidden;
   }
 
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    opacity: .12;
-    background-image: url("data:image/svg+xml,%3Csvg width='1200' height='760' viewBox='0 0 1200 760' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23f27224' stroke-opacity='.22' stroke-width='1'%3E%3Cpath d='M-20 164c104-36 189-45 259-26 57 16 118 26 183 14 74-13 132-49 207-57 65-7 145 8 250 50 107 43 207 56 321 14'/%3E%3Cpath d='M-10 212c89-19 163-16 226 7 63 24 133 40 208 30 80-11 141-46 218-55 83-10 167 14 243 47 114 50 214 54 328 3'/%3E%3Cpath d='M-18 259c95-18 183-11 256 18 70 29 138 39 213 30 82-10 151-41 231-47 75-6 146 11 229 42 118 43 213 47 308-8'/%3E%3Cpath d='M-34 306c104-24 185-22 258 8 71 29 145 51 225 43 88-9 158-45 238-52 91-8 178 20 254 47 90 31 177 38 279 11'/%3E%3Cpath d='M-24 354c89-17 171-9 240 24 76 36 151 53 231 46 90-8 163-44 246-55 77-9 157 10 252 50 101 42 194 51 279 28'/%3E%3Cpath d='M-18 406c96-18 171-9 236 24 65 33 141 53 234 46 93-7 165-42 249-52 91-11 169 11 245 44 94 41 182 59 283 46'/%3E%3Cpath d='M-16 458c101-27 190-22 260 15 69 36 144 57 236 50 95-7 161-42 244-53 74-10 151 3 249 42 102 41 196 62 291 50'/%3E%3Cpath d='M-36 511c91-20 178-12 255 24 78 37 153 52 238 41 92-11 173-49 252-57 86-9 165 11 248 47 90 38 181 55 286 40'/%3E%3Cpath d='M-20 564c97-30 184-29 258 3 67 29 139 48 223 39 96-10 179-56 262-63 95-8 173 19 254 53 91 38 178 42 279 14'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: cover;
-    mix-blend-mode: multiply;
+  [id] { scroll-margin-top: 24px; }
+
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--orange-deep);
+    outline-offset: 3px;
   }
+
+  [tabindex="-1"]:focus { outline: none; }
 
   .shell {
     position: relative;
     min-height: 100vh;
     isolation: isolate;
   }
+
+  /* ---------- Hero ---------- */
 
   .hero {
     position: relative;
@@ -93,8 +109,6 @@
     margin: 0 auto;
     padding: 10px 12px 10px 10px;
     border-radius: 12px;
-    background: transparent;
-    box-shadow: none;
   }
 
   .nav-panel {
@@ -130,24 +144,19 @@
     color: #17181c;
     box-shadow: var(--card-shadow);
     cursor: pointer;
+    transition: background-color 160ms ease;
   }
+
+  .menu-toggle:hover { background: #fff; }
 
   .menu-toggle svg {
     width: 20px;
     height: 20px;
   }
 
-  .menu-toggle .icon-close {
-    display: none;
-  }
-
-  .nav.open .menu-toggle .icon-menu {
-    display: none;
-  }
-
-  .nav.open .menu-toggle .icon-close {
-    display: block;
-  }
+  .menu-toggle .icon-close { display: none; }
+  .nav.open .menu-toggle .icon-menu { display: none; }
+  .nav.open .menu-toggle .icon-close { display: block; }
 
   .menu {
     display: flex;
@@ -172,7 +181,6 @@
     min-height: 36px;
     padding: 0 10px;
     border-radius: 2px;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0);
     transition:
       color 160ms ease,
       background 160ms ease,
@@ -181,7 +189,7 @@
   }
 
   .menu a:hover {
-    color: var(--orange);
+    color: var(--orange-text);
     background: rgba(255,255,255,.48);
     box-shadow: inset 0 0 0 1px rgba(20, 21, 24, .05);
     transform: translateY(-1px);
@@ -193,13 +201,8 @@
     box-shadow: inset 0 0 0 1px rgba(255, 90, 22, .18);
   }
 
-  .menu a:focus-visible {
-    outline: 2px solid rgba(255, 90, 22, .28);
-    outline-offset: 2px;
-  }
-
   .menu a.active {
-    color: var(--orange-deep);
+    color: var(--orange-text);
     background: rgba(255, 241, 232, .82);
     box-shadow:
       inset 0 0 0 1px rgba(255, 90, 22, .18),
@@ -214,7 +217,6 @@
     border: .5px solid rgba(255,255,255,.24);
     border-radius: 6px;
     background: rgba(255,255,255,.22);
-    color: #fff;
     backdrop-filter: blur(24px) saturate(1.25);
     box-shadow:
       rgba(255,255,255,.22) 0 .5px 0 inset,
@@ -238,14 +240,13 @@
   }
 
   .stock-change {
-    color: #b94a26;
+    color: var(--orange-text);
     font-size: 10px;
     font-weight: 600;
     letter-spacing: .04em;
   }
 
   .nav-cta {
-    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -254,7 +255,7 @@
     border-radius: 6px;
     border: .5px solid rgba(255,255,255,.26);
     background: rgba(255,255,255,.28);
-    color: #1d1d1f;
+    color: #fff;
     text-decoration: none;
     font-size: 12px;
     font-weight: 500;
@@ -264,22 +265,15 @@
     box-shadow:
       rgba(255,255,255,.28) 0 .5px 0 inset,
       rgba(20, 21, 24, .08) 0 10px 24px -18px;
-    overflow: hidden;
     white-space: nowrap;
     transition:
-      color 160ms ease,
       border-color 160ms ease,
       background 160ms ease,
       box-shadow 160ms ease,
       transform 160ms ease;
   }
 
-  .nav-cta::before {
-    display: none;
-  }
-
   .nav-cta:hover {
-    color: #fff;
     border-color: rgba(255,255,255,.34);
     background: rgba(255,255,255,.42);
     box-shadow:
@@ -288,36 +282,15 @@
     transform: translateY(-1px);
   }
 
-  .nav-cta:hover span {
-    color: #fff;
-    -webkit-text-fill-color: #fff;
-  }
-
   .nav-cta:active {
     transform: translateY(0) scale(.98);
     background: rgba(255,255,255,.34);
   }
 
-  .nav-cta:focus-visible {
-    outline: 2px solid rgba(255, 90, 22, .28);
-    outline-offset: 2px;
-  }
-
   .nav-cta svg {
-    position: relative;
-    z-index: 1;
     width: 17px;
     height: 17px;
     flex-shrink: 0;
-    color: #fff;
-  }
-
-  .nav-cta span {
-    position: relative;
-    z-index: 1;
-    color: #fff;
-    -webkit-text-fill-color: #fff;
-    text-shadow: none;
   }
 
   .content {
@@ -343,7 +316,7 @@
     align-items: flex-start;
     gap: 8px;
     margin-bottom: 14px;
-    color: var(--orange);
+    color: var(--orange-text);
     font-size: 12px;
     font-weight: 700;
     letter-spacing: .22em;
@@ -355,6 +328,7 @@
     width: 68px;
     height: 2px;
     background: rgba(242, 90, 17, .78);
+    transform-origin: left center;
   }
 
   .headline {
@@ -367,21 +341,20 @@
     color: #121316;
     max-width: 720px;
     text-wrap: balance;
-    text-shadow: 0 6px 18px rgba(255,255,255,.24);
   }
 
-  .headline .line {
-    display: block;
-  }
+  .headline .line { display: block; }
+  .headline .tail { white-space: nowrap; }
 
   .headline .dot {
+    display: inline-block;
     color: var(--orange);
     margin-left: 8px;
   }
 
   .lede {
-    max-width: 570px;
-    margin-top: 14px;
+    max-width: 540px;
+    margin-top: 16px;
     color: #5c6674;
     font-size: clamp(15px, 1.18vw, 18px);
     line-height: 1.45;
@@ -392,7 +365,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin-top: 18px;
+    margin-top: 22px;
   }
 
   .btn {
@@ -408,177 +381,119 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: .09em;
-    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
-    position: relative;
-    overflow: hidden;
-    isolation: isolate;
+    transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
   }
 
-  .btn:hover { transform: translateY(-2px); }
-
-  .btn-primary {
-    --aurora-angle: 0deg;
-    border: 1.5px solid transparent;
-    background:
-      linear-gradient(135deg, #ff5a16 0%, #f34b10 78%, #ff7c21 100%) padding-box,
-      conic-gradient(from var(--aurora-angle),
-        rgba(255,255,255,.12) 0deg,
-        rgba(255,233,218,.98) 54deg,
-        rgba(255,135,58,.98) 118deg,
-        rgba(255,255,255,.95) 180deg,
-        rgba(255,96,22,.98) 242deg,
-        rgba(255,224,199,.9) 304deg,
-        rgba(255,255,255,.12) 360deg) border-box;
-    color: #fff;
-    box-shadow:
-      rgba(255,255,255,.18) 0 1px 0 inset,
-      rgba(255, 94, 24, 0.22) 0 18px 34px -18px;
-    animation: aurora-border 4.2s linear infinite;
-  }
-
-  .btn-primary > span,
-  .btn-primary > svg {
-    position: relative;
-    z-index: 2;
-  }
-
-  .btn-primary:hover {
-    box-shadow:
-      rgba(255,255,255,.2) 0 1px 0 inset,
-      rgba(255, 94, 24, 0.32) 0 22px 40px -18px,
-      0 0 24px rgba(255, 126, 45, .16);
-  }
-
-  .btn-secondary {
-    border: none;
-    background: rgba(255,255,255,.82);
-    color: var(--orange);
-    box-shadow: var(--card-shadow);
-  }
-
-  .investor-avatars {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    width: 48px;
-    height: 22px;
-    flex-shrink: 0;
-  }
-
-  .investor-avatar {
-    position: absolute;
-    top: 0;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(255,255,255,.92);
-    background:
-      radial-gradient(circle at 50% 36%, rgba(255,255,255,.98) 0 16%, transparent 17%),
-      radial-gradient(circle at 50% 82%, rgba(255,255,255,.92) 0 28%, transparent 29%),
-      linear-gradient(135deg, #ff7a27, #d74712);
-    box-shadow:
-      rgba(20, 21, 24, .08) 0 4px 10px -6px,
-      rgba(255,255,255,.5) 0 1px 0 inset;
-  }
-
-  .investor-avatar:nth-child(1) {
-    left: 0;
-  }
-
-  .investor-avatar:nth-child(2) {
-    left: 13px;
-    background:
-      radial-gradient(circle at 50% 36%, rgba(255,255,255,.98) 0 16%, transparent 17%),
-      radial-gradient(circle at 50% 82%, rgba(255,255,255,.92) 0 28%, transparent 29%),
-      linear-gradient(135deg, #202225, #565b62);
-  }
-
-  .investor-avatar:nth-child(3) {
-    left: 26px;
-    background:
-      radial-gradient(circle at 50% 36%, rgba(255,255,255,.98) 0 16%, transparent 17%),
-      radial-gradient(circle at 50% 82%, rgba(255,255,255,.92) 0 28%, transparent 29%),
-      linear-gradient(135deg, #f2b36d, #bf5a24);
-  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
 
   .btn svg {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
+    transition: transform 180ms var(--ease-out);
   }
 
-  .cards {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    max-width: 920px;
-    margin-top: 18px;
+  .btn-primary {
+    background: var(--orange);
+    color: var(--ink);
+    box-shadow:
+      rgba(255,255,255,.22) 0 1px 0 inset,
+      rgba(255, 94, 24, 0.22) 0 18px 34px -18px;
   }
 
-  .card {
-    position: relative;
-    min-height: 132px;
-    padding: 14px 14px 16px;
-    border: none;
-    border-radius: 8px;
-    background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.68));
+  .btn-primary:hover { background: var(--orange-deep); }
+  .btn-primary:hover svg { transform: translateX(3px); }
+
+  .btn-secondary {
+    background: rgba(255,255,255,.82);
+    color: var(--orange-text);
     box-shadow: var(--card-shadow);
-    backdrop-filter: blur(14px);
-    overflow: hidden;
   }
 
-  .card::before {
+  .btn-secondary:hover { background: #fff; }
+  .btn-secondary:hover svg { transform: translateY(2px); }
+
+  /* Hero status: where the build stands, linked to the roadmap */
+
+  .hero-status {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: 10px 16px;
+    max-width: 452px;
+    margin-top: 30px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(20, 21, 24, .14);
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .hs-label,
+  .hs-count {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .hs-count { letter-spacing: .1em; }
+  .hs-count b { color: var(--ink); }
+
+  .hs-bar {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .hs-bar i {
+    position: relative;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 1px;
+    background: rgba(20, 21, 24, .14);
+  }
+
+  .hs-bar .is-done::after,
+  .hs-bar .is-now::after {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,.44), transparent 52%);
-    pointer-events: none;
+    background: var(--orange);
+    transform-origin: left center;
   }
 
-  .card-label {
-    display: inline-flex;
-    margin-bottom: 8px;
-    color: rgba(92, 102, 116, .72);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .18em;
-    text-transform: uppercase;
+  /* the stage being built reads as hazard tape */
+  .hs-bar .is-now::after {
+    background-color: rgba(255, 90, 22, .32);
+    background-image: linear-gradient(135deg, var(--orange) 25%, transparent 25%, transparent 50%, var(--orange) 50%, var(--orange) 75%, transparent 75%);
+    background-size: 10px 10px;
   }
 
-  .card-icon {
-    width: 38px;
-    height: 38px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--orange);
-    margin-bottom: 10px;
-  }
-
-  .card-title {
-    font-family: var(--font-darker);
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: .02em;
-    text-transform: uppercase;
-    color: #17181c;
-    line-height: 1;
-  }
-
-  .card-copy {
-    margin-top: 4px;
-    max-width: 210px;
+  .hs-now {
+    grid-column: 1 / -1;
     font-size: 13px;
-    color: #667080;
-    line-height: 1.42;
+    font-weight: 650;
+    letter-spacing: -.01em;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 4px;
+    transition: text-decoration-color 160ms ease;
   }
 
-  .card-arrow {
-    position: absolute;
-    right: 12px;
-    bottom: 10px;
-    color: var(--orange);
+  .hs-now span {
+    display: inline-block;
+    margin-left: 4px;
+    color: var(--orange-text);
+    transition: transform 160ms var(--ease-out);
   }
+
+  .hero-status:hover .hs-now { text-decoration-color: var(--orange); }
+  .hero-status:hover .hs-now span { transform: translateY(2px); }
+
+  /* ---------- Sections ---------- */
 
   .home-main {
     position: relative;
@@ -606,7 +521,7 @@
   .section-kicker {
     display: inline-flex;
     margin-bottom: 16px;
-    color: var(--orange);
+    color: var(--orange-text);
     font-size: 11px;
     font-weight: 800;
     letter-spacing: .18em;
@@ -623,9 +538,7 @@
     text-wrap: balance;
   }
 
-  .section-title .dot {
-    color: var(--orange);
-  }
+  .section-title .dot { color: var(--orange); }
 
   .section-copy {
     margin-top: 20px;
@@ -635,50 +548,53 @@
     line-height: 1.55;
   }
 
-  .metrics-section {
-    padding-top: clamp(36px, 5vw, 62px);
-  }
+  /* Metrics: one ruled row, no shells */
+
+  .metrics-section { padding-top: clamp(36px, 5vw, 62px); }
+  .metrics-section .section-kicker { margin-bottom: 0; }
 
   .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin-top: 18px;
   }
 
-  .metric-card,
-  .mini-card,
-  .road-card,
-  .portfolio-card,
-  .update-card,
-  .contact-card {
-    border-radius: 8px;
-    background: rgba(255,255,255,.74);
-    box-shadow: var(--card-shadow);
-    backdrop-filter: blur(16px);
-  }
-
-  .metric-card {
-    min-height: 158px;
-    padding: 28px 26px;
+  .metric {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    padding: 26px 22px 4px;
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+  }
+
+  .metric:first-child {
+    border-left: 0;
+    padding-left: 0;
   }
 
   .metric-label {
-    margin-bottom: 8px;
-    color: #15161a;
-    font-size: 12px;
+    order: 2;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 11px;
     font-weight: 800;
-    letter-spacing: .04em;
+    letter-spacing: .14em;
+    text-transform: uppercase;
   }
 
   .metric-value {
+    order: 1;
     font-family: var(--font-darker);
     font-size: clamp(2.2rem, 3.5vw, 3.7rem);
     font-weight: 900;
     line-height: .86;
     letter-spacing: -.055em;
+    white-space: nowrap;
+  }
+
+  .metric-value .num {
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
   }
 
   .metric-value small {
@@ -688,216 +604,356 @@
     letter-spacing: -.04em;
   }
 
-  .metric-card::after,
-  .mini-card::after {
-    content: "";
-    display: block;
-    width: 26px;
-    height: 2px;
-    margin-top: 22px;
-    background: var(--orange);
-  }
-
-  .asset-section {
-    padding-block: 0;
-    background:
-      linear-gradient(90deg, rgba(255,253,250,.98) 0%, rgba(255,253,250,.93) 42%, rgba(255,253,250,.28) 64%, rgba(255,253,250,0) 100%),
-      url("/ui/assets/maritana-black-swan.png") right center / auto 100% no-repeat;
-  }
+  /* Core asset: the plant is the hub */
 
   .asset-layout {
     min-height: 650px;
     display: grid;
     grid-template-columns: minmax(0, 520px) 1fr;
     align-items: center;
-    gap: clamp(34px, 8vw, 110px);
+    gap: clamp(34px, 6vw, 90px);
+    padding-block: 56px;
   }
 
-  .mini-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 34px;
+  .asset-section { padding-block: 0; }
+
+  .hub-map {
+    width: 100%;
+    max-width: 640px;
+    justify-self: center;
   }
 
-  .mini-card {
-    min-height: 174px;
-    padding: 24px 22px;
-  }
-
-  .mini-card h3,
-  .portfolio-card h3,
-  .update-card h3 {
-    font-size: 17px;
-    font-weight: 850;
-    letter-spacing: -.03em;
-    color: #15161a;
-  }
-
-  .mini-card p,
-  .portfolio-card p,
-  .update-card p {
-    margin-top: 14px;
-    color: #566170;
-    font-size: 13px;
-    line-height: 1.55;
-  }
-
-  .asset-map {
+  .hub-stage {
     position: relative;
-    min-height: 530px;
+    aspect-ratio: 1 / 1;
   }
 
-  .hub-badge {
+  .hub-lines {
     position: absolute;
-    right: 24%;
-    top: 36%;
-    width: 158px;
-    height: 136px;
-    display: grid;
-    place-items: center;
-    text-align: center;
-    color: #fff;
-    background: linear-gradient(135deg, #ff5a16, #e94710);
-    clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
-    box-shadow: rgba(255, 90, 22, .38) 0 20px 40px -18px;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
 
-  .hub-badge img {
-    width: 76px;
-    margin-bottom: 6px;
+  .spoke-base {
+    fill: none;
+    stroke: rgba(20, 21, 24, .42);
+    stroke-width: 1.5;
+    transition: stroke 160ms ease, stroke-width 160ms ease;
   }
 
-  .hub-badge strong {
+  .spoke-flow {
+    fill: none;
+    stroke: var(--orange);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 6 14;
+  }
+
+  .spoke.is-linked .spoke-base {
+    stroke: var(--orange-deep);
+    stroke-width: 4;
+  }
+
+  .hub-plant {
+    position: absolute;
+    left: 0;
+    bottom: 0;
     display: block;
-    font-size: 14px;
-    line-height: .95;
-    letter-spacing: .03em;
+    width: 100%;
+    height: auto;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .hub-feeds { list-style: none; }
+
+  .hub-feeds li {
+    position: absolute;
+    left: var(--x);
+    top: 18%;
+  }
+
+  .node {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 28px;
+    height: 28px;
+    transform: translate(-50%, -50%);
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .node:focus-visible { outline: none; }
+
+  .node-ring {
+    position: absolute;
+    inset: 7px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 3px solid var(--orange);
+    box-shadow: 0 0 0 5px rgba(255, 90, 22, .16);
+    transition: transform 160ms var(--ease-out), box-shadow 160ms ease;
+  }
+
+  .node-plate {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 2px);
+    transform: translateX(-50%);
+    display: grid;
+    gap: 3px;
+    width: max-content;
+    max-width: 124px;
+    padding: 8px 10px 9px;
+    border-radius: 3px;
+    background: rgba(255,253,250,.96);
+    box-shadow:
+      inset 0 0 0 1px var(--border),
+      0 10px 22px -16px rgba(20, 21, 24, .35);
+    text-align: center;
+    transition: box-shadow 160ms ease;
+  }
+
+  .node-name {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    line-height: 1.2;
     text-transform: uppercase;
   }
 
-  .hub-badge span {
-    display: block;
-    margin-top: 4px;
-    font-size: 9px;
+  .node-sub {
+    color: var(--muted);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    line-height: 1.25;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  .node:hover .node-ring,
+  .node:focus-visible .node-ring,
+  .node.is-linked .node-ring {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 7px rgba(255, 90, 22, .22);
+  }
+
+  .node:hover .node-plate,
+  .node.is-linked .node-plate {
+    box-shadow:
+      inset 0 0 0 1.5px var(--orange-deep),
+      0 10px 22px -16px rgba(20, 21, 24, .35);
+  }
+
+  .node:focus-visible .node-plate {
+    outline: 2px solid var(--orange-deep);
+    outline-offset: 2px;
+  }
+
+  .node.is-flagged .node-plate {
+    box-shadow:
+      inset 0 0 0 2px var(--orange-deep),
+      0 0 0 6px rgba(255, 90, 22, .18);
+  }
+
+  .hub-label {
+    position: absolute;
+    left: 50%;
+    top: 86%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    padding: 10px 16px 11px;
+    border-radius: 4px;
+    background: var(--orange);
+    color: var(--ink);
+    box-shadow: 0 16px 30px -18px rgba(163, 103, 52, .6);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .hub-label strong {
+    font-family: var(--font-darker);
+    font-size: 24px;
+    font-weight: 900;
+    line-height: .9;
+    letter-spacing: -.02em;
+    text-transform: uppercase;
+  }
+
+  .hub-label span {
+    font-size: 10px;
     font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+
+  .hub-caption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 14px;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
     letter-spacing: .08em;
     text-transform: uppercase;
   }
 
-  .map-point {
-    position: absolute;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 850;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    text-shadow: rgba(0,0,0,.42) 0 1px 8px;
-  }
-
-  .map-point::before {
-    content: "";
-    display: block;
-    width: 26px;
-    height: 26px;
-    margin: 0 auto 8px;
-    border: 4px solid #f3bd78;
-    border-radius: 50%;
-    background: rgba(255,255,255,.18);
-    box-shadow: rgba(243, 189, 120, .38) 0 0 0 5px;
-  }
-
-  .map-line {
-    position: absolute;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(243,189,120,.86), transparent);
-    transform-origin: left center;
-  }
-
-  .point-boorara { right: 48%; top: 22%; }
-  .point-burbanks { right: 8%; top: 22%; }
-  .point-crake { right: 50%; top: 66%; }
-  .point-kalpini { right: 8%; top: 68%; }
-  .line-one { right: 34%; top: 40%; width: 250px; transform: rotate(-132deg); }
-  .line-two { right: 18%; top: 39%; width: 250px; transform: rotate(-42deg); }
-  .line-three { right: 34%; top: 52%; width: 240px; transform: rotate(136deg); }
-  .line-four { right: 18%; top: 52%; width: 240px; transform: rotate(42deg); }
-
-  .map-location {
-    position: absolute;
-    right: 28%;
-    bottom: 10%;
+  .hub-caption b {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 850;
-    letter-spacing: .05em;
-    text-transform: uppercase;
-    text-shadow: rgba(0,0,0,.44) 0 1px 8px;
+    gap: 6px;
+    color: var(--ink);
+    font-weight: 800;
   }
 
-  .roadmap-grid {
+  .hub-caption svg {
+    width: 16px;
+    height: 16px;
+    color: var(--orange-text);
+  }
+
+  /* Path to first gold: one progress line, real states */
+
+  .road-wrap {
+    position: relative;
+    margin-top: 44px;
+  }
+
+  .road-track {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+  }
+
+  .js .road-track { display: block; }
+
+  .road-track::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 21, 24, .12);
+  }
+
+  .road-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    background: var(--orange);
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
+
+  .road-wrap.is-vertical .road-fill {
+    transform-origin: center top;
+    transform: scaleY(0);
+  }
+
+  .road-wrap.is-drawn .road-fill {
+    transform: none;
+    transition: transform 900ms var(--ease-out);
+  }
+
+  .road {
     position: relative;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 38px;
-    margin-top: 34px;
+    gap: 32px;
+    list-style: none;
   }
 
-  .roadmap-grid::before {
-    content: "";
-    position: absolute;
-    left: 8%;
-    right: 8%;
-    top: 49%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,90,22,.66), transparent);
-  }
+  .road-step { position: relative; }
 
-  .road-card {
+  .road-dot {
     position: relative;
-    min-height: 176px;
-    padding: 28px 24px;
-  }
-
-  .road-card::after {
-    content: "";
-    position: absolute;
-    right: -24px;
-    top: 50%;
-    width: 10px;
-    height: 10px;
-    border: 2px solid var(--orange);
+    z-index: 1;
+    display: block;
+    width: 14px;
+    height: 14px;
+    margin-bottom: 22px;
     border-radius: 50%;
     background: var(--paper);
-    transform: translate(50%, -50%);
+    border: 2px solid rgba(20, 21, 24, .3);
   }
 
-  .road-card:last-child::after {
-    display: none;
+  .road-step[data-state="done"] .road-dot {
+    background: var(--orange);
+    border-color: var(--orange);
   }
 
-  .road-step {
-    color: var(--orange);
+  .road-step[data-state="current"] .road-dot {
+    background: var(--orange);
+    border-color: var(--orange);
+    box-shadow: inset 0 0 0 3px var(--paper);
+  }
+
+  .road-step[data-state="current"] .road-dot::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid var(--orange);
+    opacity: 0;
+  }
+
+  .road-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .road-num {
+    color: var(--orange-text);
     font-size: 25px;
     font-weight: 900;
     line-height: 1;
   }
 
-  .road-card h3 {
-    margin-top: 18px;
+  .road-step[data-state="upcoming"] .road-num { color: var(--muted); }
+
+  .road-state {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  .road-step[data-state="current"] .road-state { color: var(--orange-text); }
+
+  .road-step h3 {
+    margin-top: 14px;
     font-size: 16px;
     font-weight: 850;
     letter-spacing: -.03em;
   }
 
-  .road-card p {
-    margin-top: 14px;
+  .road-copy {
+    max-width: 230px;
+    margin-top: 10px;
     color: #596473;
     font-size: 13px;
     line-height: 1.55;
+  }
+
+  /* Portfolio, updates, contact */
+
+  .portfolio-card,
+  .update-card {
+    border-radius: 8px;
+    background: rgba(255,255,255,.74);
+    box-shadow: var(--card-shadow);
   }
 
   .portfolio-grid {
@@ -948,8 +1004,45 @@
   }
 
   .portfolio-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     min-height: 250px;
     padding: 34px 28px;
+    transition: box-shadow 200ms ease;
+  }
+
+  .portfolio-card h3,
+  .update-card h3 {
+    font-size: 17px;
+    font-weight: 850;
+    letter-spacing: -.03em;
+    color: #15161a;
+  }
+
+  .portfolio-card p,
+  .update-card p {
+    margin-top: 14px;
+    color: #566170;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .portfolio-card .text-link {
+    margin-top: auto;
+    padding-top: 28px;
+  }
+
+  .portfolio-card.is-linked {
+    box-shadow:
+      inset 0 0 0 1.5px var(--orange-deep),
+      rgba(20, 21, 24, 0.05) 0 10px 24px -14px;
+  }
+
+  .portfolio-card.is-flagged {
+    box-shadow:
+      inset 0 0 0 2px var(--orange-deep),
+      0 0 0 6px rgba(255, 90, 22, .16);
   }
 
   .text-link {
@@ -957,29 +1050,23 @@
     align-items: center;
     gap: 8px;
     margin-top: 28px;
-    color: var(--orange);
+    color: var(--orange-text);
     font-size: 13px;
     font-weight: 800;
     text-decoration: none;
+    text-underline-offset: 4px;
   }
 
-  .updates-layout {
-    display: grid;
-    grid-template-columns: 1fr 410px;
-    gap: 52px;
-    align-items: start;
-  }
+  .text-link:hover { text-decoration: underline; }
 
   .updates-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 24px;
-    margin-top: 30px;
+    margin-top: 34px;
   }
 
-  .update-card {
-    overflow: hidden;
-  }
+  .update-card { overflow: hidden; }
 
   .update-media {
     height: 112px;
@@ -998,71 +1085,35 @@
       url("/ui/assets/maritana-bg.png") 72% center / cover;
   }
 
-  .update-body {
-    padding: 22px 22px 24px;
-  }
+  .update-body { padding: 22px 22px 24px; }
 
-  .contact-card {
-    padding: 34px;
-    background:
-      linear-gradient(135deg, rgba(255,255,255,.88), rgba(255,241,232,.72)),
-      radial-gradient(circle at 100% 0%, rgba(255,90,22,.12), transparent 40%);
-  }
-
-  .contact-card h3 {
-    margin-top: 4px;
-    font-family: var(--font-darker);
-    font-size: 32px;
-    font-weight: 900;
-    letter-spacing: -.05em;
-  }
-
-  .contact-card p {
-    margin-top: 12px;
-    color: #4e5867;
-    line-height: 1.5;
-  }
-
-  .contact-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    width: 100%;
-    margin-top: 28px;
-    padding: 15px 18px;
-    border-radius: 6px;
-    background: var(--orange);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 850;
-    text-decoration: none;
-    box-shadow: rgba(255,90,22,.25) 0 18px 34px -20px;
-  }
-
-  .contact-list {
-    display: grid;
-    gap: 14px;
-    margin-top: 28px;
-    color: #475160;
-    font-size: 13px;
-  }
+  /* Investor Relations band: white on burnt orange, the contact lives here */
 
   .final-cta {
     padding: 0;
     color: #fff;
     background:
-      linear-gradient(90deg, rgba(223,58,0,.92), rgba(255,90,22,.82)),
+      linear-gradient(90deg, rgba(196,50,0,.95) 0%, rgba(206,58,4,.94) 55%, rgba(214,62,6,.93) 100%),
       url("/ui/assets/maritana-rock-pattern.png") center / cover;
   }
 
+  .final-cta :focus-visible { outline-color: #fff; }
+
   .final-cta .section-inner {
-    min-height: 240px;
+    min-height: 260px;
     display: grid;
-    grid-template-columns: 1fr 360px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
     align-items: center;
-    gap: 50px;
-    padding: 36px 16px;
+    gap: 56px;
+    padding: 44px 16px;
+  }
+
+  .band-kicker {
+    margin-bottom: 14px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .18em;
+    text-transform: uppercase;
   }
 
   .final-title {
@@ -1071,43 +1122,85 @@
     font-weight: 900;
     line-height: .9;
     letter-spacing: -.055em;
+    text-wrap: balance;
   }
 
-  .final-cta p {
+  .band-copy {
     margin-top: 18px;
     max-width: 560px;
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 600;
     line-height: 1.5;
   }
 
-  .final-actions {
-    display: grid;
-    gap: 14px;
-  }
-
-  .final-actions a {
+  .contact-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 14px;
+    gap: 12px;
+    width: 100%;
     padding: 16px 20px;
+    border: 0;
     border-radius: 8px;
+    background: var(--ink);
     color: #fff;
+    font: inherit;
+    font-size: 13px;
     font-weight: 850;
-    text-decoration: none;
+    letter-spacing: .02em;
+    cursor: pointer;
+    box-shadow: rgba(20, 21, 24, .35) 0 18px 34px -22px;
+    transition: background-color 160ms ease, transform 160ms ease;
   }
 
-  .final-actions a:first-child {
-    background: rgba(255,255,255,.95);
-    color: var(--orange-deep);
+  .contact-button:hover { background: #000; transform: translateY(-1px); }
+  .contact-button:active { transform: translateY(0); }
+
+  .contact-button svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
   }
 
-  .final-actions a:last-child {
-    border: 1px solid rgba(255,255,255,.72);
-    background: rgba(255,255,255,.08);
-    backdrop-filter: blur(18px);
+  .contact-button .when-done,
+  .contact-button.is-done .when-idle { display: none; }
+  .contact-button.is-done .when-done { display: inline-flex; }
+
+  .copy-status {
+    min-height: 1.4em;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 650;
   }
+
+  .contact-list {
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, .45);
+  }
+
+  .contact-list div {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .28);
+  }
+
+  .contact-list dt {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .contact-list dd {
+    font-size: 15px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  /* Footer */
 
   .site-footer {
     padding: 34px 16px 28px;
@@ -1140,7 +1233,6 @@
   }
 
   .footer-links a,
-  .footer-meta a,
   .footer-meta span {
     color: #17181c;
     font-size: 11px;
@@ -1150,23 +1242,7 @@
     text-transform: uppercase;
   }
 
-  .social-links {
-    display: inline-flex;
-    gap: 14px;
-  }
-
-  .social-links a {
-    width: 24px;
-    height: 24px;
-    display: inline-grid;
-    place-items: center;
-    border-radius: 4px;
-    background: #111;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 900;
-    text-decoration: none;
-  }
+  .footer-links a:hover { color: var(--orange-text); }
 
   .footer-meta {
     display: flex;
@@ -1174,40 +1250,85 @@
     justify-content: space-between;
     gap: 22px;
     padding-top: 24px;
-    color: #6a7380;
-    font-size: 11px;
   }
 
-  .footer-meta nav {
-    display: inline-flex;
-    gap: 46px;
+  .footer-meta span:first-child {
+    color: #5f6875;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: none;
   }
 
-  @property --aurora-angle {
-    syntax: "<angle>";
-    inherits: false;
-    initial-value: 0deg;
-  }
+  /* ---------- Motion ---------- */
 
-  @keyframes aurora-border {
-    to { --aurora-angle: 360deg; }
-  }
+  @keyframes m-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+  @keyframes m-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes m-rule { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes m-stamp { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+  @keyframes m-settle { from { transform: scale(1.04); } to { transform: none; } }
+  @keyframes m-flow { to { stroke-dashoffset: -20; } }
+  @keyframes m-pulse { from { opacity: .75; transform: scale(1); } to { opacity: 0; transform: scale(2.6); } }
+  @keyframes m-stripes { to { background-position: 10px 0; } }
 
-  @media (prefers-reduced-motion: reduce) {
-    .btn-primary {
-      animation: none;
+  @media (prefers-reduced-motion: no-preference) {
+    html.js:not(.is-ready) .hero .nav,
+    html.js:not(.is-ready) .eyebrow,
+    html.js:not(.is-ready) .headline .line,
+    html.js:not(.is-ready) .headline .dot,
+    html.js:not(.is-ready) .lede,
+    html.js:not(.is-ready) .actions,
+    html.js:not(.is-ready) .hero-status { opacity: 0; }
+    html.js:not(.is-ready) .eyebrow::after,
+    html.js:not(.is-ready) .hs-bar i::after { transform: scaleX(0); }
+
+    /* the status bar fills stage by stage, then the live stage keeps moving a few beats */
+    html.is-ready .hero-status { animation: m-rise 640ms var(--ease-out) 560ms both; }
+    html.is-ready .hs-bar .is-done::after { animation: m-rule 360ms var(--ease-out) 820ms both; }
+    html.is-ready .hs-bar .is-done + .is-done::after { animation-delay: 960ms; }
+    html.is-ready .hs-bar .is-now::after {
+      animation:
+        m-rule 360ms var(--ease-out) 1100ms both,
+        m-stripes 1.2s linear 1.46s 5;
+    }
+
+    html.is-ready .hero::after { animation: m-settle 1400ms var(--ease-out) both; }
+    html.is-ready .hero .nav { animation: m-fade 420ms ease both; }
+    html.is-ready .eyebrow { animation: m-fade 420ms ease 60ms both; }
+    html.is-ready .eyebrow::after { animation: m-rule 560ms var(--ease-out) 140ms both; }
+    html.is-ready .headline .line { animation: m-rise 720ms var(--ease-out) 170ms both; }
+    html.is-ready .headline .line + .line { animation-delay: 270ms; }
+    html.is-ready .headline .dot { animation: m-stamp 320ms var(--ease-out) 700ms both; }
+    html.is-ready .headline .line + .line .dot { animation-delay: 800ms; }
+    html.is-ready .lede { animation: m-rise 640ms var(--ease-out) 380ms both; }
+    html.is-ready .actions { animation: m-rise 640ms var(--ease-out) 470ms both; }
+
+    .hub-map.is-live .spoke-flow { animation: m-flow 1.2s linear infinite; }
+    .road-wrap.is-drawn .road-step[data-state="current"] .road-dot::after {
+      animation: m-pulse 1.6s var(--ease-out) 900ms 2;
     }
   }
 
-  .visual {
-    display: none;
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+
+    .btn, .btn svg, .menu a, .nav-cta, .nav-panel, .node-ring, .spoke-base,
+    .portfolio-card, .contact-button, .hs-now span {
+      transition: none !important;
+    }
+
+    .btn:hover, .menu a:hover, .nav-cta:hover, .contact-button:hover,
+    .btn-primary:hover svg, .btn-secondary:hover svg, .hero-status:hover .hs-now span,
+    .node:hover .node-ring, .node:focus-visible .node-ring, .node.is-linked .node-ring {
+      transform: none;
+    }
+
+    .road-fill {
+      transform: none !important;
+      transition: none !important;
+    }
   }
 
-  .visual::before,
-  .layer,
-  .topo {
-    display: none;
-  }
+  /* ---------- Responsive ---------- */
 
   @media (max-width: 1320px) {
     .hero { padding: 10px; }
@@ -1216,29 +1337,20 @@
   }
 
   @media (max-width: 1100px) {
-    .menu {
-      gap: 12px;
-    }
+    .menu { gap: 12px; }
 
     .content {
       display: block;
       padding-block: 18px;
     }
 
-    .cards {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .hero::after { background-position: 64% center; }
 
-    .metrics-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
+    .metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-    .asset-section {
-      background:
-        linear-gradient(90deg, rgba(255,253,250,.98) 0%, rgba(255,253,250,.88) 46%, rgba(255,253,250,.2) 100%),
-        url("/ui/assets/maritana-black-swan.png") right center / cover no-repeat;
+    .metric:nth-child(3n+1) {
+      border-left: 0;
+      padding-left: 0;
     }
 
     .asset-layout {
@@ -1247,36 +1359,39 @@
       padding-block: 72px;
     }
 
-    .asset-map {
-      min-height: 420px;
-    }
+    .portfolio-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .resource-card { grid-column: 1 / -1; }
 
-    .portfolio-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .resource-card {
-      grid-column: 1 / -1;
-    }
-
-    .roadmap-grid,
-    .updates-layout,
     .final-cta .section-inner {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 30px;
+    }
+
+    .band-contact { max-width: 480px; }
+
+    .final-cta {
+      background:
+        linear-gradient(180deg, rgba(196,50,0,.95) 0%, rgba(206,58,4,.94) 60%, rgba(214,62,6,.93) 100%),
+        url("/ui/assets/maritana-rock-pattern.png") center / cover;
+    }
+
+    .road {
       grid-template-columns: 1fr;
+      gap: 26px;
     }
 
-    .roadmap-grid {
-      gap: 14px;
+    .road-step { padding-left: 34px; }
+
+    .road-dot {
+      position: absolute;
+      left: 0;
+      top: 6px;
+      margin: 0;
     }
 
-    .roadmap-grid::before,
-    .road-card::after {
-      display: none;
-    }
+    .road-copy { max-width: 520px; }
 
-    .footer-main {
-      flex-wrap: wrap;
-    }
+    .footer-main { flex-wrap: wrap; }
 
     .footer-links {
       gap: 24px;
@@ -1315,10 +1430,10 @@
       flex-direction: column;
       align-items: stretch;
       gap: 10px;
-      padding: 0;
+      padding: 10px;
       border-radius: 10px;
-      background: transparent;
-      box-shadow: none;
+      background: rgba(255,253,250,.97);
+      box-shadow: var(--card-shadow), 0 24px 40px -24px rgba(20, 21, 24, .35);
       opacity: 0;
       transform: translateY(-10px);
       pointer-events: none;
@@ -1341,18 +1456,18 @@
       padding-inline: 0;
     }
 
-    .menu li {
-      list-style: none;
-    }
+    .menu li { list-style: none; }
 
     .menu a {
       display: block;
-      padding: 10px 11px;
+      padding: 12px 11px;
       border-radius: 6px;
-      background: transparent;
+      background: rgba(20, 21, 24, .03);
       box-shadow: none;
       min-height: 0;
     }
+
+    .menu a:hover { transform: none; }
 
     .menu a.active {
       background: rgba(255, 241, 232, .92);
@@ -1361,14 +1476,12 @@
         inset 0 -2px 0 rgba(255, 90, 22, .72);
     }
 
-    .menu a:hover {
-      transform: none;
-    }
-
     .stock-quote {
       width: 100%;
       justify-content: center;
       padding: 10px 12px;
+      border-color: var(--border);
+      background: rgba(20, 21, 24, .03);
     }
 
     .nav-cta {
@@ -1376,11 +1489,14 @@
       justify-content: center;
       padding: 12px 14px;
       font-size: 11px;
+      border-color: var(--ink);
+      background: var(--ink);
+      backdrop-filter: none;
     }
 
-    .copy {
-      padding-left: 0;
-    }
+    .nav-cta:hover { background: #000; }
+
+    .copy { padding-left: 0; }
 
     .eyebrow {
       font-size: 11px;
@@ -1400,7 +1516,7 @@
 
     .actions {
       gap: 10px;
-      margin-top: 14px;
+      margin-top: 16px;
     }
 
     .btn {
@@ -1411,77 +1527,60 @@
       gap: 10px;
     }
 
-    .cards {
-      grid-template-columns: 1fr;
-      gap: 10px;
-      margin-top: 16px;
+    .hero-status {
+      max-width: none;
+      margin-top: 22px;
     }
-
-    .card {
-      min-height: 118px;
-      padding: 14px 14px 18px;
-    }
-
-    .card-icon {
-      width: 34px;
-      height: 34px;
-      margin-bottom: 8px;
-    }
-
-    .card-title { font-size: 17px; }
-    .card-copy { font-size: 13px; }
 
     .hero::after { background-position: 71% center; }
 
-    .page-section {
-      padding: 42px 8px;
+    .page-section { padding: 42px 8px; }
+
+    .metrics-grid { grid-template-columns: 1fr; }
+
+    .metric,
+    .metric:first-child,
+    .metric:nth-child(3n+1) {
+      flex-direction: row-reverse;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      padding: 16px 0;
+      border-left: 0;
     }
 
-    .metrics-grid,
-    .mini-grid,
+    .metric-label { margin-top: 0; }
+    .metric-value { font-size: 2.6rem; }
+
     .updates-grid,
     .portfolio-grid {
       grid-template-columns: 1fr;
     }
 
-    .metric-card {
-      min-height: 126px;
-      padding: 22px 20px;
-    }
-
-    .metric-value {
-      font-size: 3rem;
-    }
-
-    .asset-section {
-      background:
-        linear-gradient(180deg, rgba(255,253,250,.98) 0%, rgba(255,253,250,.9) 48%, rgba(255,253,250,.34) 100%),
-        url("/ui/assets/maritana-black-swan.png") center bottom / cover no-repeat;
-    }
-
     .asset-layout {
-      padding-block: 54px 390px;
+      gap: 28px;
+      padding-block: 54px;
     }
 
-    .asset-map {
-      display: none;
+    .node-sub { display: none; }
+    .node-plate { padding: 6px 8px 7px; }
+
+    .node-name {
+      font-size: 11px;
+      letter-spacing: .06em;
     }
 
-    .road-card,
-    .portfolio-card,
-    .mini-card,
-    .contact-card {
+    .hub-label { padding: 8px 12px 9px; }
+    .hub-label strong { font-size: 19px; }
+
+    .portfolio-card {
       min-height: auto;
       padding: 24px 22px;
     }
 
-    .updates-layout {
-      gap: 28px;
-    }
-
     .final-cta .section-inner {
-      gap: 28px;
-      padding: 34px 8px;
+      gap: 26px;
+      padding: 36px 8px;
     }
 
     .footer-main,
@@ -1490,21 +1589,28 @@
       flex-direction: column;
     }
 
-    .footer-links,
-    .footer-meta nav {
+    .footer-links {
       gap: 16px;
       flex-wrap: wrap;
     }
 
-    .footer-logo {
-      width: 180px;
+    .footer-logo { width: 180px; }
+  }
+
+  /* four plates share one row at phone width: keep them apart */
+  @media (max-width: 420px) {
+    .node-plate { padding: 5px 6px 6px; }
+
+    .node-name {
+      font-size: 10px;
+      letter-spacing: .04em;
     }
+
+    .hs-label { letter-spacing: .1em; }
   }
 
   @media (max-height: 760px) {
-    .hero {
-      padding: 8px;
-    }
+    .hero { padding: 8px; }
 
     .nav {
       padding: 8px;
@@ -1516,9 +1622,7 @@
       min-width: 172px;
     }
 
-    .menu {
-      gap: 10px;
-    }
+    .menu { gap: 10px; }
 
     .menu a {
       font-size: 11px;
@@ -1530,9 +1634,7 @@
       font-size: 11px;
     }
 
-    .content {
-      padding-block: 14px;
-    }
+    .content { padding-block: 14px; }
 
     .eyebrow {
       margin-bottom: 10px;
@@ -1547,14 +1649,14 @@
 
     .lede {
       margin-top: 10px;
-      max-width: 560px;
+      max-width: 540px;
       font-size: 14px;
       line-height: 1.32;
     }
 
     .actions {
       gap: 10px;
-      margin-top: 12px;
+      margin-top: 14px;
     }
 
     .btn {
@@ -1563,68 +1665,16 @@
       font-size: 11px;
     }
 
-    .cards {
-      display: flex;
-      flex-wrap: nowrap;
-      max-width: 860px;
-      margin-top: 12px;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 2px;
-      scrollbar-width: none;
-    }
-
-    .cards::-webkit-scrollbar {
-      display: none;
-    }
-
-    .card {
-      flex: 1 0 0;
-      min-width: 0;
-      min-height: 104px;
-      padding: 12px 12px 14px;
-      border-radius: 8px;
-    }
-
-    .card-label {
-      margin-bottom: 4px;
-      font-size: 9px;
-    }
-
-    .card-icon {
-      width: 30px;
-      height: 30px;
-      margin-bottom: 8px;
-    }
-
-    .card-title {
-      font-size: 16px;
-    }
-
-    .card-copy {
-      max-width: none;
-      font-size: 12px;
-    }
-
-    .card-arrow {
-      right: 10px;
-      bottom: 8px;
-    }
-
-    .card-arrow svg {
-      width: 18px;
-      height: 18px;
+    .hero-status {
+      gap: 8px 16px;
+      margin-top: 18px;
+      padding-top: 10px;
     }
   }
 
   @media (max-height: 760px) and (max-width: 760px) {
-    .nav {
-      gap: 12px;
-    }
-
-    .menu {
-      gap: 8px;
-    }
+    .nav { gap: 12px; }
+    .menu { gap: 8px; }
 
     .menu a {
       font-size: 10.5px;
@@ -1632,9 +1682,7 @@
       padding: 10px 12px;
     }
 
-    .content {
-      padding-block: 12px;
-    }
+    .content { padding-block: 12px; }
 
     .headline {
       font-size: clamp(2.8rem, min(11vw, 9vh), 4.2rem);
@@ -1660,22 +1708,14 @@
       font-size: 11px;
       gap: 8px;
     }
-
-    .cards {
-      margin-top: 14px;
-    }
-
-    .card {
-      min-width: 170px;
-    }
   }
 </style>
 </head>
 <body>
   <div class="shell">
-    <section class="hero">
+    <section class="hero" id="top" data-spy-region="about" aria-labelledby="hero-title">
       <nav class="nav" aria-label="Primary" data-mobile-nav>
-        <a class="brand" href="#" aria-label="Maritana Minerals home">
+        <a class="brand" href="#top" aria-label="Maritana Minerals home">
           <img src="/ui/assets/maritana-logo.webp" alt="Maritana Minerals">
         </a>
 
@@ -1690,21 +1730,19 @@
 
         <div class="nav-panel" id="maritana-menu">
           <ul class="menu">
-            <li><a class="active" href="#">About</a></li>
-            <li><a href="#">Operations</a></li>
-            <li><a href="#">Investors</a></li>
-            <li><a href="#">Sustainability</a></li>
-            <li><a href="#">News</a></li>
-            <li><a href="#">Contact</a></li>
+            <li><a class="active" href="#top" data-spy="about" aria-current="location">About</a></li>
+            <li><a href="#asset-title" data-spy="operations">Operations</a></li>
+            <li><a href="#updates-title" data-spy="investors">Investors</a></li>
+            <li><a href="#contact" data-spy="contact">Contact</a></li>
           </ul>
 
-          <div class="stock-quote" aria-label="Maritana Minerals stock price, delayed quote">
+          <div class="stock-quote" role="group" aria-label="Maritana Minerals stock price, delayed quote">
             <span class="stock-symbol">ASX:MRT</span>
             <span class="stock-price">A$0.745</span>
             <span class="stock-change">-1.32%</span>
           </div>
 
-          <a class="nav-cta" href="#">
+          <a class="nav-cta" href="#updates-title">
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <circle cx="10" cy="6.5" r="3.2" stroke="currentColor" stroke-width="1.7"/>
               <path d="M4.2 16.3c.8-3 2.9-4.5 5.8-4.5s5 1.5 5.8 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
@@ -1716,219 +1754,196 @@
 
       <div class="content">
         <div class="copy">
-          <div class="eyebrow">Maritana Minerals</div>
+          <p class="eyebrow">Maritana Minerals</p>
 
-          <h1 class="headline">
-            <span class="line">Rooted in the Earth<span class="dot">.</span></span>
-            <span class="line">Focused on the Future<span class="dot">.</span></span>
+          <h1 class="headline" id="hero-title">
+            <span class="line">Rooted in the <span class="tail">Earth<span class="dot">.</span></span></span>
+            <span class="line">Focused on the <span class="tail">Future<span class="dot">.</span></span></span>
           </h1>
 
           <p class="lede">
-            Exploring potential and delivering long-term value through a disciplined minerals portfolio,
-            strong operational foundations, and a modern approach to growth.
+            A Western Australian Goldfields portfolio built around one processing hub and four satellite
+            deposits, with first gold targeted for mid-2027.
           </p>
 
           <div class="actions">
-            <a class="btn btn-primary" href="#">
+            <a class="btn btn-primary" href="#asset-title">
               <span>Explore Our Projects</span>
               <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
                 <path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </a>
 
-            <a class="btn btn-secondary" href="#">
-              <span>View Investors</span>
-              <span class="investor-avatars" aria-hidden="true">
-                <span class="investor-avatar"></span>
-                <span class="investor-avatar"></span>
-                <span class="investor-avatar"></span>
-              </span>
+            <a class="btn btn-secondary" href="#metrics-title">
+              <span>Key Metrics</span>
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M10 3v13M4 10l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </a>
           </div>
 
-          <div class="cards">
-            <article class="card">
-              <div class="card-icon" aria-hidden="true">
-                <svg viewBox="0 0 64 64" fill="none">
-                  <path d="M32 7 51 18v28L32 57 13 46V18L32 7Z" stroke="currentColor" stroke-width="2.2"/>
-                  <circle cx="28" cy="29" r="8" stroke="currentColor" stroke-width="2.2"/>
-                  <path d="m35 36 9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-                </svg>
-              </div>
-              <h2 class="card-title">Exploration</h2>
-              <p class="card-copy">Identifying potential.</p>
-              <div class="card-arrow" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                  <path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </article>
-
-            <article class="card">
-              <div class="card-icon" aria-hidden="true">
-                <svg viewBox="0 0 64 64" fill="none">
-                  <path d="M32 7 51 18v28L32 57 13 46V18L32 7Z" stroke="currentColor" stroke-width="2.2"/>
-                  <circle cx="32" cy="32" r="8" stroke="currentColor" stroke-width="2.2"/>
-                  <path d="M32 21v4M32 39v4M43 32h-4M25 32h-4M39.78 24.22l-2.84 2.84M27.06 36.94l-2.84 2.84M39.78 39.78l-2.84-2.84M27.06 27.06l-2.84-2.84" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-                </svg>
-              </div>
-              <h2 class="card-title">Operations</h2>
-              <p class="card-copy">Building value.</p>
-              <div class="card-arrow" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                  <path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </article>
-
-            <article class="card">
-              <div class="card-icon" aria-hidden="true">
-                <svg viewBox="0 0 64 64" fill="none">
-                  <path d="M32 7 51 18v28L32 57 13 46V18L32 7Z" stroke="currentColor" stroke-width="2.2"/>
-                  <path d="M23 24.5 32 20l9 4.5-9 4.5-9-4.5ZM23 32l9 4.5 9-4.5M23 39.5 32 44l9-4.5" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <h2 class="card-title">Long-Term Value</h2>
-              <p class="card-copy">Sustainable growth.</p>
-              <div class="card-arrow" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                  <path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </article>
-          </div>
+          <a class="hero-status" href="#road-title">
+            <span class="hs-label">Path to first gold</span>
+            <span class="hs-count">Stage <b>03</b> of 05</span>
+            <span class="hs-bar" aria-hidden="true"><i class="is-done"></i><i class="is-done"></i><i class="is-now"></i><i></i><i></i></span>
+            <span class="hs-now">Construction under way, first gold targeted mid-2027 <span aria-hidden="true">↓</span></span>
+          </a>
         </div>
-
-        <div class="visual" aria-hidden="true"></div>
       </div>
     </section>
 
     <main class="home-main">
-      <section class="page-section metrics-section" aria-labelledby="metrics-title">
+      <section class="page-section metrics-section" data-spy-region="about" aria-labelledby="metrics-title">
         <div class="section-inner">
-          <div class="section-kicker" id="metrics-title">Key Metrics</div>
-          <div class="metrics-grid">
-            <article class="metric-card">
-              <div class="metric-label">ASX</div>
-              <div class="metric-value">MRT</div>
-            </article>
-            <article class="metric-card">
-              <div class="metric-value">2.2<small>Mtpa</small></div>
-              <div class="metric-label">Processing Hub</div>
-            </article>
-            <article class="metric-card">
-              <div class="metric-value">~102<small>koz/year</small></div>
-              <div class="metric-label">Targeted Production</div>
-            </article>
-            <article class="metric-card">
-              <div class="metric-value">A$631<small>M</small></div>
-              <div class="metric-label">Pre-tax NPV</div>
-            </article>
-            <article class="metric-card">
-              <div class="metric-value">1.88<small>Moz</small></div>
-              <div class="metric-label">Gold Resources</div>
-            </article>
-            <article class="metric-card">
-              <div class="metric-value">A$233.5<small>M</small></div>
-              <div class="metric-label">Cash Position</div>
-            </article>
-          </div>
+          <h2 class="section-kicker" id="metrics-title">Key Metrics</h2>
+          <dl class="metrics-grid">
+            <div class="metric">
+              <dt class="metric-label">Processing Hub</dt>
+              <dd class="metric-value"><span class="num" data-count="2.2" data-decimals="1">2.2</span><small>Mtpa</small></dd>
+            </div>
+            <div class="metric">
+              <dt class="metric-label">Targeted Production</dt>
+              <dd class="metric-value"><span class="num" data-count="102" data-prefix="~">~102</span><small>koz/year</small></dd>
+            </div>
+            <div class="metric">
+              <dt class="metric-label">Pre-tax NPV</dt>
+              <dd class="metric-value"><span class="num" data-count="631" data-prefix="A$">A$631</span><small>M</small></dd>
+            </div>
+            <div class="metric">
+              <dt class="metric-label">Gold Resources</dt>
+              <dd class="metric-value"><span class="num" data-count="1.88" data-decimals="2">1.88</span><small>Moz</small></dd>
+            </div>
+            <div class="metric">
+              <dt class="metric-label">Cash Position</dt>
+              <dd class="metric-value"><span class="num" data-count="233.5" data-decimals="1" data-prefix="A$">A$233.5</span><small>M</small></dd>
+            </div>
+          </dl>
         </div>
       </section>
 
-      <section class="page-section asset-section" aria-labelledby="asset-title">
+      <section class="page-section asset-section" data-spy-region="operations" aria-labelledby="asset-title">
         <div class="section-inner asset-layout">
           <div>
             <div class="section-kicker">Our Core Asset</div>
             <h2 class="section-title" id="asset-title">Black Swan<br>Processing Hub<span class="dot">.</span></h2>
             <p class="section-copy">
-              Black Swan is Maritana's central processing platform in the heart of the WA Goldfields.
+              Black Swan is Maritana's central processing platform, in Kalgoorlie at the heart of the WA Goldfields.
             </p>
             <p class="section-copy">
-              Positioned in Kalgoorlie, it supports high-quality satellite deposits through a proven
-              hub and spoke model, unlocking scale, efficiency and long-term value.
+              With infrastructure already in place, it anchors a hub and spoke model: satellite deposits
+              feed one central plant, for lower costs and more operating leverage.
             </p>
-
-            <div class="mini-grid">
-              <article class="mini-card">
-                <h3>Existing Infrastructure</h3>
-                <p>Significant infrastructure in place to accelerate development.</p>
-              </article>
-              <article class="mini-card">
-                <h3>Kalgoorlie Location</h3>
-                <p>Strategically located in a leading mining and services hub.</p>
-              </article>
-              <article class="mini-card">
-                <h3>Hub &amp; Spoke Model</h3>
-                <p>Centralised processing drives lower costs and operational leverage.</p>
-              </article>
-            </div>
           </div>
 
-          <div class="asset-map" aria-hidden="true">
-            <div class="map-line line-one"></div>
-            <div class="map-line line-two"></div>
-            <div class="map-line line-three"></div>
-            <div class="map-line line-four"></div>
-            <div class="map-point point-boorara">Boorara</div>
-            <div class="map-point point-burbanks">Burbanks</div>
-            <div class="map-point point-crake">Crake</div>
-            <div class="map-point point-kalpini">Kalpini</div>
-            <div class="hub-badge">
-              <div>
-                <img src="/ui/assets/maritana-logo.webp" alt="">
-                <strong>Black Swan</strong>
-                <span>Processing Hub</span>
-              </div>
-            </div>
-            <div class="map-location">
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                <path d="M10 18s6-5.2 6-10A6 6 0 0 0 4 8c0 4.8 6 10 6 10Z" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="10" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
+          <figure class="hub-map" id="hub-map">
+            <div class="hub-stage">
+              <svg class="hub-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                <g class="spoke" data-node="boorara">
+                  <path class="spoke-base" d="M12.5 18 50 62" vector-effect="non-scaling-stroke"/>
+                  <path class="spoke-flow" d="M12.5 18 50 62" vector-effect="non-scaling-stroke"/>
+                </g>
+                <g class="spoke" data-node="burbanks">
+                  <path class="spoke-base" d="M37.5 18 50 62" vector-effect="non-scaling-stroke"/>
+                  <path class="spoke-flow" d="M37.5 18 50 62" vector-effect="non-scaling-stroke"/>
+                </g>
+                <g class="spoke" data-node="crake">
+                  <path class="spoke-base" d="M62.5 18 50 62" vector-effect="non-scaling-stroke"/>
+                  <path class="spoke-flow" d="M62.5 18 50 62" vector-effect="non-scaling-stroke"/>
+                </g>
+                <g class="spoke" data-node="kalpini">
+                  <path class="spoke-base" d="M87.5 18 50 62" vector-effect="non-scaling-stroke"/>
+                  <path class="spoke-flow" d="M87.5 18 50 62" vector-effect="non-scaling-stroke"/>
+                </g>
               </svg>
-              Kalgoorlie, WA
+
+              <img class="hub-plant" src="/ui/assets/maritana-black-swan.png" alt="Illustration of the Black Swan processing plant" width="1448" height="1086" loading="lazy" decoding="async">
+
+              <ol class="hub-feeds" aria-label="Satellite deposits feeding the hub">
+                <li style="--x: 12.5%">
+                  <a class="node" href="#deposit-boorara" data-node="boorara">
+                    <span class="node-ring" aria-hidden="true"></span>
+                    <span class="node-plate"><span class="node-name">Boorara</span><span class="node-sub">Underground + open pit</span></span>
+                  </a>
+                </li>
+                <li style="--x: 37.5%">
+                  <a class="node" href="#deposit-burbanks" data-node="burbanks">
+                    <span class="node-ring" aria-hidden="true"></span>
+                    <span class="node-plate"><span class="node-name">Burbanks</span><span class="node-sub">Near-term reserve</span></span>
+                  </a>
+                </li>
+                <li style="--x: 62.5%">
+                  <a class="node" href="#deposit-crake" data-node="crake">
+                    <span class="node-ring" aria-hidden="true"></span>
+                    <span class="node-plate"><span class="node-name">Crake</span><span class="node-sub">Advanced exploration</span></span>
+                  </a>
+                </li>
+                <li style="--x: 87.5%">
+                  <a class="node" href="#deposit-crake" data-node="kalpini">
+                    <span class="node-ring" aria-hidden="true"></span>
+                    <span class="node-plate"><span class="node-name">Kalpini</span><span class="node-sub">Advanced exploration</span></span>
+                  </a>
+                </li>
+              </ol>
+
+              <p class="hub-label"><strong>Black Swan</strong><span>Processing hub · 2.2 Mtpa</span></p>
             </div>
-          </div>
+            <figcaption class="hub-caption">
+              <b>
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M10 18s6-5.2 6-10A6 6 0 0 0 4 8c0 4.8 6 10 6 10Z" stroke="currentColor" stroke-width="1.5"/>
+                  <circle cx="10" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                Kalgoorlie, WA
+              </b>
+              <span>Four deposits, one plant. Schematic, not to scale.</span>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
-      <section class="page-section" aria-labelledby="road-title">
+      <section class="page-section" data-spy-region="operations" aria-labelledby="road-title">
         <div class="section-inner">
-          <div class="section-kicker">Our Path Forward</div>
           <h2 class="section-title" id="road-title">Path to First Gold<span class="dot">.</span></h2>
-          <div class="roadmap-grid">
-            <article class="road-card">
-              <div class="road-step">01</div>
-              <h3>Funding secured</h3>
-              <p>Strong capital position and funding strategy in place.</p>
-            </article>
-            <article class="road-card">
-              <div class="road-step">02</div>
-              <h3>FEED &amp; early works</h3>
-              <p>Front End Engineering Design and early works commenced.</p>
-            </article>
-            <article class="road-card">
-              <div class="road-step">03</div>
-              <h3>Construction</h3>
-              <p>Full construction advancing towards completion.</p>
-            </article>
-            <article class="road-card">
-              <div class="road-step">04</div>
-              <h3>Commissioning</h3>
-              <p>Plant commissioning and ramp up underway.</p>
-            </article>
-            <article class="road-card">
-              <div class="road-step">05</div>
-              <h3>First gold targeted mid-2027</h3>
-              <p>On track to deliver first gold in mid-2027.</p>
-            </article>
+          <div class="road-wrap" data-road>
+            <div class="road-track" aria-hidden="true"><span class="road-fill"></span></div>
+            <ol class="road">
+              <li class="road-step" data-state="done">
+                <span class="road-dot" aria-hidden="true"></span>
+                <p class="road-meta"><span class="road-num">01</span><span class="road-state">Complete</span></p>
+                <h3>Funding secured</h3>
+                <p class="road-copy">Capital position and funding strategy in place.</p>
+              </li>
+              <li class="road-step" data-state="done">
+                <span class="road-dot" aria-hidden="true"></span>
+                <p class="road-meta"><span class="road-num">02</span><span class="road-state">Complete</span></p>
+                <h3>FEED &amp; early works</h3>
+                <p class="road-copy">Front End Engineering Design and early site works.</p>
+              </li>
+              <li class="road-step" data-state="current" aria-current="step">
+                <span class="road-dot" aria-hidden="true"></span>
+                <p class="road-meta"><span class="road-num">03</span><span class="road-state">Under way</span></p>
+                <h3>Construction</h3>
+                <p class="road-copy">Full construction advancing towards completion.</p>
+              </li>
+              <li class="road-step" data-state="upcoming">
+                <span class="road-dot" aria-hidden="true"></span>
+                <p class="road-meta"><span class="road-num">04</span><span class="road-state">Upcoming</span></p>
+                <h3>Commissioning</h3>
+                <p class="road-copy">Plant commissioning and ramp-up.</p>
+              </li>
+              <li class="road-step" data-state="upcoming">
+                <span class="road-dot" aria-hidden="true"></span>
+                <p class="road-meta"><span class="road-num">05</span><span class="road-state">Target</span></p>
+                <h3>First gold</h3>
+                <p class="road-copy">Targeted for mid-2027.</p>
+              </li>
+            </ol>
           </div>
         </div>
       </section>
 
-      <section class="page-section" aria-labelledby="portfolio-title">
+      <section class="page-section" data-spy-region="operations" aria-labelledby="portfolio-title">
         <div class="section-inner">
-          <div class="section-kicker">Our Portfolio</div>
           <h2 class="section-title" id="portfolio-title">Resources, Reserves &amp; Cornerstone Assets<span class="dot">.</span></h2>
           <div class="portfolio-grid">
             <article class="resource-card">
@@ -1938,152 +1953,389 @@
               <span class="resource-number">214<small>koz</small></span>
               <span class="resource-label">Reserves</span>
             </article>
-            <article class="portfolio-card">
+            <article class="portfolio-card" id="deposit-boorara" data-deposit="boorara">
               <h3>Boorara</h3>
-              <p>High-grade underground and open-pit width significant scale and upside.</p>
-              <a class="text-link" href="#">Learn more <span>→</span></a>
+              <p>High-grade underground and open-pit with significant scale and upside.</p>
+              <a class="text-link" href="#hub-map" data-flag="boorara" aria-label="Show Boorara on the hub map">On the hub map <span aria-hidden="true">↑</span></a>
             </article>
-            <article class="portfolio-card">
+            <article class="portfolio-card" id="deposit-burbanks" data-deposit="burbanks">
               <h3>Burbanks</h3>
               <p>Robust near-term reserve with strong exploration potential.</p>
-              <a class="text-link" href="#">Learn more <span>→</span></a>
+              <a class="text-link" href="#hub-map" data-flag="burbanks" aria-label="Show Burbanks on the hub map">On the hub map <span aria-hidden="true">↑</span></a>
             </article>
-            <article class="portfolio-card">
+            <article class="portfolio-card" id="deposit-crake" data-deposit="crake kalpini">
               <h3>Crake / Kalpini</h3>
               <p>Advanced exploration targets with compelling geological upside.</p>
-              <a class="text-link" href="#">Learn more <span>→</span></a>
+              <a class="text-link" href="#hub-map" data-flag="crake kalpini" aria-label="Show Crake and Kalpini on the hub map">On the hub map <span aria-hidden="true">↑</span></a>
             </article>
             <article class="portfolio-card">
               <h3>Regional Upside</h3>
               <p>Extensive landholding in a prolific gold province.</p>
-              <a class="text-link" href="#">Learn more <span>→</span></a>
             </article>
           </div>
         </div>
       </section>
 
-      <section class="page-section" aria-labelledby="updates-title">
-        <div class="section-inner updates-layout">
-          <div>
-            <div class="section-kicker">Stay Informed</div>
-            <h2 class="section-title" id="updates-title">Latest Updates &amp; Investor Centre<span class="dot">.</span></h2>
-            <div class="updates-grid">
-              <article class="update-card">
-                <div class="update-media"></div>
-                <div class="update-body">
-                  <h3>Latest Quarterly Report</h3>
-                  <p>Read the most recent quarterly activities and financial results.</p>
-                  <a class="text-link" href="#">View Report <span>→</span></a>
-                </div>
-              </article>
-              <article class="update-card">
-                <div class="update-media"></div>
-                <div class="update-body">
-                  <h3>Investor Presentation</h3>
-                  <p>Explore our strategy, assets and growth outlook.</p>
-                  <a class="text-link" href="#">View Presentation <span>→</span></a>
-                </div>
-              </article>
-              <article class="update-card">
-                <div class="update-media"></div>
-                <div class="update-body">
-                  <h3>ASX Announcements</h3>
-                  <p>All company announcements lodged with ASX.</p>
-                  <a class="text-link" href="#">View Announcements <span>→</span></a>
-                </div>
-              </article>
-            </div>
+      <section class="page-section" data-spy-region="investors" aria-labelledby="updates-title">
+        <div class="section-inner">
+          <h2 class="section-title" id="updates-title">Latest Updates &amp; Investor Centre<span class="dot">.</span></h2>
+          <div class="updates-grid">
+            <article class="update-card">
+              <div class="update-media"></div>
+              <div class="update-body">
+                <h3>Latest Quarterly Report</h3>
+                <p>The most recent quarterly activities and financial results.</p>
+              </div>
+            </article>
+            <article class="update-card">
+              <div class="update-media"></div>
+              <div class="update-body">
+                <h3>Investor Presentation</h3>
+                <p>Strategy, assets and growth outlook.</p>
+              </div>
+            </article>
+            <article class="update-card">
+              <div class="update-media"></div>
+              <div class="update-body">
+                <h3>ASX Announcements</h3>
+                <p>All company announcements lodged with ASX.</p>
+              </div>
+            </article>
           </div>
-
-          <aside class="contact-card">
-            <div class="section-kicker">Investor Relations</div>
-            <h3>Have questions?</h3>
-            <p>Our Investor Relations team is here to help.</p>
-            <a class="contact-button" href="#">Ask Investor Relations <span>→</span></a>
-            <div class="contact-list">
-              <span>✉ investors@maritanaminerals.com.au</span>
-              <span>☏ +61 8 9383 3100</span>
-            </div>
-          </aside>
         </div>
       </section>
 
-      <section class="page-section final-cta" aria-label="Investor centre call to action">
+      <section class="page-section final-cta" id="contact" data-spy-region="contact" aria-labelledby="contact-title">
         <div class="section-inner">
           <div>
-            <h2 class="final-title">Reduce uncertainty.<br>Explore the full Investor Centre.</h2>
-            <p>Access reports, presentations, all announcements and ask the Maritana team directly.</p>
+            <p class="band-kicker">Investor Relations</p>
+            <h2 class="final-title" id="contact-title">Have questions?<br>Ask the team directly.</h2>
+            <p class="band-copy">Quarterly reports, presentations and every ASX announcement sit in the Investor Centre above. For anything else, our Investor Relations team is here to help.</p>
           </div>
-          <div class="final-actions">
-            <a href="#">Open Investor Centre <span>→</span></a>
-            <a href="#">Ask Investor Relations <span>→</span></a>
+          <div class="band-contact">
+            <button class="contact-button" type="button" data-copy="investors@maritanaminerals.com.au">
+              <span class="when-idle">Copy investor email</span>
+              <svg class="when-idle" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M13 4.5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+              <span class="when-done">Copied</span>
+              <svg class="when-done" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="m4 10.5 4 4 8-9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <p class="copy-status" role="status" aria-live="polite" data-copy-status></p>
+            <dl class="contact-list">
+              <div>
+                <dt>Email</dt>
+                <dd data-copy-source>investors@maritanaminerals.com.au</dd>
+              </div>
+              <div>
+                <dt>Phone</dt>
+                <dd>+61 8 5550 0100</dd>
+              </div>
+            </dl>
           </div>
         </div>
       </section>
 
-      <footer class="site-footer">
+      <footer class="site-footer" data-spy-region="contact">
         <div class="footer-inner">
           <div class="footer-main">
             <img class="footer-logo" src="/ui/assets/maritana-logo.webp" alt="Maritana Minerals">
             <nav class="footer-links" aria-label="Footer">
-              <a href="#">About</a>
-              <a href="#">Operations</a>
-              <a href="#">Investors</a>
-              <a href="#">Sustainability</a>
-              <a href="#">News</a>
-              <a href="#">Contact</a>
+              <a href="#top">About</a>
+              <a href="#asset-title">Operations</a>
+              <a href="#updates-title">Investors</a>
+              <a href="#contact">Contact</a>
             </nav>
-            <div class="social-links" aria-label="Social links">
-              <a href="#" aria-label="LinkedIn">in</a>
-              <a href="#" aria-label="YouTube">▶</a>
-            </div>
           </div>
           <div class="footer-meta">
             <span>© 2024 Maritana Minerals Ltd. All rights reserved.</span>
-            <nav aria-label="Legal">
-              <a href="#">Privacy Policy</a>
-              <a href="#">Terms of Use</a>
-              <span>ASX: MRT</span>
-            </nav>
+            <span>ASX: MRT</span>
           </div>
         </div>
       </footer>
     </main>
   </div>
   <script>
-    const maritanaNav = document.querySelector("[data-mobile-nav]");
-    const maritanaToggle = maritanaNav?.querySelector(".menu-toggle");
-    const maritanaMenuLinks = maritanaNav?.querySelectorAll(".menu a") || [];
+    (function () {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const prefersReduced = () => reduceMotion.matches;
+      const fontsReady = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
 
-    function setMaritanaNavState(isOpen) {
-      if (!maritanaNav || !maritanaToggle) return;
-      maritanaNav.classList.toggle("open", isOpen);
-      maritanaToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-      maritanaToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
-    }
+      /* Mobile navigation (toggle, Escape, outside click) */
+      const maritanaNav = document.querySelector("[data-mobile-nav]");
+      const maritanaToggle = maritanaNav ? maritanaNav.querySelector(".menu-toggle") : null;
 
-    function syncMaritanaNav() {
-      if (!maritanaNav || !maritanaToggle) return;
-      const isDesktop = window.innerWidth > 860;
-      if (isDesktop) {
-        setMaritanaNavState(false);
-        return;
+      function setMaritanaNavState(isOpen) {
+        if (!maritanaNav || !maritanaToggle) return;
+        maritanaNav.classList.toggle("open", isOpen);
+        maritanaToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        maritanaToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
       }
-    }
 
-    maritanaToggle?.addEventListener("click", () => {
-      const isOpen = !maritanaNav.classList.contains("open");
-      setMaritanaNavState(isOpen);
-    });
+      function syncMaritanaNav() {
+        if (!maritanaNav || !maritanaToggle) return;
+        if (window.innerWidth > 860) setMaritanaNavState(false);
+      }
 
-    maritanaMenuLinks.forEach((link) => {
-      link.addEventListener("click", () => {
-        if (window.innerWidth <= 860) setMaritanaNavState(false);
+      if (maritanaToggle) {
+        maritanaToggle.addEventListener("click", () => {
+          setMaritanaNavState(!maritanaNav.classList.contains("open"));
+        });
+      }
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || !maritanaNav || !maritanaNav.classList.contains("open")) return;
+        setMaritanaNavState(false);
+        maritanaToggle.focus();
       });
-    });
 
-    window.addEventListener("resize", syncMaritanaNav);
-    syncMaritanaNav();
+      document.addEventListener("click", (event) => {
+        if (maritanaNav && maritanaNav.classList.contains("open") && !maritanaNav.contains(event.target)) {
+          setMaritanaNavState(false);
+        }
+      });
+
+      window.addEventListener("resize", syncMaritanaNav);
+      syncMaritanaNav();
+
+      /* In-page links: scroll this document only, move focus, flag the destination */
+      function flag(elements) {
+        elements.forEach((el) => {
+          el.classList.add("is-flagged");
+          clearTimeout(el.flagTimer);
+          el.flagTimer = setTimeout(() => el.classList.remove("is-flagged"), 1600);
+        });
+      }
+
+      document.addEventListener("click", (event) => {
+        const link = event.target.closest('a[href^="#"]');
+        if (!link) return;
+        event.preventDefault();
+        if (window.innerWidth <= 860) setMaritanaNavState(false);
+        const id = link.getAttribute("href").slice(1);
+        if (!id) return;
+        const target = document.getElementById(id);
+        if (!target) return;
+        const top = target.getBoundingClientRect().top + window.scrollY - 24;
+        window.scrollTo({ top: Math.max(0, top), behavior: prefersReduced() ? "auto" : "smooth" });
+        if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+        target.focus({ preventScroll: true });
+        const keys = (link.dataset.flag || "").split(" ").filter(Boolean);
+        if (keys.length) {
+          flag(Array.from(document.querySelectorAll(".node[data-node]")).filter((n) => keys.includes(n.dataset.node)));
+        }
+        if (target.classList.contains("portfolio-card")) flag([target]);
+      });
+
+      /* Hub map: node, spoke and deposit card light up together */
+      const nodes = Array.from(document.querySelectorAll(".node[data-node]"));
+      const spokes = Array.from(document.querySelectorAll(".spoke[data-node]"));
+      const deposits = Array.from(document.querySelectorAll("[data-deposit]"));
+
+      function linkDeposit(keys, on) {
+        nodes.forEach((n) => { if (keys.includes(n.dataset.node)) n.classList.toggle("is-linked", on); });
+        spokes.forEach((s) => { if (keys.includes(s.dataset.node)) s.classList.toggle("is-linked", on); });
+        deposits.forEach((c) => {
+          if (c.dataset.deposit.split(" ").some((k) => keys.includes(k))) c.classList.toggle("is-linked", on);
+        });
+      }
+
+      nodes.forEach((node) => {
+        const keys = [node.dataset.node];
+        node.addEventListener("pointerenter", () => linkDeposit(keys, true));
+        node.addEventListener("pointerleave", () => linkDeposit(keys, false));
+        node.addEventListener("focus", () => linkDeposit(keys, true));
+        node.addEventListener("blur", () => linkDeposit(keys, false));
+      });
+
+      deposits.forEach((card) => {
+        const keys = card.dataset.deposit.split(" ");
+        card.addEventListener("pointerenter", () => linkDeposit(keys, true));
+        card.addEventListener("pointerleave", () => linkDeposit(keys, false));
+        card.addEventListener("focusin", () => linkDeposit(keys, true));
+        card.addEventListener("focusout", () => linkDeposit(keys, false));
+      });
+
+      const hubMap = document.querySelector(".hub-map");
+      if (hubMap && "IntersectionObserver" in window) {
+        new IntersectionObserver((entries) => {
+          entries.forEach((entry) => hubMap.classList.toggle("is-live", entry.isIntersecting));
+        }, { threshold: 0.2 }).observe(hubMap);
+      }
+
+      /* Key metrics: one count-up, ends on the exact static string */
+      const counters = Array.from(document.querySelectorAll("[data-count]"));
+
+      function runCount(el, delay) {
+        const end = parseFloat(el.dataset.count);
+        const decimals = parseInt(el.dataset.decimals || "0", 10);
+        const prefix = el.dataset.prefix || "";
+        const finalText = el.textContent;
+        const format = new Intl.NumberFormat("en-AU", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        el.style.minWidth = el.getBoundingClientRect().width + "px";
+        el.textContent = prefix + format.format(0);
+        let start = null;
+        function frame(now) {
+          if (start === null) start = now + delay;
+          const p = Math.min(1, Math.max(0, (now - start) / 1000));
+          const eased = 1 - Math.pow(1 - p, 3);
+          if (p < 1) {
+            el.textContent = prefix + format.format(end * eased);
+            requestAnimationFrame(frame);
+          } else {
+            el.textContent = finalText;
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+
+      const metricsGrid = document.querySelector(".metrics-grid");
+      if (metricsGrid && counters.length && !prefersReduced() && "IntersectionObserver" in window) {
+        fontsReady.then(() => {
+          const io = new IntersectionObserver((entries) => {
+            if (!entries.some((entry) => entry.isIntersecting)) return;
+            io.disconnect();
+            counters.forEach((el, i) => runCount(el, i * 90));
+          }, { threshold: 0.4 });
+          io.observe(metricsGrid);
+        });
+      }
+
+      /* Path to first gold: line measured between dot centres, filled to the current step */
+      const road = document.querySelector("[data-road]");
+      if (road) {
+        const track = road.querySelector(".road-track");
+        const fill = road.querySelector(".road-fill");
+        const steps = Array.from(road.querySelectorAll(".road-step"));
+        const dots = steps.map((step) => step.querySelector(".road-dot"));
+        const currentIndex = Math.max(0, steps.findIndex((step) => step.dataset.state === "current"));
+        let frameId = 0;
+
+        function layoutRoad() {
+          frameId = 0;
+          if (!track || !fill || dots.length < 2) return;
+          const box = road.getBoundingClientRect();
+          const points = dots.map((dot) => {
+            const r = dot.getBoundingClientRect();
+            return { x: r.left + r.width / 2 - box.left, y: r.top + r.height / 2 - box.top };
+          });
+          const first = points[0];
+          const last = points[points.length - 1];
+          const current = points[currentIndex];
+          const vertical = Math.abs(last.y - first.y) > Math.abs(last.x - first.x);
+          road.classList.toggle("is-vertical", vertical);
+          if (vertical) {
+            Object.assign(track.style, { left: (first.x - 1) + "px", top: first.y + "px", width: "2px", height: (last.y - first.y) + "px" });
+            Object.assign(fill.style, { width: "100%", height: (current.y - first.y) + "px" });
+          } else {
+            Object.assign(track.style, { left: first.x + "px", top: (first.y - 1) + "px", width: (last.x - first.x) + "px", height: "2px" });
+            Object.assign(fill.style, { width: (current.x - first.x) + "px", height: "100%" });
+          }
+        }
+
+        const scheduleRoad = () => { if (!frameId) frameId = requestAnimationFrame(layoutRoad); };
+        layoutRoad();
+        fontsReady.then(scheduleRoad);
+        window.addEventListener("resize", scheduleRoad);
+        if ("ResizeObserver" in window) new ResizeObserver(scheduleRoad).observe(road);
+
+        if (prefersReduced() || !("IntersectionObserver" in window)) {
+          road.classList.add("is-drawn");
+        } else {
+          const roadObserver = new IntersectionObserver((entries) => {
+            if (!entries.some((entry) => entry.isIntersecting)) return;
+            road.classList.add("is-drawn");
+            roadObserver.disconnect();
+          }, { threshold: 0.3 });
+          roadObserver.observe(road);
+        }
+      }
+
+      /* Scroll-spy: the menu marks the section crossing the reading line */
+      const spyLinks = Array.from(document.querySelectorAll(".menu a[data-spy]"));
+      const spyRegions = Array.from(document.querySelectorAll("[data-spy-region]"));
+      let spyKey = "";
+      let spyQueued = false;
+      let spyLockUntil = 0;
+
+      function setSpy(key) {
+        if (key === spyKey) return;
+        spyKey = key;
+        spyLinks.forEach((link) => {
+          const on = link.dataset.spy === key;
+          link.classList.toggle("active", on);
+          if (on) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        });
+      }
+
+      function runSpy() {
+        spyQueued = false;
+        if (!spyRegions.length || performance.now() < spyLockUntil) return;
+        const readingLine = window.innerHeight * 0.4;
+        let key = spyRegions[0].dataset.spyRegion;
+        spyRegions.forEach((region) => {
+          if (region.getBoundingClientRect().top <= readingLine) key = region.dataset.spyRegion;
+        });
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+          key = spyRegions[spyRegions.length - 1].dataset.spyRegion;
+        }
+        setSpy(key);
+      }
+
+      function queueSpy() {
+        if (spyQueued) return;
+        spyQueued = true;
+        requestAnimationFrame(runSpy);
+      }
+
+      spyLinks.forEach((link) => {
+        link.addEventListener("click", () => {
+          spyLockUntil = performance.now() + 900;
+          setSpy(link.dataset.spy);
+        });
+      });
+
+      window.addEventListener("scroll", queueSpy, { passive: true });
+      window.addEventListener("resize", queueSpy);
+      runSpy();
+
+      /* Investor email: copy, or select it when the clipboard is unavailable */
+      const copyButton = document.querySelector("[data-copy]");
+      const copyStatus = document.querySelector("[data-copy-status]");
+      const copySource = document.querySelector("[data-copy-source]");
+
+      if (copyButton && copyStatus) {
+        copyButton.addEventListener("click", async () => {
+          let copied = false;
+          try {
+            await navigator.clipboard.writeText(copyButton.dataset.copy);
+            copied = true;
+          } catch (error) {
+            copied = false;
+          }
+          if (!copied && copySource) {
+            const range = document.createRange();
+            range.selectNodeContents(copySource);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+          copyButton.classList.toggle("is-done", copied);
+          copyStatus.textContent = copied
+            ? "Email copied to the clipboard."
+            : "Email selected below. Press Ctrl+C (or Cmd+C) to copy it.";
+          clearTimeout(copyButton.resetTimer);
+          copyButton.resetTimer = setTimeout(() => {
+            copyButton.classList.remove("is-done");
+            copyStatus.textContent = "";
+          }, 2600);
+        });
+      }
+    })();
   </script>
 </body>
 </html>

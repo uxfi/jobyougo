@@ -124,13 +124,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .app.rail-collapsed .tb-rail-toggle { display: flex; }
 .tb-rail-toggle svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.tb-user { display: flex; align-items: center; gap: 9px; }
-.tb-av {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--cell-4), var(--blue-d));
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
-}
+.tb-user { display: flex; align-items: center; gap: 10px; }
 .tb-name { font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.2; }
 .tb-coins { font-size: 11px; color: var(--t3); }
 .tb-coins b { color: var(--amber); font-weight: 600; }
@@ -274,9 +268,18 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .c.l3 { background: var(--cell-3); }
 .c.l4 { background: var(--cell-4); }
 .c.future { animation: none; opacity: .35; }
+.c.today { outline: 1.5px solid var(--t1); outline-offset: 1px; }
 .c:hover { filter: brightness(1.12); }
 
-.hm-legend { display: flex; align-items: center; gap: 5px; margin-top: 8px; justify-content: flex-end; }
+/* Footer: today's live count (readable without hover) + the scale */
+.hm-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; margin-top: 10px; }
+.hm-today { font-size: 11.5px; color: var(--t2); font-variant-numeric: tabular-nums; }
+.hm-today b { color: var(--t1); font-weight: 600; }
+.hm-today i {
+  display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 7px; vertical-align: -1px;
+  background: var(--cell-2); outline: 1.5px solid var(--t1); outline-offset: 1px;
+}
+.hm-legend { display: flex; align-items: center; gap: 5px; margin-left: auto; }
 .hm-legend span { font-size: 11px; color: var(--t3); }
 .hm-legend-cells { display: flex; gap: 3px; }
 .hm-legend-cells .c { width: 10px; height: 10px; aspect-ratio: auto; animation: none; }
@@ -298,9 +301,13 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   width: 0; height: 30px; padding: 0; opacity: 0; visibility: hidden;
   border: 1px solid var(--border); border-radius: 15px;
   font: inherit; font-size: 12px; color: var(--t1); background: var(--white);
-  transition: width var(--d-ui) var(--ease), padding var(--d-ui) var(--ease), opacity var(--d-micro);
+  /* closing: the field collapses first, then leaves the tab order */
+  transition: width var(--d-ui) var(--ease), padding var(--d-ui) var(--ease), opacity var(--d-micro), visibility 0s linear var(--d-ui);
 }
-.team-tools.open .team-search { width: 190px; padding: 0 12px; opacity: 1; visibility: visible; }
+.team-tools.open .team-search {
+  width: 190px; padding: 0 12px; opacity: 1; visibility: visible;
+  transition: width var(--d-ui) var(--ease), padding var(--d-ui) var(--ease), opacity var(--d-micro), visibility 0s;
+}
 .team-search::placeholder { color: var(--t3); }
 .team-search:focus { outline: 2px solid var(--blue-d); outline-offset: 1px; }
 .search-btn {
@@ -334,7 +341,7 @@ tr[hidden] { display: none; }
   font-size: 11px; font-weight: 700; flex-shrink: 0;
 }
 .pname { font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.2; }
-.pemail { font-size: 11px; color: var(--t3); transition: color 120ms; }
+.pemail { font-size: 11px; color: var(--t3); overflow-wrap: anywhere; transition: color 120ms; }
 .role { font-size: 11.5px; color: var(--t2); font-weight: 500; }
 .tenure { font-size: 11px; color: var(--t3); font-variant-numeric: tabular-nums; transition: color 120ms; }
 .prod {
@@ -351,11 +358,13 @@ tr[hidden] { display: none; }
 .donut-rel { position: relative; width: 124px; height: 124px; margin-bottom: 16px; }
 .donut-rel svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .donut-track { stroke: var(--cell-0); }
+/* Round caps add half the stroke (6.5) at each end: the dash is 13 shorter and starts 6.5 later,
+   so the visible arc is the true share. --dash / --gap are set from DATA. */
 .donut-arc {
-  stroke: var(--blue); stroke-dasharray: 0 301.6; stroke-linecap: round;
+  stroke: var(--blue); stroke-dasharray: 0 301.6; stroke-dashoffset: -6.5; stroke-linecap: round;
   transition: stroke-dasharray .9s var(--ease);
 }
-.donut-arc.animated { stroke-dasharray: 45.2 256.4; }
+.donut-arc.animated { stroke-dasharray: var(--dash, 30.9) var(--gap, 270.7); }
 .donut-label {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: 20px; font-weight: 800; letter-spacing: -.4px; color: var(--t1); font-variant-numeric: tabular-nums;
@@ -370,10 +379,7 @@ tr[hidden] { display: none; }
   background: var(--green-bg); color: var(--green-fg); white-space: nowrap;
 }
 
-/* ── Headcount chart ── */
-.hc-head-val { text-align: right; flex-shrink: 0; }
-.hc-val { font-size: 20px; font-weight: 800; letter-spacing: -.4px; line-height: 1.1; color: var(--t1); font-variant-numeric: tabular-nums; }
-.hc-delta { font-size: 11px; color: var(--t2); margin-top: 1px; }
+/* ── Headcount chart (drawn at its real pixel width, so 11px stays 11px) ── */
 .hc-svg { display: block; width: 100%; height: auto; overflow: visible; border-radius: 6px; }
 .hc-svg:focus-visible { outline: 2px solid var(--blue-d); outline-offset: 6px; }
 .hc-base { stroke: var(--border); stroke-width: 1; }
@@ -409,6 +415,7 @@ tr[hidden] { display: none; }
 }
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; }
+  .grid-right { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero { flex-wrap: wrap; }
   .hero-right { text-align: left; }
   .col-tenure { display: none; }
@@ -416,7 +423,8 @@ tr[hidden] { display: none; }
 @media (max-width: 600px) {
   .content { padding: 12px; }
   .topbar { padding: 0 12px; }
-  .tb-text { display: none; }
+  .grid-right { grid-template-columns: minmax(0, 1fr); }
+  .tb-user { display: none; }
   .btn-new span { display: none; }
   .btn-new { padding: 0 10px; }
   .col-status { display: none; }
@@ -426,7 +434,7 @@ tr[hidden] { display: none; }
 /* ── Reduced motion: everything at rest, nothing missing ── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .donut-arc { stroke-dasharray: 45.2 256.4; }
+  .donut-arc { stroke-dasharray: var(--dash, 30.9) var(--gap, 270.7); }
   .hc-area, .hc-dot, .hc-cursor, .hc-sel { opacity: 1; }
   .hc-line { stroke-dashoffset: 0; }
   .hc-bar { transform: none; }
@@ -475,7 +483,6 @@ tr[hidden] { display: none; }
         <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
       <div class="tb-user">
-        <div class="tb-av" aria-hidden="true">GJ</div>
         <div class="tb-text">
           <div class="tb-name">Your balance</div>
           <div class="tb-coins"><b>587 talent coins</b></div>
@@ -504,11 +511,11 @@ tr[hidden] { display: none; }
           <h1 class="hero-name">Georg Johnson</h1>
           <div class="hero-date" id="hero-date">Monday 19 October · 09:41 · Buffalo</div>
           <div class="hero-tabs" role="tablist" aria-label="Population">
-            <button type="button" class="hero-tab" role="tab" aria-selected="true" data-count="103" data-label="Company staff">Company</button>
-            <button type="button" class="hero-tab" role="tab" aria-selected="false" tabindex="-1" data-count="1240" data-label="Active job seekers">Job Seekers</button>
+            <button type="button" class="hero-tab" id="tab-company" role="tab" aria-selected="true" aria-controls="hero-figure" data-count="103" data-label="Company staff">Company</button>
+            <button type="button" class="hero-tab" id="tab-seekers" role="tab" aria-selected="false" aria-controls="hero-figure" tabindex="-1" data-count="1240" data-label="Active job seekers">Job Seekers</button>
           </div>
         </div>
-        <div class="hero-right">
+        <div class="hero-right" id="hero-figure" role="tabpanel" aria-labelledby="tab-company">
           <div class="hero-staff" id="hero-staff-label">Company staff</div>
           <div class="hero-count" id="hero-count">103</div>
         </div>
@@ -539,23 +546,26 @@ tr[hidden] { display: none; }
             </div>
             <div class="contrib-nums">
               <div>
-                <div class="cn-val" id="cn-year">20,418</div>
+                <div class="cn-val" id="cn-year">19,769</div>
                 <div class="cn-lbl">This period</div>
               </div>
               <div>
-                <div class="cn-val" id="cn-last">18,902</div>
+                <div class="cn-val" id="cn-last">19,195</div>
                 <div class="cn-lbl">Same period last year</div>
               </div>
             </div>
             <div class="hm-wrap" id="hm-wrap">
               <div class="hm-months" id="hm-months" aria-hidden="true"></div>
               <div class="hm-rows" id="hm-rows" role="img" aria-label="Check-ins per weekday over the selected range"></div>
-              <div class="hm-legend" aria-hidden="true">
-                <span>Less</span>
-                <div class="hm-legend-cells">
-                  <div class="c"></div><div class="c l1"></div><div class="c l2"></div><div class="c l3"></div><div class="c l4"></div>
+              <div class="hm-foot">
+                <p class="hm-today" id="hm-today"><i aria-hidden="true"></i>Today so far · <b id="hm-today-n">68</b> of 103 checked in</p>
+                <div class="hm-legend" aria-hidden="true">
+                  <span>Less</span>
+                  <div class="hm-legend-cells">
+                    <div class="c"></div><div class="c l1"></div><div class="c l2"></div><div class="c l3"></div><div class="c l4"></div>
+                  </div>
+                  <span>More</span>
                 </div>
-                <span>More</span>
               </div>
             </div>
           </section>
@@ -663,7 +673,7 @@ tr[hidden] { display: none; }
               </div>
             </div>
             <div class="donut-area">
-              <div class="donut-rel" role="img" aria-label="Turnover 15 percent">
+              <div class="donut-rel" id="donut-fig" role="img" aria-label="Turnover 15 percent: 15 of 103 people left in 12 months">
                 <svg viewBox="0 0 120 120" aria-hidden="true">
                   <circle class="donut-track" cx="60" cy="60" r="48" fill="none" stroke-width="13"/>
                   <circle class="donut-arc" id="donut-arc" cx="60" cy="60" r="48" fill="none" stroke-width="13"/>
@@ -673,16 +683,16 @@ tr[hidden] { display: none; }
               <div class="donut-stats">
                 <div class="ds-row">
                   <span class="ds-lbl">Left, 12 months</span>
-                  <span class="ds-val">15</span>
+                  <span class="ds-val" id="ds-left">15</span>
                 </div>
                 <div class="ds-row">
                   <span class="ds-lbl">Joined, 12 months</span>
-                  <span class="ds-val">18</span>
+                  <span class="ds-val" id="ds-joined">18</span>
                 </div>
                 <div class="ds-sep"></div>
                 <div class="ds-row">
                   <span class="ds-lbl">vs last year (17.1%)</span>
-                  <span class="badge-down">▼ 2.1 pts</span>
+                  <span class="badge-down"><span aria-hidden="true">▼</span><span class="sr-only">down</span> 2.1 pts</span>
                 </div>
               </div>
             </div>
@@ -693,11 +703,7 @@ tr[hidden] { display: none; }
             <div class="card-head">
               <div>
                 <h2 class="card-title" id="hc-title">Headcount</h2>
-                <div class="card-sub">Month by month</div>
-              </div>
-              <div class="hc-head-val">
-                <div class="hc-val">103</div>
-                <div class="hc-delta">+3 vs last year</div>
+                <div class="card-sub" id="hc-sub">+3 people over 12 months</div>
               </div>
             </div>
             <svg class="hc-svg" id="hc-svg" viewBox="0 0 212 96" tabindex="0" role="group" aria-label="Headcount by month. Use the arrow keys to move between months." aria-describedby="hc-caption"></svg>
@@ -734,11 +740,13 @@ DATA.months = DATA.flow.map(([joined, left], i) => {
   return { d, label: d.toLocaleString('en-US', { month: 'short' }), joined, left, hc: running };
 });
 
-/* ── Number tween (reduced motion: final value at once) ── */
-function tween(el, to, { from = 0, duration = 1200, suffix = '', delay = 0 } = {}) {
-  el._val = to;
-  if (RM) { el.textContent = fmt(to) + suffix; return; }
+/* ── Number tween (reduced motion: final value at once).
+      el._cur is the value on screen, so a new tween starts where the last one is. ── */
+function tween(el, to, { from = el._cur || 0, duration = 1200, suffix = '', delay = 0 } = {}) {
+  el._tw = null;
+  if (RM || from === to) { el._cur = to; el.textContent = fmt(to) + suffix; return; }
   const token = el._tw = {};
+  el._cur = from;
   if (delay) el.textContent = fmt(from) + suffix;
   const run = () => {
     const start = performance.now();
@@ -746,7 +754,8 @@ function tween(el, to, { from = 0, duration = 1200, suffix = '', delay = 0 } = {
       if (el._tw !== token) return;
       const p = Math.min((now - start) / duration, 1);
       const e = 1 - Math.pow(1 - p, 3);
-      el.textContent = fmt(from + (to - from) * e) + suffix;
+      el._cur = p < 1 ? from + (to - from) * e : to;
+      el.textContent = fmt(el._cur) + suffix;
       if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -764,7 +773,7 @@ function clock() {
   dateEl.textContent = `${dateFmt.format(now)} · ${timeFmt.format(now)} · Buffalo`;
 }
 clock();
-setInterval(clock, 20000);
+setInterval(() => { clock(); refreshToday(); }, 20000);
 
 /* ── Sidebar: section buttons + collapsible rail ── */
 const navBtns = [...document.querySelectorAll('.sb-nav .sb-icon')];
@@ -777,13 +786,14 @@ collapseBtn.addEventListener('click', () => { app.classList.add('rail-collapsed'
 expandBtn.addEventListener('click', () => { app.classList.remove('rail-collapsed'); collapseBtn.focus(); });
 
 /* ── Hero tabs: the number counts to the new value ── */
-const heroCount = $('hero-count'), heroLabel = $('hero-staff-label');
+const heroCount = $('hero-count'), heroLabel = $('hero-staff-label'), heroFigure = $('hero-figure');
 const tabs = [...document.querySelectorAll('.hero-tab')];
-heroCount._val = DATA.staff;
+heroCount._cur = DATA.staff;
 function selectTab(tab) {
   tabs.forEach(t => { const on = t === tab; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; });
+  heroFigure.setAttribute('aria-labelledby', tab.id);
   heroLabel.textContent = tab.dataset.label;
-  tween(heroCount, +tab.dataset.count, { from: heroCount._val, duration: 500 });
+  tween(heroCount, +tab.dataset.count, { duration: 500 });
 }
 tabs.forEach((tab, i) => {
   tab.addEventListener('click', () => { if (tab.getAttribute('aria-selected') !== 'true') selectTab(tab); });
@@ -803,7 +813,13 @@ function seededRand(seed) {
 }
 const rng = seededRand(0xdeadbeef);
 const thisMonday = new Date(today); thisMonday.setDate(today.getDate() - (today.getDay() + 6) % 7);
+// Share of the day's people already in, from the clock: nobody before 7:30, everyone by 11:00
+function arrived(now) {
+  const t = Math.max(0, Math.min(1, (now.getHours() + now.getMinutes() / 60 - 7.5) / 3.5));
+  return t * t * (3 - 2 * t);
+}
 const MATRIX = [];
+let todayCell = null;
 for (let w = 0; w < WEEKS; w++) {
   const ws = new Date(thisMonday); ws.setDate(thisMonday.getDate() - (WEEKS - 1 - w) * 7);
   const m = ws.getMonth(), dd = ws.getDate();
@@ -819,22 +835,34 @@ for (let w = 0; w < WEEKS; w++) {
     const noise = (rng() - .5) * 24, holiday = rng() < .012;
     let count = holiday ? 6 + rng() * 10 : BASE[d] * season * growth * cohort + noise;
     count = Math.max(0, Math.min(DATA.staff, Math.round(count)));
-    row.push({ count, date, future: date > today });
+    const cell = { count, date, future: date > today };
+    if (date.getTime() === today.getTime()) { cell.today = true; cell.full = count; cell.count = Math.round(count * arrived(new Date())); todayCell = cell; }
+    row.push(cell);
   }
   MATRIX.push(row);
 }
 const lvlOf = n => n < 30 ? 0 : n < 60 ? 1 : n < 75 ? 2 : n < 88 ? 3 : 4;
+const cellClass = c => c.future ? 'c future' : 'c' + (c.today ? ' today' : '') + (lvlOf(c.count) ? ' l' + lvlOf(c.count) : '');
 const tipFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 const monFmt = new Intl.DateTimeFormat('en-US', { month: 'short' });
 const tip = $('cell-tip'), rowsEl = $('hm-rows'), monthsEl = $('hm-months'), hmWrap = $('hm-wrap');
-const cnYear = $('cn-year'), cnLast = $('cn-last');
-function sumWeeks(from, to) {
+const cnYear = $('cn-year'), cnLast = $('cn-last'), todayLine = $('hm-today'), todayNum = $('hm-today-n');
+// Like-for-like: a day counts only if its mirror `shift` weeks later has happened (no future days last year either)
+function sumWeeks(from, to, shift = 0) {
   let s = 0;
-  for (let w = Math.max(0, from); w < to; w++) for (const c of MATRIX[w]) if (!c.future) s += c.count;
+  for (let w = Math.max(0, from); w < to; w++) MATRIX[w].forEach((c, d) => { if (!MATRIX[w + shift][d].future) s += c.count; });
   return s;
 }
-let built = false;
+let built = false, curCols = 53, todayEl = null;
+function renderTotals(dur) {
+  const first = WEEKS - curCols, period = sumWeeks(first, WEEKS), last = sumWeeks(first - 52, WEEKS - 52, 52);
+  const tw = built ? { duration: dur } : { from: 0, duration: 1400, delay: 350 };
+  tween(cnYear, period, tw);
+  tween(cnLast, last, built ? tw : { ...tw, duration: 1200 });
+  rowsEl.setAttribute('aria-label', `${fmt(period)} check-ins over the last ${curCols} weeks, by weekday`);
+}
 function renderHeatmap(cols) {
+  curCols = cols; todayEl = null;
   const first = WEEKS - cols;
   hmWrap.style.setProperty('--cols', cols);
   hmWrap.style.setProperty('--wave-base', built ? '0ms' : '350ms');
@@ -863,42 +891,60 @@ function renderHeatmap(cols) {
     for (let i = 0; i < cols; i++) {
       const c = MATRIX[first + i][d];
       const cell = document.createElement('div');
-      const lvl = lvlOf(c.count);
-      cell.className = c.future ? 'c future' : 'c' + (lvl ? ' l' + lvl : '');
+      cell.className = cellClass(c);
       cell.style.setProperty('--col', i); cell.style.setProperty('--row', d);
-      if (!c.future) {
-        cell.addEventListener('pointermove', e => {
-          tip.textContent = `${c.count} check-ins · ${tipFmt.format(c.date)}`;
-          tip.classList.add('visible');
-          tip.style.left = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8) + 'px';
-          tip.style.top = (e.clientY - 28) + 'px';
-        });
-        cell.addEventListener('pointerleave', () => tip.classList.remove('visible'));
-      }
+      cell._c = c;
+      if (c.today) todayEl = cell;
       cells.appendChild(cell);
     }
     row.appendChild(cells); rowsEl.appendChild(row);
   });
 
   // Totals are sums of what is on screen
-  const period = sumWeeks(first, WEEKS), last = sumWeeks(first - 52, WEEKS - 52);
-  tween(cnYear, period, { from: built ? cnYear._val : 0, duration: built ? 700 : 1400, delay: built ? 0 : 350 });
-  tween(cnLast, last,   { from: built ? cnLast._val : 0, duration: built ? 700 : 1200, delay: built ? 0 : 350 });
-  rowsEl.setAttribute('aria-label', `${fmt(period)} check-ins over the last ${cols} weeks, by weekday`);
+  renderTotals(700);
   built = true;
+}
+
+/* One tooltip listener for every cell (the totals and today's line carry the same facts without hover) */
+rowsEl.addEventListener('pointermove', e => {
+  const el = e.target.closest && e.target.closest('.c');
+  const c = el && el._c;
+  if (!c || c.future) { tip.classList.remove('visible'); return; }
+  tip.textContent = c.today ? `Today so far · ${c.count} check-ins` : `${c.count} check-ins · ${tipFmt.format(c.date)}`;
+  tip.classList.add('visible');
+  tip.style.left = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8) + 'px';
+  tip.style.top = (e.clientY - 28) + 'px';
+});
+rowsEl.addEventListener('pointerleave', () => tip.classList.remove('visible'));
+
+/* Today: people keep arriving through the morning; the cell, the line and the total follow the clock */
+function refreshToday() {
+  if (!todayCell) { todayLine.hidden = true; return; }
+  const n = Math.round(todayCell.full * arrived(new Date()));
+  todayNum.textContent = n;
+  if (n === todayCell.count || !built) { todayCell.count = n; return; }
+  todayCell.count = n;
+  if (todayEl) todayEl.className = cellClass(todayCell);
+  renderTotals(600);
 }
 
 /* ── Range picker: a real listbox ── */
 const pill = $('status-pill'), dropdown = $('pill-dropdown'), pillText = $('pill-text'), pillWrap = $('pill-wrap');
 const opts = [...dropdown.querySelectorAll('.pill-opt')];
 function setOpen(open) { dropdown.classList.toggle('open', open); pill.setAttribute('aria-expanded', open); }
-function choose(opt) {
-  if (opt.getAttribute('aria-selected') === 'true') return;
+function markOpt(opt) {
   opts.forEach(o => o.setAttribute('aria-selected', o === opt));
   pillText.textContent = opt.dataset.label;
   $('checkins-sub').textContent = 'Weekday check-ins · ' + opt.dataset.sub;
+}
+function choose(opt) {
+  if (opt.getAttribute('aria-selected') === 'true') return;
+  markOpt(opt);
   renderHeatmap(+opt.dataset.cols);
 }
+// Keep focus where it is on pointer press: in WebKit a press on a button blurs the list,
+// and focusout would close it before the click lands (or reopen it from the pill)
+pillWrap.addEventListener('mousedown', e => e.preventDefault());
 pill.addEventListener('click', () => {
   const open = !dropdown.classList.contains('open');
   setOpen(open);
@@ -940,6 +986,7 @@ function filterTeam() {
 function openSearch(open) {
   tools.classList.toggle('open', open);
   searchBtn.setAttribute('aria-expanded', open);
+  searchBtn.setAttribute('aria-label', open ? 'Close team filter' : 'Filter team');
   if (open) searchInput.focus();
 }
 searchBtn.addEventListener('click', () => {
@@ -953,10 +1000,18 @@ searchInput.addEventListener('keydown', e => {
   e.preventDefault(); searchInput.value = ''; filterTeam(); openSearch(false); searchBtn.focus();
 });
 
-/* ── Turnover ring ── */
+/* ── Turnover ring: the rows, the label and the arc all come from the monthly flow ── */
 const arc = $('donut-arc'), donutLabel = $('donut-label');
+const leftN = DATA.months.reduce((s, m) => s + m.left, 0), joinedN = DATA.months.reduce((s, m) => s + m.joined, 0);
+const turnover = Math.round(leftN / DATA.staff * 100);
+const CIRC = 2 * Math.PI * 48, dash = Math.max(0, CIRC * leftN / DATA.staff - 13); // 13 = the two round caps
+arc.style.setProperty('--dash', dash.toFixed(1));
+arc.style.setProperty('--gap', (CIRC - dash).toFixed(1));
+$('ds-left').textContent = leftN;
+$('ds-joined').textContent = joinedN;
+$('donut-fig').setAttribute('aria-label', `Turnover ${turnover} percent: ${leftN} of ${DATA.staff} people left in 12 months`);
 if (!RM) donutLabel.textContent = '0%';
-function startDonut() { arc.classList.add('animated'); tween(donutLabel, 15, { from: 0, duration: 900, suffix: '%' }); }
+function startDonut() { arc.classList.add('animated'); tween(donutLabel, turnover, { from: 0, duration: 900, suffix: '%' }); }
 
 /* ── Headcount chart: 12 months, joiners up, leavers down, one cursor ── */
 const NS = 'http://www.w3.org/2000/svg';
@@ -966,26 +1021,36 @@ const mk = (tag, attrs) => {
   for (const k in attrs) n.setAttribute(k, attrs[k]);
   svg.appendChild(n); return n;
 };
-const X0 = 8, X1 = 204, TOP = 12, BOT = 54, BASE_Y = 58, BAR_Y = 72, LAST = DATA.months.length - 1;
-const xs = DATA.months.map((_, i) => X0 + i * (X1 - X0) / LAST);
+const H = 96, TOP = 12, BOT = 54, BASE_Y = 58, BAR_Y = 72, LAST = DATA.months.length - 1;
 const hcs = DATA.months.map(m => m.hc), lo = Math.min(...hcs) - 1, hi = Math.max(...hcs) + 1;
 const yOf = v => BOT - (v - lo) / (hi - lo) * (BOT - TOP);
-const pts = DATA.months.map((m, i) => `${xs[i].toFixed(1)},${yOf(m.hc).toFixed(1)}`);
-mk('path', { class: 'hc-area', d: `M${xs[0].toFixed(1)},${BASE_Y} L${pts.join(' L')} L${xs[LAST].toFixed(1)},${BASE_Y} Z` });
-mk('line', { class: 'hc-base', x1: X0 - 4, x2: X1 + 4, y1: BASE_Y, y2: BASE_Y });
-mk('line', { class: 'hc-base', x1: X0 - 4, x2: X1 + 4, y1: BAR_Y + .5, y2: BAR_Y + .5 });
-DATA.months.forEach((m, i) => {
-  if (m.joined) mk('rect', { class: 'hc-bar up', x: xs[i] - 3, y: BAR_Y - m.joined * 4, width: 6, height: m.joined * 4, rx: 1, style: `--i:${i}` });
-  if (m.left)   mk('rect', { class: 'hc-bar down', x: xs[i] - 3, y: BAR_Y + 1, width: 6, height: m.left * 4, rx: 1, style: `--i:${i}` });
-});
-const cursor = mk('line', { class: 'hc-cursor', x1: 0, x2: 0, y1: TOP - 6, y2: BAR_Y + 10 });
-mk('path', { class: 'hc-line', d: 'M' + pts.join(' L'), pathLength: 1 });
-DATA.months.forEach((m, i) => mk('circle', { class: 'hc-dot', cx: xs[i], cy: yOf(m.hc), r: 2, style: `--i:${i}` }));
-const selDot = mk('circle', { class: 'hc-sel', cx: 0, cy: 0, r: 3.5 });
-const labels = DATA.months.map((m, i) => { const t = mk('text', { class: 'hc-mon', x: xs[i], y: 92 }); t.textContent = m.label[0]; return t; });
-const hits = DATA.months.map((m, i) => mk('rect', { class: 'hc-hit', x: xs[i] - 8.9, y: 0, width: 17.8, height: 96 }));
-
-let selI = LAST;
+const net = DATA.months[LAST].hc - DATA.startHc;
+$('hc-sub').textContent = `${net < 0 ? '−' : '+'}${Math.abs(net)} people over 12 months`;
+let W = 0, xs = [], cursor, selDot, labels = [], selI = LAST;
+function drawChart(w) {
+  W = w;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.textContent = '';
+  const X0 = 8, X1 = W - 8, step = (X1 - X0) / LAST, bw = Math.min(8, Math.max(5, step * .34));
+  xs = DATA.months.map((_, i) => X0 + i * step);
+  const pts = DATA.months.map((m, i) => `${xs[i].toFixed(1)},${yOf(m.hc).toFixed(1)}`);
+  mk('path', { class: 'hc-area', d: `M${xs[0].toFixed(1)},${BASE_Y} L${pts.join(' L')} L${xs[LAST].toFixed(1)},${BASE_Y} Z` });
+  mk('line', { class: 'hc-base', x1: X0 - 4, x2: X1 + 4, y1: BASE_Y, y2: BASE_Y });
+  mk('line', { class: 'hc-base', x1: X0 - 4, x2: X1 + 4, y1: BAR_Y + .5, y2: BAR_Y + .5 });
+  DATA.months.forEach((m, i) => {
+    if (m.joined) mk('rect', { class: 'hc-bar up', x: xs[i] - bw / 2, y: BAR_Y - m.joined * 4, width: bw, height: m.joined * 4, rx: 1, style: `--i:${i}` });
+    if (m.left)   mk('rect', { class: 'hc-bar down', x: xs[i] - bw / 2, y: BAR_Y + 1, width: bw, height: m.left * 4, rx: 1, style: `--i:${i}` });
+  });
+  cursor = mk('line', { class: 'hc-cursor', x1: 0, x2: 0, y1: TOP - 6, y2: BAR_Y + 10 });
+  mk('path', { class: 'hc-line', d: 'M' + pts.join(' L'), pathLength: 1 });
+  DATA.months.forEach((m, i) => mk('circle', { class: 'hc-dot', cx: xs[i], cy: yOf(m.hc), r: 2, style: `--i:${i}` }));
+  selDot = mk('circle', { class: 'hc-sel', cx: 0, cy: 0, r: 3.5 });
+  // Initials while space is tight, short month names once each month has room for them
+  labels = DATA.months.map((m, i) => { const t = mk('text', { class: 'hc-mon', x: xs[i], y: 92 }); t.textContent = step >= 30 ? m.label : m.label[0]; return t; });
+  DATA.months.forEach((m, i) => mk('rect', { class: 'hc-hit', x: xs[i] - step / 2, y: 0, width: step, height: H })
+    .addEventListener('pointerenter', () => selectMonth(i)));
+  selectMonth(selI);
+}
 function selectMonth(i) {
   selI = i;
   const m = DATA.months[i];
@@ -996,7 +1061,6 @@ function selectMonth(i) {
   const b = document.createElement('b'); b.textContent = `${m.label} ${m.d.getFullYear()}`;
   cap.append(b, ` · ${m.hc} people · ${m.joined} joined · ${m.left} left`);
 }
-hits.forEach((h, i) => h.addEventListener('pointerenter', () => selectMonth(i)));
 svg.addEventListener('pointerleave', () => selectMonth(LAST));
 svg.addEventListener('keydown', e => {
   let n = selI;
@@ -1007,10 +1071,22 @@ svg.addEventListener('keydown', e => {
   else return;
   e.preventDefault(); selectMonth(n);
 });
-selectMonth(LAST);
+const svgWidth = () => Math.round(svg.getBoundingClientRect().width);
+drawChart(svgWidth() || 212);
+if (window.ResizeObserver) {
+  // Redraw on the next frame, not inside the observer (the height follows the new viewBox)
+  new ResizeObserver(() => requestAnimationFrame(() => {
+    const w = svgWidth();
+    if (w > 0 && Math.abs(w - W) > 1) drawChart(w);
+  })).observe(svg);
+}
 
-/* ── Entrance: cards fade up (CSS), heatmap waves in, then counters, ring and chart ── */
-renderHeatmap(53);
+/* ── Entrance: cards fade up (CSS), heatmap waves in, then counters, ring and chart ──
+      Narrow frames open on the quarter, where 13 columns stay legible. */
+const startOpt = window.matchMedia && matchMedia('(max-width: 600px)').matches ? opts[2] : opts[0];
+markOpt(startOpt);
+renderHeatmap(+startOpt.dataset.cols);
+refreshToday();
 const goLive = () => { $('hc-card').classList.add('is-live'); startDonut(); };
 if (RM) goLive(); else setTimeout(goLive, 400);
 })();

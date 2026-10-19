@@ -12,16 +12,16 @@
 
   :root {
     --cycle: 3.72s;
+    --attract-delay: 0.9s;
     --bg: #07080a;
     --panel: #101115;
-    --panel-soft: #14151a;
     --ink: #f7f8fb;
-    --muted: rgba(230, 233, 242, 0.64);
+    --muted: rgba(230, 233, 242, 0.66);
     --line: rgba(255, 255, 255, 0.28);
     --line-strong: rgba(255, 255, 255, 0.64);
-    --folder-top: rgba(132, 139, 155, 0.42);
-    --folder-bottom: rgba(40, 44, 55, 0.86);
     --glow: #dfe8ff;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);
+    --ease-fly: cubic-bezier(.2, .82, .2, 1);
     --font: var(--font-inter, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
   }
 
@@ -38,7 +38,8 @@
     min-height: 100vh;
     display: grid;
     place-items: center;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     background:
       radial-gradient(circle at 50% 41%, rgba(106, 121, 154, 0.18), transparent 28rem),
       radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.03), transparent 26rem),
@@ -46,19 +47,27 @@
   }
 
   .scene {
-    width: min(100vw, 620px);
+    width: min(100%, 620px);
     min-height: min(100vh, 680px);
     display: grid;
     place-items: center;
     padding: 24px;
   }
 
+  /* ---------- Card ---------- */
+
   .upload-card {
+    --dx: 0px;
+    --dy: 0px;
+    --rot: 0deg;
+    --px: 0;
+    --py: 0;
+    --lead: 0ms;
     position: relative;
     width: min(100%, 486px);
-    aspect-ratio: 486 / 554;
-    min-height: 520px;
-    padding: clamp(22px, 5vw, 30px) clamp(22px, 5vw, 25px) 36px;
+    display: flex;
+    flex-direction: column;
+    padding: clamp(22px, 5vw, 30px) clamp(20px, 5vw, 25px) 28px;
     border-radius: 28px;
     overflow: hidden;
     background:
@@ -67,7 +76,10 @@
     box-shadow:
       0 32px 90px rgba(0, 0, 0, 0.72),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    animation: card-in 760ms var(--ease-out) both;
   }
+
+  .upload-card[data-path="sink"] { --lead: -240ms; }
 
   .upload-card::before {
     content: "";
@@ -82,135 +94,184 @@
     pointer-events: none;
   }
 
+  /* ---------- Stage: the drop target ---------- */
+
   .folder-stage {
     position: relative;
-    height: min(58vw, 346px);
-    min-height: 316px;
+    height: clamp(250px, min(58vw, calc(100vh - 250px)), 346px);
     display: grid;
     place-items: center;
     isolation: isolate;
+    border-radius: 20px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    animation: stage-in 820ms var(--ease-out) 140ms both;
   }
 
-  .folder-halo,
-  .drop-burst,
-  .folder-aura {
-    position: absolute;
-    pointer-events: none;
-    border-radius: 999px;
+  .folder-stage:focus-visible {
+    outline: 2px solid var(--line-strong);
+    outline-offset: 2px;
   }
 
   .folder-halo {
+    position: absolute;
     z-index: 0;
     width: 72%;
     height: 58%;
     top: 6%;
     left: 14%;
-    background: radial-gradient(ellipse at center, rgba(196, 207, 232, 0.28), rgba(134, 147, 178, 0.11) 34%, transparent 72%);
-    filter: blur(19px);
-    opacity: 0.72;
-    animation: halo-breathe var(--cycle) cubic-bezier(.45, 0, .22, 1) infinite;
+    border-radius: 999px;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(196, 207, 232, 0.28), rgba(134, 147, 178, 0.11) 34%, transparent 70%);
+    opacity: 0.64;
+    transform: scale(0.96);
+    translate: calc(var(--px) * -10px) calc(var(--py) * -6px);
+    transition: translate 600ms var(--ease-out);
   }
 
-  .drop-burst {
-    z-index: 3;
-    width: 230px;
-    height: 88px;
-    top: 116px;
-    left: 50%;
-    translate: -50% 0;
-    background:
-      radial-gradient(ellipse at center, rgba(255, 255, 255, 0.98), rgba(222, 232, 255, 0.78) 22%, rgba(151, 173, 224, 0.28) 48%, transparent 74%);
-    filter: blur(8px);
-    mix-blend-mode: screen;
-    opacity: 0;
-    transform: scaleX(0.78) scaleY(0.7);
-    animation: burst var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
-  }
-
-  .folder-aura {
-    z-index: 1;
-    width: 390px;
-    height: 240px;
-    top: 22px;
-    left: 50%;
-    translate: -50% 0;
-    background: radial-gradient(ellipse at center, rgba(221, 230, 255, 0.36), rgba(120, 137, 177, 0.14) 42%, transparent 72%);
-    filter: blur(30px);
-    opacity: 0;
-    animation: aura-pop var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
-  }
-
+  /* Everything below lives in the folder's own 442 x 288 box, so it scales with it. */
   .folder-wrap {
     position: relative;
-    z-index: 2;
+    z-index: 1;
     width: min(96%, 442px);
     aspect-ratio: 442 / 288;
+    container-type: inline-size;
     transform-origin: 50% 58%;
-    animation: folder-react var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
   }
 
-  .folder-svg {
+  .folder-wrap::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    left: 9%;
+    right: 7%;
+    top: 64%;
+    bottom: -12%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.2) 58%, transparent);
+    pointer-events: none;
+  }
+
+  .folder-back,
+  .folder-front {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     display: block;
     overflow: visible;
-    filter:
-      drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42))
-      drop-shadow(0 0 0 rgba(207, 219, 255, 0));
-    animation: folder-filter var(--cycle) ease infinite;
+    pointer-events: none;
   }
+
+  .folder-back { z-index: 1; }
+  .file-card { z-index: 2; }
+  .folder-front { z-index: 3; }
+  .shimmer-band { z-index: 4; }
+  .drop-burst { z-index: 5; }
+  .cursor { z-index: 6; }
 
   .folder-line {
     stroke: rgba(255, 255, 255, 0.34);
     stroke-width: 1.2;
     vector-effect: non-scaling-stroke;
-    animation: folder-line var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
   }
 
   .front-line { stroke: rgba(255, 255, 255, 0.42); }
-
-  .folder-fill-back {
-    fill: url(#backGradient);
-  }
-
-  .folder-fill-front {
-    fill: url(#frontGradient);
-  }
+  .folder-fill-back { fill: url(#backGradient); }
+  .folder-fill-front { fill: url(#frontGradient); }
 
   .folder-back-face,
-  .folder-front-face {
-    transform-box: fill-box;
-  }
-
-  .folder-back-face {
-    transform-origin: 50% 78%;
-    animation: folder-back-close var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
-  }
-
-  .folder-front-face {
-    transform-origin: 50% 16%;
-    animation: folder-front-close var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
-  }
+  .folder-front-face { transform-box: fill-box; }
+  .folder-back-face { transform-origin: 50% 78%; }
+  .folder-front-face { transform-origin: 50% 16%; }
 
   .inner-glow {
     opacity: 0;
     mix-blend-mode: screen;
-    filter: blur(1px);
-    animation: inner-glow var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+  }
+
+  /* Papers already in the folder, plus the one a drop leaves behind */
+  .sheet {
+    fill: url(#sheetFill);
+    stroke: var(--line);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .sheet-fresh {
+    fill: url(#sheetFillFresh);
+    stroke: rgba(255, 255, 255, 0.4);
+  }
+
+  .sheet-rule {
+    stroke: rgba(255, 255, 255, 0.15);
+    stroke-width: 1.3;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .sheet-band { fill: #8299D7; fill-opacity: 0.7; }
+
+  .sheet-new {
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity 320ms ease, transform 560ms var(--ease-out);
+  }
+
+  .upload-card[data-filled] .sheet-new {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* The lip fills with light while the file is added */
+  .lip {
+    opacity: 0;
+    transition: opacity 700ms ease;
+  }
+
+  .lip path {
+    fill: none;
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+    stroke-linecap: round;
+  }
+
+  .lip-soft { stroke: rgba(223, 232, 255, 0.26); stroke-width: 7; }
+  .lip-core { stroke: var(--glow); stroke-width: 1.9; }
+
+  .upload-card[data-mode="dropping"] .lip,
+  .upload-card[data-mode="done"] .lip {
+    opacity: 1;
+    transition-duration: 140ms;
+  }
+
+  .drop-burst {
+    position: absolute;
+    left: 50%;
+    top: 29.1%;
+    width: 54.95%;
+    height: 32.27%;
+    translate: -50% 0;
+    border-radius: 999px;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.98), rgba(222, 232, 255, 0.78) 22%, rgba(151, 173, 224, 0.28) 48%, transparent 70%);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transform: scaleX(0.78) scaleY(0.7);
   }
 
   .shimmer-band {
     position: absolute;
-    z-index: 4;
-    top: 83px;
-    left: 58px;
-    width: 350px;
-    height: 170px;
+    top: 30.43%;
+    left: 13.86%;
+    width: 83.62%;
+    height: 62.33%;
     overflow: hidden;
     clip-path: polygon(0 18%, 30% 18%, 40% 35%, 100% 35%, 93% 100%, 9% 100%);
     pointer-events: none;
     opacity: 0;
-    animation: shimmer-visibility var(--cycle) ease infinite;
   }
 
   .shimmer-band::before {
@@ -218,83 +279,112 @@
     position: absolute;
     inset: -22% auto -18% -42%;
     width: 42%;
-    background: linear-gradient(95deg, transparent 0%, rgba(255, 255, 255, 0.04) 18%, rgba(255, 255, 255, 0.66) 50%, rgba(164, 190, 255, 0.16) 72%, transparent 100%);
-    filter: blur(6px);
+    background: linear-gradient(95deg, transparent 0%, rgba(255, 255, 255, 0.05) 8%, rgba(255, 255, 255, 0.6) 50%, rgba(164, 190, 255, 0.16) 88%, transparent 100%);
     transform: skewX(-14deg);
-    animation: shimmer-sweep var(--cycle) cubic-bezier(.16, 1, .3, 1) infinite;
   }
+
+  /* ---------- The file ---------- */
 
   .file-card {
     position: absolute;
-    z-index: 6;
-    top: 82px;
-    left: 205px;
+    left: 58.36%;
+    top: 16.63%;
+    width: 35.36cqw;
+    height: 10.03cqw;
+    min-height: 30px;
     display: flex;
     align-items: center;
-    gap: 9px;
-    width: 148px;
-    height: 42px;
-    padding: 8px 10px;
+    gap: clamp(6px, 2.15cqw, 9px);
+    padding: 0 clamp(7px, 2.39cqw, 10px);
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08)),
-      rgba(28, 31, 39, 0.64);
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
-    backdrop-filter: blur(14px) saturate(1.35);
-    -webkit-backdrop-filter: blur(14px) saturate(1.35);
-    color: rgba(255, 255, 255, 0.9);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07)),
+      rgba(26, 29, 37, 0.9);
+    box-shadow:
+      0 14px 34px rgba(0, 0, 0, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.92);
     opacity: 0;
-    transform: translate(124px, -86px) rotate(3deg) scale(0.96);
-    transform-origin: 86% 8%;
-    animation: file-flight var(--cycle) cubic-bezier(.2, .82, .2, 1) infinite;
+    pointer-events: none;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    will-change: transform, opacity;
+    translate: 0 0;
+    transition: translate 380ms var(--ease-out);
   }
 
   .file-icon {
-    position: relative;
-    width: 19px;
-    height: 23px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: inset 0 -6px 0 rgba(190, 200, 224, 0.35);
+    display: block;
     flex: 0 0 auto;
+    width: clamp(15px, 4.54cqw, 19px);
+    height: auto;
+    aspect-ratio: 19 / 23;
   }
 
-  .file-icon::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 8px;
-    height: 8px;
-    background: linear-gradient(135deg, rgba(182, 192, 215, 0.96) 50%, transparent 50%);
-    border-top-right-radius: 4px;
+  .upload-card[data-mode="ready"] .file-card:hover { border-color: rgba(255, 255, 255, 0.34); }
+
+  .file-text {
+    display: grid;
+    gap: clamp(2px, 0.8cqw, 4px);
+    min-width: 0;
   }
 
-  .file-name {
+  .file-name,
+  .file-meta {
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    font-size: 12px;
-    font-weight: 570;
     line-height: 1;
+  }
+
+  .file-name {
+    font-size: clamp(10px, 2.87cqw, 12px);
+    font-weight: 570;
+  }
+
+  .file-meta {
+    font-size: clamp(8.5px, 2.3cqw, 10px);
+    font-weight: 480;
+    letter-spacing: 0.01em;
+    color: rgba(230, 233, 242, 0.64);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The folder says what it is and how much it holds; the count ticks on every drop. */
+  .folder-name,
+  .folder-count { font-family: var(--font); }
+
+  .folder-name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    fill: rgba(247, 248, 251, 0.8);
+  }
+
+  .folder-count {
+    font-size: 12px;
+    font-weight: 500;
+    fill: rgba(230, 233, 242, 0.64);
+    font-variant-numeric: tabular-nums;
   }
 
   .cursor {
     position: absolute;
-    z-index: 7;
-    top: 66px;
-    left: 302px;
-    width: 37px;
-    height: 46px;
+    left: 70.07%;
+    top: 10.77%;
+    width: 8.84cqw;
+    height: 10.99cqw;
     color: white;
     opacity: 0;
+    pointer-events: none;
     filter:
       drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8))
       drop-shadow(0 0 8px rgba(255, 255, 255, 0.14));
-    transform: translate(136px, -12px) rotate(-8deg);
-    animation: cursor-path var(--cycle) cubic-bezier(.2, .82, .2, 1) infinite;
+    transform: translate(32.49cqw, -4.3cqw) rotate(-8deg) scale(0.98);
+    will-change: transform, opacity;
   }
 
   .cursor svg {
@@ -303,93 +393,145 @@
     display: block;
   }
 
-  .copy {
-    position: absolute;
-    left: 25px;
-    right: 25px;
-    bottom: 35px;
-  }
+  /* ---------- Copy ---------- */
+
+  .copy { padding-top: 22px; }
 
   .copy h1 {
-    font-size: clamp(25px, 6vw, 27px);
+    font-size: clamp(24px, 6vw, 27px);
     font-weight: 650;
     line-height: 1.12;
     letter-spacing: 0;
     color: #ffffff;
+    animation: copy-in 620ms var(--ease-out) 300ms both;
   }
 
-  .copy p {
+  .status {
     max-width: 420px;
-    margin-top: 19px;
-    color: rgba(235, 237, 245, 0.64);
-    font-size: clamp(20px, 4.8vw, 22px);
-    font-weight: 430;
-    line-height: 1.34;
-    letter-spacing: 0;
+    min-height: 2.9em;
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 450;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    transition: color 300ms ease;
+    animation: copy-in 620ms var(--ease-out) 380ms both;
   }
+
+  .pct {
+    margin-left: 0.45em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+
+  .upload-card[data-mode="dropping"] .pct { opacity: 1; }
+  .upload-card[data-mode="done"] .status { color: var(--ink); }
+
+  /* ---------- Modes ----------
+     attract  : the scripted loop, until a pointer or focus arrives
+     ready    : the sample file waits above the slot, draggable
+     over     : something is over the folder, the mouth opens
+     dropping : one pass of the receive choreography
+     done     : the folder holds the file                          */
+
+  .upload-card[data-mode="ready"] .file-card,
+  .upload-card[data-mode="over"] .file-card {
+    opacity: 1;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+  }
+
+  .upload-card[data-mode="ready"] .file-card {
+    pointer-events: auto;
+    cursor: grab;
+    translate: calc(var(--px) * 1.2cqw) calc(var(--py) * 0.9cqw);
+  }
+
+  .upload-card[data-drag="chip"] .file-card {
+    pointer-events: auto;
+    cursor: grabbing;
+    transition: none;
+  }
+
+  .upload-card[data-drag="os"] .file-card { opacity: 0; }
+
+  .upload-card[data-mode="over"] .folder-back-face { transform: translateY(-4px) scaleY(1.012) skewX(-0.5deg); }
+  .upload-card[data-mode="over"] .folder-front-face { transform: translateY(6px) scaleY(0.972) skewX(0.44deg); }
+  .upload-card[data-mode="over"] .inner-glow { opacity: 0.55; }
+  .upload-card[data-mode="over"] .folder-halo { opacity: 0.9; transform: scale(1.03); }
+  .upload-card[data-mode="over"] .folder-line { stroke: rgba(255, 255, 255, 0.6); }
+
+  .upload-card[data-mode="done"] .file-card,
+  .upload-card[data-mode="dropping"] .file-card {
+    opacity: 0;
+    transform: translate(0px, 22cqw) scale(0.95);
+  }
+
+  /* attract: the original 3.72 s beat, waiting --attract-delay before each (re)start */
+  .upload-card[data-mode="attract"] .folder-halo { animation: halo-breathe var(--cycle) cubic-bezier(.45, 0, .22, 1) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .folder-wrap { animation: folder-react var(--cycle) var(--ease-out) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .folder-line { animation: folder-line var(--cycle) var(--ease-out) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .folder-back-face { animation: folder-back-close var(--cycle) var(--ease-out) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .folder-front-face { animation: folder-front-close var(--cycle) var(--ease-out) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .inner-glow { animation: inner-glow var(--cycle) var(--ease-out) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .drop-burst { animation: burst var(--cycle) var(--ease-out) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .shimmer-band { animation: shimmer-visibility var(--cycle) ease var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .shimmer-band::before { animation: shimmer-sweep var(--cycle) var(--ease-out) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .file-card { animation: file-flight var(--cycle) var(--ease-fly) var(--attract-delay) infinite backwards; }
+  .upload-card[data-mode="attract"] .cursor { animation: cursor-path var(--cycle) var(--ease-fly) var(--attract-delay) infinite backwards; }
+
+  /* dropping: one pass, timed from the moment the file crosses the lip */
+  .upload-card[data-mode="dropping"] .file-card { animation: file-receive 720ms linear both; }
+  .upload-card[data-mode="dropping"][data-path="sink"] .file-card { animation: file-sink 460ms cubic-bezier(.5, 0, .75, 0) both; }
+  .upload-card[data-mode="dropping"] .folder-wrap { animation: react-once 900ms var(--ease-out) var(--lead) both; }
+  .upload-card[data-mode="dropping"] .folder-back-face { animation: back-receive 900ms var(--ease-out) var(--lead) both; }
+  .upload-card[data-mode="dropping"] .folder-front-face { animation: front-receive 900ms var(--ease-out) var(--lead) both; }
+  .upload-card[data-mode="dropping"] .folder-line { animation: line-once 1000ms ease var(--lead) both; }
+  .upload-card[data-mode="dropping"] .inner-glow { animation: glow-once 1100ms var(--ease-out) var(--lead) both; }
+  .upload-card[data-mode="dropping"] .folder-halo { animation: halo-once 1200ms var(--ease-out) var(--lead) both; }
+  .upload-card[data-mode="dropping"] .drop-burst { animation: burst-once 720ms var(--ease-out) calc(420ms + var(--lead)) both; }
+  .upload-card[data-mode="dropping"] .shimmer-band { animation: band-once 820ms ease calc(440ms + var(--lead)) both; }
+  .upload-card[data-mode="dropping"] .shimmer-band::before { animation: sweep-once 820ms var(--ease-out) calc(440ms + var(--lead)) both; }
+
+  /* ---------- Entrance (plays once) ---------- */
+
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(18px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes stage-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes copy-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Attract loop ---------- */
 
   @keyframes cursor-path {
-    0%, 18% {
-      opacity: 0;
-      transform: translate(136px, -18px) rotate(-8deg) scale(0.98);
-    }
-    24% {
-      opacity: 1;
-      transform: translate(116px, 7px) rotate(-6deg) scale(1);
-    }
-    44% {
-      opacity: 1;
-      transform: translate(63px, 61px) rotate(-2deg) scale(1);
-    }
-    51.5% {
-      opacity: 1;
-      transform: translate(55px, 74px) rotate(0deg) scale(0.99);
-    }
-    58% {
-      opacity: 1;
-      transform: translate(83px, 82px) rotate(3deg) scale(1);
-    }
-    72% {
-      opacity: 1;
-      transform: translate(147px, 82px) rotate(5deg) scale(1);
-    }
-    82%, 100% {
-      opacity: 0;
-      transform: translate(174px, 78px) rotate(6deg) scale(0.98);
-    }
+    0%, 18% { opacity: 0; transform: translate(32.49cqw, -4.3cqw) rotate(-8deg) scale(0.98); }
+    24% { opacity: 1; transform: translate(27.71cqw, 1.67cqw) rotate(-6deg) scale(1); }
+    44% { opacity: 1; transform: translate(15.05cqw, 14.57cqw) rotate(-2deg) scale(1); }
+    51.5% { opacity: 1; transform: translate(13.14cqw, 17.68cqw) rotate(0deg) scale(0.99); }
+    58% { opacity: 1; transform: translate(19.83cqw, 19.59cqw) rotate(3deg) scale(1); }
+    72% { opacity: 1; transform: translate(35.12cqw, 19.59cqw) rotate(5deg) scale(1); }
+    82%, 100% { opacity: 0; transform: translate(41.57cqw, 18.64cqw) rotate(6deg) scale(0.98); }
   }
 
+  /* The chip now slides behind the front lip instead of shrinking and blurring. */
   @keyframes file-flight {
-    0%, 19% {
-      opacity: 0;
-      transform: translate(136px, -92px) rotate(4deg) scale(0.94);
-      filter: blur(0);
-    }
-    25% {
-      opacity: 0.92;
-      transform: translate(113px, -66px) rotate(3deg) scale(1);
-      filter: blur(0);
-    }
-    44% {
-      opacity: 0.94;
-      transform: translate(56px, -14px) rotate(1deg) scale(1);
-      filter: blur(0);
-    }
-    51.5% {
-      opacity: 0.94;
-      transform: translate(48px, 0) rotate(0deg) scale(1);
-      filter: blur(0);
-    }
-    57% {
-      opacity: 0;
-      transform: translate(36px, 48px) rotate(-1deg) scale(0.58);
-      filter: blur(3px);
-    }
-    100% {
-      opacity: 0;
-      transform: translate(36px, 48px) rotate(-1deg) scale(0.58);
-      filter: blur(3px);
-    }
+    0%, 19% { opacity: 0; transform: translate(21.02cqw, -21.98cqw) rotate(4deg) scale(0.94); }
+    25% { opacity: 0.92; transform: translate(15.53cqw, -15.77cqw) rotate(3deg) scale(1); }
+    44% { opacity: 0.94; transform: translate(1.91cqw, -3.34cqw) rotate(1deg) scale(1); }
+    51.5% { opacity: 0.94; transform: translate(0cqw, 0cqw) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(.5, 0, .75, 0); }
+    56% { opacity: 0.9; transform: translate(0cqw, 11cqw) rotate(0deg) scale(0.98); animation-timing-function: linear; }
+    60%, 100% { opacity: 0; transform: translate(0cqw, 21cqw) rotate(0deg) scale(0.95); }
   }
 
   @keyframes folder-react {
@@ -397,29 +539,6 @@
     44%, 52% { transform: translateY(-2px) scale(1.008); }
     59% { transform: translateY(1px) scale(1.012); }
     68% { transform: translateY(0) scale(1); }
-  }
-
-  @keyframes folder-filter {
-    0%, 40%, 100% {
-      filter:
-        drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42))
-        drop-shadow(0 0 0 rgba(207, 219, 255, 0));
-    }
-    48% {
-      filter:
-        drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42))
-        drop-shadow(0 0 12px rgba(218, 229, 255, 0.18));
-    }
-    59% {
-      filter:
-        drop-shadow(0 22px 40px rgba(0, 0, 0, 0.52))
-        drop-shadow(0 0 38px rgba(209, 224, 255, 0.62));
-    }
-    69% {
-      filter:
-        drop-shadow(0 18px 34px rgba(0, 0, 0, 0.42))
-        drop-shadow(0 0 18px rgba(207, 219, 255, 0.22));
-    }
   }
 
   @keyframes folder-line {
@@ -454,29 +573,10 @@
   }
 
   @keyframes burst {
-    0%, 51%, 100% {
-      opacity: 0;
-      transform: scaleX(0.72) scaleY(0.54);
-    }
-    56% {
-      opacity: 1;
-      transform: scaleX(1.24) scaleY(1.08);
-    }
-    62% {
-      opacity: 0.78;
-      transform: scaleX(1.04) scaleY(0.94);
-    }
-    73% {
-      opacity: 0;
-      transform: scaleX(0.9) scaleY(0.72);
-    }
-  }
-
-  @keyframes aura-pop {
-    0%, 49%, 100% { opacity: 0; transform: scale(0.86); }
-    56% { opacity: 1; transform: scale(1.08); }
-    68% { opacity: 0.45; transform: scale(1.16); }
-    82% { opacity: 0; transform: scale(1.25); }
+    0%, 51%, 100% { opacity: 0; transform: scaleX(0.72) scaleY(0.54); }
+    56% { opacity: 1; transform: scaleX(1.24) scaleY(1.08); }
+    62% { opacity: 0.78; transform: scaleX(1.04) scaleY(0.94); }
+    73% { opacity: 0; transform: scaleX(0.9) scaleY(0.72); }
   }
 
   @keyframes shimmer-visibility {
@@ -486,7 +586,7 @@
 
   @keyframes shimmer-sweep {
     0%, 50% { transform: translateX(0) skewX(-14deg); }
-    68%, 100% { transform: translateX(430px) skewX(-14deg); }
+    68%, 100% { transform: translateX(293%) skewX(-14deg); }
   }
 
   @keyframes halo-breathe {
@@ -496,73 +596,125 @@
     74% { opacity: 0.52; transform: scale(0.99); }
   }
 
-  @media (max-width: 520px) {
-    body { overflow: auto; }
-    .scene {
-      min-height: 100vh;
-      padding: 14px;
-    }
+  /* ---------- Receive (one pass) ---------- */
 
-    .upload-card {
-      min-height: 500px;
-      border-radius: 24px;
-    }
-
-    .folder-stage {
-      height: 306px;
-      min-height: 306px;
-    }
-
-    .folder-wrap { width: 100%; }
-    .file-card { left: 178px; }
-    .cursor { left: 274px; }
+  @keyframes file-receive {
+    0% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1); animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+    42% { opacity: 1; transform: translate(0px, -0.8cqw) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(.5, 0, .75, 0); }
+    82% { opacity: 0.9; transform: translate(0px, 17cqw) rotate(0deg) scale(0.97); animation-timing-function: linear; }
+    100% { opacity: 0; transform: translate(0px, 22cqw) rotate(0deg) scale(0.95); }
   }
 
+  @keyframes file-sink {
+    0% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 14cqw)) rotate(0deg) scale(0.95); }
+  }
+
+  @keyframes react-once {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-2px) scale(1.008); }
+    66% { transform: translateY(1px) scale(1.012); }
+    90% { transform: translateY(0) scale(1); }
+  }
+
+  @keyframes back-receive {
+    0%, 50% { transform: translateY(-4px) scaleY(1.012) skewX(-0.5deg); }
+    68% { transform: translateY(1px) scaleY(0.997) skewX(0.1deg); }
+    88%, 100% { transform: translateY(0) scaleY(1) skewX(0deg); }
+  }
+
+  @keyframes front-receive {
+    0%, 50% { transform: translateY(6px) scaleY(0.972) skewX(0.44deg); }
+    68% { transform: translateY(-1px) scaleY(1.004) skewX(-0.08deg); }
+    88%, 100% { transform: translateY(0) scaleY(1) skewX(0deg); }
+  }
+
+  @keyframes line-once {
+    0% { stroke: rgba(255, 255, 255, 0.6); }
+    46% { stroke: rgba(255, 255, 255, 0.94); }
+    100% { stroke: rgba(255, 255, 255, 0.38); }
+  }
+
+  @keyframes glow-once {
+    0% { opacity: 0.55; transform: scaleX(1); }
+    46% { opacity: 1; transform: scaleX(1.1); }
+    70% { opacity: 0.4; transform: scaleX(1.02); }
+    100% { opacity: 0; transform: scaleX(0.92); }
+  }
+
+  @keyframes halo-once {
+    0% { opacity: 0.9; transform: scale(1.03); }
+    48% { opacity: 0.98; transform: scale(1.06); }
+    100% { opacity: 0.64; transform: scale(0.96); }
+  }
+
+  @keyframes burst-once {
+    0% { opacity: 0; transform: scaleX(0.72) scaleY(0.54); }
+    25% { opacity: 1; transform: scaleX(1.24) scaleY(1.08); }
+    45% { opacity: 0.78; transform: scaleX(1.04) scaleY(0.94); }
+    100% { opacity: 0; transform: scaleX(0.9) scaleY(0.72); }
+  }
+
+  @keyframes band-once {
+    0%, 100% { opacity: 0; }
+    12%, 70% { opacity: 1; }
+  }
+
+  @keyframes sweep-once {
+    0% { transform: translateX(0) skewX(-14deg); }
+    85%, 100% { transform: translateX(293%) skewX(-14deg); }
+  }
+
+  @media (max-width: 520px) {
+    .scene { min-height: 100vh; padding: 14px; }
+    .upload-card { border-radius: 24px; }
+    .folder-wrap { width: 100%; }
+  }
+
+  /* Reduced motion: no loop, no entrance, no travel. A composed still, and instant states. */
   @media (prefers-reduced-motion: reduce) {
-    .folder-halo,
-    .drop-burst,
-    .folder-aura,
-    .folder-wrap,
-    .folder-svg,
-    .folder-line,
-    .folder-back-face,
-    .folder-front-face,
-    .inner-glow,
-    .shimmer-band,
-    .shimmer-band::before,
-    .file-card,
-    .cursor {
+    .upload-card,
+    .upload-card *,
+    .upload-card *::before {
       animation: none !important;
     }
 
-    .folder-halo { opacity: 0.68; }
-    .inner-glow { opacity: 0.45; }
-    .drop-burst { opacity: 0.36; transform: scaleX(0.88) scaleY(0.76); }
-    .file-card,
+    .folder-halo,
+    .file-card { transition: none; }
+    .sheet-new { transition: opacity 200ms ease; }
     .cursor { display: none; }
+
+    .upload-card[data-mode="attract"] .file-card { opacity: 1; transform: none; }
+    .upload-card[data-mode="attract"] .inner-glow,
+    .upload-card[data-mode="ready"] .inner-glow { opacity: 0.42; }
+    .upload-card[data-mode="attract"] .drop-burst,
+    .upload-card[data-mode="ready"] .drop-burst { opacity: 0.3; transform: scaleX(0.88) scaleY(0.76); }
+    .upload-card[data-mode="dropping"] .inner-glow { opacity: 0.6; }
+    .upload-card[data-mode="dropping"] .folder-halo { opacity: 0.9; }
   }
 </style>
 </head>
 <body>
   <main class="scene" aria-label="File upload interaction preview">
-    <section class="upload-card" aria-label="Upload a file">
-      <div class="folder-stage" aria-hidden="true">
+    <section class="upload-card" data-mode="attract" aria-labelledby="upload-title">
+      <div class="folder-stage" role="button" tabindex="0" aria-label="Add the sample file, FinalDraft.pdf" aria-describedby="drop-status">
         <div class="folder-halo"></div>
-        <div class="folder-aura"></div>
-        <div class="drop-burst"></div>
 
         <div class="folder-wrap">
-          <svg class="folder-svg" viewBox="0 0 442 288" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg class="folder-back" viewBox="0 0 442 288" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <defs>
               <linearGradient id="backGradient" x1="210" y1="20" x2="252" y2="208" gradientUnits="userSpaceOnUse">
                 <stop stop-color="#8991A6" stop-opacity="0.52"/>
                 <stop offset="0.54" stop-color="#535A6B" stop-opacity="0.55"/>
                 <stop offset="1" stop-color="#20232B" stop-opacity="0.92"/>
               </linearGradient>
-              <linearGradient id="frontGradient" x1="194" y1="86" x2="245" y2="283" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#A1A8BA" stop-opacity="0.55"/>
-                <stop offset="0.38" stop-color="#6B7284" stop-opacity="0.62"/>
-                <stop offset="1" stop-color="#171A20" stop-opacity="0.96"/>
+              <linearGradient id="sheetFill" x1="0" y1="0" x2="0" y2="1">
+                <stop stop-color="#EAEEF8" stop-opacity="0.16"/>
+                <stop offset="1" stop-color="#EAEEF8" stop-opacity="0.04"/>
+              </linearGradient>
+              <linearGradient id="sheetFillFresh" x1="0" y1="0" x2="0" y2="1">
+                <stop stop-color="#EAEEF8" stop-opacity="0.27"/>
+                <stop offset="1" stop-color="#EAEEF8" stop-opacity="0.06"/>
               </linearGradient>
               <radialGradient id="slotGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(236 128) rotate(90) scale(75 172)">
                 <stop stop-color="white"/>
@@ -574,32 +726,498 @@
             <g class="folder-back-face">
               <path class="folder-fill-back folder-line" d="M101.5 36.2C99.9 27.8 106.4 20.2 115 20.2H178.1C187.2 20.2 194.1 24.8 200.4 31.1L228.6 59.2C233.5 64.1 238.8 66.2 245.8 66.2H357.2C366.9 66.2 374.2 75 372.4 84.5L342.8 248.5C341.4 256.4 334.6 262.1 326.6 262.1H90.7C82.5 262.1 75.6 256.2 74.3 248.1L46 77.9C44.4 68.6 51.6 60.1 61.1 60.1H106L101.5 36.2Z"/>
             </g>
+            <g class="sheets">
+              <g transform="rotate(-2.4 224 163)">
+                <rect class="sheet" x="104" y="108" width="240" height="110" rx="5"/>
+                <path class="sheet-rule" d="M222 119H330M222 126H292"/>
+              </g>
+              <g transform="rotate(1.6 245 171)">
+                <rect class="sheet" x="132" y="116" width="226" height="110" rx="5"/>
+                <path class="sheet-rule" d="M232 126H318"/>
+              </g>
+              <g class="sheet-new">
+                <g transform="rotate(-0.8 255 154)">
+                  <rect class="sheet sheet-fresh" x="160" y="99" width="190" height="110" rx="5"/>
+                  <rect class="sheet-band" x="228" y="106" width="34" height="4" rx="2"/>
+                  <path class="sheet-rule" d="M228 117H322M228 124H298"/>
+                </g>
+              </g>
+            </g>
             <path class="inner-glow" d="M145 119C160 106 178 105 194 119L208 131H357C364 131 369 137 368 144L365 163H72L66 130C65 124 70 119 76 119H145Z" fill="url(#slotGlow)"/>
+          </svg>
+
+          <div class="file-card">
+            <svg class="file-icon" viewBox="0 0 19 23" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="pageFill" x1="0" y1="0" x2="0" y2="23" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#FFFFFF" stop-opacity="0.94"/>
+                  <stop offset="1" stop-color="#D3DAE8" stop-opacity="0.94"/>
+                </linearGradient>
+              </defs>
+              <path d="M3.2 0.6H11.8L18.4 7.2V19.8C18.4 21.24 17.24 22.4 15.8 22.4H3.2C1.76 22.4 0.6 21.24 0.6 19.8V3.2C0.6 1.76 1.76 0.6 3.2 0.6Z" fill="url(#pageFill)"/>
+              <path d="M11.8 0.6V4.8C11.8 6.13 12.87 7.2 14.2 7.2H18.4Z" fill="#B6C0D7"/>
+              <rect x="3.4" y="3.6" width="6" height="2.6" rx="1" fill="#8299D7"/>
+              <path d="M3.6 11H13.4M3.6 14H14.8M3.6 17H10.6" stroke="#1E2330" stroke-opacity="0.28" stroke-width="1.1" stroke-linecap="round"/>
+            </svg>
+            <span class="file-text">
+              <span class="file-name">FinalDraft.pdf</span>
+              <span class="file-meta">PDF &middot; 2.4 MB</span>
+            </span>
+          </div>
+
+          <svg class="folder-front" viewBox="0 0 442 288" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="frontGradient" x1="194" y1="86" x2="245" y2="283" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#A1A8BA" stop-opacity="0.55"/>
+                <stop offset="0.38" stop-color="#6B7284" stop-opacity="0.62"/>
+                <stop offset="1" stop-color="#171A20" stop-opacity="0.96"/>
+              </linearGradient>
+            </defs>
             <g class="folder-front-face">
               <path class="folder-fill-front front-line folder-line" d="M50.6 91.6H151.1C160.3 91.6 167.2 95.3 174.2 102.3L196 124.1C201.4 129.5 207.4 131.9 215.3 131.9H419.9C430 131.9 437.4 141.5 435.1 151.3L412.1 250.1C410.3 257.9 403.4 263.4 395.4 263.4H72.8C64.6 263.4 57.6 257.5 56.2 249.4L29.4 115.7C27.3 103.1 36.9 91.6 50.6 91.6Z"/>
+              <g class="lip">
+                <path class="lip-soft" d="M215.3 131.9H419.9" pathLength="1"/>
+                <path class="lip-core" d="M215.3 131.9H419.9" pathLength="1"/>
+              </g>
+              <text class="folder-name" x="78" y="244">Drafts</text>
+              <text class="folder-count" x="388" y="244" text-anchor="end">2 files</text>
             </g>
           </svg>
+
           <div class="shimmer-band"></div>
-        </div>
+          <div class="drop-burst"></div>
 
-        <div class="file-card">
-          <span class="file-icon"></span>
-          <span class="file-name">FinalDraft.pdf</span>
-        </div>
-
-        <div class="cursor">
-          <svg viewBox="0 0 35 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5.2 3.9C4.1 2.8 2.2 3.6 2.2 5.2V34.3C2.2 36 4.2 36.8 5.3 35.6L12.8 27.7L18.2 40.1C18.7 41.2 20 41.7 21.1 41.2L25 39.5C26.1 39 26.6 37.7 26.1 36.6L20.6 24.2H31.3C32.9 24.2 33.7 22.3 32.6 21.2L5.2 3.9Z" fill="#090A0D" stroke="white" stroke-width="3.8" stroke-linejoin="round"/>
-            <path d="M5.5 6.7V31.7L12.1 24.8C12.7 24.1 13.9 24.3 14.3 25.2L20.3 38.8L23.6 37.4L17.6 23.7C17.2 22.9 17.8 21.9 18.8 21.9H28.9L5.5 6.7Z" fill="#111217"/>
-          </svg>
+          <div class="cursor">
+            <svg viewBox="0 0 35 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M5.2 3.9C4.1 2.8 2.2 3.6 2.2 5.2V34.3C2.2 36 4.2 36.8 5.3 35.6L12.8 27.7L18.2 40.1C18.7 41.2 20 41.7 21.1 41.2L25 39.5C26.1 39 26.6 37.7 26.1 36.6L20.6 24.2H31.3C32.9 24.2 33.7 22.3 32.6 21.2L5.2 3.9Z" fill="#090A0D" stroke="white" stroke-width="3.8" stroke-linejoin="round"/>
+              <path d="M5.5 6.7V31.7L12.1 24.8C12.7 24.1 13.9 24.3 14.3 25.2L20.3 38.8L23.6 37.4L17.6 23.7C17.2 22.9 17.8 21.9 18.8 21.9H28.9L5.5 6.7Z" fill="#111217"/>
+            </svg>
+          </div>
         </div>
       </div>
 
       <div class="copy">
-        <h1>Upload a File</h1>
-        <p>Drop in your document in any format: DOCX, PDF, PPTX, XLSX, TXT, and more.</p>
+        <h1 id="upload-title">Upload a file</h1>
+        <p class="status"><span id="drop-status" role="status">Drag the file into the folder, or drop one of your own.</span><span class="pct" aria-hidden="true"></span></p>
       </div>
     </section>
   </main>
+
+<script>
+(() => {
+  'use strict';
+
+  const card = document.querySelector('.upload-card');
+  if (!card) return;
+
+  const $ = (selector) => card.querySelector(selector);
+  const stage = $('.folder-stage');
+  const wrap = $('.folder-wrap');
+  const chip = $('.file-card');
+  const chipName = $('.file-name');
+  const chipMeta = $('.file-meta');
+  const folderCount = $('.folder-count');
+  const freshSheet = $('.sheet-new');
+  const pct = $('.pct');
+  const status = document.getElementById('drop-status');
+  const lipPaths = Array.from(card.querySelectorAll('.lip path'));
+  const strokes = Array.from(card.querySelectorAll('.folder-line'));
+  const LAYERS = [
+    $('.cursor'), wrap, $('.folder-back-face'), $('.folder-front-face'),
+    $('.folder-halo'), $('.inner-glow'), $('.drop-burst'), $('.shimmer-band')
+  ];
+  const reduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  const canAnimate = typeof chip.animate === 'function';
+  const EASE = 'cubic-bezier(.2, .8, .2, 1)';
+  const CHIP_ENTER = { transform: 'translate(0px, -18px) rotate(2deg)', opacity: '0' };
+  const SAMPLE = { name: 'FinalDraft.pdf', size: 2516582 };
+  const COPY = {
+    idle: 'Drag the file into the folder, or drop one of your own.',
+    over: 'Release to add it.',
+    notFile: 'Only files fit in this folder.',
+    adding: (name) => 'Adding ' + name + '…',
+    added: (name, size) => name + ' added · ' + size
+  };
+
+  let hovering = false;
+  let focused = false;
+  let restText = COPY.idle;
+  let drag = null;
+  let suppressUntil = 0;
+  let leaveTimer = 0;
+  let timers = [];
+  let handoffs = [];
+  let progressFrame = 0;
+  let parallaxFrame = 0;
+  let pointerX = 0;
+  let pointerY = 0;
+  let held = parseInt(folderCount.textContent, 10) || 0;
+
+  const still = () => reduce.matches;
+  const mode = () => card.dataset.mode;
+  const restMode = () => (hovering || focused ? 'ready' : 'attract');
+  const setVar = (name, value) => card.style.setProperty(name, value);
+  const say = (text) => { if (status.textContent !== text) status.textContent = text; };
+  const later = (fn, ms) => { timers.push(setTimeout(fn, ms)); };
+  const clearLater = () => {
+    timers.forEach(clearTimeout);
+    timers = [];
+    cancelAnimationFrame(progressFrame);
+  };
+  const read = (el) => {
+    const cs = getComputedStyle(el);
+    return { transform: cs.transform, opacity: cs.opacity };
+  };
+
+  function formatSize(bytes) {
+    if (!(bytes > 0)) return '0 KB';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+    if (bytes < 1073741824) {
+      const mb = bytes / 1048576;
+      return (mb < 10 ? mb.toFixed(1) : String(Math.round(mb))) + ' MB';
+    }
+    return (bytes / 1073741824).toFixed(1) + ' GB';
+  }
+
+  function shorten(name) {
+    return name.length > 30 ? name.slice(0, 18) + '…' + name.slice(-9) : name;
+  }
+
+  // The chip shows what is actually travelling: name, type from the extension, size.
+  function showFile(file) {
+    const ext = file.count > 1 ? null : /\.([a-z0-9]{1,5})$/i.exec(file.name);
+    chipName.textContent = file.name;
+    chipMeta.textContent = (ext ? ext[1].toUpperCase() + ' · ' : '') + formatSize(file.size);
+  }
+
+  function resetChip() {
+    setVar('--dx', '0px');
+    setVar('--dy', '0px');
+    setVar('--rot', '0deg');
+  }
+
+  function toSample() {
+    showFile(SAMPLE);
+    resetChip();
+  }
+
+  /* Change mode. CSS owns every pose; this only hands the current pose over to the
+     next one, so a layer caught mid-loop glides instead of jumping. */
+  function apply(next, opts) {
+    const o = opts || {};
+    const prev = mode();
+    const prevDrag = card.dataset.drag || null;
+    const nextDrag = 'drag' in o ? o.drag : prevDrag;
+    if (prev === next && prevDrag === nextDrag && !o.mutate) return;
+
+    const smooth = canAnimate && !still() && next !== 'dropping';
+    const els = smooth ? LAYERS.concat(drag ? [] : [chip]) : [];
+    const from = els.map(read);
+    const fromStroke = smooth ? strokes.map((el) => getComputedStyle(el).stroke) : [];
+
+    handoffs.forEach((a) => a.cancel());
+    handoffs = [];
+    if (o.mutate) o.mutate();
+    card.dataset.mode = next;
+    if (nextDrag) card.dataset.drag = nextDrag;
+    else delete card.dataset.drag;
+    if (!smooth) return;
+
+    els.forEach((el, i) => {
+      const isChip = el === chip;
+      const entering = isChip && prev === 'done';
+      const a = entering ? CHIP_ENTER : from[i];
+      let b = read(el);
+      if (el === LAYERS[0]) b = { transform: a.transform, opacity: b.opacity };
+      if (a.transform === b.transform && a.opacity === b.opacity) return;
+      handoffs.push(el.animate([a, b], {
+        duration: isChip && o.chipMs ? o.chipMs : (entering ? 460 : 280),
+        easing: isChip && o.chipEase ? o.chipEase : EASE
+      }));
+    });
+
+    strokes.forEach((el, i) => {
+      const b = getComputedStyle(el).stroke;
+      if (b !== fromStroke[i]) {
+        handoffs.push(el.animate([{ stroke: fromStroke[i] }, { stroke: b }], { duration: 280, easing: EASE }));
+      }
+    });
+  }
+
+  /* ---------- The drop itself ---------- */
+
+  function setProgress(p) {
+    const offset = (1 - p).toFixed(4);
+    lipPaths.forEach((el) => { el.style.strokeDashoffset = offset; });
+    pct.textContent = Math.round(p * 100) + '%';
+  }
+
+  function progress(duration, done) {
+    if (!duration) {
+      setProgress(1);
+      later(done, 450);
+      return;
+    }
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      setProgress(t < 1 ? 1 - Math.pow(1 - t, 2.4) : 1);
+      if (t < 1) progressFrame = requestAnimationFrame(step);
+      else later(done, 180);
+    };
+    progressFrame = requestAnimationFrame(step);
+  }
+
+  function finish(file) {
+    const wasFilled = card.hasAttribute('data-filled');
+    restText = COPY.added(shorten(file.name), formatSize(file.size));
+    say(restText);
+    held += file.count || 1;
+    folderCount.textContent = held + (held === 1 ? ' file' : ' files');
+    apply('done');
+    card.setAttribute('data-filled', '');
+    if (wasFilled && canAnimate && !still()) {
+      freshSheet.animate(
+        [{ transform: 'translateY(-9px)', opacity: 0.5 }, { transform: 'none', opacity: 1 }],
+        { duration: 520, easing: 'cubic-bezier(.16, 1, .3, 1)' }
+      );
+    }
+    later(() => apply(restMode(), { mutate: toSample }), 2400);
+  }
+
+  // path 'receive': the file flies to the slot and falls in; 'sink': it is already in the pocket.
+  function drop(file, path, at) {
+    if (mode() === 'dropping') return;
+    clearLater();
+    if (path !== 'sink') {
+      let dx = 0;
+      let dy = 0;
+      if (at) {
+        const r = wrap.getBoundingClientRect();
+        dx = at.x - (r.left + chip.offsetLeft + chip.offsetWidth / 2);
+        dy = Math.min(0, at.y - (r.top + chip.offsetTop + chip.offsetHeight / 2));
+        dx = Math.max(-r.width * 0.62, Math.min(r.width * 0.3, dx));
+      }
+      setVar('--dx', dx.toFixed(1) + 'px');
+      setVar('--dy', dy.toFixed(1) + 'px');
+      setVar('--rot', '0deg');
+    }
+    showFile(file);
+    card.dataset.path = path;
+    lipPaths.forEach((el) => { el.style.strokeDashoffset = '1'; });
+    pct.textContent = '0%';
+    say(COPY.adding(shorten(file.name)));
+    apply('dropping', { drag: null });
+
+    const quick = still();
+    const duration = quick ? 0 : Math.min(2200, 650 + (file.size / 1048576) * 240);
+    later(() => progress(duration, () => finish(file)), quick ? 0 : (path === 'sink' ? 240 : 480));
+  }
+
+  function sampleDrop() {
+    if (mode() === 'dropping' || drag) return;
+    clearLater();
+    apply('over', { drag: null, mutate: toSample });
+    later(() => drop(SAMPLE, 'receive'), still() ? 0 : 200);
+  }
+
+  /* ---------- Pointer: presence, parallax, click ---------- */
+
+  function resetParallax() {
+    cancelAnimationFrame(parallaxFrame);
+    parallaxFrame = 0;
+    setVar('--px', '0');
+    setVar('--py', '0');
+  }
+
+  card.addEventListener('pointerenter', () => {
+    hovering = true;
+    if (mode() === 'attract') apply('ready');
+  });
+
+  card.addEventListener('pointerleave', () => {
+    hovering = false;
+    resetParallax();
+    if (!drag && !card.dataset.drag && mode() === 'ready') apply(restMode());
+  });
+
+  card.addEventListener('pointermove', (e) => {
+    if (drag || still() || e.pointerType === 'touch') return;
+    const r = card.getBoundingClientRect();
+    pointerX = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2));
+    pointerY = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - 0.5) * 2));
+    if (!parallaxFrame) {
+      parallaxFrame = requestAnimationFrame(() => {
+        parallaxFrame = 0;
+        setVar('--px', pointerX.toFixed(3));
+        setVar('--py', pointerY.toFixed(3));
+      });
+    }
+  });
+
+  stage.addEventListener('focus', () => {
+    try { focused = stage.matches(':focus-visible'); } catch (err) { focused = true; }
+    if (focused && mode() === 'attract') apply('ready');
+  });
+
+  stage.addEventListener('blur', () => {
+    focused = false;
+    if (!drag && !hovering && mode() === 'ready') apply('attract');
+  });
+
+  stage.addEventListener('click', () => {
+    if (performance.now() < suppressUntil) return;
+    sampleDrop();
+  });
+
+  stage.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    e.preventDefault();
+    if (!e.repeat) sampleDrop();
+  });
+
+  /* ---------- Drag the sample file into the folder ---------- */
+
+  function inPocket(dx, dy) {
+    const u = wrap.clientWidth / 442;
+    if (!u) return false;
+    const x = (chip.offsetLeft + chip.offsetWidth / 2 + dx) / u;
+    const y = (chip.offsetTop + chip.offsetHeight / 2 + dy) / u;
+    return x > 60 && x < 432 && y > 100 && y < 262;
+  }
+
+  function tilt() {
+    if (!drag) return;
+    drag.target *= 0.82;
+    drag.rot += (drag.target - drag.rot) * 0.22;
+    setVar('--rot', drag.rot.toFixed(2) + 'deg');
+    drag.frame = requestAnimationFrame(tilt);
+  }
+
+  chip.addEventListener('pointerdown', (e) => {
+    if (mode() !== 'ready' || drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault();
+    resetParallax();
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, lastX: e.clientX, rot: 0, target: 0, frame: 0, moved: false, inside: false };
+    try { chip.setPointerCapture(e.pointerId); } catch (err) { /* capture is a nicety */ }
+    apply('ready', { drag: 'chip' });
+  });
+
+  chip.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < 4) return;
+      drag.moved = true;
+      if (!still()) drag.frame = requestAnimationFrame(tilt);
+    }
+    drag.target = Math.max(-7, Math.min(7, (e.clientX - drag.lastX) * 0.7));
+    drag.lastX = e.clientX;
+    setVar('--dx', dx.toFixed(1) + 'px');
+    setVar('--dy', dy.toFixed(1) + 'px');
+    const inside = inPocket(dx, dy);
+    if (inside !== drag.inside) {
+      drag.inside = inside;
+      apply(inside ? 'over' : 'ready', { drag: 'chip' });
+      say(inside ? COPY.over : restText);
+    }
+  });
+
+  function endDrag(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    cancelAnimationFrame(d.frame);
+    try { chip.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+    if (!d.moved) {
+      apply('ready', { drag: null });
+      return; // the click that follows adds the sample
+    }
+    suppressUntil = performance.now() + 400;
+    if (e.type === 'pointerup' && d.inside) {
+      drop(SAMPLE, 'sink');
+      return;
+    }
+    say(restText);
+    apply(hovering || focused ? 'ready' : 'attract', {
+      drag: null,
+      mutate: resetChip,
+      chipMs: 460,
+      chipEase: 'cubic-bezier(.3, 1.35, .5, 1)'
+    });
+  }
+
+  chip.addEventListener('pointerup', endDrag);
+  chip.addEventListener('pointercancel', endDrag);
+
+  /* ---------- Drop a real file from the desktop. Only its name and size are read. ---------- */
+
+  const hasFiles = (e) => {
+    const types = e.dataTransfer && e.dataTransfer.types;
+    if (!types) return false;
+    for (let i = 0; i < types.length; i += 1) if (types[i] === 'Files') return true;
+    return false;
+  };
+
+  const overCard = (e) => {
+    const r = card.getBoundingClientRect();
+    return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  };
+
+  function leaveOs() {
+    clearTimeout(leaveTimer);
+    if (card.dataset.drag !== 'os') return;
+    say(restText);
+    apply(restMode(), { drag: null, mutate: toSample });
+  }
+
+  // Cancel everywhere so a file dropped beside the card never opens in the frame.
+  window.addEventListener('dragenter', (e) => e.preventDefault());
+
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    clearTimeout(leaveTimer);
+    const inside = overCard(e);
+    const files = hasFiles(e);
+    if (e.dataTransfer) e.dataTransfer.dropEffect = inside && files ? 'copy' : 'none';
+    if (mode() === 'dropping' || drag) return;
+    if (!inside) {
+      leaveOs();
+      return;
+    }
+    clearLater();
+    apply(files ? 'over' : 'ready', { drag: 'os' });
+    say(files ? COPY.over : COPY.notFile);
+  });
+
+  window.addEventListener('dragleave', () => {
+    if (card.dataset.drag !== 'os') return;
+    clearTimeout(leaveTimer);
+    leaveTimer = setTimeout(leaveOs, 120);
+  });
+
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    clearTimeout(leaveTimer);
+    if (mode() === 'dropping' || drag) return;
+    const inside = overCard(e);
+    const list = e.dataTransfer && e.dataTransfer.files;
+    if (!inside || !list || !list.length) {
+      leaveOs();
+      if (inside) {
+        say(COPY.notFile);
+        later(() => say(restText), 2200);
+      }
+      return;
+    }
+    let size = 0;
+    for (let i = 0; i < list.length; i += 1) size += list[i].size || 0;
+    const name = list.length > 1 ? list.length + ' files' : (list[0].name || 'Untitled');
+    drop({ name, size, count: list.length }, 'receive', { x: e.clientX, y: e.clientY });
+  });
+})();
+</script>
 </body>
 </html>

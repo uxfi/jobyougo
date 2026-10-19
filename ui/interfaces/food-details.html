@@ -20,7 +20,7 @@
   --card-soft: #f4f4f1;
   --card-warm: #f6f0d3;
   --text: #141414;
-  --muted: rgba(20,20,20,.58);
+  --muted: rgba(20,20,20,.64);
   --line: rgba(20,20,20,.08);
   --orange: #f27845;
   --orange-soft: #f7d1c2;
@@ -68,6 +68,10 @@ body {
 button {
   font-family: inherit;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 :focus-visible {
@@ -266,7 +270,8 @@ button {
   font-size: clamp(22px, 5.7vw, 29px);
   font-weight: 600;
   letter-spacing: -.04em;
-  text-shadow: 0 8px 26px rgba(0,0,0,.24);
+  /* tight layer keeps the white edge legible where the title crosses the bottom bun */
+  text-shadow: 0 1px 2px rgba(26,14,6,.5), 0 8px 26px rgba(0,0,0,.3);
   max-width: 220px;
   line-height: .98;
 }
@@ -361,14 +366,14 @@ button {
 .energy-ring {
   position: relative;
   flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
+  width: 66px;
+  height: 66px;
 }
 
 .energy-ring svg {
   display: block;
-  width: 56px;
-  height: 56px;
+  width: 100%;
+  height: 100%;
 }
 
 .ring-track {
@@ -388,6 +393,12 @@ button {
 .arc-fat { stroke: var(--blue); }
 .arc-protein { stroke: var(--green); }
 
+/* The macro cards are the ring's legend: pointing at one lifts its arc */
+.energy-ring[data-active] .ring-arc { opacity: .22; }
+.energy-ring[data-active="carbs"] .arc-carbs,
+.energy-ring[data-active="fat"] .arc-fat,
+.energy-ring[data-active="protein"] .arc-protein { opacity: 1; stroke-width: 8; }
+
 .ring-center {
   position: absolute;
   inset: 0;
@@ -401,7 +412,7 @@ button {
 
 .ring-center strong {
   font-family: var(--font-bricolage, 'Inter', sans-serif);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -.03em;
   font-variant-numeric: tabular-nums;
@@ -409,7 +420,7 @@ button {
 
 .ring-center span {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--muted);
 }
 
@@ -425,6 +436,12 @@ button {
   background: var(--card-soft);
   border-radius: 22px;
   padding: 14px 14px 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.macro-card.is-linked {
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px var(--tone), 0 10px 20px rgba(20,20,20,.06);
 }
 
 .macro-title {
@@ -492,6 +509,11 @@ button {
 .macro-card.is-over .macro-value,
 .macro-card.is-over .macro-target {
   color: var(--orange-deep);
+}
+
+/* Past the daily target the fill stops at the track end, so the knob carries the warning */
+.macro-card.is-over .mini-meter .fill::after {
+  background: var(--orange-deep);
 }
 
 /* Score */
@@ -718,9 +740,19 @@ button {
   stroke-linejoin: round;
 }
 
+/* Hover only where a pointer can hover; touch keeps the press states */
+@media (hover: hover) {
+  .step-btn:not([aria-disabled="true"]):hover { background: #fff; border-color: rgba(20,20,20,.18); }
+  .score-info:hover { background: var(--card-soft); color: var(--text); }
+  .btn-secondary:hover { border-color: rgba(20,20,20,.18); }
+  .btn-primary:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 18px 30px rgba(0,0,0,.2); }
+  .nav-btn:hover { background: #fff; }
+}
+
 /* Motion: everything below is opt-in; the default CSS above is the final frame */
 @media (prefers-reduced-motion: no-preference) {
   html.js:not(.is-ready) .splash,
+  html.js:not(.is-ready) .floor-glow,
   html.js:not(.is-ready) .food-shot,
   html.js:not(.is-ready) .food-name,
   html.js:not(.is-ready) .kcal-pill,
@@ -728,6 +760,8 @@ button {
 
   html.is-ready .splash { animation: splash-in 600ms var(--ease) both; }
   html.is-ready .food-shot { animation: shot-in 700ms var(--ease) 80ms both; }
+  /* the glow under the burger spreads as it lands, instead of glowing alone before it arrives */
+  html.is-ready .floor-glow { animation: glow-in 700ms var(--ease) 160ms both; }
   html.is-ready .sheet { animation: rise 500ms var(--ease) 200ms both; }
   html.is-ready .food-name { animation: rise 400ms var(--ease) 260ms both; }
   html.is-ready .kcal-pill { animation: rise 400ms var(--ease) 340ms both; }
@@ -738,9 +772,14 @@ button {
   html.is-ready .macro-card:nth-child(1) .fill { animation: grow 700ms var(--ease) 480ms backwards; }
   html.is-ready .macro-card:nth-child(2) .fill { animation: grow 700ms var(--ease) 550ms backwards; }
   html.is-ready .macro-card:nth-child(3) .fill { animation: grow 700ms var(--ease) 620ms backwards; }
-  html.is-ready .score-value { animation: rise 400ms var(--ease) 620ms both; }
-  html.is-ready .score-fill { animation: sweep 900ms var(--ease) 620ms backwards; }
-  html.is-ready .score-dot { animation: dot-in 300ms var(--ease) 1300ms backwards; }
+  /* The score sits below the fold in the phone frame: its beat waits until the block is on screen
+     (JS adds .is-in; --score-delay keeps the 620 ms slot when it is already visible at load) */
+  html.js .score-block:not(.is-in) .score-value,
+  html.js .score-block:not(.is-in) .score-dot { opacity: 0; }
+  html.js .score-block:not(.is-in) .score-fill { transform: scaleX(0); }
+  .score-block.is-in .score-value { animation: rise 400ms var(--ease) var(--score-delay, 0ms) both; }
+  .score-block.is-in .score-fill { animation: sweep 900ms var(--ease) var(--score-delay, 0ms) backwards; }
+  .score-block.is-in .score-dot { animation: dot-in 300ms var(--ease) calc(var(--score-delay, 0ms) + 680ms) backwards; }
 
   .mini-meter .fill { transition: width 450ms var(--ease); }
   .macro-value, .macro-target { transition: color 200ms ease; }
@@ -750,8 +789,11 @@ button {
   .btn { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
   .btn .ico { transition: color 160ms ease; }
   .btn .ico.pop { animation: pop 220ms var(--ease); }
-  .step-btn { transition: transform 120ms ease, opacity 160ms ease; }
+  .step-btn { transition: transform 120ms ease, opacity 160ms ease, background-color 160ms ease, border-color 160ms ease; }
+  .ring-arc { transition: opacity 180ms ease, stroke-width 180ms var(--ease); }
+  .macro-card { transition: background-color 180ms ease, box-shadow 180ms ease; }
   .step-btn:not([aria-disabled="true"]):active { transform: scale(.94); }
+  .nav-btn { transition: transform 120ms ease, background-color 160ms ease; }
   .nav-btn:active { transform: scale(.96); }
 
   @keyframes splash-in {
@@ -759,6 +801,9 @@ button {
   }
   @keyframes shot-in {
     from { opacity: 0; transform: translateY(28px) rotate(-9deg); }
+  }
+  @keyframes glow-in {
+    from { opacity: 0; transform: translateX(-50%) scaleX(.55); }
   }
   @keyframes rise {
     from { opacity: 0; transform: translateY(16px); }
@@ -868,16 +913,21 @@ button {
     font-size: 13px;
   }
 
+  .energy-ring {
+    width: 62px;
+    height: 62px;
+  }
+
+  .ring-center strong {
+    font-size: 14px;
+  }
+
   .score-value {
     font-size: 13px;
   }
 
   .score-value strong {
     font-size: 20px;
-  }
-
-  .macro-grid {
-    gap: 10px;
   }
 
   .macro-card {
@@ -989,7 +1039,7 @@ button {
       <div class="splash"></div>
       <div class="floor-glow"></div>
       <div class="food-shot">
-        <img src="../assets/burger-cutout.png" alt="BlackLabel Burger" width="792" height="832" decoding="async" fetchpriority="high">
+        <img src="../assets/burger-cutout.png" alt="Beef patty with cheddar, bacon, tomato, pickles, red onion and lettuce in a sesame bun" width="792" height="832" decoding="async" fetchpriority="high">
       </div>
 
       <div class="food-meta">
@@ -1025,12 +1075,12 @@ button {
             <circle class="ring-arc arc-protein" cx="28" cy="28" r="22" pathLength="100" style="--seg:19;--off:80"/>
           </g>
         </svg>
-        <div class="ring-center"><strong id="ringKcal">650</strong><span>kcal</span></div>
+        <div class="ring-center" aria-hidden="true"><strong id="ringNum">650</strong><span id="ringUnit">kcal</span></div>
       </div>
     </div>
 
     <div class="macro-grid" id="macroGrid">
-      <article class="macro-card" data-grams="48" data-target="120">
+      <article class="macro-card" data-macro="carbs" data-share="30" data-grams="48" data-target="120" style="--tone:var(--orange)">
         <div class="macro-title">Carbs</div>
         <div class="macro-value"><span class="num">48</span><span class="unit">g</span></div>
         <div class="mini-meter" aria-hidden="true" style="--fill:40%;--accent:var(--orange);--track-fill:linear-gradient(90deg,#f26d3c 0%, #f6a37f 100%);--track-bg:linear-gradient(90deg,#f8a884 0%, #f4d0c1 100%);">
@@ -1039,7 +1089,7 @@ button {
         <div class="macro-target">of 120 g</div>
       </article>
 
-      <article class="macro-card" data-grams="36" data-target="60">
+      <article class="macro-card" data-macro="fat" data-share="50" data-grams="36" data-target="60" style="--tone:var(--blue)">
         <div class="macro-title">Fat</div>
         <div class="macro-value"><span class="num">36</span><span class="unit">g</span></div>
         <div class="mini-meter" aria-hidden="true" style="--fill:60%;--accent:var(--blue);--track-fill:linear-gradient(90deg,#4d97eb 0%, #8bc0ff 100%);--track-bg:linear-gradient(90deg,#98c8ff 0%, #d9ecff 100%);">
@@ -1048,7 +1098,7 @@ button {
         <div class="macro-target">of 60 g</div>
       </article>
 
-      <article class="macro-card" data-grams="32" data-target="60">
+      <article class="macro-card" data-macro="protein" data-share="20" data-grams="32" data-target="60" style="--tone:var(--green)">
         <div class="macro-title">Protein</div>
         <div class="macro-value"><span class="num">32</span><span class="unit">g</span></div>
         <div class="mini-meter" aria-hidden="true" style="--fill:53%;--accent:var(--green);--track-fill:linear-gradient(90deg,#7ea746 0%, #b8d88a 100%);--track-bg:linear-gradient(90deg,#b2d27c 0%, #dff0c6 100%);">
@@ -1127,13 +1177,18 @@ button {
   var KCAL = 650;
   var SCORE = 8.2;
   var kcalNum = document.getElementById('kcalNum');
-  var ringKcal = document.getElementById('ringKcal');
+  var ringNum = document.getElementById('ringNum');
+  var ringUnit = document.getElementById('ringUnit');
   var ring = document.getElementById('energyRing');
   var scoreNum = document.getElementById('scoreNum');
+  var scoreBlock = document.getElementById('scoreBlock');
   var cards = Array.prototype.slice.call(document.querySelectorAll('#macroGrid .macro-card'));
   var macros = cards.map(function (card) {
     return {
       card: card,
+      key: card.getAttribute('data-macro'),
+      name: card.querySelector('.macro-title').textContent,
+      share: Number(card.getAttribute('data-share')),
       num: card.querySelector('.num'),
       meter: card.querySelector('.mini-meter'),
       target: card.querySelector('.macro-target'),
@@ -1143,6 +1198,12 @@ button {
     };
   });
   var shown = { kcal: KCAL, ring: KCAL, score: SCORE };
+  var linked = null; /* macro whose share the ring centre is showing, null = total kcal */
+
+  function writeRing(v) {
+    shown.ring = v;
+    if (!linked) ringNum.textContent = Math.round(v);
+  }
 
   /* Ease-out tween on rAF; a newer tween on the same key cancels the older one; jumps straight to the end under reduced motion */
   var seq = {};
@@ -1162,26 +1223,46 @@ button {
     requestAnimationFrame(frame);
   }
 
+  /* Score beat: plays once, when the block is on screen; keeps its 620 ms slot if that is at load */
+  var entranceAt = 0;
+  var scorePlayed = false;
+  function playScore() {
+    if (scorePlayed) return;
+    scorePlayed = true;
+    var delay = reduce ? 0 : Math.round(Math.max(0, 620 - (performance.now() - entranceAt)));
+    scoreBlock.style.setProperty('--score-delay', delay + 'ms');
+    scoreBlock.classList.add('is-in');
+    tween('score', 0, SCORE, 900, delay, function (v) { scoreNum.textContent = v.toFixed(1); shown.score = v; });
+  }
+  function watchScore() {
+    if (!('IntersectionObserver' in window)) { playScore(); return; }
+    var io = new IntersectionObserver(function (entries) {
+      if (entries.some(function (e) { return e.isIntersecting; })) { io.disconnect(); playScore(); }
+    }, { threshold: 0.9 });
+    io.observe(scoreBlock);
+  }
+
   /* Entrance: runs once, after the burger is decoded (or 900 ms, whichever first) and once the frame is on screen */
   function startEntrance() {
     if (root.classList.contains('is-ready')) return;
     if (!reduce) {
       kcalNum.textContent = '0';
-      ringKcal.textContent = '0';
+      writeRing(0);
       scoreNum.textContent = '0.0';
-      shown.kcal = shown.ring = shown.score = 0;
+      shown.kcal = shown.score = 0;
       macros.forEach(function (m) { m.num.textContent = '0'; m.shown = 0; });
     }
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         root.classList.add('is-ready');
+        entranceAt = performance.now();
         var kcal = Math.round(KCAL * servings);
         tween('kcal', 0, kcal, 700, 340, function (v) { kcalNum.textContent = Math.round(v); shown.kcal = v; });
-        tween('ring', 0, kcal, 700, 480, function (v) { ringKcal.textContent = Math.round(v); shown.ring = v; });
+        tween('ring', 0, kcal, 700, 480, writeRing);
         macros.forEach(function (m, i) {
           tween('m' + i, 0, m.grams * servings, 700, 480 + i * 70, function (v) { m.num.textContent = Math.round(v); m.shown = v; });
         });
-        tween('score', 0, SCORE, 900, 620, function (v) { scoreNum.textContent = v.toFixed(1); shown.score = v; });
+        watchScore();
       });
     });
   }
@@ -1220,7 +1301,7 @@ button {
 
     var kcal = Math.round(KCAL * n);
     tween('kcal', shown.kcal, kcal, 450, 0, function (v) { kcalNum.textContent = Math.round(v); shown.kcal = v; });
-    tween('ring', shown.ring, kcal, 450, 0, function (v) { ringKcal.textContent = Math.round(v); shown.ring = v; });
+    tween('ring', shown.ring, kcal, 450, 0, writeRing);
     ring.setAttribute('aria-label', 'Energy split: 30% from carbs, 50% from fat, 20% from protein. ' + kcal + ' kcal.');
 
     macros.forEach(function (m, i) {
@@ -1230,9 +1311,45 @@ button {
       m.meter.style.setProperty('--fill', Math.min(pct, 100).toFixed(1) + '%');
       m.card.classList.toggle('is-over', over);
       m.target.textContent = (over ? 'over ' : 'of ') + m.limit + ' g';
+      m.card.setAttribute('aria-label', m.name + ': ' + grams + ' g' + (over ? ', over the ' : ' of the ') + m.limit + ' g daily target, ' + m.share + '% of the energy');
       tween('m' + i, m.shown, grams, 450, i * 40, function (v) { m.num.textContent = Math.round(v); m.shown = v; });
     });
   }
+
+  /* Ring legend: hovering (mouse) or focusing (keyboard, tap) a macro card lifts its arc
+     and reads its energy share in the ring centre; leaving returns to the total */
+  var hoverKey = null;
+  var focusKey = null;
+  function syncLink() {
+    var key = hoverKey || focusKey;
+    if (key === linked) return;
+    linked = key;
+    if (key) ring.setAttribute('data-active', key); else ring.removeAttribute('data-active');
+    macros.forEach(function (m) {
+      m.card.classList.toggle('is-linked', m.key === key);
+      if (m.key === key) {
+        ringNum.textContent = m.share + '%';
+        ringUnit.textContent = m.name.toLowerCase();
+      }
+    });
+    if (!key) {
+      ringNum.textContent = Math.round(shown.ring);
+      ringUnit.textContent = 'kcal';
+    }
+  }
+  macros.forEach(function (m) {
+    m.card.tabIndex = 0;
+    m.card.addEventListener('pointerenter', function (e) {
+      if (e.pointerType === 'mouse') { hoverKey = m.key; syncLink(); }
+    });
+    m.card.addEventListener('pointerleave', function (e) {
+      if (e.pointerType === 'mouse' && hoverKey === m.key) { hoverKey = null; syncLink(); }
+    });
+    m.card.addEventListener('focus', function () { focusKey = m.key; syncLink(); });
+    m.card.addEventListener('blur', function () {
+      if (focusKey === m.key) { focusKey = null; syncLink(); }
+    });
+  });
 
   function step(dir) {
     var i = STEPS.indexOf(servings) + dir;
@@ -1246,7 +1363,6 @@ button {
   /* Score disclosure */
   var info = document.getElementById('scoreInfo');
   var note = document.getElementById('scoreNote');
-  var block = document.getElementById('scoreBlock');
   function setNote(open) {
     info.setAttribute('aria-expanded', open ? 'true' : 'false');
     note.classList.toggle('is-open', open);
@@ -1254,7 +1370,7 @@ button {
   info.addEventListener('click', function () {
     setNote(info.getAttribute('aria-expanded') !== 'true');
   });
-  block.addEventListener('keydown', function (e) {
+  scoreBlock.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && info.getAttribute('aria-expanded') === 'true') {
       setNote(false);
       info.focus();

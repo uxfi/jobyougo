@@ -58,7 +58,7 @@
   }
 
   :focus-visible {
-    outline: 1px solid var(--mark);
+    outline: 2px solid var(--mark);
     outline-offset: 2px;
   }
 
@@ -210,7 +210,7 @@
     background: var(--surface);
   }
 
-  .sidebar-footer strong { display: block; color: #fff; font-size: 13px; margin-bottom: 4px; }
+  .sidebar-footer strong { display: block; color: var(--ink); font-size: 13px; margin-bottom: 4px; }
   .sidebar-footer span { display: block; color: var(--inverse-muted); font-size: 12px; line-height: 1.45; }
 
   .app-shell.sidebar-collapsed .sidebar { padding-left: 12px; padding-right: 12px; }
@@ -308,7 +308,9 @@
     font-weight: 600;
   }
 
-  .command-option:hover { color: var(--ink); background: var(--surface-soft); }
+  .command-option:hover,
+  .command-option:focus-visible { color: var(--ink); background: var(--surface-soft); }
+  .command-option:focus-visible { outline-offset: -2px; }
   .command-option .icon { color: var(--mark); }
 
   .search-dot {
@@ -399,18 +401,24 @@
     100% { box-shadow: 0 0 0 0 rgba(231, 236, 228, 0); }
   }
 
+  /* Closed menu is also invisible to Tab, not just transparent. */
   .command-menu {
     opacity: 0;
+    visibility: hidden;
     transform: translateY(8px) scale(.98);
     pointer-events: none;
-    transition: opacity .22s var(--ease), transform .22s var(--ease);
+    transition: opacity .22s var(--ease), transform .22s var(--ease), visibility 0s linear .22s;
   }
 
   .command-wrap.is-open .command-menu {
     opacity: 1;
+    visibility: visible;
     transform: none;
     pointer-events: auto;
+    transition-delay: 0s;
   }
+
+  .command-option:focus-visible { color: var(--ink); background: var(--surface-soft); outline-offset: -1px; }
 
   .rise {
     opacity: 0;
@@ -434,17 +442,6 @@
   .rise.is-in .pop {
     animation: rise-in .46s var(--ease) both;
     animation-delay: calc(var(--i, 0) * 60ms);
-  }
-
-  /* Hero beat: orb + title first, the composition draws, bars rise, the CTA lands last. */
-  .heading-actions {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  .rise.is-in .heading-actions {
-    animation: rise-in .46s var(--ease) both;
-    animation-delay: 260ms;
   }
 
   .pop.settled {
@@ -490,7 +487,11 @@
     width: 64px;
     height: 64px;
     margin-top: 22px;
+    color: var(--mark);
   }
+
+  /* Static stand-in for the agent orb; the effects bundle replaces it when it loads. */
+  .orb-fallback { display: block; width: 64px; height: 64px; }
 
   .title-lockup > .eyebrow,
   .title-copy { grid-column: 2; }
@@ -506,7 +507,7 @@
   }
 
   h1, h2, h3, p { margin: 0; }
-  h1, .briefing-copy h2, .section-title, .proposal h2, .opportunity-card h3, .metric-value, .impact, .week-col b, .recovery-total, .recovery-legend b, .recovery-day strong, .queue-status b {
+  h1, .briefing-copy h2, .section-title, .proposal-title, .opportunity-card h3, .metric-value, .impact, .week-col b, .recovery-total, .recovery-legend b, .recovery-day strong, .queue-status b {
     font-family: var(--display);
     font-weight: 400;
     letter-spacing: -0.02em;
@@ -519,12 +520,20 @@
     line-height: 1.02;
   }
 
+  /* Hero beat: orb + title rise first, the composition draws, bars rise, the CTA lands last. */
   .heading-actions {
     display: flex;
     gap: 22px;
     align-items: center;
     flex-wrap: wrap;
     margin-top: 22px;
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  .rise.is-in .heading-actions {
+    animation: rise-in .46s var(--ease) both;
+    animation-delay: 420ms;
   }
 
   .cta {
@@ -639,10 +648,7 @@
   }
 
   .briefing-copy,
-  .facts,
   .week { grid-column: 1; }
-
-  .facts { margin-top: 0; }
 
   .briefing-copy h2 {
     position: relative;
@@ -668,36 +674,6 @@
     border: 0;
     transform: rotate(45deg);
   }
-
-  .facts {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 16px;
-  }
-
-  .fact {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    column-gap: 10px;
-    align-items: center;
-    min-width: 0;
-    padding: 12px;
-    border: 0;
-    border-radius: 14px;
-    background: var(--surface);
-  }
-
-  .fact .glyph { grid-row: 1 / span 2; }
-  .fact b {
-    font-family: var(--display);
-    font-size: 26px;
-    font-weight: 400;
-    line-height: 1;
-    letter-spacing: -0.02em;
-  }
-  .fact span { color: var(--slate); font-size: 12px; line-height: 1.3; }
 
   .week {
     display: flex;
@@ -790,11 +766,12 @@
   .week-col.is-on i { box-shadow: 0 0 0 1px rgba(231, 236, 228, .7); }
 
   .week-col.is-peak i { background: linear-gradient(180deg, #ffffff, #d5dbd2 46%, #8d968c); }
+  .week .chart-caption b { color: var(--ink); font-weight: 500; }
 
   /* Where the $4,820 comes from: the three opportunity impacts sum to the headline. */
   .briefing-list {
     grid-column: 2;
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 2;
     align-self: stretch;
     display: flex;
     flex-direction: column;
@@ -806,7 +783,7 @@
 
   .recovery-total {
     display: block;
-    font-size: 48px;
+    font-size: 40px;
     line-height: .9;
     color: var(--ink);
   }
@@ -823,6 +800,10 @@
     gap: 3px;
     height: 14px;
   }
+
+  /* Segments are 14px tall; the pseudo-element grows the pointer target to 30px without growing the bar. */
+  .recovery-bar .seg { position: relative; }
+  .recovery-bar .seg::after { content: ""; position: absolute; inset: -8px 0; }
 
   .recovery-bar .seg {
     flex: var(--f) 1 0px;
@@ -843,6 +824,8 @@
   .recovery-bar .seg.is-dim { opacity: .4; }
   .recovery-bar .seg:hover,
   .recovery-bar .seg:focus-visible { opacity: 1; filter: brightness(1.15); }
+  /* A dismissed opportunity keeps its share of the bar, drawn hollow. */
+  .recovery-bar .seg.is-out { background: transparent; box-shadow: inset 0 0 0 1px var(--seg); }
 
   .recovery-legend {
     display: grid;
@@ -871,6 +854,9 @@
 
   .recovery-legend b { font-size: 18px; line-height: 1; color: var(--ink); }
   .recovery-legend li.is-live span { color: var(--ink); }
+  .recovery-legend i { transition: opacity 180ms ease; }
+  .recovery-legend li.is-dim i { opacity: .35; }
+  .recovery-legend em { font-style: normal; color: var(--slate); }
 
   .recovery-day {
     display: grid;
@@ -927,6 +913,33 @@
     font-size: 36px;
     line-height: 1;
   }
+
+  /* A count that changes drops in from above, so the eye catches which number moved. */
+  .count-in { animation: count-in .32s var(--ease) both; }
+
+  @keyframes count-in {
+    from { opacity: .15; transform: translateY(-7px); }
+  }
+
+  /* One pip per pending action: amber waits, ink is approved, hollow was dismissed. */
+  .queue-pips {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    margin-top: 14px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .queue-pips li {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--amber);
+    transition: background 220ms ease, box-shadow 220ms ease;
+  }
+
+  .queue-pips li.is-approved { background: var(--mark); }
+  .queue-pips li.is-dismissed { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); }
 
   .metric-copy {
     margin-top: 8px;
@@ -991,7 +1004,6 @@
 
   .metric-card .mini-badge { margin-top: 12px; }
 
-  .mini-badge.amber,
   .confidence.is-medium,
   .status-text.is-hold {
     color: #ffe3bc;
@@ -1090,11 +1102,13 @@
 
   .opportunity-card:hover { transform: translateY(-4px); }
 
-  .opportunity-card.is-hint { box-shadow: inset 0 0 0 1px var(--line); }
+  .opportunity-card.is-hint { box-shadow: inset 0 0 0 1px var(--line-strong); }
   .opportunity-card.is-selected {
     background: #1e2420;
     box-shadow: inset 0 0 0 1px var(--line-strong);
   }
+
+  .opportunity-card.is-selected.is-hint { box-shadow: inset 0 0 0 1px var(--mark); }
 
   .opportunity-top {
     display: flex;
@@ -1122,7 +1136,13 @@
     font-size: 12px;
   }
 
+  .opp-footer .is-done { color: var(--ink); }
+
   .agent-note {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
     padding: 16px 18px;
     border: 0;
     border-radius: 16px;
@@ -1131,6 +1151,7 @@
 
   .agent-note strong { display: block; margin-bottom: 6px; font-size: 13px; }
   .agent-note p { color: var(--slate); }
+  .agent-note .say-next { color: var(--ink); }
 
   .segment-graphics {
     display: grid;
@@ -1148,45 +1169,18 @@
   .line-graph .gridline { stroke: rgba(232,236,230,0.12); stroke-width: 1; }
   .line-graph .series-a { stroke: var(--mark); stroke-width: 2; fill: none; stroke-linecap: square; stroke-linejoin: miter; }
   .line-graph .series-b { stroke: #6e7870; stroke-width: 2; fill: none; stroke-linecap: square; stroke-linejoin: miter; }
+  .line-graph .gap-mark { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+  .line-graph .end-dot { fill: var(--mark); }
+  .line-graph .end-dot.is-b { fill: #6e7870; }
+  .line-graph text { fill: var(--ink); font-family: var(--display); font-size: 17px; }
+  .line-graph .end-dot,
+  .line-graph text,
+  .line-graph .gap-mark { opacity: 0; transition: opacity .3s ease .8s; }
+  .line-graph.draw.is-in .end-dot,
+  .line-graph.draw.is-in text,
+  .line-graph.draw.is-in .gap-mark { opacity: 1; }
 
-  .donut-card {
-    min-height: 164px;
-    padding: 16px;
-    display: grid;
-    grid-template-columns: 92px minmax(0, 1fr);
-    gap: 14px;
-    align-items: center;
-  }
-
-  .donut-svg {
-    width: 92px;
-    height: 92px;
-    display: block;
-  }
-
-  .donut-svg .seg {
-    fill: none;
-    stroke-width: 10;
-    stroke-dasharray: 0 1;
-    transition: stroke-dasharray .8s var(--ease);
-  }
-
-  .donut-svg .seg-a { stroke: var(--mark); }
-  .donut-svg .seg-b { stroke: #6e7870; stroke-dashoffset: -0.573; }
-  .donut-svg .seg-c { stroke: var(--amber); stroke-dashoffset: -0.86; transition-delay: 80ms; }
-
-  .donut-card.is-in .seg-a { stroke-dasharray: 0.573 1; }
-  .donut-card.is-in .seg-b { stroke-dasharray: 0.287 1; }
-  .donut-card.is-in .seg-c { stroke-dasharray: 0.14 1; }
-
-  .donut-svg text {
-    fill: var(--ink);
-    font-family: var(--mono);
-    font-size: 18px;
-    font-weight: 500;
-  }
-
-  .legend { display: grid; gap: 8px; color: var(--slate); font-size: 12px; }
+  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: var(--slate); font-size: 12px; }
   .legend span { display: flex; align-items: center; gap: 7px; }
   .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
@@ -1195,7 +1189,6 @@
     top: 92px;
     height: fit-content;
     padding: 20px;
-    box-shadow: var(--shadow);
   }
 
   .activity-header {
@@ -1206,59 +1199,109 @@
     margin-bottom: 18px;
   }
 
-  .activity-list { display: grid; gap: 14px; }
+  /* What the agent did, in order: a time column, a hairline rail, one dot per step. */
+  .activity-list {
+    position: relative;
+    display: grid;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .activity-list::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 51px;
+    width: 1px;
+    background: var(--line);
+  }
 
   .activity-row {
     display: grid;
-    grid-template-columns: 72px minmax(0, 1fr);
-    gap: 10px;
-    align-items: center;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: start;
   }
 
-  .activity-num { font-size: 26px; line-height: 1; }
-  .activity-num.is-wait { color: var(--amber); }
+  .activity-row > div {
+    position: relative;
+    min-width: 0;
+    padding-left: 18px;
+  }
 
-  .activity-icon {
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: var(--radius);
-    background: rgba(231, 236, 228, .08);
-    color: var(--mark);
+  .activity-row > div::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: 0;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+  }
+
+  .activity-time {
+    padding-top: 1px;
+    color: var(--slate);
     font-size: 12px;
-    font-weight: 700;
+    line-height: 1.3;
   }
 
-  .activity-icon .icon { width: 13px; height: 13px; stroke-width: 3; }
+  .activity-row strong { display: block; font-size: 13px; font-weight: 500; line-height: 1.3; }
+  .activity-row > div > span { display: block; margin-top: 2px; color: var(--slate); font-size: 12px; line-height: 1.45; }
+  .live-count { display: inline-block; }
 
-  .activity-icon.waiting {
-    background: var(--amber-soft);
-    color: var(--amber);
+  .activity-row.is-you > div::before { background: var(--mark); box-shadow: none; }
+  .activity-row.is-live .activity-time { color: var(--amber); }
+  .activity-row.is-live > div::before {
+    background: var(--amber);
+    box-shadow: 0 0 0 0 rgba(214, 161, 90, .45);
+    animation: pulse-amber 2.4s var(--ease) infinite;
   }
 
-  .activity-row strong { display: block; font-size: 13px; line-height: 1.3; }
-  .activity-row span { display: block; margin-top: 2px; color: var(--slate); font-size: 12px; line-height: 1.45; }
+  .activity-row.is-clear .activity-time { color: var(--slate); }
+  .activity-row.is-clear > div::before { background: var(--mark); animation: none; }
 
-  .guardrail-mini {
-    margin-top: 20px;
-    padding: 14px;
-    background: var(--surface-soft);
+  @keyframes pulse-amber {
+    70% { box-shadow: 0 0 0 6px rgba(214, 161, 90, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(214, 161, 90, 0); }
   }
 
-  .guardrail-mini strong { font-size: 13px; }
-  .guardrail-mini ul { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; color: var(--slate); font-size: 12px; }
+  /* A decision you make is logged here, so the log grows while you work. */
+  .activity-row.is-new { animation: row-in .4s var(--ease) both; }
+
+  @keyframes row-in {
+    from { opacity: 0; transform: translateY(-6px); }
+  }
 
   .approval-panel {
     margin-top: 20px;
     padding: 20px;
   }
 
+  .queue-status {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--slate);
+    font-size: 13px;
+  }
+
+  .queue-status b { display: inline-block; font-size: 26px; line-height: 1; color: var(--amber); }
+  .queue-status.is-clear b { color: var(--ink); }
+
   .approval-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(340px, 440px);
     gap: 18px;
   }
+
+  /* Swapping opportunities cross-fades the proposal and the draft; no layout animation. */
+  .proposal,
+  .gmail { transition: opacity 180ms ease; }
 
   .proposal {
     padding: 18px;
@@ -1274,7 +1317,28 @@
   }
 
   .proposal-kicker .glyph { width: 36px; height: 36px; border-radius: 10px; }
-  .proposal h2 { font-size: 28px; line-height: 1.05; }
+  .proposal-title { font-size: 28px; line-height: 1.05; }
+
+  .proposal-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 14px;
+    padding: 10px 10px 10px 14px;
+    border-radius: 12px;
+    background: var(--workspace);
+    color: var(--ink);
+    font-size: 13px;
+  }
+
+  .proposal.is-dismissed .proposal-grid { display: none; }
+  .proposal.is-dismissed .proposal-note { margin-bottom: 0; color: var(--slate); }
+  .gmail.is-pulled { opacity: .5; }
+  .proposal.is-swapping,
+  .gmail.is-swapping,
+  .mail.is-swapping { opacity: 0; }
+  .info-box.is-wide { grid-column: 1 / -1; }
 
   .proposal-tags {
     display: flex;
@@ -1477,46 +1541,20 @@
   .mail-offer span { color: #5f6368; font-size: 13px; }
   .mail-sign { margin-bottom: 0; }
 
+  .mail { transition: opacity 180ms ease; }
+  .gmail-draft.is-scheduled { color: #137333; }
+  .gmail-draft.is-pulled { color: #5f6368; }
+
+  /* The preview is a light surface: the off-white focus ring and the pink danger text vanish on it. */
+  .gmail :focus-visible { outline-color: #1f1f1f; }
   .gmail .approval-actions { margin: 12px 2px 0; }
   .gmail .btn-primary { color: #fff; background: #1f1f1f; }
   .gmail .btn-primary:hover { background: #000; }
   .gmail .btn-secondary { color: #1f1f1f; background: #f1f3f4; }
   .gmail .btn-secondary:hover { background: #e8eaed; }
-
-  .control-rail {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 10px;
-    margin: 0 0 18px;
-    padding: 0;
-    list-style: none;
-  }
-
-  .control-rail li {
-    display: grid;
-    align-content: start;
-    gap: 8px;
-    min-width: 0;
-    padding: 12px;
-    border: 0;
-    border-radius: 14px;
-    background: var(--surface-soft);
-  }
-
-  .control-rail .glyph { width: 26px; height: 26px; border-radius: 8px; }
-  .control-rail .glyph .icon { width: 14px; height: 14px; }
-
-  .control-rail b {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0;
-  }
-
-  .control-rail span:last-child {
-    color: var(--slate);
-    font-size: 12px;
-    line-height: 1.4;
-  }
+  .gmail .btn-secondary[aria-pressed="true"] { box-shadow: inset 0 0 0 1px #1f1f1f; }
+  .gmail .btn-danger { color: #b3261e; background: #fce8e6; }
+  .gmail .btn-danger:hover { background: #fad2cf; }
 
   .approval-actions {
     display: flex;
@@ -1539,10 +1577,7 @@
     align-items: flex-start;
     min-height: 118px;
     padding: 12px;
-    transition: border-color 160ms ease;
   }
-
-  .day:hover { background: #1e2420; }
 
   .day strong { display: block; font-family: var(--display); font-size: 18px; font-weight: 400; letter-spacing: 0; margin-bottom: 6px; }
   .day > span:not(.status-text) { display: block; color: var(--slate); font-size: 12px; line-height: 1.35; }
@@ -1555,6 +1590,9 @@
     font-weight: 500;
     line-height: 1;
   }
+
+  .day .status-text.is-hold { color: #ffe3bc; }
+  .day .status-text.is-off { background: transparent; color: var(--slate); box-shadow: inset 0 0 0 1px var(--line); }
 
   .toast {
     position: fixed;
@@ -1577,13 +1615,28 @@
   }
 
   .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.has-action { pointer-events: auto; }
   .toast .icon { color: var(--mark); }
+
+  .toast-undo {
+    flex: 0 0 auto;
+    margin: -4px -8px -4px 2px;
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(231, 236, 228, .1);
+    color: var(--mark);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .toast-undo:hover { background: rgba(231, 236, 228, .18); }
 
   @media (max-width: 1180px) {
     .dashboard-grid { grid-template-columns: 1fr; }
     .activity-panel { position: static; }
     .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .control-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .proposal-grid { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 900px) {
@@ -1597,7 +1650,7 @@
     .sidebar-footer { display: none; }
     .topbar { position: static; grid-template-columns: 1fr; }
     .status-cluster { justify-content: flex-start; }
-    .briefing, .approval-layout, .facts { grid-template-columns: 1fr; }
+    .briefing, .approval-layout { grid-template-columns: 1fr; }
     .briefing-list { grid-column: 1; grid-row: auto; }
     .title-lockup { grid-template-columns: 56px minmax(0, 1fr); }
     .opportunity-grid { grid-template-columns: 1fr; }
@@ -1609,7 +1662,9 @@
     .topbar, .main { padding-left: 16px; padding-right: 16px; }
     .page-heading { display: grid; }
     h1 { font-size: 27px; }
-    .metrics, .proposal-grid, .control-rail { grid-template-columns: 1fr; }
+    .metrics, .proposal-grid { grid-template-columns: 1fr; }
+    .section-header { flex-wrap: wrap; }
+    .week-bars { gap: 8px; }
     .nav-list { grid-template-columns: 1fr; }
     .command-bar { min-width: 0; }
     .toast { left: 16px; right: 16px; bottom: 16px; }
@@ -1622,11 +1677,13 @@
     }
     .rise,
     .pop,
-    .bar,
+    .heading-actions,
     .metric-card,
     .opportunity-card,
-    .command-menu,
-    .command-option {
+    .command-option,
+    .line-graph .end-dot,
+    .line-graph text,
+    .line-graph .gap-mark {
       opacity: 1 !important;
       transform: none !important;
     }
@@ -1635,10 +1692,8 @@
     .line-graph.draw .series-b {
       stroke-dashoffset: 0 !important;
     }
-    .week-col i { transform: none !important; }
-    .donut-svg .seg-a { stroke-dasharray: 0.573 1 !important; }
-    .donut-svg .seg-b { stroke-dasharray: 0.287 1 !important; }
-    .donut-svg .seg-c { stroke-dasharray: 0.14 1 !important; }
+    .week-col i,
+    .recovery-bar .seg { transform: none !important; }
   }
 </style>
 </head>
@@ -1679,7 +1734,7 @@
 
     <div class="nav-section-label">Workspace</div>
     <ul class="nav-list">
-      <li><button class="nav-item active" type="button" data-view="Command Center"><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-command"/></svg></span><span class="nav-label">Command Center</span></button></li>
+      <li><button class="nav-item active" type="button" aria-current="page" data-view="Command Center"><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-command"/></svg></span><span class="nav-label">Command Center</span></button></li>
       <li><button class="nav-item" type="button" data-view="Approval Queue"><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-inbox"/></svg></span><span class="nav-label">Approval Queue</span></button></li>
       <li><button class="nav-item" type="button" data-view="Opportunities"><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-target"/></svg></span><span class="nav-label">Opportunities</span></button></li>
       <li><button class="nav-item" type="button" data-view="Campaign Calendar"><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-calendar"/></svg></span><span class="nav-label">Campaign Calendar</span></button></li>
@@ -1700,20 +1755,21 @@
       <div class="command-wrap" id="command-wrap">
         <label class="command-bar">
           <span class="search-dot" aria-hidden="true"><svg class="icon"><use href="#i-search"/></svg></span>
-          <input id="agent-command" type="text" value="" placeholder="Search or ask the agent..." aria-label="Search or ask the agent">
-          <span class="kbd">Cmd K</span>
+          <input id="agent-command" type="text" value="" placeholder="Search or ask the agent..." aria-label="Search or ask the agent" aria-controls="command-menu" aria-expanded="false" autocomplete="off">
+          <span class="kbd" aria-hidden="true">Cmd K</span>
         </label>
-        <div class="command-menu" id="command-menu" aria-label="Agent command suggestions">
-          <button class="command-option" type="button" data-command="Show failed payment recoveries only"><svg class="icon"><use href="#i-dollar"/></svg>Show failed payment recoveries only</button>
-          <button class="command-option" type="button" data-command="Create a softer version of this email"><svg class="icon"><use href="#i-mail"/></svg>Create a softer version of this email</button>
-          <button class="command-option" type="button" data-command="Lower incentive budget by 20%"><svg class="icon"><use href="#i-wallet"/></svg>Lower incentive budget by 20%</button>
-          <button class="command-option" type="button" data-command="Show me the best revenue opportunity today"><svg class="icon"><use href="#i-target"/></svg>Show me the best revenue opportunity today</button>
+        <div class="command-menu" id="command-menu" role="group" aria-label="Agent command suggestions">
+          <button class="command-option" type="button" data-action="payments"><svg class="icon" aria-hidden="true"><use href="#i-dollar"/></svg>Show failed payment recoveries only</button>
+          <button class="command-option" type="button" data-action="soften"><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg>Create a softer version of this email</button>
+          <button class="command-option" type="button" data-action="pool"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg>Lower incentive budget by 20%</button>
+          <button class="command-option" type="button" data-action="best"><svg class="icon" aria-hidden="true"><use href="#i-target"/></svg>Show me the best revenue opportunity today</button>
+          <div class="command-empty" id="command-empty" hidden><span>No matching command. Ask the agent instead</span><kbd>Enter</kbd></div>
         </div>
       </div>
       <div class="status-cluster">
-        <div class="status-pill"><span class="pulse"></span>Scanning</div>
-        <div class="status-pill"><svg class="icon"><use href="#i-clock"/></svg>4 min ago</div>
-        <div class="status-pill"><svg class="icon"><use href="#i-wallet"/></svg>$320 / $1,000</div>
+        <div class="status-pill"><span class="pulse" aria-hidden="true"></span>Scanning</div>
+        <div class="status-pill"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><span id="scan-age">4 min ago</span></div>
+        <div class="status-pill" title="Incentive pool used this month"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg><span id="pool-pill">$320 / $1,000</span></div>
       </div>
     </header>
 
@@ -1722,13 +1778,31 @@
         <div class="left-stack">
           <div class="page-heading rise" style="--i:0">
             <div class="title-lockup">
-              <div class="title-star" id="briefing-agent"></div>
+              <div class="title-star" id="briefing-agent">
+                <svg class="orb-fallback" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                  <g fill="currentColor">
+                    <circle cx="32" cy="10" r="2.4"/>
+                    <circle cx="43" cy="12.95" r="2.3" fill-opacity=".94"/>
+                    <circle cx="51.05" cy="21" r="2.2" fill-opacity=".88"/>
+                    <circle cx="54" cy="32" r="2.1" fill-opacity=".82"/>
+                    <circle cx="51.05" cy="43" r="2" fill-opacity=".76"/>
+                    <circle cx="43" cy="51.05" r="1.9" fill-opacity=".7"/>
+                    <circle cx="32" cy="54" r="1.8" fill-opacity=".64"/>
+                    <circle cx="21" cy="51.05" r="1.7" fill-opacity=".58"/>
+                    <circle cx="12.95" cy="43" r="1.6" fill-opacity=".52"/>
+                    <circle cx="10" cy="32" r="1.5" fill-opacity=".46"/>
+                    <circle cx="12.95" cy="21" r="1.4" fill-opacity=".4"/>
+                    <circle cx="21" cy="12.95" r="1.3" fill-opacity=".35"/>
+                    <circle cx="32" cy="32" r="3.2"/>
+                  </g>
+                </svg>
+              </div>
               <div class="eyebrow">Command Center</div>
               <div class="title-copy">
                 <h1>Your agent found $4,820 in recoverable revenue this week.</h1>
                 <div class="heading-actions">
-                  <button class="cta cta-primary" id="review-actions" type="button"><span class="cta-count">7</span>Review actions</button>
-                  <button class="cta cta-quiet" id="view-opportunities" type="button">View opportunities<svg class="icon"><use href="#i-arrow"/></svg></button>
+                  <button class="cta cta-primary" id="review-actions" type="button"><span class="cta-count" data-count>7</span>Review actions</button>
+                  <button class="cta cta-quiet" id="view-opportunities" type="button">View opportunities<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button>
                 </div>
               </div>
             </div>
@@ -1737,39 +1811,38 @@
             <div class="briefing rise" style="--i:1">
               <div class="briefing-copy">
                 <div class="eyebrow">Agent Briefing</div>
-                <h2>Good morning. I found 4 things worth your attention.</h2>
+                <h2>Good morning. Start with the dormant buyers; the friendly tone is already winning.</h2>
               </div>
-              <div class="briefing-list">
-                <div class="hairline-fig briefing-fig" data-hairline="vault" data-hairline-theme="dark" data-intensity="0.6" role="img" aria-label="Wireframe vault of recovered revenue"></div>
-                <b class="vault-peak">$1.2k</b>
-                <span>Peak recovered this week</span>
+              <div class="briefing-list" role="group" aria-label="Where the $4,820 comes from">
+                <div class="recovery-head" aria-live="polite">
+                  <b class="recovery-total" id="mix-share">60%</b>
+                  <span id="mix-label">of the $4,820 sits with dormant buyers</span>
+                </div>
+                <div class="recovery-bar" role="group" aria-label="Recoverable revenue by opportunity">
+                  <button class="seg" type="button" data-opportunity="dormant" style="--f:2900;--seg:var(--mark)" aria-label="Dormant buyers, $2,900. Select this opportunity"></button>
+                  <button class="seg" type="button" data-opportunity="upsell" style="--f:1060;--seg:#6e7870" aria-label="Upsell-ready, $1,060. Select this opportunity"></button>
+                  <button class="seg" type="button" data-opportunity="payments" style="--f:860;--seg:var(--amber)" aria-label="Failed payments, $860. Select this opportunity"></button>
+                </div>
+                <ul class="recovery-legend">
+                  <li class="is-live" data-opportunity="dormant" style="--seg:var(--mark)"><i></i><span>Dormant buyers <em></em></span><b>$2,900</b></li>
+                  <li data-opportunity="upsell" style="--seg:#6e7870"><i></i><span>Upsell-ready <em></em></span><b>$1,060</b></li>
+                  <li data-opportunity="payments" style="--seg:var(--amber)"><i></i><span>Failed payments <em></em></span><b>$860</b></li>
+                </ul>
+                <div class="recovery-day" aria-live="polite">
+                  <div><small id="day-label">Sat, best day</small><strong id="day-value">$1.2k</strong></div>
+                  <span id="day-share">22% of the week</span>
+                </div>
               </div>
-              <div class="facts">
-                  <article class="fact">
-                    <span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-dollar"/></svg></span>
-                    <b>$860</b>
-                    <span>Failed payments, no incentive</span>
-                  </article>
-                  <article class="fact">
-                    <span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-clock"/></svg></span>
-                    <b>82</b>
-                    <span>Dormant buyers, $2,900</span>
-                  </article>
-                  <article class="fact">
-                    <span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-chart"/></svg></span>
-                    <b>+24%</b>
-                    <span>Softer 10% vs direct copy</span>
-                  </article>
-              </div>
-              <figure class="week" id="briefing-chart" aria-label="Recovered revenue this week, from 410 dollars to a peak of 1.2 thousand">
+              <figure class="week" id="briefing-chart" aria-label="Recovered revenue this week, Monday to Sunday, from $410 to a Saturday peak of $1.2k">
+                <figcaption class="chart-caption"><span>Recovered this week</span><b>$5.4k</b></figcaption>
                 <div class="week-bars">
-                  <button class="week-col" type="button" style="--h:34%"><b>$410</b><i></i></button>
-                  <button class="week-col" type="button" style="--h:52%"><b>$620</b><i></i></button>
-                  <button class="week-col" type="button" style="--h:44%"><b>$530</b><i></i></button>
-                  <button class="week-col" type="button" style="--h:76%"><b>$910</b><i></i></button>
-                  <button class="week-col" type="button" style="--h:63%"><b>$760</b><i></i></button>
-                  <button class="week-col is-peak" type="button" style="--h:100%"><b>$1.2k</b><i></i></button>
-                  <button class="week-col" type="button" style="--h:83%"><b>$1.0k</b><i></i></button>
+                  <button class="week-col" type="button" aria-pressed="false" data-day="Mon" data-v="410" style="--h:34%"><b>$410</b><i></i><small>Mon</small></button>
+                  <button class="week-col" type="button" aria-pressed="false" data-day="Tue" data-v="620" style="--h:52%"><b>$620</b><i></i><small>Tue</small></button>
+                  <button class="week-col" type="button" aria-pressed="false" data-day="Wed" data-v="530" style="--h:44%"><b>$530</b><i></i><small>Wed</small></button>
+                  <button class="week-col" type="button" aria-pressed="false" data-day="Thu" data-v="910" style="--h:76%"><b>$910</b><i></i><small>Thu</small></button>
+                  <button class="week-col" type="button" aria-pressed="false" data-day="Fri" data-v="760" style="--h:63%"><b>$760</b><i></i><small>Fri</small></button>
+                  <button class="week-col is-peak" type="button" aria-pressed="false" data-day="Sat" data-v="1200" style="--h:100%"><b>$1.2k</b><i></i><small>Sat</small></button>
+                  <button class="week-col" type="button" aria-pressed="false" data-day="Sun" data-v="1000" style="--h:83%"><b>$1.0k</b><i></i><small>Sun</small></button>
                 </div>
               </figure>
             </div>
@@ -1793,13 +1866,11 @@
                   <div class="metric-label">Pending approvals</div>
                   <span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-inbox"/></svg></span>
                 </div>
-                <div class="metric-value">7</div>
+                <div class="metric-value" data-count>7</div>
                 <div class="metric-copy">Actions waiting for review</div>
-                <svg class="sparkline draw" viewBox="0 0 160 38" aria-hidden="true">
-                  <path class="area" d="M2 18 C24 15 35 24 52 14 S82 18 99 12 126 16 158 10 V38 H2Z"/>
-                  <path pathLength="1" d="M2 18 C24 15 35 24 52 14 S82 18 99 12 126 16 158 10"/>
-                </svg>
-                <div class="mini-badge amber">$4,820 impact</div>
+                <ul class="queue-pips" id="queue-pips" aria-hidden="true">
+                  <li></li><li></li><li></li><li></li><li></li><li></li><li></li>
+                </ul>
               </article>
               <article class="metric-card">
                 <div class="metric-top">
@@ -1812,7 +1883,6 @@
                   <path class="area" d="M2 26 L18 22 L34 25 L50 19 L66 21 L82 15 L98 18 L114 10 L130 12 L158 8 V38 H2Z"/>
                   <path pathLength="1" d="M2 26 L18 22 L34 25 L50 19 L66 21 L82 15 L98 18 L114 10 L130 12 L158 8"/>
                 </svg>
-                <div class="mini-badge blue">82 · 41 · 20</div>
               </article>
               <article class="metric-card">
                 <div class="metric-top">
@@ -1821,11 +1891,6 @@
                 </div>
                 <div class="metric-value">High</div>
                 <div class="metric-copy">Based on 2,431 orders + 518 email interactions</div>
-                <svg class="sparkline draw" viewBox="0 0 160 38" aria-hidden="true">
-                  <path class="area" d="M2 24 C18 22 27 17 44 18 S70 11 84 15 112 8 128 10 144 8 158 6 V38 H2Z"/>
-                  <path pathLength="1" d="M2 24 C18 22 27 17 44 18 S70 11 84 15 112 8 128 10 144 8 158 6"/>
-                </svg>
-                <div class="mini-badge violet">2,431 orders</div>
               </article>
             </div>
           </div>
@@ -1834,15 +1899,16 @@
             <div class="section-header">
               <h2 class="section-title">Priority Opportunities</h2>
               <div class="tabs" role="tablist" aria-label="Opportunity filters">
-                <button class="tab active" type="button" data-kind="all">High impact</button>
-                <button class="tab" type="button" data-kind="payments">No incentive</button>
-                <button class="tab" type="button" data-kind="payments">Failed payments</button>
-                <button class="tab" type="button" data-kind="dormant">Dormant buyers</button>
+                <span class="tab-ink" aria-hidden="true"></span>
+                <button class="tab active" type="button" role="tab" aria-selected="true" aria-controls="opportunity-grid" data-kind="all">All</button>
+                <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="opportunity-grid" tabindex="-1" data-kind="dormant">Dormant buyers</button>
+                <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="opportunity-grid" tabindex="-1" data-kind="payments">Failed payments</button>
+                <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="opportunity-grid" tabindex="-1" data-kind="upsell">Upsell-ready</button>
               </div>
             </div>
 
             <div class="opportunity-grid" id="opportunity-grid">
-              <article class="opportunity-card is-selected" data-opportunity="dormant" data-kind="dormant">
+              <article class="opportunity-card is-selected" aria-current="true" data-opportunity="dormant" data-kind="dormant">
                 <div class="opportunity-top">
                   <div class="category"><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-clock"/></svg></span>Dormant buyers</div>
                   <span class="confidence">High</span>
@@ -1853,8 +1919,8 @@
                   <div class="impact-label">estimated recovery</div>
                 </div>
                 <div class="opp-footer">
-                  <span>Ready to approve</span>
-                  <button class="btn btn-quiet"><svg class="icon"><use href="#i-arrow"/></svg>Review action</button>
+                  <span class="opp-state" data-idle="Ready to approve">Ready to approve</span>
+                  <button class="btn btn-quiet" type="button" data-review><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg>Review draft</button>
                 </div>
               </article>
 
@@ -1869,8 +1935,8 @@
                   <div class="impact-label">no incentive cost</div>
                 </div>
                 <div class="opp-footer">
-                  <span>Guardrails clear</span>
-                  <button class="btn btn-quiet"><svg class="icon"><use href="#i-arrow"/></svg>Open details</button>
+                  <span class="opp-state" data-idle="Guardrails clear">Guardrails clear</span>
+                  <button class="btn btn-quiet" type="button" data-review><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg>Review draft</button>
                 </div>
               </article>
 
@@ -1885,8 +1951,8 @@
                   <div class="impact-label">estimated pipeline</div>
                 </div>
                 <div class="opp-footer">
-                  <span>Needs copy review</span>
-                  <button class="btn btn-quiet"><svg class="icon"><use href="#i-mail"/></svg>Review draft</button>
+                  <span class="opp-state" data-idle="Needs copy review">Needs copy review</span>
+                  <button class="btn btn-quiet" type="button" data-review><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg>Review draft</button>
                 </div>
               </article>
             </div>
@@ -1896,52 +1962,41 @@
             <div data-pane="overview performance">
             <div class="section-header">
               <h2 class="section-title">Agent Observations</h2>
-              <span class="mini-badge blue">Updated 4 min ago</span>
-            </div>
-            <div class="agent-note">
-              <p>Friendly reactivation beat direct urgency. The 10% offer converted 24% better than gift cards.</p>
             </div>
 
             <div class="segment-graphics">
               <div class="line-graph draw">
-                <div class="chart-caption"><span>What worked this week</span><span>Friendly tone vs direct tone</span></div>
-                <svg viewBox="0 0 420 96" aria-label="Tone performance chart">
+                <div class="chart-caption"><span>Clicks this week, by tone</span></div>
+                <svg viewBox="0 0 420 96" role="img" aria-label="Clicks over the week: the friendly tone ends 24% above the direct tone">
                   <path class="gridline" d="M0 80H420M0 50H420M0 20H420"/>
                   <path class="series-b" pathLength="1" d="M4 70 C54 63 75 58 112 55 S178 48 214 46 278 39 321 35 380 30 416 25"/>
                   <path class="series-a" pathLength="1" d="M4 72 C48 62 78 45 112 43 S174 32 214 31 280 24 321 18 382 14 416 10"/>
+                  <path class="gap-mark" d="M408 14V23"/>
+                  <circle class="end-dot is-b" cx="416" cy="25" r="3"/>
+                  <circle class="end-dot" cx="416" cy="10" r="3.5"/>
+                  <text x="416" y="46" text-anchor="end">+24%</text>
                 </svg>
-                <div class="legend" style="grid-template-columns:1fr 1fr;display:grid">
-                  <span><i style="background:var(--mark)"></i>Friendly tone +24% clicks</span>
-                  <span><i style="background:#6e7870"></i>Direct tone baseline</span>
+                <div class="legend">
+                  <span><i style="background:var(--mark)"></i>Friendly tone</span>
+                  <span><i style="background:#6e7870"></i>Direct tone, baseline</span>
                 </div>
               </div>
-              <div class="donut-card">
-                <svg class="donut-svg" viewBox="0 0 92 92" role="img" aria-label="Opportunity segment split, 143 customers">
-                  <g transform="rotate(-90 46 46)">
-                    <circle class="seg seg-a" cx="46" cy="46" r="34" pathLength="1"/>
-                    <circle class="seg seg-b" cx="46" cy="46" r="34" pathLength="1"/>
-                    <circle class="seg seg-c" cx="46" cy="46" r="34" pathLength="1"/>
-                  </g>
-                  <text x="46" y="51" text-anchor="middle">143</text>
-                </svg>
+              <div class="agent-note">
                 <div>
-                  <div class="chart-caption" style="margin-bottom:10px"><span>Opportunity mix</span></div>
-                  <div class="legend">
-                    <span><i style="background:var(--mark)"></i>82 dormant buyers</span>
-                    <span><i style="background:#6e7870"></i>41 upsell-ready</span>
-                    <span><i style="background:var(--amber)"></i>20 failed payments</span>
-                  </div>
+                  <strong>What I learned</strong>
+                  <p>Friendly reactivation beat direct urgency: +24% clicks. The 10% offer also beat gift cards.</p>
                 </div>
+                <p class="say-next">Every draft in the queue below uses the friendly tone.</p>
               </div>
             </div>
             </div>
 
-            <div class="calendar-strip" data-pane="overview calendar" aria-label="Campaign calendar preview">
-              <div class="day"><strong>Mon</strong><span>Failed payment recovery sent</span><span class="status-text">Sent</span></div>
-              <div class="day"><strong>Tue</strong><span>Dormant buyers campaign scheduled</span><span class="status-text">Scheduled</span></div>
-              <div class="day"><strong>Wed</strong><span>No campaigns — blackout window</span><span class="status-text is-hold">Blocked</span></div>
-              <div class="day"><strong>Thu</strong><span>Upsell-ready customers pending approval</span><span class="status-text is-hold">Review</span></div>
-              <div class="day"><strong>Fri</strong><span>Weekly performance digest generated</span><span class="status-text">Ready</span></div>
+            <div class="calendar-strip" data-pane="overview calendar" aria-label="Campaign calendar, this week">
+              <div class="day" data-for="payments"><strong>Mon</strong><span>Card reminder for 20 failed payments</span><span class="status-text is-hold" data-idle="Awaiting you">Awaiting you</span></div>
+              <div class="day" data-for="dormant"><strong>Tue</strong><span>Win-back email to 82 dormant buyers</span><span class="status-text is-hold" data-idle="Awaiting you">Awaiting you</span></div>
+              <div class="day"><strong>Wed</strong><span>No sends, blackout window</span><span class="status-text is-off">Blocked</span></div>
+              <div class="day" data-for="upsell"><strong>Thu</strong><span>Bundle offer to 41 repeat buyers</span><span class="status-text is-hold" data-idle="Awaiting you">Awaiting you</span></div>
+              <div class="day"><strong>Fri</strong><span>Weekly performance digest</span><span class="status-text">Ready</span></div>
             </div>
           </section>
         </div>
@@ -1952,110 +2007,77 @@
             <span class="mini-badge green">Active</span>
           </div>
 
-          <div class="activity-list">
-            <div class="activity-row">
-              <b class="activity-num">2,431</b>
-              <div><strong>Shopify orders</strong></div>
-            </div>
-            <div class="activity-row">
-              <b class="activity-num">82</b>
-              <div><strong>Dormant, 60+ days</strong></div>
-            </div>
-            <div class="activity-row">
-              <b class="activity-num">20</b>
-              <div><strong>Failed payments</strong></div>
-            </div>
-            <div class="activity-row">
-              <b class="activity-num">7</b>
-              <div><strong>Campaigns drafted</strong></div>
-            </div>
-            <div class="activity-row">
-              <b class="activity-num is-wait">—</b>
-              <div><strong>Waiting for approval</strong></div>
-            </div>
-          </div>
-
-          <div class="guardrail-mini">
-            <strong>Guardrails active</strong>
-            <ul>
-              <li>✓ Monthly budget cap respected</li>
-              <li>✓ Send frequency respected</li>
-              <li>✓ No blackout window conflict</li>
-            </ul>
-          </div>
+          <ol class="activity-list" id="activity-list">
+            <li class="activity-row">
+              <span class="activity-time">09:02</span>
+              <div><strong>Read 2,431 orders</strong><span>and 518 email replies since Friday</span></div>
+            </li>
+            <li class="activity-row">
+              <span class="activity-time">09:03</span>
+              <div><strong>Found 3 opportunities</strong><span>Dormant buyers, failed payments, bundles</span></div>
+            </li>
+            <li class="activity-row">
+              <span class="activity-time">09:04</span>
+              <div><strong>Checked the incentive pool</strong><span id="act-pool">$320 of $1,000 used this month</span></div>
+            </li>
+            <li class="activity-row">
+              <span class="activity-time">09:06</span>
+              <div><strong>Drafted 7 actions</strong><span>In the approved brand tone</span></div>
+            </li>
+            <li class="activity-row is-live" id="act-live">
+              <span class="activity-time">now</span>
+              <div><strong><span class="live-count" data-count>7</span> waiting for you</strong><span>Nothing sends before review</span></div>
+            </li>
+          </ol>
         </aside>
       </section>
 
-      <section class="approval-panel rise" data-pane="overview approval" aria-label="Approval queue preview">
+      <section class="approval-panel rise" data-pane="overview approval" aria-label="Approval queue">
         <div class="section-header">
-          <div>
-            <div class="eyebrow">Approval Queue</div>
-            <h2 class="section-title">Dormant customer reactivation</h2>
-          </div>
-          <div class="tabs" role="tablist" aria-label="Approval filters">
-            <button class="tab active" type="button" data-kind="all">High impact</button>
-            <button class="tab" type="button" data-kind="payments">No incentive</button>
-            <button class="tab" type="button" data-kind="payments">Failed payments</button>
-            <button class="tab" type="button" data-kind="dormant">Dormant buyers</button>
-          </div>
+          <h2 class="section-title">Approval Queue</h2>
+          <div class="queue-status" id="queue-status"><b data-count>7</b><span>waiting for you</span></div>
         </div>
 
-        <ol class="control-rail">
-          <li><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-shield"/></svg></span><b>Permission</b><span>No send until you approve.</span></li>
-          <li><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-mail"/></svg></span><b>Action</b><span>Win-back email to 82 dormant customers.</span></li>
-          <li><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-inbox"/></svg></span><b>Approval</b><span>Waiting. Nothing sends before review.</span></li>
-          <li><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-dollar"/></svg></span><b>Output</b><span>Draft subject and body in the preview.</span></li>
-          <li><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-eye"/></svg></span><b>Audit</b><span>Pattern, purchase value, budget, and copy.</span></li>
-          <li><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-clock"/></svg></span><b>Exception</b><span>Wednesday stays inside the blackout window.</span></li>
-          <li><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-arrow"/></svg></span><b>Rollback</b><span>Dismiss pulls this draft out of the queue.</span></li>
-        </ol>
-
         <div class="approval-layout">
-          <div class="proposal">
+          <div class="proposal" id="proposal">
             <div class="proposal-head">
               <div class="proposal-kicker">
                 <span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-mail"/></svg></span>
-                <h2>Dormant customer reactivation</h2>
+                <h3 class="proposal-title" id="p-title">Dormant customer reactivation</h3>
               </div>
               <div class="proposal-tags">
-                <span class="mini-badge">82 customers</span>
                 <span class="mini-badge blue">Email</span>
-                <span class="mini-badge">$2,900 recovery</span>
-                <span class="confidence">High</span>
+                <span class="mini-badge" id="p-when">Sends Tue</span>
+                <span class="confidence" id="p-confidence">High confidence</span>
               </div>
             </div>
+
+            <p class="proposal-note" id="p-note" hidden>
+              <span id="p-note-text"></span>
+              <button class="btn btn-quiet" id="p-undo" type="button">Undo</button>
+            </p>
 
             <div class="proposal-grid">
               <div class="info-box">
                 <strong><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-clock"/></svg></span>Why this matters</strong>
-                <p class="say">These customers bought in the past but have been inactive for 60+ days. Similar customers converted with a 10% incentive.</p>
+                <p class="say" id="p-why">These customers bought before and have been quiet for 60+ days. Similar customers came back with a 10% incentive.</p>
               </div>
               <div class="info-box">
                 <strong><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-mail"/></svg></span>Action</strong>
-                <p class="say">Send a friendly win-back email personalized by previous purchase category and engagement history.</p>
+                <p class="say" id="p-action">Send a friendly win-back email, personalized by previous purchase category and engagement history.</p>
               </div>
               <div class="info-box">
                 <strong><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-dollar"/></svg></span>Output</strong>
-                <div class="info-figure">$2,900</div>
-                <p>82 customers, $72 average order value, prior repeat behavior.</p>
+                <div class="info-figure" id="p-output">$2,900</div>
+                <p id="p-output-line">82 customers, $72 average order value, prior repeat behavior.</p>
               </div>
               <div class="info-box">
                 <strong><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-wallet"/></svg></span>Permission</strong>
-                <div class="info-figure">10%</div>
-                <p>Low cost risk. Budget impact $180 / $1,000 monthly pool.</p>
+                <div class="info-figure" id="p-permission">10%</div>
+                <p id="p-budget">Low cost risk. Budget impact $180 / $1,000 monthly pool.</p>
               </div>
-              <div class="info-box">
-                <strong><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-eye"/></svg></span>Audit</strong>
-                <ul class="chip-list">
-                  <li>Detected dormant pattern</li>
-                  <li>Checked previous purchase value</li>
-                  <li>Verified budget availability</li>
-                  <li>Generated email copy</li>
-                  <li>Waiting for approval</li>
-                </ul>
-              </div>
-              <div class="info-box">
-                <strong><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-shield"/></svg></span>Exception</strong>
+              <div class="info-box is-wide">
+                <strong><span class="glyph" aria-hidden="true"><svg class="icon"><use href="#i-shield"/></svg></span>Checked before send</strong>
                 <ul class="chip-list">
                   <li>Monthly incentive pool respected</li>
                   <li>Send frequency respected</li>
@@ -2066,25 +2088,25 @@
             </div>
           </div>
 
-          <aside class="gmail" aria-label="Email preview">
-            <div class="gmail-tools" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M14.5 6.5 9 12l5.5 5.5"/></svg>
-              <svg viewBox="0 0 24 24"><path d="M4 8.5h16v9H4z"/><path d="m4 8.5 8 5.5 8-5.5"/></svg>
-              <svg viewBox="0 0 24 24"><path d="M5 7.5h14"/><path d="M9 7.5V6h6v1.5"/><path d="M7 7.5 8 19h8l1-11.5"/></svg>
-              <svg viewBox="0 0 24 24"><path d="M5 8.5h14v9H5z"/><path d="m5 8.5 7 5 7-5"/></svg>
-              <span class="gmail-draft">Draft</span>
+          <aside class="gmail" id="gmail" aria-label="Email preview">
+            <div class="gmail-tools">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6.5 9 12l5.5 5.5"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h16v9H4z"/><path d="m4 8.5 8 5.5 8-5.5"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5h14"/><path d="M9 7.5V6h6v1.5"/><path d="M7 7.5 8 19h8l1-11.5"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8.5h14v9H5z"/><path d="m5 8.5 7 5 7-5"/></svg>
+              <span class="gmail-draft" id="mail-state">Draft</span>
             </div>
-            <h3 class="subject">We saved something for you</h3>
+            <h3 class="subject" id="mail-subject">We saved something for you</h3>
             <div class="gmail-from">
-              <span class="gmail-avatar">T</span>
+              <span class="gmail-avatar" aria-hidden="true">T</span>
               <div>
                 <strong>The team</strong>
                 <span>to Sarah</span>
               </div>
             </div>
-            <article class="mail">
+            <article class="mail" id="mail">
               <div class="mail-brand">The team</div>
-              <div class="email-body">
+              <div class="email-body" id="mail-body">
                 <p>Hi Sarah,</p>
                 <p>You previously purchased from our studio, and I wanted to share something that fits the collection you explored last time.</p>
                 <p class="mail-offer"><b>10%</b><span>off your next order, this week only</span></p>
@@ -2092,9 +2114,9 @@
               </div>
             </article>
             <div class="approval-actions">
-              <button class="btn btn-secondary" id="edit-copy" type="button"><svg class="icon"><use href="#i-mail"/></svg>Edit</button>
+              <button class="btn btn-secondary" id="edit-copy" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg>Softer copy</button>
               <button class="btn btn-danger" id="dismiss-action" type="button">Dismiss</button>
-              <button class="btn btn-primary" id="approve-send" type="button"><svg class="icon"><use href="#i-check"/></svg>Approve &amp; Send</button>
+              <button class="btn btn-primary" id="approve-send" type="button"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Approve &amp; Send</span></button>
             </div>
           </aside>
         </div>
@@ -2103,25 +2125,201 @@
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite">
-  <svg class="icon"><use href="#i-check"/></svg>
-  <span id="toast-text">Action approved.</span>
+  <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+  <span id="toast-text"></span>
+  <button class="toast-undo" id="toast-undo" type="button" hidden>Undo</button>
 </div>
 <script>
-  const shell = document.getElementById('app-shell');
-  const sidebarToggle = document.getElementById('sidebar-toggle');
-  const commandWrap = document.getElementById('command-wrap');
-  const commandInput = document.getElementById('agent-command');
-  const toast = document.getElementById('toast');
-  const toastText = document.getElementById('toast-text');
-  let toastTimer;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-  function showToast(message) {
-    toastText.textContent = message;
-    toast.classList.add('show');
-    window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove('show'), 2600);
+  const shell = $('#app-shell');
+  const sidebarToggle = $('#sidebar-toggle');
+  const commandWrap = $('#command-wrap');
+  const commandInput = $('#agent-command');
+  const commandEmpty = $('#command-empty');
+  const commandOptions = $$('.command-option');
+  const toast = $('#toast');
+  const toastText = $('#toast-text');
+  const toastUndo = $('#toast-undo');
+  const oppList = $('[aria-label="Opportunity filters"]');
+  const oppTabs = $$('.tab', oppList);
+  const tabInk = $('.tab-ink', oppList);
+  const cards = $$('.opportunity-card');
+  const cardFor = (key) => cards.find((card) => card.dataset.opportunity === key);
+  const money = (n) => '$' + n.toLocaleString('en-US');
+  const pageStart = Date.now();
+
+  /* Fictional content for the three opportunities; the impacts sum to the $4,820 headline. */
+  const OPPS = {
+    dormant: {
+      title: 'Dormant customer reactivation',
+      short: 'the dormant win-back',
+      when: 'Tue',
+      confidence: 'High',
+      value: 2900,
+      mix: 'sits with dormant buyers',
+      why: 'These customers bought before and have been quiet for 60+ days. Similar customers came back with a 10% incentive.',
+      action: 'Send a friendly win-back email, personalized by previous purchase category and engagement history.',
+      output: '$2,900',
+      outputLine: '82 customers, $72 average order value, prior repeat behavior.',
+      permission: '10%',
+      risk: 'Low cost risk.',
+      budget: 180,
+      mail: {
+        subject: 'We saved something for you',
+        body: ['You previously purchased from our studio, and I wanted to share something that fits the collection you explored last time.'],
+        big: '10%',
+        small: 'off your next order, this week only'
+      },
+      soft: {
+        subject: 'A small thank-you, saved for you',
+        body: ['Thanks again for your previous order. I picked a small offer that fits what you liked last time.'],
+        big: '10%',
+        small: 'off your next order, whenever suits you'
+      }
+    },
+    payments: {
+      title: 'Failed payment recovery',
+      short: 'the card reminder',
+      when: 'today',
+      confidence: 'High',
+      value: 860,
+      mix: 'is failed payments',
+      why: 'Twenty orders failed at checkout this week, mostly expired cards. These buyers already chose what they wanted.',
+      action: 'Send a plain reminder with a link to update the card. No discount: the order is already decided.',
+      output: '$860',
+      outputLine: '20 payment events, $43 average order value, carts still saved.',
+      permission: '0%',
+      risk: 'No incentive.',
+      budget: 0,
+      mail: {
+        subject: "Your payment didn't go through",
+        body: ['Your last order is saved, but the card on file was declined. Updating it takes a minute and your items stay reserved.'],
+        big: 'Saved',
+        small: 'your order, for the next 7 days'
+      },
+      soft: {
+        subject: 'Your order is still waiting for you',
+        body: ["No rush: your last order is still saved. If you'd like it, a quick card update sends it on its way."],
+        big: 'Saved',
+        small: 'your order, for the next 7 days'
+      }
+    },
+    upsell: {
+      title: 'Bundle offer for repeat buyers',
+      short: 'the bundle offer',
+      when: 'Thu',
+      confidence: 'Medium',
+      value: 1060,
+      mix: 'is upsell-ready buyers',
+      why: 'Forty-one customers bought from the same category twice. A bundle fits how they already shop.',
+      action: 'Offer a bundle built from their last two categories. No discount, so the copy has to carry it.',
+      output: '$1,060',
+      outputLine: '41 customers, about $26 of extra order value each.',
+      permission: '0%',
+      risk: 'No discount.',
+      budget: 0,
+      mail: {
+        subject: 'A bundle built from what you already like',
+        body: ['You keep coming back to the same shelf, so I put your two favourites together in one set.'],
+        big: 'The pair',
+        small: 'built from your last two orders'
+      },
+      soft: {
+        subject: 'Thought you might like these together',
+        body: ['I noticed you enjoy the same pieces we do. Here they are side by side, in case it saves you a trip.'],
+        big: 'The pair',
+        small: 'built from your last two orders'
+      }
+    }
+  };
+
+  const TOTAL_DRAFTS = 7;
+  const status = { dormant: 'waiting', payments: 'waiting', upsell: 'waiting' };
+  const softened = { dormant: false, payments: false, upsell: false };
+  const decisions = [];
+  const logRows = {};
+  let current = 'dormant';
+  let pool = 1000;
+
+  /* ---------- Toast, with an optional Undo that pauses while focused ---------- */
+  let toastTimer;
+  let toastAction = null;
+
+  function hideToast() {
+    toast.classList.remove('show', 'has-action');
+    toastUndo.hidden = true;
+    toastAction = null;
   }
 
+  function armToast() {
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(hideToast, toastAction ? 8000 : 2600);
+  }
+
+  function showToast(message, undo) {
+    toastText.textContent = message;
+    toastAction = undo || null;
+    toastUndo.hidden = !undo;
+    toast.classList.toggle('has-action', Boolean(undo));
+    toast.classList.add('show');
+    armToast();
+  }
+
+  toastUndo.addEventListener('click', () => {
+    const undo = toastAction;
+    hideToast();
+    if (undo) undo();
+  });
+  toast.addEventListener('focusin', () => window.clearTimeout(toastTimer));
+  toast.addEventListener('focusout', armToast);
+
+  /* ---------- Motion helpers: every one lands on its final value when motion is reduced ---------- */
+  function rollTo(el, text) {
+    if (!el || el.textContent === String(text)) return;
+    el.textContent = String(text);
+    if (reduceMotion) return;
+    el.classList.remove('count-in');
+    void el.offsetWidth;
+    el.classList.add('count-in');
+  }
+
+  function tweenMoney(el, from, to, render) {
+    if (reduceMotion || from === to) {
+      el.textContent = render(to);
+      return;
+    }
+    const start = performance.now();
+    const frame = (now) => {
+      const t = Math.min(1, (now - start) / 420);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = render(Math.round((from + (to - from) * eased) / 10) * 10);
+      if (t < 1) window.requestAnimationFrame(frame);
+    };
+    window.requestAnimationFrame(frame);
+  }
+
+  /* Scrolls this document only, never the page that frames it. */
+  function scrollToEl(el, offset = 92) {
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+
+  function revealEl(el) {
+    const rect = el.getBoundingClientRect();
+    if (rect.top >= 84 && rect.bottom <= window.innerHeight) return;
+    scrollToEl(el);
+  }
+
+  function clockNow() {
+    const minutes = 9 * 60 + 12 + Math.floor((Date.now() - pageStart) / 60000);
+    return `${String(Math.floor(minutes / 60) % 24).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  }
+
+  /* ---------- Sidebar and panes ---------- */
   sidebarToggle.addEventListener('click', () => {
     const collapsed = shell.classList.toggle('sidebar-collapsed');
     sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
@@ -2138,159 +2336,499 @@
   };
 
   function focusPane(name) {
-    const panes = document.querySelectorAll('[data-pane]');
-    panes.forEach((el) => {
+    $$('[data-pane]').forEach((el) => {
       el.hidden = name !== 'overview' && !el.dataset.pane.split(' ').includes(name);
     });
-    document.querySelectorAll('.section-panel').forEach((section) => {
+    $$('.section-panel').forEach((section) => {
       if (section.hasAttribute('data-pane')) return;
-      const inner = [...section.querySelectorAll('[data-pane]')];
+      const inner = $$('[data-pane]', section);
       if (inner.length) section.hidden = inner.every((el) => el.hidden);
     });
-    const grid = document.querySelector('.dashboard-grid');
-    const activity = document.querySelector('.activity-panel');
-    const left = document.querySelector('.left-stack');
+    const grid = $('.dashboard-grid');
+    const activity = $('.activity-panel');
+    const left = $('.left-stack');
     left.hidden = [...left.children].every((el) => el.hidden);
-    const gridPanes = [...grid.querySelectorAll('[data-pane]')];
+    const gridPanes = $$('[data-pane]', grid);
     grid.hidden = gridPanes.length > 0 && gridPanes.every((el) => el.hidden);
     grid.classList.toggle('is-single', activity.hidden || left.hidden);
+    placeInk(true);
   }
 
-  document.querySelectorAll('.nav-item').forEach((item) => {
+  $$('.nav-item').forEach((item) => {
     item.addEventListener('click', () => {
-      document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-      item.classList.add('active');
       const pane = PANE[item.dataset.view];
-      if (pane) {
-        focusPane(pane);
-        showToast(`${item.dataset.view} selected`);
+      if (!pane) {
+        showToast(`${item.dataset.view} is not part of this preview.`);
         return;
       }
-      showToast(`${item.dataset.view} stays on this command center.`);
+      $$('.nav-item').forEach((nav) => {
+        const on = nav === item;
+        nav.classList.toggle('active', on);
+        if (on) nav.setAttribute('aria-current', 'page');
+        else nav.removeAttribute('aria-current');
+      });
+      focusPane(pane);
     });
   });
 
-  commandWrap.addEventListener('click', () => commandWrap.classList.add('is-open'));
-  commandInput.addEventListener('focus', () => commandWrap.classList.add('is-open'));
-  commandInput.addEventListener('input', () => commandWrap.classList.add('is-open'));
+  /* ---------- Opportunity tabs: one ink pill slides to the active tab ---------- */
+  function placeInk(instant) {
+    const active = oppTabs.find((tab) => tab.classList.contains('active'));
+    if (!tabInk || !active || !active.offsetWidth) return;
+    if (instant) tabInk.style.transition = 'none';
+    tabInk.style.width = `${active.offsetWidth}px`;
+    tabInk.style.height = `${active.offsetHeight}px`;
+    tabInk.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+    if (instant) {
+      void tabInk.offsetWidth;
+      tabInk.style.transition = '';
+    }
+    tabInk.classList.add('is-ready');
+    oppList.classList.add('has-ink');
+  }
+
+  function applyKind(kind) {
+    oppTabs.forEach((tab) => {
+      const on = tab.dataset.kind === kind;
+      tab.classList.toggle('active', on);
+      tab.setAttribute('aria-selected', String(on));
+      tab.tabIndex = on ? 0 : -1;
+    });
+    placeInk(false);
+    cards.forEach((card) => {
+      card.hidden = kind !== 'all' && card.dataset.kind !== kind;
+    });
+    const visible = cards.filter((card) => !card.hidden);
+    if (visible.length && !visible.some((card) => card.classList.contains('is-selected'))) selectOpportunity(visible[0]);
+  }
+
+  oppTabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => applyKind(tab.dataset.kind));
+    tab.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const step = event.key === 'ArrowRight' ? 1 : oppTabs.length - 1;
+      const next = oppTabs[(index + step) % oppTabs.length];
+      next.focus();
+      applyKind(next.dataset.kind);
+    });
+  });
+
+  if ('ResizeObserver' in window) new ResizeObserver(() => placeInk(true)).observe(oppList);
+  else window.addEventListener('resize', () => placeInk(true));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeInk(true));
+  placeInk(true);
+
+  /* ---------- Composition bar, legend and cards point at each other ---------- */
+  function linkHint(key, on) {
+    $$('.recovery-bar .seg').forEach((seg) => seg.classList.toggle('is-dim', on && seg.dataset.opportunity !== key));
+    $$('.recovery-legend li').forEach((li) => li.classList.toggle('is-dim', on && li.dataset.opportunity !== key));
+    cards.forEach((card) => card.classList.toggle('is-hint', on && card.dataset.opportunity === key));
+  }
+
+  function showMix(key) {
+    const opp = OPPS[key];
+    rollTo($('#mix-share'), `${Math.round((opp.value / 4820) * 100)}%`);
+    $('#mix-label').textContent = `of the $4,820 ${opp.mix}`;
+    $$('.recovery-legend li').forEach((li) => li.classList.toggle('is-live', li.dataset.opportunity === key));
+  }
+
+  function selectOpportunity(card, options = {}) {
+    const key = card.dataset.opportunity;
+    cards.forEach((item) => {
+      const on = item === card;
+      item.classList.toggle('is-selected', on);
+      if (on) item.setAttribute('aria-current', 'true');
+      else item.removeAttribute('aria-current');
+    });
+    showMix(key);
+    if (key !== current) showProposal(key, options.animate !== false);
+  }
+
+  cards.forEach((card) => {
+    const key = card.dataset.opportunity;
+    card.tabIndex = 0;
+    card.addEventListener('click', () => selectOpportunity(card));
+    card.addEventListener('keydown', (event) => {
+      if (event.target !== card || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      selectOpportunity(card);
+    });
+    card.addEventListener('pointerenter', () => linkHint(key, true));
+    card.addEventListener('pointerleave', () => linkHint(key, false));
+    $('[data-review]', card).addEventListener('click', (event) => {
+      event.stopPropagation();
+      selectOpportunity(card, { animate: false });
+      scrollToEl($('.approval-panel'));
+    });
+  });
+
+  $('#review-actions').addEventListener('click', () => scrollToEl($('.approval-panel')));
+  $('#view-opportunities').addEventListener('click', () => scrollToEl($('[aria-label="Priority opportunities"]')));
+
+  $$('.recovery-bar .seg').forEach((seg) => {
+    const key = seg.dataset.opportunity;
+    ['pointerenter', 'focus'].forEach((type) => seg.addEventListener(type, () => linkHint(key, true)));
+    ['pointerleave', 'blur'].forEach((type) => seg.addEventListener(type, () => linkHint(key, false)));
+    seg.addEventListener('click', () => {
+      const card = cardFor(key);
+      applyKind('all');
+      selectOpportunity(card);
+      revealEl(card);
+    });
+  });
+
+  $$('.recovery-legend li').forEach((li) => {
+    li.addEventListener('pointerenter', () => linkHint(li.dataset.opportunity, true));
+    li.addEventListener('pointerleave', () => linkHint(li.dataset.opportunity, false));
+  });
+
+  /* ---------- Proposal and draft follow the selected opportunity ---------- */
+  function mailMarkup(copy) {
+    const lines = copy.body.map((line) => `<p>${line}</p>`).join('');
+    return `<p>Hi Sarah,</p>${lines}<p class="mail-offer"><b>${copy.big}</b><span>${copy.small}</span></p><p class="mail-sign">Warmly,<br>The team</p>`;
+  }
+
+  function renderMail(key) {
+    const copy = softened[key] ? OPPS[key].soft : OPPS[key].mail;
+    $('#mail-subject').textContent = copy.subject;
+    $('#mail-body').innerHTML = mailMarkup(copy);
+    $('#edit-copy').setAttribute('aria-pressed', String(softened[key]));
+  }
+
+  function budgetLine(key) {
+    const opp = OPPS[key];
+    return `${opp.risk} Budget impact ${money(opp.budget)} / ${money(pool)} monthly pool.`;
+  }
+
+  function fillProposal(key) {
+    const opp = OPPS[key];
+    const state = status[key];
+    $('#p-title').textContent = opp.title;
+    $('#p-when').textContent = `Sends ${opp.when}`;
+    const confidence = $('#p-confidence');
+    confidence.textContent = `${opp.confidence} confidence`;
+    confidence.classList.toggle('is-medium', opp.confidence === 'Medium');
+    $('#p-why').textContent = opp.why;
+    $('#p-action').textContent = opp.action;
+    $('#p-output').textContent = opp.output;
+    $('#p-output-line').textContent = opp.outputLine;
+    $('#p-permission').textContent = opp.permission;
+    $('#p-budget').textContent = budgetLine(key);
+    renderMail(key);
+
+    $('#proposal').classList.toggle('is-dismissed', state === 'dismissed');
+    $('#gmail').classList.toggle('is-pulled', state === 'dismissed');
+    $('#p-note').hidden = state === 'waiting';
+    $('#p-note-text').textContent = state === 'approved'
+      ? `Approved. Sends ${opp.when}, after the final guardrail check.`
+      : 'Dismissed. Draft pulled from the queue.';
+    const mailState = $('#mail-state');
+    mailState.textContent = state === 'approved' ? 'Scheduled' : state === 'dismissed' ? 'Pulled' : 'Draft';
+    mailState.classList.toggle('is-scheduled', state === 'approved');
+    mailState.classList.toggle('is-pulled', state === 'dismissed');
+    const approve = $('#approve-send');
+    approve.disabled = state !== 'waiting';
+    $('span', approve).textContent = state === 'approved' ? 'Approved' : 'Approve & Send';
+    $('#dismiss-action').disabled = state !== 'waiting';
+    $('#edit-copy').disabled = state !== 'waiting';
+  }
+
+  let swapTimer;
+  function showProposal(key, animate) {
+    current = key;
+    window.clearTimeout(swapTimer);
+    const panes = [$('#proposal'), $('#gmail')];
+    if (!animate || reduceMotion) {
+      panes.forEach((el) => el.classList.remove('is-swapping'));
+      fillProposal(key);
+      return;
+    }
+    panes.forEach((el) => el.classList.add('is-swapping'));
+    swapTimer = window.setTimeout(() => {
+      fillProposal(current);
+      panes.forEach((el) => el.classList.remove('is-swapping'));
+    }, 180);
+  }
+
+  /* ---------- Decisions: approve, dismiss, undo. Each one moves every count on the page ---------- */
+  function renderQueue() {
+    const waiting = TOTAL_DRAFTS - decisions.length;
+    $$('[data-count]').forEach((el) => rollTo(el, waiting));
+    $$('#queue-pips li').forEach((pip, index) => {
+      const key = decisions[index - waiting];
+      pip.className = index < waiting ? '' : status[key] === 'approved' ? 'is-approved' : 'is-dismissed';
+    });
+    $('#queue-status').classList.toggle('is-clear', waiting === 0);
+    $('#act-live').classList.toggle('is-clear', waiting === 0);
+  }
+
+  function renderOpportunityState(key) {
+    const state = status[key];
+    const label = $('.opp-state', cardFor(key));
+    label.textContent = state === 'approved' ? 'Approved' : state === 'dismissed' ? 'Dismissed' : label.dataset.idle;
+    label.classList.toggle('is-done', state !== 'waiting');
+    const day = $(`.day[data-for="${key}"] .status-text`);
+    if (day) {
+      day.textContent = state === 'approved' ? 'Approved' : state === 'dismissed' ? 'Pulled' : day.dataset.idle;
+      day.classList.toggle('is-hold', state === 'waiting');
+      day.classList.toggle('is-off', state === 'dismissed');
+    }
+    $(`.recovery-bar .seg[data-opportunity="${key}"]`).classList.toggle('is-out', state === 'dismissed');
+    $(`.recovery-legend li[data-opportunity="${key}"] em`).textContent = state === 'waiting' ? '' : `· ${state}`;
+  }
+
+  function logDecision(key, verdict) {
+    const row = document.createElement('li');
+    row.className = 'activity-row is-you is-new';
+    row.innerHTML = '<span class="activity-time"></span><div><strong></strong><span></span></div>';
+    $('.activity-time', row).textContent = clockNow();
+    $('strong', row).textContent = `You ${verdict} ${OPPS[key].short}`;
+    $('div > span', row).textContent = verdict === 'approved' ? `Sends ${OPPS[key].when}` : 'Draft pulled from the queue';
+    $('#activity-list').insertBefore(row, $('#act-live'));
+    logRows[key] = row;
+  }
+
+  function decide(key, verdict) {
+    if (status[key] !== 'waiting') return;
+    status[key] = verdict;
+    decisions.push(key);
+    logDecision(key, verdict);
+    renderOpportunityState(key);
+    renderQueue();
+    if (key === current) fillProposal(key);
+  }
+
+  function undoDecision(key) {
+    if (status[key] === 'waiting') return;
+    status[key] = 'waiting';
+    decisions.splice(decisions.indexOf(key), 1);
+    if (logRows[key]) logRows[key].remove();
+    delete logRows[key];
+    renderOpportunityState(key);
+    renderQueue();
+    if (key === current) fillProposal(key);
+  }
+
+  $('#approve-send').addEventListener('click', () => {
+    decide(current, 'approved');
+    $('#p-undo').focus({ preventScroll: true });
+    showToast(`Approved. ${TOTAL_DRAFTS - decisions.length} left in the queue.`);
+  });
+
+  $('#dismiss-action').addEventListener('click', () => {
+    decide(current, 'dismissed');
+    $('#p-undo').focus({ preventScroll: true });
+    showToast(`Dismissed. ${TOTAL_DRAFTS - decisions.length} left in the queue.`);
+  });
+
+  $('#p-undo').addEventListener('click', () => {
+    undoDecision(current);
+    hideToast();
+    $('#approve-send').focus({ preventScroll: true });
+  });
+
+  /* Softer copy is a two-state toggle per opportunity; the letter cross-fades between versions. */
+  function setSoft(next) {
+    const key = current;
+    if (status[key] !== 'waiting') return 'This draft is already decided. Undo it to change the copy.';
+    if (next === softened[key]) return next ? 'This draft is already the softer version.' : null;
+    softened[key] = next;
+    const mail = $('#mail');
+    if (reduceMotion) renderMail(key);
+    else {
+      mail.classList.add('is-swapping');
+      window.setTimeout(() => {
+        if (current === key) renderMail(key);
+        mail.classList.remove('is-swapping');
+      }, 180);
+    }
+    return next ? 'Softer version drafted. Same offer, gentler ask.' : 'Back to the original draft.';
+  }
+
+  $('#edit-copy').addEventListener('click', () => {
+    const message = setSoft(!softened[current]);
+    if (message) showToast(message);
+  });
+
+  /* ---------- Incentive pool ---------- */
+  function setPool(next) {
+    const from = pool;
+    pool = next;
+    tweenMoney($('#pool-pill'), from, next, (n) => `$320 / ${money(n)}`);
+    $('#act-pool').textContent = `$320 of ${money(next)} used this month`;
+    $('#p-budget').textContent = budgetLine(current);
+  }
+
+  /* ---------- Command bar: filters as you type, and every command does what it says ---------- */
+  const COMMANDS = {
+    payments() {
+      applyKind('payments');
+      scrollToEl($('[aria-label="Priority opportunities"]'));
+      return 'Showing failed payment recoveries only.';
+    },
+    soften() {
+      scrollToEl($('.approval-panel'));
+      return setSoft(true);
+    },
+    pool() {
+      if (pool === 800) return 'The incentive pool is already $800.';
+      setPool(800);
+      showToast('Incentive pool set to $800. Every draft still fits.', () => {
+        setPool(1000);
+        showToast('Incentive pool back to $1,000.');
+      });
+      return null;
+    },
+    best() {
+      applyKind('all');
+      selectOpportunity(cardFor('dormant'));
+      scrollToEl($('[aria-label="Priority opportunities"]'));
+      return 'Dormant buyers: $2,900, the largest share of what is recoverable.';
+    }
+  };
+
+  let quietFocus = false;
+
+  function setMenu(open) {
+    commandWrap.classList.toggle('is-open', open);
+    commandInput.setAttribute('aria-expanded', String(open));
+  }
+
+  function filterCommands(query) {
+    const needle = query.trim().toLowerCase();
+    let shown = 0;
+    commandOptions.forEach((option) => {
+      const match = !needle || option.textContent.toLowerCase().includes(needle);
+      option.hidden = !match;
+      if (match) shown += 1;
+    });
+    commandEmpty.hidden = shown > 0;
+    return shown;
+  }
+
+  function resetCommand() {
+    setMenu(false);
+    commandInput.value = '';
+    filterCommands('');
+  }
+
+  function runCommand(option) {
+    resetCommand();
+    option.blur();
+    const message = COMMANDS[option.dataset.action]();
+    if (message) showToast(message);
+  }
+
+  $('.command-bar').addEventListener('click', () => setMenu(true));
+  commandInput.addEventListener('focus', () => {
+    if (!quietFocus) setMenu(true);
+    quietFocus = false;
+  });
+  commandInput.addEventListener('input', () => {
+    filterCommands(commandInput.value);
+    setMenu(true);
+  });
+  commandInput.addEventListener('keydown', (event) => {
+    const visible = commandOptions.filter((option) => !option.hidden);
+    if (event.key === 'ArrowDown' && visible.length) {
+      event.preventDefault();
+      setMenu(true);
+      visible[0].focus();
+    }
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const query = commandInput.value.trim();
+    if (!query) return;
+    if (visible.length) {
+      runCommand(visible[0]);
+      return;
+    }
+    resetCommand();
+    showToast(`Sent to the agent: "${query.length > 48 ? `${query.slice(0, 48)}...` : query}"`);
+  });
+
+  commandOptions.forEach((option) => {
+    option.addEventListener('click', () => runCommand(option));
+    option.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      event.preventDefault();
+      const visible = commandOptions.filter((item) => !item.hidden);
+      const index = visible.indexOf(option) + (event.key === 'ArrowDown' ? 1 : -1);
+      if (index < 0) commandInput.focus();
+      else visible[Math.min(index, visible.length - 1)].focus();
+    });
+  });
+
+  /* Safari blurs the input on mousedown without focusing the button, so a press inside the menu keeps it open. */
+  let pressInMenu = false;
+  $('#command-menu').addEventListener('pointerdown', () => { pressInMenu = true; });
+  commandWrap.addEventListener('focusout', (event) => {
+    if (pressInMenu) {
+      pressInMenu = false;
+      return;
+    }
+    if (!commandWrap.contains(event.relatedTarget)) setMenu(false);
+  });
   document.addEventListener('click', (event) => {
-    if (!commandWrap.contains(event.target)) commandWrap.classList.remove('is-open');
+    if (!commandWrap.contains(event.target)) setMenu(false);
   });
   document.addEventListener('keydown', (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       commandInput.focus();
-      commandWrap.classList.add('is-open');
+      setMenu(true);
     }
-    if (event.key === 'Escape') commandWrap.classList.remove('is-open');
+    if (event.key === 'Escape' && commandWrap.classList.contains('is-open')) {
+      setMenu(false);
+      if (commandOptions.includes(document.activeElement)) {
+        quietFocus = true;
+        commandInput.focus();
+      }
+    }
   });
 
-  document.querySelectorAll('.command-option').forEach((option) => {
-    option.addEventListener('click', () => {
-      commandInput.value = option.dataset.command;
-      commandWrap.classList.remove('is-open');
-      showToast('Agent command queued for review.');
-    });
-  });
+  /* ---------- Week chart: pick a day, the readout beside the composition follows ---------- */
+  const weekCols = $$('.week-col');
+  const weekTotal = weekCols.reduce((sum, col) => sum + Number(col.dataset.v), 0);
+  const peakCol = $('.week-col.is-peak');
 
-  function selectOpportunity(card) {
-    document.querySelectorAll('.opportunity-card').forEach((item) => item.classList.remove('is-selected'));
-    card.classList.add('is-selected');
+  function showDay(col, picked) {
+    $('#day-label').textContent = `${col.dataset.day}, ${picked ? 'recovered' : 'best day'}`;
+    rollTo($('#day-value'), $('b', col).textContent);
+    $('#day-share').textContent = `${Math.round((Number(col.dataset.v) / weekTotal) * 100)}% of the week`;
   }
 
-  function applyKind(kind, label) {
-    const group = document.querySelector('[aria-label="Opportunity filters"]');
-    const tabs = [...group.querySelectorAll('.tab')];
-    const match = tabs.find((el) => el.dataset.kind === kind && el.textContent.trim() === label) || tabs[0];
-    tabs.forEach((el) => el.classList.toggle('active', el === match));
-    document.querySelectorAll('.opportunity-card').forEach((card) => {
-      card.hidden = kind !== 'all' && card.dataset.kind !== kind;
-    });
-    const visible = [...document.querySelectorAll('.opportunity-card')].filter((card) => !card.hidden);
-    if (visible.length && !visible.some((card) => card.classList.contains('is-selected'))) selectOpportunity(visible[0]);
-  }
-
-  document.querySelector('[aria-label="Opportunity filters"]').querySelectorAll('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      applyKind(tab.dataset.kind || 'all', tab.textContent.trim());
-      showToast(`${tab.textContent.trim()} filter applied`);
+  weekCols.forEach((col) => {
+    col.addEventListener('click', () => {
+      const on = !col.classList.contains('is-on');
+      weekCols.forEach((item) => {
+        const picked = on && item === col;
+        item.classList.toggle('is-on', picked);
+        item.setAttribute('aria-pressed', String(picked));
+      });
+      showDay(on ? col : peakCol, on && col !== peakCol);
     });
   });
 
-  document.querySelector('[aria-label="Approval filters"]').querySelectorAll('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      const group = tab.parentElement;
-      group.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
-      tab.classList.add('active');
-      showToast(`${tab.textContent.trim()} filter applied`);
-    });
-  });
+  /* ---------- Live detail: the agent rescans every six minutes ---------- */
+  const scanAge = $('#scan-age');
+  window.setInterval(() => {
+    const age = (4 + Math.floor((Date.now() - pageStart) / 60000)) % 6;
+    scanAge.textContent = age === 0 ? 'just now' : `${age} min ago`;
+  }, 15000);
 
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function scrollToPanel(selector) {
-    document.querySelector(selector)?.scrollIntoView({
-      behavior: reduceMotion ? 'auto' : 'smooth',
-      block: 'start'
-    });
-  }
-
-  document.querySelectorAll('.opportunity-card').forEach((card) => {
-    card.tabIndex = 0;
-    card.addEventListener('click', () => {
-      selectOpportunity(card);
-      showToast('Opportunity selected. Approval preview updated.');
-    });
-    card.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      card.click();
-    });
-  });
-
-  document.getElementById('review-actions').addEventListener('click', () => {
-    scrollToPanel('.approval-panel');
-  });
-
-  document.getElementById('view-opportunities').addEventListener('click', () => {
-    scrollToPanel('[aria-label="Priority opportunities"]');
-  });
-
-  document.getElementById('approve-send').addEventListener('click', (event) => {
-    event.currentTarget.innerHTML = '<svg class="icon"><use href="#i-check"/></svg>Approved';
-    event.currentTarget.disabled = true;
-    showToast('Campaign approved. The agent will send after final guardrail check.');
-  });
-
-  document.getElementById('edit-copy').addEventListener('click', () => {
-    document.querySelector('.subject').textContent = 'A small thank-you, saved for you';
-    document.querySelector('.email-body').innerHTML = '<p>Hi Sarah,</p><p>Thanks again for your previous order. I picked a small offer that fits what you liked last time.</p><p class="mail-offer"><b>10%</b><span>off your next purchase this week</span></p><p class="mail-sign">Warmly,<br>The team</p>';
-    showToast('Softer email version generated.');
-  });
-
-  document.getElementById('dismiss-action').addEventListener('click', () => {
-    document.querySelector('.proposal').style.opacity = '0.55';
-    showToast('Action dismissed from this queue.');
-  });
-
+  /* ---------- Entrance: content groups stagger once; chrome never animates ---------- */
   [
-    ['.nav-list', ':scope > li'],
-    ['.status-cluster', '.status-pill'],
-    ['.heading-actions', '.btn'],
-    ['.briefing-list', ':scope > strong, :scope > span, :scope > .briefing-chart'],
     ['.metrics', '.metric-card'],
-    ['.tabs', '.tab'],
     ['.opportunity-grid', '.opportunity-card'],
     ['.activity-list', '.activity-row'],
-    ['.guardrail-mini', 'li'],
     ['.segment-graphics', ':scope > *'],
     ['.calendar-strip', '.day'],
-    ['.control-rail', ':scope > li'],
     ['.proposal-grid', '.info-box'],
-    ['.approval-actions', '.btn'],
   ].forEach(([root, sel]) => {
-    document.querySelectorAll(root).forEach((node) => {
-      node.querySelectorAll(sel).forEach((el, i) => {
+    $$(root).forEach((node) => {
+      $$(sel, node).forEach((el, i) => {
         el.classList.add('pop');
         el.style.setProperty('--i', String(i));
         if (el.hidden || reduceMotion) el.classList.add('settled');
@@ -2301,15 +2839,10 @@
     });
   });
 
-  document.querySelectorAll('.week-col').forEach((col) => {
-    col.addEventListener('click', () => {
-      const on = col.classList.contains('is-on');
-      document.querySelectorAll('.week-col').forEach((item) => item.classList.remove('is-on'));
-      if (!on) col.classList.add('is-on');
-    });
-  });
+  fillProposal(current);
+  renderQueue();
 
-  const motionTargets = document.querySelectorAll('.rise, .bar-chart, .sparkline.draw, .line-graph.draw, .donut-card, .week');
+  const motionTargets = $$('.rise, .sparkline.draw, .line-graph.draw, .week, .briefing-list');
   if (reduceMotion || !('IntersectionObserver' in window)) {
     motionTargets.forEach((el) => el.classList.add('is-in'));
   } else {
@@ -2323,7 +2856,6 @@
     motionTargets.forEach((el) => io.observe(el));
   }
 </script>
-<script type="module" src="/effects/dist/landing-figures.js"></script>
 <script>
   const briefingFx = document.createElement('script');
   briefingFx.src = '/effects/dist/effects.js';
