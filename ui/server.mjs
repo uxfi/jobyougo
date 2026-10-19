@@ -61,7 +61,14 @@ import { assembleUiPrompt, candidateFacts, compactCv, coverLetterTask, indexCare
 import { applicationEmailLanguage, configuredOutputLanguage } from '../profile-language.mjs';
 import { evalModelForTier } from '../lib/spend-tier.mjs';
 import { writeFormAnswer } from '../lib/form-answer.mjs';
+import { createFunnel, countBy } from '../lib/scan-funnel.mjs';
+import { cleanFetchUrl, retryPolicy, backoffDelayMs } from '../lib/fetch-politeness.mjs';
+import { fetchManatalJobs, isManatalUrl } from '../lib/manatal-careers.mjs';
 import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
+import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
+import { createScanLogger } from '../lib/scan-log.mjs';
+import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
+import { CONSENT_DISMISS_SCRIPT, needsLongerWait, createSolveCooldown, createDetailBudget } from '../lib/scan-careers-wait.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { createPageFetcher, findContacts, providersFromEnv } from '../lib/contact-finder.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
@@ -151,6 +158,20 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+
+// Scan log on disk (data/scan-logs/scan-YYYY-MM-DD.log, 7 days, 5 MB a day) and a
+// per-company summary (scan-companies.jsonl). Every "[scan]" console line is mirrored.
+const scanLog = createScanLogger({ dir: join(scanLogRoot(), 'data', 'scan-logs') });
+if (process.env.SCAN_LOG_DISABLE !== '1' && !process.env.NODE_TEST_CONTEXT) {
+  for (const level of ['log', 'warn', 'error']) {
+    const original = console[level].bind(console);
+    console[level] = (...args) => {
+      original(...args);
+      const text = args.map(arg => (typeof arg === 'string' ? arg : (arg?.message ?? String(arg)))).join(' ');
+      if (text.startsWith('[scan]')) scanLog.line(level, text);
+    };
+  }
+}
 
 // Files Chrome actually loads. The bridge library stays on the server.
 const EXTENSION_ZIP_FILES = [
@@ -551,6 +572,21 @@ async function getMonetization() {
   return config;
 }
 
+
+// careers-page.com (Manatal): JSON API / server-rendered HTML, no browser.
+async function fetchManatalCompany(company) {
+  try {
+    const { source, partial, jobs: raw } = await fetchManatalJobs(company.careers_url);
+    const jobs = raw.map(j => ({ title: j.title, url: j.url, location: j.location || '' }));
+    const afterFilter = jobs.filter(j => portalsTitleFilter.test(j.title)).length;
+    console.log(`[scan] [manatal] "${company.name}" ${jobs.length} jobs via ${source}${partial ? ' (partial, rate-limited)' : ''}, ${afterFilter} after filter`);
+    scanLog.summary({ company: company.name, engine: 'manatal', found: jobs.length, junkIgnored: 0, afterFilter });
+    return { ok: true, section: buildJobSection(company.name, jobs), jobs, engine: 'manatal', company: company.name };
+  } catch (err) {
+    console.warn(`[scan] [manatal] "${company.name}" failed (${err.message}) - falling back to the browser crawl`);
+    return null;
+  }
+}
 function buildPlaywrightResult(company = {}, overrides = {}) {
   return {
     ok: false,
@@ -3361,9 +3397,11 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
 
   const fetchViaHttp = async () => {
     let lastError;
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    const fetchUrl = cleanFetchUrl(url);
+    const policy = retryPolicy(fetchUrl);
+    for (let attempt = 1; attempt <= policy.attempts; attempt++) {
       try {
-        const response = await fetch(url, {
+        const response = await fetch(fetchUrl, {
           signal: AbortSignal.timeout(10000),
           headers: {
             'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
@@ -3379,14 +3417,16 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
           text,
           blocked: isBlockedJobDescriptionResponse({ url, status: response.status, html, text }),
         };
-        if (result.ok || attempt === 2 || (response.status !== 429 && response.status < 500)) return result;
-        console.warn(`[${logLabel}] [fetch] HTTP ${response.status} for ${url} — retrying once...`);
-        await sleep(1500);
+        if (result.ok || attempt === policy.attempts || (response.status !== 429 && response.status < 500)) return result;
+        const waitMs = backoffDelayMs(attempt, { baseMs: policy.baseMs, retryAfter: response.headers.get('retry-after') || '' });
+        console.warn(`[${logLabel}] [fetch] HTTP ${response.status} for ${fetchUrl} - retry ${attempt}/${policy.attempts - 1} in ${(waitMs / 1000).toFixed(1)}s`);
+        await sleep(waitMs);
       } catch (err) {
         lastError = err;
-        if (attempt === 1) {
-          console.warn(`[${logLabel}] [fetch] ${err.message} for ${url} — retrying once...`);
-          await sleep(1500);
+        if (attempt < policy.attempts) {
+          const waitMs = backoffDelayMs(attempt, { baseMs: policy.baseMs });
+          console.warn(`[${logLabel}] [fetch] ${err.message} for ${fetchUrl} - retry in ${(waitMs / 1000).toFixed(1)}s`);
+          await sleep(waitMs);
           continue;
         }
         throw err;
@@ -4388,9 +4428,12 @@ const PINCHTAB_SEARCH_ENGINES = {
 // to notice a recovery): DuckDuckGo answered 0 to nearly every query and
 // Google sat behind a captcha, so each query paid two dead page loads.
 const ENGINE_DEAD_AFTER = 5;
+// A blocked engine rests (base x 2^n, jitter) and is skipped without a request; queries are slightly spaced.
+const engineBackoff = createEngineBackoff({ baseMs: Math.max(1000, Number.parseInt(process.env.SCAN_ENGINE_COOLDOWN_MS || '60000', 10) || 60000) });
+const querySpacer = createQuerySpacer({ spacingMs: Math.max(0, Number.parseInt(process.env.SCAN_QUERY_SPACING_MS || '400', 10) || 0) });
 const ENGINE_RETRY_EVERY = 8;
 const engineHealth = new Map();
-function resetEngineHealth() { engineHealth.clear(); }
+function resetEngineHealth() { engineHealth.clear(); engineBackoff.reset(); }
 // Only while another engine still answers: with every engine dead, the web-search
 // circuit breaker decides, and nothing rests.
 function engineIsResting(id, allIds = []) {
@@ -4429,11 +4472,18 @@ async function fetchPinchtabEnginesMerged(source) {
     if (!run) continue;
     if (minResults > 0 && merged.length >= minResults) break;
     if (engineIsResting(id, engines)) { engineLog.push(`${id}:resting`); continue; }
+    if (engineBackoff.cooling(id) && engines.some(other => other !== id && !engineBackoff.cooling(other))) {
+      engineLog.push(`${id}:cooldown`);
+      continue;
+    }
+    await querySpacer();
     const result = await run(source);
     if (tripWebSearchCircuitIfWedged(result)) return result;
     if (isWebSearchEngineBlocked(result)) {
       lastBlocked = result;
       noteEngineResult(id, false);
+      const restMs = engineBackoff.fail(id);
+      console.warn(`[scan] [WebSearch] ${id} blocked (challenge/captcha): resting ${Math.round(restMs / 1000)}s, next engine`);
       engineLog.push(`${id}:blocked`);
       continue;
     }
@@ -4447,6 +4497,7 @@ async function fetchPinchtabEnginesMerged(source) {
       added += 1;
     }
     noteEngineResult(id, added > 0);
+    if (added > 0) engineBackoff.ok(id);
     engineLog.push(`${id}:${added}`);
   }
   if (!loaded) {
@@ -4459,9 +4510,10 @@ async function fetchPinchtabEnginesMerged(source) {
   // PinchTab tabs for offers that will be discarded by the title filter.
   const hasRelevantResult = merged.some(job => portalsTitleFilter.test(job.title));
   recordWebSearchOutcome(hasRelevantResult || !lastBlocked);
-  const used = engineLog.filter(entry => !entry.endsWith(':blocked')).map(entry => entry.split(':')[0]);
+  const used = engineLog.filter(entry => !/:(?:blocked|cooldown|resting)$/.test(entry)).map(entry => entry.split(':')[0]);
   console.log(`[scan] [WebSearch] "${source.name}" → ${merged.length} merged results (${engineLog.join(', ')}), ${merged.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
-  return { ok: merged.length > 0, section: buildJobSection(source.name, merged), jobs: merged, engine: `pinchtab-${used.join('+')}` };
+  // Engines answered cleanly with nothing relevant = legitimately empty, not a failed fetch.
+  return { ok: true, empty: merged.length === 0, section: buildJobSection(source.name, merged), jobs: merged, engine: `pinchtab-${used.join('+')}` };
 }
 
 function buildTheirStackPayload(portalsConfig = {}) {
@@ -4927,11 +4979,22 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
     return result;
   };
 
+  let careersClean = false;
+  // Clean careers page with 0 matching jobs + search engines blocked = "no matching jobs", not a failed fetch.
+  const asEmptyIfClean = (res) => (careersClean && res && !res.ok && !res.empty
+    ? { ok: true, empty: true, section: null, jobs: [], engine: 'careers-page', note: 'no matching jobs on careers page; search engines unavailable' }
+    : res);
   // Company portals with a careers board: scrape that URL before a web search.
   // Pure search_queries keep the engine path below.
   if (source?.careers_url) {
     console.log(`[scan] [WebSearch] Preferring careers_url for "${source.name}"`);
-    const fallback = await fetchCareersUrlFallback(source);
+    let fallback = await fetchCareersUrlFallback(source);
+    if (isWebSearchEngineBlocked(fallback)) {
+      // One retry of the plain careers fetch before treating it as an error.
+      await new Promise(r => setTimeout(r, 1500));
+      fallback = await fetchCareersUrlFallback(source);
+    }
+    careersClean = !isWebSearchEngineBlocked(fallback);
     if (!isWebSearchEngineBlocked(fallback) && (fallback?.section || !source.query)) {
       recordWebSearchOutcome(true);
       return fallback;
@@ -4946,7 +5009,7 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
   // Every configured engine (portals.yml `web_search.engines`) is queried and
   // the results merged — see fetchPinchtabEnginesMerged.
   if (await pinchtabIsUp()) {
-    return fetchPinchtabEnginesMerged(source);
+    return asEmptyIfClean(await fetchPinchtabEnginesMerged(source));
   }
 
   if (!serpApiCircuitOpen() && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
@@ -4984,7 +5047,7 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
   }
 
   recordWebSearchOutcome(false);
-  return chromeGoogleResult;
+  return asEmptyIfClean(chromeGoogleResult);
 }
 
 async function fetchWebSearchSectionsSequential(sources = []) {
@@ -5043,6 +5106,7 @@ function isCareerNavigationTitle(title = '') {
 function dropNonJobTitles(jobs = [], label = '') {
   const kept = jobs.filter(job => !isCareerNavigationTitle(job.title));
   if (kept.length !== jobs.length) console.log(`[scan] ${label} ${jobs.length - kept.length} non-job title(s) ignored (page navigation or listing headings)`);
+  kept.junkIgnored = jobs.length - kept.length;
   return kept;
 }
 
@@ -5292,10 +5356,13 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
 })()`;
 
 const SCAN_CAREERS_WAIT_MS = Math.max(6000, Number.parseInt(process.env.SCAN_CAREERS_WAIT_MS || '14000', 10) || 14000);
+const SCAN_CAREERS_EXTEND_MS = Math.max(0, Number.parseInt(process.env.SCAN_CAREERS_EXTEND_MS || '6000', 10) || 6000);
+const SCAN_CAREERS_DETAIL_BUDGET_MS = Math.max(5000, Number.parseInt(process.env.SCAN_CAREERS_DETAIL_BUDGET_MS || '30000', 10) || 30000);
+const careersSolveCooldown = createSolveCooldown();
 const SCAN_CAREERS_DETAIL_LIMIT = Math.max(0, Number.parseInt(process.env.SCAN_CAREERS_DETAIL_LIMIT || '8', 10) || 8);
 const SCAN_CAREERS_DETAIL_WAIT_MS = Math.max(2500, Number.parseInt(process.env.SCAN_CAREERS_DETAIL_WAIT_MS || '9000', 10) || 9000);
 
-async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS } = {}) {
+async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS, extended = false } = {}) {
   const started = Date.now();
   let jobs = [];
   let bodyText = '';
@@ -5303,6 +5370,7 @@ async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CA
 
   while (Date.now() - started < maxWaitMs && !isShuttingDown) {
     attempts += 1;
+    if (attempts === 2) await page.evaluate(CONSENT_DISMISS_SCRIPT).catch(() => {});
     await page.evaluate(PINCHTAB_SCROLL_SCRIPT).catch(() => {});
     jobs = (await page.evaluate(PINCHTAB_EXTRACT_SCRIPT).catch(() => [])) || [];
     if (jobs.length) {
@@ -5317,10 +5385,15 @@ async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CA
     await page.waitForTimeout(attempts <= 2 ? 1200 : 1800);
   }
 
+  // Empty or still loading after the normal wait: one extra window, once.
+  if (!jobs.length && !extended && !isShuttingDown && needsLongerWait(bodyText)) {
+    console.log(`[scan] [local-browser] "${companyName}" page looks empty or still loading, waiting ${SCAN_CAREERS_EXTEND_MS / 1000}s more`);
+    return extractJobsFromLocalPage(page, companyName, { maxWaitMs: SCAN_CAREERS_EXTEND_MS, extended: true });
+  }
   return { jobs, bodyText, challenge: false };
 }
 
-async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS } = {}) {
+async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS, extended = false } = {}) {
   const started = Date.now();
   let jobs = [];
   let bodyText = '';
@@ -5328,6 +5401,7 @@ async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CA
 
   while (Date.now() - started < maxWaitMs && !isShuttingDown) {
     attempts += 1;
+    if (attempts === 2) await pinchtabEvaluate(tabId, CONSENT_DISMISS_SCRIPT, { awaitPromise: false, timeout: 5000 }).catch(() => {});
     await pinchtabEvaluate(tabId, PINCHTAB_SCROLL_SCRIPT, { awaitPromise: true, timeout: 10000 }).catch(() => {});
     jobs = (await pinchtabEvaluate(tabId, PINCHTAB_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 10000 }).catch(() => [])) || [];
     if (jobs.length) {
@@ -5342,6 +5416,10 @@ async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CA
     await new Promise(resolve => setTimeout(resolve, attempts <= 2 ? 1200 : 1800));
   }
 
+  if (!jobs.length && !extended && !isShuttingDown && needsLongerWait(bodyText)) {
+    console.log(`[scan] [pinchtab] "${companyName}" page looks empty or still loading, waiting ${SCAN_CAREERS_EXTEND_MS / 1000}s more`);
+    return extractJobsFromPinchtab(tabId, companyName, { maxWaitMs: SCAN_CAREERS_EXTEND_MS, extended: true });
+  }
   return { jobs, bodyText, challenge: false };
 }
 
@@ -5385,9 +5463,11 @@ async function enrichLocalJobsWithDetails(ctx, jobs = [], companyName = '') {
 
   const byKey = new Map(jobs.map(job => [normalizeUrlKey(job.url) || job.url, job]));
   const detailPage = await ctx.newPage();
+  const budget = createDetailBudget({ budgetMs: SCAN_CAREERS_DETAIL_BUDGET_MS });
   try {
     for (const job of candidates) {
       if (isShuttingDown) break;
+      if (!budget.ok()) { console.warn(`[scan] [local-browser] "${companyName}" detail pages stopped (time budget or repeated timeouts)`); break; }
       const key = normalizeUrlKey(job.url) || job.url;
       try {
         console.log(`[scan] [local-browser] "${companyName}" opening detail → ${cleanString(job.title).slice(0, 70)}`);
@@ -5404,6 +5484,7 @@ async function enrichLocalJobsWithDetails(ctx, jobs = [], companyName = '') {
           const publishedAt = (time && time.getAttribute('datetime')) || '';
           return { title, location, bodyText, publishedAt };
         }).catch(() => ({}));
+        budget.note(Boolean(detail && (detail.title || detail.bodyText)));
         const current = byKey.get(key);
         if (!current) continue;
         if (usableDetailTitle(detail.title)) {
@@ -5434,8 +5515,10 @@ async function enrichPinchtabJobsWithDetails(jobs = [], companyName = '') {
     .slice(0, SCAN_CAREERS_DETAIL_LIMIT);
   if (!candidates.length) return jobs;
 
+  const budget = createDetailBudget({ budgetMs: SCAN_CAREERS_DETAIL_BUDGET_MS });
   for (const job of candidates) {
     if (isShuttingDown) break;
+    if (!budget.ok()) { console.warn(`[scan] [pinchtab] "${companyName}" detail pages stopped (time budget or repeated timeouts)`); break; }
     let detailTabId = null;
     try {
       console.log(`[scan] [pinchtab] "${companyName}" opening detail → ${cleanString(job.title).slice(0, 70)}`);
@@ -5462,7 +5545,9 @@ async function enrichPinchtabJobsWithDetails(jobs = [], companyName = '') {
         job.remoteEvidence,
       ].filter(Boolean).join(' | ')).slice(0, 240);
       if (!job.publishedAt && detail.publishedAt) job.publishedAt = normalizeDateValue(detail.publishedAt);
+      budget.note(true);
     } catch (err) {
+      budget.note(false);
       console.warn(`[scan] [pinchtab] "${companyName}" detail skipped: ${err.message}`);
     } finally {
       await pinchtabClose(detailTabId);
@@ -5570,6 +5655,7 @@ async function fetchPlaywrightSectionsLocal(companies = []) {
         }
         jobs = await enrichLocalJobsWithDetails(ctx, jobs, company.name);
         jobs = dropNonJobTitles(jobs, `[local-browser] "${company.name}"`);
+        scanLog.summary({ company: company.name, engine: 'local-browser', found: jobs.length + (jobs.junkIgnored || 0), junkIgnored: jobs.junkIgnored || 0, afterFilter: jobs.filter(j => portalsTitleFilter.test(j.title)).length });
 
         console.log(`[scan] [local-browser] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
         results.push({
@@ -5603,6 +5689,15 @@ async function fetchPlaywrightSectionsLocal(companies = []) {
 
 async function fetchPlaywrightSections(companies = []) {
   if (!companies.length) return [];
+  const manatalCos = companies.filter(c => isManatalUrl(c.careers_url) && !c._manatalTried);
+  if (manatalCos.length) {
+    const manatalResults = await Promise.all(manatalCos.map(fetchManatalCompany));
+    const okNames = new Set(manatalResults.filter(Boolean).map(r => r.company));
+    const rest = companies.filter(c => !okNames.has(c.name));
+    const restResults = rest.length ? await fetchPlaywrightSections(rest.filter(c => !isManatalUrl(c.careers_url) || true).map(c => ({ ...c, _manatalTried: true }))) : [];
+    const byName = new Map([...manatalResults.filter(Boolean), ...restResults].map(r => [r.company, r]));
+    return companies.map(c => byName.get(c.name)).filter(Boolean);
+  }
   if (isShuttingDown) {
     return companies.map(company => buildPlaywrightResult(company, {
       error: 'Cancelled because the UI server is restarting or shutting down',
@@ -5634,13 +5729,16 @@ async function fetchPlaywrightSections(companies = []) {
 
       // If empty, check for a challenge wall and try solving once before giving up.
       if (!jobs.length && extracted.challenge) {
-        console.log(`[scan] [pinchtab] "${company.name}" challenge detected, attempting solve...`);
-        const solved = await pinchtabSolve(tabId);
+        const coolingDown = careersSolveCooldown.blocked(company.careers_url);
+        if (coolingDown) console.warn(`[scan] [pinchtab] "${company.name}" challenge wall, solve skipped (failed recently on this host)`);
+        else console.log(`[scan] [pinchtab] "${company.name}" challenge detected, attempting solve...`);
+        const solved = coolingDown ? false : await pinchtabSolve(tabId);
         if (solved) {
           console.log(`[scan] [pinchtab] "${company.name}" solved, re-scrolling + extracting...`);
           extracted = await extractJobsFromPinchtab(tabId, company.name, { maxWaitMs: 8000 });
           jobs = extracted.jobs;
-        } else {
+        } else if (!coolingDown) {
+          careersSolveCooldown.fail(company.careers_url);
           console.warn(`[scan] [pinchtab] "${company.name}" solve failed`);
         }
       }
@@ -5649,6 +5747,7 @@ async function fetchPlaywrightSections(companies = []) {
       }
       jobs = await enrichPinchtabJobsWithDetails(jobs, company.name);
       jobs = dropNonJobTitles(jobs, `[pinchtab] "${company.name}"`);
+      scanLog.summary({ company: company.name, engine: 'pinchtab', found: jobs.length + (jobs.junkIgnored || 0), junkIgnored: jobs.junkIgnored || 0, afterFilter: jobs.filter(j => portalsTitleFilter.test(j.title)).length });
 
       console.log(`[scan] [pinchtab] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
       results.push({
@@ -7296,7 +7395,9 @@ async function triagePipelineItemsWithJev(items = [], userId, profileRules = {},
   const { current: notListings, listings } = await dropListingPipelineItems(notInterns, userId);
   const { current, stale } = await dropStalePipelineItems(notListings, userId);
   const pending = current.filter(item => pipelineItemNeedsJevTriage(item, { rescoreKept: false }));
+  const funnel = { input: items.length, afterLevel: notInterns.length, afterListings: notListings.length, afterStale: current.length, sentToJev: pending.length, alreadyScored: current.length - pending.length };
   const empty = {
+    funnel,
     considered: 0,
     kept: [],
     newlyKept: [],
@@ -7337,6 +7438,7 @@ async function triagePipelineItemsWithJev(items = [], userId, profileRules = {},
 
   return {
     ...result,
+    funnel,
     alreadyKept: [],
     newlyKept: result.kept,
     kept: result.kept,
@@ -9886,6 +9988,7 @@ const server = createServer(async (req, res) => {
         let scanPreDedupSkipped = 0;
         let scanDeadCount = 0;
         let scanAgeDropped = 0;
+  const scanFunnel = createFunnel();
         let scanSourceSectionCount = 0;
         let pipelineTarget = null;
         let applyTarget = null;
@@ -9958,6 +10061,10 @@ const server = createServer(async (req, res) => {
                 careers_url: company.careers_url || '',
                 isCompany: true,
               });
+              return;
+            }
+            if (isManatalUrl(company.careers_url) && access.mode !== 'provider') {
+              playwrightCos.push(company); // careers-page.com: JSON/HTML fetch, no search needed
               return;
             }
             if (access.mode === 'websearch' && access.query) {
@@ -10155,6 +10262,9 @@ const server = createServer(async (req, res) => {
             dropped: partitioned.rejected.filter(candidate => candidate.reasonCode === 'country'),
           };
           scanAgeDropped = partitioned.rejected.filter(candidate => candidate.reasonCode === 'age').length;
+          scanFunnel.stage('found', allScanCandidates.length);
+          scanFunnel.stage('decision', beforeTitleCollapse.length, countBy(partitioned.rejected, c => c.reasonCode));
+          scanFunnel.stage('collapse', survivors.length);
 
           // Filter out URLs already in pipeline, scan-history, or reports, and
           // company+role pairs already tracked / permanently deleted — before
@@ -10198,6 +10308,7 @@ const server = createServer(async (req, res) => {
               console.log(`[scan] [pre-dedup] ${skippedCount} already-known URL(s)/company+role removed before manifest (pipeline/history/reports/apps/deleted)`);
             }
             scanCandidates = freshCandidates;
+            scanFunnel.stage('dedup', freshCandidates.length);
             scanPreDedupSkipped = skippedCount;
           }
 
@@ -10215,6 +10326,7 @@ const server = createServer(async (req, res) => {
             }
             const standing = new Map([...dated.kept, ...dated.review].map(candidate => [candidate.url, candidate]));
             scanCandidates = scanCandidates.filter(candidate => standing.has(candidate.url)).map(candidate => standing.get(candidate.url));
+            scanFunnel.stage('dated', scanCandidates.length, countBy(dated.rejected, c => c.reasonCode));
           }
 
           // Link check (404s, closed postings) for search hits and scraped
@@ -10224,6 +10336,7 @@ const server = createServer(async (req, res) => {
           const unlistedSources = new Set([...webSearchSources.map(source => cleanString(source.name)), ...playwrightCos.map(company => cleanString(company.name))]);
           const { dead: deadCandidates } = await verifyJobLinks(scanCandidates.filter(candidate => unlistedSources.has(candidate.source)));
           scanDeadCount = deadCandidates.length;
+          scanFunnel.stage('link-alive', scanCandidates.length - deadCandidates.length, { dead: deadCandidates.length });
           if (deadCandidates.length) {
             const deadSet = new Set(deadCandidates.map(candidate => candidate.url));
             scanCandidates = scanCandidates.filter(candidate => !deadSet.has(candidate.url));
@@ -10407,6 +10520,8 @@ const server = createServer(async (req, res) => {
               }
             },
           });
+          const tf = triage.funnel || {};
+          console.log(`[pipeline] jev triage funnel: input=${tf.input ?? '?'} afterLevel=${tf.afterLevel ?? '?'} afterListings=${tf.afterListings ?? '?'} afterStale=${tf.afterStale ?? '?'} sentToJev=${tf.sentToJev ?? '?'} alreadyScored=${tf.alreadyScored ?? 0}${tf.sentToJev === 0 ? ' (nothing needed a new Jev score: considered counts offers sent to Jev only)' : ''}`);
           console.log(`[pipeline] jev triage: considered=${triage.considered} kept=${triage.kept.length} dropped=${triage.dropped.length} unverified=${triage.unverified.length} stale=${(triage.stale || []).length} listings=${(triage.listings || []).length} intern=${(triage.titleDropped || []).length}`);
           if (triage.accountError) {
             send('warning', { text: `Jev indisponible (${triage.accountError}). Qwen n’a pas été lancé.` });
@@ -10764,6 +10879,9 @@ Règles:
           streamMeta.jev_unverified = (jevResult.unverified || []).length;
           streamMeta.jev_dropped = jevResult.dropped.length;
           streamMeta.jev_errors = jevResult.errors.length;
+          scanFunnel.stage('jev', strictKept.length + reviewKept.length, { validated: strictKept.length, review: reviewKept.length, dropped: jevResult.dropped.length, unverified: (jevResult.unverified || []).length });
+          console.log(`[scan] [funnel] ${scanFunnel.format()}`);
+          scanLog.summary({ funnel: scanFunnel.stages() });
           console.log(
             `[scan] Jev filter done — validated=${strictKept.length} review=${reviewKept.length} unverified=${(jevResult.unverified || []).length} dropped=${jevResult.dropped.length} errors=${jevResult.errors.length} considered=${jevResult.considered}`
           );
