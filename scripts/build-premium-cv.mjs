@@ -20,7 +20,12 @@ const strip = (u = '') => String(u).replace(/^https?:\/\/(www\.)?/, '').replace(
 c.linkedin_url = c.linkedin_url || (c.linkedin ? `https://${strip(c.linkedin)}` : '');
 c.linkedin_display = c.linkedin_display || strip(c.linkedin_url);
 c.portfolio_display = c.portfolio_display || strip(c.portfolio);
-const html = tplRender(template, data, data);
+let html = tplRender(template, data, data);
+// Use the size-optimized image copies (scripts/optimize-cv-images.mjs) when present.
+try {
+  const manifest = JSON.parse(await readFile(join(ROOT, 'images', 'cv', 'manifest.json'), 'utf-8'));
+  for (const [orig, opt] of Object.entries(manifest)) html = html.split('../images/' + orig).join('../images/cv/' + opt);
+} catch { /* no optimized copies: originals are used */ }
 
 const htmlPath = join(ROOT, 'output', `cv-premium-${profileKey}.html`) // sibling of images/ and fonts/ so ../images resolves;
 await mkdir(dirname(htmlPath), { recursive: true });
