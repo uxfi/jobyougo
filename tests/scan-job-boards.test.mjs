@@ -37,10 +37,13 @@ try {
   const start = server.indexOf('async function fetchAggregatorSection(');
   const end = server.indexOf('\nasync function fetchWebSearchSection(', start);
   const context = vm.createContext({
-    fetchJobBoard: async () => jobs,
+    fetchJobBoardPolite: async () => ({ skipped: false, jobs }),
+    jobBoardThrottle: null,
     normalizeDateValue: value => new Date(value).toISOString().slice(0, 10),
     buildJobSection: (name, values) => `${name}: ${values[0].title}`,
     console: { log() {}, warn() {} },
+    portalsTitleFilter: { test: () => true },
+    scanLog: { summary() {} },
   });
   vm.runInContext(server.slice(start, end), context);
   const result = await context.fetchAggregatorSection(sources[1]);
@@ -48,11 +51,18 @@ try {
   assert.equal(result.engine, 'jobtech');
   assert.match(result.jobs[0].publishedAt, /^2026-/);
   assert.equal(result.section, 'Sweden: AI designer');
-  context.fetchJobBoard = async () => { throw new Error('HTTP 403'); };
+  context.fetchJobBoardPolite = async () => { throw new Error('HTTP 403'); };
   const failed = await context.fetchAggregatorSection(sources[1]);
   assert.equal(failed.ok, false);
   assert.equal(failed.error, 'HTTP 403');
   pass('Actual UI dispatch builds sections and isolates provider failures');
+  context.fetchJobBoardPolite = async () => ({ skipped: true, reason: 'fetched less than 360 min ago', jobs: [] });
+  const throttled = await context.fetchAggregatorSection(sources[1]);
+  assert.equal(throttled.ok, true);
+  assert.equal(throttled.empty, true);
+  assert.equal(throttled.skipped, true);
+  assert.match(throttled.note, /360 min/);
+  pass('A throttled board source counts as skipped/empty, not as a failed fetch');
 } catch (error) {
   fail(`UI job-board integration: ${error.stack}`);
 }

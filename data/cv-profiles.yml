@@ -419,21 +419,20 @@ complete_paris:
   phone_link: '+33695659131'
   headline: Senior Product Designer | AI Products
   portrait: hugo_vermot.optimized.jpg
-  maxim: From user research to working products.
+  maxim: I design it, then I build it.
   experience_note: Agency (Agence V0) and freelance client missions ran in parallel, so some dates overlap.
   summary: >-
-    Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
-    research, complex journeys and design systems with product and engineering teams. My experience includes
-    OneAsset, LVMH, Renault and Société Générale. In the first 6 months at OneAsset I shipped the full product
-    with one Product Owner: investor app, admin panel, marketing site, plus an OTC product.
+    Senior Product Designer and Product Lead with 12 years across SaaS, enterprise platforms and financial
+    services. I turn ambiguous, regulated or complex problems into shipped products: user research and
+    interviews, complex journeys, information architecture, design systems and hi-fi prototyping, backed by
+    workshops and stakeholder alignment, leading design with product and engineering.
 
 
-    I have worked with AI for 4 years, building bootstrapped products: UXfi, Flemme OS and Creads.io, an AI
-    advertising SaaS with 1,200 registered users. I also built Figmol for live-prototype design reviews at
-    OneAsset.
+    For 4 years I have built AI products (agents, multi-agent orchestration, LLM workflows, prompt
+    engineering) and prototyped in code with Cursor and Claude Code to ship with engineering.
 
 
-    Currently employed at OneAsset; seeking a new full-time role. Start date to be agreed.
+    Seeking a contract or CDI role, full remote. Start date to be agreed.
   stats:
     - value: '12'
       label: years
@@ -445,7 +444,7 @@ complete_paris:
       label: founder
       sub: projects
   availability_tags:
-    - label: Seeking full-time
+    - label: Seeking contract / CDI
       bg: '#f0fdf4'
       color: '#166534'
       border: '#bbf7d0'
@@ -484,54 +483,39 @@ complete_paris:
         - Workshop Facilitation
         - Team Management
   projects_title: Selected work
+  knowhow:
+    - title: Product user-centric
+      items: [UX research, User flows, Hi-fi prototypes, Design systems]
+    - title: AI builder
+      items: [AI agents, Multi-agent orchestration, Prompt engineering, LLM workflows]
+    - title: Leadership
+      items: [Product leadership, Stakeholder management, Workshop facilitation, Team management]
   projects:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
+      desc: Regulated real-world asset investment platform
       tag: Product Lead
-      bullets:
-        - >-
-          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
-          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
-        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
+      portfolio_url: https://jobyougo.xyz/portfolio#project/oneasset
     - name: Creads.io
       logo: creads-logo.webp
       screenshot: screenshot_creads.webp
       url: https://creads.io
-      desc: AI advertising SaaS, from brand context to checked creative outputs
+      desc: AI advertising SaaS I founded and built
       tag: 1,200 registered users
-      bullets:
-        - Founded and built the product, from user flows through AI orchestration and deployment.
-        - Brand memory, structured briefs and a second prompt checking output compliance.
-        - >-
-          1,200 registered users, 20 paying clients and 5,000 monthly visits (September 2026). Zero paid
-          acquisition.
+      portfolio_url: https://jobyougo.xyz/portfolio#project/creads
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.webp
-      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
+      desc: Data marketing platform across 15+ maisons
       tag: Enterprise UX
-      bullets:
-        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
+      portfolio_url: https://jobyougo.xyz/portfolio#project/lvmh
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
-      desc: Renew international marketplace and multi-country design system
+      desc: Used-car marketplace and design system
       tag: Design systems
-      bullets:
-        - Sole design lead across the front and back office, with cross-team stakeholder workshops.
-        - Recorded 20% reduction in development time through the shared design system.
-    - name: Société Générale
-      logo: societegenerale.png
-      screenshot: societe-generale-desktop.png
-      desc: Savings and investment journeys under MIF2 requirements
-      tag: Fintech UX
-      bullets:
-        - Designed investor-profile validation, savings and allocation journeys on desktop and mobile.
-        - Recorded +12% investment activity following work on these flows.
+      portfolio_url: https://jobyougo.xyz/portfolio#project/renault
   founder_projects:
     - name: Creads.io
       logo: creads-logo.webp
@@ -567,21 +551,20 @@ complete_bangkok:
   phone_link: '+66627842137'
   headline: Senior Product Designer | AI Products
   portrait: hugo_vermot.optimized.jpg
-  maxim: From user research to working products.
+  maxim: I design it, then I build it.
   experience_note: Agency (Agence V0) and freelance client missions ran in parallel, so some dates overlap.
   summary: >-
-    Senior Product Designer with 12 years across SaaS, enterprise platforms and financial services. I work on
-    research, complex journeys and design systems with product and engineering teams. My experience includes
-    OneAsset, LVMH, Renault and Société Générale. In the first 6 months at OneAsset I shipped the full product
-    with one Product Owner: investor app, admin panel, marketing site, plus an OTC product.
+    Senior Product Designer and Product Lead with 12 years across SaaS, enterprise platforms and financial
+    services. I turn ambiguous, regulated or complex problems into shipped products: user research and
+    interviews, complex journeys, information architecture, design systems and hi-fi prototyping, backed by
+    workshops and stakeholder alignment, leading design with product and engineering.
 
 
-    I have worked with AI for 4 years, building bootstrapped products: UXfi, Flemme OS and Creads.io, an AI
-    advertising SaaS with 1,200 registered users. I also built Figmol for live-prototype design reviews at
-    OneAsset.
+    For 4 years I have built AI products (agents, multi-agent orchestration, LLM workflows, prompt
+    engineering) and prototyped in code with Cursor and Claude Code to ship with engineering.
 
 
-    Currently employed at OneAsset; seeking a new full-time role. Start date to be agreed.
+    Seeking a contract or CDI role, full remote. Start date to be agreed.
   stats:
     - value: '12'
       label: years
@@ -593,7 +576,7 @@ complete_bangkok:
       label: founder
       sub: projects
   availability_tags:
-    - label: Seeking full-time
+    - label: Seeking contract / CDI
       bg: '#f0fdf4'
       color: '#166534'
       border: '#bbf7d0'
@@ -632,54 +615,39 @@ complete_bangkok:
         - Workshop Facilitation
         - Team Management
   projects_title: Selected work
+  knowhow:
+    - title: Product user-centric
+      items: [UX research, User flows, Hi-fi prototypes, Design systems]
+    - title: AI builder
+      items: [AI agents, Multi-agent orchestration, Prompt engineering, LLM workflows]
+    - title: Leadership
+      items: [Product leadership, Stakeholder management, Workshop facilitation, Team management]
   projects:
     - name: OneAsset
       logo: oneasset-logo.png
       screenshot: oneasset-cover.png
-      desc: 'Full product in 6 months with one PO: investor app, admin, marketing, plus OTC'
+      desc: Regulated real-world asset investment platform
       tag: Product Lead
-      bullets:
-        - >-
-          In the first 6 months, shipped the full product with one Product Owner: investor app, admin panel,
-          and marketing site, plus an OTC product. Prototypes built in Cursor and Claude Code, reviewed in
-          Figmol (my internal Figma-like tool), then shipped through a GitHub flow with engineering.
-        - Design, product strategy and prototype ownership; GitHub collaboration with engineering.
+      portfolio_url: https://jobyougo.xyz/portfolio#project/oneasset
     - name: Creads.io
       logo: creads-logo.webp
       screenshot: screenshot_creads.webp
       url: https://creads.io
-      desc: AI advertising SaaS, from brand context to checked creative outputs
+      desc: AI advertising SaaS I founded and built
       tag: 1,200 registered users
-      bullets:
-        - Founded and built the product, from user flows through AI orchestration and deployment.
-        - Brand memory, structured briefs and a second prompt checking output compliance.
-        - >-
-          1,200 registered users, 20 paying clients and 5,000 monthly visits (September 2026). Zero paid
-          acquisition.
+      portfolio_url: https://jobyougo.xyz/portfolio#project/creads
     - name: LVMH Group
       logo: lvmh.png
       screenshot: lvmh-screenshot.webp
-      desc: 'Data marketing platform: customer data and campaign performance across 15+ maisons'
+      desc: Data marketing platform across 15+ maisons
       tag: Enterprise UX
-      bullets:
-        - Designed a data marketing platform unifying customer data and campaign performance across 15+ maisons.
-        - Interviewed stakeholders across Dior, Louis Vuitton, Fendi, Kenzo and other maisons; built monitoring tools.
+      portfolio_url: https://jobyougo.xyz/portfolio#project/lvmh
     - name: Renault Group
       logo: renault.png
       screenshot: renault-screens.png
-      desc: Renew international marketplace and multi-country design system
+      desc: Used-car marketplace and design system
       tag: Design systems
-      bullets:
-        - Sole design lead across the front and back office, with cross-team stakeholder workshops.
-        - Recorded 20% reduction in development time through the shared design system.
-    - name: Société Générale
-      logo: societegenerale.png
-      screenshot: societe-generale-desktop.png
-      desc: Savings and investment journeys under MIF2 requirements
-      tag: Fintech UX
-      bullets:
-        - Designed investor-profile validation, savings and allocation journeys on desktop and mobile.
-        - Recorded +12% investment activity following work on these flows.
+      portfolio_url: https://jobyougo.xyz/portfolio#project/renault
   founder_projects:
     - name: Creads.io
       logo: creads-logo.webp
@@ -1009,6 +977,14 @@ shared:
         - >-
           Led the end-to-end redesign as sole design lead and built a multi-country design system, cutting
           development time by 20%.
+    - company: SNCF Group
+      logo: sncf.png
+      role: UX Designer
+      period: 2017 – 2020
+      bullets:
+        - Internal professional apps and digital tools for SNCF staff and SNCF Réseau.
+        - Designed internal apps covering security, information and HR workflows, and contributed to the redesign of SNCF Réseau's public consultation (concertation) platform.
+        - Built an institutional investor persona supporting SNCF's green bond financing.
     - company: Agence V0
       url: https://v0.agency
       logo: logo-HV.jpg

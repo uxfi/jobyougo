@@ -43,13 +43,12 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: 'Caros';
-  src: url('/ui/assets/fonts/caros.woff2') format('woff2');
-  font-weight: 300 800;
-  font-style: normal;
-  font-display: swap;
-}
+/* Caros: fonts/caros.woff2 is not in the repo, so its @font-face only
+   produced a 404 (ENOENT in the server log) on every page using it. Pages keep
+   var(--font-caros), which falls back to Inter, exactly what they showed
+   without the file. Drop the .woff2 in ./fonts/ and restore:
+   @font-face { font-family: 'Caros'; src: url('/ui/assets/fonts/caros.woff2') format('woff2');
+                font-weight: 300 800; font-style: normal; font-display: swap; } */
 
 /* ─── Reusable font stacks (CSS vars) ────────────────────────── */
 :root {

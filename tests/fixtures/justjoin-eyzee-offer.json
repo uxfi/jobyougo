@@ -1,0 +1,126 @@
+{
+  "slug": "eyzee-s-a--specjalista-ux-ui-warszawa-ux-a5f3829a",
+  "title": "Specjalista UX/UI",
+  "experienceLevel": "mid",
+  "companyName": "Eyzee S.A.",
+  "body": "<p>Poszukujemy kreatywnych kandydatów/kandydatek z motywacją do rozwoju zawodowego oraz pasją do tworzenia wyjątkowych doświadczeń użytkowników.</p><p><strong>Zadania dla Ciebie:</strong></p><ul><li><p>projektowanie i rozwój interfejsów użytkownika (UI) zgodnych z najlepszymi praktykami UX</p></li><li><p>analiza wymagań biznesowych i użytkowników w celu tworzenia intuicyjnych rozwiązań</p></li><li><p>tworzenie prototypów i makiet interfejsów użytkownika</p></li><li><p>testowanie użyteczności i przeprowadzanie badań z użytkownikami końcowymi</p></li></ul><p><strong>Czy spełniasz te wymagania?</strong></p><ul><li><p>min. 3 lata doświadczenia w projektowaniu i programowaniu stron internetowych, aplikacji internetowych</p></li><li><p>bardzo dobra znajomość narzędzia Figma do tworzenia prototypów lub Adobe XD</p></li><li><p>umiejętność przeprowadzania badań użytkowników i testów użyteczności</p></li><li><p>doświadczenie w projektowaniu zgodnie z wytycznymi WCAG 2.0 oraz zasadami RWD</p></li><li><p>znajomość HTML/CSS</p></li><li><p>doświadczenie w przygotowywaniu prototypów interfejsów</p></li></ul><p><strong>Co oferujemy?</strong></p><ul><li><p>stabilne zatrudnienie w oparciu o kontrakt B2B</p></li><li><p>płatne dni wolne</p></li><li><p>służbowy laptop i monitor</p></li><li><p>dofinansowanie prywatnej opieki medycznej</p></li><li><p>sportową kartę Multisport</p></li><li><p>omawianie postępów i rozwoju co pół roku&nbsp;</p></li><li><p>transparentna komunikacja z pracownikami</p></li><li><p>możliwość zaangażowania się w rozwój organizacji</p></li><li><p>chętnie dzielimy się wiedzą - dołącz do Akademii Eyzee</p></li><li><p>nauka języka angielskiego</p></li><li><p>mocny kompetencyjnie zespół składający się w większości z seniorów</p></li><li><p>praca z narzędziami JIRA, Confluence, BitBucket</p></li><li><p>dbamy o integracje i chętnie wspólnie spędzamy czas :)</p></li></ul><p><strong>Kim jesteśmy?</strong></p><p><strong>EYZEE to:</strong></p><p>Polska firma specjalizującą się w realizacji złożonych projektów informatycznych oraz doradczych dla firm ​z sektora finansowego, telekomunikacyjnego i publicznego. Stanowimy zgrany zespół konsultantów ​z wiedzą i wieloletnim doświadczeniem w tworzeniu i utrzymywaniu rozwiązań. Ważne dla nas są: doprecyzowanie wymagań przed napisaniem kodu, jakość tworzonego kodu, testowanie oraz CI/CD. Nasze projekty to głównie tworzenie nowych mikroserwisów&nbsp;lub nowych funkcjonalności do istniejących rozwiązań.</p><p>Dodatkowo rozwijamy własne aplikacje i plugin’y, które nie tylko usprawniają pracę, ale też pozwalają rozwinąć nasze doświadczenie. Jeden z nich możesz pobrać tutaj (<a class=\"editor-link\" href=\"https://marketplace.atlassian.com/apps/1219894/ezee-worklog?hosting=cloud&amp;tab=overview\" target=\"_blank\" rel=\"nofollow noreferrer noopener\">eZee Worklog</a>).&nbsp;Jesteśmy partnerem Atlassian.</p>",
+  "city": "Warszawa",
+  "countryCode": "PL",
+  "workplaceType": "remote",
+  "employmentTypes": [
+    {
+      "from": 1787,
+      "fromPerUnit": 1786.762641345689,
+      "to": 2091,
+      "toPerUnit": 2090.512290374456,
+      "currency": "USD",
+      "currencySource": "conversion",
+      "type": "b2b",
+      "unit": "Month",
+      "gross": false
+    },
+    {
+      "from": 1350,
+      "fromPerUnit": 1349.865977592223,
+      "to": 1579,
+      "toPerUnit": 1579.343193782901,
+      "currency": "GBP",
+      "currencySource": "conversion",
+      "type": "b2b",
+      "unit": "Month",
+      "gross": false
+    },
+    {
+      "from": 1488,
+      "fromPerUnit": 1488.348358564382,
+      "to": 1741,
+      "toPerUnit": 1741.367579520327,
+      "currency": "CHF",
+      "currencySource": "conversion",
+      "type": "b2b",
+      "unit": "Month",
+      "gross": false
+    },
+    {
+      "from": 1598,
+      "fromPerUnit": 1597.954618088843,
+      "to": 1870,
+      "toPerUnit": 1869.6069031639463,
+      "currency": "EUR",
+      "currencySource": "conversion",
+      "type": "b2b",
+      "unit": "Month",
+      "gross": false
+    },
+    {
+      "from": 7000,
+      "fromPerUnit": 7000,
+      "to": 8190,
+      "toPerUnit": 8190,
+      "currency": "PLN",
+      "currencySource": "original",
+      "type": "b2b",
+      "unit": "Month",
+      "gross": false
+    }
+  ],
+  "requiredSkills": [
+    {
+      "skillId": "00000000-0000-0000-0000-000000000000",
+      "name": "HTML5",
+      "level": 3,
+      "group": null
+    },
+    {
+      "skillId": "00000000-0000-0000-0000-000000000000",
+      "name": "CSS 3",
+      "level": 3,
+      "group": null
+    },
+    {
+      "skillId": "00000000-0000-0000-0000-000000000000",
+      "name": "Figma",
+      "level": 3,
+      "group": null
+    },
+    {
+      "skillId": "00000000-0000-0000-0000-000000000000",
+      "name": "Adobe XD",
+      "level": 3,
+      "group": null
+    },
+    {
+      "skillId": "00000000-0000-0000-0000-000000000000",
+      "name": "WCAG",
+      "level": 4,
+      "group": null
+    }
+  ],
+  "niceToHaveSkills": [],
+  "workingTime": "full_time",
+  "publishedAt": "2026-10-19T10:35:13.3257076Z",
+  "locations": [
+    {
+      "city": "Warszawa",
+      "slug": "eyzee-s-a--specjalista-ux-ui-warszawa-ux-a5f3829a"
+    },
+    {
+      "city": "Łódź",
+      "slug": "eyzee-s-a--specjalista-ux-ui-lodz-ux-41ad8fda"
+    },
+    {
+      "city": "Kraków",
+      "slug": "eyzee-s-a--specjalista-ux-ui-krakow-ux-5d5abf54"
+    },
+    {
+      "city": "Lublin",
+      "slug": "eyzee-s-a--specjalista-ux-ui-lublin-ux-dd06b4a9"
+    },
+    {
+      "city": "Wrocław",
+      "slug": "eyzee-s-a--specjalista-ux-ui-wroclaw-ux-51e23396"
+    }
+  ],
+  "languages": [],
+  "url": "https://justjoin.it/job-offer/eyzee-s-a--specjalista-ux-ui-warszawa-ux-a5f3829a"
+}

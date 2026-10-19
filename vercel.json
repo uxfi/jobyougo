@@ -19,9 +19,17 @@
           "config/profile.yml"
         ]
       }
+    },
+    {
+      "src": "api/visits.mjs",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/visits",
+      "dest": "api/visits.mjs"
+    },
     {
       "src": "/api/(.*)",
       "dest": "ui/server.mjs"

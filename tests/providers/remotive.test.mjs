@@ -61,8 +61,11 @@ try {
     pass('remotive.fetch() keeps 2 valid jobs (drops empty-title + non-absolute-url rows)');
   else fail(`remotive.fetch() returned ${fetched.length} jobs (expected 2)`);
 
-  // Normalized shape: exactly { title, url, company, location }.
-  if (fetched[0] && Object.keys(fetched[0]).sort().join(',') === 'company,location,title,url')
+  // Normalized shape: { title, url, company, location } plus only the optional
+  // remoteEvidence / via / postedAt / description fields.
+  const shapeKeys = fetched[0] ? Object.keys(fetched[0]) : [];
+  if (fetched[0] && ['company', 'location', 'title', 'url'].every(k => shapeKeys.includes(k))
+      && shapeKeys.every(k => ['company', 'location', 'title', 'url', 'remoteEvidence', 'via', 'postedAt', 'description'].includes(k)))
     pass('remotive.fetch() returns the normalized { title, url, company, location } shape');
   else fail(`remotive.fetch() row 0 keys = ${JSON.stringify(fetched[0] && Object.keys(fetched[0]))}`);
 

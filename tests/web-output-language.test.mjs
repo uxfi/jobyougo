@@ -200,7 +200,7 @@ test('ui/server.mjs wires language.output and spend_tier through getProfile', ()
   assert.ok(server.includes('parts.push(coverLetterTask(outputLanguage));'));
   assert.ok(!server.includes("Contraintes : langue de l'annonce"), 'no second copy of the letter task in the server');
   assert.match(server, /offerContext: \[prefetchData, questionStories\][^\n]*\n\s*outputLanguage,/, 'question mode passes the language');
-  assert.ok(server.includes('buildEvalRepairPrompt(fullResponse, facts, { outputLanguage })'));
+  assert.ok(server.includes('buildEvalRepairPrompt(fullResponse, facts, { outputLanguage, offer: '));
   assert.ok(server.includes('profileLanguage: configuredOutputLanguage(profileData)'), 'email reads getProfile(userId)');
   // Application emails stay on Qwen (user decision, 2026-10-08).
   assert.ok(server.includes('const APPLICATION_EMAIL_MODEL = process.env.APPLICATION_EMAIL_MODEL || MODELS.QWEN;'));

@@ -5,221 +5,808 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Feature Bento</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  /* Motion gate: entrance styles only apply when motion is allowed and JS runs.
+     The timeout is a safety net so content can never stay hidden. */
+  (function () {
+    var d = document.documentElement;
+    try {
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        d.classList.add('motion');
+        setTimeout(function () { d.classList.add('in'); }, 1500);
+      }
+    } catch (e) {}
+  })();
+</script>
 <style>
+  :root {
+    --bg: #edecea;
+    --card: #fff;
+    --ink: #111;
+    --ink-2: #57544f;   /* 7.5:1 on white */
+    --ink-3: #6b6864;   /* 5.5:1 on white, 4.7:1 on bg */
+    --line: #e4e2de;
+    --track: #f1f0ed;
+    --teal: #3bc8d4;
+    --teal-2: #1fa8b4;
+    --teal-soft: #a8e6ed;
+    --teal-ink: #0b6f78; /* 5.9:1, text + focus */
+    --teal-wash: #e6f6f8;
+    --blue: #2563eb;
+    --blue-wash: #eef3fe;
+    --ease: cubic-bezier(.2, .7, .2, 1);
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     font-family: 'Inter', system-ui, sans-serif;
-    background: #edecea;
+    background: var(--bg);
+    color: var(--ink);
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 48px 24px;
+    padding: 40px 24px;
+    -webkit-font-smoothing: antialiased;
   }
 
+  .num { font-variant-numeric: tabular-nums; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  :focus-visible { outline: 2px solid var(--teal-ink); outline-offset: 2px; }
+
+  .page { width: 100%; max-width: 880px; }
+
+  /* ── Intro ── */
+  .intro {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; margin: 0 4px 20px;
+  }
+  .intro h1 {
+    font-size: 24px; line-height: 1.2; font-weight: 700;
+    letter-spacing: -0.025em; max-width: 24ch;
+  }
+  .live {
+    display: inline-flex; align-items: center; gap: 8px; flex: none;
+    font-size: 12px; font-weight: 500; color: var(--ink-2);
+  }
+  .live-dot {
+    position: relative; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--teal-2);
+  }
+  .live-dot::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: var(--teal-2); opacity: 0;
+  }
+  .live.is-off .live-dot { background: #8a8781; }
+  .motion .live:not(.is-off) .live-dot::after { animation: live-ping 2.4s ease-out infinite; }
+  @keyframes live-ping {
+    0% { transform: scale(1); opacity: .55; }
+    80%, 100% { transform: scale(2.8); opacity: 0; }
+  }
+
+  /* ── Bento ── */
   .bento {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    max-width: 760px;
-    width: 100%;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 16px;
   }
-
   .card {
-    background: #fff;
+    background: var(--card);
     border-radius: 20px;
-    padding: 24px 22px 22px;
+    padding: 22px;
     overflow: hidden;
     position: relative;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.07);
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .card--revenue { grid-column: span 4; }
+  .card--flow    { grid-column: span 2; }
+  .card--pipe    { grid-column: span 2; }
+  .card--map     { grid-column: span 4; }
+
+  /* Heading comes first in the DOM, sits under the visual on screen */
+  .card-text { order: 2; margin-top: auto; }
+  .card-text h2 {
+    font-size: 15px; font-weight: 700; color: var(--ink);
+    letter-spacing: -0.015em; line-height: 1.3; margin-bottom: 6px;
+  }
+  .card-text p { font-size: 13px; line-height: 1.55; color: var(--ink-2); max-width: 56ch; }
+  .viz { order: 1; }
+
+  .label { font-size: 11.5px; font-weight: 500; color: var(--ink-3); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  /* ── Revenue ── */
+  .rev-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .big {
+    display: flex; align-items: baseline; gap: 10px; margin-top: 4px;
+    font-size: 30px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1;
+  }
+  .bump {
+    font-size: 12px; font-weight: 600; letter-spacing: 0; color: var(--teal-ink);
+    opacity: 0; transform: translateY(4px);
+    transition: opacity .2s var(--ease), transform .2s var(--ease);
+  }
+  .bump.show { opacity: 1; transform: none; }
+
+  .seg {
+    position: relative; display: inline-flex; gap: 2px; padding: 3px;
+    background: var(--track); border-radius: 10px;
+  }
+  .seg button {
+    position: relative; z-index: 1;
+    font: inherit; font-size: 12px; font-weight: 500; color: var(--ink-2);
+    background: transparent; border: 0; border-radius: 8px;
+    padding: 6px 10px; cursor: pointer;
+    transition: color .18s, background-color .18s, box-shadow .18s;
+  }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] {
+    color: var(--ink); background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.04);
+  }
+  .seg-ind {
+    position: absolute; top: 3px; bottom: 3px; left: 0; width: 0;
+    border-radius: 8px; background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px rgba(0,0,0,.04);
+    opacity: 0;
+  }
+  .seg.has-ind .seg-ind { opacity: 1; }
+  .seg.has-ind button[aria-pressed="true"] { background: transparent; box-shadow: none; }
+  .seg.ready .seg-ind { transition: transform .26s var(--ease), width .26s var(--ease); }
+
+  .readout {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    margin: 18px 0 12px; font-size: 12px; color: var(--ink-3); min-height: 18px;
+  }
+  .readout b { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .readout .pct { font-weight: 600; color: var(--teal-ink); }
+  .readout .pct.under { color: var(--ink-3); font-weight: 500; }
+
+  .plot { position: relative; height: 132px; }
+  .bars {
+    position: absolute; inset: 0;
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px;
+  }
+  .bar {
+    position: relative; overflow: hidden;
+    border: 0; padding: 0; background: transparent; cursor: pointer;
+    border-radius: 6px 6px 2px 2px;
+  }
+  .bar:focus-visible { outline-offset: 1px; }
+  .bar .fill {
+    position: absolute; inset: 0;
+    border-radius: 6px 6px 2px 2px;
+    background: var(--teal-soft);
+    transform: translateY(calc((1 - var(--v, 0)) * 100%));
+    transition: transform .55s var(--ease), background-color .18s;
+  }
+  .bar.up .fill { background: var(--teal-2); }
+  .bar.now .fill {
+    background: repeating-linear-gradient(135deg, var(--teal-2) 0 3px, var(--teal-soft) 3px 7px);
+  }
+  .bar.sel .fill { background: var(--teal-ink); }
+  .bar.now.sel .fill {
+    background: repeating-linear-gradient(135deg, var(--teal-ink) 0 3px, #6cbcc3 3px 7px);
   }
 
-  .card-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #111;
-    letter-spacing: -0.3px;
-    line-height: 1.35;
-    margin-bottom: 5px;
+  .target {
+    position: absolute; left: 0; right: 0; top: 0; height: 100%;
+    z-index: 2; pointer-events: none;
+    border-top: 1.5px dashed #8a8781;
+    transform: translateY(calc((1 - var(--t, .8)) * 100%));
+    transition: transform .55s var(--ease);
+  }
+  .target span {
+    position: absolute; left: 0; bottom: 100%; margin-bottom: 3px;
+    font-size: 11px; font-weight: 500; color: var(--ink-3); white-space: nowrap;
   }
 
-  .card-desc {
-    font-size: 11.5px;
-    color: #aaa;
-    line-height: 1.65;
+  .axis {
+    display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px;
+    margin-top: 8px; font-size: 10.5px; color: var(--ink-3); text-align: center;
+  }
+  .axis span.sel { color: var(--ink); font-weight: 600; }
+
+  /* ── Cart recovery flow ── */
+  .sw {
+    display: inline-flex; align-items: center; gap: 8px;
+    font: inherit; font-size: 12px; font-weight: 500; color: var(--ink-2);
+    background: none; border: 0; padding: 4px 0 4px 6px; border-radius: 8px; cursor: pointer;
+  }
+  .sw-track {
+    position: relative; width: 34px; height: 20px; border-radius: 999px;
+    background: #8a8781; transition: background-color .2s;
+  }
+  .sw-knob {
+    position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25);
+    transition: transform .2s var(--ease);
+  }
+  .sw[aria-checked="true"] .sw-track { background: var(--teal-ink); }
+  .sw[aria-checked="true"] .sw-knob { transform: translateX(14px); }
+
+  .flow { list-style: none; position: relative; margin-top: 14px; }
+  .flow-rail {
+    position: absolute; left: 5px; top: 14px; height: 112px; width: 2px;
+    background: var(--line); border-radius: 2px; overflow: hidden;
+  }
+  .flow-rail span {
+    display: block; height: 100%; background: var(--teal-2);
+    transform: scaleY(0); transform-origin: top;
+    transition: transform .8s var(--ease);
+  }
+  .flow li {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    height: 28px; font-size: 12.5px; color: var(--ink-2);
+  }
+  .flow .node {
+    position: relative; z-index: 1; flex: none;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; border: 2px solid #c9c6c0;
+    transition: border-color .2s, background-color .2s, box-shadow .2s;
+  }
+  .flow .step { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .flow .meta { flex: none; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .flow li.done .node { border-color: var(--teal-2); background: var(--teal-2); }
+  .flow li.on .node { border-color: var(--teal-ink); box-shadow: 0 0 0 4px var(--teal-wash); }
+  .flow li.on .step, .flow li.done .step { color: var(--ink); }
+  .flow li.on .meta { color: var(--teal-ink); font-weight: 600; }
+  .flow li.skip .node { border-style: dashed; }
+  .flow li.skip .meta { color: var(--ink); }
+  .flow-foot { margin-top: 12px; font-size: 12px; color: var(--ink-2); }
+  .flow-foot b { font-weight: 600; color: var(--ink); }
+
+  /* ── Pipeline ── */
+  .pipe { list-style: none; display: grid; gap: 11px; margin-top: 14px; }
+  .pipe li {
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: baseline;
+    font-size: 12.5px; color: var(--ink-2);
+  }
+  .pipe .pc { margin-left: 6px; font-size: 11.5px; color: var(--ink-3); }
+  .pipe .n { font-weight: 600; color: var(--ink); }
+  .pipe .track {
+    grid-column: 1 / -1; height: 6px; border-radius: 99px;
+    background: var(--track); overflow: hidden;
+  }
+  .pipe .fill {
+    display: block; height: 100%; border-radius: 99px; background: var(--blue);
+    transform: translateX(calc((var(--w) - 1) * 100%));
+    transition: transform .7s var(--ease);
+  }
+  .pipe li.low .pc {
+    color: var(--blue); font-weight: 600;
+    background: var(--blue-wash); border-radius: 5px; padding: 1px 5px;
+  }
+  .pipe-note { margin-top: 12px; font-size: 12px; color: var(--ink-2); }
+
+  /* ── Map ── */
+  .map-viz {
+    display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    gap: 24px; align-items: center; margin-top: 2px;
+  }
+  .map { display: block; width: 100%; height: auto; overflow: visible; }
+  .pin { cursor: default; }
+  .pin circle { transform-box: fill-box; transform-origin: center; }
+  .pin .halo { fill: var(--teal); opacity: .16; transition: transform .25s var(--ease), opacity .25s; }
+  .pin .dot { fill: var(--teal-2); stroke: #fff; stroke-width: 1.5; transition: fill .2s, transform .5s var(--ease); }
+  .pin .ping { fill: none; stroke: var(--teal-2); stroke-width: 1.5; opacity: 0; }
+  .pin.pinging .ping { animation: ring 1.2s var(--ease); }
+  @keyframes ring {
+    from { opacity: .9; transform: scale(1); }
+    to   { opacity: 0;  transform: scale(3.4); }
+  }
+  .pin.hl .dot { fill: var(--teal-ink); }
+  .pin.hl .halo { opacity: .32; transform: scale(1.25); }
+
+  .countries { list-style: none; display: grid; gap: 12px; }
+  .countries li {
+    display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; align-items: baseline;
+    font-size: 12.5px; color: var(--ink-2); border-radius: 6px;
+  }
+  .countries .amt { font-weight: 600; color: var(--ink); }
+  .countries .share { height: 4px; border-radius: 99px; background: var(--track); overflow: hidden; align-self: center; }
+  .countries .share span {
+    display: block; height: 100%; border-radius: 99px; background: var(--teal-2);
+    transform: translateX(calc((var(--w) - 1) * 100%));
+    transition: transform .6s var(--ease), background-color .2s;
+  }
+  .countries .pct { font-size: 11.5px; color: var(--ink-3); text-align: right; }
+  .countries li.hl { color: var(--ink); }
+  .countries li.hl .share span { background: var(--teal-ink); }
+
+  /* ── Entrance (plays once, only with .motion) ── */
+  .motion .intro, .motion .card { opacity: 0; transform: translateY(16px); }
+  .motion.in .intro, .motion.in .card {
+    opacity: 1; transform: none;
+    transition: opacity .6s var(--ease), transform .7s var(--ease);
+    transition-delay: calc(var(--i, 0) * 70ms);
+  }
+  .motion:not(.in) .bar .fill { transform: translateY(100%); }
+  .motion:not(.in) .pipe .fill,
+  .motion:not(.in) .countries .share span { transform: translateX(-100%); }
+  .motion:not(.in) .pin .dot,
+  .motion:not(.in) .pin .halo { transform: scale(0); }
+  .motion.in:not(.settled) .bar .fill { transition-delay: calc(240ms + var(--i) * 35ms); }
+  .motion.in:not(.settled) .pipe .fill { transition-delay: calc(380ms + var(--i) * 80ms); }
+  .motion.in:not(.settled) .countries .share span { transition-delay: calc(460ms + var(--i) * 70ms); }
+  .motion.in:not(.settled) .pin .dot,
+  .motion.in:not(.settled) .pin .halo { transition-delay: calc(520ms + var(--i) * 90ms); }
+  .motion.settled .bar .fill { transition-delay: calc(var(--i) * 12ms); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation: none !important;
+      transition-duration: 0s !important;
+      transition-delay: 0s !important;
+    }
   }
 
-  /* ── Shared visual zone ── */
-  .visual { margin-bottom: 20px; }
+  /* ── Narrow frames ── */
+  @media (max-width: 760px) {
+    body { padding: 24px 16px; }
+    .intro { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .intro h1 { font-size: 21px; }
+    .bento { grid-template-columns: minmax(0, 1fr); }
+    .card--revenue, .card--flow, .card--pipe, .card--map { grid-column: auto; }
+    .map-viz { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .axis span:nth-child(even) { visibility: hidden; }
+  }
 </style>
 </head>
 <body>
-<div class="bento">
+<main class="page">
 
-  <!-- ── Card 1: Automate Growth ── -->
-  <div class="card">
-    <div class="visual" style="display:flex;justify-content:center;align-items:center;padding:14px 0 18px;">
-      <svg width="148" height="148" viewBox="0 0 148 148">
-        <!-- Track -->
-        <circle cx="74" cy="74" r="54" fill="none" stroke="#ebebeb" stroke-width="17"/>
-        <!-- 24% arc — circumference = 2π×54 ≈ 339.3; 24% ≈ 81.4 -->
-        <circle cx="74" cy="74" r="54" fill="none" stroke="#3bc8d4" stroke-width="17"
-          stroke-dasharray="81.4 257.9"
-          stroke-linecap="round"
-          transform="rotate(-90 74 74)"/>
-        <!-- Center -->
-        <text x="74" y="70" text-anchor="middle"
-              font-family="Inter,system-ui,sans-serif"
-              font-size="26" font-weight="800" fill="#111">24%</text>
-        <text x="74" y="86" text-anchor="middle"
-              font-family="Inter,system-ui,sans-serif"
-              font-size="10" fill="#ccc" letter-spacing="0.8">growth</text>
-      </svg>
-    </div>
-    <div class="card-title">Automate Your Growth Engine</div>
-    <div class="card-desc">Set up self-running campaigns that capture leads, nurture relationships, and close sales—while you sleep.</div>
-  </div>
+  <header class="intro" style="--i:0">
+    <h1>Everything the shop sold, chased and shipped this quarter</h1>
+    <p class="live" id="live"><span class="live-dot" aria-hidden="true"></span><span id="live-text">Sample data · live</span></p>
+  </header>
 
-  <!-- ── Card 2: Real-Time Performance ── -->
-  <div class="card">
-    <div class="visual">
-      <!-- Header -->
-      <div style="font-size:10px;font-weight:600;color:#c8c8c8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;">Sales Revenue</div>
-      <div style="font-size:25px;font-weight:800;color:#111;letter-spacing:-0.9px;margin-bottom:18px;">$28,890.10</div>
+  <div class="bento">
 
-      <!-- Bar chart: ascending, all same teal, value label on tallest -->
-      <div style="position:relative;">
-        <svg width="100%" height="88" viewBox="0 0 248 88" preserveAspectRatio="none">
-          <!-- Floating value label -->
-          <text x="225" y="9" text-anchor="end"
-                font-family="Inter,sans-serif" font-size="8.5" fill="#bbb" font-weight="500">$9,562.50</text>
-          <!-- Tick line from label -->
-          <line x1="228" y1="7" x2="236" y2="7" stroke="#ddd" stroke-width="1"/>
-
-          <!-- Bars — ascending left to right, all teal -->
-          <rect x="0"   y="70" width="26" height="18" rx="4" fill="#a8e6ed"/>
-          <rect x="31"  y="58" width="26" height="30" rx="4" fill="#6dd5e0"/>
-          <rect x="62"  y="50" width="26" height="38" rx="4" fill="#6dd5e0"/>
-          <rect x="93"  y="40" width="26" height="48" rx="4" fill="#3bc8d4"/>
-          <rect x="124" y="32" width="26" height="56" rx="4" fill="#3bc8d4"/>
-          <rect x="155" y="22" width="26" height="66" rx="4" fill="#2ab8c4"/>
-          <rect x="186" y="12" width="26" height="76" rx="4" fill="#2ab8c4"/>
-          <rect x="217" y="4"  width="26" height="84" rx="4" fill="#1fa8b4"/>
-        </svg>
+    <!-- ── Revenue (hero cell) ── -->
+    <section class="card card--revenue" aria-labelledby="t-rev" style="--i:1">
+      <div class="card-text">
+        <h2 id="t-rev">Revenue by week, split by channel</h2>
+        <p>Bars above the dashed line beat the weekly target. The striped bar is this week, still filling as orders come in.</p>
       </div>
-    </div>
-    <div class="card-title">Real-Time Performance Tracking</div>
-    <div class="card-desc">Monitor key metrics — sales, traffic, and customer behavior. Make data-driven decisions with live updates.</div>
-  </div>
-
-  <!-- ── Card 3: Smarter Pipeline ── -->
-  <div class="card">
-    <div class="visual" style="display:flex;align-items:center;gap:16px;padding:10px 0 18px;">
-      <!-- Ring chart -->
-      <svg width="118" height="118" viewBox="0 0 118 118" style="flex-shrink:0;">
-        <!-- Outer dotted decoration -->
-        <circle cx="59" cy="59" r="56" fill="none" stroke="#efefef" stroke-width="1"
-          stroke-dasharray="2.5 5.5"/>
-        <!-- Track -->
-        <circle cx="59" cy="59" r="42" fill="none" stroke="#ebebeb" stroke-width="14"/>
-        <!-- ~66% fill — circumference = 2π×42 ≈ 263.9; 66% ≈ 174.2 -->
-        <circle cx="59" cy="59" r="42" fill="none" stroke="#2563eb" stroke-width="14"
-          stroke-dasharray="174.2 89.7"
-          stroke-linecap="round"
-          transform="rotate(-90 59 59)"/>
-        <!-- Inner subtle ring -->
-        <circle cx="59" cy="59" r="27" fill="none" stroke="#f3f3f3" stroke-width="1.5"/>
-        <!-- Center -->
-        <text x="59" y="55" text-anchor="middle"
-              font-family="Inter,system-ui,sans-serif"
-              font-size="18" font-weight="800" fill="#111">66%</text>
-        <text x="59" y="69" text-anchor="middle"
-              font-family="Inter,system-ui,sans-serif"
-              font-size="8.5" fill="#ccc" letter-spacing=".5">pipeline</text>
-      </svg>
-
-      <!-- Legend -->
-      <div>
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;">
-          <div style="width:7px;height:7px;border-radius:50%;background:#2563eb;flex-shrink:0;"></div>
-          <span style="font-size:11.5px;font-weight:600;color:#555;">Sales Team</span>
+      <div class="viz">
+        <div class="rev-top">
+          <div>
+            <p class="label" id="rev-scope">Last 12 weeks · All channels</p>
+            <p class="big"><span class="num" id="rev-total">$28,890.10</span><span class="bump num" id="rev-bump" aria-hidden="true"></span></p>
+          </div>
+          <div class="seg" id="seg" role="group" aria-label="Channel">
+            <span class="seg-ind" aria-hidden="true"></span>
+            <button type="button" data-ch="all" aria-pressed="true">All</button>
+            <button type="button" data-ch="web" aria-pressed="false">Web shop</button>
+            <button type="button" data-ch="social" aria-pressed="false">Social</button>
+            <button type="button" data-ch="market" aria-pressed="false">Marketplaces</button>
+          </div>
         </div>
-        <div style="font-size:10.5px;color:#bbb;line-height:1.6;">Team conversion<br>rate this quarter</div>
-      </div>
-    </div>
-    <div class="card-title">Smarter Pipeline, Higher Conversions</div>
-    <div class="card-desc">Gain visibility into sales to identify opportunities. Automate follow-ups and track progress.</div>
-  </div>
 
-  <!-- ── Card 4: Sell Everywhere ── -->
-  <div class="card">
-    <div class="visual">
-      <!-- Stat top-right -->
-      <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
-        <div style="font-size:16px;font-weight:800;color:#111;letter-spacing:-0.4px;">$18,890.70</div>
-      </div>
+        <p class="readout">
+          <span id="ro-week">W43 · so far</span>
+          <b class="num" id="ro-val">$1,419.07</b>
+          <span class="pct under num" id="ro-pct">59% of target</span>
+        </p>
 
-      <!-- World map SVG -->
-      <svg width="100%" height="98" viewBox="0 0 268 106" style="overflow:visible;">
-        <!-- North America -->
-        <path d="M12,16 Q20,8 38,10 Q54,8 62,16 Q68,26 64,40 Q58,53 46,51 Q28,48 16,38 Q8,30 12,16Z" fill="#e8e8e8"/>
-        <!-- Greenland -->
-        <path d="M46,2 Q54,0 58,5 Q62,10 58,16 Q52,20 46,16 Q41,10 46,2Z" fill="#e8e8e8"/>
-        <!-- South America -->
-        <path d="M40,64 Q53,57 64,61 Q73,66 71,83 Q66,96 56,98 Q45,96 41,84 Q38,72 40,64Z" fill="#e8e8e8"/>
-        <!-- Europe -->
-        <path d="M106,10 Q120,6 128,12 Q134,18 130,30 Q124,38 114,36 Q106,30 106,20Z" fill="#e8e8e8"/>
-        <!-- Africa -->
-        <path d="M108,44 Q120,39 130,44 Q139,51 137,68 Q132,84 121,88 Q110,85 106,70 Q102,57 108,44Z" fill="#e8e8e8"/>
-        <!-- N. Asia / Russia -->
-        <path d="M140,2 Q172,0 204,6 Q224,10 230,22 Q226,36 210,42 Q188,48 164,44 Q144,38 140,24Z" fill="#e8e8e8"/>
-        <!-- Middle East -->
-        <path d="M136,42 Q148,38 158,44 Q166,50 162,62 Q155,70 144,68 Q136,60 136,50Z" fill="#e8e8e8"/>
-        <!-- SE Asia -->
-        <path d="M190,54 Q204,50 214,57 Q220,65 215,76 Q207,82 198,77 Q190,70 190,58Z" fill="#e8e8e8"/>
-        <!-- Australia -->
-        <path d="M200,72 Q218,68 228,76 Q235,84 230,95 Q220,103 208,100 Q198,93 200,79Z" fill="#e8e8e8"/>
-
-        <!-- USA pulse -->
-        <circle cx="36" cy="28" r="10" fill="#3bc8d4" opacity="0.12"/>
-        <circle cx="36" cy="28" r="5" fill="#3bc8d4"/>
-        <!-- Brazil pulse -->
-        <circle cx="54" cy="76" r="8" fill="#3bc8d4" opacity="0.12"/>
-        <circle cx="54" cy="76" r="4" fill="#3bc8d4"/>
-        <!-- UK pulse -->
-        <circle cx="116" cy="20" r="8" fill="#3bc8d4" opacity="0.12"/>
-        <circle cx="116" cy="20" r="4" fill="#3bc8d4"/>
-        <!-- Indonesia pulse -->
-        <circle cx="202" cy="65" r="8" fill="#3bc8d4" opacity="0.12"/>
-        <circle cx="202" cy="65" r="4" fill="#3bc8d4"/>
-      </svg>
-
-      <!-- Location labels -->
-      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:4px;">
-          <div style="width:5px;height:5px;border-radius:50%;background:#3bc8d4;"></div>
-          <span style="font-size:10px;color:#aaa;font-weight:500;">USA</span>
+        <div class="plot">
+          <div class="target" id="target" aria-hidden="true"><span id="target-label">Target $2,400 / week</span></div>
+          <div class="bars" id="bars" role="group" aria-label="Weekly revenue, use arrow keys to move between weeks"></div>
         </div>
-        <div style="display:flex;align-items:center;gap:4px;">
-          <div style="width:5px;height:5px;border-radius:50%;background:#3bc8d4;"></div>
-          <span style="font-size:10px;color:#aaa;font-weight:500;">Brazil</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:4px;">
-          <div style="width:5px;height:5px;border-radius:50%;background:#3bc8d4;"></div>
-          <span style="font-size:10px;color:#aaa;font-weight:500;">Indonesia</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:4px;">
-          <div style="width:5px;height:5px;border-radius:50%;background:#3bc8d4;"></div>
-          <span style="font-size:10px;color:#aaa;font-weight:500;">UK</span>
+        <div class="axis" id="axis" aria-hidden="true">
+          <span>W32</span><span>W33</span><span>W34</span><span>W35</span><span>W36</span><span>W37</span>
+          <span>W38</span><span>W39</span><span>W40</span><span>W41</span><span>W42</span><span class="sel">W43</span>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="card-title">Sell Everywhere, Seamlessly</div>
-    <div class="card-desc">Manage and sell your products across websites, social media, and marketplaces from one unified dashboard.</div>
+    <!-- ── Cart recovery ── -->
+    <section class="card card--flow" aria-labelledby="t-flow" style="--i:2">
+      <div class="card-text">
+        <h2 id="t-flow">Win back abandoned carts</h2>
+        <p>Two hours after a cart is left, one email goes out. A 10% code follows by text only if it was opened.</p>
+      </div>
+      <div class="viz">
+        <div class="row">
+          <span class="label" id="seq-name">Cart recovery sequence</span>
+          <button type="button" class="sw" id="seq-switch" role="switch" aria-checked="true" aria-labelledby="seq-name">
+            <span id="sw-state" aria-hidden="true">Running</span>
+            <span class="sw-track" aria-hidden="true"><span class="sw-knob"></span></span>
+          </button>
+        </div>
+        <ol class="flow" id="flow">
+          <li><span class="node" aria-hidden="true"></span><span class="step">Cart left</span><span class="meta" id="meta-city"></span></li>
+          <li><span class="node" aria-hidden="true"></span><span class="step">Wait 2 h</span></li>
+          <li><span class="node" aria-hidden="true"></span><span class="step">Email “Still deciding?”</span></li>
+          <li><span class="node" aria-hidden="true"></span><span class="step">Text a 10% code</span><span class="meta" id="meta-open">if opened</span></li>
+          <li><span class="node" aria-hidden="true"></span><span class="step">Order back</span><span class="meta" id="meta-amt"></span></li>
+        </ol>
+        <span class="flow-rail" aria-hidden="true"><span id="flow-fill"></span></span>
+        <p class="flow-foot"><b class="num" id="rec-back">6</b> of <span class="num" id="rec-carts">14</span> carts back today · <b class="num" id="rec-amt">$384.20</b></p>
+      </div>
+    </section>
+
+    <!-- ── Pipeline ── -->
+    <section class="card card--pipe" aria-labelledby="t-pipe" style="--i:3">
+      <div class="card-text">
+        <h2 id="t-pipe">See where deals stall</h2>
+        <p>Open deals this quarter. Each percentage is the share that reached that stage from the one above.</p>
+      </div>
+      <div class="viz">
+        <div class="row"><span class="label">Stage</span><span class="label">Deals</span></div>
+        <ol class="pipe">
+          <li style="--w:1;--i:0"><span>Lead</span><span class="n num">148</span><span class="track" aria-hidden="true"><span class="fill"></span></span></li>
+          <li style="--w:.622;--i:1"><span>Qualified<span class="pc num">62%</span></span><span class="n num">92</span><span class="track" aria-hidden="true"><span class="fill"></span></span></li>
+          <li style="--w:.385;--i:2"><span>Proposal<span class="pc num">62%</span></span><span class="n num">57</span><span class="track" aria-hidden="true"><span class="fill"></span></span></li>
+          <li class="low" style="--w:.088;--i:3"><span>Won<span class="pc num">23%<span class="sr-only">, the weakest step</span></span></span><span class="n num">13</span><span class="track" aria-hidden="true"><span class="fill"></span></span></li>
+        </ol>
+        <p class="pipe-note">Proposal to won loses three deals in four.</p>
+      </div>
+    </section>
+
+    <!-- ── Markets ── -->
+    <section class="card card--map" aria-labelledby="t-map" style="--i:4">
+      <div class="card-text">
+        <h2 id="t-map">Four countries, one stock count</h2>
+        <p>The web shop, social storefronts and marketplaces sell from the same inventory, so an order in São Paulo can’t oversell a shelf in Leeds.</p>
+      </div>
+      <div class="viz">
+        <div class="row"><span class="label">Revenue by buyer country · last 12 weeks</span></div>
+        <div class="map-viz">
+          <svg class="map" viewBox="0 0 268 106" role="img" aria-label="World map with buyers in the USA, the UK, Brazil and Indonesia">
+            <defs>
+              <pattern id="land-dots" width="3.2" height="3.2" patternUnits="userSpaceOnUse">
+                <circle cx="1.6" cy="1.6" r=".9" fill="#cdcac4"/>
+              </pattern>
+            </defs>
+            <g fill="url(#land-dots)">
+              <path d="M12,16 Q20,8 38,10 Q54,8 62,16 Q68,26 64,40 Q58,53 46,51 Q28,48 16,38 Q8,30 12,16Z"/>
+              <path d="M46,2 Q54,0 58,5 Q62,10 58,16 Q52,20 46,16 Q41,10 46,2Z"/>
+              <path d="M40,64 Q53,57 64,61 Q73,66 71,83 Q66,96 56,98 Q45,96 41,84 Q38,72 40,64Z"/>
+              <path d="M106,10 Q120,6 128,12 Q134,18 130,30 Q124,38 114,36 Q106,30 106,20Z"/>
+              <path d="M108,44 Q120,39 130,44 Q139,51 137,68 Q132,84 121,88 Q110,85 106,70 Q102,57 108,44Z"/>
+              <path d="M140,2 Q172,0 204,6 Q224,10 230,22 Q226,36 210,42 Q188,48 164,44 Q144,38 140,24Z"/>
+              <path d="M136,42 Q148,38 158,44 Q166,50 162,62 Q155,70 144,68 Q136,60 136,50Z"/>
+              <path d="M190,54 Q204,50 214,57 Q220,65 215,76 Q207,82 198,77 Q190,70 190,58Z"/>
+              <path d="M200,72 Q218,68 228,76 Q235,84 230,95 Q220,103 208,100 Q198,93 200,79Z"/>
+            </g>
+            <!-- pin radius follows each country's share -->
+            <g class="pin" data-c="us" transform="translate(36 28)" style="--i:0"><circle class="halo" r="11"/><circle class="ping" r="6"/><circle class="dot" r="6"/></g>
+            <g class="pin" data-c="uk" transform="translate(116 20)" style="--i:1"><circle class="halo" r="10"/><circle class="ping" r="5.1"/><circle class="dot" r="5.1"/></g>
+            <g class="pin" data-c="br" transform="translate(54 76)" style="--i:2"><circle class="halo" r="9.5"/><circle class="ping" r="4.6"/><circle class="dot" r="4.6"/></g>
+            <g class="pin" data-c="id" transform="translate(202 65)" style="--i:3"><circle class="halo" r="9"/><circle class="ping" r="4.2"/><circle class="dot" r="4.2"/></g>
+          </svg>
+          <ul class="countries" id="countries">
+            <li data-c="us" style="--i:0"><span>USA</span><span class="amt num" id="amt-us">$11,209.36</span><span class="share" aria-hidden="true"><span id="bar-us" style="--w:.388"></span></span><span class="pct num" id="pct-us">38.8%</span></li>
+            <li data-c="uk" style="--i:1"><span>UK</span><span class="amt num" id="amt-uk">$7,424.76</span><span class="share" aria-hidden="true"><span id="bar-uk" style="--w:.257"></span></span><span class="pct num" id="pct-uk">25.7%</span></li>
+            <li data-c="br" style="--i:2"><span>Brazil</span><span class="amt num" id="amt-br">$5,951.36</span><span class="share" aria-hidden="true"><span id="bar-br" style="--w:.206"></span></span><span class="pct num" id="pct-br">20.6%</span></li>
+            <li data-c="id" style="--i:3"><span>Indonesia</span><span class="amt num" id="amt-id">$4,304.62</span><span class="share" aria-hidden="true"><span id="bar-id" style="--w:.149"></span></span><span class="pct num" id="pct-id">14.9%</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
   </div>
+</main>
 
-</div>
+<script>
+(function () {
+  'use strict';
+
+  var root = document.documentElement;
+  var reduce = false;
+  try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  var $ = function (id) { return document.getElementById(id); };
+  var money = function (c) {
+    return '$' + (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  var whole = function (c) { return '$' + Math.round(c / 100).toLocaleString('en-US'); };
+  var sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+
+  /* ── Sample data, in cents. Week 43 is the current, partial week. ── */
+  var DATA = {
+    web:    [106040,112210,97680,119055,126820,115590,128235,133610,127075,139260,136830,69234],
+    social: [48030,57075,54820,60210,55040,66585,62830,68015,71260,65025,77040,36210],
+    market: [59428,56453,62698,58238,65623,62488,68533,67248,70998,74443,72618,36463]
+  };
+  var TARGET = { all: 240000, web: 125000, social: 62000, market: 62000 };
+  var NAMES = { all: 'All channels', web: 'Web shop', social: 'Social', market: 'Marketplaces' };
+  var COUNTRY = { us: 1120936, uk: 742476, br: 595136, id: 430462 };
+  var FIRST_WEEK = 32, N = 12, NOW = 11;
+
+  var ch = 'all', pinned = NOW, current = NOW;
+
+  function series(c) {
+    if (c !== 'all') return DATA[c];
+    return DATA.web.map(function (v, i) { return v + DATA.social[i] + DATA.market[i]; });
+  }
+  function niceMax(m) {
+    var step = m > 200000 ? 50000 : 25000;
+    return Math.ceil(m * 1.08 / step) * step;
+  }
+
+  /* Number tween (instant under reduced motion) */
+  var tweens = {};
+  function setMoney(el, to, animate) {
+    var t = tweens[el.id] || (tweens[el.id] = { v: to, raf: 0 });
+    var from = t.v;
+    t.v = to;
+    cancelAnimationFrame(t.raf);
+    if (reduce || !animate || from === to) { el.textContent = money(to); return; }
+    var t0 = performance.now(), dur = 560;
+    (function step(now) {
+      var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = money(Math.round(from + (to - from) * e));
+      if (p < 1) t.raf = requestAnimationFrame(step);
+    })(t0);
+  }
+
+  /* ── Chart ── */
+  var barsEl = $('bars');
+  var axisSpans = Array.prototype.slice.call($('axis').children);
+  var bars = [];
+  for (var i = 0; i < N; i++) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'bar' + (i === NOW ? ' now' : '');
+    b.style.setProperty('--i', i);
+    b.tabIndex = i === pinned ? 0 : -1;
+    b.setAttribute('data-i', i);
+    b.innerHTML = '<span class="fill"></span>';
+    barsEl.appendChild(b);
+    bars.push(b);
+  }
+
+  function weekName(i) { return 'W' + (FIRST_WEEK + i) + (i === NOW ? ' · so far' : ''); }
+
+  function showWeek(i, animate) {
+    var s = series(ch), t = TARGET[ch];
+    current = i;
+    bars.forEach(function (bar, j) { bar.classList.toggle('sel', j === i); });
+    axisSpans.forEach(function (sp, j) { sp.classList.toggle('sel', j === i); });
+    $('ro-week').textContent = weekName(i);
+    setMoney($('ro-val'), s[i], animate);
+    var p = Math.round(s[i] / t * 100), pct = $('ro-pct');
+    pct.textContent = p + '% of target';
+    pct.classList.toggle('under', p < 100);
+  }
+
+  function render(animate) {
+    var s = series(ch), t = TARGET[ch];
+    var max = niceMax(Math.max(Math.max.apply(null, s), t));
+    bars.forEach(function (bar, i) {
+      bar.style.setProperty('--v', (s[i] / max).toFixed(4));
+      bar.classList.toggle('up', i !== NOW && s[i] >= t);
+      bar.setAttribute('aria-label', 'Week ' + (FIRST_WEEK + i) + (i === NOW ? ' so far' : '') +
+        ': ' + money(s[i]) + ', ' + Math.round(s[i] / t * 100) + '% of target');
+    });
+    $('target').style.setProperty('--t', (t / max).toFixed(4));
+    $('target-label').textContent = 'Target ' + whole(t) + ' / week';
+    $('rev-scope').textContent = 'Last 12 weeks · ' + NAMES[ch];
+    setMoney($('rev-total'), sum(s), animate);
+    showWeek(current, animate && current === NOW);
+  }
+
+  function pin(i, focus) {
+    pinned = i;
+    bars.forEach(function (bar, j) { bar.tabIndex = j === i ? 0 : -1; });
+    if (focus) bars[i].focus();
+    showWeek(i, false);
+  }
+
+  barsEl.addEventListener('pointerover', function (e) {
+    var bar = e.target.closest('.bar');
+    if (bar) showWeek(+bar.getAttribute('data-i'), false);
+  });
+  barsEl.addEventListener('pointerleave', function () { showWeek(pinned, false); });
+  barsEl.addEventListener('click', function (e) {
+    var bar = e.target.closest('.bar');
+    if (bar) pin(+bar.getAttribute('data-i'), false);
+  });
+  barsEl.addEventListener('focusin', function (e) {
+    var bar = e.target.closest('.bar');
+    if (bar) pin(+bar.getAttribute('data-i'), false);
+  });
+  barsEl.addEventListener('keydown', function (e) {
+    var k = e.key, i = pinned;
+    if (k === 'ArrowRight' || k === 'ArrowUp') i = Math.min(N - 1, i + 1);
+    else if (k === 'ArrowLeft' || k === 'ArrowDown') i = Math.max(0, i - 1);
+    else if (k === 'Home') i = 0;
+    else if (k === 'End') i = N - 1;
+    else return;
+    e.preventDefault();
+    pin(i, true);
+  });
+
+  /* ── Channel switch with a sliding indicator ── */
+  var seg = $('seg'), ind = seg.querySelector('.seg-ind');
+  var segBtns = Array.prototype.slice.call(seg.querySelectorAll('button'));
+  function moveInd() {
+    var on = seg.querySelector('[aria-pressed="true"]');
+    ind.style.width = on.offsetWidth + 'px';
+    ind.style.transform = 'translateX(' + on.offsetLeft + 'px)';
+  }
+  seg.classList.add('has-ind');
+  moveInd();
+  requestAnimationFrame(function () { seg.classList.add('ready'); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveInd);
+  window.addEventListener('resize', moveInd);
+
+  seg.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn || btn.getAttribute('aria-pressed') === 'true') return;
+    segBtns.forEach(function (x) { x.setAttribute('aria-pressed', String(x === btn)); });
+    ch = btn.getAttribute('data-ch');
+    moveInd();
+    render(true);
+  });
+
+  /* ── Markets ── */
+  var KEYS = ['us', 'uk', 'br', 'id'];
+  function renderCountries(animatedKey) {
+    var total = KEYS.reduce(function (a, k) { return a + COUNTRY[k]; }, 0);
+    KEYS.forEach(function (k) {
+      var share = COUNTRY[k] / total;
+      $('bar-' + k).style.setProperty('--w', share.toFixed(4));
+      $('pct-' + k).textContent = (share * 100).toFixed(1) + '%';
+      setMoney($('amt-' + k), COUNTRY[k], k === animatedKey);
+    });
+  }
+  function ping(k) {
+    var g = document.querySelector('.pin[data-c="' + k + '"]');
+    if (!g) return;
+    g.classList.remove('pinging');
+    void g.getBoundingClientRect();
+    g.classList.add('pinging');
+  }
+  var mapViz = document.querySelector('.map-viz');
+  function highlight(k) {
+    mapViz.querySelectorAll('[data-c]').forEach(function (el) {
+      el.classList.toggle('hl', el.getAttribute('data-c') === k);
+    });
+  }
+  mapViz.addEventListener('pointerover', function (e) {
+    var el = e.target.closest('[data-c]');
+    highlight(el ? el.getAttribute('data-c') : null);
+  });
+  mapViz.addEventListener('pointerleave', function () { highlight(null); });
+
+  /* ── Cart recovery sequence: drives the live numbers ── */
+  var ORDERS = [
+    { city: 'Leeds', c: 'uk', a: 6400 },
+    { city: 'Austin', c: 'us', a: 4820 },
+    { city: 'Denver', c: 'us', a: 0 },
+    { city: 'São Paulo', c: 'br', a: 7150 },
+    { city: 'Bristol', c: 'uk', a: 0 },
+    { city: 'Bandung', c: 'id', a: 3990 },
+    { city: 'Portland', c: 'us', a: 5560 },
+    { city: 'Curitiba', c: 'br', a: 0 },
+    { city: 'Surabaya', c: 'id', a: 8240 },
+    { city: 'Manchester', c: 'uk', a: 4410 }
+  ];
+  var rec = { carts: 14, back: 6, amt: 38420 };
+  var steps = Array.prototype.slice.call($('flow').children);
+  var fill = $('flow-fill');
+  var sw = $('seq-switch');
+  var STEP = 1100, HOLD = 2100;
+  var enabled = true, hidden = false, left = 20, cyc = 0, timers = [];
+
+  setMoney($('rec-amt'), rec.amt, false);
+
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function setFill(n) { fill.style.transform = 'scaleY(' + (n / 4) + ')'; }
+  function mark(n) {
+    steps.forEach(function (li, i) {
+      li.classList.toggle('done', i < n);
+      li.classList.toggle('on', i === n);
+      li.classList.remove('skip');
+    });
+    setFill(n);
+  }
+  function resetFlow() {
+    steps.forEach(function (li) { li.classList.remove('on', 'done', 'skip'); });
+    setFill(0);
+    $('meta-city').textContent = '';
+    $('meta-open').textContent = 'if opened';
+    $('meta-amt').textContent = '';
+  }
+  function setState(s) {
+    var words = { running: 'Running', paused: 'Paused', idle: 'Queue empty' };
+    $('sw-state').textContent = words[s];
+    $('live-text').textContent = s === 'running' ? 'Sample data · live' : 'Sample data · ' + words[s].toLowerCase();
+    $('live').classList.toggle('is-off', s !== 'running');
+  }
+
+  var bumpTimer = 0;
+  function bump(a) {
+    var el = $('rev-bump');
+    el.textContent = '+' + money(a);
+    el.classList.add('show');
+    clearTimeout(bumpTimer);
+    bumpTimer = setTimeout(function () { el.classList.remove('show'); }, 1800);
+  }
+
+  function land(o) {
+    DATA.web[NOW] += o.a;
+    COUNTRY[o.c] += o.a;
+    rec.back += 1;
+    rec.amt += o.a;
+    $('rec-back').textContent = rec.back;
+    setMoney($('rec-amt'), rec.amt, true);
+    $('meta-amt').textContent = '+' + money(o.a);
+    render(true);
+    if (ch === 'all' || ch === 'web') bump(o.a);
+    renderCountries(o.c);
+    ping(o.c);
+  }
+
+  function runCycle() {
+    clearTimers();
+    if (!enabled || hidden) return;
+    if (left <= 0) { resetFlow(); setState('idle'); return; }
+    left -= 1;
+    var o = ORDERS[cyc % ORDERS.length];
+    cyc += 1;
+    resetFlow();
+    $('meta-city').textContent = o.city;
+    rec.carts += 1;
+    $('rec-carts').textContent = rec.carts;
+    mark(0);
+    later(function () { mark(1); }, STEP);
+    later(function () { mark(2); }, STEP * 2);
+    if (!o.a) {
+      later(function () {
+        steps[2].classList.remove('on');
+        steps[2].classList.add('done');
+        steps[3].classList.add('skip');
+        $('meta-open').textContent = 'not opened';
+      }, STEP * 3);
+      later(runCycle, STEP * 3 + HOLD);
+    } else {
+      later(function () { mark(3); }, STEP * 3);
+      later(function () { mark(4); land(o); }, STEP * 4);
+      later(runCycle, STEP * 4 + HOLD);
+    }
+  }
+
+  sw.addEventListener('click', function () {
+    enabled = sw.getAttribute('aria-checked') !== 'true';
+    sw.setAttribute('aria-checked', String(enabled));
+    clearTimers();
+    if (enabled) {
+      if (left <= 0) left = 6;
+      setState('running');
+      runCycle();
+    } else {
+      resetFlow();
+      setState('paused');
+    }
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    hidden = document.hidden;
+    if (hidden) { clearTimers(); resetFlow(); }
+    else if (enabled && left > 0) runCycle();
+  });
+
+  /* ── Start: first paint, entrance, then the sequence ── */
+  render(false);
+  renderCountries(null);
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      root.classList.add('in');
+      setTimeout(function () { root.classList.add('settled'); }, 1700);
+    });
+  });
+  later(runCycle, reduce ? 600 : 1500);
+})();
+</script>
 </body>
 </html>

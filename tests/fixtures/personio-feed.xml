@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workzag-jobs>
+  <position>
+    <id>1834171</id>
+    <subcompany>Acme SE &amp; Co. KG</subcompany>
+    <office>Munich</office>
+    <additionalOffices>
+      <office>Berlin</office>
+      <office>Munich</office>
+    </additionalOffices>
+    <department>Product and Tech</department>
+    <recruitingCategory>Design</recruitingCategory>
+    <name>Senior Product Designer &amp; Researcher</name>
+    <jobDescriptions>
+      <jobDescription>
+        <name>The Role: How you&#039;ll make an impact</name>
+        <value><![CDATA[<strong>Hybrid</strong> in Munich<br><br>You own <em>end-to-end</em> flows &amp; research. A literal </position> in text.<ul><li>Ship prototypes</li><li>Run studies</li></ul>]]></value>
+      </jobDescription>
+      <jobDescription>
+        <name>Empty section</name>
+        <value><![CDATA[]]></value>
+      </jobDescription>
+    </jobDescriptions>
+    <employmentType>permanent</employmentType>
+    <seniority>experienced</seniority>
+    <schedule>full-time</schedule>
+    <yearsOfExperience>5-7</yearsOfExperience>
+    <occupation>design</occupation>
+    <occupationCategory>design</occupationCategory>
+    <createdAt>2026-10-10T09:00:00+00:00</createdAt>
+  </position>
+  <position>
+    <id>99</id>
+    <office>Remote</office>
+    <name><![CDATA[UX Designer (Remote, EU)]]></name>
+    <jobDescriptions></jobDescriptions>
+    <createdAt>not a date</createdAt>
+  </position>
+  <position>
+    <id>abc</id>
+    <name>Bad id dropped</name>
+  </position>
+  <position>
+    <id>7</id>
+    <name></name>
+  </position>
+</workzag-jobs>

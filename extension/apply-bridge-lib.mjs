@@ -22,6 +22,8 @@ import {
   shouldFillField,
   isSubstantiveOptionalQuestion,
   isResumeFileField,
+  isGenericDocumentSlot,
+  cvFallbackFor,
   isComboboxField,
   listTypeQuery,
   listTypeQueryAlt,
@@ -1670,7 +1672,9 @@ export class ApplyBridge {
       run.pending = settleCheckboxGroups(run.pending, after);
       const hardBlock = run.pending.some((p) => isBlockingApplyPending(p.reason));
       const sawResumeSlot = run.uploaded.length > 0
-        || after.some((f) => f.type === 'file' && (f.required || isResumeFileField(f)));
+        || after.some((f) => f.type === 'file' && (f.required || isResumeFileField(f)))
+        // A generic documents slot with the CV not attached: the send waits (AssessFirst went out without a CV).
+        || (!!spec.cvPath && after.some((f) => isGenericDocumentSlot(f) && !Number(f.fileCount) && !String(f.fileChip || '').trim()));
       const cvBlocksSubmit = sawResumeSlot && !run.filled.some((f) => /📎/.test(String(f.value || '')));
       const requiredEmpty = run.pending.some((p) => isRequiredEmptyReason(p.reason));
 
@@ -2167,10 +2171,13 @@ export class ApplyBridge {
       if (!todo) break;
       const labelShort = fieldLabel(todo);
       doneFiles.add(labelShort);
-      const plan = classifyField(todo, spec, usedAnswers);
+      // No dedicated CV slot on the form: the CV goes into its generic "Additional files" slot.
+      const cvFallback = cvFallbackFor(todo, fileFields, { spec, resumeAlreadyUploaded });
+      if (cvFallback) await push(`Pas de champ CV d\u00e9di\u00e9: CV d\u00e9pos\u00e9 dans \u00ab ${labelShort} \u00bb.`);
+      const plan = classifyField(todo, cvFallback ? { ...spec, cvFallbackSlot: true } : spec, usedAnswers);
       // Dropzones ("Choose a file…") count as resume slots even without HTML required.
       const slotRequired = todo.required || fieldLooksRequired(todo);
-      if (!shouldFillField(todo) && !isResumeFileField(todo)) {
+      if (!shouldFillField(todo) && !isResumeFileField(todo) && !cvFallback) {
         if (slotRequired) pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
         continue;
       }

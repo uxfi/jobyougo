@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fleety — Fleet Tracker</title>
+<meta name="color-scheme" content="dark">
+<title>Flaety — Fleet Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --bg: #0f0f10;
   --panel: #151515;
-  --panel-2: #191919;
-  --panel-3: #1f1f1f;
-  --panel-4: #242424;
+  --panel-2: #181818;
+  --panel-3: #1d1d1d;
+  --panel-4: #202020;
   --line: rgba(255,255,255,.07);
   --line-2: rgba(255,255,255,.1);
   --text: #f3f3f3;
-  --muted: rgba(255,255,255,.42);
-  --muted-2: rgba(255,255,255,.26);
+  --soft: rgba(255,255,255,.82);
+  --muted: rgba(255,255,255,.56);
   --blue: #4e8cff;
   --green: #30c760;
   --red: #ff4d43;
@@ -29,8 +30,13 @@
   --app-radius: 4px;
   --app-radius-lg: 4px;
   --button-surface: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.018) 60%, rgba(0,0,0,.08));
+  --button-surface-hover: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025));
   --button-shadow: inset 0 1px 0 rgba(255,255,255,.075), 0 1px 2px rgba(0,0,0,.24);
+  --button-press: inset 0 1px 3px rgba(0,0,0,.42);
+  --selected-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.2);
+  --ease: cubic-bezier(.2,.7,.2,1);
 }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body {
   overflow: hidden;
@@ -38,51 +44,61 @@ body {
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .app {
+  --cols: 58px 292px minmax(0, 1fr) 382px;
   height: 100vh;
   display: grid;
-  grid-template-columns: 58px 292px minmax(0, 1fr) 382px;
+  grid-template-columns: var(--cols);
   grid-template-rows: 52px minmax(0, 1fr);
   background: #101010;
+  transition: grid-template-columns .3s var(--ease);
 }
+
+/* Tactile buttons: one recipe for every small control */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--app-radius);
+  background: var(--button-surface), var(--btn-base, var(--panel-3));
+  border: 1px solid rgba(255,255,255,.11);
+  box-shadow: var(--button-shadow);
+  color: rgba(255,255,255,.78);
+  transition: border-color .16s ease, color .16s ease;
+}
+.btn:hover { border-color: rgba(255,255,255,.18); color: #fff; background: var(--button-surface-hover), var(--btn-base, var(--panel-3)); }
+.btn:active { box-shadow: var(--button-press); }
+.btn svg { width: 14px; height: 14px; }
+.btn[aria-pressed="true"] { background: #f2f2f2; color: #111; border-color: rgba(255,255,255,.42); box-shadow: var(--selected-shadow); }
 
 .topbar {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 58px 292px minmax(0, 1fr) 382px;
+  grid-template-columns: var(--cols);
   background: #141414;
   border-bottom: 1px solid var(--line);
+  transition: grid-template-columns .3s var(--ease);
 }
 .topbar-left {
   grid-column: 1 / 3;
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 0 14px 0 12px;
+  padding: 0 14px 0 17px;
   border-right: 1px solid var(--line);
+  overflow: hidden;
+  white-space: nowrap;
 }
-.collapse-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--app-radius);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255,255,255,.62);
-  background: var(--button-surface), #1e1e1e;
-  border: 1px solid rgba(255,255,255,.1);
-  box-shadow: var(--button-shadow);
-  cursor: pointer;
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-}
-.collapse-btn:hover { border-color: rgba(255,255,255,.16); background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025)), #1e1e1e; }
-.collapse-btn:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.42); }
-.collapse-btn svg {
-  width: 13px;
-  height: 13px;
-}
+.collapse-btn { width: 24px; height: 24px; color: rgba(255,255,255,.62); }
+.collapse-btn svg { width: 13px; height: 13px; transform: rotate(180deg); transition: transform .2s var(--ease); }
+.app.is-collapsed .collapse-btn svg { transform: none; }
 .brand {
   display: flex;
   align-items: center;
@@ -90,29 +106,33 @@ body {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: -.03em;
+  transition: opacity .2s ease;
 }
-.brand svg {
-  width: 18px;
-  height: 18px;
-  stroke-width: 1.55;
-}
+.app.is-collapsed .brand { opacity: 0; }
+.brand svg { width: 18px; height: 18px; stroke-width: 1.55; }
 .topbar-center {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: 14px;
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
   border-right: 1px solid var(--line);
 }
-.metric-chip strong {
-  font-size: 13px;
-  font-weight: 700;
-  margin-right: 4px;
+.live { display: inline-flex; align-items: center; gap: 7px; color: var(--soft); font-weight: 600; }
+.live-dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--green);
+  opacity: 0;
 }
-.metric-chip.active strong { color: var(--blue); }
-.metric-chip.delayed strong { color: var(--red); }
-.metric-chip.done strong { color: var(--green); }
+#ping { font-variant-numeric: tabular-nums; }
+.topbar-sep { width: 1px; height: 12px; background: var(--line-2); }
 .topbar-right {
   display: flex;
   align-items: center;
@@ -124,39 +144,23 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: rgba(255,255,255,.55);
+  color: var(--muted);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
-.clock-wrap svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 1.65;
-}
-.user-area {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.icon-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--app-radius);
-  background: var(--button-surface), #1d1d1d;
-  border: 1px solid rgba(255,255,255,.11);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255,255,255,.78);
-  box-shadow: var(--button-shadow);
-  cursor: pointer;
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-}
-.icon-btn:hover { border-color: rgba(255,255,255,.16); background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025)), #1d1d1d; }
-.icon-btn:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.42); }
-.icon-btn svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 1.6;
+.clock-wrap svg { width: 14px; height: 14px; stroke-width: 1.65; }
+.user-area { display: flex; align-items: center; gap: 12px; }
+.icon-btn { position: relative; width: 30px; height: 30px; }
+.icon-btn.has-dot::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 2px var(--panel-3);
 }
 .user-pill {
   display: flex;
@@ -165,7 +169,10 @@ body {
   color: rgba(255,255,255,.88);
   font-size: 12px;
   font-weight: 500;
+  border-radius: var(--app-radius);
 }
+.user-pill > svg { color: var(--muted); transition: color .16s ease; }
+.user-pill:hover > svg { color: #fff; }
 .user-avatar {
   width: 26px;
   height: 26px;
@@ -183,6 +190,8 @@ body {
 .rail {
   grid-column: 1;
   grid-row: 2;
+  position: relative;
+  z-index: 5;
   background: #111112;
   border-right: 1px solid var(--line);
   display: flex;
@@ -190,19 +199,8 @@ body {
   align-items: center;
   padding: 14px 0;
 }
-.rail-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  align-items: center;
-}
-.rail-spacer {
-  flex: 1;
-  width: 100%;
-  border-top: 1px solid var(--line);
-  margin: 14px 0;
-}
+.rail-stack { display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: center; }
+.rail-spacer { flex: 1; width: 100%; border-top: 1px solid var(--line); margin: 14px 0; }
 .rail-btn {
   width: 36px;
   height: 36px;
@@ -212,166 +210,126 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
-  background: #181818;
+  background: var(--panel-2);
   border: 1px solid rgba(255,255,255,.055);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.2);
-  cursor: pointer;
-  transition: transform .16s ease, color .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease;
+  transition: color .16s ease, background .16s ease, border-color .16s ease;
 }
-.rail-btn:hover {
-  color: rgba(255,255,255,.86);
-  border-color: rgba(255,255,255,.1);
-  background: #1d1d1d;
-}
-.rail-btn:active {
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.38);
-}
-.rail-btn.active {
-  background: #f2f2f2;
-  color: #111;
-  border-color: rgba(255,255,255,.42);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.2);
-}
+.rail-btn:hover { color: rgba(255,255,255,.9); border-color: rgba(255,255,255,.1); background: var(--panel-3); }
+.rail-btn:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.38); }
+.rail-btn.active { background: #f2f2f2; color: #111; border-color: rgba(255,255,255,.42); box-shadow: var(--selected-shadow); }
 .rail-btn svg { width: 17px; height: 17px; }
 .rail-btn svg * { stroke-width: 1.35; }
 .rail-btn.share svg { width: 14px; height: 14px; }
-.rail-btn.exit { color: #fb6f4b; }
+.rail-btn.exit { color: var(--red); }
+.rail-btn[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translate(-4px, -50%);
+  padding: 4px 8px;
+  border-radius: var(--app-radius);
+  background: var(--panel-4);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 8px 16px rgba(0,0,0,.3);
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .14s ease, transform .14s ease;
+}
+.rail-btn:hover::after, .rail-btn:focus-visible::after { opacity: 1; transform: translate(0, -50%); }
 
 .sidebar {
   grid-column: 2;
   grid-row: 2;
-  background: #151515;
+  background: var(--panel);
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
+  transition: visibility 0s linear 0s;
 }
-.sidebar-header {
-  padding: 16px 16px 14px;
-  border-bottom: 1px solid var(--line);
-}
-.sidebar-title {
-  font-size: 17px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-.fleet-summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-.fleet-summary strong {
-  font-size: 28px;
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: -.06em;
-}
-.fleet-summary span {
-  font-size: 13px;
-  color: rgba(255,255,255,.84);
-  font-weight: 600;
-}
-.route-pill {
-  margin-left: auto;
-  min-height: 20px;
-  padding: 0 10px;
-  border-radius: var(--app-radius);
-  display: inline-flex;
-  align-items: center;
-  background: rgba(78,140,255,.12);
-  color: #9dc4ff;
-  font-size: 11px;
-  font-weight: 700;
-}
-.summary-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
-}
+.sidebar > * { min-width: 272px; }
+.sidebar-header { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
+.sidebar-title { font-size: 17px; font-weight: 600; margin-bottom: 14px; }
+.fleet-summary { display: flex; align-items: baseline; gap: 9px; margin-bottom: 14px; }
+.fleet-summary strong { font-size: 28px; line-height: 1; font-weight: 700; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.fleet-summary span { font-size: 13px; color: var(--soft); font-weight: 600; }
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
 .summary-card {
   min-height: 36px;
   padding: 0 12px;
   border-radius: var(--app-radius-lg);
-  background: #202020;
+  background: var(--panel-4);
   border: 1px solid rgba(255,255,255,.055);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.065);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  transition: border-color .16s ease, background .16s ease, color .16s ease;
 }
-.summary-card strong {
-  font-size: 14px;
-  font-weight: 700;
-}
-.summary-card span {
-  color: var(--muted);
-  font-size: 11px;
-}
-.search-row {
-  display: flex;
-  gap: 10px;
-}
-.search-box,
-.status-select {
-  min-height: 36px;
-  border-radius: var(--app-radius-lg);
-  border: 1px solid var(--line);
-  background: #181818;
-  display: flex;
-  align-items: center;
-  color: var(--muted);
-}
+.summary-card:hover { border-color: rgba(255,255,255,.14); }
+.summary-card:active { box-shadow: var(--button-press); }
+.summary-card strong { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.summary-card span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+.summary-card i { width: 6px; height: 6px; border-radius: 50%; background: var(--dot); }
+.summary-card[aria-pressed="true"] { background: #f2f2f2; color: #111; border-color: rgba(255,255,255,.42); box-shadow: var(--selected-shadow); }
+.summary-card[aria-pressed="true"] span { color: rgba(0,0,0,.66); }
+.transit { --dot: var(--blue); }
+.delayed { --dot: var(--red); }
+.idle { --dot: var(--amber); }
+.done { --dot: var(--green); }
+.search-row { display: flex; gap: 10px; }
 .search-box {
   flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
   gap: 8px;
   padding: 0 12px;
+  border-radius: var(--app-radius-lg);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  transition: border-color .16s ease;
 }
-.search-box svg,
-.status-select svg {
-  width: 13px;
-  height: 13px;
-  stroke-width: 1.65;
-}
+.search-box:focus-within { border-color: rgba(78,140,255,.8); }
+.search-box svg { width: 13px; height: 13px; flex-shrink: 0; stroke-width: 1.65; }
 .search-box input {
   flex: 1;
+  min-width: 0;
   background: transparent;
-  border: none;
+  border: 0;
   color: var(--text);
   font: inherit;
+  font-size: 13px;
   outline: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
-.status-select {
-  width: 36px;
-  min-width: 36px;
-  border-radius: var(--app-radius);
-  padding: 0;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 0;
-  background: var(--button-surface), #1d1d1d;
-  border-color: rgba(255,255,255,.11);
-  box-shadow: var(--button-shadow);
-  cursor: pointer;
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-}
-.status-select:hover { border-color: rgba(255,255,255,.16); background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025)), #1d1d1d; }
-.status-select:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.42); }
-.fleet-list {
-  flex: 1;
-  overflow-y: auto;
-}
+.search-box input::placeholder { color: var(--muted); }
+.search-box input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.sort-btn { width: 36px; height: 36px; }
+.list-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.fleet-list { position: relative; flex: 1; overflow-y: auto; }
 .fleet-item {
+  position: relative;
   padding: 18px 16px 16px;
   border-bottom: 1px solid rgba(255,255,255,.06);
-  position: relative;
-  background: #151515;
+  background: var(--panel);
+  cursor: pointer;
+  transition: background .16s ease;
 }
-.fleet-item.active {
-  background: #1b1b1b;
-}
-.fleet-item.active::before {
+.fleet-item:hover { background: var(--panel-2); }
+.fleet-item[aria-selected="true"] { background: #1b1b1b; }
+.fleet-item[aria-selected="true"]::before {
   content: '';
   position: absolute;
   left: 0;
@@ -380,152 +338,100 @@ body {
   width: 3px;
   background: #fff;
 }
-.fleet-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-.fleet-id {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 15px;
-  font-weight: 700;
-}
-.fleet-id svg {
-  width: 18px;
-  height: 18px;
-  color: #fff;
-  stroke-width: 1.65;
-}
-.fleet-state {
-  font-size: 13px;
-  font-weight: 600;
-}
-.fleet-state.transit { color: #5e98ff; }
-.fleet-state.done { color: var(--green); }
-.fleet-state.idle { color: #d8a43b; }
-.fleet-route {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.fleet-route-row {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: rgba(255,255,255,.46);
-  font-size: 12px;
-}
-.fleet-route-row svg {
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
-}
-.fleet-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.driver-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.driver-avatar {
+.fleet-item:focus-visible { outline-offset: -2px; }
+.fleet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.fleet-id { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 700; }
+.fleet-id svg { width: 18px; height: 18px; color: #fff; stroke-width: 1.65; }
+.fleet-state { font-size: 13px; font-weight: 600; color: var(--dot); }
+.fleet-route { display: grid; gap: 8px; margin-bottom: 12px; }
+.fleet-route-row { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
+.fleet-route-row svg { width: 13px; height: 13px; flex-shrink: 0; }
+.fleet-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.driver-chip { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.driver-avatar, .mini-avatar {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f2c4a8, #8fa8ff);
+  background: linear-gradient(135deg, hsl(var(--h, 210) 58% 80%), hsl(calc(var(--h, 210) + 50) 62% 70%));
   border: 1px solid rgba(255,255,255,.18);
   flex-shrink: 0;
 }
-.driver-chip span {
-  font-size: 12px;
-  color: rgba(255,255,255,.82);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.fleet-eta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: rgba(255,255,255,.82);
-}
-.fleet-eta svg { width: 13px; height: 13px; }
-.fleet-eta svg { stroke-width: 1.65; }
-.eta-bad { color: #f45f55; font-size: 10px; font-weight: 700; }
+.driver-chip span:last-child { font-size: 12px; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fleet-eta { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fleet-eta svg { width: 13px; height: 13px; stroke-width: 1.65; }
+.eta-late { padding: 1px 6px; border-radius: var(--app-radius); background: rgba(255,77,67,.12); color: var(--red); font-size: 11px; font-weight: 700; }
+.list-empty { padding: 28px 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.list-empty button { margin-left: 4px; color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 
 .map-panel {
   grid-column: 3;
   grid-row: 2;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
   background: #121212;
 }
-#map {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  background: #111;
+#map { position: absolute; inset: 0; width: 100%; height: 100%; background: #111; }
+#map:focus-visible { outline-offset: -2px; }
+.leaflet-container { font-family: 'Inter', sans-serif; }
+.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.94) contrast(0.9) saturate(0.7); }
+.map-panel .leaflet-container .leaflet-control-attribution {
+  margin: 0;
+  padding: 2px 7px;
+  border-radius: var(--app-radius) 0 0 0;
+  background: rgba(21,21,21,.86);
+  color: var(--muted);
+  font: 500 11px/1.5 'Inter', sans-serif;
 }
-.leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.94) contrast(0.9) saturate(0.7);
-}
-.map-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(17,17,17,.1), rgba(17,17,17,.18)),
-    radial-gradient(circle at 50% 40%, rgba(255,255,255,.015), rgba(255,255,255,0) 45%);
-  pointer-events: none;
-  z-index: 200;
-}
-.leaflet-control-attribution,
-.leaflet-control-zoom {
-  display: none !important;
-}
-.map-label {
+.leaflet-tooltip.map-label,
+.leaflet-tooltip.truck-callout {
   font-family: 'Inter', sans-serif;
-  background: rgba(30,30,30,.92);
-  border: 1px solid rgba(255,255,255,.06);
-  color: rgba(255,255,255,.8);
-  font-size: 11px;
-  font-weight: 500;
+  background: rgba(30,30,30,.94);
+  border: 1px solid rgba(255,255,255,.08);
   border-radius: var(--app-radius);
-  padding: 4px 8px;
-  box-shadow: 0 8px 16px rgba(0,0,0,.28);
+  box-shadow: 0 8px 16px rgba(0,0,0,.3);
+  color: var(--soft);
 }
-.map-label::before { display: none; }
+.leaflet-tooltip.map-label { padding: 4px 8px; font-size: 11px; font-weight: 500; }
+.leaflet-tooltip.truck-callout { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; font-weight: 500; }
+.leaflet-tooltip.truck-callout strong { color: #fff; font-weight: 700; }
+.leaflet-tooltip.truck-callout .mini-avatar { width: 16px; height: 16px; border-color: rgba(255,255,255,.22); }
+.leaflet-tooltip.map-label::before,
+.leaflet-tooltip.truck-callout::before { display: none; }
+.truck-icon { --pin: var(--blue); --pin-halo: rgba(78,140,255,.14); }
+.truck-icon[data-status="delayed"] { --pin: var(--red); --pin-halo: rgba(255,77,67,.14); }
+.truck-icon[data-status="idle"] { --pin: var(--amber); --pin-halo: rgba(217,155,31,.14); }
+.truck-icon[data-status="done"] { --pin: var(--green); --pin-halo: rgba(48,199,96,.14); }
 .truck-pin {
+  position: relative;
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  background: rgba(78,140,255,.14);
+  background: var(--pin-halo);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 7px rgba(78,140,255,.12);
+}
+.truck-pin::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--pin);
+  opacity: 0;
 }
 .truck-pin-core {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid #4e8cff;
+  border: 3px solid var(--pin);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4e8cff;
-  box-shadow: 0 8px 18px rgba(31,93,203,.35);
+  color: var(--pin);
+  box-shadow: 0 8px 18px rgba(0,0,0,.35);
+  transition: border-color .2s ease, color .2s ease;
 }
 .truck-pin-core svg { width: 18px; height: 18px; }
 .start-end-pin {
@@ -542,72 +448,85 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #4e8cff;
+  background: var(--blue);
   margin: 6px auto;
 }
-.truck-callout {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(31,31,31,.94);
-  border: 1px solid rgba(255,255,255,.06);
-  box-shadow: 0 10px 18px rgba(0,0,0,.3);
-  border-radius: var(--app-radius);
-  padding: 6px 10px;
-  color: rgba(255,255,255,.78);
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.truck-callout strong {
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-}
-.truck-callout .mini-avatar {
-  width: 16px;
-  height: 16px;
+.start-end-pin.is-start::after { background: rgba(255,255,255,.85); }
+.veh-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f2c4a8, #8fa8ff);
-  border: 1px solid rgba(255,255,255,.22);
+  background: var(--dot);
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.4);
+  transition: transform .16s ease;
 }
-.map-callout {
+.veh-dot:hover { transform: scale(1.3); }
+.schematic { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+.no-map .schematic { display: block; }
+.no-map #map { visibility: hidden; }
+.sch-river { fill: none; stroke: rgba(78,140,255,.1); stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }
+.sch-road { fill: none; stroke: rgba(255,255,255,.08); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sch-road.major { stroke: rgba(255,255,255,.16); stroke-width: 3; }
+.sch-town { fill: rgba(255,255,255,.5); font: 600 10px 'Inter', sans-serif; letter-spacing: .14em; }
+.sch-done { fill: none; stroke: var(--blue); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.sch-left { fill: none; stroke: var(--blue); stroke-opacity: .55; stroke-width: 3; stroke-dasharray: 1 9; stroke-linecap: round; }
+.sch-end { fill: var(--panel); stroke: rgba(255,255,255,.72); stroke-width: 2; }
+.sch-truck { fill: #fff; stroke: var(--blue); stroke-width: 3; }
+.sch-name { fill: var(--soft); font: 500 12px 'Inter', sans-serif; }
+.map-note {
   position: absolute;
-  z-index: 300;
-  pointer-events: none;
+  left: 12px;
+  bottom: 12px;
+  display: none;
+  padding: 3px 8px;
+  border-radius: var(--app-radius);
+  background: rgba(21,21,21,.86);
+  color: var(--muted);
+  font-size: 11px;
 }
-.map-callout.start { top: 56px; left: 235px; }
-.map-callout.dest { right: 116px; top: 422px; }
-.map-callout.truck { top: 192px; left: 448px; }
+.no-map .map-note { display: block; }
 
 .detail {
   grid-column: 4;
   grid-row: 2;
-  background: #151515;
+  background: var(--panel);
   border-left: 1px solid var(--line);
   overflow-y: auto;
 }
-.detail-section {
-  padding: 24px 18px;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-}
+.detail-section { padding: 22px 18px; border-bottom: 1px solid rgba(255,255,255,.06); }
 .detail-section:last-child { border-bottom: none; }
 .section-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: .16em;
   text-transform: uppercase;
-  color: rgba(255,255,255,.44);
-  margin-bottom: 16px;
+  color: var(--muted);
+  margin-bottom: 14px;
 }
+.section-eyebrow .count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--app-radius);
+  background: rgba(255,77,67,.12);
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.section-eyebrow .count:empty { display: none; }
 .vehicle-card {
   position: relative;
   border-radius: 6px;
   overflow: hidden;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01)),
-    repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.02) 9px 10px);
+  background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
   border: 1px solid rgba(255,255,255,.05);
   min-height: 144px;
   margin-bottom: 14px;
@@ -615,11 +534,7 @@ body {
   align-items: center;
   justify-content: center;
 }
-.vehicle-illustration {
-  width: 264px;
-  height: 118px;
-  opacity: .96;
-}
+.vehicle-illustration { width: 264px; height: 118px; opacity: .96; }
 .vehicle-tag {
   position: absolute;
   top: 12px;
@@ -629,31 +544,29 @@ body {
   border-radius: var(--app-radius-lg);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.08);
-  color: rgba(255,255,255,.78);
+  color: var(--soft);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: .01em;
 }
 .person-card {
   min-height: 56px;
   padding: 0 14px;
   border-radius: 6px;
-  background: #202020;
+  background: var(--panel-4);
   border: 1px solid rgba(255,255,255,.06);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 .person-avatar {
   width: 40px;
   height: 40px;
   border-radius: var(--app-radius);
-  background: linear-gradient(135deg, #f0b588, #8fa6ff);
+  background: linear-gradient(135deg, hsl(var(--h, 210) 58% 80%), hsl(calc(var(--h, 210) + 50) 62% 70%));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -662,188 +575,99 @@ body {
   font-weight: 800;
   flex-shrink: 0;
 }
-.person-meta {
-  flex: 1;
-  min-width: 0;
-}
-.person-name {
-  font-size: 15px;
-  font-weight: 700;
-  margin-bottom: 3px;
-}
-.person-sub {
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.chat-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--app-radius);
-  border: 1px solid rgba(255,255,255,.12);
-  background: var(--button-surface), #252525;
-  box-shadow: var(--button-shadow);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255,255,255,.75);
-  cursor: pointer;
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-}
-.chat-icon:hover { border-color: rgba(255,255,255,.16); background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.025)), #252525; }
-.chat-icon:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.42); }
-.chat-icon svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 1.55;
-}
-.stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.stat-box {
-  min-height: 38px;
-  border-radius: var(--app-radius-lg);
-  background: #202020;
-  border: 1px solid rgba(255,255,255,.055);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.065);
+.person-meta { flex: 1; min-width: 0; }
+.person-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+.person-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-btn { --btn-base: #252525; width: 28px; height: 28px; }
+.kv { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; }
+.kv > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  gap: 8px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--line);
 }
-.stat-box .label {
-  color: rgba(255,255,255,.5);
-  font-size: 12px;
-}
-.stat-box .value {
-  font-size: 14px;
-  font-weight: 700;
-}
-.pill-red,
-.pill-green {
-  min-width: 72px;
+.kv > div:nth-last-child(-n+2) { border-bottom: 0; }
+.kv dt { color: var(--muted); font-size: 12px; }
+.kv dd { font-size: 14px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.pill {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  min-height: 22px;
+  padding: 0 8px;
   border-radius: var(--app-radius);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: .04em;
 }
-.pill-red {
-  color: #ff5146;
-  background: rgba(255,81,70,.12);
-}
-.pill-green {
-  color: #4bdd70;
-  background: rgba(48,199,96,.12);
-}
+.pill.red { color: var(--red); background: rgba(255,77,67,.12); }
+.pill.green { color: var(--green); background: rgba(48,199,96,.12); }
+.pill.amber { color: var(--amber); background: rgba(217,155,31,.13); }
+.pill.blue { color: var(--blue); background: rgba(78,140,255,.13); }
 
-.route-top {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.route-endpoint {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255,255,255,.84);
-}
+.route-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; margin-bottom: 10px; }
+.route-endpoint { font-size: 12px; font-weight: 600; color: var(--soft); }
 .route-endpoint.right { text-align: right; }
-.route-progress-chip {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  border: 3px solid rgba(255,255,255,.14);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1d1d1d;
-  color: #fff;
-}
-.route-progress-chip svg { width: 16px; height: 16px; }
-.route-progress-chip svg { stroke-width: 1.65; }
-.route-log {
-  display: grid;
-  gap: 12px;
-}
-.route-log-row {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  gap: 10px;
-}
-.route-log-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  margin-top: 2px;
-  position: relative;
-}
-.route-log-icon.done { background: #49d564; }
-.route-log-icon.current { background: #d99b1f; }
-.route-log-icon.pending {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,.28);
-}
-.route-log-icon.done::before,
-.route-log-icon.current::before {
+.route-ring { position: relative; width: 46px; height: 46px; display: grid; place-items: center; color: #fff; --ring: var(--blue); }
+.route-ring[data-status="delayed"] { --ring: var(--red); }
+.route-ring[data-status="idle"] { --ring: var(--amber); }
+.route-ring[data-status="done"] { --ring: var(--green); }
+.route-ring > svg:first-child { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-track { fill: var(--panel-3); stroke: rgba(255,255,255,.12); stroke-width: 3; }
+.ring-fill { fill: none; stroke: var(--ring); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset .8s var(--ease), stroke .2s ease; }
+.ring-truck { position: relative; width: 16px; height: 16px; }
+.route-caption { margin-bottom: 18px; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.route-log { list-style: none; display: grid; gap: 12px; }
+.route-log-row { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 10px; }
+.route-log-row:not(:last-child)::before {
   content: '';
   position: absolute;
   left: 7px;
-  top: 16px;
+  top: 20px;
+  bottom: -10px;
   width: 2px;
-  height: 24px;
   background: rgba(255,255,255,.08);
 }
-.route-log-row:last-child .route-log-icon::before { display: none; }
-.route-log-copy {
-  font-size: 13px;
-  line-height: 1.45;
-  color: rgba(255,255,255,.44);
-}
-.route-log-copy strong {
-  color: rgba(255,255,255,.78);
-  font-weight: 500;
-}
+.route-log-row.is-done:not(:last-child)::before { background: rgba(48,199,96,.4); }
+.route-log-icon { width: 16px; height: 16px; border-radius: 50%; margin-top: 2px; border: 1px solid rgba(255,255,255,.28); }
+.is-done .route-log-icon { background: var(--green); border-color: var(--green); }
+.is-current .route-log-icon { background: var(--amber); border-color: var(--amber); box-shadow: 0 0 0 3px rgba(217,155,31,.18); }
+.route-log-copy { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.route-log-copy strong { color: var(--soft); font-weight: 500; }
 
-.cargo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
+.temp-chart { margin: 18px 0 20px; }
+.temp-chart figcaption { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+.temp-chart figcaption strong { color: var(--soft); font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-box { position: relative; height: 56px; margin-right: 24px; }
+.chart-box svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.chart-band { fill: rgba(48,199,96,.08); }
+.chart-target { stroke: rgba(255,255,255,.22); stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.chart-line { fill: none; stroke: var(--blue); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.chart-y { position: absolute; right: -24px; transform: translateY(-50%); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chart-peak {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgba(217,155,31,.22);
+  transform: translate(-50%, -50%);
 }
-.cargo-cell {
-  min-height: 40px;
-  border-radius: var(--app-radius-lg);
-  background: #202020;
-  border: 1px solid rgba(255,255,255,.055);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.065);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
+.chart-peak span {
+  position: absolute;
+  left: 50%;
+  bottom: 9px;
+  transform: translateX(-50%);
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.cargo-cell .label {
-  font-size: 12px;
-  color: rgba(255,255,255,.44);
-}
-.cargo-cell .value {
-  font-size: 14px;
-  font-weight: 700;
-}
-.cargo-bar-label {
-  font-size: 12px;
-  color: rgba(255,255,255,.82);
-  margin-bottom: 10px;
-}
-.cargo-bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.chart-x { display: flex; justify-content: space-between; margin: 6px 24px 0 0; font-size: 11px; color: var(--muted); }
+.cargo-bar-label { margin-bottom: 10px; font-size: 12px; color: var(--soft); }
+.cargo-bar-wrap { display: flex; align-items: center; gap: 8px; }
 .cargo-bar {
   flex: 1;
   height: 10px;
@@ -852,76 +676,49 @@ body {
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
 }
-.cargo-bar > div {
-  width: 60%;
+.cargo-bar > i {
+  display: block;
   height: 100%;
   background: linear-gradient(90deg, #ffffff 0%, #f4f4f4 100%);
   box-shadow: 0 0 10px rgba(255,255,255,.1);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform .6s var(--ease);
 }
-.cargo-bar-wrap span {
-  font-size: 12px;
-  color: rgba(255,255,255,.36);
-}
+.cargo-bar-wrap span { min-width: 32px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.alerts {
-  display: grid;
-  gap: 14px;
-}
-.alert-item {
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr);
-  gap: 10px;
-}
-.alert-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #ff5146;
-  margin-top: 8px;
-}
-.alert-copy .time {
-  font-size: 12px;
-  color: rgba(255,255,255,.48);
-  margin-bottom: 4px;
-}
-.alert-copy .text {
-  font-size: 14px;
-  line-height: 1.45;
-  color: rgba(255,255,255,.9);
-}
+.alerts { list-style: none; display: grid; gap: 14px; }
+.alert-item { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; }
+.alert-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); margin-top: 7px; }
+.alert-dot.amber { background: var(--amber); }
+.alert-copy .time { margin-bottom: 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.alert-copy .text { font-size: 14px; line-height: 1.45; color: rgba(255,255,255,.9); }
+.alert-empty { font-size: 13px; color: var(--muted); }
 
 @media (max-width: 1280px) {
-  .app {
-    grid-template-columns: 58px 272px minmax(0, 1fr) 330px;
-  }
-  .topbar {
-    grid-template-columns: 58px 272px minmax(0, 1fr) 330px;
-  }
-  .map-callout.truck { left: 380px; }
+  .app { --cols: 58px 272px minmax(0, 1fr) 330px; }
 }
-
+@media (min-width: 981px) {
+  .app.is-collapsed { --cols: 58px 0px minmax(0, 1fr) 382px; }
+  .app.is-collapsed .sidebar { visibility: hidden; border-right-color: transparent; transition-delay: .3s; }
+}
+@media (min-width: 981px) and (max-width: 1280px) {
+  .app.is-collapsed { --cols: 58px 0px minmax(0, 1fr) 330px; }
+}
+@media (min-width: 981px) and (max-width: 1180px) {
+  .topbar-region, .topbar-sep { display: none; }
+}
 @media (max-width: 980px) {
   body { overflow: auto; }
   .app {
+    --cols: minmax(0, 1fr);
     height: auto;
     min-height: 100vh;
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto;
   }
-  .topbar,
-  .rail,
-  .sidebar,
-  .map-panel,
-  .detail {
-    grid-column: 1;
-    grid-row: auto;
-  }
-  .topbar {
-    grid-template-columns: 1fr;
-  }
-  .topbar-left,
-  .topbar-center,
-  .topbar-right {
+  .topbar, .rail, .sidebar, .map-panel, .detail { grid-column: 1; grid-row: auto; }
+  .topbar-left { grid-column: 1; }
+  .topbar-left, .topbar-center, .topbar-right {
     border-right: none;
     border-bottom: 1px solid var(--line);
     justify-content: space-between;
@@ -929,399 +726,837 @@ body {
     padding: 12px 14px;
   }
   .topbar-center { justify-content: flex-start; }
-  .rail {
-    flex-direction: row;
-    justify-content: center;
-    padding: 10px 12px;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-  }
-  .rail-stack {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
+  .collapse-btn { display: none; }
+  .rail { flex-direction: row; justify-content: center; padding: 10px 12px; border-right: none; border-bottom: 1px solid var(--line); }
+  .rail-stack { flex-direction: row; flex-wrap: wrap; justify-content: center; }
   .rail-spacer { display: none; }
-  .sidebar { min-height: 420px; }
+  .rail-btn[data-tip]::after { left: 50%; top: calc(100% + 8px); transform: translate(-50%, -4px); }
+  .rail-btn:hover::after, .rail-btn:focus-visible::after { transform: translate(-50%, 0); }
+  .sidebar > * { min-width: 0; }
   .map-panel { min-height: 520px; }
-  .detail { min-height: auto; }
-  .map-callout { display: none; }
+  .detail { border-left: none; }
+}
+
+/* Motion: everything below plays only when the viewer allows it */
+@media (prefers-reduced-motion: no-preference) {
+  .rail, .sidebar, .detail { animation: rise .45s var(--ease) backwards; }
+  .sidebar { animation-delay: .06s; }
+  .detail { animation-delay: .12s; }
+  .fleet-item.enter { animation: rise .4s var(--ease) backwards; animation-delay: calc(.18s + var(--i, 0) * 45ms); }
+  .detail-body.swap { animation: swap .22s var(--ease); }
+  .route-done.draw { stroke-dasharray: 1 1; animation: draw .7s var(--ease) .1s backwards; }
+  .pin-pop { animation: pop .26s var(--ease) backwards; animation-delay: var(--d, 0s); }
+  .leaflet-tooltip.enter { animation: appear .3s ease-out .85s backwards; }
+  .chart-box.draw .chart-line-svg { animation: wipe .7s var(--ease) .1s backwards; }
+  .chart-box.draw .chart-peak { animation: appear .25s ease-out .6s backwards; }
+  .live-dot.ping::after { animation: ripple .9s ease-out; }
+  .truck-pin.ping::after { animation: ripple-pin 1.1s ease-out; }
+  .tick { animation: fade .3s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+  @keyframes swap { from { opacity: 0; transform: translateY(6px); } }
+  @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes pop { from { opacity: 0; transform: scale(.8); } }
+  @keyframes fade { from { opacity: .3; } }
+  @keyframes appear { from { opacity: 0; } }
+  @keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  @keyframes ripple { from { opacity: .9; transform: scale(.6); } to { opacity: 0; transform: scale(1.8); } }
+  @keyframes ripple-pin { from { opacity: .8; transform: scale(.75); } to { opacity: 0; transform: scale(1.35); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app, .topbar, .ring-fill, .cargo-bar > i, .collapse-btn svg, .rail-btn[data-tip]::after, .brand { transition: none; }
 }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
   <header class="topbar">
     <div class="topbar-left">
-      <div class="collapse-btn">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,3 9,8 5,13"/><polyline points="8,3 12,8 8,13"/></svg>
-      </div>
+      <button type="button" class="btn collapse-btn" id="collapse-btn" aria-controls="sidebar" aria-expanded="true" aria-label="Collapse vehicle list">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5,3 9,8 5,13"/><polyline points="8,3 12,8 8,13"/></svg>
+      </button>
       <div class="brand">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12.5h10.5M2 12.5l1.7-5.6h6.8l1.7 5.6M5 12.5v2m5.5-2v2"/><rect x="12.5" y="8.7" width="5.5" height="3.8" rx="1"/><circle cx="5.2" cy="14.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="10.4" cy="14.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.3" cy="12.9" r="1.1" fill="currentColor" stroke="none"/></svg>
-        Fleety
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12.5h10.5M2 12.5l1.7-5.6h6.8l1.7 5.6M5 12.5v2m5.5-2v2"/><rect x="12.5" y="8.7" width="5.5" height="3.8" rx="1"/><circle cx="5.2" cy="14.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="10.4" cy="14.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.3" cy="12.9" r="1.1" fill="currentColor" stroke="none"/></svg>
+        Flaety
       </div>
     </div>
     <div class="topbar-center">
-      <div class="metric-chip active"><strong>10</strong>active</div>
-      <div class="metric-chip delayed"><strong>2</strong>delayed</div>
-      <div class="metric-chip done"><strong>8</strong>delivered</div>
+      <span class="live"><i class="live-dot" id="live-dot" aria-hidden="true"></i>Live</span>
+      <span id="ping">GPS updates every 4 s</span>
+      <span class="topbar-sep" aria-hidden="true"></span>
+      <span class="topbar-region">Central corridor, TH</span>
     </div>
     <div class="topbar-right">
       <div class="clock-wrap">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>
         <span id="live-clock">Sun Apr 19 16:53</span>
       </div>
       <div class="user-area">
-        <div class="icon-btn">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 2a3.7 3.7 0 0 1 3.7 3.7v1.7L13 9.5H3l1.3-2.1V5.7A3.7 3.7 0 0 1 8 2z"/><path d="M6.7 12.8a1.3 1.3 0 0 0 2.6 0"/></svg>
-        </div>
-        <div class="user-pill">
-          <div class="user-avatar">TA</div>
+        <button type="button" class="btn icon-btn" id="bell-btn" aria-label="Notifications">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 2a3.7 3.7 0 0 1 3.7 3.7v1.7L13 9.5H3l1.3-2.1V5.7A3.7 3.7 0 0 1 8 2z"/><path d="M6.7 12.8a1.3 1.3 0 0 0 2.6 0"/></svg>
+        </button>
+        <button type="button" class="user-pill" aria-label="Account menu, Tobi Ajayi">
+          <span class="user-avatar" aria-hidden="true">TA</span>
           <span>Tobi Ajayi</span>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg>
-        </div>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4,6 8,10 12,6"/></svg>
+        </button>
       </div>
     </div>
   </header>
 
-  <aside class="rail">
+  <nav class="rail" aria-label="Sections">
     <div class="rail-stack">
-      <div class="rail-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 6.5L8 2l5.5 4.5V13a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V6.5z"/></svg></div>
-      <div class="rail-btn active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg></div>
-      <div class="rail-btn share"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8a2 2 0 1 1 0-.01M13 3a2 2 0 1 1 0-.01M13 13a2 2 0 1 1 0-.01"/><path d="M4.7 7L11.3 4M4.7 9l6.6 3"/></svg></div>
-      <div class="rail-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l5 2.8v6.4L8 14 3 11.2V4.8L8 2z"/><path d="M3 4.8L8 8l5-3.2M8 8v6"/></svg></div>
-      <div class="rail-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12.5h10M4.5 10.5l2-3 2.3 1.8L11.5 4"/></svg></div>
+      <button type="button" class="rail-btn" aria-label="Home" data-tip="Home"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M2.5 6.5L8 2l5.5 4.5V13a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V6.5z"/></svg></button>
+      <button type="button" class="rail-btn active" aria-label="Fleet" aria-current="page" data-tip="Fleet"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg></button>
+      <button type="button" class="rail-btn share" aria-label="Share tracking link" data-tip="Share tracking link"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 8a2 2 0 1 1 0-.01M13 3a2 2 0 1 1 0-.01M13 13a2 2 0 1 1 0-.01"/><path d="M4.7 7L11.3 4M4.7 9l6.6 3"/></svg></button>
+      <button type="button" class="rail-btn" aria-label="Shipments" data-tip="Shipments"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2l5 2.8v6.4L8 14 3 11.2V4.8L8 2z"/><path d="M3 4.8L8 8l5-3.2M8 8v6"/></svg></button>
+      <button type="button" class="rail-btn" aria-label="Reports" data-tip="Reports"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12.5h10M4.5 10.5l2-3 2.3 1.8L11.5 4"/></svg></button>
     </div>
     <div class="rail-spacer"></div>
     <div class="rail-stack">
-      <div class="rail-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg></div>
-      <div class="rail-btn exit"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v7A1.5 1.5 0 0 0 3.5 13H6"/><path d="M9 11l3-3-3-3"/><path d="M5 8h7"/></svg></div>
+      <button type="button" class="rail-btn" aria-label="Trip history" data-tip="Trip history"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg></button>
+      <button type="button" class="rail-btn exit" aria-label="Sign out" data-tip="Sign out"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v7A1.5 1.5 0 0 0 3.5 13H6"/><path d="M9 11l3-3-3-3"/><path d="M5 8h7"/></svg></button>
     </div>
-  </aside>
+  </nav>
 
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar" aria-labelledby="fleet-title">
     <div class="sidebar-header">
-      <div class="sidebar-title">Fleets</div>
+      <h1 class="sidebar-title" id="fleet-title">Fleet</h1>
       <div class="fleet-summary">
-        <strong>27</strong>
-        <span>Vehicles</span>
-        <div style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:.88"></div>
-        <div class="route-pill">18 on route</div>
+        <strong id="fleet-total">6</strong>
+        <span>vehicles on shift</span>
       </div>
-      <div class="summary-grid">
-        <div class="summary-card"><strong>18</strong><span>Active</span></div>
-        <div class="summary-card"><strong>3</strong><span>Delayed</span></div>
-        <div class="summary-card"><strong>6</strong><span>Done</span></div>
-        <div class="summary-card"><strong>0</strong><span>SOS</span></div>
+      <div class="summary-grid" role="group" aria-label="Filter by status">
+        <button type="button" class="summary-card transit" data-filter="transit" aria-pressed="false"><strong id="n-transit">0</strong><span><i aria-hidden="true"></i>In transit</span></button>
+        <button type="button" class="summary-card delayed" data-filter="delayed" aria-pressed="false"><strong id="n-delayed">0</strong><span><i aria-hidden="true"></i>Delayed</span></button>
+        <button type="button" class="summary-card idle" data-filter="idle" aria-pressed="false"><strong id="n-idle">0</strong><span><i aria-hidden="true"></i>Idle</span></button>
+        <button type="button" class="summary-card done" data-filter="done" aria-pressed="false"><strong id="n-done">0</strong><span><i aria-hidden="true"></i>Done</span></button>
       </div>
-      <div class="search-row">
+      <div class="search-row" role="search">
         <label class="search-box">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
-          <input value="" placeholder="search...">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <span class="sr-only">Search vehicles</span>
+          <input type="search" id="fleet-search" autocomplete="off" spellcheck="false" placeholder="Search vehicles, drivers, cities">
         </label>
-        <div class="status-select">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10"/><path d="M5.5 8h5"/><path d="M7 11.5h2"/></svg>
-        </div>
+        <button type="button" class="btn sort-btn" id="sort-btn" aria-pressed="false" aria-label="Sort by arrival time" title="Sort by arrival time">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5h10"/><path d="M5.5 8h5"/><path d="M7 11.5h2"/></svg>
+        </button>
       </div>
+      <p class="list-meta" id="list-meta" aria-live="polite"><span id="meta-count">6 of 6</span><span id="meta-sort">By ID</span></p>
     </div>
-    <div class="fleet-list" id="fleet-list">
-      <div class="fleet-item" data-id="TRK-03">
-        <div class="fleet-head">
-          <div class="fleet-id">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
-            TRK-03
-          </div>
-          <div class="fleet-state transit">In - transit</div>
-        </div>
-        <div class="fleet-route">
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Bang Na, Bangkok, Thailand</div>
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Bang Pa-In, Ayutthaya, Thailand</div>
-        </div>
-        <div class="fleet-meta">
-          <div class="driver-chip"><div class="driver-avatar"></div><span>Amara Kone</span></div>
-          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: 16:45</div>
-        </div>
-      </div>
-
-      <div class="fleet-item active" data-id="TRK-04">
-        <div class="fleet-head">
-          <div class="fleet-id">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
-            TRK-04
-          </div>
-          <div class="fleet-state transit">In - transit</div>
-        </div>
-        <div class="fleet-route">
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Bang Na, Bangkok, Thailand</div>
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Bang Pa-In, Ayutthaya, Thailand</div>
-        </div>
-        <div class="fleet-meta">
-          <div class="driver-chip"><div class="driver-avatar"></div><span>Amara Kone</span></div>
-          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: 16:45</div>
-        </div>
-      </div>
-
-      <div class="fleet-item" data-id="TRK-05">
-        <div class="fleet-head">
-          <div class="fleet-id">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
-            TRK-05
-          </div>
-          <div class="fleet-state transit">In - transit</div>
-        </div>
-        <div class="fleet-route">
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Lat Krabang, Bangkok, Thailand</div>
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Pathum Thani, Thailand</div>
-        </div>
-        <div class="fleet-meta">
-          <div class="driver-chip"><div class="driver-avatar"></div><span>Chijioke Nwosu</span></div>
-          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: 17:30 <span class="eta-bad">Delayed</span></div>
-        </div>
-      </div>
-
-      <div class="fleet-item" data-id="TRK-06">
-        <div class="fleet-head">
-          <div class="fleet-id">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
-            TRK-06
-          </div>
-          <div class="fleet-state done">Completed</div>
-        </div>
-        <div class="fleet-route">
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Rama IV, Bangkok, Thailand</div>
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Laem Chabang, Chonburi, Thailand</div>
-        </div>
-        <div class="fleet-meta">
-          <div class="driver-chip"><div class="driver-avatar"></div><span>Fola Adebayo</span></div>
-          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: 18:00</div>
-        </div>
-      </div>
-
-      <div class="fleet-item" data-id="TRK-07">
-        <div class="fleet-head">
-          <div class="fleet-id">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
-            TRK-07
-          </div>
-          <div class="fleet-state idle">idle</div>
-        </div>
-        <div class="fleet-route">
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Nonthaburi, Thailand</div>
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Nakhon Pathom, Thailand</div>
-        </div>
-        <div class="fleet-meta">
-          <div class="driver-chip"><div class="driver-avatar"></div><span>Ngozi Okafor</span></div>
-          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: N/A</div>
-        </div>
-      </div>
-
-      <div class="fleet-item" data-id="TRK-08">
-        <div class="fleet-head">
-          <div class="fleet-id">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
-            TRK-08
-          </div>
-          <div class="fleet-state idle">idle</div>
-        </div>
-        <div class="fleet-route">
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="5.2"/></svg>Samut Prakan, Thailand</div>
-          <div class="fleet-route-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>Chachoengsao, Thailand</div>
-        </div>
-        <div class="fleet-meta">
-          <div class="driver-chip"><div class="driver-avatar"></div><span>Daniel Umeh</span></div>
-          <div class="fleet-eta"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1.8v2.4M11 1.8v2.4M2 6.2h12"/></svg>ETA: N/A</div>
-        </div>
-      </div>
-    </div>
+    <div class="list-empty" id="list-empty" hidden>No vehicle matches “<span id="empty-q"></span>”.<button type="button" id="clear-btn">Clear</button></div>
+    <div class="fleet-list" id="fleet-list" role="listbox" aria-label="Vehicles"></div>
   </aside>
 
-  <main class="map-panel">
+  <main class="map-panel" id="map-panel" aria-label="Route map">
     <div id="map"></div>
-    <div class="map-callout start"><div class="map-label">Starting Point</div></div>
-    <div class="map-callout truck">
-      <div class="truck-callout"><strong>TRK-04</strong><div class="mini-avatar"></div>Amara Kone</div>
-    </div>
-    <div class="map-callout dest"><div class="map-label">Destination</div></div>
+    <svg class="schematic" id="schematic" aria-hidden="true">
+      <defs><pattern id="sch-grid" width="80" height="80" patternUnits="userSpaceOnUse"><path d="M80 0H0V80" fill="none" stroke="rgba(255,255,255,.04)"/></pattern></defs>
+      <rect width="100%" height="100%" fill="url(#sch-grid)"/>
+      <g id="sch-base"></g>
+      <g id="sch-route"></g>
+    </svg>
+    <p class="map-note">Schematic view · map tiles unavailable</p>
   </main>
 
-  <aside class="detail">
-    <section class="detail-section">
-      <div class="section-eyebrow">Vehicle Details</div>
-      <div class="vehicle-card">
-        <div class="vehicle-tag">Renault - 32T</div>
-        <svg class="vehicle-illustration" viewBox="0 0 340 150" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <g filter="url(#shadow)">
-            <path d="M28 96h168l24-58h42l26 40h23v18H28V96z" fill="#e9e9e9"/>
-            <path d="M196 40h24l18 36h-55l13-36z" fill="#262626"/>
-            <path d="M223 38h14v62h-14z" fill="#3a3a3a"/>
-            <path d="M238 46h26l17 30h-43V46z" fill="#707070"/>
-            <path d="M31 96h280v12H31z" fill="#cfcfcf"/>
-            <path d="M44 53h118v33H35l9-33z" fill="#f7f7f7"/>
-            <path d="M200 48h20v30h-30l10-30z" fill="#121212"/>
-            <path d="M243 52h24l10 20h-34V52z" fill="#808080"/>
-            <rect x="37" y="57" width="92" height="18" rx="2" fill="#0f1115"/>
-            <circle cx="78" cy="109" r="15" fill="#1b1b1b"/>
-            <circle cx="78" cy="109" r="7" fill="#8a8a8a"/>
-            <circle cx="135" cy="109" r="15" fill="#1b1b1b"/>
-            <circle cx="135" cy="109" r="7" fill="#8a8a8a"/>
-            <circle cx="250" cy="109" r="15" fill="#1b1b1b"/>
-            <circle cx="250" cy="109" r="7" fill="#8a8a8a"/>
-            <circle cx="288" cy="109" r="15" fill="#1b1b1b"/>
-            <circle cx="288" cy="109" r="7" fill="#8a8a8a"/>
-          </g>
-          <defs>
-            <filter id="shadow" x="18" y="30" width="310" height="96" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-              <feDropShadow dx="0" dy="10" stdDeviation="8" flood-opacity=".28"/>
-            </filter>
-          </defs>
-        </svg>
-      </div>
-
-      <div class="person-card">
-        <div class="person-avatar">WJ</div>
-        <div class="person-meta">
-          <div class="person-name">Williams Joe</div>
-          <div class="person-sub">Driver · TRK-04 · Mercedes Actros</div>
+  <aside class="detail" id="detail" aria-label="Selected vehicle">
+    <div class="detail-body" id="detail-body">
+      <section class="detail-section" aria-labelledby="h-vehicle">
+        <h2 class="section-eyebrow" id="h-vehicle">Vehicle</h2>
+        <div class="vehicle-card">
+          <div class="vehicle-tag" id="veh-tag"></div>
+          <svg class="vehicle-illustration" viewBox="0 0 340 150" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <g filter="url(#shadow)">
+              <path d="M28 96h168l24-58h42l26 40h23v18H28V96z" fill="#e9e9e9"/>
+              <path d="M196 40h24l18 36h-55l13-36z" fill="#262626"/>
+              <path d="M223 38h14v62h-14z" fill="#3a3a3a"/>
+              <path d="M238 46h26l17 30h-43V46z" fill="#707070"/>
+              <path d="M31 96h280v12H31z" fill="#cfcfcf"/>
+              <path d="M44 53h118v33H35l9-33z" fill="#f7f7f7"/>
+              <path d="M200 48h20v30h-30l10-30z" fill="#121212"/>
+              <path d="M243 52h24l10 20h-34V52z" fill="#808080"/>
+              <rect x="37" y="57" width="92" height="18" rx="2" fill="#0f1115"/>
+              <circle cx="78" cy="109" r="15" fill="#1b1b1b"/>
+              <circle cx="78" cy="109" r="7" fill="#8a8a8a"/>
+              <circle cx="135" cy="109" r="15" fill="#1b1b1b"/>
+              <circle cx="135" cy="109" r="7" fill="#8a8a8a"/>
+              <circle cx="250" cy="109" r="15" fill="#1b1b1b"/>
+              <circle cx="250" cy="109" r="7" fill="#8a8a8a"/>
+              <circle cx="288" cy="109" r="15" fill="#1b1b1b"/>
+              <circle cx="288" cy="109" r="7" fill="#8a8a8a"/>
+            </g>
+            <defs>
+              <filter id="shadow" x="18" y="30" width="310" height="96" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                <feDropShadow dx="0" dy="10" stdDeviation="8" flood-opacity=".28"/>
+              </filter>
+            </defs>
+          </svg>
         </div>
-        <div class="chat-icon">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5A2.5 2.5 0 0 1 5.5 2h5A2.5 2.5 0 0 1 13 4.5v4A2.5 2.5 0 0 1 10.5 11H8l-3 2v-2H5.5A2.5 2.5 0 0 1 3 8.5v-4z"/></svg>
-        </div>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-box"><span class="label">Status</span><span class="value pill-red">DELAYED</span></div>
-        <div class="stat-box"><span class="label">ETA</span><span class="value">16:45</span></div>
-        <div class="stat-box"><span class="label">Speed</span><span class="value">58 km/h</span></div>
-        <div class="stat-box"><span class="label">Fuel</span><span class="value">67%</span></div>
-        <div class="stat-box"><span class="label">Odomoter</span><span class="value">83,000 km</span></div>
-        <div class="stat-box"><span class="label">Engine</span><span class="value pill-green">NORMAL</span></div>
-      </div>
-    </section>
-
-    <section class="detail-section">
-      <div class="section-eyebrow">Route Progress</div>
-      <div class="route-top">
-        <div class="route-endpoint">Bang Na Depot</div>
-        <div class="route-progress-chip">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
-        </div>
-        <div class="route-endpoint right">Bang Pa-In Hub</div>
-      </div>
-      <div class="route-log">
-        <div class="route-log-row">
-          <div class="route-log-icon done"></div>
-          <div class="route-log-copy"><strong>Bang Na Depot</strong> · Departed 09:14</div>
-        </div>
-        <div class="route-log-row">
-          <div class="route-log-icon done"></div>
-          <div class="route-log-copy"><strong>Checkpoint - Don Mueang</strong> · Passed 11:32</div>
-        </div>
-        <div class="route-log-row">
-          <div class="route-log-icon current"></div>
-          <div class="route-log-copy"><strong>Current - Pathum Thani</strong> · En route · 22 min late</div>
-        </div>
-        <div class="route-log-row">
-          <div class="route-log-icon pending"></div>
-          <div class="route-log-copy"><strong>Delivery - Bang Pa-In Hub</strong> · ETA 16:45 (was 16:23)</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="detail-section">
-      <div class="section-eyebrow">Cargo</div>
-      <div class="cargo-grid">
-        <div class="cargo-cell"><span class="label">Type</span><span class="value">Perishable</span></div>
-        <div class="cargo-cell"><span class="label">Temp</span><span class="value">4°C</span></div>
-        <div class="cargo-cell"><span class="label">Weight</span><span class="value">8.4 t</span></div>
-        <div class="cargo-cell"><span class="label">Seals</span><span class="value pill-green" style="min-width:54px">INTACT</span></div>
-      </div>
-      <div class="cargo-bar-label">Load capacity</div>
-      <div class="cargo-bar-wrap">
-        <div class="cargo-bar"><div></div></div>
-        <span>60%</span>
-      </div>
-    </section>
-
-    <section class="detail-section">
-      <div class="section-eyebrow">Active Alerts</div>
-      <div class="alerts">
-        <div class="alert-item">
-          <div class="alert-dot"></div>
-          <div class="alert-copy">
-            <div class="time">13:58</div>
-            <div class="text">22 min delay - congestion on Vibhavadi Rangsit Rd</div>
+        <div class="person-card">
+          <div class="person-avatar" id="drv-avatar" aria-hidden="true"></div>
+          <div class="person-meta">
+            <div class="person-name" id="drv-name"></div>
+            <div class="person-sub" id="drv-sub"></div>
           </div>
+          <button type="button" class="btn chat-btn" id="chat-btn" aria-label="Message driver">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5A2.5 2.5 0 0 1 5.5 2h5A2.5 2.5 0 0 1 13 4.5v4A2.5 2.5 0 0 1 10.5 11H8l-3 2v-2H5.5A2.5 2.5 0 0 1 3 8.5v-4z"/></svg>
+          </button>
         </div>
-        <div class="alert-item">
-          <div class="alert-dot" style="opacity:.55"></div>
-          <div class="alert-copy">
-            <div class="time">12:03</div>
-            <div class="text">22 min delay - congestion on Vibhavadi Rangsit Rd</div>
+        <dl class="kv" id="veh-stats"></dl>
+      </section>
+
+      <section class="detail-section" aria-labelledby="h-route">
+        <h2 class="section-eyebrow" id="h-route">Route</h2>
+        <div class="route-top">
+          <div class="route-endpoint" id="rt-from"></div>
+          <div class="route-ring" id="rt-ring" role="img" aria-label="Route progress">
+            <svg viewBox="0 0 46 46" aria-hidden="true"><circle class="ring-track" cx="23" cy="23" r="20"/><circle class="ring-fill" id="rt-fill" cx="23" cy="23" r="20" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg>
+            <svg class="ring-truck" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>
           </div>
+          <div class="route-endpoint right" id="rt-to"></div>
         </div>
-      </div>
-    </section>
+        <p class="route-caption" id="rt-caption"></p>
+        <ol class="route-log" id="rt-log"></ol>
+      </section>
+
+      <section class="detail-section" aria-labelledby="h-cargo">
+        <h2 class="section-eyebrow" id="h-cargo">Cargo</h2>
+        <dl class="kv" id="cargo-kv"></dl>
+        <figure class="temp-chart" id="temp-chart">
+          <figcaption><span>Reefer temperature, last 60 min</span><strong id="temp-now"></strong></figcaption>
+          <div class="chart-box" id="chart-box">
+            <svg viewBox="0 0 300 56" preserveAspectRatio="none" aria-hidden="true"><rect class="chart-band" id="chart-band" x="0" width="300"/><line class="chart-target" id="chart-target" x1="0" x2="300"/></svg>
+            <svg class="chart-line-svg" viewBox="0 0 300 56" preserveAspectRatio="none" aria-hidden="true"><polyline class="chart-line" id="chart-line"/></svg>
+            <span class="chart-y" id="chart-hi" aria-hidden="true"></span>
+            <span class="chart-y" id="chart-lo" aria-hidden="true"></span>
+            <span class="chart-peak" id="chart-peak" aria-hidden="true"><span></span></span>
+          </div>
+          <div class="chart-x" aria-hidden="true"><span>60 min ago</span><span>now</span></div>
+          <p class="sr-only" id="chart-sr"></p>
+        </figure>
+        <div class="cargo-bar-label">Load capacity</div>
+        <div class="cargo-bar-wrap">
+          <div class="cargo-bar"><i id="load-fill"></i></div>
+          <span id="load-pct"></span>
+        </div>
+      </section>
+
+      <section class="detail-section" aria-labelledby="h-alerts">
+        <h2 class="section-eyebrow" id="h-alerts">Alerts <span class="count" id="alert-count"></span></h2>
+        <ul class="alerts" id="alerts"></ul>
+      </section>
+    </div>
   </aside>
 </div>
 
 <script>
-const map = L.map('map', {
-  center: [13.95, 100.69],
-  zoom: 10,
-  zoomControl: false,
-  attributionControl: false,
-  dragging: true,
-  scrollWheelZoom: false,
-});
+(function () {
+  'use strict';
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  subdomains: 'abc',
-  maxZoom: 19,
-}).addTo(map);
+  var $ = function (id) { return document.getElementById(id); };
+  var mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var reduce = !!(mq && mq.matches);
 
-const routeCoords = [
-  [13.680, 100.612],
-  [13.725, 100.628],
-  [13.780, 100.640],
-  [13.840, 100.660],
-  [13.890, 100.678],
-  [13.950, 100.690],
-  [14.030, 100.708],
-  [14.090, 100.722],
-];
+  /* Every time on screen is an offset from the moment the page opened,
+     so the demo reads true at any hour. */
+  var T0 = Date.now();
+  var pad2 = function (n) { return String(n).padStart(2, '0'); };
+  var at = function (min) { return new Date(T0 + min * 60000); };
+  var hhmm = function (d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
+  var minsUntil = function (min) { return Math.round((T0 + min * 60000 - Date.now()) / 60000); };
+  var dur = function (m) { return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
+  var ago = function (m) { return m <= 0 ? 'just now' : dur(m) + ' ago'; };
+  var km1 = function (n) { return n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); };
 
-L.polyline(routeCoords, {
-  color: '#4e8cff',
-  weight: 5,
-  opacity: 0.95,
-  lineCap: 'round',
-  lineJoin: 'round',
-}).addTo(map);
+  var FLEET = [
+    { id: 'TRK-03', status: 'transit', driver: 'Williams Joe', hue: 28, plate: '70-3318', kind: 'Curtainsider · 16 t',
+      from: { name: 'Lat Phrao Depot', area: 'Lat Phrao, Bangkok' }, to: { name: 'Saraburi DC', area: 'Saraburi' },
+      here: 'Phahon Yothin Rd, Pathum Thani', progress: .34, late: 0, speed: 71, fuel: 54, odo: 118204.3, engine: 'ok',
+      stops: [['Lat Phrao Depot', -34, 'dep'], ['Rangsit', -6, 'via'], ['Nong Khae', 32, 'via'], ['Saraburi DC', 50, 'arr']],
+      cargo: { type: 'Packaged goods', weight: '9.1 t', seals: 'ok', load: 76 },
+      alerts: [],
+      path: [[13.806,100.573],[13.842,100.612],[13.874,100.648],[13.935,100.661],[13.990,100.672],[14.080,100.700],[14.200,100.750],[14.335,100.860],[14.430,100.890],[14.528,100.910]] },
+    { id: 'TRK-04', status: 'delayed', driver: 'Amara Kone', hue: 205, plate: '70-4821', kind: 'Reefer · 18 t',
+      from: { name: 'Bang Na Depot', area: 'Bang Na, Bangkok' }, to: { name: 'Bang Pa-In Hub', area: 'Bang Pa-In, Ayutthaya' },
+      here: 'Khlong Luang, Pathum Thani', progress: .66, late: 22, speed: 58, fuel: 67, odo: 83412.6, engine: 'ok',
+      stops: [['Bang Na Depot', -118, 'dep'], ['Don Mueang', -52, 'via'], ['Bang Pa-In Hub', 38, 'arr']],
+      cargo: { type: 'Chilled produce', weight: '8.4 t', seals: 'ok', load: 60 },
+      reefer: { band: [2, 6], series: [4.1,4.0,4.2,4.1,4.3,4.9,5.6,6.1,5.8,5.2,4.7,4.4,4.2,4.1,4.0,4.1,4.0,3.9,4.0,4.1,4.0,4.0,3.9,4.0] },
+      alerts: [{ t: -23, tone: 'red', text: '22 min delay, congestion on Vibhavadi Rangsit Rd' },
+               { t: -41, tone: 'amber', text: 'Reefer at 6.1 °C for 4 min, back to 4.0 °C' }],
+      path: [[13.668,100.604],[13.700,100.590],[13.735,100.567],[13.770,100.556],[13.820,100.565],[13.880,100.585],[13.912,100.603],[13.985,100.616],[14.075,100.610],[14.150,100.590],[14.215,100.580]] },
+    { id: 'TRK-05', status: 'delayed', driver: 'Chijioke Nwosu', hue: 150, plate: '71-0957', kind: 'Box · 12 t',
+      from: { name: 'Lat Krabang ICD', area: 'Lat Krabang, Bangkok' }, to: { name: 'Pathum Thani Hub', area: 'Pathum Thani' },
+      here: 'Kanchanaphisek Rd, Lam Luk Ka', progress: .48, late: 35, speed: 23, fuel: 41, odo: 64880.9, engine: 'ok',
+      stops: [['Lat Krabang ICD', -64, 'dep'], ['Min Buri', -40, 'via'], ['Pathum Thani Hub', 62, 'arr']],
+      cargo: { type: 'Electronics', weight: '5.6 t', seals: 'ok', load: 48 },
+      alerts: [{ t: -12, tone: 'red', text: '35 min delay, lane closure on Kanchanaphisek Rd' }],
+      path: [[13.722,100.759],[13.760,100.735],[13.813,100.728],[13.870,100.715],[13.930,100.690],[13.975,100.650],[14.000,100.600],[14.020,100.525]] },
+    { id: 'TRK-06', status: 'done', driver: 'Fola Adebayo', hue: 330, plate: '70-6604', kind: 'Reefer · 24 t',
+      from: { name: 'Rama IV Yard', area: 'Rama IV, Bangkok' }, to: { name: 'Laem Chabang Port', area: 'Laem Chabang, Chonburi' },
+      here: 'Laem Chabang Port', progress: 1, late: 0, speed: 0, fuel: 38, odo: 201557.0, engine: 'ok',
+      stops: [['Rama IV Yard', -196, 'dep'], ['Chonburi', -92, 'via'], ['Laem Chabang Port', -34, 'arr']],
+      cargo: { type: 'Frozen seafood', temp: '−18 °C', weight: '14.2 t', seals: 'ok', load: 88 },
+      alerts: [],
+      path: [[13.723,100.548],[13.722,100.620],[13.718,100.750],[13.640,100.900],[13.450,100.980],[13.250,100.935],[13.085,100.885]] },
+    { id: 'TRK-07', status: 'idle', driver: 'Ngozi Okafor', hue: 45, plate: '72-1189', kind: 'Box · 7 t',
+      from: { name: 'Nonthaburi Yard', area: 'Nonthaburi' }, to: { name: 'Nakhon Pathom DC', area: 'Nakhon Pathom' },
+      here: 'Nonthaburi Yard', progress: 0, late: 0, speed: 0, fuel: 92, odo: 47310.2, engine: 'ok',
+      stops: [['Nonthaburi Yard', 75, 'dep'], ['Sam Phran', 118, 'via'], ['Nakhon Pathom DC', 142, 'arr']],
+      cargo: { type: 'Beverages', weight: '6.3 t', seals: 'open', load: 70 },
+      alerts: [],
+      path: [[13.862,100.514],[13.835,100.470],[13.800,100.380],[13.790,100.260],[13.815,100.060]] },
+    { id: 'TRK-08', status: 'idle', driver: 'Daniel Umeh', hue: 260, plate: '70-8842', kind: 'Tractor · 32 t',
+      from: { name: 'Samut Prakan Yard', area: 'Samut Prakan' }, to: { name: 'Chachoengsao DC', area: 'Chachoengsao' },
+      here: 'Samut Prakan Yard', progress: 0, late: 0, speed: 0, fuel: 88, odo: 152093.8, engine: 'check',
+      stops: [['Samut Prakan Yard', 140, 'dep'], ['Bang Bo', 172, 'via'], ['Chachoengsao DC', 205, 'arr']],
+      cargo: { type: 'Steel coil', weight: '21.0 t', seals: 'ok', load: 66 },
+      alerts: [{ t: -66, tone: 'amber', text: 'Engine check requested before departure' }],
+      path: [[13.599,100.597],[13.640,100.680],[13.680,100.800],[13.700,100.950],[13.690,101.070]] }
+  ];
 
-const startIcon = L.divIcon({ className: '', html: '<div class="start-end-pin"></div>', iconSize: [26, 26], iconAnchor: [13, 13] });
-const truckIcon = L.divIcon({ className: '', html: '<div class="truck-pin"><div class="truck-pin-core"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg></div></div>', iconSize: [58, 58], iconAnchor: [29, 29] });
+  var STATUS = { transit: 'In transit', delayed: 'Delayed', idle: 'Idle', done: 'Done' };
+  var TONE = { transit: 'blue', delayed: 'red', idle: 'amber', done: 'green' };
+  var VERB = { dep: ['Departed', 'Departs'], via: ['Passed', 'Due'], arr: ['Delivered', 'ETA'] };
+  var I = {
+    truck: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10.8h8.8M2 10.8l1.4-4.8H9l1.5 4.8M4.6 10.8v1.8m4.8-1.8v1.8"/><rect x="10.8" y="7.8" width="3.2" height="3" rx="1"/></svg>',
+    from: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="5.2"/></svg>',
+    to: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 2.4a4.2 4.2 0 0 1 4.2 4.2c0 3.1-4.2 7-4.2 7s-4.2-3.9-4.2-7A4.2 4.2 0 0 1 8 2.4z"/><circle cx="8" cy="6.6" r="1.5"/></svg>',
+    clock: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg>'
+  };
 
-L.marker(routeCoords[0], { icon: startIcon }).addTo(map);
-L.marker(routeCoords[routeCoords.length - 1], { icon: startIcon }).addTo(map);
-L.marker(routeCoords[3], { icon: truckIcon }).addTo(map);
-
-document.querySelectorAll('.fleet-item').forEach(item => {
-  item.addEventListener('click', () => {
-    document.querySelectorAll('.fleet-item').forEach(el => el.classList.remove('active'));
-    item.classList.add('active');
+  var byId = {};
+  var RAD = Math.PI / 180;
+  function hav(a, b) {
+    var dl = (b[0] - a[0]) * RAD, dn = (b[1] - a[1]) * RAD;
+    var h = Math.pow(Math.sin(dl / 2), 2) + Math.cos(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.pow(Math.sin(dn / 2), 2);
+    return 12742 * Math.asin(Math.sqrt(h));
+  }
+  FLEET.forEach(function (v) {
+    var c = [0];
+    for (var i = 1; i < v.path.length; i++) c.push(c[i - 1] + hav(v.path[i - 1], v.path[i]));
+    v.cum = c;
+    v.len = c[c.length - 1];
+    v.base = v.speed;
+    v.cap = Math.min(.97, v.progress + .12);
+    byId[v.id] = v;
   });
-});
+  var moving = function (v) { return v.status === 'transit' || v.status === 'delayed'; };
+  var stopOf = function (v, kind) { return v.stops.filter(function (s) { return s[2] === kind; })[0]; };
+  function keyTime(v) {
+    if (v.status === 'idle') return { label: 'Departs', t: stopOf(v, 'dep')[1] };
+    if (v.status === 'done') return { label: 'Delivered', t: stopOf(v, 'arr')[1] };
+    return { label: 'ETA', t: stopOf(v, 'arr')[1] };
+  }
+  function split(v, f) {
+    var p = v.path, c = v.cum, d = f * v.len, i = 1;
+    while (i < c.length - 1 && c[i] < d) i++;
+    var t = Math.max(0, Math.min(1, (d - c[i - 1]) / ((c[i] - c[i - 1]) || 1)));
+    var pos = [p[i - 1][0] + (p[i][0] - p[i - 1][0]) * t, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * t];
+    return {
+      pos: pos,
+      done: f <= 0 ? [] : p.slice(0, i).concat([pos]),
+      left: f >= 1 ? [] : [pos].concat(p.slice(i))
+    };
+  }
+  var initials = function (name) { return name.split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2); };
 
-function updateClock() {
-  const now = new Date();
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  document.getElementById('live-clock').textContent = `${days[now.getDay()]} ${months[now.getMonth()]} ${now.getDate()} ${hh}:${mm}`;
-}
-updateClock();
-setInterval(updateClock, 10000);
+  /* ---------- State ---------- */
+  var state = { sel: 'TRK-04', filter: null, q: '', sortEta: false, first: true };
+  var booting = !reduce; /* the ring and load bar fill once the panel has risen in */
+  var app = $('app'), list = $('fleet-list'), body = $('detail-body'), detail = $('detail'), mapPanel = $('map-panel');
+
+  /* ---------- Sidebar: counts, filter, search, sort ---------- */
+  function renderCounts() {
+    ['transit', 'delayed', 'idle', 'done'].forEach(function (s) {
+      $('n-' + s).textContent = FLEET.filter(function (v) { return v.status === s; }).length;
+    });
+    $('fleet-total').textContent = FLEET.length;
+    var alerts = FLEET.reduce(function (n, v) { return n + v.alerts.length; }, 0);
+    var bell = $('bell-btn');
+    bell.classList.toggle('has-dot', alerts > 0);
+    bell.setAttribute('aria-label', alerts ? 'Notifications, ' + alerts + ' active alerts' : 'Notifications');
+  }
+  function sortKey(v) {
+    var t = keyTime(v).t;
+    return v.status === 'done' ? 1e5 - t : v.status === 'idle' ? 1e4 + t : t;
+  }
+  function visible() {
+    var q = state.q.trim().toLowerCase();
+    var rows = FLEET.filter(function (v) {
+      if (state.filter && v.status !== state.filter) return false;
+      if (!q) return true;
+      return [v.id, v.driver, v.from.name, v.from.area, v.to.name, v.to.area].join(' ').toLowerCase().indexOf(q) !== -1;
+    });
+    if (state.sortEta) rows = rows.slice().sort(function (a, b) { return sortKey(a) - sortKey(b); });
+    return rows;
+  }
+  function timeText(v) { var k = keyTime(v); return k.label + ' ' + hhmm(at(k.t)); }
+  function rowHTML(v, i) {
+    var late = v.late ? '<span class="eta-late">+' + v.late + ' min</span>' : '';
+    var label = v.id + ', ' + STATUS[v.status] + ', ' + v.from.area + ' to ' + v.to.area + ', ' + v.driver + ', ' + timeText(v) + (v.late ? ', ' + v.late + ' minutes late' : '');
+    return '<div class="fleet-item' + (state.first ? ' enter' : '') + '" role="option" data-id="' + v.id + '" tabindex="-1" aria-selected="false" aria-label="' + label + '" style="--i:' + i + '">' +
+      '<div class="fleet-head"><div class="fleet-id">' + I.truck + v.id + '</div><div class="fleet-state ' + v.status + '">' + STATUS[v.status] + '</div></div>' +
+      '<div class="fleet-route"><div class="fleet-route-row">' + I.from + v.from.area + '</div><div class="fleet-route-row">' + I.to + v.to.area + '</div></div>' +
+      '<div class="fleet-meta"><div class="driver-chip"><span class="driver-avatar" style="--h:' + v.hue + '"></span><span>' + v.driver + '</span></div>' +
+      '<div class="fleet-eta">' + I.clock + timeText(v) + late + '</div></div></div>';
+  }
+  function renderList() {
+    var rows = visible();
+    list.innerHTML = rows.map(rowHTML).join('');
+    state.first = false;
+    var empty = rows.length === 0;
+    $('list-empty').hidden = !empty;
+    if (empty) $('empty-q').textContent = state.q.trim() || STATUS[state.filter] || '';
+    var parts = [rows.length + ' of ' + FLEET.length];
+    if (state.filter) parts.push(STATUS[state.filter]);
+    $('meta-count').textContent = parts.join(' · ');
+    $('meta-sort').textContent = state.sortEta ? 'By arrival' : 'By ID';
+    syncSelection();
+  }
+  function syncSelection() {
+    var opts = list.querySelectorAll('[role="option"]'), has = false;
+    Array.prototype.forEach.call(opts, function (o) {
+      var on = o.getAttribute('data-id') === state.sel;
+      o.setAttribute('aria-selected', String(on));
+      o.tabIndex = on ? 0 : -1;
+      if (on) has = true;
+    });
+    if (!has && opts[0]) opts[0].tabIndex = 0;
+  }
+  function keepVisible(el) {
+    if (!el || list.scrollHeight <= list.clientHeight) return;
+    var top = el.offsetTop, bottom = top + el.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.summary-card'), function (b) {
+    b.addEventListener('click', function () {
+      var f = b.getAttribute('data-filter');
+      state.filter = state.filter === f ? null : f;
+      Array.prototype.forEach.call(document.querySelectorAll('.summary-card'), function (x) {
+        x.setAttribute('aria-pressed', String(x.getAttribute('data-filter') === state.filter));
+      });
+      renderList();
+    });
+  });
+  var search = $('fleet-search');
+  function onSearch() { state.q = search.value; renderList(); }
+  search.addEventListener('input', onSearch);
+  search.addEventListener('search', onSearch);
+  $('sort-btn').addEventListener('click', function () {
+    state.sortEta = !state.sortEta;
+    this.setAttribute('aria-pressed', String(state.sortEta));
+    renderList();
+  });
+  $('clear-btn').addEventListener('click', function () {
+    search.value = '';
+    state.q = '';
+    state.filter = null;
+    Array.prototype.forEach.call(document.querySelectorAll('.summary-card'), function (x) { x.setAttribute('aria-pressed', 'false'); });
+    renderList();
+    search.focus({ preventScroll: true });
+  });
+
+  list.addEventListener('click', function (e) {
+    var o = e.target.closest('[role="option"]');
+    if (!o) return;
+    select(o.getAttribute('data-id'));
+    o.focus({ preventScroll: true });
+  });
+  list.addEventListener('keydown', function (e) {
+    var opts = Array.prototype.slice.call(list.querySelectorAll('[role="option"]'));
+    var i = opts.indexOf(document.activeElement), j = null;
+    if (e.key === 'ArrowDown') j = Math.min(i + 1, opts.length - 1);
+    else if (e.key === 'ArrowUp') j = Math.max(i - 1, 0);
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = opts.length - 1;
+    else if ((e.key === 'Enter' || e.key === ' ') && i > -1) { e.preventDefault(); select(opts[i].getAttribute('data-id')); return; }
+    if (j === null || !opts[j]) return;
+    e.preventDefault();
+    opts[j].focus({ preventScroll: true });
+    keepVisible(opts[j]);
+    select(opts[j].getAttribute('data-id'));
+  });
+
+  /* ---------- Detail rail ---------- */
+  var pill = function (text, tone) { return '<span class="pill ' + tone + '">' + text + '</span>'; };
+  var kv = function (rows) { return rows.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>'; }).join(''); };
+
+  function caption(v) {
+    var total = Math.round(v.len);
+    if (v.status === 'idle') return total + ' km planned · departs in ' + dur(Math.max(0, minsUntil(stopOf(v, 'dep')[1])));
+    if (v.status === 'done') return total + ' km · delivered ' + ago(-minsUntil(stopOf(v, 'arr')[1]));
+    return Math.round(v.progress * v.len) + ' of ' + total + ' km · ' + dur(Math.max(0, minsUntil(stopOf(v, 'arr')[1]))) + ' to go';
+  }
+  function renderLog(v) {
+    var rows = [], live = moving(v), placed = false;
+    v.stops.forEach(function (s, i) {
+      if (v.status === 'idle' && i === 0) {
+        rows.push(['is-current', '<strong>' + s[0] + '</strong> · Parked, departs ' + hhmm(at(s[1]))]);
+        return;
+      }
+      var past = v.status === 'done' || (live && s[1] < 0);
+      if (live && !past && !placed) {
+        placed = true;
+        rows.push(['is-current', '<strong>Now · ' + v.here + '</strong> · ' + (v.late ? v.late + ' min late' : 'On time')]);
+      }
+      var was = !past && s[2] === 'arr' && v.late ? ' (was ' + hhmm(at(s[1] - v.late)) + ')' : '';
+      rows.push([past ? 'is-done' : 'is-pending', '<strong>' + s[0] + '</strong> · ' + VERB[s[2]][past ? 0 : 1] + ' ' + hhmm(at(s[1])) + was]);
+    });
+    $('rt-log').innerHTML = rows.map(function (r) {
+      return '<li class="route-log-row ' + r[0] + '"><span class="route-log-icon" aria-hidden="true"></span><span class="route-log-copy">' + r[1] + '</span></li>';
+    }).join('');
+  }
+  function renderChart(v) {
+    var fig = $('temp-chart');
+    if (!v.reefer) { fig.hidden = true; return; }
+    fig.hidden = false;
+    var s = v.reefer.series, lo = v.reefer.band[0], hi = v.reefer.band[1];
+    var min = lo - 1, max = hi + 1, W = 300, H = 56;
+    var y = function (t) { return (max - t) / (max - min) * H; };
+    var x = function (i) { return i / (s.length - 1) * W; };
+    var band = $('chart-band');
+    band.setAttribute('y', y(hi).toFixed(2));
+    band.setAttribute('height', (y(lo) - y(hi)).toFixed(2));
+    var target = $('chart-target'), mid = y((lo + hi) / 2).toFixed(2);
+    target.setAttribute('y1', mid);
+    target.setAttribute('y2', mid);
+    $('chart-line').setAttribute('points', s.map(function (t, i) { return x(i).toFixed(1) + ',' + y(t).toFixed(2); }).join(' '));
+    $('chart-hi').style.top = (y(hi) / H * 100) + '%';
+    $('chart-hi').textContent = hi + '°';
+    $('chart-lo').style.top = (y(lo) / H * 100) + '%';
+    $('chart-lo').textContent = lo + '°';
+    var pi = 0;
+    s.forEach(function (t, i) { if (t > s[pi]) pi = i; });
+    var peak = $('chart-peak'), out = s[pi] > hi;
+    peak.hidden = !out;
+    peak.style.left = (x(pi) / W * 100) + '%';
+    peak.style.top = (y(s[pi]) / H * 100) + '%';
+    peak.firstChild.textContent = s[pi].toFixed(1) + '°';
+    var now = s[s.length - 1].toFixed(1) + ' °C';
+    $('temp-now').textContent = now;
+    var peakAgo = Math.round(60 - pi * 60 / (s.length - 1));
+    $('chart-sr').textContent = 'Target ' + lo + ' to ' + hi + ' °C. ' + (out ? 'Peaked at ' + s[pi].toFixed(1) + ' °C about ' + peakAgo + ' min ago. ' : '') + 'Now ' + now + '.';
+    replay($('chart-box'), 'draw');
+  }
+  function renderAlerts(v) {
+    var al = v.alerts.slice().sort(function (a, b) { return b.t - a.t; });
+    $('alert-count').textContent = al.length ? String(al.length) : '';
+    $('alerts').innerHTML = al.length ? al.map(function (a) {
+      return '<li class="alert-item"><span class="alert-dot ' + a.tone + '" aria-hidden="true"></span><div class="alert-copy"><div class="time" data-t="' + a.t + '"></div><div class="text">' + a.text + '</div></div></li>';
+    }).join('') : '<li class="alert-empty">No alerts on this run.</li>';
+  }
+  function renderRelative() {
+    var v = byId[state.sel];
+    $('rt-caption').textContent = caption(v);
+    Array.prototype.forEach.call(document.querySelectorAll('#alerts .time[data-t]'), function (el) {
+      var t = Number(el.getAttribute('data-t'));
+      el.textContent = hhmm(at(t)) + ' · ' + ago(-minsUntil(t));
+    });
+  }
+  function replay(el, cls) {
+    if (reduce || !el) return;
+    el.classList.remove(cls);
+    void el.getBoundingClientRect();
+    el.classList.add(cls);
+  }
+  function flash(el) { replay(el, 'tick'); }
+  function renderLive(v) {
+    if (!booting) $('rt-fill').style.strokeDashoffset = String(100 - v.progress * 100);
+    $('rt-ring').setAttribute('aria-label', Math.round(v.progress * 100) + '% of route complete');
+    $('rt-caption').textContent = caption(v);
+    var sp = $('live-speed'), od = $('live-odo');
+    var spT = Math.round(v.speed) + ' km/h', odT = km1(v.odo) + ' km';
+    if (sp && sp.textContent !== spT) { sp.textContent = spT; flash(sp); }
+    if (od && od.textContent !== odT) { od.textContent = odT; flash(od); }
+  }
+  function renderDetail(v, swap) {
+    $('veh-tag').textContent = v.kind;
+    var av = $('drv-avatar');
+    av.textContent = initials(v.driver);
+    av.style.setProperty('--h', v.hue);
+    $('drv-name').textContent = v.driver;
+    $('drv-sub').textContent = 'Driver · ' + v.id + ' · ' + v.plate;
+    $('chat-btn').setAttribute('aria-label', 'Message ' + v.driver);
+    var k = keyTime(v);
+    $('veh-stats').innerHTML = kv([
+      ['Status', pill(STATUS[v.status].toUpperCase(), TONE[v.status])],
+      [k.label, hhmm(at(k.t))],
+      ['Speed', '<span id="live-speed">' + Math.round(v.speed) + ' km/h</span>'],
+      ['Fuel', v.fuel + '%'],
+      ['Odometer', '<span id="live-odo">' + km1(v.odo) + ' km</span>'],
+      ['Engine', v.engine === 'ok' ? pill('NORMAL', 'green') : pill('CHECK', 'amber')]
+    ]);
+    $('rt-from').textContent = v.from.name;
+    $('rt-to').textContent = v.to.name;
+    $('rt-ring').setAttribute('data-status', v.status);
+    renderLog(v);
+    var temp = v.reefer ? v.reefer.series[v.reefer.series.length - 1].toFixed(1) + ' °C' : (v.cargo.temp || 'Ambient');
+    $('cargo-kv').innerHTML = kv([
+      ['Type', v.cargo.type],
+      ['Temp', temp],
+      ['Weight', v.cargo.weight],
+      ['Seals', v.cargo.seals === 'ok' ? pill('INTACT', 'green') : pill('OPEN', 'amber')]
+    ]);
+    renderChart(v);
+    if (!booting) $('load-fill').style.transform = 'scaleX(' + v.cargo.load / 100 + ')';
+    $('load-pct').textContent = v.cargo.load + '%';
+    renderAlerts(v);
+    renderRelative();
+    renderLive(v);
+    if (detail.scrollTop) detail.scrollTop = 0;
+    if (swap) replay(body, 'swap');
+  }
+
+  function select(id) {
+    var v = byId[id];
+    if (!v) return;
+    var changed = state.sel !== id;
+    state.sel = id;
+    syncSelection();
+    if (!changed) return;
+    renderDetail(v, true);
+    if (map) {
+      clearTimeout(flyTimer);
+      flyTimer = setTimeout(function () { drawRoute(v, true); }, 90);
+    } else drawSchematic();
+  }
+
+  /* ---------- Map (Leaflet + OSM), with an owned schematic fallback ---------- */
+  var map = null, flyTimer = 0, routeDone, routeLeft, startM, endM, truckM, dots = {}, tileOk = false, tileErrors = 0, mapEntered = false;
+
+  function dotIcon(o, d) {
+    return L.divIcon({ className: 'pin-icon', html: '<span class="veh-dot pin-pop ' + o.status + '" style="--d:' + d + 's"></span>', iconSize: [14, 14], iconAnchor: [7, 7] });
+  }
+
+  function calloutHTML(v) {
+    return '<strong>' + v.id + '</strong><span class="mini-avatar" style="--h:' + v.hue + '"></span>' + v.driver;
+  }
+  function truckEl() { return truckM && truckM.getElement(); }
+  function drawRoute(v, fly) {
+    cancelAnimationFrame(glideRaf);
+    var s = split(v, v.progress);
+    routeDone.setLatLngs(s.done);
+    routeLeft.setLatLngs(s.left);
+    startM.setLatLng(v.path[0]).setTooltipContent(v.from.name);
+    endM.setLatLng(v.path[v.path.length - 1]).setTooltipContent(v.to.name);
+    truckM.setLatLng(s.pos).setTooltipContent(calloutHTML(v));
+    var el = truckEl();
+    if (el) el.setAttribute('data-status', v.status);
+    FLEET.forEach(function (o) {
+      var m = dots[o.id];
+      if (o.id === v.id) { if (map.hasLayer(m)) m.remove(); return; }
+      m.setLatLng(split(o, o.progress).pos);
+      if (!map.hasLayer(m)) { m.setIcon(dotIcon(o, mapEntered ? 0 : .9)); m.addTo(map); }
+    });
+    var bounds = L.latLngBounds(v.path), opts = { padding: [64, 64], maxZoom: 12 };
+    if (fly && !reduce) map.flyToBounds(bounds, { padding: opts.padding, maxZoom: opts.maxZoom, duration: .6 });
+    else map.fitBounds(bounds, { padding: opts.padding, maxZoom: opts.maxZoom, animate: false });
+    var path = routeDone.getElement && routeDone.getElement();
+    if (path && !reduce) {
+      path.setAttribute('pathLength', '1');
+      replay(path, 'draw');
+    }
+  }
+  function useSchematic() {
+    if (mapPanel.classList.contains('no-map')) return;
+    mapPanel.classList.add('no-map');
+    drawSchematic();
+  }
+  function initMap() {
+    if (!window.L) { useSchematic(); return; }
+    try {
+      map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false,
+        scrollWheelZoom: false,
+        zoomSnap: .25,
+        zoomAnimation: !reduce,
+        fadeAnimation: !reduce,
+        markerZoomAnimation: !reduce
+      });
+      L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(map);
+      var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        subdomains: 'abc',
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+      tiles.on('tileload', function () {
+        tileOk = true;
+        if (mapPanel.classList.contains('no-map')) { mapPanel.classList.remove('no-map'); map.invalidateSize(); }
+      });
+      tiles.on('tileerror', function () { tileErrors++; if (!tileOk && tileErrors >= 4) useSchematic(); });
+      setTimeout(function () { if (!tileOk) useSchematic(); }, 9000);
+
+      routeLeft = L.polyline([], { color: '#4e8cff', weight: 3, opacity: .55, dashArray: '1 9', lineCap: 'round', interactive: false }).addTo(map);
+      routeDone = L.polyline([], { color: '#4e8cff', weight: 5, opacity: .95, lineCap: 'round', lineJoin: 'round', className: 'route-done', interactive: false }).addTo(map);
+
+      var pin = function (cls, d) {
+        return L.divIcon({ className: 'pin-icon', html: '<div class="start-end-pin pin-pop ' + cls + '" style="--d:' + d + 's"></div>', iconSize: [26, 26], iconAnchor: [13, 13], tooltipAnchor: [0, -14] });
+      };
+      var v = byId[state.sel];
+      startM = L.marker(v.path[0], { icon: pin('is-start', .1), keyboard: false, interactive: false })
+        .bindTooltip(v.from.name, { permanent: true, direction: 'top', className: 'map-label enter', opacity: 1 }).addTo(map);
+      endM = L.marker(v.path[v.path.length - 1], { icon: pin('', .8), keyboard: false, interactive: false })
+        .bindTooltip(v.to.name, { permanent: true, direction: 'top', className: 'map-label enter', opacity: 1 }).addTo(map);
+
+      FLEET.forEach(function (o) {
+        dots[o.id] = L.marker(split(o, o.progress).pos, {
+          icon: dotIcon(o, .9),
+          title: o.id + ' · ' + o.driver + ' · ' + STATUS[o.status],
+          keyboard: false,
+          riseOnHover: true
+        }).on('click', function () {
+          select(o.id);
+          keepVisible(list.querySelector('[data-id="' + o.id + '"]'));
+        });
+      });
+
+      truckM = L.marker(split(v, v.progress).pos, {
+        icon: L.divIcon({ className: 'truck-icon', html: '<div class="truck-pin pin-pop" style="--d:.5s"><div class="truck-pin-core">' + I.truck + '</div></div>', iconSize: [58, 58], iconAnchor: [29, 29], tooltipAnchor: [30, 0] }),
+        keyboard: false,
+        interactive: false,
+        zIndexOffset: 1000
+      }).bindTooltip(calloutHTML(v), { permanent: true, direction: 'auto', className: 'truck-callout enter', opacity: 1 }).addTo(map);
+
+      drawRoute(v, false);
+      mapEntered = true;
+    } catch (err) {
+      map = null;
+      useSchematic();
+    }
+  }
+
+  var BASE = {
+    river: [[13.53,100.58],[13.62,100.55],[13.68,100.54],[13.72,100.51],[13.75,100.49],[13.80,100.52],[13.86,100.50],[13.94,100.50],[14.02,100.53],[14.10,100.56],[14.22,100.57],[14.35,100.58]],
+    major: [
+      [[13.72,100.56],[13.78,100.555],[13.83,100.565],[13.91,100.60],[13.99,100.615],[14.10,100.62],[14.25,100.65],[14.40,100.80],[14.53,100.91]],
+      [[13.72,100.62],[13.72,100.75],[13.65,100.90],[13.40,100.98],[13.20,100.93],[13.08,100.89]]
+    ],
+    minor: [
+      [[13.72,100.48],[13.73,100.38],[13.78,100.25],[13.82,100.06]],
+      [[13.75,100.65],[13.73,100.80],[13.69,100.95],[13.69,101.07]],
+      [[13.62,100.55],[13.65,100.70],[13.80,100.73],[13.95,100.68],[14.00,100.55],[13.95,100.42],[13.80,100.38],[13.68,100.42],[13.62,100.55]],
+      [[13.60,100.60],[13.66,100.62],[13.72,100.62]]
+    ],
+    towns: [['BANGKOK',13.75,100.52],['DON MUEANG',13.92,100.59],['PATHUM THANI',14.02,100.52],['AYUTTHAYA',14.35,100.57],['SARABURI',14.53,100.91],['CHONBURI',13.36,100.98],['NAKHON PATHOM',13.82,100.06],['CHACHOENGSAO',13.69,101.07],['SAMUT PRAKAN',13.60,100.60]]
+  };
+  function drawSchematic() {
+    if (!mapPanel.classList.contains('no-map')) return;
+    var v = byId[state.sel];
+    var W = mapPanel.clientWidth || 800, H = mapPanel.clientHeight || 600;
+    $('schematic').setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var la = v.path.map(function (p) { return p[0]; }), ln = v.path.map(function (p) { return p[1]; });
+    var kx = Math.cos((Math.min.apply(null, la) + Math.max.apply(null, la)) / 2 * RAD);
+    var x0 = Math.min.apply(null, ln) * kx, x1 = Math.max.apply(null, ln) * kx;
+    var y0 = -Math.max.apply(null, la), y1 = -Math.min.apply(null, la);
+    var padPx = Math.min(W, H) * .2;
+    var sc = Math.min((W - 2 * padPx) / Math.max(x1 - x0, .01), (H - 2 * padPx) / Math.max(y1 - y0, .01));
+    var P = function (p) { return [W / 2 + sc * (p[1] * kx - (x0 + x1) / 2), H / 2 + sc * (-p[0] - (y0 + y1) / 2)]; };
+    var D = function (arr) { return arr.map(function (p, i) { var q = P(p); return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join(''); };
+    var html = '<path class="sch-river" d="' + D(BASE.river) + '"/>';
+    BASE.minor.forEach(function (r) { html += '<path class="sch-road" d="' + D(r) + '"/>'; });
+    BASE.major.forEach(function (r) { html += '<path class="sch-road major" d="' + D(r) + '"/>'; });
+    BASE.towns.forEach(function (t) { var q = P([t[1], t[2]]); html += '<text class="sch-town" x="' + q[0].toFixed(1) + '" y="' + (q[1] + 22).toFixed(1) + '" text-anchor="middle">' + t[0] + '</text>'; });
+    $('sch-base').innerHTML = html;
+    var s = split(v, v.progress), a = P(v.path[0]), b = P(v.path[v.path.length - 1]), tr = P(s.pos);
+    $('sch-route').innerHTML =
+      (s.left.length ? '<path class="sch-left" d="' + D(s.left) + '"/>' : '') +
+      (s.done.length ? '<path class="sch-done" d="' + D(s.done) + '"/>' : '') +
+      '<circle class="sch-end" cx="' + a[0].toFixed(1) + '" cy="' + a[1].toFixed(1) + '" r="8"/>' +
+      '<circle class="sch-end" cx="' + b[0].toFixed(1) + '" cy="' + b[1].toFixed(1) + '" r="8"/>' +
+      '<text class="sch-name" x="' + a[0].toFixed(1) + '" y="' + (a[1] - 16).toFixed(1) + '" text-anchor="middle">' + v.from.name + '</text>' +
+      '<text class="sch-name" x="' + b[0].toFixed(1) + '" y="' + (b[1] - 16).toFixed(1) + '" text-anchor="middle">' + v.to.name + '</text>' +
+      '<circle class="sch-truck" cx="' + tr[0].toFixed(1) + '" cy="' + tr[1].toFixed(1) + '" r="9"/>';
+  }
+  window.addEventListener('resize', function () { drawSchematic(); });
+
+  /* ---------- Live: clock, GPS ping, moving truck ---------- */
+  var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var lastMinute = -1, lastPing = Date.now(), simTimer = 0, glideRaf = 0;
+  var PING_MS = 4000, PACE = 3; /* demo runs the road clock 3x so the creep is visible */
+
+  function tick() {
+    var now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+    if (m !== lastMinute) {
+      lastMinute = m;
+      $('live-clock').textContent = DAYS[now.getDay()] + ' ' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ' ' + hhmm(now);
+      renderRelative();
+    }
+    $('ping').textContent = simTimer ? 'GPS ping ' + Math.floor((Date.now() - lastPing) / 1000) + ' s ago' : 'GPS updates every 4 s';
+  }
+  function glide(from, to) {
+    cancelAnimationFrame(glideRaf);
+    var t0 = performance.now(), D = 900;
+    var step = function (now) {
+      var k = Math.min(1, (now - t0) / D), e = 1 - (1 - k) * (1 - k);
+      truckM.setLatLng([from[0] + (to[0] - from[0]) * e, from[1] + (to[1] - from[1]) * e]);
+      if (k < 1) glideRaf = requestAnimationFrame(step);
+    };
+    glideRaf = requestAnimationFrame(step);
+  }
+  function ping() {
+    if (document.hidden) return;
+    lastPing = Date.now();
+    var sel = byId[state.sel], before = split(sel, sel.progress).pos;
+    FLEET.forEach(function (v) {
+      if (!moving(v)) return;
+      var km = v.speed * PING_MS / 3600000 * PACE;
+      v.odo += km;
+      v.progress = Math.min(v.cap, v.progress + km / v.len);
+      v.speed = Math.max(5, v.base + Math.round(Math.random() * 4 - 2));
+      if (map && v.id !== state.sel && dots[v.id]) dots[v.id].setLatLng(split(v, v.progress).pos);
+    });
+    renderLive(sel);
+    replay($('live-dot'), 'ping');
+    if (map) {
+      var s = split(sel, sel.progress);
+      if (moving(sel)) {
+        routeDone.setLatLngs(s.done);
+        routeLeft.setLatLngs(s.left);
+        glide(before, s.pos);
+      }
+      var el = truckEl();
+      replay(el && el.querySelector('.truck-pin'), 'ping');
+    } else drawSchematic();
+    tick();
+  }
+  function startSim() { if (!simTimer) { lastPing = Date.now(); simTimer = setInterval(ping, PING_MS); } }
+  function stopSim() { clearInterval(simTimer); simTimer = 0; cancelAnimationFrame(glideRaf); }
+  if (mq) {
+    var onMotion = function (e) { reduce = e.matches; if (reduce) stopSim(); else startSim(); tick(); };
+    if (mq.addEventListener) mq.addEventListener('change', onMotion);
+    else if (mq.addListener) mq.addListener(onMotion);
+  }
+
+  /* ---------- Collapse the vehicle list ---------- */
+  $('collapse-btn').addEventListener('click', function () {
+    var collapsed = app.classList.toggle('is-collapsed');
+    this.setAttribute('aria-expanded', String(!collapsed));
+    this.setAttribute('aria-label', collapsed ? 'Expand vehicle list' : 'Collapse vehicle list');
+    setTimeout(function () { if (map) map.invalidateSize({ animate: !reduce }); drawSchematic(); }, reduce ? 0 : 320);
+  });
+
+  /* ---------- Boot ---------- */
+  renderCounts();
+  renderList();
+  renderDetail(byId[state.sel], false);
+  if (booting) {
+    setTimeout(function () {
+      booting = false;
+      var v = byId[state.sel];
+      renderLive(v);
+      $('load-fill').style.transform = 'scaleX(' + v.cargo.load / 100 + ')';
+    }, 320);
+    startSim();
+  }
+  tick();
+  setInterval(tick, 1000);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMap);
+  else initMap();
+})();
 </script>
 </body>
 </html>

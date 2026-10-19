@@ -22,6 +22,7 @@ import { careerIndexFor } from './lib/form-answer.mjs';
 import { classifyField } from './lib/apply-classify.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, isDemographicLabel } from './lib/apply-select.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, applicationVoiceFor, cvSummaryFor } from './lib/application-writing.mjs';
+import { cvFallbackFor, isGenericDocumentSlot } from './lib/apply-fill-guards.mjs';
 import { looksLikeTypeahead, isComboboxField, shouldSpeculativeProbe, shouldHumanType, fieldIsMulti, skipComboboxProbe, shouldFillField, isSubstantiveOptionalQuestion, isResumeFileField, shouldReplaceFilledValue, fieldHasCommittedValue, formHasPhoneDialPicker, formHasSurnameField, formHasGivenNameField, locationTypeaheadHint } from './lib/apply-fill-guards.mjs';
 import { blockerProbe, BLOCKER_PROBE_ARGS } from './lib/apply-blocker-probe.mjs';
 import {
@@ -1736,9 +1737,12 @@ async function fillFields(frame, spec) {
     if (!todo) break;
     const labelShort = fieldLabel(todo);
     doneFiles.add(labelShort);
-    if (todo.required || isResumeFileField(todo)) sawResumeSlot = true;
-    const plan = classifyField(todo, spec);
-    if (!shouldFillField(todo) && !isResumeFileField(todo)) {
+    if (todo.required || isResumeFileField(todo) || (spec.cvPath && isGenericDocumentSlot(todo))) sawResumeSlot = true;
+    // No dedicated CV slot on the form: the CV goes into its generic "Additional files" slot.
+    const cvFallback = cvFallbackFor(todo, fileFields, { spec, resumeAlreadyUploaded });
+    if (cvFallback) { sawResumeSlot = true; log(`Pas de champ CV d\u00e9di\u00e9: CV d\u00e9pos\u00e9 dans \u00ab ${labelShort} \u00bb.`); }
+    const plan = classifyField(todo, cvFallback ? { ...spec, cvFallbackSlot: true } : spec);
+    if (!shouldFillField(todo) && !isResumeFileField(todo) && !cvFallback) {
       if (todo.required) pending.push({ label: labelShort, reason: plan?.skip || 'fichier non géré' });
       continue;
     }

@@ -8,176 +8,247 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="/ui/assets/fonts.css">
 <style>
+  :root {
+    --bg: #141a12;
+    --card: rgba(255,255,255,.05);
+    --card-solid: #20251e;          /* --card composited on --bg, for ring gaps */
+    --line: rgba(255,255,255,.08);
+    --fg: #fff;
+    --fg-2: rgba(255,255,255,.76);
+    --fg-3: rgba(255,255,255,.58);  /* smallest text: >= 5:1 on cards */
+    --lime: #88c038;
+    --lime-top: #d4e660;
+    --low: #b0a0cc;
+    --stress: #e89040;
+    --ease-out: cubic-bezier(.25,1,.5,1);
+    --ease-std: cubic-bezier(.4,0,.2,1);
+    --ease-pop: cubic-bezier(.34,1.45,.64,1);
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     width: 100%; height: 100%;
     font-family: var(--font-inter);
-    background: #141a12;
-    color: #fff;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--fg);
     overflow: hidden;
   }
-  .screen { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 2px solid var(--lime-top); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .screen {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    overflow-x: hidden; overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .screen::-webkit-scrollbar { display: none; }
+  .screen > * { flex-shrink: 0; }
 
   /* ── STATUS BAR ── */
-  .status { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px 0; flex-shrink: 0; }
+  .status { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px 0; }
   .status-time { font-size: 14px; font-weight: 600; letter-spacing: -.3px; }
   .status-icons { display: flex; align-items: center; gap: 5px; }
 
   /* ── HEADER ── */
-  .hdr {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    padding: 12px 14px 6px;
-    flex-shrink: 0;
-  }
-  .hdr-left { display: flex; align-items: center; gap: 10px; }
+  .hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 8px 14px; }
+  .hdr-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .avatar {
-    width: 34px; height: 34px; border-radius: 50%;
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
     background: linear-gradient(135deg, #4ab890, #2a9068);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; flex-shrink: 0;
+    display: grid; place-items: center;
+    font-size: 14px; font-weight: 700; color: #0d2219;
   }
-  .hdr-text {}
-  .hdr-hello { font-size: 10px; color: rgba(255,255,255,.35); letter-spacing: .02em; margin-bottom: 2px; }
-  .hdr-title { font-size: 17px; font-weight: 700; letter-spacing: -.4px; line-height: 1.2; }
-  .notif {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #e86040;
-    margin-top: 4px; flex-shrink: 0;
-    box-shadow: 0 0 0 2px rgba(232,96,64,.25);
+  .hdr-hello { font-size: 12px; color: var(--fg-3); margin-bottom: 2px; }
+  .hdr-title { font-size: clamp(17px, 5.3vw, 20px); font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .streak { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+  .streak-n { display: inline-block; font-size: 20px; font-weight: 700; line-height: 1; color: var(--lime-top); font-variant-numeric: tabular-nums; }
+  .streak-l { font-size: 10.5px; color: var(--fg-3); margin-top: 3px; white-space: nowrap; }
+
+  /* ── WEEK STRIP (tablist) ── */
+  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 2px 12px 8px; }
+  .day {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    border-radius: 12px; padding: 6px 0;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    transition: background-color .18s;
+  }
+  .day:focus-visible { outline-offset: 1px; }
+  .day-w { font-size: 10px; font-weight: 600; color: var(--fg-3); }
+  .day-e { width: 22px; height: 22px; display: grid; place-items: center; font-size: 18px; line-height: 1; }
+  .day-e.is-empty::before {
+    content: ''; width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px dashed var(--lime-top); opacity: .8;
+    animation: breathe 3.4s ease-in-out infinite;
+  }
+  .day-n { font-size: 11px; font-weight: 600; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+  .day.is-today .day-n { color: var(--lime-top); }
+  .day[aria-selected="true"] { background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+  .day[aria-selected="true"] .day-n { color: var(--fg); }
+  .day.is-today[aria-selected="true"] .day-n { color: var(--lime-top); }
+
+  /* ── CARDS ── */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .card-title { font-size: 12.5px; font-weight: 600; color: var(--fg-2); }
+
+  /* Day panel: the one card that answers "How're you today?" */
+  .daycard {
+    margin: 0 12px;
+    padding: 12px 14px 13px;
+    background: linear-gradient(160deg, rgba(212,230,96,.075), rgba(255,255,255,.04) 58%);
+  }
+  .dc-body { display: flex; flex-direction: column; min-height: 108px; }
+  .dc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
+  .dc-date { font-size: 12px; font-weight: 600; color: var(--fg-2); }
+  .dc-state { font-size: 11px; color: var(--fg-3); }
+  .faces { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+  .face {
+    appearance: none; cursor: pointer;
+    background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 12px;
+    padding: 8px 0 7px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: transform .16s var(--ease-out), border-color .16s, background-color .16s;
+  }
+  .face-e { font-size: 22px; line-height: 1; }
+  .face-l { font-size: 10px; font-weight: 500; color: var(--fg-2); }
+  .face:active { transform: scale(.95); }
+  .dc-hint { font-size: 11.5px; color: var(--fg-3); margin-top: 9px; }
+  .dc-hint b { color: var(--lime-top); font-weight: 600; }
+  .dc-mood { flex: 1; display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .dc-emoji {
+    width: 48px; height: 48px; flex-shrink: 0; border-radius: 14px;
+    display: grid; place-items: center; font-size: 30px; line-height: 1;
+    background: rgba(255,255,255,.06);
+  }
+  .dc-emoji[data-b="good"]   { background: rgba(136,192,56,.17); }
+  .dc-emoji[data-b="low"]    { background: rgba(176,160,204,.17); }
+  .dc-emoji[data-b="stress"] { background: rgba(232,144,64,.17); }
+  .dc-name { font-size: 19px; font-weight: 700; letter-spacing: -.4px; line-height: 1.15; }
+  .dc-note { font-size: 12.5px; color: var(--fg-2); line-height: 1.4; margin-top: 3px; }
+  .undo {
+    appearance: none; border: 0; background: none; cursor: pointer;
+    font-size: 12px; font-weight: 600; color: var(--lime-top);
+    padding: 5px 8px; margin: -5px -8px; border-radius: 8px;
   }
 
-  /* ── DATE SELECTOR ── */
-  .dates {
-    display: flex; gap: 4px; justify-content: space-between;
-    padding: 6px 14px 10px;
-    flex-shrink: 0;
+  /* Three-week mood calendar */
+  .cal { margin: 8px 12px 0; }
+  .cal-read { font-size: 11px; color: var(--fg-3); font-variant-numeric: tabular-nums; text-align: right; }
+  .cal-sum b { display: inline-block; color: var(--fg); font-weight: 700; }
+  .cal-hover { display: none; color: var(--fg-2); }
+  .cal-read.is-hover .cal-sum { display: none; }
+  .cal-read.is-hover .cal-hover { display: inline; }
+  .cal-grid {
+    display: grid; grid-template-columns: 40px repeat(7, minmax(0, 1fr));
+    gap: 4px; align-items: center; margin-top: 10px;
   }
-  .date-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    gap: 3px; padding: 5px 2px 5px;
-    border-radius: 10px;
-    transition: background 200ms;
+  .cal-wd { font-size: 10px; font-weight: 600; color: var(--fg-3); text-align: center; }
+  .cal-wk { font-size: 10px; color: var(--fg-3); white-space: nowrap; }
+  .cell { display: grid; place-items: center; min-height: 22px; }
+  .cell.is-week { cursor: pointer; }
+  .dot {
+    position: relative;
+    width: clamp(14px, 6vw, 22px); aspect-ratio: 1; border-radius: 50%;
+    background: var(--c, transparent); color: var(--c, #fff);
+    box-shadow: var(--inset, 0 0 #0000), var(--ring, 0 0 #0000);
+    transition: background-color .3s;
   }
-  .date-item.active { background: rgba(255,255,255,.1); }
-  .date-emoji { font-size: 13px; line-height: 1; }
-  .date-num { font-size: 9px; font-weight: 600; color: rgba(255,255,255,.35); }
-  .date-item.active .date-num { color: rgba(255,255,255,.75); }
+  .dot.b-good   { --c: var(--lime); }
+  .dot.b-low    { --c: var(--low); }
+  .dot.b-stress { --c: var(--stress); }
+  .dot.missed   { --inset: inset 0 0 0 1.5px rgba(255,255,255,.38); }
+  .dot.pending  { border: 1.5px dashed rgba(212,230,96,.8); }
+  .dot.sel      { --ring: 0 0 0 2px var(--card-solid), 0 0 0 3.5px rgba(255,255,255,.9); }
+  .dot.ping::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid currentColor;
+    animation: ping .7s var(--ease-out) forwards;
+  }
+  .mix { display: flex; gap: 2px; height: 6px; margin-top: 10px; border-radius: 4px; overflow: hidden; transform-origin: 0 50%; }
+  .mix-seg { height: 100%; transition: width .45s var(--ease-std); }
+  .mix-seg[data-b="good"]   { background: var(--lime); }
+  .mix-seg[data-b="low"]    { background: var(--low); }
+  .mix-seg[data-b="stress"] { background: var(--stress); }
+  .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; font-size: 11px; color: var(--fg-2); }
+  .legend li { display: flex; align-items: center; gap: 5px; }
+  .legend b { display: inline-block; color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .k { width: 7px; height: 7px; border-radius: 50%; }
+  .k-good { background: var(--lime); }
+  .k-low { background: var(--low); }
+  .k-stress { background: var(--stress); }
 
-  /* ── GRID ── */
-  .grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 8px; padding: 0 14px 14px;
-    flex: 1; min-height: 0;
+  /* Sleep + weight */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 12px 14px; flex: 1 0 auto; }
+  .duo .card { display: flex; flex-direction: column; min-height: 132px; }
+  .metric { margin-top: 8px; font-size: 22px; font-weight: 700; letter-spacing: -.6px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .metric small { font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--fg-3); margin-left: 3px; }
+  .caption { font-size: 10.5px; color: var(--fg-3); margin-top: 5px; }
+  .sleep-chart { position: relative; flex: 1; min-height: 40px; margin-top: 4px; }
+  .sleep-bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 4px; }
+  .sb {
+    flex: 1; height: var(--h); cursor: pointer;
+    border-radius: 3px 3px 1px 1px;
+    background: rgba(136,192,56,.36);
+    transform-origin: 50% 100%;
+    transition: background-color .2s;
   }
-  .widget {
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.07);
-    border-radius: 14px;
-    padding: 11px 12px;
-    display: flex; flex-direction: column;
-    overflow: hidden; position: relative;
-  }
-  .widget-label {
-    font-size: 10px; font-weight: 500; color: rgba(255,255,255,.38);
-    margin-bottom: 6px; white-space: nowrap;
-  }
-  .widget-value {
-    font-size: 20px; font-weight: 700; letter-spacing: -.6px; color: #fff; line-height: 1;
-  }
-  .widget-sub { font-size: 10px; color: rgba(255,255,255,.35); margin-top: 2px; }
+  .sb.is-sel { background: linear-gradient(180deg, var(--lime-top), var(--lime)); }
+  .sleep-goal { position: absolute; left: 0; right: 0; bottom: 88.9%; border-top: 1px dashed rgba(255,255,255,.3); z-index: 1; pointer-events: none; }
+  .sleep-goal i { position: absolute; left: 0; bottom: 3px; font-style: normal; font-size: 10px; line-height: 1; color: var(--fg-3); }
+  .duo .card > .caption { margin-bottom: 8px; }
+  .ring { position: relative; width: 52px; height: 52px; margin-top: auto; align-self: flex-end; }
+  .ring svg { display: block; }
+  .ring-pct { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
 
-  /* Widget 1 — Mood Score dots */
-  .dot-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 8px; }
-  .dot { width: 100%; aspect-ratio: 1; border-radius: 50%; }
-
-  /* Widget 2 — Health overview mini ring */
-  .health-ring { position: absolute; bottom: 10px; right: 10px; }
-
-  /* Widget 3 — Growth bars */
-  .bars { display: flex; align-items: flex-end; gap: 3px; margin-top: 8px; flex: 1; }
-  .bar-col { flex: 1; border-radius: 3px 3px 0 0; }
-
-  /* Widget 4 — Mood Statistic */
-  .stat-body { display: flex; flex-direction: column; align-items: center; flex: 1; justify-content: center; }
-  .stat-legend { display: flex; flex-direction: column; gap: 3px; width: 100%; margin-top: 6px; }
-  .stat-row { display: flex; align-items: center; gap: 5px; font-size: 9px; color: rgba(255,255,255,.45); }
-  .stat-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-  .stat-val { margin-left: auto; font-size: 9px; font-weight: 600; color: rgba(255,255,255,.55); }
-
-  /* ── ANIMATIONS ── */
-  @keyframes fade-up {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: none; }
-  }
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  @keyframes dot-pop {
-    0%   { opacity: 0; transform: scale(0); }
-    70%  { transform: scale(1.3); }
-    100% { opacity: 1; transform: scale(1); }
-  }
-  @keyframes bar-rise {
-    from { transform: scaleY(0); transform-origin: bottom; }
-    to   { transform: scaleY(1); transform-origin: bottom; }
-  }
-  @keyframes ring-dash {
-    from { stroke-dasharray: 0 132; }
-    to   { stroke-dasharray: 83 132; }
-  }
-  @keyframes donut-dash {
-    from { stroke-dasharray: 0 220; }
+  @media (hover: hover) {
+    .day:hover:not([aria-selected="true"]) { background: rgba(255,255,255,.05); }
+    .face:hover { transform: translateY(-2px); border-color: rgba(212,230,96,.4); background: rgba(212,230,96,.07); }
+    .undo:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .sb:not(.is-sel):hover { background: rgba(136,192,56,.55); }
   }
 
-  .hdr       { animation: fade-in .4s ease .1s both; }
-  .dates     { animation: fade-up .4s ease .25s both; }
+  /* ── MOTION ── */
+  @keyframes rise    { from { opacity: 0; transform: translateY(var(--rise, 12px)); } to { opacity: 1; transform: none; } }
+  @keyframes dot-in  { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: none; } }
+  @keyframes bar-in  { from { transform: scaleY(0); } to { transform: none; } }
+  @keyframes grow-x  { from { transform: scaleX(0); } to { transform: none; } }
+  @keyframes ring-in { from { stroke-dasharray: 0 132; } }
+  @keyframes breathe { 0%, 100% { transform: scale(.84); opacity: .5; } 50% { transform: scale(1.04); opacity: 1; } }
+  @keyframes pop     { 0% { opacity: 0; transform: scale(.3); } 60% { opacity: 1; transform: scale(1.18); } 100% { transform: none; } }
+  @keyframes ping    { from { transform: scale(1); opacity: .9; } to { transform: scale(2.1); opacity: 0; } }
+  @keyframes tick    { from { opacity: 0; transform: translateY(.45em); } to { opacity: 1; transform: none; } }
+  @keyframes swap    { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-  .widget:nth-child(1) { animation: fade-up .5s cubic-bezier(.25,1,.5,1) .4s both; }
-  .widget:nth-child(2) { animation: fade-up .5s cubic-bezier(.25,1,.5,1) .5s both; }
-  .widget:nth-child(3) { animation: fade-up .5s cubic-bezier(.25,1,.5,1) .6s both; }
-  .widget:nth-child(4) { animation: fade-up .5s cubic-bezier(.25,1,.5,1) .7s both; }
+  /* Entrance, once: header, then the week left to right, the day card, the calendar
+     filling day by day, then the two small charts. JS drops .intro at 2.2s. */
+  .intro .hdr      { --rise: 6px; animation: rise .5s var(--ease-out) .05s both; }
+  .intro .day      { --rise: 8px; animation: rise .45s var(--ease-out) calc(.14s + var(--i) * 40ms) both; }
+  .intro .daycard  { animation: rise .55s var(--ease-out) .36s both; }
+  .intro .cal      { animation: rise .55s var(--ease-out) .46s both; }
+  .intro .cal .dot { animation: dot-in .36s var(--ease-pop) calc(.6s + var(--i) * 22ms) both; }
+  .intro .mix      { animation: grow-x .7s var(--ease-std) 1s both; }
+  .intro .duo .card:first-child { animation: rise .55s var(--ease-out) .56s both; }
+  .intro .duo .card:last-child  { animation: rise .55s var(--ease-out) .64s both; }
+  .intro .sb       { animation: bar-in .55s var(--ease-std) calc(.8s + var(--i) * 45ms) both; }
+  .intro .ring-fill { animation: ring-in 1s var(--ease-std) .85s both; }
 
-  .dot:nth-child(1)  { animation: dot-pop .3s ease .65s both; }
-  .dot:nth-child(2)  { animation: dot-pop .3s ease .68s both; }
-  .dot:nth-child(3)  { animation: dot-pop .3s ease .71s both; }
-  .dot:nth-child(4)  { animation: dot-pop .3s ease .74s both; }
-  .dot:nth-child(5)  { animation: dot-pop .3s ease .77s both; }
-  .dot:nth-child(6)  { animation: dot-pop .3s ease .80s both; }
-  .dot:nth-child(7)  { animation: dot-pop .3s ease .83s both; }
-  .dot:nth-child(8)  { animation: dot-pop .3s ease .86s both; }
-  .dot:nth-child(9)  { animation: dot-pop .3s ease .89s both; }
-  .dot:nth-child(10) { animation: dot-pop .3s ease .92s both; }
-  .dot:nth-child(11) { animation: dot-pop .3s ease .95s both; }
-  .dot:nth-child(12) { animation: dot-pop .3s ease .98s both; }
-  .dot:nth-child(13) { animation: dot-pop .3s ease 1.01s both; }
-  .dot:nth-child(14) { animation: dot-pop .3s ease 1.04s both; }
-  .dot:nth-child(15) { animation: dot-pop .3s ease 1.07s both; }
-  .dot:nth-child(16) { animation: dot-pop .3s ease 1.10s both; }
-  .dot:nth-child(17) { animation: dot-pop .3s ease 1.13s both; }
-  .dot:nth-child(18) { animation: dot-pop .3s ease 1.16s both; }
-  .dot:nth-child(19) { animation: dot-pop .3s ease 1.19s both; }
-  .dot:nth-child(20) { animation: dot-pop .3s ease 1.22s both; }
-  .dot:nth-child(21) { animation: dot-pop .3s ease 1.25s both; }
+  .day-e.pop, .dc-emoji.pop { animation: pop .42s var(--ease-pop) both; }
+  .tick { animation: tick .32s var(--ease-out) both; }
+  .swap { animation: swap .24s var(--ease-out) both; }
 
-  .bar-col { animation: bar-rise .6s cubic-bezier(.4,0,.2,1) .8s both; }
-  .bar-col:nth-child(1) { animation-delay: .80s; }
-  .bar-col:nth-child(2) { animation-delay: .88s; }
-  .bar-col:nth-child(3) { animation-delay: .96s; }
-  .bar-col:nth-child(4) { animation-delay: 1.04s; }
-  .bar-col:nth-child(5) { animation-delay: 1.12s; }
-
-  .ring-health { animation: ring-dash .9s cubic-bezier(.4,0,.2,1) .7s both; }
-  .donut-happy { animation: donut-dash .8s cubic-bezier(.4,0,.2,1) .85s both; }
-  .donut-sad   { animation: donut-dash .8s cubic-bezier(.4,0,.2,1) .95s both; }
-  .donut-angry { animation: donut-dash .8s cubic-bezier(.4,0,.2,1) 1.05s both; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .dot.ping::after { display: none; }
+  }
 </style>
 </head>
 <body>
-<div class="screen">
+<div class="screen intro" id="screen">
 
-  <!-- Status bar -->
-  <div class="status">
+  <div class="status" aria-hidden="true">
     <div class="status-time">9:41</div>
     <div class="status-icons">
       <svg width="16" height="11" viewBox="0 0 16 11" fill="white">
@@ -200,195 +271,349 @@
     </div>
   </div>
 
-  <!-- Header -->
-  <div class="hdr">
+  <header class="hdr">
     <div class="hdr-left">
-      <div class="avatar">🧑</div>
-      <div class="hdr-text">
-        <div class="hdr-hello">Hello, Zhad</div>
-        <div class="hdr-title">How're You<br>Today?</div>
+      <div class="avatar" aria-hidden="true">Z</div>
+      <div>
+        <p class="hdr-hello">Hello, Zhad</p>
+        <h1 class="hdr-title">How’re you today?</h1>
       </div>
     </div>
-    <div class="notif"></div>
+    <p class="streak"><span class="streak-n" id="streakN">6</span><span class="streak-l">day streak</span></p>
+  </header>
+
+  <div class="week" id="week" role="tablist" aria-label="This week"></div>
+
+  <section class="card daycard" id="daypanel" role="tabpanel">
+    <div class="dc-body" id="dcBody"></div>
+  </section>
+
+  <section class="card cal" aria-labelledby="calTitle">
+    <div class="card-head">
+      <h2 class="card-title" id="calTitle">Last 3 weeks</h2>
+      <p class="cal-read" id="calRead"><span class="cal-sum"><b id="loggedN">18</b> of 21 days logged</span><span class="cal-hover" id="calHover"></span></p>
+    </div>
+    <div class="cal-grid" id="calGrid" role="img"></div>
+    <div class="mix" aria-hidden="true">
+      <span class="mix-seg" data-b="good"></span><span class="mix-seg" data-b="low"></span><span class="mix-seg" data-b="stress"></span>
+    </div>
+    <ul class="legend">
+      <li><i class="k k-good"></i>Good <b data-count="good">11</b></li>
+      <li><i class="k k-low"></i>Low <b data-count="low">3</b></li>
+      <li><i class="k k-stress"></i>Stressed <b data-count="stress">4</b></li>
+    </ul>
+  </section>
+
+  <div class="duo">
+    <section class="card" aria-labelledby="sleepTitle">
+      <h2 class="card-title" id="sleepTitle">Sleep</h2>
+      <p class="metric" id="sleepVal">8h 15m</p>
+      <p class="caption" id="sleepCap">Last night · avg 7h 08m</p>
+      <div class="sleep-chart" aria-hidden="true">
+        <span class="sleep-goal"><i>8h</i></span>
+        <div class="sleep-bars" id="sleepBars"></div>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="weightTitle">
+      <h2 class="card-title" id="weightTitle">Weight</h2>
+      <p class="metric"><span id="weightN">75.4</span><small>kg</small></p>
+      <p class="caption">Goal 72 kg · from 80</p>
+      <div class="ring" role="img" aria-label="58% of the way to the goal">
+        <svg width="52" height="52" viewBox="0 0 56 56" aria-hidden="true">
+          <defs>
+            <linearGradient id="gh" x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#d4e660"/>
+              <stop offset="100%" stop-color="#88c038"/>
+            </linearGradient>
+          </defs>
+          <circle cx="28" cy="28" r="21" fill="none" stroke="rgba(200,230,100,.12)" stroke-width="6"/>
+          <circle class="ring-fill" cx="28" cy="28" r="21" fill="none" stroke="url(#gh)" stroke-width="6"
+            stroke-dasharray="75.9 132" stroke-linecap="round" transform="rotate(-90 28 28)"/>
+        </svg>
+        <span class="ring-pct" aria-hidden="true">58%</span>
+      </div>
+    </section>
   </div>
 
-  <!-- Date selector -->
-  <div class="dates">
-    <div class="date-item">
-      <div class="date-emoji">😊</div>
-      <div class="date-num">14</div>
-    </div>
-    <div class="date-item">
-      <div class="date-emoji">😌</div>
-      <div class="date-num">15</div>
-    </div>
-    <div class="date-item">
-      <div class="date-emoji">😟</div>
-      <div class="date-num">16</div>
-    </div>
-    <div class="date-item active">
-      <div class="date-emoji">😊</div>
-      <div class="date-num">17</div>
-    </div>
-    <div class="date-item">
-      <div class="date-emoji">😤</div>
-      <div class="date-num">18</div>
-    </div>
-    <div class="date-item">
-      <div class="date-emoji">😠</div>
-      <div class="date-num">19</div>
-    </div>
-    <div class="date-item">
-      <div class="date-emoji">😌</div>
-      <div class="date-num">20</div>
-    </div>
-  </div>
-
-  <!-- 2×2 Widget grid -->
-  <div class="grid">
-
-    <!-- Widget 1: Mood Score -->
-    <div class="widget">
-      <div class="widget-label">Mood Score</div>
-      <div class="widget-value"><span class="count" data-target="36">0</span><span style="font-size:11px;font-weight:400;color:rgba(255,255,255,.35)">/375</span></div>
-      <!-- 3×7 dot grid -->
-      <div class="dot-grid">
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#e89040"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:rgba(255,255,255,.08)"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#88c038"></div>
-
-        <div class="dot" style="background:#e89040"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#e89040"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#e89040"></div>
-        <div class="dot" style="background:rgba(255,255,255,.08)"></div>
-
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:rgba(255,255,255,.08)"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#e89040"></div>
-        <div class="dot" style="background:#88c038"></div>
-        <div class="dot" style="background:#c83838"></div>
-      </div>
-    </div>
-
-    <!-- Widget 2: Health overview -->
-    <div class="widget">
-      <div class="widget-label">Health overview</div>
-      <div class="widget-value"><span class="count" data-target="75">0</span><span style="font-size:11px;font-weight:400;color:rgba(255,255,255,.35)">kg</span></div>
-      <div class="widget-sub">weight</div>
-      <svg class="health-ring" width="56" height="56" viewBox="0 0 56 56">
-        <defs>
-          <linearGradient id="gh" x1="1" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#d4e660"/>
-            <stop offset="100%" stop-color="#88c038"/>
-          </linearGradient>
-        </defs>
-        <circle cx="28" cy="28" r="21" fill="none" stroke="rgba(200,230,100,.12)" stroke-width="7"/>
-        <circle class="ring-health" cx="28" cy="28" r="21" fill="none" stroke="url(#gh)" stroke-width="7"
-          stroke-dasharray="83 132" stroke-linecap="round"
-          transform="rotate(-90 28 28)"/>
-      </svg>
-    </div>
-
-    <!-- Widget 3: Growth -->
-    <div class="widget">
-      <div class="widget-label">Growth</div>
-      <div style="display:flex;align-items:baseline;gap:4px;">
-        <div class="widget-value"><span class="count-pct" data-target="87">0</span><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,.35)">%</span></div>
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 8L5 2 8 8" stroke="#88c038" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <!-- Bar chart -->
-      <div class="bars">
-        <div class="bar-col" style="height:40%;background:rgba(136,192,56,.5)"></div>
-        <div class="bar-col" style="height:65%;background:rgba(136,192,56,.65)"></div>
-        <div class="bar-col" style="height:50%;background:rgba(136,192,56,.55)"></div>
-        <div class="bar-col" style="height:80%;background:rgba(136,192,56,.8)"></div>
-        <div class="bar-col" style="height:100%;background:#88c038"></div>
-      </div>
-    </div>
-
-    <!-- Widget 4: Mood Statistic -->
-    <div class="widget">
-      <div class="widget-label">Mood Stats</div>
-      <div class="stat-body">
-        <!-- Donut SVG — Happy 52%, Sad 28%, Angry 20% -->
-        <!-- circ at r=26 ≈ 163.4 -->
-        <!-- happy: 163.4×.52=84.9, sad: 163.4×.28=45.8, angry: 163.4×.20=32.7 -->
-        <div style="position:relative;width:60px;height:60px;">
-          <svg width="60" height="60" viewBox="0 0 60 60">
-            <defs>
-              <linearGradient id="gd1" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#b0d848"/>
-                <stop offset="100%" stop-color="#88c038"/>
-              </linearGradient>
-            </defs>
-            <!-- track -->
-            <circle cx="30" cy="30" r="22" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="7"/>
-            <!-- happy — lime -->
-            <circle class="donut-happy" cx="30" cy="30" r="22" fill="none" stroke="url(#gd1)" stroke-width="7"
-              stroke-dasharray="71.9 138.2" stroke-linecap="round"
-              transform="rotate(-90 30 30)"/>
-            <!-- sad — muted lavender (offset by happy arc) -->
-            <circle class="donut-sad" cx="30" cy="30" r="22" fill="none" stroke="#b0a0cc" stroke-width="7"
-              stroke-dasharray="38.7 138.2" stroke-linecap="round"
-              transform="rotate(  84 30 30)"/>
-            <!-- angry — muted red (offset by happy+sad) -->
-            <circle class="donut-angry" cx="30" cy="30" r="22" fill="none" stroke="#c86040" stroke-width="7"
-              stroke-dasharray="27.6 138.2" stroke-linecap="round"
-              transform="rotate( 185 30 30)"/>
-          </svg>
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;letter-spacing:-.4px;">
-            <span class="count" data-target="235">0</span>
-          </div>
-        </div>
-        <div class="stat-legend">
-          <div class="stat-row"><span class="stat-dot" style="background:#b0d848"></span>Happy<span class="stat-val">52%</span></div>
-          <div class="stat-row"><span class="stat-dot" style="background:#b0a0cc"></span>Sad<span class="stat-val">28%</span></div>
-          <div class="stat-row"><span class="stat-dot" style="background:#c86040"></span>Angry<span class="stat-val">20%</span></div>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /grid -->
+  <p class="sr-only" id="live" aria-live="polite"></p>
 </div>
 <script>
-  function countUp(el, target, duration, delay) {
-    setTimeout(() => {
-      const start = performance.now();
-      const tick = (now) => {
-        const t = Math.min((now - start) / duration, 1);
-        const ease = 1 - Math.pow(1 - t, 3);
-        el.textContent = Math.round(ease * target);
-        if (t < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
+(function () {
+  'use strict';
+  var RM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  var MOOD = {
+    5: { e: '😊', n: 'Happy',   b: 'good' },
+    4: { e: '😌', n: 'Calm',    b: 'good' },
+    3: { e: '😟', n: 'Worried', b: 'low' },
+    2: { e: '😤', n: 'Tense',   b: 'stress' },
+    1: { e: '😠', n: 'Angry',   b: 'stress' }
+  };
+  var PICK = [5, 4, 3, 2, 1];
+  var DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  var LETTER = 'MTWTFSS';
+
+  /* 21 days, Mon 30 Sep to Sun 20 Oct. Index 20 is today, not logged yet. */
+  var LEN = 21, WEEK0 = 14, TODAY = 20;
+  var moods = [5, 4, 2, 4, null, 5, 4,  3, 4, 5, 2, 4, 3, null,  5, 4, 3, 5, 2, 1, null];
+  var notes = {
+    14: 'Long lunch outside with Mira.',
+    15: 'Yoga before work, early night.',
+    16: 'Deadline moved up. Hard to switch off.',
+    17: 'Shipped it. Tacos to celebrate.',
+    18: 'Back-to-back calls, skipped the gym.',
+    19: 'Train cancelled twice. Walked it off.'
+  };
+  /* Minutes slept the night before each day of this week. */
+  var sleep = { 14: 470, 15: 485, 16: 370, 17: 440, 18: 395, 19: 340, 20: 495 };
+  var sleepVals = Object.keys(sleep).map(function (k) { return sleep[k]; });
+  var BEST = Math.max.apply(null, sleepVals);
+  var AVG = Math.round(sleepVals.reduce(function (a, b) { return a + b; }, 0) / sleepVals.length);
+
+  function $(id) { return document.getElementById(id); }
+  var screen = $('screen'), week = $('week'), panel = $('daypanel'), dc = $('dcBody');
+  var grid = $('calGrid'), read = $('calRead'), hover = $('calHover'), loggedN = $('loggedN');
+  var streakN = $('streakN'), bars = $('sleepBars'), live = $('live');
+  var mixSegs = [].slice.call(document.querySelectorAll('.mix-seg'));
+  var counts = [].slice.call(document.querySelectorAll('[data-count]'));
+
+  function dayNum(i) { return i === 0 ? 30 : i; }
+  function month(i) { return i === 0 ? 'Sep' : 'Oct'; }
+  function wd(i) { return i % 7; }
+  function longDate(i) { return DAY[wd(i)] + ' ' + dayNum(i) + ' ' + month(i); }
+  function shortDate(i) { return DAY[wd(i)].slice(0, 3) + ' ' + dayNum(i); }
+  function hm(m) { var r = m % 60; return Math.floor(m / 60) + 'h ' + (r < 10 ? '0' : '') + r + 'm'; }
+
+  function retrigger(el, cls) {
+    if (RM || !el) return;
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+    el.addEventListener('animationend', function done(ev) {
+      if (ev.target !== el || ev.animationName !== cls) return;
+      el.classList.remove(cls);
+      el.removeEventListener('animationend', done);
+    });
+  }
+
+  /* Count-ups run on entrance; a real value change cancels them. */
+  var runs = [];
+  function countUp(el, from, to, dec, dur, delay) {
+    if (RM) return;
+    var run = { el: el, stop: false };
+    runs.push(run);
+    el.textContent = from.toFixed(dec);
+    setTimeout(function () {
+      var t0 = performance.now();
+      (function step(now) {
+        if (run.stop) return;
+        var t = Math.min((now - t0) / dur, 1), e = 1 - Math.pow(1 - t, 3);
+        el.textContent = (from + (to - from) * e).toFixed(dec);
+        if (t < 1) requestAnimationFrame(step);
+      })(t0);
     }, delay);
   }
-  document.querySelectorAll('.count').forEach((el, i) => {
-    countUp(el, +el.dataset.target, 600, 600 + i * 100);
+  function setNum(el, n, fx) {
+    if (el.dataset.v === String(n)) return;
+    runs.forEach(function (r) { if (r.el === el) r.stop = true; });
+    el.dataset.v = n;
+    el.textContent = n;
+    if (fx) retrigger(el, 'tick');
+  }
+
+  /* Build once; later updates only change classes and text, so the entrance never replays. */
+  var tabs = [];
+  for (var i = WEEK0; i < LEN; i++) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'day' + (i === TODAY ? ' is-today' : '');
+    b.id = 'tab-' + i;
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-controls', 'daypanel');
+    b.dataset.i = i;
+    b.style.setProperty('--i', i - WEEK0);
+    b.innerHTML = '<span class="day-w" aria-hidden="true">' + LETTER[wd(i)] + '</span>' +
+      '<span class="day-e" aria-hidden="true"></span>' +
+      '<span class="day-n" aria-hidden="true">' + dayNum(i) + '</span>';
+    week.appendChild(b);
+    tabs.push(b);
+  }
+
+  var html = '<span></span>';
+  for (var c = 0; c < 7; c++) html += '<span class="cal-wd">' + LETTER[c] + '</span>';
+  for (var w = 0; w < 3; w++) {
+    var s = w * 7;
+    html += '<span class="cal-wk">' + month(s) + ' ' + dayNum(s) + '</span>';
+    for (c = 0; c < 7; c++) {
+      var k = s + c;
+      html += '<span class="cell' + (k >= WEEK0 ? ' is-week' : '') + '" data-i="' + k + '">' +
+        '<span class="dot" style="--i:' + k + '"></span></span>';
+    }
+  }
+  grid.innerHTML = html;
+  var dots = [].slice.call(grid.querySelectorAll('.dot'));
+
+  for (i = WEEK0; i < LEN; i++) {
+    var bar = document.createElement('span');
+    bar.className = 'sb';
+    bar.dataset.i = i;
+    bar.style.setProperty('--h', (sleep[i] / 540 * 100).toFixed(1) + '%');
+    bar.style.setProperty('--i', i - WEEK0);
+    bars.appendChild(bar);
+  }
+  var sbs = [].slice.call(bars.children);
+
+  var sel = TODAY;
+
+  function stats() {
+    var t = { good: 0, low: 0, stress: 0, missed: 0 }, logged = 0, streak = 0;
+    moods.forEach(function (m, j) {
+      if (m) { t[MOOD[m].b]++; logged++; }
+      else if (j !== TODAY) t.missed++;
+    });
+    for (var j = moods[TODAY] ? TODAY : TODAY - 1; j >= 0 && moods[j]; j--) streak++;
+    return { t: t, logged: logged, streak: streak };
+  }
+
+  function renderPanel(fx) {
+    var m = moods[sel], isToday = sel === TODAY, st = stats(), h;
+    panel.setAttribute('aria-labelledby', 'tab-' + sel);
+    if (isToday && !m) {
+      h = '<div class="dc-top"><span class="dc-date">Today · ' + longDate(sel) + '</span>' +
+        '<span class="dc-state">Not logged yet</span></div>' +
+        '<div class="faces" role="group" aria-label="Log today\'s mood">' +
+        PICK.map(function (v) {
+          return '<button type="button" class="face" data-m="' + v + '">' +
+            '<span class="face-e" aria-hidden="true">' + MOOD[v].e + '</span>' +
+            '<span class="face-l">' + MOOD[v].n + '</span></button>';
+        }).join('') + '</div>' +
+        '<p class="dc-hint">Log today to make it a <b>' + (st.streak + 1) + '-day</b> streak.</p>';
+      panel.removeAttribute('tabindex');
+    } else {
+      var note = isToday
+        ? 'Logged just now. ' + hm(sleep[sel]) + (sleep[sel] === BEST ? ' of sleep, your best night this week.' : ' of sleep last night.')
+        : (m ? notes[sel] : 'Nothing logged this day.');
+      h = '<div class="dc-top"><span class="dc-date">' + (isToday ? 'Today · ' : '') + longDate(sel) + '</span>' +
+        (isToday ? '<button type="button" class="undo">Undo</button>' : '') + '</div>' +
+        '<div class="dc-mood"><span class="dc-emoji' + (fx === 'log' && !RM ? ' pop' : '') + '"' +
+        (m ? ' data-b="' + MOOD[m].b + '"' : '') + ' aria-hidden="true">' + (m ? MOOD[m].e : '·') + '</span>' +
+        '<div><p class="dc-name">' + (m ? MOOD[m].n : 'No entry') + '</p><p class="dc-note">' + note + '</p></div></div>';
+      if (isToday) panel.removeAttribute('tabindex'); else panel.setAttribute('tabindex', '0');
+    }
+    dc.innerHTML = h;
+    if (fx && fx !== 'log') retrigger(dc, 'swap');
+  }
+
+  function update(fx) {
+    var st = stats(), t = st.t, total = t.good + t.low + t.stress;
+    read.classList.remove('is-hover');
+
+    tabs.forEach(function (tb) {
+      var j = +tb.dataset.i, m = moods[j], on = j === sel, e = tb.children[1];
+      tb.setAttribute('aria-selected', on ? 'true' : 'false');
+      tb.tabIndex = on ? 0 : -1;
+      e.textContent = m ? MOOD[m].e : '';
+      e.classList.toggle('is-empty', !m);
+      tb.setAttribute('aria-label', longDate(j) + (j === TODAY ? ', today' : '') + ', ' + (m ? MOOD[m].n : 'not logged'));
+    });
+
+    dots.forEach(function (d, j) {
+      var m = moods[j];
+      d.className = 'dot ' + (m ? 'b-' + MOOD[m].b : (j === TODAY ? 'pending' : 'missed')) + (j === sel ? ' sel' : '');
+    });
+
+    mixSegs.forEach(function (seg) { seg.style.width = (total ? t[seg.dataset.b] / total * 100 : 0) + '%'; });
+    counts.forEach(function (el) { setNum(el, t[el.dataset.count], fx); });
+    setNum(loggedN, st.logged, fx);
+    setNum(streakN, st.streak, fx);
+    grid.setAttribute('aria-label', 'Mood calendar for the last 3 weeks: ' + st.logged + ' of 21 days logged. ' +
+      t.good + ' good, ' + t.low + ' low, ' + t.stress + ' stressed, ' + t.missed + ' missed.');
+
+    sbs.forEach(function (sb) { sb.classList.toggle('is-sel', +sb.dataset.i === sel); });
+    $('sleepVal').textContent = hm(sleep[sel]);
+    $('sleepCap').textContent = (sel === TODAY ? 'Last night' : shortDate(sel)) + ' · avg ' + hm(AVG);
+
+    renderPanel(fx);
+  }
+
+  function select(j) {
+    if (j === sel) return;
+    sel = j;
+    update('select');
+  }
+
+  function log(m) {
+    moods[TODAY] = m;
+    update('log');
+    retrigger(tabs[TODAY - WEEK0].children[1], 'pop');
+    retrigger(dots[TODAY], 'ping');
+    var u = dc.querySelector('.undo');
+    if (u) u.focus({ preventScroll: true });
+    live.textContent = MOOD[m].n + ' logged for today. ' + stats().streak + '-day streak.';
+  }
+
+  function unlog() {
+    moods[TODAY] = null;
+    update('undo');
+    var f = dc.querySelector('.face');
+    if (f) f.focus({ preventScroll: true });
+    live.textContent = 'Today\'s mood cleared.';
+  }
+
+  week.addEventListener('click', function (e) {
+    var tb = e.target.closest('.day');
+    if (tb) select(+tb.dataset.i);
   });
-  // Growth shows 8.7 → display as "8.7" not "87"
-  document.querySelectorAll('.count-pct').forEach(el => {
-    setTimeout(() => {
-      const start = performance.now();
-      const target = +el.dataset.target / 10;
-      const tick = (now) => {
-        const t = Math.min((now - start) / 600, 1);
-        const ease = 1 - Math.pow(1 - t, 3);
-        el.textContent = (ease * target).toFixed(1);
-        if (t < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }, 700);
+  week.addEventListener('keydown', function (e) {
+    var j;
+    if (e.key === 'ArrowRight') j = sel >= LEN - 1 ? WEEK0 : sel + 1;
+    else if (e.key === 'ArrowLeft') j = sel <= WEEK0 ? LEN - 1 : sel - 1;
+    else if (e.key === 'Home') j = WEEK0;
+    else if (e.key === 'End') j = LEN - 1;
+    else return;
+    e.preventDefault();
+    select(j);
+    tabs[j - WEEK0].focus();
   });
+
+  dc.addEventListener('click', function (e) {
+    var f = e.target.closest('.face');
+    if (f) { log(+f.dataset.m); return; }
+    if (e.target.closest('.undo')) unlog();
+  });
+
+  /* Calendar readout: hover or tap any day; this week's days also select. */
+  function showRead(cell) {
+    var j = +cell.dataset.i, m = moods[j];
+    hover.textContent = shortDate(j) + ' ' + month(j) + ' · ' + (m ? MOOD[m].n : (j === TODAY ? 'not logged yet' : 'missed'));
+    read.classList.add('is-hover');
+  }
+  grid.addEventListener('pointerover', function (e) {
+    var cell = e.target.closest('.cell');
+    if (cell) showRead(cell);
+  });
+  grid.addEventListener('pointerleave', function (e) {
+    if (e.pointerType !== 'touch') read.classList.remove('is-hover');
+  });
+  grid.addEventListener('click', function (e) {
+    var cell = e.target.closest('.cell');
+    if (!cell) return;
+    var j = +cell.dataset.i;
+    if (j >= WEEK0) select(j);
+    showRead(cell);
+  });
+
+  bars.addEventListener('click', function (e) {
+    var sb = e.target.closest('.sb');
+    if (sb) select(+sb.dataset.i);
+  });
+
+  update(null);
+  countUp(streakN, 0, +streakN.dataset.v, 0, 600, 300);
+  countUp(loggedN, 0, +loggedN.dataset.v, 0, 700, 640);
+  countUp($('weightN'), 80, 75.4, 1, 1000, 850);
+  setTimeout(function () { screen.classList.remove('intro'); }, RM ? 0 : 2200);
+})();
 </script>
 </body>
 </html>

@@ -1057,8 +1057,10 @@ function ifaceBasePath() {
 }
 
 /** Covers are served from /covers/: a relative 'covers/...' 404s under /<base>/layout-<id>. */
+// Bump when the covers are rendered again (scripts/capture-iface-covers.mjs), so browsers drop the old images.
+const IFACE_COVERS_V = '20261019b';
 function ifaceThumbSrc(thumb) {
-  return /^covers\//.test(thumb) ? '/' + thumb : thumb;
+  return /^covers\//.test(thumb) ? '/' + thumb + '?v=' + IFACE_COVERS_V : thumb;
 }
 
 function getIfaceSharePath(iface) {

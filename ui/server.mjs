@@ -33,12 +33,16 @@ import { localizeAgenceForRequest } from '../lib/agence-i18n.mjs';
 import { checkoutConfig, createCheckoutSession, makeRateLimiter, orderRecordFromEvent, priceOrder, publicCheckoutConfig, publicOrigin, readRawBody, retrieveCheckoutSession, stripeSessionParams, validateCustomer, verifyStripeSignature } from '../lib/agence-checkout.mjs';
 import { mailConfig, orderEmails, orderReference, sendMail } from '../lib/agence-mail.mjs';
 import { buildCvTemplateDataFromProfile, loadCvTemplateData } from '../lib/cv-template-data.mjs';
+import { tplRender } from '../lib/cv-template-render.mjs';
 import { computeProfileStatus, fillProfileGaps, homeLocationLabel, isMissingColumnError, mergeProfileSections, missingColumnName, normalizeProfileRow, profileToRow, sanitizeProfileInput } from '../lib/profile-shape.mjs';
 import { authorizedFor, locationSummaryLines, resolveLocationProfile, workModeAllowed } from '../lib/candidate-location.mjs';
 import { placesIn, regionCountriesIn } from '../lib/apply-places.mjs';
 import { attendancePlaceText, resolveWorkMode, structuredWorkMode } from '../lib/work-mode.mjs';
 import { CV_MIN_CHARS, CvImportError, parseCvWithLlm, validateCvParseRequest } from '../lib/cv-import.mjs';
-import { buildApplySpec, detectRegion } from '../lib/apply-spec.mjs';
+import { buildApplySpec, detectRegion, preferLocalApplyCv } from '../lib/apply-spec.mjs';
+import { detectJdLanguage, jdSufficiency, offerAnchor, offerTaskLine } from '../lib/jd-sufficiency.mjs';
+import { recordEvalFailure, validationFailureAction, MAX_VALIDATION_RETRIES } from '../lib/eval-attempts.mjs';
+import { formatJustJoinOffer, justJoinOfferApiUrl, justJoinOfferSlug } from '../providers/justjoin.mjs';
 import { ApplyBridgeHub, attachApplyBridge } from '../extension/apply-bridge-lib.mjs';
 import { APPLY_FILES_DIR, accountLettersDir, deleteAccountCv, isAccountId, readAccountCv, readAccountCvBytes, saveAccountCv, safePdfName } from '../lib/apply-account-files.mjs';
 import { loadCanonicalStates, resolveCanonicalState, openTrackerTransaction } from '../tracker-utils.mjs';
@@ -60,6 +64,17 @@ import { assembleUiPrompt, candidateFacts, compactCv, coverLetterTask, indexCare
 import { applicationEmailLanguage, configuredOutputLanguage } from '../profile-language.mjs';
 import { evalModelForTier } from '../lib/spend-tier.mjs';
 import { writeFormAnswer } from '../lib/form-answer.mjs';
+import { createFunnel, countBy } from '../lib/scan-funnel.mjs';
+import { cleanFetchUrl, retryPolicy, backoffDelayMs } from '../lib/fetch-politeness.mjs';
+import { cleanJobDescriptionText } from '../lib/jd-clean.mjs';
+import { isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mjs';
+import { careersFeedFor, hasCareersFeed } from '../lib/careers-feeds.mjs';
+import { detectAtsProvider } from '../lib/ats-autodetect.mjs';
+import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
+import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
+import { createScanLogger } from '../lib/scan-log.mjs';
+import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
+import { CONSENT_DISMISS_SCRIPT, needsLongerWait, createSolveCooldown, createDetailBudget } from '../lib/scan-careers-wait.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { createPageFetcher, findContacts, providersFromEnv } from '../lib/contact-finder.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
@@ -86,7 +101,10 @@ import {
 } from '../lib/pipeline-record.mjs';
 import { withPipelineLock } from '../pipeline-lock.mjs';
 import { formatReportNumber, releaseReportNumbers, reserveReportNumbers } from '../reserve-report-num.mjs';
-import { getScanAggregators, fetchJobBoard, jobBoardProviders } from '../lib/scan-job-boards.mjs';
+import { getScanAggregators, fetchJobBoardPolite, jobBoardProviders } from '../lib/scan-job-boards.mjs';
+import { createSourceThrottle } from '../lib/job-board-throttle.mjs';
+import { classifyEmptySerp, serpDiagnostic } from '../lib/serp-page-check.mjs';
+import { createCircuitProbe } from '../lib/web-search-circuit-probe.mjs';
 import { buildCountryEligibilityFilter, buildLocationFilter } from '../scan.mjs';
 import {
   appendDecisionLog,
@@ -149,6 +167,20 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+
+// Scan log on disk (data/scan-logs/scan-YYYY-MM-DD.log, 7 days, 5 MB a day) and a
+// per-company summary (scan-companies.jsonl). Every "[scan]" console line is mirrored.
+const scanLog = createScanLogger({ dir: join(scanLogRoot(), 'data', 'scan-logs') });
+if (process.env.SCAN_LOG_DISABLE !== '1' && !process.env.NODE_TEST_CONTEXT) {
+  for (const level of ['log', 'warn', 'error']) {
+    const original = console[level].bind(console);
+    console[level] = (...args) => {
+      original(...args);
+      const text = args.map(arg => (typeof arg === 'string' ? arg : (arg?.message ?? String(arg)))).join(' ');
+      if (text.startsWith('[scan]')) scanLog.line(level, text);
+    };
+  }
+}
 
 // Files Chrome actually loads. The bridge library stays on the server.
 const EXTENSION_ZIP_FILES = [
@@ -549,6 +581,33 @@ async function getMonetization() {
   return config;
 }
 
+
+// Public careers feeds (careers-page.com / Manatal, Personio XML, ...): no browser.
+// ok + empty when the feed answers with no job; null (browser fallback) on a real error.
+async function fetchCareersFeedCompany(company) {
+  const feed = careersFeedFor(company);
+  if (!feed) return null;
+  try {
+    const { source, partial, jobs: raw } = await feed.fetch(company);
+    const jobs = raw.map(j => ({
+      title: j.title,
+      url: j.url,
+      location: j.location || '',
+      company: company.name || j.company || '',
+      publishedAt: j.publishedAt || '',
+      description: j.description || '',
+      remoteEvidence: j.remoteEvidence || '',
+      workMode: j.workMode || '',
+    }));
+    const afterFilter = jobs.filter(j => portalsTitleFilter.test(j.title)).length;
+    console.log(`[scan] [${feed.id}] "${company.name}" ${jobs.length} jobs via ${source}${partial ? ' (partial, rate-limited)' : ''}, ${afterFilter} after filter`);
+    scanLog.summary({ company: company.name, engine: feed.id, found: jobs.length, junkIgnored: 0, afterFilter });
+    return { ok: true, empty: jobs.length === 0, section: jobs.length ? buildJobSection(company.name, jobs) : null, jobs, engine: feed.id, company: company.name };
+  } catch (err) {
+    console.warn(`[scan] [${feed.id}] "${company.name}" failed (${err.message}) - falling back to the browser crawl`);
+    return null;
+  }
+}
 function buildPlaywrightResult(company = {}, overrides = {}) {
   return {
     ok: false,
@@ -1536,12 +1595,20 @@ async function lookupPostingIdentity(url, { note = '', logLabel = 'manual-add', 
     const known = await fetchKnownSourceJobDescription(url, { maxChars: 4000, logLabel, hints });
     const fromKnown = known?.ok ? identityFromJobText(known.text) : {};
     if (fromKnown.title || known?.definitive) return mergePostingIdentity(fromKnown, fromUrl);
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', 'Accept-Language': 'en-US,en;q=0.9' },
-    });
+    const fetchUrl = cleanFetchUrl(url);
+    const policy = retryPolicy(fetchUrl);
+    let response;
+    for (let attempt = 1; attempt <= policy.attempts; attempt += 1) {
+      response = await fetch(fetchUrl, {
+        signal: AbortSignal.timeout(8000),
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', 'Accept-Language': 'en-US,en;q=0.9' },
+      });
+      if (response.status !== 429 || attempt === policy.attempts) break;
+      await sleep(backoffDelayMs(attempt, { baseMs: policy.baseMs, retryAfter: response.headers.get('retry-after') || '' }));
+    }
     const html = response.ok ? await response.text() : '';
-    return mergePostingIdentity(identityFromJobText(textFromFetchedHtml(html, url, { maxChars: 4000, hints })), identityFromHtml(html), fromUrl);
+    const manatalIdentity = isManatalUrl(url) ? identityFromManatalHtml(html, url) : {};
+    return mergePostingIdentity(manatalIdentity, identityFromJobText(textFromFetchedHtml(html, url, { maxChars: 4000, hints })), identityFromHtml(html), fromUrl);
   };
   let timer;
   const timeout = new Promise(resolve => { timer = setTimeout(resolve, timeoutMs, fromUrl); });
@@ -1811,9 +1878,23 @@ function tripLocalDdgCircuit(reason = 'unavailable') {
 let _webSearchConsecFail = 0;
 const WEB_SEARCH_FAIL_BUDGET = 8;
 function webSearchCircuitOpen() { return _webSearchConsecFail >= WEB_SEARCH_FAIL_BUDGET; }
+// Half-open probes once the circuit is open (lib/web-search-circuit-probe.mjs).
+const webSearchProbe = createCircuitProbe({
+  maxProbes: Math.max(0, Number(process.env.SCAN_WEBSEARCH_PROBES ?? 2) || 0),
+  maxWaitMs: 90000,
+});
+// One page diagnostic per engine per run when a results page reads empty.
+const _serpDiagLogged = new Set();
+function noteEmptySerp(label, result, bodyText, reason) {
+  if (_serpDiagLogged.has(label)) return;
+  _serpDiagLogged.add(label);
+  console.warn(`[scan] [${label}] empty page treated as blocked (${reason}): ${serpDiagnostic({ url: result?.url, title: result?.title, bodyText })}`);
+}
 function resetWebSearchCircuit() {
   if (_webSearchConsecFail) console.log(`[scan] [websearch] resetting circuit-breaker (had ${_webSearchConsecFail} consecutive failures)`);
   _webSearchConsecFail = 0;
+  webSearchProbe.reset();
+  _serpDiagLogged.clear();
 }
 function recordWebSearchOutcome(ok) {
   if (ok) {
@@ -1837,6 +1918,7 @@ function tripWebSearchCircuitIfWedged(result) {
     console.warn('[scan] [websearch] PinchTab cannot open tabs — skipping remaining web-search queries this run (restart PinchTab)');
   }
   _webSearchConsecFail = WEB_SEARCH_FAIL_BUDGET;
+  webSearchProbe.markWedged();
   return true;
 }
 
@@ -1967,6 +2049,10 @@ function getCompanyScanAccess(company = {}) {
       apiSource: 'derived_lever',
     };
   }
+
+  // A careers_url on a known ATS host uses its provider plugin (public feed), before any web search.
+  const autoProvider = detectAtsProvider(company, jobBoardProviders);
+  if (autoProvider) return { mode: 'provider', provider: autoProvider, providerSource: 'derived' };
 
   if ((company.scan_method || '').toLowerCase() === 'websearch' && company.scan_query) {
     return { mode: 'websearch', query: company.scan_query };
@@ -2161,7 +2247,10 @@ async function lookupPostingStatus(url) {
   if (!url) return { date: null, closed: false };
   const cache = await loadPublishedDateCache();
   const cached = cache[url];
-  if (cached) {
+  // A Lever "closed" cached before the posting page confirmed it may be an
+  // unlisted posting the API cannot see: read it again.
+  const staleLeverClosed = cached?.closed && /^https:\/\/jobs(?:\.eu)?\.lever\.co\//i.test(url) && cached.closedBy !== 'lever-page';
+  if (cached && !staleLeverClosed) {
     if (cached.closed) return { date: null, closed: true };
     if (cached.publishedAt) return { date: cached.publishedAt, closed: false };
     if (cached.fetchedAt && Date.now() - new Date(cached.fetchedAt).getTime() < PUBLISHED_DATE_NEGATIVE_TTL_MS) {
@@ -2174,7 +2263,7 @@ async function lookupPostingStatus(url) {
   // The page's JSON-LD without a browser, then PinchTab as the last resort.
   if (!date && !closed) date = await postingDateFromPage(url).catch(() => null);
   if (!date && !closed) date = await tryPinchtabPublishedDate(url).catch(() => null);
-  cache[url] = { publishedAt: date || null, ...(closed ? { closed: true } : {}), fetchedAt: new Date().toISOString() };
+  cache[url] = { publishedAt: date || null, ...(closed ? { closed: true } : {}), ...(api?.closedBy ? { closedBy: api.closedBy } : {}), fetchedAt: new Date().toISOString() };
   return { date: date || null, closed };
 }
 
@@ -3079,8 +3168,9 @@ function textFromFetchedHtml(html, jobUrl, { maxChars = 15000, hints = {} } = {}
     }, jobUrl, { maxChars });
     if (formatted) return formatted;
   }
-  // Application questions and the form's privacy notice are not the posting.
-  return extractTextFromHtml(stripApplicationFormHtml(html));
+  // Application questions and the form's privacy notice are not the posting;
+  // nor are the nav, cookie banner and footer around a long page.
+  return cleanJobDescriptionText(extractTextFromHtml(stripApplicationFormHtml(html)), { title: hints.title || '' });
 }
 
 async function fetchDeelJobDescriptionFromJsonLd(jobUrl, { maxChars = 15000, hints = {} } = {}) {
@@ -3180,8 +3270,35 @@ async function fetchGoogleJobsDescriptionFromHints(jobUrl, { maxChars = 15000, h
   return null;
 }
 
+// justjoin.it pages are rendered in JS; their JSON-LD flattens the body into
+// one run-on line. The public candidate API returns the offer with its HTML
+// body, salary and skills (GET /api/candidate-api/offers/<slug>).
+async function fetchJustJoinJobDescriptionFromApi(jobUrl, { maxChars = 15000, hints = {} } = {}) {
+  const apiUrl = justJoinOfferApiUrl(justJoinOfferSlug(jobUrl));
+  if (!apiUrl) return null;
+  const response = await fetch(apiUrl, {
+    redirect: 'error',
+    signal: AbortSignal.timeout(15000),
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)', 'Accept': 'application/json' },
+  });
+  if (response.status === 404) {
+    return { ok: false, definitive: true, text: '', mode: 'justjoin-api', status: 404, error: 'JustJoin offer returned 404' };
+  }
+  if (!response.ok) return null;
+  const offer = formatJustJoinOffer(await response.json().catch(() => null));
+  if (!offer) return null;
+  const text = formatSourceJobDescription('JustJoin API', {
+    ...offer,
+    companyName: hints.company || offer.companyName,
+    url: offer.url || jobUrl,
+  }, jobUrl, { maxChars });
+  if (!text) return null;
+  return { ok: true, text, mode: 'justjoin-api', status: 200, workMode: offer.workMode || null };
+}
+
 async function fetchKnownSourceJobDescription(jobUrl, { maxChars = 15000, logLabel = 'pipeline', hints = {} } = {}) {
   const attempts = [
+    ['justjoin-api', () => fetchJustJoinJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['jobicy-api', () => fetchJobicyJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['himalayas-api', () => fetchHimalayasJobDescriptionFromApi(jobUrl, { maxChars, hints })],
     ['remotive-api', () => fetchRemotiveJobDescriptionFromApi(jobUrl, { maxChars, hints })],
@@ -3359,9 +3476,11 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
 
   const fetchViaHttp = async () => {
     let lastError;
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    const fetchUrl = cleanFetchUrl(url);
+    const policy = retryPolicy(fetchUrl);
+    for (let attempt = 1; attempt <= policy.attempts; attempt++) {
       try {
-        const response = await fetch(url, {
+        const response = await fetch(fetchUrl, {
           signal: AbortSignal.timeout(10000),
           headers: {
             'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
@@ -3377,14 +3496,16 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
           text,
           blocked: isBlockedJobDescriptionResponse({ url, status: response.status, html, text }),
         };
-        if (result.ok || attempt === 2 || (response.status !== 429 && response.status < 500)) return result;
-        console.warn(`[${logLabel}] [fetch] HTTP ${response.status} for ${url} — retrying once...`);
-        await sleep(1500);
+        if (result.ok || attempt === policy.attempts || (response.status !== 429 && response.status < 500)) return result;
+        const waitMs = backoffDelayMs(attempt, { baseMs: policy.baseMs, retryAfter: response.headers.get('retry-after') || '' });
+        console.warn(`[${logLabel}] [fetch] HTTP ${response.status} for ${fetchUrl} - retry ${attempt}/${policy.attempts - 1} in ${(waitMs / 1000).toFixed(1)}s`);
+        await sleep(waitMs);
       } catch (err) {
         lastError = err;
-        if (attempt === 1) {
-          console.warn(`[${logLabel}] [fetch] ${err.message} for ${url} — retrying once...`);
-          await sleep(1500);
+        if (attempt < policy.attempts) {
+          const waitMs = backoffDelayMs(attempt, { baseMs: policy.baseMs });
+          console.warn(`[${logLabel}] [fetch] ${err.message} for ${fetchUrl} - retry in ${(waitMs / 1000).toFixed(1)}s`);
+          await sleep(waitMs);
           continue;
         }
         throw err;
@@ -4089,6 +4210,7 @@ const PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT = `(() => {
   });
 
   return {
+    url: location.href,
     title: document.title || '',
     bodyText: normalizeText(document.body && document.body.innerText || '').slice(0, 4000),
     jobs: results.slice(0, 20),
@@ -4120,6 +4242,7 @@ const PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT = `(() => {
     results.push({ title, url, location: desc, remoteEvidence: desc });
   });
   return {
+    url: location.href,
     title: document.title || '',
     bodyText: normalizeText(document.body && document.body.innerText || '').slice(0, 4000),
     jobs: results.slice(0, 20),
@@ -4216,6 +4339,13 @@ async function fetchPinchtabSearchSection({ name, query }) {
       console.warn(`[scan] [PinchTab/Google] Challenge page detected for "${name}" (solve unsuccessful)`);
       return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: 'challenge page' };
     }
+    if (!jobs.length) {
+      const verdict = classifyEmptySerp({ url: result.url || searchUrl, title: result.title || '', bodyText });
+      if (verdict.kind === 'blocked') {
+        noteEmptySerp('PinchTab/Google', result, bodyText, verdict.reason);
+        return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: verdict.reason };
+      }
+    }
 
     console.log(`[scan] [PinchTab/Google] "${name}" → ${jobs.length} results, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
     return { ok: jobs.length > 0, section: buildJobSection(name, jobs), jobs, engine: 'pinchtab-google' };
@@ -4267,6 +4397,7 @@ const PINCHTAB_BING_SEARCH_EXTRACT_SCRIPT = `(() => {
     results.push({ title, url, location: desc, remoteEvidence: desc });
   });
   return {
+    url: location.href,
     title: document.title || '',
     bodyText: normalizeText(document.body && document.body.innerText || '').slice(0, 4000),
     jobs: results.slice(0, 50),
@@ -4310,6 +4441,7 @@ const PINCHTAB_DDG_SEARCH_EXTRACT_SCRIPT = `(() => {
     results.push({ title, url, location: desc, remoteEvidence: desc });
   });
   return {
+    url: location.href,
     title: document.title || '',
     bodyText: normalizeText(document.body && document.body.innerText || '').slice(0, 4000),
     jobs: results.slice(0, 50),
@@ -4320,7 +4452,7 @@ const PINCHTAB_DDG_SEARCH_EXTRACT_SCRIPT = `(() => {
 // challenge if one is shown, re-extract. Same contract as the Brave/Google
 // functions above: `ok` keys off "found jobs" and `.error` is set only on a
 // real block, so isWebSearchEngineBlocked() can tell the two apart.
-async function fetchPinchtabEngineSection({ name, query }, { engine, label, searchUrl, extractScript, settleMs = 1500 }) {
+async function fetchPinchtabEngineSection({ name, query }, { engine, label, searchUrl, extractScript, settleMs = 1500, checkEmpty = false }) {
   if (!query) return { ok: false, section: null, jobs: [], engine };
   if (!(await pinchtabIsUp())) {
     return { ok: false, section: null, jobs: [], engine, error: 'pinchtab daemon not reachable' };
@@ -4341,6 +4473,13 @@ async function fetchPinchtabEngineSection({ name, query }, { engine, label, sear
     if (!jobs.length && looksLikeChallengePage(bodyText)) {
       console.warn(`[scan] [${label}] Challenge page detected for "${name}" (solve unsuccessful)`);
       return { ok: false, section: null, jobs: [], engine, error: 'challenge page' };
+    }
+    if (!jobs.length && checkEmpty) {
+      const verdict = classifyEmptySerp({ url: result.url || searchUrl, title: result.title || '', bodyText });
+      if (verdict.kind === 'blocked') {
+        noteEmptySerp(label, result, bodyText, verdict.reason);
+        return { ok: false, section: null, jobs: [], engine, error: verdict.reason };
+      }
     }
 
     console.log(`[scan] [${label}] "${name}" → ${jobs.length} results, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
@@ -4371,6 +4510,7 @@ async function fetchPinchtabDuckDuckGoSection(source) {
     searchUrl: `https://duckduckgo.com/?q=${encodeURIComponent(query)}&ia=web&kl=wt-wt${webSearchFreshnessParam('duckduckgo')}`,
     extractScript: PINCHTAB_DDG_SEARCH_EXTRACT_SCRIPT,
     settleMs: 2500,
+    checkEmpty: true,
   });
 }
 
@@ -4386,9 +4526,12 @@ const PINCHTAB_SEARCH_ENGINES = {
 // to notice a recovery): DuckDuckGo answered 0 to nearly every query and
 // Google sat behind a captcha, so each query paid two dead page loads.
 const ENGINE_DEAD_AFTER = 5;
+// A blocked engine rests (base x 2^n, jitter) and is skipped without a request; queries are slightly spaced.
+const engineBackoff = createEngineBackoff({ baseMs: Math.max(1000, Number.parseInt(process.env.SCAN_ENGINE_COOLDOWN_MS || '60000', 10) || 60000) });
+const querySpacer = createQuerySpacer({ spacingMs: Math.max(0, Number.parseInt(process.env.SCAN_QUERY_SPACING_MS || '400', 10) || 0) });
 const ENGINE_RETRY_EVERY = 8;
 const engineHealth = new Map();
-function resetEngineHealth() { engineHealth.clear(); }
+function resetEngineHealth() { engineHealth.clear(); engineBackoff.reset(); }
 // Only while another engine still answers: with every engine dead, the web-search
 // circuit breaker decides, and nothing rests.
 function engineIsResting(id, allIds = []) {
@@ -4422,16 +4565,26 @@ async function fetchPinchtabEnginesMerged(source) {
   const engineLog = [];
   let loaded = 0;
   let lastBlocked = null;
+  let skippedCooling = false;
   for (const id of engines) {
     const run = PINCHTAB_SEARCH_ENGINES[id];
     if (!run) continue;
     if (minResults > 0 && merged.length >= minResults) break;
     if (engineIsResting(id, engines)) { engineLog.push(`${id}:resting`); continue; }
+    if (engineBackoff.cooling(id) && engines.some(other => other !== id && !engineBackoff.cooling(other))) {
+      engineLog.push(`${id}:cooldown`);
+      skippedCooling = true;
+      noteEngineResult(id, false); // a cooling engine is not an answering engine: keeps engineIsResting honest
+      continue;
+    }
+    await querySpacer();
     const result = await run(source);
     if (tripWebSearchCircuitIfWedged(result)) return result;
     if (isWebSearchEngineBlocked(result)) {
       lastBlocked = result;
       noteEngineResult(id, false);
+      const restMs = engineBackoff.fail(id);
+      console.warn(`[scan] [WebSearch] ${id} blocked (${result?.error || 'challenge/captcha'}): resting ${Math.round(restMs / 1000)}s, next engine`);
       engineLog.push(`${id}:blocked`);
       continue;
     }
@@ -4445,6 +4598,7 @@ async function fetchPinchtabEnginesMerged(source) {
       added += 1;
     }
     noteEngineResult(id, added > 0);
+    if (added > 0) engineBackoff.ok(id);
     engineLog.push(`${id}:${added}`);
   }
   if (!loaded) {
@@ -4456,10 +4610,11 @@ async function fetchPinchtabEnginesMerged(source) {
   // as a failed query so repeated challenge pages don't keep the scan opening
   // PinchTab tabs for offers that will be discarded by the title filter.
   const hasRelevantResult = merged.some(job => portalsTitleFilter.test(job.title));
-  recordWebSearchOutcome(hasRelevantResult || !lastBlocked);
-  const used = engineLog.filter(entry => !entry.endsWith(':blocked')).map(entry => entry.split(':')[0]);
+  recordWebSearchOutcome(hasRelevantResult || !(lastBlocked || skippedCooling));
+  const used = engineLog.filter(entry => !/:(?:blocked|cooldown|resting)$/.test(entry)).map(entry => entry.split(':')[0]);
   console.log(`[scan] [WebSearch] "${source.name}" → ${merged.length} merged results (${engineLog.join(', ')}), ${merged.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
-  return { ok: merged.length > 0, section: buildJobSection(source.name, merged), jobs: merged, engine: `pinchtab-${used.join('+')}` };
+  // Engines answered cleanly with nothing relevant = legitimately empty, not a failed fetch.
+  return { ok: true, empty: merged.length === 0, section: buildJobSection(source.name, merged), jobs: merged, engine: `pinchtab-${used.join('+')}` };
 }
 
 function buildTheirStackPayload(portalsConfig = {}) {
@@ -4883,14 +5038,23 @@ async function fetchRemoteOkSection(aggregator = {}) {
   }
 }
 
+// Per-source minimum interval (Remotive asks for max ~4 calls/day), persisted across scans.
+const jobBoardThrottle = createSourceThrottle({ statePath: join(WRITE_ROOT, 'data', 'job-board-throttle.json') });
 async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
   if (aggregator.sourceKind === 'job_board') {
     try {
-      const jobs = (await fetchJobBoard(aggregator)).map(job => ({
+      const polite = await fetchJobBoardPolite(aggregator, { throttle: jobBoardThrottle });
+      if (polite.skipped) {
+        console.log(`[scan] [${aggregator.provider}] ${aggregator.name}: skipped - ${polite.reason}`);
+        scanLog.summary({ company: aggregator.name, engine: aggregator.provider, found: 0, junkIgnored: 0, afterFilter: 0, note: 'throttled' });
+        return { ok: true, empty: true, skipped: true, jobs: [], section: null, engine: aggregator.provider, note: polite.reason };
+      }
+      const jobs = polite.jobs.map(job => ({
         ...job, publishedAt: normalizeDateValue(job.publishedAt),
       }));
-      console.log(`[scan] [${aggregator.provider}] ${aggregator.name}: ${jobs.length} jobs`);
-      return { ok: true, jobs, engine: aggregator.provider,
+      console.log(`[scan] [${aggregator.provider}] ${aggregator.name}: ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title || '')).length} after filter`);
+      scanLog.summary({ company: aggregator.name, engine: aggregator.provider, found: jobs.length, junkIgnored: 0, afterFilter: jobs.filter(j => portalsTitleFilter.test(j.title || '')).length });
+      return { ok: true, empty: jobs.length === 0, jobs, engine: aggregator.provider,
         section: buildJobSection(aggregator.name, jobs, { includeCompany: true }) };
     } catch (error) {
       console.warn(`[scan] [${aggregator.provider}] ${aggregator.name}: ${error.message}`);
@@ -4916,7 +5080,7 @@ async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
 
 async function fetchWebSearchSection(source, sharedBrowser = null) {
   if (webSearchCircuitOpen()) {
-    return { ok: false, section: null, error: 'web-search circuit open' };
+    return { ok: false, skipped: 'circuit-breaker', section: null, error: 'web-search circuit open' };
   }
 
   const takeIfLoaded = (result) => {
@@ -4925,11 +5089,22 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
     return result;
   };
 
+  let careersClean = false;
+  // Clean careers page with 0 matching jobs + search engines blocked = "no matching jobs", not a failed fetch.
+  const asEmptyIfClean = (res) => (careersClean && res && !res.ok && !res.empty
+    ? { ok: true, empty: true, section: null, jobs: [], engine: 'careers-page', note: 'no matching jobs on careers page; search engines unavailable' }
+    : res);
   // Company portals with a careers board: scrape that URL before a web search.
   // Pure search_queries keep the engine path below.
   if (source?.careers_url) {
     console.log(`[scan] [WebSearch] Preferring careers_url for "${source.name}"`);
-    const fallback = await fetchCareersUrlFallback(source);
+    let fallback = await fetchCareersUrlFallback(source);
+    if (isWebSearchEngineBlocked(fallback)) {
+      // One retry of the plain careers fetch before treating it as an error.
+      await new Promise(r => setTimeout(r, 1500));
+      fallback = await fetchCareersUrlFallback(source);
+    }
+    careersClean = !isWebSearchEngineBlocked(fallback);
     if (!isWebSearchEngineBlocked(fallback) && (fallback?.section || !source.query)) {
       recordWebSearchOutcome(true);
       return fallback;
@@ -4944,7 +5119,7 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
   // Every configured engine (portals.yml `web_search.engines`) is queried and
   // the results merged — see fetchPinchtabEnginesMerged.
   if (await pinchtabIsUp()) {
-    return fetchPinchtabEnginesMerged(source);
+    return asEmptyIfClean(await fetchPinchtabEnginesMerged(source));
   }
 
   if (!serpApiCircuitOpen() && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
@@ -4972,7 +5147,7 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
   }
 
   if (process.env.SCAN_WEBSEARCH_DDG === '1' && !localDdgCircuitOpen()) {
-    if (webSearchCircuitOpen()) return { ok: false, section: null, jobs: [], error: 'web-search circuit open' };
+    if (webSearchCircuitOpen()) return { ok: false, skipped: 'circuit-breaker', section: null, jobs: [], error: 'web-search circuit open' };
     const duckDuckGoResult = await fetchDuckDuckGoSection(source);
     if (duckDuckGoResult?.error === 'challenge page') tripLocalDdgCircuit('challenge page');
     const ddgTaken = takeIfLoaded(duckDuckGoResult);
@@ -4982,7 +5157,7 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
   }
 
   recordWebSearchOutcome(false);
-  return chromeGoogleResult;
+  return asEmptyIfClean(chromeGoogleResult);
 }
 
 async function fetchWebSearchSectionsSequential(sources = []) {
@@ -5003,8 +5178,16 @@ async function fetchWebSearchSectionsSequential(sources = []) {
 
     for (const source of sources) {
       if (webSearchCircuitOpen()) {
-        results.push({ status: 'fulfilled', value: { ok: false, section: null, jobs: [], engine: 'web-search', error: 'web-search circuit open' } });
-        continue;
+        // Half-open: when the engines were only resting (captcha cooldown),
+        // wait for the shortest cooldown and let one query through.
+        const cooldowns = (webSearchConfig.engines || []).map(id => engineBackoff.remainingMs(id));
+        const gate = await webSearchProbe.next(cooldowns);
+        if (!gate.probe) {
+          results.push({ status: 'fulfilled', value: { ok: false, skipped: 'circuit-breaker', section: null, jobs: [], engine: 'web-search', error: 'web-search circuit open', note: gate.reason } });
+          continue;
+        }
+        console.log(`[scan] [websearch] circuit half-open: ${gate.waitedMs ? `waited ${Math.round(gate.waitedMs / 1000)}s for the engine cooldown, ` : ''}probe ${webSearchProbe.probes} with "${source.name}"`);
+        _webSearchConsecFail = WEB_SEARCH_FAIL_BUDGET - 1;
       }
       try {
         results.push({ status: 'fulfilled', value: await fetchWebSearchSection(source, sharedBrowser) });
@@ -5028,11 +5211,21 @@ const PINCHTAB_SCROLL_SCRIPT = `(async () => {
   return true;
 })()`;
 
-const CAREER_NAVIGATION_TITLE_SOURCE = String.raw`^(?:search\s+(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|(?:careers?|jobs?)\s+(?:at|for|with)\s+.{1,100}|(?:view|see|browse|explore)\s+(?:all\s+)?(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|je\s+consulte\s+les\s+offres|nos\s+offres(?:\b.*)?|offres?\s+d['’]emploi(?:\s+en\b.*)?|offres?\s+en\s+t[ée]l[ée]travail|missions?\s+en\s+management\s+de\s+transition|outil\s+job\s+match|secteur\s+public\s*&\s*int[ée]r[ée]t\s+g[ée]n[ée]ral|technology\s+and\s+product|product\s+management\s*\d+\s+positions?|stillinger|opportunities\s+for\s+young\s+talents|banyan\s+tree|21c\s+museum\s+hotel|25hours\s+hotels?|delano|hyde|mama\s+shelter|morgans\s+orginals|(?:contrat\s+permanent|permanent\s+contract|creative\s*&\s*design|creation\s*&\s*design))$`;
+const CAREER_NAVIGATION_TITLE_BASE_SOURCE = String.raw`^(?:search\s+(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|(?:careers?|jobs?)\s+(?:at|for|with)\s+.{1,100}|(?:view|see|browse|explore)\s+(?:all\s+)?(?:jobs?|careers?|roles?|positions?)(?:\b.*)?|je\s+consulte\s+les\s+offres|nos\s+offres(?:\b.*)?|offres?\s+d['’]emploi(?:\s+en\b.*)?|offres?\s+en\s+t[ée]l[ée]travail|missions?\s+en\s+management\s+de\s+transition|outil\s+job\s+match|secteur\s+public\s*&\s*int[ée]r[ée]t\s+g[ée]n[ée]ral|technology\s+and\s+product|product\s+management\s*\d+\s+positions?|stillinger|opportunities\s+for\s+young\s+talents|banyan\s+tree|21c\s+museum\s+hotel|25hours\s+hotels?|delano|hyde|mama\s+shelter|morgans\s+orginals|(?:contrat\s+permanent|permanent\s+contract|creative\s*&\s*design|creation\s*&\s*design))$`;
+// The page chrome and category names every careers scraper trips on (lib/scan-title-junk.mjs) are added.
+const CAREER_NAVIGATION_TITLE_SOURCE = withNonJobTitles(CAREER_NAVIGATION_TITLE_BASE_SOURCE);
 const CAREER_NAVIGATION_TITLE_RE = new RegExp(CAREER_NAVIGATION_TITLE_SOURCE, 'i');
 
 function isCareerNavigationTitle(title = '') {
   return CAREER_NAVIGATION_TITLE_RE.test(cleanString(title).replace(/\s+/g, ' '));
+}
+
+// Page chrome / listing headings read as job titles (also after a detail page replaced the title): dropped, counted in the log.
+function dropNonJobTitles(jobs = [], label = '') {
+  const kept = jobs.filter(job => !isCareerNavigationTitle(job.title));
+  if (kept.length !== jobs.length) console.log(`[scan] ${label} ${jobs.length - kept.length} non-job title(s) ignored (page navigation or listing headings)`);
+  kept.junkIgnored = jobs.length - kept.length;
+  return kept;
 }
 
 const PINCHTAB_EXTRACT_SCRIPT = `(() => {
@@ -5281,10 +5474,13 @@ const PINCHTAB_EXTRACT_SCRIPT = `(() => {
 })()`;
 
 const SCAN_CAREERS_WAIT_MS = Math.max(6000, Number.parseInt(process.env.SCAN_CAREERS_WAIT_MS || '14000', 10) || 14000);
+const SCAN_CAREERS_EXTEND_MS = Math.max(0, Number.parseInt(process.env.SCAN_CAREERS_EXTEND_MS || '6000', 10) || 6000);
+const SCAN_CAREERS_DETAIL_BUDGET_MS = Math.max(5000, Number.parseInt(process.env.SCAN_CAREERS_DETAIL_BUDGET_MS || '30000', 10) || 30000);
+const careersSolveCooldown = createSolveCooldown();
 const SCAN_CAREERS_DETAIL_LIMIT = Math.max(0, Number.parseInt(process.env.SCAN_CAREERS_DETAIL_LIMIT || '8', 10) || 8);
 const SCAN_CAREERS_DETAIL_WAIT_MS = Math.max(2500, Number.parseInt(process.env.SCAN_CAREERS_DETAIL_WAIT_MS || '9000', 10) || 9000);
 
-async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS } = {}) {
+async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS, extended = false } = {}) {
   const started = Date.now();
   let jobs = [];
   let bodyText = '';
@@ -5292,6 +5488,7 @@ async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CA
 
   while (Date.now() - started < maxWaitMs && !isShuttingDown) {
     attempts += 1;
+    if (attempts === 2) await page.evaluate(CONSENT_DISMISS_SCRIPT).catch(() => {});
     await page.evaluate(PINCHTAB_SCROLL_SCRIPT).catch(() => {});
     jobs = (await page.evaluate(PINCHTAB_EXTRACT_SCRIPT).catch(() => [])) || [];
     if (jobs.length) {
@@ -5306,10 +5503,15 @@ async function extractJobsFromLocalPage(page, companyName, { maxWaitMs = SCAN_CA
     await page.waitForTimeout(attempts <= 2 ? 1200 : 1800);
   }
 
+  // Empty or still loading after the normal wait: one extra window, once.
+  if (!jobs.length && !extended && !isShuttingDown && needsLongerWait(bodyText)) {
+    console.log(`[scan] [local-browser] "${companyName}" page looks empty or still loading, waiting ${SCAN_CAREERS_EXTEND_MS / 1000}s more`);
+    return extractJobsFromLocalPage(page, companyName, { maxWaitMs: SCAN_CAREERS_EXTEND_MS, extended: true });
+  }
   return { jobs, bodyText, challenge: false };
 }
 
-async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS } = {}) {
+async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CAREERS_WAIT_MS, extended = false } = {}) {
   const started = Date.now();
   let jobs = [];
   let bodyText = '';
@@ -5317,6 +5519,7 @@ async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CA
 
   while (Date.now() - started < maxWaitMs && !isShuttingDown) {
     attempts += 1;
+    if (attempts === 2) await pinchtabEvaluate(tabId, CONSENT_DISMISS_SCRIPT, { awaitPromise: false, timeout: 5000 }).catch(() => {});
     await pinchtabEvaluate(tabId, PINCHTAB_SCROLL_SCRIPT, { awaitPromise: true, timeout: 10000 }).catch(() => {});
     jobs = (await pinchtabEvaluate(tabId, PINCHTAB_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 10000 }).catch(() => [])) || [];
     if (jobs.length) {
@@ -5331,6 +5534,10 @@ async function extractJobsFromPinchtab(tabId, companyName, { maxWaitMs = SCAN_CA
     await new Promise(resolve => setTimeout(resolve, attempts <= 2 ? 1200 : 1800));
   }
 
+  if (!jobs.length && !extended && !isShuttingDown && needsLongerWait(bodyText)) {
+    console.log(`[scan] [pinchtab] "${companyName}" page looks empty or still loading, waiting ${SCAN_CAREERS_EXTEND_MS / 1000}s more`);
+    return extractJobsFromPinchtab(tabId, companyName, { maxWaitMs: SCAN_CAREERS_EXTEND_MS, extended: true });
+  }
   return { jobs, bodyText, challenge: false };
 }
 
@@ -5348,7 +5555,7 @@ function usableDetailTitle(title = '') {
   if (/^(apply|apply now|view role|learn more|jobs?|careers?|open roles?|open positions?|job details?)$/i.test(value)) return false;
   if (/^(accéder au contenu|offres d'emploi|offres d’emploi|missions en|technology|finance et|logistique|ressources humaines)$/i.test(value)) return false;
   if (/^(on-site|onsite|hybrid|remote|full[- ]?time|part[- ]?time)$/i.test(value)) return false;
-  return true;
+  return !isNonJobTitle(value);
 }
 
 function isPlausibleListingCandidate(job = {}) {
@@ -5374,9 +5581,11 @@ async function enrichLocalJobsWithDetails(ctx, jobs = [], companyName = '') {
 
   const byKey = new Map(jobs.map(job => [normalizeUrlKey(job.url) || job.url, job]));
   const detailPage = await ctx.newPage();
+  const budget = createDetailBudget({ budgetMs: SCAN_CAREERS_DETAIL_BUDGET_MS });
   try {
     for (const job of candidates) {
       if (isShuttingDown) break;
+      if (!budget.ok()) { console.warn(`[scan] [local-browser] "${companyName}" detail pages stopped (time budget or repeated timeouts)`); break; }
       const key = normalizeUrlKey(job.url) || job.url;
       try {
         console.log(`[scan] [local-browser] "${companyName}" opening detail → ${cleanString(job.title).slice(0, 70)}`);
@@ -5393,6 +5602,7 @@ async function enrichLocalJobsWithDetails(ctx, jobs = [], companyName = '') {
           const publishedAt = (time && time.getAttribute('datetime')) || '';
           return { title, location, bodyText, publishedAt };
         }).catch(() => ({}));
+        budget.note(Boolean(detail && (detail.title || detail.bodyText)));
         const current = byKey.get(key);
         if (!current) continue;
         if (usableDetailTitle(detail.title)) {
@@ -5423,8 +5633,10 @@ async function enrichPinchtabJobsWithDetails(jobs = [], companyName = '') {
     .slice(0, SCAN_CAREERS_DETAIL_LIMIT);
   if (!candidates.length) return jobs;
 
+  const budget = createDetailBudget({ budgetMs: SCAN_CAREERS_DETAIL_BUDGET_MS });
   for (const job of candidates) {
     if (isShuttingDown) break;
+    if (!budget.ok()) { console.warn(`[scan] [pinchtab] "${companyName}" detail pages stopped (time budget or repeated timeouts)`); break; }
     let detailTabId = null;
     try {
       console.log(`[scan] [pinchtab] "${companyName}" opening detail → ${cleanString(job.title).slice(0, 70)}`);
@@ -5451,7 +5663,9 @@ async function enrichPinchtabJobsWithDetails(jobs = [], companyName = '') {
         job.remoteEvidence,
       ].filter(Boolean).join(' | ')).slice(0, 240);
       if (!job.publishedAt && detail.publishedAt) job.publishedAt = normalizeDateValue(detail.publishedAt);
+      budget.note(true);
     } catch (err) {
+      budget.note(false);
       console.warn(`[scan] [pinchtab] "${companyName}" detail skipped: ${err.message}`);
     } finally {
       await pinchtabClose(detailTabId);
@@ -5558,6 +5772,8 @@ async function fetchPlaywrightSectionsLocal(companies = []) {
           console.warn(`[scan] [local-browser] "${company.name}" no jobs after waiting for client-rendered listings`);
         }
         jobs = await enrichLocalJobsWithDetails(ctx, jobs, company.name);
+        jobs = dropNonJobTitles(jobs, `[local-browser] "${company.name}"`);
+        scanLog.summary({ company: company.name, engine: 'local-browser', found: jobs.length + (jobs.junkIgnored || 0), junkIgnored: jobs.junkIgnored || 0, afterFilter: jobs.filter(j => portalsTitleFilter.test(j.title)).length });
 
         console.log(`[scan] [local-browser] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
         results.push({
@@ -5591,6 +5807,15 @@ async function fetchPlaywrightSectionsLocal(companies = []) {
 
 async function fetchPlaywrightSections(companies = []) {
   if (!companies.length) return [];
+  const feedCos = companies.filter(c => !c._feedTried && hasCareersFeed(c));
+  if (feedCos.length) {
+    const feedResults = (await Promise.all(feedCos.map(fetchCareersFeedCompany))).filter(Boolean);
+    const okNames = new Set(feedResults.map(r => r.company));
+    const rest = companies.filter(c => !okNames.has(c.name));
+    const restResults = rest.length ? await fetchPlaywrightSections(rest.map(c => ({ ...c, _feedTried: true }))) : [];
+    const byName = new Map([...feedResults, ...restResults].map(r => [r.company, r]));
+    return companies.map(c => byName.get(c.name)).filter(Boolean);
+  }
   if (isShuttingDown) {
     return companies.map(company => buildPlaywrightResult(company, {
       error: 'Cancelled because the UI server is restarting or shutting down',
@@ -5622,13 +5847,16 @@ async function fetchPlaywrightSections(companies = []) {
 
       // If empty, check for a challenge wall and try solving once before giving up.
       if (!jobs.length && extracted.challenge) {
-        console.log(`[scan] [pinchtab] "${company.name}" challenge detected, attempting solve...`);
-        const solved = await pinchtabSolve(tabId);
+        const coolingDown = careersSolveCooldown.blocked(company.careers_url);
+        if (coolingDown) console.warn(`[scan] [pinchtab] "${company.name}" challenge wall, solve skipped (failed recently on this host)`);
+        else console.log(`[scan] [pinchtab] "${company.name}" challenge detected, attempting solve...`);
+        const solved = coolingDown ? false : await pinchtabSolve(tabId);
         if (solved) {
           console.log(`[scan] [pinchtab] "${company.name}" solved, re-scrolling + extracting...`);
           extracted = await extractJobsFromPinchtab(tabId, company.name, { maxWaitMs: 8000 });
           jobs = extracted.jobs;
-        } else {
+        } else if (!coolingDown) {
+          careersSolveCooldown.fail(company.careers_url);
           console.warn(`[scan] [pinchtab] "${company.name}" solve failed`);
         }
       }
@@ -5636,6 +5864,8 @@ async function fetchPlaywrightSections(companies = []) {
         console.warn(`[scan] [pinchtab] "${company.name}" no jobs after waiting for client-rendered listings`);
       }
       jobs = await enrichPinchtabJobsWithDetails(jobs, company.name);
+      jobs = dropNonJobTitles(jobs, `[pinchtab] "${company.name}"`);
+      scanLog.summary({ company: company.name, engine: 'pinchtab', found: jobs.length + (jobs.junkIgnored || 0), junkIgnored: jobs.junkIgnored || 0, afterFilter: jobs.filter(j => portalsTitleFilter.test(j.title)).length });
 
       console.log(`[scan] [pinchtab] "${company.name}" → ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
       results.push({
@@ -6376,8 +6606,13 @@ async function loadApplyContext(userId, reportFilename) {
   if (!useSupabase) return { profile: await readLocalProfile(), cvMarkdown: null, reportText, voice: null, accountCvPath: ownCv?.path };
   const stored = await getProfile(userId);
   const owner = await ownsLocalData(userId);
-  const profile = owner ? fillProfileGaps(stored, await readLocalProfile().catch(() => ({}))) : stored;
-  const cvMarkdown = await getCvMarkdown(userId).catch(() => '');
+  const localProfile = owner ? await readLocalProfile().catch(() => ({})) : {};
+  const profile = owner ? preferLocalApplyCv(fillProfileGaps(stored, localProfile), localProfile, { log: (m) => console.log(`[apply] ${m}`) }) : stored;
+  // The owner's cv.md is the CV of record (cv:verify-facts checks it); the
+  // stored copy lagged behind it (2026-10-19: the Flying Bisons run answered
+  // from an old "Product Leader & AI Builder" CV).
+  const localCvMd = owner && await access(join(ROOT, 'cv.md')).then(() => true, () => false);
+  const cvMarkdown = localCvMd ? '' : await getCvMarkdown(userId).catch(() => '');
   // The owner without a stored CV still has cv.md on disk (null = read it);
   // the owner's voice files and article-digest.md stay the owner's (null =
   // read them, '' = none for another account).
@@ -7283,7 +7518,9 @@ async function triagePipelineItemsWithJev(items = [], userId, profileRules = {},
   const { current: notListings, listings } = await dropListingPipelineItems(notInterns, userId);
   const { current, stale } = await dropStalePipelineItems(notListings, userId);
   const pending = current.filter(item => pipelineItemNeedsJevTriage(item, { rescoreKept: false }));
+  const funnel = { input: items.length, afterLevel: notInterns.length, afterListings: notListings.length, afterStale: current.length, sentToJev: pending.length, alreadyScored: current.length - pending.length };
   const empty = {
+    funnel,
     considered: 0,
     kept: [],
     newlyKept: [],
@@ -7324,6 +7561,7 @@ async function triagePipelineItemsWithJev(items = [], userId, profileRules = {},
 
   return {
     ...result,
+    funnel,
     alreadyKept: [],
     newlyKept: result.kept,
     kept: result.kept,
@@ -7396,6 +7634,11 @@ function parseApplicationsMarkdown(content = '') {
 // triggers a push, and six identical 700-row upserts in a row were common
 // (2026-10-17 log), one of them timing out on a network blip.
 const lastAppsSyncHash = new Map();
+// The push in flight per target account. A tracker write fires the
+// applications.md watcher while the evaluation calls the sync itself: both
+// passed the hash check before either finished, and the same rows went up
+// twice ("[sync-apps] N application(s) synced" logged twice per report).
+const appsSyncInFlight = new Map();
 
 /**
  * Push local applications.md → Supabase using the logged-in user id when available.
@@ -7422,20 +7665,31 @@ async function syncLocalApplicationsToSupabase(userId) {
   const rowsHash = createHash('sha1').update(JSON.stringify(rows)).digest('hex');
   const syncKey = uid || 'none';
   if (lastAppsSyncHash.get(syncKey) === rowsHash) return { ok: true, count: rows.length, unchanged: true };
-
-  let { error } = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
-  if (error && /job_url|schema cache|column/i.test(error.message || '')) {
-    rows.forEach(r => { delete r.job_url; });
-    const retry = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
-    error = retry.error;
+  // Wait for the push in flight; it may be these very rows.
+  while (appsSyncInFlight.has(syncKey)) {
+    await appsSyncInFlight.get(syncKey);
+    if (lastAppsSyncHash.get(syncKey) === rowsHash) return { ok: true, count: rows.length, unchanged: true };
   }
-  if (error) {
-    console.error('[sync-apps] Supabase upsert failed:', error.message);
-    return { ok: false, error: error.message, count: 0 };
+  let release;
+  appsSyncInFlight.set(syncKey, new Promise(resolve => { release = resolve; }));
+  try {
+    let { error } = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
+    if (error && /job_url|schema cache|column/i.test(error.message || '')) {
+      rows.forEach(r => { delete r.job_url; });
+      const retry = await supabase.from('applications').upsert(rows, { onConflict: 'num' });
+      error = retry.error;
+    }
+    if (error) {
+      console.error('[sync-apps] Supabase upsert failed:', error.message);
+      return { ok: false, error: error.message, count: 0 };
+    }
+    lastAppsSyncHash.set(syncKey, rowsHash);
+    console.log(`[sync-apps] ${rows.length} application(s) synced to Supabase (user=${uid || 'none'})`);
+    return { ok: true, count: rows.length };
+  } finally {
+    appsSyncInFlight.delete(syncKey);
+    release();
   }
-  lastAppsSyncHash.set(syncKey, rowsHash);
-  console.log(`[sync-apps] ${rows.length} application(s) synced to Supabase (user=${uid || 'none'})`);
-  return { ok: true, count: rows.length };
 }
 
 function parseCoverLetterSections(markdown = '') {
@@ -7690,93 +7944,6 @@ async function renderCoverLetterPdfHtml({ company = '', role = '', markdown = ''
 
 // ─── Template Engine (shared by preview + PDF generation) ─────────────────────
 
-function tplGetValue(obj, path, globalData) {
-  if (path === 'this') return obj;
-  if (path.startsWith('this.')) {
-    const key = path.slice(5).trim();
-    return obj && typeof obj === 'object' ? obj[key] : undefined;
-  }
-  return path.split('.').reduce((prev, curr) => prev ? prev[curr] : undefined, globalData);
-}
-
-function tplFindClosingTag(content, openTag, closeTag, startIndex) {
-  let depth = 1;
-  let pos = startIndex;
-  while (depth > 0 && pos < content.length) {
-    const nextOpen = content.indexOf(openTag, pos);
-    const nextClose = content.indexOf(closeTag, pos);
-    if (nextClose === -1) return -1;
-    if (nextOpen !== -1 && nextOpen < nextClose) {
-      depth++;
-      pos = nextOpen + openTag.length;
-    } else {
-      depth--;
-      pos = nextClose + closeTag.length;
-      if (depth === 0) return nextClose;
-    }
-  }
-  return -1;
-}
-
-function tplRender(template, context, globalData) {
-  let res = template;
-
-  // 1. Process EACH blocks
-  let pos = 0;
-  while ((pos = res.indexOf('{{#each')) !== -1) {
-    const endOpen = res.indexOf('}}', pos);
-    const path = res.slice(pos + 7, endOpen).trim();
-    const closePos = tplFindClosingTag(res, '{{#each', '{{/each}}', endOpen + 2);
-    if (closePos === -1) break;
-    const inner = res.slice(endOpen + 2, closePos);
-    const list = tplGetValue(context, path, globalData);
-    const rendered = Array.isArray(list) ? list.map(item => tplRender(inner, item, globalData)).join('') : '';
-    res = res.slice(0, pos) + rendered + res.slice(closePos + 9);
-  }
-
-  // 2. Process IF blocks (with nesting-aware {{else}} support)
-  while (true) {
-    let pos = res.indexOf('{{#if');
-    if (pos === -1) break;
-    const endOpen = res.indexOf('}}', pos);
-    const path = res.slice(pos + 5, endOpen).trim();
-    const closePos = tplFindClosingTag(res, '{{#if', '{{/if}}', endOpen + 2);
-    if (closePos === -1) {
-      res = res.slice(0, pos) + '<!-- BROKEN IF: ' + path + ' -->' + res.slice(endOpen + 2);
-      continue;
-    }
-    let inner = res.slice(endOpen + 2, closePos);
-    const val = tplGetValue(context, path, globalData);
-    const truthy = val && (!Array.isArray(val) || val.length > 0);
-    
-    let elseIdx = -1;
-    let depth = 0;
-    for (let i = 0; i < inner.length - 8; i++) {
-      if (inner.slice(i, i + 5) === '{{#if') depth++;
-      if (inner.slice(i, i + 7) === '{{/if}}') depth--;
-      if (depth === 0 && inner.slice(i, i + 8) === '{{else}}') {
-        elseIdx = i;
-        break;
-      }
-    }
-
-    let rendered;
-    if (elseIdx !== -1) {
-      rendered = truthy ? tplRender(inner.slice(0, elseIdx), context, globalData) : tplRender(inner.slice(elseIdx + 8), context, globalData);
-    } else {
-      rendered = truthy ? tplRender(inner, context, globalData) : '';
-    }
-    res = res.slice(0, pos) + rendered + res.slice(closePos + 7);
-  }
-
-  // 3. Variables
-  res = res.replace(/\{\{([^#\/][^}]*)\}\}/g, (match, path) => {
-    const val = tplGetValue(context, path.trim(), globalData);
-    return val !== undefined ? val : '';
-  });
-
-  return res;
-}
 
 /**
  * Render premium-cv.html with template defaults merged with config/profile.yml.
@@ -9960,11 +10127,14 @@ const server = createServer(async (req, res) => {
         let scanPreDedupSkipped = 0;
         let scanDeadCount = 0;
         let scanAgeDropped = 0;
+  const scanFunnel = createFunnel();
         let scanSourceSectionCount = 0;
         let pipelineTarget = null;
         let applyTarget = null;
         let coverLetterTarget = null;
         let profileGate = null;
+        // Pipeline offer: main language of its JD ('' when unknown).
+        let pipelineLanguage = '';
         if (mode === 'scan') {
           resetSerpApiCircuit();
           resetLocalGoogleCircuit();
@@ -10005,6 +10175,12 @@ const server = createServer(async (req, res) => {
           const sel = selection && !selection.all ? selection : null;
 
           const inSel = (key, name) => !sel || (sel[key]?.includes(name));
+          // A partial selection from the Scan modal runs only what it names
+          // (2026-10-19: the "Job boards" group alone = 95 web searches, 0 API).
+          const selectionNote = sel
+            ? `selection: partial - ${['companies', 'rss', 'queries', 'aggregators'].map(k => `${k} ${Array.isArray(sel[k]) ? sel[k].length : 0}`).join(', ')}; enabled sources outside it are not run (Scan modal > Select all for a full scan)`
+            : 'selection: all enabled sources';
+          console.log(`[scan] ${selectionNote}`);
 
           // ── Direct fetch sources (Greenhouse/Ashby/Lever APIs + RSS) ──────
           const directSources = [];
@@ -10017,7 +10193,7 @@ const server = createServer(async (req, res) => {
           selectedCompanies.forEach(company => {
             const access = getCompanyScanAccess(company);
             if (access.mode === 'provider') {
-              providerCompanies.push(company);
+              providerCompanies.push({ ...company, provider: access.provider });
               return;
             }
             if (access.mode === 'api' && access.apiUrl) {
@@ -10032,6 +10208,10 @@ const server = createServer(async (req, res) => {
                 careers_url: company.careers_url || '',
                 isCompany: true,
               });
+              return;
+            }
+            if (hasCareersFeed(company) && access.mode !== 'provider') {
+              playwrightCos.push(company); // public careers feed (careers-page.com, Personio): fetched without search or browser
               return;
             }
             if (access.mode === 'websearch' && access.query) {
@@ -10229,6 +10409,9 @@ const server = createServer(async (req, res) => {
             dropped: partitioned.rejected.filter(candidate => candidate.reasonCode === 'country'),
           };
           scanAgeDropped = partitioned.rejected.filter(candidate => candidate.reasonCode === 'age').length;
+          scanFunnel.stage('found', allScanCandidates.length);
+          scanFunnel.stage('decision', beforeTitleCollapse.length, countBy(partitioned.rejected, c => c.reasonCode));
+          scanFunnel.stage('collapse', survivors.length);
 
           // Filter out URLs already in pipeline, scan-history, or reports, and
           // company+role pairs already tracked / permanently deleted — before
@@ -10272,6 +10455,7 @@ const server = createServer(async (req, res) => {
               console.log(`[scan] [pre-dedup] ${skippedCount} already-known URL(s)/company+role removed before manifest (pipeline/history/reports/apps/deleted)`);
             }
             scanCandidates = freshCandidates;
+            scanFunnel.stage('dedup', freshCandidates.length);
             scanPreDedupSkipped = skippedCount;
           }
 
@@ -10289,6 +10473,7 @@ const server = createServer(async (req, res) => {
             }
             const standing = new Map([...dated.kept, ...dated.review].map(candidate => [candidate.url, candidate]));
             scanCandidates = scanCandidates.filter(candidate => standing.has(candidate.url)).map(candidate => standing.get(candidate.url));
+            scanFunnel.stage('dated', scanCandidates.length, countBy(dated.rejected, c => c.reasonCode));
           }
 
           // Link check (404s, closed postings) for search hits and scraped
@@ -10298,6 +10483,7 @@ const server = createServer(async (req, res) => {
           const unlistedSources = new Set([...webSearchSources.map(source => cleanString(source.name)), ...playwrightCos.map(company => cleanString(company.name))]);
           const { dead: deadCandidates } = await verifyJobLinks(scanCandidates.filter(candidate => unlistedSources.has(candidate.source)));
           scanDeadCount = deadCandidates.length;
+          scanFunnel.stage('link-alive', scanCandidates.length - deadCandidates.length, { dead: deadCandidates.length });
           if (deadCandidates.length) {
             const deadSet = new Set(deadCandidates.map(candidate => candidate.url));
             scanCandidates = scanCandidates.filter(candidate => !deadSet.has(candidate.url));
@@ -10334,18 +10520,20 @@ const server = createServer(async (req, res) => {
             ...directResults.filter(r => r.status === 'rejected' || !r.value?.ok),
             ...providerResults.filter(r => r.status === 'rejected' || !r.value?.ok),
           ];
-          const failedWeb = webSearchResults.filter(r => r.status === 'rejected' || !r.value?.ok);
+          const skippedWeb = webSearchResults.filter(r => r.status === 'fulfilled' && r.value?.skipped);
+          const failedWeb = webSearchResults.filter(r => r.status === 'rejected' || (!r.value?.ok && !r.value?.skipped));
           const failedPlaywright = playwrightResults.filter(r => !r.ok);
           const failedAggregators = aggregatorResults.filter(r => r.status === 'rejected' || !r.value?.ok);
 
           // Console recap
           console.log(`[scan] ── Fetch recap ──────────────────────────────`);
+          console.log(`[scan] ${selectionNote}`);
           const directTotal = directSources.length + providerCompanies.length;
           console.log(`[scan] API/RSS: ${fetchedDirectCount}/${directTotal} OK${failedDirect.length ? ` | ${failedDirect.length} failed` : ''}`);
           directResults.forEach((r, i) => {
             const src = directSources[i];
             if (r.status === 'rejected') console.error(`[scan]   ✗ ${src?.name}: ${r.reason?.message || r.reason}`);
-            else if (!r.value?.ok) console.warn(`[scan]   ✗ ${src?.name}: returned ok=false`);
+            else if (!r.value?.ok) console.warn(`[scan]   ✗ ${src?.name}: ${r.value?.error || 'returned ok=false'}`);
             else console.log(`[scan]   ✓ ${src?.name}`);
           });
           providerResults.forEach((r, i) => {
@@ -10355,12 +10543,13 @@ const server = createServer(async (req, res) => {
             else if (!r.value?.ok) console.warn(`[scan]   ✗ ${src?.name}: ${r.value?.error || 'returned ok=false'}`);
             else console.log(`[scan]   ✓ ${src?.name} [${engine}]`);
           });
-          console.log(`[scan] WebSearch: ${fetchedWebCount}/${webSearchSources.length} OK${failedWeb.length ? ` | ${failedWeb.length} failed` : ''}`);
+          console.log(`[scan] WebSearch: ${fetchedWebCount}/${webSearchSources.length} OK${failedWeb.length ? ` | ${failedWeb.length} failed` : ''}${skippedWeb.length ? ` | ${skippedWeb.length} skipped (circuit-breaker)` : ''}`);
           webSearchResults.forEach((r, i) => {
             const src = webSearchSources[i];
             const engine = r.value?.engine || '?';
             if (r.status === 'rejected') console.error(`[scan]   ✗ ${src?.name}: ${r.reason?.message || r.reason}`);
-            else if (!r.value?.ok) console.warn(`[scan]   ✗ ${src?.name}: returned ok=false`);
+            else if (r.value?.skipped) console.log(`[scan]   ↷ ${src?.name}: skipped (${r.value.skipped})`);
+            else if (!r.value?.ok) console.warn(`[scan]   ✗ ${src?.name}: ${r.value?.error || 'returned ok=false'}`);
             else console.log(`[scan]   ✓ ${src?.name} [${engine}]`);
           });
           console.log(`[scan] Playwright: ${fetchedPlaywrightCount}/${playwrightCos.length} OK${failedPlaywright.length ? ` | ${failedPlaywright.length} failed` : ''}`);
@@ -10425,7 +10614,7 @@ const server = createServer(async (req, res) => {
             recapLines: [
               `API/RSS: ${fetchedDirectCount}/${directTotal} OK${failedDirect.length ? `, ${failedDirect.length} failed` : ''}`,
               webSearchSources.length
-                ? `WebSearch: ${fetchedWebCount}/${webSearchSources.length} OK${failedWeb.length ? `, ${failedWeb.length} failed` : ''}`
+                ? `WebSearch: ${fetchedWebCount}/${webSearchSources.length} OK${failedWeb.length ? `, ${failedWeb.length} failed` : ''}${skippedWeb.length ? `, ${skippedWeb.length} skipped (circuit-breaker)` : ''}`
                 : '',
               playwrightCos.length
                 ? `Playwright: ${fetchedPlaywrightCount}/${playwrightCos.length} OK${failedPlaywright.length ? `, ${failedPlaywright.length} failed` : ''}`
@@ -10481,6 +10670,8 @@ const server = createServer(async (req, res) => {
               }
             },
           });
+          const tf = triage.funnel || {};
+          console.log(`[pipeline] jev triage funnel: input=${tf.input ?? '?'} afterLevel=${tf.afterLevel ?? '?'} afterListings=${tf.afterListings ?? '?'} afterStale=${tf.afterStale ?? '?'} sentToJev=${tf.sentToJev ?? '?'} alreadyScored=${tf.alreadyScored ?? 0}${tf.sentToJev === 0 ? ' (nothing needed a new Jev score: considered counts offers sent to Jev only)' : ''}`);
           console.log(`[pipeline] jev triage: considered=${triage.considered} kept=${triage.kept.length} dropped=${triage.dropped.length} unverified=${triage.unverified.length} stale=${(triage.stale || []).length} listings=${(triage.listings || []).length} intern=${(triage.titleDropped || []).length}`);
           if (triage.accountError) {
             send('warning', { text: `Jev indisponible (${triage.accountError}). Qwen n’a pas été lancé.` });
@@ -10551,8 +10742,31 @@ const server = createServer(async (req, res) => {
             res.end();
             return;
           }
-          prefetchData = `## Job Description from ${pipelineTarget.url}\n${pipelineTarget.note ? `Context note: ${pipelineTarget.note}\n` : ''}\n${jdResult.text}`;
-          console.log(`[pipeline] prefetchData length: ${prefetchData.length} chars`);
+          {
+            const offer = pipelineOfferIdentity(pipelineTarget);
+            const jdCheck = jdSufficiency(jdResult.text, { company: offer.company || pipelineNoteParts.company, title: offer.title || pipelineNoteParts.title });
+            if (!jdCheck.ok) {
+              // A thin page gives the model nothing about the offer and it scores
+              // the candidate's own CV instead (Eyzee vs OneAsset, 2026-10-19).
+              await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'skipped_thin_jd', historyPortal: 'pipeline-thin-jd' })
+                .catch(err => console.warn(`[pipeline] failed to park thin-JD URL: ${err.message}`));
+              // Listed under "dropped" with Re-add, instead of leaving no trace.
+              await logGateDrops(req.userId, [{ url: pipelineTarget.url, title: offer.title, company: offer.company, gate: 'review', reasons: [`Description trop pauvre pour évaluer : ${jdCheck.reason}.`] }]);
+              const message = `JD too thin for ${pipelineTarget.url}: ${jdCheck.reason}. Parked for review (skipped_thin_jd), not sent to the model - paste the JD text or re-add the URL to retry.`;
+              console.warn(`[pipeline] ${message}`);
+              send('warning', { text: message });
+              send('chunk', { text: ['# Evaluation skipped: job description too thin', '', `**URL:** ${pipelineTarget.url}`, '', `${jdCheck.reason}. Scoring it would only score the CV, so no report, score or tracker row was made. Paste the JD text, or re-add the URL to retry.`].join('\n') });
+              send('done', { ok: false, blocked: true, saves: ['Evaluation skipped: thin JD. URL parked as skipped_thin_jd.'] });
+              res.end();
+              return;
+            }
+            pipelineLanguage = detectJdLanguage(jdResult.text).code;
+            const languageLine = pipelineLanguage && pipelineLanguage !== 'fr' && pipelineLanguage !== 'en'
+              ? `Langue de l'annonce : ${detectJdLanguage(jdResult.text).label}\n`
+              : '';
+            prefetchData = `${offerAnchor({ company: offer.company || pipelineNoteParts.company, title: offer.title || pipelineNoteParts.title, url: pipelineTarget.url })}${languageLine}\n## Job Description from ${pipelineTarget.url}\n${pipelineTarget.note ? `Context note: ${pipelineTarget.note}\n` : ''}\n${jdResult.text}`;
+          }
+          console.log(`[pipeline] prefetchData length: ${prefetchData.length} chars (source ${jdResult.mode || '?'}${pipelineLanguage ? `, language ${pipelineLanguage}` : ''})`);
           // The gate reads the posting, never the scan's own note: "remote_verdict:
           // unclear — remote status is ambiguous" put the word remote into the text,
           // so on-site postings (OpenAI, San Francisco HQ) read as remote and went to
@@ -10782,7 +10996,15 @@ Règles:
 - garde le format A-D suffisamment structuré pour que le report reste exploitable
 - conclusion explicite: SKIP / DO NOT APPLY`);
           } else {
-            parts.push(`---\nÉvalue l'offre ci-dessus. URL: ${pipelineTarget.url}. Applique le contrat système (A, B, C, D, G). Pas de plan CV, pas d'entretien, pas de cover letter.`);
+            const offer = pipelineOfferIdentity(pipelineTarget);
+            const career = indexCareer(cv);
+            parts.push(offerTaskLine({
+              company: offer.company,
+              title: offer.title,
+              url: pipelineTarget.url,
+              language: pipelineLanguage,
+              ownEmployers: [profileStruct?.search?.current_role?.company, ...career.employerNames].filter(Boolean),
+            }));
           }
         } else if (mode === 'apply') {
           parts.push(`---\nTu démarres le mode apply pour une offre déjà sélectionnée. Utilise le report complet fourni ci-dessus pour préparer un starter pack d'application: résumé ciblé de l'offre, 3-5 angles forts à réutiliser, pièces à joindre, valeurs probables pour les champs standards (salaire, préavis, visa/remote) basées sur profile.yml si disponibles, puis une liste concise de ce qu'il faut partager ensuite (screenshot ou copier-coller des questions). N'invente aucun champ de formulaire non visible et ne prétends pas voir le formulaire tant qu'il n'a pas été fourni.`);
@@ -10838,6 +11060,9 @@ Règles:
           streamMeta.jev_unverified = (jevResult.unverified || []).length;
           streamMeta.jev_dropped = jevResult.dropped.length;
           streamMeta.jev_errors = jevResult.errors.length;
+          scanFunnel.stage('jev', strictKept.length + reviewKept.length, { validated: strictKept.length, review: reviewKept.length, dropped: jevResult.dropped.length, unverified: (jevResult.unverified || []).length });
+          console.log(`[scan] [funnel] ${scanFunnel.format()}`);
+          scanLog.summary({ funnel: scanFunnel.stages() });
           console.log(
             `[scan] Jev filter done — validated=${strictKept.length} review=${reviewKept.length} unverified=${(jevResult.unverified || []).length} dropped=${jevResult.dropped.length} errors=${jevResult.errors.length} considered=${jevResult.considered}`
           );
@@ -10975,7 +11200,7 @@ Règles:
               // The repair rewrites the report: same tier model, same language.
               const repaired = await chat({
                 model: evalModel.model,
-                messages: [{ role: 'user', content: buildEvalRepairPrompt(fullResponse, facts, { outputLanguage }) }],
+                messages: [{ role: 'user', content: buildEvalRepairPrompt(fullResponse, facts, { outputLanguage, offer: mode === 'pipeline' && pipelineTarget ? pipelineOfferIdentity(pipelineTarget) : null }) }],
                 temperature: 0,
                 max_tokens: 2200,
                 reasoning: evalModel.reasoning,
@@ -11203,7 +11428,9 @@ Règles:
           const headerCompany = (companyMatch?.[1] || '').trim();
           const companyName = offer.company || headerCompany;
           const company  = (companyName || 'unknown').replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 30);
-          const role     = (offer.title || roleMatch?.[1] || 'role').trim().slice(0, 70);
+          // The full title, one space per run ("Senior Product Designer (Webflow)
+          // Temp to Perm" was cut at 70 here and at 40 in the log line).
+          const role     = String(offer.title || roleMatch?.[1] || 'role').replace(/\s+/g, ' ').trim().slice(0, 200);
           // Gate rejects never reach this point (pipelineHardSkip above): this
           // is a Qwen evaluation, and only Qwen's own hard fail makes it a SKIP.
           // With a complete ## Notation table the Global is computed from the
@@ -11245,7 +11472,7 @@ Règles:
             : validateReportContent(reportContent, scoreRaw, company, role);
 
           console.log(`[${mode}] validation: valid=${validation.valid}, reason=${validation.reason || 'none'}`);
-          console.log(`[${mode}] parsed: company=${company}, role=${role.slice(0, 40)}, score=${scoreRaw}, status=${trackerStatus}`);
+          console.log(`[${mode}] parsed: company=${company}, role=${role}, score=${scoreRaw}, status=${trackerStatus}`);
           if (validation.valid) {
             // Another account's evaluation is its own: stored in Supabase under
             // its id. The owner's reports/ (the watcher pushes it under the
@@ -11397,6 +11624,35 @@ Règles:
             }
             console.error(`❌ Report validation failed for ${filename}: ${validation.reason}`);
             saves.push(`⚠️ Report NOT saved — ${validation.reason}`);
+            // Nothing was written (no report, no TSV, no tracker or Supabase
+            // row). The URL gets MAX_VALIDATION_RETRIES more tries, then it is
+            // parked for review: the Eyzee posting failed the same way on every
+            // pipeline run (2026-10-19).
+            if (mode === 'pipeline' && pipelineTarget?.url) {
+              try {
+                const memory = await scanMemoryOf(req.userId);
+                const failures = await recordEvalFailure(memory, { url: pipelineTarget.url, code: validation.code || 'invalid', reason: validation.reason });
+                const sameReason = failures.filter(f => f.code === (validation.code || 'invalid')).length;
+                if (validationFailureAction(sameReason) === 'park') {
+                  await removeFromPipeline(pipelineTarget.url, req.userId, { historyStatus: 'needs_review', historyPortal: 'pipeline-review' });
+                  await logGateDrops(req.userId, [{
+                    url: pipelineTarget.url,
+                    title: offer.title,
+                    company: offer.company,
+                    gate: 'review',
+                    reasons: [`Évaluation rejetée ${sameReason} fois (${validation.code || 'invalid'}) : ${validation.reason}. Retirée de la file, à revoir.`],
+                  }]);
+                  const message = `Evaluation rejected ${sameReason} times for the same reason: URL parked as needs_review (listed under dropped offers, Re-add to retry).`;
+                  console.warn(`[pipeline] ${message} ${pipelineTarget.url}`);
+                  saves.push(`⚠️ ${message}`);
+                  send('warning', { text: message });
+                } else {
+                  saves.push(`URL kept in the pipeline for ${MAX_VALIDATION_RETRIES} more try (attempt ${sameReason}).`);
+                }
+              } catch (err) {
+                console.warn(`[pipeline] eval-failure tracking failed: ${err.message}`);
+              }
+            }
             if (validation.code === REPETITION_LOOP_CODE) {
               // A looped output still parses as "1.0/5 hard fail" (report 692):
               // no report, no SKIP tracker row, and the URL stays queued.

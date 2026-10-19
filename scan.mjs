@@ -71,6 +71,7 @@ import { normalizeCompanyName } from './invite-match.mjs';
 import { withPipelineLock } from './pipeline-lock.mjs';
 import { compileKeyword, compilePositiveKeyword, compileContentKeyword, buildTitleFilter, foldAccents } from './title-keywords.mjs';
 import { flagValue, hasFlag, validateFlags } from './lib/cli-flags.mjs';
+import { createSourceThrottle } from './lib/job-board-throttle.mjs';
 import { withPortalHealthLock } from './portal-health-lock.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { printScanSummaryHeader } from './lib/scan-summary-marker.mjs';
@@ -3575,8 +3576,14 @@ async function main() {
     });
   }
 
+  // Per-source minimum interval for board feeds whose terms cap the call rate (Remotive: ~4/day).
+  const boardThrottle = createSourceThrottle({ statePath: process.env.JOBYOUGO_BOARD_THROTTLE || path.join(DATA_ROOT, 'data/job-board-throttle.json') });
   const tasks = targets.map(company => async () => {
     let provider = company._provider;
+    if (company._isBoard) {
+      const verdict = boardThrottle.check(company, provider);
+      if (verdict.skip) { console.log(`  [${company.name}] skipped - ${verdict.reason}`); return; }
+    }
     const observation = { requests: 0, successfulResponses: 0, lastStatus: null };
     // includeUndated is deliberately ALWAYS true, independent of the window.
     // It does not mean "include undated postings in the results" — scan.mjs
@@ -3624,6 +3631,7 @@ async function main() {
       if (!Array.isArray(jobs)) {
         throw new Error(`${provider.id}: fetch() did not return an array`);
       }
+      if (company._isBoard) boardThrottle.record(company);
       totalFound += jobs.length;
       if (!company._isBoard && jobs.length === 0) {
         if (emptyTargetStatus(observation) === 'empty') emptyTargets.push(company.name);
