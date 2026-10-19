@@ -31,6 +31,8 @@ import {
   proofExcerpt,
   fixCurrentRoleAttribution,
   ensureRoleOpener,
+  ensureAvailability,
+  availabilityLine,
   numberCvLines,
   validatePostingMatches,
   mergePostingMatches,
@@ -1339,4 +1341,38 @@ test('the audit does not report "LTD." as a fragment for a company name with suf
   );
   const issues = auditApplicationEmail({ subject: 'Product Designer - Hugo Vermot', body, language: 'en' }, {});
   assert.equal(issues.some(issue => /Fragment/.test(issue)), false, issues.join(' | '));
+});
+test('the matched prompt asks for a hook, 90-140 words and a plain ask, not the formula opener', () => {
+  const matches = [{ need: 'User research', proof: 'Ran interviews with real customers.', employer: 'UpViral', role: 'Product Designer', dates: '2024', score: 5 }];
+  const { system } = buildApplicationEmailMessages({ cv: '# CV', profileData: PROFILE, jobText: 'We need a product designer for operations tools.', matches, roleHint: 'Product Designer', companyHint: 'Acme' });
+  assert.match(system, /the HOOK/);
+  assert.match(system, /Do not open with "I.m applying for"/);
+  assert.match(system, /90 to 140 words/);
+  assert.match(system, /one concrete number beats an adjective/);
+  assert.match(system, /Never the template "I.d like to join \[company\] because"/);
+  assert.match(system, /\{role\} at \{company\} - \{Full Name\}/);
+  assert.doesNotMatch(system, /first "I.m applying for the \[role\] role at \[company\]\."/);
+});
+
+test('availabilityLine only states what the CV says', () => {
+  const cv = 'looking to move into a new contract or CDI role, fully remote from Paris or Thailand';
+  assert.equal(availabilityLine(cv, 'en'), "I'm available for a contract or CDI role, full remote.");
+  assert.match(availabilityLine(cv, 'fr'), /^Je suis disponible pour un contrat ou un CDI, en full remote\.$/);
+  assert.equal(availabilityLine('Senior designer in Paris.', 'en'), '');
+});
+
+test('ensureAvailability adds the sentence before the ask, once, and never without a CV statement', () => {
+  const cv = 'new contract or CDI role, fully remote';
+  const body = 'Hello,\n\nYour Product Designer opening is about research.\n\nI ran interviews. My CV is attached. Can we talk this week?\n\nBest,\nHugo Vermot';
+  const out = ensureAvailability(body, { cv, language: 'en' });
+  assert.match(out, /My CV is attached\. I'm available for a contract or CDI role, full remote\. Can we talk this week\?/);
+  assert.equal(ensureAvailability(out, { cv, language: 'en' }), out);
+  assert.equal(ensureAvailability(body, { cv: 'Designer in Paris', language: 'en' }), body);
+});
+
+test('formatApplicationEmail greets in the email language even when the model did not', () => {
+  const en = formatApplicationEmail('Bonjour,\n\nYour role is about research.\n\nCan we talk?', { language: 'en', profileData: PROFILE });
+  assert.match(en, /^Hello,/);
+  const fr = formatApplicationEmail('Hello,\n\nVotre poste porte sur la recherche.\n\nPouvons-nous \u00e9changer ?', { language: 'fr', profileData: PROFILE });
+  assert.match(fr, /^Bonjour,/);
 });
