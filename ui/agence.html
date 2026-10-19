@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" href="/images/favicon.png">
+  <link rel="icon" type="image/svg+xml" href="/images/agence-mascot.svg">
   <title>v2 studio · AI design agency for redesign, UX and AI products</title>
   <meta name="description" content="Fixed-price redesign, UX, AI product prototypes and coaching from $390. Led by a founder with 12 years in product and UX. Every delivery passes the same 12-point detail check.">
   <link rel="canonical" href="https://jobyougo.xyz/agence">
-  <meta name="theme-color" content="#0b100a">
+  <meta name="theme-color" content="#0d0c12">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="v2 studio">
   <meta property="og:url" content="https://jobyougo.xyz/agence">
@@ -22,38 +23,69 @@
   <meta name="twitter:title" content="v2 studio · Built with AI, finished by hand">
   <meta name="twitter:description" content="Redesign for $390, delivered in 5 business days. Prices on the page, scope on the card.">
   <meta name="twitter:image" content="https://jobyougo.xyz/images/agence-fox-close.jpg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="preload" as="font" type="font/woff2" href="/portfolio/fonts/cabinet-grotesk-var.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/portfolio/fonts/boska-var-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="/images/agence-dive-poster.jpg?v=5" media="(min-width: 721px)">
   <link rel="preload" as="image" href="/images/agence-dive-poster-m.jpg?v=5" media="(max-width: 720px)">
-  <link rel="stylesheet" href="/portfolio/agence-story.css?v=20261018b">
+  <link rel="stylesheet" href="/portfolio/agence-story.css?v=20261019b">
+  <link rel="stylesheet" href="/portfolio/agence-extras.css?v=20261018z4">
+  <link rel="stylesheet" href="/portfolio/agence-order.css?v=20261018z4">
   <script type="importmap">
-    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+    { "imports": { "three": "/portfolio/vendor/three-0.160.0/build/three.module.min.js", "three/addons/": "/portfolio/vendor/three-0.160.0/examples/jsm/" } }
   </script>
+  <!--agence-i18n-->
   <script>
-    /* window.SITE base fields (agence-data.js extends it). Language: ?lang=, then the saved choice, then the browser. */
+    /* window.SITE base fields (agence-data.js extends it) and the language. There is no switch: the server picks
+       the language (?lang=, cookie, browser, then country; lib/agence-i18n.mjs) and sets window.AG_I18N just
+       above. Without it (a copy of the page served as a plain file): ?lang=en|fr, then the browser, EN or FR.
+       EN and FR copy is written by hand; any other language reads the English copy through agTr(), which looks
+       the string up in the inlined catalogue (scripts/agence-translate.mjs) and falls back to English. */
     (function () {
-      var KEY = 'v2studio-lang';
-      var lang = null;
-      try {
-        var q = new URLSearchParams(window.location.search).get('lang');
-        if (q === 'fr' || q === 'en') lang = q;
-      } catch (e) { /* ignore */ }
-      if (!lang) {
+      var I = window.AG_I18N;
+      if (!I || !I.code) {
+        var lang = null;
         try {
-          var saved = window.localStorage.getItem(KEY);
-          if (saved === 'fr' || saved === 'en') lang = saved;
-        } catch (e) { /* storage blocked */ }
+          var q = new URLSearchParams(window.location.search).get('lang');
+          if (q === 'fr' || q === 'en') lang = q;
+        } catch (e) { /* ignore */ }
+        if (!lang) lang = /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
+        I = window.AG_I18N = { code: lang, base: lang, intl: lang === 'fr' ? 'fr-FR' : 'en-US', mt: false, rtl: false };
       }
-      if (!lang) lang = /^fr/i.test(navigator.language || '') ? 'fr' : 'en';
-      window.SITE = { id: 'agency', base: '/agence', initialLang: lang, langStorageKey: KEY };
+      var cat = I.mt && I.cat ? I.cat : null;
+      /* Same key as i18nKey() in lib/agence-i18n.mjs (cyrb53, base 36). */
+      function key(s) {
+        var h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+        for (var i = 0; i < s.length; i++) {
+          var ch = s.charCodeAt(i);
+          h1 = Math.imul(h1 ^ ch, 2654435761);
+          h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+      }
+      window.agTr = function (s) {
+        if (!cat || typeof s !== 'string' || !s) return s;
+        var v = cat[key(s)];
+        return typeof v === 'string' ? v : s;
+      };
+      window.agTrDeep = function deep(o) {
+        if (!cat || o == null) return o;
+        if (typeof o === 'string') return window.agTr(o);
+        if (Array.isArray(o)) return o.map(deep);
+        if (typeof o === 'object') {
+          var r = {};
+          for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) r[k] = deep(o[k]);
+          return r;
+        }
+        return o;
+      };
+      window.SITE = { id: 'agency', base: '/agence', initialLang: I.base, locale: I.code, intl: I.intl, langStorageKey: 'v2studio-lang' };
       var root = document.documentElement;
-      root.lang = lang;
-      if (lang === 'fr') root.classList.add('i18n-pending');
+      root.lang = I.code;
+      if (I.rtl) root.classList.add('rtl-text');
+      if (I.mt) root.classList.add('i18n-mt');
+      if (I.base === 'fr' || I.mt) root.classList.add('i18n-pending');
     })();
   </script>
 </head>
@@ -64,20 +96,61 @@
 
 <!-- NAV -->
 <header class="nav" id="nav">
-  <a class="wordmark" href="#top" data-ta="aria-label:ag_nav_home_aria" aria-label="v2 studio, back to the top">v2 studio<i aria-hidden="true"></i></a>
+  <!-- The mascot: an ink sprite with a brush-tip tuft dipped in the chapter colour. It winks on hover; agence-mascot.js moves its eyes and handles petting. -->
+  <a class="wordmark" href="#top" data-ta="aria-label:ag_nav_home_aria" aria-label="v2 studio, back to the top">
+    <svg class="mascot" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="mascot-holo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a5f0d3"/><stop offset=".34" stop-color="#9cc9f2"/><stop offset=".6" stop-color="#c3a8f2"/><stop offset=".82" stop-color="#f4a9c4"/><stop offset="1" stop-color="#f7d58e"/></linearGradient>
+        <radialGradient id="mascot-glow-a" cx="1" cy="0" r=".7"><stop offset="0" stop-color="#8ee6f0"/><stop offset="1" stop-color="#8ee6f0" stop-opacity="0"/></radialGradient>
+        <radialGradient id="mascot-glow-b" cx="0" cy="1" r=".7"><stop offset="0" stop-color="#f6b48f"/><stop offset="1" stop-color="#f6b48f" stop-opacity="0"/></radialGradient>
+        <radialGradient id="mascot-gloss" cx=".5" cy="0" r=".55"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <radialGradient id="mascot-ink-a" cx=".28" cy=".14" r=".62"><stop offset="0" stop-color="#9cc9f2" stop-opacity=".5"/><stop offset=".5" stop-color="#c3a8f2" stop-opacity=".16"/><stop offset="1" stop-color="#c3a8f2" stop-opacity="0"/></radialGradient>
+        <radialGradient id="mascot-ink-b" cx=".88" cy=".92" r=".5"><stop offset="0" stop-color="#f4a9c4" stop-opacity=".4"/><stop offset="1" stop-color="#f4a9c4" stop-opacity="0"/></radialGradient>
+        <linearGradient id="mascot-band"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        <clipPath id="mascot-tile"><rect width="64" height="64" rx="18"/></clipPath>
+        <clipPath id="mascot-tuft"><path d="M28.5 16C28.8 11.6 32.4 8 37.2 6.4C39.6 5.6 42.4 5.6 43 7.4C43.6 9.3 41.4 10.2 39.6 10.6C37.8 11 37 13.4 37.6 16Z"/></clipPath>
+      </defs>
+      <g clip-path="url(#mascot-tile)">
+        <rect width="64" height="64" fill="url(#mascot-holo)"/>
+        <rect width="64" height="64" fill="url(#mascot-glow-a)"/>
+        <rect width="64" height="64" fill="url(#mascot-glow-b)"/>
+        <rect width="64" height="64" fill="url(#mascot-gloss)"/>
+      </g>
+      <rect x=".75" y=".75" width="62.5" height="62.5" rx="17.25" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.5"/>
+      <g class="m-body">
+        <g class="m-tuft"><path d="M28.5 16C28.8 11.6 32.4 8 37.2 6.4C39.6 5.6 42.4 5.6 43 7.4C43.6 9.3 41.4 10.2 39.6 10.6C37.8 11 37 13.4 37.6 16Z" fill="#15190f"/><circle class="m-paint" cx="42.4" cy="7.8" r="4.4" clip-path="url(#mascot-tuft)"/></g>
+        <path d="M32 14C42.5 14 50.6 20.5 51.3 30.5C51.9 38.5 51 44.6 49 48.4C47.9 50.6 47 53.2 44.8 53.4C42.6 53.6 41.6 51.6 40 51.2C35.5 50.4 28.5 50.6 24.6 51.4C22.4 51.9 21.6 55.2 19 55.2C16.2 55.2 14.9 53 14.6 50.4C14.2 47.2 12.2 41.4 12.6 34C13 22 21.4 14 32 14Z" fill="#15190f"/>
+        <path d="M32 14C42.5 14 50.6 20.5 51.3 30.5C51.9 38.5 51 44.6 49 48.4C47.9 50.6 47 53.2 44.8 53.4C42.6 53.6 41.6 51.6 40 51.2C35.5 50.4 28.5 50.6 24.6 51.4C22.4 51.9 21.6 55.2 19 55.2C16.2 55.2 14.9 53 14.6 50.4C14.2 47.2 12.2 41.4 12.6 34C13 22 21.4 14 32 14Z" fill="url(#mascot-ink-a)"/>
+        <path d="M32 14C42.5 14 50.6 20.5 51.3 30.5C51.9 38.5 51 44.6 49 48.4C47.9 50.6 47 53.2 44.8 53.4C42.6 53.6 41.6 51.6 40 51.2C35.5 50.4 28.5 50.6 24.6 51.4C22.4 51.9 21.6 55.2 19 55.2C16.2 55.2 14.9 53 14.6 50.4C14.2 47.2 12.2 41.4 12.6 34C13 22 21.4 14 32 14Z" fill="url(#mascot-ink-b)"/>
+        <path d="M18.2 25.5C19.2 21.4 22.4 18.2 26.6 17.1" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
+        <ellipse cx="32.5" cy="32" rx="12.5" ry="9" transform="rotate(-6 32.5 32)" fill="#f8f2e4"/>
+        <g class="m-cheeks" fill="#ec9c92"><ellipse cx="24.1" cy="36.4" rx="2.4" ry="1.4"/><ellipse cx="41.1" cy="35.4" rx="2.4" ry="1.4"/></g>
+        <g class="m-look">
+          <g class="m-eye"><circle cx="28.2" cy="32.5" r="2.7" fill="#15190f"/><circle cx="29.1" cy="31.6" r=".95" fill="#fff"/></g>
+          <g class="m-eye m-eye--r"><circle cx="37.6" cy="31.5" r="2.7" fill="#15190f"/><circle cx="38.5" cy="30.6" r=".95" fill="#fff"/></g>
+          <path class="m-shut" d="M25.6 33.3Q28.2 30.7 30.8 33.3"/>
+          <path class="m-shut m-shut--r" d="M35 32.2Q37.6 29.6 40.2 32.2"/>
+        </g>
+      </g>
+      <g class="m-gleam" clip-path="url(#mascot-tile)"><g transform="rotate(20 32 32)"><rect class="m-sheen" x="-30" y="-10" width="18" height="84" fill="url(#mascot-band)"/></g></g>
+      <g class="m-hearts" fill="#ec8b84">
+        <g transform="translate(46 3)"><path class="m-heart" d="M0 2C-3-.2-2.7-2.6-1-2.6C-.3-2.6 0-2.1 0-1.6C0-2.1.3-2.6 1-2.6C2.7-2.6 3-.2 0 2Z"/></g>
+        <g transform="translate(54 10)"><path class="m-heart" d="M0 2C-3-.2-2.7-2.6-1-2.6C-.3-2.6 0-2.1 0-1.6C0-2.1.3-2.6 1-2.6C2.7-2.6 3-.2 0 2Z"/></g>
+        <g transform="translate(38 -2)"><path class="m-heart" d="M0 2C-3-.2-2.7-2.6-1-2.6C-.3-2.6 0-2.1 0-1.6C0-2.1.3-2.6 1-2.6C2.7-2.6 3-.2 0 2Z"/></g>
+      </g>
+    </svg>
+    <span class="wordmark-name"><b class="wm-v2">v2</b> <span class="wm-studio">studio</span></span>
+  </a>
   <nav class="nav-links" id="nav-links" aria-label="v2 studio">
     <a href="/agence/showcase" data-page="showcase" data-t="nav_showcase">Showcase</a>
     <a href="/agence/services" data-page="services" data-t="nav_services">Services</a>
     <a href="/agence/pricing" data-page="pricing" data-t="nav_pricing">Pricing</a>
     <a href="/agence/secret-touch" data-page="secret-touch" data-t="nav_secret">Secret touch</a>
+    <button type="button" class="btn btn-primary nav-menu-cta" data-offer=""><span data-t="nav_contact">Start a project</span></button>
   </nav>
   <button class="nav-burger" type="button" aria-expanded="false" aria-controls="nav-links" data-ta="aria-label:nav_menu_aria" aria-label="Open menu"><span></span></button>
   <div class="nav-right">
-    <div class="lang" role="group" data-ta="aria-label:s_lang" aria-label="Language">
-      <button type="button" data-lang="en" lang="en" aria-pressed="true">EN</button>
-      <button type="button" data-lang="fr" lang="fr" aria-pressed="false">FR</button>
-    </div>
-    <button type="button" class="btn btn-primary btn-sm" data-offer="" data-t="nav_contact">Start a project</button>
+    <button type="button" class="btn btn-primary btn-sm nav-cta" data-offer=""><span data-t="nav_contact">Start a project</span><svg class="nav-cta-arrow" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 8h10M9 4l4 4-4 4"/></svg></button>
   </div>
 </header>
 
@@ -102,10 +175,21 @@
       <div class="hero-scrim" aria-hidden="true"></div>
 
       <div class="hero-beat hero-beat--1">
-        <h1 class="display" id="hero-title" data-th="hero_headline">The details<br>AI skips are<br>the ones your<br><em>customers notice.</em></h1>
+        <h1 class="display" id="hero-title" data-th="hero_headline">The details<br>AI skips are<br>the ones your<br><em>customers notice</em></h1>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#pricing" data-t="hero_cta_primary">See the packages</a>
-          <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="hero_cta_secondary">Book a 30-min call</a>
+          <a class="btn btn-primary" href="#pricing" data-order="" data-t="hero_cta_improve">Improve my website</a>
+          <a class="btn btn-ghost btn-call" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer"><svg class="btn-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15.2" r="1.5" fill="currentColor" stroke="none"/></svg><span data-t="hero_cta_secondary">Book a call</span></a>
+        </div>
+        <!-- The founder's past brands (agence-data.js AGENCY_BRANDS), worded as his, not as studio clients -->
+        <div class="hero-brands" id="hero-brands">
+          <span class="hb-label" data-x="hb_label">We’ve worked with</span>
+          <ul class="hb-list" role="list">
+            <li><img src="/images/brands/lvmh.png?v=1" alt="LVMH" data-w="word" width="110" height="28" decoding="async"></li>
+            <li><img src="/images/brands/bmw.png?v=1" alt="BMW" data-w="mark" width="106" height="105" decoding="async"></li>
+            <li><img src="/images/brands/renault.png?v=1" alt="Renault Group" data-w="mark" width="88" height="110" decoding="async"></li>
+            <li><img src="/images/brands/societe-generale.png?v=1" alt="Société Générale" data-w="word" width="109" height="24" decoding="async"></li>
+            <li><img src="/images/brands/shiseido.png?v=1" alt="Shiseido" data-w="word" width="110" height="32" decoding="async"></li>
+          </ul>
         </div>
       </div>
       <script>
@@ -113,10 +197,13 @@
         (function () {
           if (document.documentElement.lang !== 'fr') return;
           var h = document.getElementById('hero-title');
-          if (h) h.innerHTML = 'Les détails<br>que l’IA oublie,<br>vos clients<br><em>les remarquent.</em>';
+          if (h) h.innerHTML = 'Les détails<br>que l’IA oublie,<br>vos clients<br><em>les remarquent</em>';
           var a = document.querySelectorAll('.hero-beat--1 .btn');
-          if (a[0]) a[0].textContent = 'Voir les formules';
-          if (a[1]) a[1].textContent = 'Réserver un appel de 30 min';
+          if (a[0]) a[0].textContent = 'Améliorer mon site';
+          var c = a[1] && a[1].querySelector('span');
+          if (c) c.textContent = 'Réserver un appel';
+          var l = document.querySelector('#hero-brands .hb-label');
+          if (l) l.textContent = 'Nous avons travaillé avec';
         })();
       </script>
 
@@ -129,8 +216,8 @@
       <div class="hero-beat hero-beat--4">
         <p class="beat-title display" data-th="s_dive_c">Most sites never<br><em>come down here.</em></p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#pricing" data-t="hero_cta_primary">See the packages</a>
-          <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="hero_cta_secondary">Book a 30-min call</a>
+          <a class="btn btn-primary" href="#pricing" data-order="" data-t="hero_cta_improve">Improve my website</a>
+          <a class="btn btn-ghost btn-call" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer"><svg class="btn-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15.2" r="1.5" fill="currentColor" stroke="none"/></svg><span data-t="hero_cta_secondary">Book a call</span></a>
         </div>
       </div>
     </div>
@@ -186,8 +273,23 @@
     </div>
   </section>
 
+  <!-- 3b. THE PLAYGROUND, IN MOTION: interfaces the founder designed and coded, recorded as they run (agence-extras.js) -->
+  <section class="reel sheet" id="reel" data-chapter="proof" aria-labelledby="reel-title">
+    <div class="wrap">
+      <div class="sec-head sec-head--split">
+        <div>
+          <span class="dab" aria-hidden="true"></span>
+          <h2 class="display h2" id="reel-title" data-xh="reel_title">Not mockups.<br><em>Interfaces that move.</em></h2>
+        </div>
+        <p class="lede" data-x="reel_lede">Six interfaces we designed and coded, recorded as they run in a browser. Swipe through them, or open one live.</p>
+      </div>
+      <div class="reel-ui" id="reel-ui"></div>
+      <div class="reel-foot"><a class="link-arrow" href="/agence/showcase#ifaces-section"><span data-x="reel_all">All the interfaces</span><span aria-hidden="true">→</span></a></div>
+    </div>
+  </section>
+
   <!-- 4. SERVICES (a bento: the four offers in one screen, details in popovers) -->
-  <section class="services is-bento sheet" data-tone="light" id="services" data-chapter="services" aria-labelledby="services-title">
+  <section class="services sheet" data-tone="light" id="services" data-chapter="services" aria-labelledby="services-title">
     <div class="pin-stage">
       <div class="svc-head">
         <div>
@@ -197,7 +299,7 @@
         </div>
       </div>
       <div class="svc-rail">
-        <div class="svc-track" id="svc-track"></div>
+        <ol class="ways" id="svc-track"></ol>
       </div>
     </div>
   </section>
@@ -215,22 +317,32 @@
           <a class="link-arrow" href="/agence/secret-touch"><span data-t="s_checks_all">All 12, line by line</span><span aria-hidden="true">→</span></a>
         </div>
       </div>
-      <article class="ledger" id="ledger" aria-labelledby="ledger-title">
-        <header class="ledger-head">
-          <p class="ledger-title" id="ledger-title"><b data-t="s_ledger_title">Detail check</b><span data-t="s_ledger_points">12 points, read by hand</span></p>
-          <p class="ledger-field"><span data-t="s_ledger_field">Delivery</span><b data-t="s_ledger_field_v">Your page</b></p>
-          <p class="ledger-tally" aria-hidden="true"><span class="tally-n" id="tally-n">00</span><span class="tally-of">/12</span></p>
-        </header>
+      <div class="sheet12" id="ledger">
         <ol class="checks-list" id="checks-list" role="list"></ol>
-        <footer class="ledger-foot">
-          <p class="ledger-note" id="ledger-note" aria-hidden="true"></p>
+        <footer class="sheet12-foot">
+          <p class="sheet12-tally" aria-hidden="true"><span class="tally-n" id="tally-n">00</span><span class="tally-of">/12</span></p>
+          <span class="ledger-stamp" aria-hidden="true"><b>12/12</b><span data-t="s_ledger_stamp">passed</span></span>
           <div class="ledger-sign">
             <span class="sign-name">Hugo Vermot</span>
             <span class="sign-role" data-t="s_ledger_sign">Checked by hand, founder</span>
           </div>
-          <span class="ledger-stamp" aria-hidden="true"><b>12/12</b><span data-t="s_ledger_stamp">passed</span></span>
         </footer>
-      </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5b. CLIENT WORDS: real quotes only (AGENCY_TESTIMONIALS); hidden while the list is empty. No data-chapter: a hidden
+       section measures top 0 and the rail (agence-story.js) would jump to its chapter. -->
+  <section class="voices sheet" data-tone="light" id="voices" aria-labelledby="voices-title" hidden>
+    <div class="wrap">
+      <div class="sec-head sec-head--split">
+        <div>
+          <span class="dab" aria-hidden="true"></span>
+          <h2 class="display h2" id="voices-title">In their<br><em>own words.</em></h2>
+        </div>
+        <p class="lede" id="voices-lede">What clients said once the work shipped, published with their permission.</p>
+      </div>
+      <div class="voices-list" id="voices-list"></div>
     </div>
   </section>
 
@@ -244,11 +356,6 @@
         </div>
         <p class="lede" data-t="pricing_sub">Each package has a fixed price, a written scope and a delivery date. You see all of it before you pay.</p>
       </div>
-      <div class="pick" role="group" aria-labelledby="pick-title">
-        <p class="pick-title" id="pick-title" data-t="s_pick_title">Where are you starting from?</p>
-        <div class="pick-opts" id="pick-opts"></div>
-        <p class="pick-line sr-only" id="pick-line" aria-live="polite"></p>
-      </div>
       <div class="prices" id="prices"></div>
       <noscript><p>Redesign $390, 5 business days · Build $590, 7 business days · Coaching $90/month (opening soon) · Custom projects from $2,500, fixed quote. Write to chilka.v@gmail.com to order.</p></noscript>
       <div class="extras">
@@ -259,6 +366,8 @@
           <p class="addons-note" id="addons-note"></p>
         </div>
       </div>
+      <!-- Coaching is monthly, not a package: its own band (renderCoach in agence-story.js) -->
+      <article class="coach" id="coach" hidden></article>
       <div class="pricing-small">
         <p data-t="pricing_payment_line">Prices in US dollars, excluding applicable taxes. One-time packages are paid upfront; coaching is billed monthly.</p>
         <a href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="pricing_unsure">If two packages look close, book a 30-min call and we’ll tell you which one fits.</a>
@@ -307,7 +416,6 @@
         <span class="dab" aria-hidden="true"></span>
         <h2 class="display h2" id="faq-title" data-th="faq_headline" data-reveal>Questions<br><em>before you book.</em></h2>
         <p class="lede" data-t="faq_sub">If your question isn’t here, the 30-min call is free, or write to chilka.v@gmail.com.</p>
-        <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="faq_cta">Book a 30-min call</a>
       </div>
       <div class="faq-list" id="faq-list"></div>
     </div>
@@ -324,6 +432,7 @@
         <button type="button" class="btn btn-primary" data-offer="" data-t="contact_primary">Describe your project</button>
         <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="contact_link_call">Book a 30-min call</a>
       </div>
+      <p class="contact-founder"><img src="/images/hugo_vermot.optimized.jpg" alt="" width="34" height="34" loading="lazy" decoding="async"><span data-x="contact_founder">Your message goes to Hugo, the founder, not to a sales team.</span></p>
       <p class="contact-else"><span data-t="s_or_write">Or write to</span> <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a> · <a href="https://linkedin.com/in/hugovermot" target="_blank" rel="noopener noreferrer">LinkedIn</a></p>
       <footer class="footer">
         <span data-t="footer_copy">© 2026 v2 studio · Founded by Hugo Vermot</span>
@@ -341,7 +450,7 @@
         <h2 id="dlg-title" data-t="contact_modal_title">Tell us about your project</h2>
         <p class="dlg-sub" data-t="contact_modal_subtitle">Pick a package and add a few lines. This opens a draft in your email app; nothing is sent until you press send there.</p>
       </div>
-      <button type="button" class="dlg-x" id="dlg-close" data-ta="aria-label:contact_close_aria" aria-label="Close">×</button>
+      <button type="button" class="dlg-x" id="dlg-close" data-ta="aria-label:contact_close_aria" aria-label="Close"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
     </div>
     <div class="field"><label for="f-link" data-t="contact_label_link">Link to your site or product (optional)</label><input id="f-link" name="link" type="url" inputmode="url" autocomplete="url" placeholder="https://"></div>
     <div class="field"><label for="f-offer" data-t="contact_label_offer">Package</label><select id="f-offer" name="offer"></select></div>
@@ -359,7 +468,17 @@
 </dialog>
 
 <!-- Assistant (shared /api/hrhv endpoint, persona 'agency') -->
-<button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="false" aria-controls="chat" data-ta="aria-label:chat_toggle_aria" aria-label="Ask the v2 studio assistant"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5a8 8 0 0 1-11.7 7.1L4 19.8l1.2-4.4a8 8 0 1 1 15.3-3.9z"/><circle cx="8.6" cy="11.6" r=".6" fill="currentColor"/><circle cx="12.5" cy="11.6" r=".6" fill="currentColor"/><circle cx="16.4" cy="11.6" r=".6" fill="currentColor"/></svg><span data-t="s_chat_btn">Ask a question</span></button>
+<!-- Contact dock: the mascot opens four bubbles around it (assistant, a call, LinkedIn, the project form). agence-dock.js.
+     The assistant's bubble keeps id="chat-toggle", so agence-story.js still drives the chat from it. -->
+<div class="dock" id="dock">
+  <button class="dock-fab" id="dock-fab" type="button" aria-expanded="false" aria-controls="dock-menu" data-ta="aria-label:dock_open_aria" aria-label="Contact options"><img src="/images/agence-mascot.svg" alt="" width="60" height="60" decoding="async"></button>
+  <div class="dock-menu" id="dock-menu">
+    <button class="dock-item" id="chat-toggle" type="button" style="--a:180deg;--i:0;--c:#a5f0d3" aria-expanded="false" aria-controls="chat" data-ta="aria-label:chat_toggle_aria" aria-label="Ask the v2 studio assistant"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20.5 11.5a8 8 0 0 1-11.7 7.1L4 19.8l1.2-4.4a8 8 0 1 1 15.3-3.9z"/><circle cx="8.6" cy="11.6" r=".6" fill="currentColor"/><circle cx="12.5" cy="11.6" r=".6" fill="currentColor"/><circle cx="16.4" cy="11.6" r=".6" fill="currentColor"/></svg><span class="dock-tip" data-t="s_chat_btn">Ask a question</span></button>
+    <a class="dock-item" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" style="--a:210deg;--i:1;--c:#9cc9f2"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15.2" r="1.5" fill="currentColor" stroke="none"/></svg><span class="dock-tip" data-t="contact_link_call">Book a 30-min call</span></a>
+    <a class="dock-item" href="https://linkedin.com/in/hugovermot" target="_blank" rel="noopener noreferrer" style="--a:240deg;--i:2;--c:#c3a8f2"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><rect x="3.6" y="9.2" width="3.6" height="11" rx=".8"/><circle cx="5.4" cy="5.4" r="2.1"/><path d="M10.2 9.2h3.4v1.6c.7-1.1 1.9-1.9 3.6-1.9 2.6 0 3.6 1.8 3.6 4.4v6.9h-3.6v-6.2c0-1.3-.4-2.2-1.6-2.2-1.3 0-1.8 1-1.8 2.3v6.1h-3.6z"/></svg><span class="dock-tip">LinkedIn</span></a>
+    <button class="dock-item" type="button" data-offer="" style="--a:270deg;--i:3;--c:#f4a9c4"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M4 7.5l8 5.8 8-5.8"/></svg><span class="dock-tip" data-t="contact_primary">Describe your project</span></button>
+  </div>
+</div>
 <section class="chat" id="chat" role="dialog" data-ta="aria-label:chat_panel_aria" aria-label="v2 studio assistant, an AI" hidden>
   <div class="chat-head"><strong data-t="chat_name">v2 studio · Assistant</strong><span data-t="chat_sub">AI answers on packages, prices and timing</span></div>
   <div class="chat-msgs" id="chat-msgs" aria-live="polite"></div>
@@ -372,10 +491,15 @@
   </form>
 </section>
 
-<script src="/portfolio/agence-data.js" defer></script>
-<script src="/portfolio/agence-i18n.js" defer></script>
-<script src="/portfolio/agence-story.js?v=20261017a" defer></script>
-<script src="/portfolio/agence-checkout.js?v=20261017a" defer></script>
+<script src="/portfolio/agence-data.js?v=20261018z3" defer></script>
+<script src="/portfolio/agence-i18n.js?v=20261019b" defer></script>
+<script src="/portfolio/agence-story.js?v=20261019b" defer></script>
+<script src="/portfolio/agence-extras.js?v=20261018v" defer></script>
+<script src="/portfolio/agence-mascot.js?v=20261018f" defer></script>
+<script src="/portfolio/agence-nav.js?v=20261018g" defer></script>
+<script src="/portfolio/agence-dock.js?v=20261018r" defer></script>
+<script src="/portfolio/agence-order-art.js?v=20261018z2" defer></script>
+<script src="/portfolio/agence-checkout.js?v=20261019b" defer></script>
 <script type="module" src="/portfolio/agence-island.js?v=20261012c"></script>
 <script type="module" src="/effects/dist/landing-figures.js"></script>
 </body>

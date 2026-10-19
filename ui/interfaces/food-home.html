@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="../assets/fonts.css">
+<script>document.documentElement.classList.add('js');</script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,24 +15,66 @@
   --bg: #f2ebcf;
   --card: rgba(255,255,255,.95);
   --ink: #141414;
-  --muted: rgba(20,20,20,.58);
+  --muted: rgba(20,20,20,.66);
   --soft: rgba(255,255,255,.72);
   --orange: #f47a4b;
+  --orange-text: #d44f1d;
+  --blue: #539ae9;
   --green: #d6ef73;
   --green-deep: #b6dc49;
+  --green-text: #6f9a3a;
   --shadow: 0 24px 44px rgba(94,71,26,.12);
+  --ease: cubic-bezier(.2,.7,.2,1);
+  --t-micro: 160ms;
+  --t-ui: 240ms;
+  --t-enter: 420ms;
+  --t-draw: 900ms;
 }
 
 html, body {
   width: 100%;
   height: 100%;
   font-family: var(--font-caros, 'Inter', sans-serif);
-  background:
-    radial-gradient(circle at top, rgba(255,255,255,.44), rgba(255,255,255,0) 34%),
-    linear-gradient(180deg, #efe7c5 0%, var(--bg) 100%);
+  background: var(--bg);
   color: var(--ink);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--t-micro) var(--ease),
+    box-shadow var(--t-micro) var(--ease),
+    background-color var(--t-ui) var(--ease),
+    color var(--t-ui) var(--ease);
+}
+
+button:active { transform: scale(.96); }
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.bottom-nav :focus-visible {
+  outline-color: #fff;
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .screen {
@@ -40,11 +83,25 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(circle at 62% 8%, rgba(255,197,108,.42), transparent 18%),
     radial-gradient(circle at 14% 30%, rgba(255,255,255,.25), transparent 18%),
     linear-gradient(180deg, #f8efda 0%, #f1e8c8 44%, #efe7ca 100%);
+}
+
+/* ─── Entrance: plays once, gated on .js so no-JS gets a complete page ─── */
+.js [data-enter] {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.js.is-in [data-enter] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--t-enter) var(--ease),
+    transform var(--t-enter) var(--ease);
+  transition-delay: calc(var(--i, 0) * 45ms);
 }
 
 .status {
@@ -98,7 +155,7 @@ html, body {
   color: rgba(20,20,20,.76);
 }
 
-.location {
+.dateline {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -113,17 +170,16 @@ html, body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
 .icon-card {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   background: transparent;
-  box-shadow: none;
   display: grid;
   place-items: center;
   color: #1d1d1d;
@@ -133,8 +189,8 @@ html, body {
 
 .icon-card svg,
 .search-ic svg,
+.search-clear svg,
 .filter-btn svg,
-.generate-btn svg,
 .wish-btn svg,
 .add-btn svg,
 .nav-item svg {
@@ -145,13 +201,19 @@ html, body {
 
 .notif-dot {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 6px;
+  right: 6px;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #f05a28;
   border: 1.5px solid #f2e9d4;
+  transition: opacity var(--t-ui) var(--ease), transform var(--t-ui) var(--ease);
+}
+
+.icon-card.is-read .notif-dot {
+  opacity: 0;
+  transform: scale(.4);
 }
 
 .hero-copy {
@@ -168,7 +230,7 @@ html, body {
 }
 
 .hero-copy .accent {
-  color: var(--orange);
+  color: var(--orange-text);
 }
 
 .search-row {
@@ -190,7 +252,12 @@ html, body {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 16px;
+  padding: 0 10px 0 16px;
+  transition: box-shadow var(--t-ui) var(--ease);
+}
+
+.search-box:focus-within {
+  box-shadow: var(--shadow), 0 0 0 2px var(--ink);
 }
 
 .search-ic {
@@ -201,68 +268,172 @@ html, body {
   display: grid;
   place-items: center;
   color: #1f1f1f;
+  flex-shrink: 0;
+  cursor: text;
 }
 
-.search-box span {
-  color: rgba(20,20,20,.54);
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size: 16px;
+  color: var(--ink);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-box input:focus-visible { outline: none; }
+.search-box input::-webkit-search-cancel-button,
+.search-box input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+.search-box input::placeholder { color: rgba(20,20,20,.62); opacity: 1; }
+
+.search-clear {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #1f1f1f;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: scale(.6);
+  pointer-events: none;
+  transition: opacity var(--t-micro) var(--ease), transform var(--t-micro) var(--ease), background-color var(--t-ui) var(--ease);
+}
+
+.search-box.has-text .search-clear {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
 }
 
 .filter-btn {
   border: none;
   display: grid;
   place-items: center;
+  color: #181818;
 }
 
-.assistant-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
+/* ─── Today: intake ring (the home's one chart) ─── */
+.today {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
   margin-top: 22px;
+  padding: 12px 16px 12px 12px;
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: var(--shadow);
 }
 
-.assistant-copy h2 {
+.ring {
+  width: 72px;
+  height: 72px;
+  display: block;
+}
+
+.ring-track {
+  fill: none;
+  stroke: rgba(20,20,20,.08);
+  stroke-width: 9;
+}
+
+.ring-fill {
+  fill: none;
+  stroke: var(--orange);
+  stroke-width: 9;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  stroke-dasharray: 100;
+  stroke-dashoffset: var(--off, 38);
+  transition: stroke-dashoffset var(--t-draw) var(--ease), stroke var(--t-ui) var(--ease);
+}
+
+.js:not(.is-in) .ring-fill { stroke-dashoffset: 100; }
+.js.is-in:not(.is-settled) .ring-fill { transition-delay: 180ms; }
+.today.near-goal .ring-fill { stroke: var(--orange-text); }
+
+.today-kcal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
   font-family: var(--font-bricolage, 'Inter', sans-serif);
   font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.04em;
   line-height: 1;
-  letter-spacing: -.05em;
 }
 
-.assistant-copy p {
-  margin-top: 8px;
+.today-kcal .num {
+  font-variant-numeric: tabular-nums;
+  min-width: 4.4ch;
+}
+
+.today-kcal .unit {
+  font-family: var(--font-caros, 'Inter', sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--muted);
-  font-size: 15px;
 }
 
-.generate-btn {
-  border: none;
-  min-width: 138px;
-  height: 58px;
-  padding: 0 18px;
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(255,255,255,.12), transparent 24%),
-    linear-gradient(180deg, #3a3a36 0%, #171715 100%);
-  box-shadow: 0 18px 28px rgba(28,28,26,.18);
-  color: #fff;
+.macros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+  font-size: 14px;
+  color: rgba(20,20,20,.8);
+  list-style: none;
+}
+
+.macro {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 15px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.macro::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+  flex-shrink: 0;
+}
+
+.macro b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 
 .chips {
+  position: relative;
   display: flex;
   gap: 12px;
   margin-top: 24px;
   overflow-x: auto;
   padding-bottom: 2px;
   scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 4px;
 }
 
 .chips::-webkit-scrollbar { display: none; }
+
+.chips.has-more {
+  -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, #000 82%, transparent);
+}
 
 .chip {
   flex: 0 0 auto;
@@ -276,6 +447,13 @@ html, body {
   font-family: var(--font-bricolage, 'Inter', sans-serif);
   font-size: 16px;
   color: #181818;
+  scroll-snap-align: start;
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: 0 14px 24px rgba(20,20,20,.16);
 }
 
 .section-head {
@@ -285,16 +463,11 @@ html, body {
   margin-top: 24px;
 }
 
-.section-head h3 {
+.section-head h2 {
   font-family: var(--font-bricolage, 'Inter', sans-serif);
   font-size: 22px;
   letter-spacing: -.05em;
-}
-
-.section-head a {
-  color: rgba(20,20,20,.64);
-  text-decoration: none;
-  font-size: 15px;
+  font-weight: 600;
 }
 
 .food-card {
@@ -303,20 +476,9 @@ html, body {
   min-height: 356px;
   padding: 18px 16px 16px;
   border-radius: 34px;
-  background:
-    radial-gradient(circle at 50% 44%, rgba(255,255,255,.26), transparent 22%),
-    linear-gradient(180deg, #d9f275 0%, #cde85b 100%);
+  background: linear-gradient(180deg, #d9f275 0%, #cde85b 100%);
   box-shadow: 0 24px 44px rgba(157,187,52,.24);
   overflow: hidden;
-}
-
-.food-card::before {
-  content: "";
-  position: absolute;
-  inset: 44px 38px 86px;
-  background:
-    radial-gradient(circle at center, rgba(255,255,255,.34) 0%, rgba(255,255,255,0) 62%);
-  filter: blur(12px);
 }
 
 .food-top {
@@ -327,13 +489,14 @@ html, body {
   z-index: 2;
 }
 
-.discount-pill,
+.score-pill,
 .wish-btn,
 .food-bottom {
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-.discount-pill {
+.score-pill {
   display: inline-flex;
   align-items: center;
   height: 50px;
@@ -342,7 +505,18 @@ html, body {
   background: rgba(255,255,255,.28);
   border: 1px solid rgba(255,255,255,.42);
   font-family: var(--font-bricolage, 'Inter', sans-serif);
-  font-size: 16px;
+}
+
+.score-pill strong {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.04em;
+}
+
+.score-pill small {
+  font-size: 14px;
+  color: rgba(20,20,20,.62);
+  margin-left: 1px;
 }
 
 .wish-btn {
@@ -354,7 +528,23 @@ html, body {
   border: 1px solid rgba(255,255,255,.42);
   display: grid;
   place-items: center;
-  color: #f05a6a;
+  color: var(--ink);
+}
+
+.wish-btn svg path {
+  fill: transparent;
+  transition: fill var(--t-ui) var(--ease), stroke var(--t-ui) var(--ease);
+}
+
+.wish-btn[aria-pressed="true"] svg path {
+  fill: var(--orange-text);
+  stroke: var(--orange-text);
+}
+
+.wish-btn.pop svg { animation: pop var(--t-ui) var(--ease); }
+
+@keyframes pop {
+  50% { transform: scale(1.22); }
 }
 
 .food-visual {
@@ -365,6 +555,8 @@ html, body {
   margin-top: 18px;
   min-height: 178px;
   z-index: 1;
+  transform: translate(calc(var(--tx, 0) * 7px), calc(var(--ty, 0) * 5px));
+  transition: transform 180ms linear;
 }
 
 .food-visual::before {
@@ -373,16 +565,33 @@ html, body {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at center, rgba(255,255,255,.42) 0%, rgba(255,255,255,0) 62%);
+  background: radial-gradient(circle at center, rgba(255,255,255,.42) 0%, rgba(255,255,255,0) 62%);
   filter: blur(4px);
+  transform: translate(calc(var(--tx, 0) * -12px), calc(var(--ty, 0) * -8px));
+  transition: transform 180ms linear;
 }
 
 .food-visual img {
   position: relative;
   width: min(74vw, 284px);
-  transform: rotate(-5deg);
+  height: auto;
+  transform: rotate(calc(-5deg + var(--tx, 0) * 2.5deg));
   filter: drop-shadow(0 20px 24px rgba(131,90,11,.28));
+  transition: transform 180ms linear;
+}
+
+.js:not(.is-in) .food-visual img {
+  transform: rotate(-11deg) translateY(26px) scale(.94);
+}
+
+.js.is-in:not(.is-settled) .food-visual img {
+  transition: transform 720ms var(--ease) 340ms;
+}
+
+.food-card.is-resetting .food-visual,
+.food-card.is-resetting .food-visual::before,
+.food-card.is-resetting .food-visual img {
+  transition: transform 560ms var(--ease);
 }
 
 .food-bottom {
@@ -401,10 +610,11 @@ html, body {
   z-index: 3;
 }
 
-.food-info h4 {
+.food-info h3 {
   font-family: var(--font-bricolage, 'Inter', sans-serif);
   font-size: 17px;
   letter-spacing: -.04em;
+  font-weight: 600;
 }
 
 .food-info p {
@@ -427,6 +637,33 @@ html, body {
   gap: 8px;
   font-size: 17px;
   color: #272727;
+}
+
+.add-btn svg path {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  transition: opacity var(--t-ui) var(--ease), transform var(--t-ui) var(--ease);
+}
+
+.add-btn .p-check {
+  opacity: 0;
+  transform: scale(.4) rotate(-45deg);
+}
+
+.add-btn[aria-pressed="true"] {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
+}
+
+.add-btn[aria-pressed="true"] .p-plus {
+  opacity: 0;
+  transform: rotate(90deg) scale(.4);
+}
+
+.add-btn[aria-pressed="true"] .p-check {
+  opacity: 1;
+  transform: none;
 }
 
 .bottom-nav {
@@ -453,10 +690,24 @@ html, body {
   place-items: center;
 }
 
-.nav-item.active {
+.nav-item[aria-current="page"] {
   background: linear-gradient(180deg, #ffbb9d 0%, #ff9469 100%);
   color: #1b120d;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.54);
+}
+
+@media (hover: hover) {
+  .icon-card:hover,
+  .search-clear:hover { background: rgba(20,20,20,.06); }
+  .chip:not([aria-pressed="true"]):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 26px rgba(94,71,26,.14);
+  }
+  .chip:not([aria-pressed="true"]):hover:active { transform: scale(.96); }
+  .filter-btn:hover { box-shadow: var(--shadow), 0 0 0 1px rgba(20,20,20,.1); }
+  .wish-btn:hover { background: rgba(255,255,255,.44); }
+  .add-btn:not([aria-pressed="true"]):hover { background: rgba(255,255,255,.92); }
+  .nav-item:not([aria-current="page"]):hover { background: rgba(255,255,255,.08); }
 }
 
 @media (max-height: 820px) {
@@ -488,26 +739,22 @@ html, body {
   }
 
   .hello {
-    font-size: 12px;
+    font-size: 13px;
   }
 
-  .location {
+  .dateline {
     gap: 5px;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.05;
   }
 
-  .header-actions {
-    gap: 8px;
-  }
-
   .hero-copy {
-    margin-top: 18px;
+    margin-top: 14px;
   }
 
   .hero-copy h1 {
-    max-width: 240px;
-    font-size: 34px;
+    max-width: 100%;
+    font-size: 36px;
     line-height: .92;
     letter-spacing: -.075em;
   }
@@ -515,13 +762,13 @@ html, body {
   .search-row {
     grid-template-columns: minmax(0, 1fr) 50px;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: 18px;
   }
 
   .search-box {
     min-height: 58px;
-    gap: 12px;
-    padding: 0 12px;
+    gap: 10px;
+    padding: 0 8px 0 12px;
     border-radius: 20px;
   }
 
@@ -531,43 +778,40 @@ html, body {
     border-radius: 12px;
   }
 
-  .search-box span {
-    font-size: 14px;
-  }
-
   .filter-btn {
     border-radius: 20px;
   }
 
-  .assistant-row {
-    align-items: center;
-    gap: 10px;
-    margin-top: 18px;
+  .today {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+    padding: 10px 12px;
+    border-radius: 20px;
   }
 
-  .assistant-copy h2 {
-    font-size: 14px;
+  .ring {
+    width: 60px;
+    height: 60px;
   }
 
-  .assistant-copy p {
+  .today-kcal {
+    font-size: 18px;
+  }
+
+  .today-kcal .unit {
+    font-size: 13px;
+  }
+
+  .macros {
+    gap: 3px 10px;
     margin-top: 6px;
-    font-size: 11px;
-    line-height: 1.28;
-  }
-
-  .generate-btn {
-    min-width: 112px;
-    height: 48px;
-    padding: 0 12px;
-    gap: 8px;
-    border-radius: 18px;
-    font-size: 12px;
-    flex-shrink: 0;
+    font-size: 13px;
   }
 
   .chips {
     gap: 10px;
-    margin-top: 18px;
+    margin-top: 14px;
   }
 
   .chip {
@@ -575,37 +819,40 @@ html, body {
     height: 40px;
     padding: 0 14px;
     border-radius: 14px;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .section-head {
-    margin-top: 18px;
+    margin-top: 16px;
   }
 
-  .section-head h3 {
-    font-size: 15px;
-  }
-
-  .section-head a {
-    font-size: 12px;
+  .section-head h2 {
+    font-size: 16px;
   }
 
   .food-card {
-    min-height: 302px;
+    min-height: 280px;
     margin-top: 12px;
     padding: 12px 12px 12px;
     border-radius: 26px;
   }
 
-  .discount-pill,
+  .score-pill,
   .wish-btn {
     height: 42px;
     border-radius: 16px;
   }
 
-  .discount-pill {
+  .score-pill {
     padding: 0 14px;
-    font-size: 14px;
+  }
+
+  .score-pill strong {
+    font-size: 17px;
+  }
+
+  .score-pill small {
+    font-size: 13px;
   }
 
   .wish-btn {
@@ -613,7 +860,7 @@ html, body {
   }
 
   .food-visual {
-    min-height: 146px;
+    min-height: 132px;
     margin-top: 8px;
   }
 
@@ -630,20 +877,20 @@ html, body {
     border-radius: 20px;
   }
 
-  .food-info h4 {
-    font-size: 13px;
+  .food-info h3 {
+    font-size: 14px;
   }
 
   .food-info p {
     margin-top: 3px;
-    font-size: 11px;
+    font-size: 13px;
   }
 
   .add-btn {
     min-width: 84px;
     height: 42px;
     border-radius: 16px;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .bottom-nav {
@@ -659,11 +906,30 @@ html, body {
     border-radius: 16px;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .js [data-enter] {
+    opacity: 1;
+    transform: none;
+  }
+  .js:not(.is-in) .food-visual img {
+    transform: rotate(-5deg);
+  }
+  .js:not(.is-in) .ring-fill {
+    stroke-dashoffset: var(--off, 38);
+  }
+}
 </style>
 </head>
 <body>
 <div class="screen">
-  <div class="status">
+  <div class="status" data-enter style="--i:0">
     <span class="status-time">9:30</span>
     <div class="status-icons" aria-hidden="true">
       <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
@@ -685,34 +951,25 @@ html, body {
     </div>
   </div>
 
-  <header class="header">
+  <header class="header" data-enter style="--i:1">
     <div class="profile">
       <div class="avatar" aria-hidden="true"></div>
       <div>
         <div class="hello">Hello Fazlur</div>
-        <div class="location">
-          <svg width="14" height="18" viewBox="0 0 14 18" fill="none" aria-hidden="true">
-            <path d="M7 16.2s5-4.52 5-8.72A5 5 0 002 7.48c0 4.2 5 8.72 5 8.72z" stroke="#1a1a1a" stroke-width="1.6"/>
-            <circle cx="7" cy="7" r="1.8" fill="#1a1a1a"/>
+        <div class="dateline">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3.5" y="5" width="17" height="15.5" rx="3.5" stroke="#1a1a1a" stroke-width="1.8"/>
+            <path d="M3.5 10h17M8 3v4M16 3v4" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round"/>
           </svg>
-          <span>New York, USA</span>
-          <svg width="12" height="7" viewBox="0 0 12 7" fill="none" aria-hidden="true">
-            <path d="M1 1.2L6 6l5-4.8" stroke="#1a1a1a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <span data-today>Today</span>
         </div>
       </div>
     </div>
 
     <div class="header-actions">
-      <button class="icon-card" type="button" aria-label="Bag">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M7 8.75h10.2l-.82 9.3a2 2 0 01-1.99 1.82H9.6a2 2 0 01-1.98-1.79L7 8.75z" stroke="currentColor" stroke-width="1.85"/>
-          <path d="M9.35 9V7.4a2.65 2.65 0 015.3 0V9" stroke="currentColor" stroke-width="1.85"/>
-        </svg>
-      </button>
-      <button class="icon-card" type="button" aria-label="Notifications">
+      <button class="icon-card" id="notifBtn" type="button" aria-label="Notifications, 1 unread">
         <span class="notif-dot"></span>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 4.6a4.55 4.55 0 00-4.55 4.55v2.1c0 .7-.22 1.39-.63 1.96l-1.05 1.47h12.46l-1.05-1.47a3.34 3.34 0 01-.63-1.96v-2.1A4.55 4.55 0 0012 4.6z" stroke="currentColor" stroke-width="1.8"/>
           <path d="M9.9 17.3a2.1 2.1 0 004.2 0" stroke="currentColor" stroke-width="1.8"/>
         </svg>
@@ -720,79 +977,86 @@ html, body {
     </div>
   </header>
 
-  <section class="hero-copy">
+  <section class="hero-copy" data-enter style="--i:2">
     <h1>What are you <span class="accent">eating</span> today?</h1>
   </section>
 
-  <div class="search-row">
+  <div class="search-row" data-enter style="--i:3">
     <div class="search-box">
-      <div class="search-ic">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <label class="search-ic" for="foodSearch">
+        <span class="sr-only">Search food</span>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="11" cy="11" r="6.7" stroke="currentColor" stroke-width="2"/>
           <path d="M16.2 16.2L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
-      </div>
-      <span>Search Food...</span>
+      </label>
+      <input id="foodSearch" type="search" placeholder="Search food" autocomplete="off" enterkeyhint="search" spellcheck="false">
+      <button class="search-clear" type="button" aria-label="Clear search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </div>
     <button class="filter-btn" type="button" aria-label="Filters">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M5 7h14M5 12h14M5 17h14" stroke="#181818" stroke-width="1.9"/>
-        <circle cx="9" cy="7" r="2.1" fill="#fff" stroke="#181818" stroke-width="1.7"/>
-        <circle cx="15" cy="12" r="2.1" fill="#fff" stroke="#181818" stroke-width="1.7"/>
-        <circle cx="11" cy="17" r="2.1" fill="#fff" stroke="#181818" stroke-width="1.7"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.9"/>
+        <circle cx="9" cy="7" r="2.1" fill="#fff" stroke="currentColor" stroke-width="1.7"/>
+        <circle cx="15" cy="12" r="2.1" fill="#fff" stroke="currentColor" stroke-width="1.7"/>
+        <circle cx="11" cy="17" r="2.1" fill="#fff" stroke="currentColor" stroke-width="1.7"/>
       </svg>
     </button>
   </div>
 
-  <div class="assistant-row">
-    <div class="assistant-copy">
-      <h2>AI food assistant</h2>
-      <p>Smart insights for healthier choices</p>
+  <section class="today" id="today" aria-label="Today's intake" data-enter style="--i:4">
+    <svg class="ring" viewBox="0 0 96 96" aria-hidden="true">
+      <circle class="ring-track" cx="48" cy="48" r="40"/>
+      <circle class="ring-fill" id="ringFill" cx="48" cy="48" r="40" pathLength="100"/>
+    </svg>
+    <div class="today-copy">
+      <p class="today-kcal"><span class="num" id="kcalNum">1,240</span><span class="unit">/ 2,000 kcal</span></p>
+      <ul class="macros">
+        <li class="macro" style="--c:var(--orange)"><b id="mCarb">150</b> g carbs</li>
+        <li class="macro" style="--c:var(--blue)"><b id="mFat">40</b> g fat</li>
+        <li class="macro" style="--c:var(--green-text)"><b id="mPro">70</b> g protein</li>
+      </ul>
+      <span class="sr-only" id="liveNote" aria-live="polite"></span>
     </div>
-    <button class="generate-btn" type="button">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M7.4 15.8l8.95-8.94a1.8 1.8 0 012.55 2.54l-8.95 8.95-3.58.97.97-3.58z" stroke="currentColor" stroke-width="1.75"/>
-        <path d="M14.8 6.95l2.24 2.24" stroke="currentColor" stroke-width="1.75"/>
-        <path d="M5.2 6.2l.66 1.5 1.5.66-1.5.67-.66 1.49-.67-1.49-1.5-.67 1.5-.66.67-1.5z" fill="currentColor"/>
-      </svg>
-      <span>Generate</span>
-    </button>
+  </section>
+
+  <div class="chips" role="group" aria-label="Browse" data-enter style="--i:5">
+    <button class="chip" type="button" aria-pressed="true">Popular</button>
+    <button class="chip" type="button" aria-pressed="false">Quick &amp; Easy</button>
+    <button class="chip" type="button" aria-pressed="false">Diets</button>
+    <button class="chip" type="button" aria-pressed="false">Protein</button>
   </div>
 
-  <div class="chips">
-    <button class="chip" type="button">Popular</button>
-    <button class="chip" type="button">Quick &amp; Easy</button>
-    <button class="chip" type="button">Diets</button>
-    <button class="chip" type="button">Protein</button>
+  <div class="section-head" data-enter style="--i:6">
+    <h2>Recommended for you</h2>
   </div>
 
-  <div class="section-head">
-    <h3>Recommended for you</h3>
-    <a href="#">See all</a>
-  </div>
-
-  <article class="food-card">
+  <article class="food-card" id="foodCard" data-enter style="--i:7">
     <div class="food-top">
-      <div class="discount-pill">20% Off</div>
-      <button class="wish-btn" type="button" aria-label="Favourite">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <p class="score-pill"><span class="sr-only">Nutrition score </span><strong>8.2</strong><small aria-hidden="true">/10</small><span class="sr-only"> out of 10</span></p>
+      <button class="wish-btn" id="wishBtn" type="button" aria-label="Favourite" aria-pressed="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 20.5l-1.22-1.1C6.1 15.18 3 12.4 3 8.9A4.9 4.9 0 017.98 4c1.54 0 3.01.72 4.02 1.87A5.24 5.24 0 0116.02 4 4.9 4.9 0 0121 8.9c0 3.5-3.1 6.28-7.78 10.5L12 20.5z" stroke="currentColor" stroke-width="1.85"/>
         </svg>
       </button>
     </div>
 
     <div class="food-visual">
-      <img src="../assets/burger-cutout.png" alt="BlackLabel Burger">
+      <img src="../assets/burger-cutout.png" alt="Black Label Burger" width="792" height="832" decoding="async" fetchpriority="high">
     </div>
 
     <div class="food-bottom">
       <div class="food-info">
-        <h4>Black Label Burger</h4>
+        <h3>Black Label Burger</h3>
         <p>650 Kcal</p>
       </div>
-      <button class="add-btn" type="button">
+      <button class="add-btn" id="addBtn" type="button" aria-pressed="false">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          <path class="p-plus" d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          <path class="p-check" d="M5.5 12.5l4 4 9-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span>Add</span>
       </button>
@@ -800,30 +1064,220 @@ html, body {
   </article>
 
   <nav class="bottom-nav" aria-label="Primary">
-    <button class="nav-item active" type="button" aria-label="Home">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <button class="nav-item" type="button" aria-label="Home" aria-current="page">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M4.5 10.4L12 4.5l7.5 5.9v8a1.4 1.4 0 01-1.4 1.4h-3.9v-5.1a1 1 0 00-1-1H10.8a1 1 0 00-1 1v5.1H5.9a1.4 1.4 0 01-1.4-1.4v-8z" stroke="currentColor" stroke-width="1.9"/>
       </svg>
     </button>
-    <button class="nav-item" type="button" aria-label="Wishlist">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <button class="nav-item" type="button" aria-label="Favourites">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 20.5l-1.22-1.1C6.1 15.18 3 12.4 3 8.9A4.9 4.9 0 017.98 4c1.54 0 3.01.72 4.02 1.87A5.24 5.24 0 0116.02 4 4.9 4.9 0 0121 8.9c0 3.5-3.1 6.28-7.78 10.5L12 20.5z" stroke="currentColor" stroke-width="1.85"/>
       </svg>
     </button>
-    <button class="nav-item" type="button" aria-label="Cart">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <path d="M4 6.5h2.3l1.9 8.05a1.2 1.2 0 001.17.95h7.96a1.2 1.2 0 001.16-.88l1.43-5.17H8.2" stroke="currentColor" stroke-width="1.85"/>
-        <circle cx="10.2" cy="18.55" r="1.45" fill="currentColor"/>
-        <circle cx="17.25" cy="18.55" r="1.45" fill="currentColor"/>
+    <button class="nav-item" type="button" aria-label="History">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.85"/>
+        <path d="M12 7.6V12l3 2" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
     <button class="nav-item" type="button" aria-label="Profile">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <circle cx="12" cy="8.6" r="3.6" stroke="currentColor" stroke-width="1.85"/>
         <path d="M5.2 19.2c1.5-2.9 3.88-4.35 6.8-4.35s5.3 1.45 6.8 4.35" stroke="currentColor" stroke-width="1.85"/>
       </svg>
     </button>
   </nav>
 </div>
+
+<script>
+(function () {
+  var doc = document.documentElement;
+  var reduceMq = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  function reduced() { return reduceMq.matches; }
+  function $(s) { return document.querySelector(s); }
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  /* Date line: "Sunday, Oct 19"; the static "Today" stays as the no-JS text. */
+  var todayEl = $('[data-today]');
+  if (todayEl) {
+    try {
+      todayEl.textContent = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date());
+    } catch (e) { /* keep "Today" */ }
+  }
+
+  /* Today ring: demo intake for the fictional product. The meal values are the
+     pair screen's per-serving figures (650 kcal, 60.5 g / 7.8 g / 5 g). */
+  var GOAL = 2000;
+  var base = { kcal: 1240, carb: 150, fat: 40, pro: 70 };
+  var meal = { kcal: 650, carb: 60.5, fat: 7.8, pro: 5 };
+  var shown = { kcal: 0, carb: base.carb, fat: base.fat, pro: base.pro };
+  var out = { kcal: $('#kcalNum'), carb: $('#mCarb'), fat: $('#mFat'), pro: $('#mPro') };
+  var today = $('#today');
+  var ring = $('#ringFill');
+  var live = $('#liveNote');
+  var raf = 0;
+
+  function sum(a, b) { return { kcal: a.kcal + b.kcal, carb: a.carb + b.carb, fat: a.fat + b.fat, pro: a.pro + b.pro }; }
+  function copy(o) { return { kcal: o.kcal, carb: o.carb, fat: o.fat, pro: o.pro }; }
+
+  function paint(v) {
+    out.kcal.textContent = fmt(v.kcal);
+    out.carb.textContent = fmt(v.carb);
+    out.fat.textContent = fmt(v.fat);
+    out.pro.textContent = fmt(v.pro);
+  }
+
+  function setRing(kcal) {
+    var pct = Math.min(100, Math.round(kcal / GOAL * 100));
+    ring.style.setProperty('--off', String(100 - pct));
+    today.classList.toggle('near-goal', pct >= 90);
+  }
+
+  function tween(to, ms) {
+    cancelAnimationFrame(raf);
+    if (reduced() || ms === 0) { shown = copy(to); paint(shown); return; }
+    var from = copy(shown);
+    var t0 = performance.now();
+    function step(now) {
+      var t = Math.min(1, (now - t0) / ms);
+      var k = easeOut(t);
+      shown.kcal = from.kcal + (to.kcal - from.kcal) * k;
+      shown.carb = from.carb + (to.carb - from.carb) * k;
+      shown.fat = from.fat + (to.fat - from.fat) * k;
+      shown.pro = from.pro + (to.pro - from.pro) * k;
+      paint(shown);
+      if (t < 1) raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+  }
+
+  /* Entrance: once, after fonts settle, capped at 300 ms so an offline page never waits. */
+  var entered = false;
+  function enter() {
+    if (entered) return;
+    entered = true;
+    doc.classList.add('is-in');
+    setRing(base.kcal);
+    if (reduced()) {
+      shown = copy(base);
+      paint(shown);
+      doc.classList.add('is-settled');
+      return;
+    }
+    setTimeout(function () { tween(base, 900); }, 200);
+    setTimeout(function () { doc.classList.add('is-settled'); }, 1200);
+  }
+
+  if (reduced()) {
+    enter();
+  } else {
+    paint(shown); /* kcal reads 0 while still hidden, then counts up */
+    var armed = false;
+    function go() {
+      if (armed) return;
+      armed = true;
+      requestAnimationFrame(function () { requestAnimationFrame(enter); });
+    }
+    setTimeout(go, 300);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go, go);
+  }
+
+  /* Add: logs the meal into the ring; second tap undoes it (pair of "Logged ✓"). */
+  var addBtn = $('#addBtn');
+  var addLabel = addBtn.querySelector('span');
+  var added = false;
+  addBtn.addEventListener('click', function () {
+    added = !added;
+    addBtn.setAttribute('aria-pressed', String(added));
+    addLabel.textContent = added ? 'Added' : 'Add';
+    var to = added ? sum(base, meal) : base;
+    setRing(to.kcal);
+    tween(to, 600);
+    live.textContent = (added ? 'Black Label Burger added. ' : 'Black Label Burger removed. ') + fmt(to.kcal) + ' of ' + fmt(GOAL) + ' kcal today.';
+  });
+
+  /* Favourite: pressed state + one pop. */
+  var wish = $('#wishBtn');
+  wish.addEventListener('click', function () {
+    var on = wish.getAttribute('aria-pressed') !== 'true';
+    wish.setAttribute('aria-pressed', String(on));
+    if (on && !reduced()) {
+      wish.classList.remove('pop');
+      void wish.offsetWidth;
+      wish.classList.add('pop');
+    }
+  });
+
+  /* Notifications: a tap marks them read. */
+  var notif = $('#notifBtn');
+  notif.addEventListener('click', function () {
+    notif.classList.add('is-read');
+    notif.setAttribute('aria-label', 'Notifications');
+  });
+
+  /* Search: clear button appears with text. */
+  var input = $('#foodSearch');
+  var box = input.parentNode;
+  var clearBtn = box.querySelector('.search-clear');
+  function syncClear() { box.classList.toggle('has-text', input.value.length > 0); }
+  input.addEventListener('input', syncClear);
+  clearBtn.addEventListener('click', function () {
+    input.value = '';
+    syncClear();
+    input.focus();
+  });
+  syncClear();
+
+  /* Chips: single select, kept in view without touching the parent frame's scroll. */
+  var chips = $('.chips');
+  function moreCheck() {
+    chips.classList.toggle('has-more', chips.scrollLeft + chips.clientWidth < chips.scrollWidth - 1);
+  }
+  chips.addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    var all = chips.querySelectorAll('.chip');
+    for (var i = 0; i < all.length; i++) all[i].setAttribute('aria-pressed', String(all[i] === b));
+    var pad = 12;
+    var left = b.offsetLeft;
+    var right = left + b.offsetWidth;
+    var target = null;
+    if (left - pad < chips.scrollLeft) target = left - pad;
+    else if (right + pad > chips.scrollLeft + chips.clientWidth) target = right + pad - chips.clientWidth;
+    if (target !== null) chips.scrollTo({ left: Math.max(0, target), behavior: reduced() ? 'auto' : 'smooth' });
+  });
+  chips.addEventListener('scroll', moreCheck, { passive: true });
+  window.addEventListener('resize', moreCheck);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(moreCheck, moreCheck);
+  moreCheck();
+
+  /* Pointer tilt on the card: desktop pointers only, after the entrance, never under reduced motion. */
+  var card = $('#foodCard');
+  var fine = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (fine) {
+    var tx = 0, ty = 0, queued = false;
+    card.addEventListener('pointermove', function (e) {
+      if (reduced() || !doc.classList.contains('is-settled')) return;
+      var r = card.getBoundingClientRect();
+      tx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+      ty = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () {
+        queued = false;
+        card.classList.remove('is-resetting');
+        card.style.setProperty('--tx', tx.toFixed(3));
+        card.style.setProperty('--ty', ty.toFixed(3));
+      });
+    });
+    card.addEventListener('pointerleave', function () {
+      card.classList.add('is-resetting');
+      card.style.setProperty('--tx', '0');
+      card.style.setProperty('--ty', '0');
+    });
+  }
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,228 @@
+  <!-- /agence/legal: legal notices (mentions légales) and personal data, 2026-10-18. Both languages are here;
+       agence-legal.css shows the one matching <html lang>. The data section describes what the /agence pages
+       actually send (agence-checkout.js, lib/agence-checkout.mjs, /api/hrhv): update it when that changes.
+       DRAFT: fill every .legal-ph, have it reviewed by an accountant or a lawyer, remove the draft notes, then
+       drop noindex in lib/agence-site.mjs and add the footer links. See docs/AGENCE_PAYMENTS.md. -->
+  <section class="legal" data-tone="light" id="legal">
+    <div class="wrap">
+
+      <article class="legal-doc" lang="en" data-legal-lang="en" data-doc-title="Legal notices · v2 studio" data-doc-desc="Who publishes and hosts the v2 studio pages, and what happens to the personal data you share with us." aria-labelledby="en-legal-title">
+        <header class="legal-head">
+          <span class="dab" aria-hidden="true"></span>
+          <h1 class="display h2" id="en-legal-title">Legal notices<br><em>who runs this site.</em></h1>
+          <p class="lede">Who publishes the v2 studio pages, who hosts them, and what happens to the personal data you share with us.</p>
+          <p class="legal-meta">Draft of 18 October 2026</p>
+          <p class="legal-draft" role="note"><b>Draft for review.</b> This page has not been checked by an accountant or a lawyer yet, and the fields in brackets are still to be filled in.</p>
+        </header>
+
+        <div class="legal-body">
+          <nav class="legal-toc" aria-labelledby="en-legal-toc">
+            <p id="en-legal-toc">On this page</p>
+            <ol>
+              <li><a href="#en-publisher">1. Publisher</a></li>
+              <li><a href="#en-host">2. Host</a></li>
+              <li><a href="#en-ip">3. Intellectual property</a></li>
+              <li><a href="#en-data">4. Personal data</a></li>
+              <li><a href="#en-storage">5. Storage in your browser</a></li>
+              <li><a href="#en-contact">6. Contact</a></li>
+            </ol>
+          </nav>
+
+          <div class="legal-text">
+            <section id="en-publisher">
+              <h2>1. Publisher</h2>
+              <p>The v2 studio pages (jobyougo.xyz/agence and its sub-pages) are published by:</p>
+              <dl class="legal-ids">
+                <dt>Trade name</dt><dd>v2 studio</dd>
+                <dt>Publisher</dt><dd><mark class="legal-ph">[Legal name of the seller]</mark></dd>
+                <dt>Legal form</dt><dd><mark class="legal-ph">[Legal form]</mark></dd>
+                <dt>Share capital</dt><dd><mark class="legal-ph">[Amount, if the seller is a company]</mark></dd>
+                <dt>SIREN / SIRET</dt><dd><mark class="legal-ph">[SIREN or SIRET number]</mark></dd>
+                <dt>Registration</dt><dd><mark class="legal-ph">[Register and registration number]</mark></dd>
+                <dt>Address</dt><dd><mark class="legal-ph">[Registered address]</mark></dd>
+                <dt>VAT</dt><dd><mark class="legal-ph">[VAT number, or “VAT not applicable, article 293 B of the French General Tax Code”]</mark></dd>
+                <dt>Email</dt><dd><a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a></dd>
+                <dt>Phone</dt><dd><mark class="legal-ph">[Phone number]</mark></dd>
+                <dt>Publication director</dt><dd><mark class="legal-ph">[Name of the publication director]</mark></dd>
+              </dl>
+            </section>
+
+            <section id="en-host">
+              <h2>2. Host</h2>
+              <dl class="legal-ids">
+                <dt>Host</dt><dd><mark class="legal-ph">[Name of the host]</mark></dd>
+                <dt>Address</dt><dd><mark class="legal-ph">[Address of the host]</mark></dd>
+                <dt>Phone</dt><dd><mark class="legal-ph">[Phone number of the host]</mark></dd>
+              </dl>
+            </section>
+
+            <section id="en-ip">
+              <h2>3. Intellectual property</h2>
+              <ul>
+                <li>The text, design and code of these pages belong to <mark class="legal-ph">[Legal name of the seller]</mark>, unless stated otherwise. Do not copy them without written permission.</li>
+                <li>Company names and logos shown on these pages belong to their owners. Showing them does not make these companies v2 studio clients: each case says in what role Hugo Vermot worked on it.</li>
+                <li>The Cabinet Grotesk and Boska typefaces are by the Indian Type Foundry, used under the ITF Free Font License (Fontshare). JetBrains Mono is used under the SIL Open Font License.</li>
+              </ul>
+            </section>
+
+            <section id="en-data">
+              <h2>4. Personal data</h2>
+              <p>The controller is <mark class="legal-ph">[Legal name of the seller]</mark>, reachable at <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>.</p>
+              <h3>What we collect, and why</h3>
+              <ul>
+                <li><b>When you order or write to us:</b> your name and email, the link and the brief you send, whether you buy as a business or as an individual, your country, and for a business its name and VAT number. We use them to answer you, confirm the scope, carry out the order and invoice it. Legal basis: the steps before a contract and the contract itself, and for invoices our legal obligations.</li>
+                <li><b>When you order:</b> the order form sends your order (package, options, brief, link, name, email, how you order, country, VAT number) to our server, which emails it to us and sends you a confirmation through our email provider. It is kept in those two emails, in mailboxes hosted by Google (Gmail), and as one line in the server log. If sending fails, the form prepares the email in your own email app instead.</li>
+                <li><b>When you pay by card:</b> your order and your details go to our server and to Stripe, which takes the payment and issues the invoice. You enter your card on Stripe’s page; we never see it.</li>
+                <li><b>When you use the assistant:</b> your messages go to our server and, through OpenRouter, to an AI model that writes the answer. Our server does not save the conversation. Please do not share sensitive information in it. Legal basis: our legitimate interest in answering visitors’ questions.</li>
+                <li><b>When you book a call:</b> Calendly handles the booking, under its own privacy policy.</li>
+                <li><b>Technical data:</b> like any website, the host receives your IP address and the pages you request, to deliver them and keep the site secure. Our server also uses your IP address briefly, in memory only, to limit repeated orders and messages.</li>
+              </ul>
+              <h3>Who receives it</h3>
+              <ul>
+                <li>The host: <mark class="legal-ph">[Name of the host]</mark>.</li>
+                <li>Stripe, for payments and invoices.</li>
+                <li>Google, for email.</li>
+                <li>OpenRouter and the AI model provider it routes the request to, for the assistant.</li>
+                <li>Calendly, for booking calls.</li>
+              </ul>
+              <p>Some of these providers are based in the United States. Transfers rely on the safeguards they offer, such as the EU-U.S. Data Privacy Framework or the European Commission’s standard contractual clauses.</p>
+              <h3>How long we keep it</h3>
+              <ul>
+                <li>Invoices and order records: 10 years, as French accounting law requires.</li>
+                <li>Emails about a project that did not go ahead: <mark class="legal-ph">[Retention period to set]</mark>.</li>
+                <li>The order draft in your browser: 14 days at most (section 5).</li>
+              </ul>
+              <h3>Your rights</h3>
+              <p>You can ask to access, correct or delete your data, to restrict or object to its use, and to receive it in a portable format. Write to <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>: we answer within one month, as the GDPR requires. You can also complain to the CNIL (<a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">cnil.fr</a>), the French data protection authority.</p>
+            </section>
+
+            <section id="en-storage">
+              <h2>5. Storage in your browser</h2>
+              <p>These pages set no advertising or analytics cookies. They keep a few things in your own browser, which never leave it unless you send an order:</p>
+              <ul>
+                <li>your language choice (<code>v2studio-lang</code>);</li>
+                <li>the order you are writing (<code>v2studio-order-draft</code>), for 14 days at most. It is deleted once the order is sent or when you leave for the payment page;</li>
+                <li>while you are on Stripe’s payment page, the order itself (<code>v2studio-order</code>), for that browser tab only, so that a cancelled payment brings you back to the same order.</li>
+              </ul>
+              <p>Stripe’s payment page and Calendly set their own cookies, under their own policies.</p>
+            </section>
+
+            <section id="en-contact">
+              <h2>6. Contact</h2>
+              <p>For any question about these pages, write to <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>. The terms that apply to orders are the <a href="/agence/terms">terms of sale</a>.</p>
+            </section>
+          </div>
+        </div>
+      </article>
+
+      <article class="legal-doc" lang="fr" data-legal-lang="fr" data-doc-title="Mentions légales · v2 studio" data-doc-desc="Qui édite et héberge les pages v2 studio, et ce que deviennent les données personnelles que vous nous confiez." aria-labelledby="fr-legal-title">
+        <header class="legal-head">
+          <span class="dab" aria-hidden="true"></span>
+          <h1 class="display h2" id="fr-legal-title">Mentions légales<br><em>qui édite ce site.</em></h1>
+          <p class="lede">Qui édite les pages v2 studio, qui les héberge, et ce que deviennent les données personnelles que vous nous confiez.</p>
+          <p class="legal-meta">Projet du 18 octobre 2026</p>
+          <p class="legal-draft" role="note"><b>Projet à relire.</b> Cette page n’a pas encore été vérifiée par un expert-comptable ou un avocat, et les champs entre crochets restent à compléter.</p>
+        </header>
+
+        <div class="legal-body">
+          <nav class="legal-toc" aria-labelledby="fr-legal-toc">
+            <p id="fr-legal-toc">Sur cette page</p>
+            <ol>
+              <li><a href="#fr-editeur">1. Éditeur</a></li>
+              <li><a href="#fr-hebergeur">2. Hébergeur</a></li>
+              <li><a href="#fr-propriete">3. Propriété intellectuelle</a></li>
+              <li><a href="#fr-donnees">4. Données personnelles</a></li>
+              <li><a href="#fr-stockage">5. Stockage dans votre navigateur</a></li>
+              <li><a href="#fr-contact">6. Contact</a></li>
+            </ol>
+          </nav>
+
+          <div class="legal-text">
+            <section id="fr-editeur">
+              <h2>1. Éditeur</h2>
+              <p>Les pages v2 studio (jobyougo.xyz/agence et ses sous-pages) sont éditées par&nbsp;:</p>
+              <dl class="legal-ids">
+                <dt>Nom commercial</dt><dd>v2 studio</dd>
+                <dt>Éditeur</dt><dd><mark class="legal-ph">[Nom légal ou dénomination du vendeur]</mark></dd>
+                <dt>Forme juridique</dt><dd><mark class="legal-ph">[Forme juridique]</mark></dd>
+                <dt>Capital social</dt><dd><mark class="legal-ph">[Montant, si le vendeur est une société]</mark></dd>
+                <dt>SIREN / SIRET</dt><dd><mark class="legal-ph">[Numéro SIREN ou SIRET]</mark></dd>
+                <dt>Immatriculation</dt><dd><mark class="legal-ph">[Registre et numéro d’immatriculation]</mark></dd>
+                <dt>Adresse</dt><dd><mark class="legal-ph">[Adresse du siège]</mark></dd>
+                <dt>TVA</dt><dd><mark class="legal-ph">[Numéro de TVA, ou «&nbsp;TVA non applicable, article 293 B du CGI&nbsp;»]</mark></dd>
+                <dt>E-mail</dt><dd><a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a></dd>
+                <dt>Téléphone</dt><dd><mark class="legal-ph">[Numéro de téléphone]</mark></dd>
+                <dt>Directeur de la publication</dt><dd><mark class="legal-ph">[Nom du directeur de la publication]</mark></dd>
+              </dl>
+            </section>
+
+            <section id="fr-hebergeur">
+              <h2>2. Hébergeur</h2>
+              <dl class="legal-ids">
+                <dt>Hébergeur</dt><dd><mark class="legal-ph">[Nom de l’hébergeur]</mark></dd>
+                <dt>Adresse</dt><dd><mark class="legal-ph">[Adresse de l’hébergeur]</mark></dd>
+                <dt>Téléphone</dt><dd><mark class="legal-ph">[Téléphone de l’hébergeur]</mark></dd>
+              </dl>
+            </section>
+
+            <section id="fr-propriete">
+              <h2>3. Propriété intellectuelle</h2>
+              <ul>
+                <li>Les textes, le design et le code de ces pages appartiennent à <mark class="legal-ph">[Nom légal ou dénomination du vendeur]</mark>, sauf mention contraire. Ne les copiez pas sans autorisation écrite.</li>
+                <li>Les noms et logos d’entreprises affichés sur ces pages appartiennent à leurs propriétaires. Leur présence ne fait pas de ces entreprises des clients de v2 studio&nbsp;: chaque cas précise à quel titre Hugo Vermot y a travaillé.</li>
+                <li>Les polices Cabinet Grotesk et Boska sont de l’Indian Type Foundry, utilisées sous licence ITF Free Font License (Fontshare). JetBrains Mono est utilisée sous licence SIL Open Font License.</li>
+              </ul>
+            </section>
+
+            <section id="fr-donnees">
+              <h2>4. Données personnelles</h2>
+              <p>Le responsable du traitement est <mark class="legal-ph">[Nom légal ou dénomination du vendeur]</mark>, joignable à <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>.</p>
+              <h3>Ce que nous collectons, et pourquoi</h3>
+              <ul>
+                <li><b>Quand vous commandez ou nous écrivez&nbsp;:</b> vos nom et e-mail, le lien et le brief que vous envoyez, le fait d’acheter en tant qu’entreprise ou en tant que particulier, votre pays, et pour une entreprise son nom et son numéro de TVA. Nous les utilisons pour vous répondre, confirmer le périmètre, réaliser la commande et la facturer. Base légale&nbsp;: les mesures précontractuelles et le contrat lui-même, et pour les factures nos obligations légales.</li>
+                <li><b>Quand vous commandez&nbsp;:</b> le formulaire de commande transmet votre commande (formule, options, brief, lien, nom, e-mail, qualité, pays, numéro de TVA) à notre serveur, qui nous l’envoie par e-mail et vous adresse une confirmation via notre prestataire d’e-mail. Elle est conservée dans ces deux e-mails, dans des boîtes hébergées par Google (Gmail), et sous forme d’une ligne dans le journal du serveur. Si l’envoi échoue, le formulaire prépare l’e-mail dans votre propre messagerie.</li>
+                <li><b>Quand vous payez par carte&nbsp;:</b> votre commande et vos coordonnées sont transmises à notre serveur et à Stripe, qui encaisse le paiement et émet la facture. Vous saisissez votre carte sur la page de Stripe&nbsp;; nous ne la voyons jamais.</li>
+                <li><b>Quand vous utilisez l’assistant&nbsp;:</b> vos messages sont transmis à notre serveur puis, via OpenRouter, à un modèle d’IA qui rédige la réponse. Notre serveur n’enregistre pas la conversation. Merci de ne pas y partager d’informations sensibles. Base légale&nbsp;: notre intérêt légitime à répondre aux questions des visiteurs.</li>
+                <li><b>Quand vous réservez un appel&nbsp;:</b> Calendly gère la réservation, selon sa propre politique de confidentialité.</li>
+                <li><b>Données techniques&nbsp;:</b> comme pour tout site, l’hébergeur reçoit votre adresse IP et les pages demandées, pour les afficher et sécuriser le site. Notre serveur utilise aussi votre adresse IP brièvement, en mémoire uniquement, pour limiter les commandes et les messages répétés.</li>
+              </ul>
+              <h3>Qui les reçoit</h3>
+              <ul>
+                <li>L’hébergeur&nbsp;: <mark class="legal-ph">[Nom de l’hébergeur]</mark>.</li>
+                <li>Stripe, pour les paiements et les factures.</li>
+                <li>Google, pour l’e-mail.</li>
+                <li>OpenRouter et le fournisseur du modèle d’IA vers lequel il oriente la demande, pour l’assistant.</li>
+                <li>Calendly, pour la réservation des appels.</li>
+              </ul>
+              <p>Certains de ces prestataires sont établis aux États-Unis. Les transferts reposent sur les garanties qu’ils proposent, comme le Data Privacy Framework UE-États-Unis ou les clauses contractuelles types de la Commission européenne.</p>
+              <h3>Combien de temps nous les gardons</h3>
+              <ul>
+                <li>Factures et traces de commande&nbsp;: 10 ans, comme l’exige le droit comptable français.</li>
+                <li>E-mails sur un projet qui ne s’est pas fait&nbsp;: <mark class="legal-ph">[Durée de conservation à fixer]</mark>.</li>
+                <li>Le brouillon de commande dans votre navigateur&nbsp;: 14 jours au plus (article 5).</li>
+              </ul>
+              <h3>Vos droits</h3>
+              <p>Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement, la limitation de leur traitement, vous opposer à leur utilisation, et les recevoir dans un format portable. Écrivez à <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>&nbsp;: nous répondons sous un mois, comme le prévoit le RGPD. Vous pouvez aussi adresser une réclamation à la CNIL (<a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">cnil.fr</a>).</p>
+            </section>
+
+            <section id="fr-stockage">
+              <h2>5. Stockage dans votre navigateur</h2>
+              <p>Ces pages ne déposent aucun cookie publicitaire ni de mesure d’audience. Elles gardent quelques éléments dans votre propre navigateur, qui n’en sortent que si vous envoyez une commande&nbsp;:</p>
+              <ul>
+                <li>votre choix de langue (<code>v2studio-lang</code>)&nbsp;;</li>
+                <li>la commande en cours de rédaction (<code>v2studio-order-draft</code>), 14 jours au plus. Elle est effacée une fois la commande envoyée ou quand vous passez à la page de paiement&nbsp;;</li>
+                <li>pendant que vous êtes sur la page de paiement de Stripe, la commande elle-même (<code>v2studio-order</code>), pour cet onglet seulement, afin qu’un paiement annulé vous ramène à la même commande.</li>
+              </ul>
+              <p>La page de paiement de Stripe et Calendly déposent leurs propres cookies, selon leurs propres politiques.</p>
+            </section>
+
+            <section id="fr-contact">
+              <h2>6. Contact</h2>
+              <p>Pour toute question sur ces pages, écrivez à <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>. Les commandes sont soumises aux <a href="/agence/terms">conditions générales de vente</a>.</p>
+            </section>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>

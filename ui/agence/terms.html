@@ -1,0 +1,550 @@
+  <!-- /agence/terms: terms of sale (CGV), 2026-10-18. Both languages are here; agence-legal.css shows the one
+       matching <html lang>. Prices, delays and revisions mirror AGENCY_OFFERS in ui/portfolio/agence-data.js
+       (tests/agence-site.test.mjs fails when they drift). DRAFT: fill every .legal-ph, have it reviewed by an
+       accountant or a lawyer, remove the draft notes, then drop noindex in lib/agence-site.mjs and add the
+       footer links. See docs/AGENCE_PAYMENTS.md. -->
+  <section class="legal" data-tone="light" id="terms">
+    <div class="wrap">
+
+      <article class="legal-doc" lang="en" data-legal-lang="en" data-doc-title="Terms of sale · v2 studio" data-doc-desc="Terms of sale for v2 studio packages: prices, delivery, revisions, payment, ownership and the withdrawal right." aria-labelledby="en-terms-title">
+        <header class="legal-head">
+          <span class="dab" aria-hidden="true"></span>
+          <h1 class="display h2" id="en-terms-title">Terms of sale<br><em>for every package.</em></h1>
+          <p class="lede">What you buy, when it is delivered, what you pay and what you own. These terms apply to every Redesign and Build ordered on this site.</p>
+          <p class="legal-meta">Draft of 18 October 2026</p>
+          <p class="legal-draft" role="note"><b>Draft for review.</b> These terms have not been checked by an accountant or a lawyer yet, and the fields in brackets are still to be filled in. They do not apply to any order yet.</p>
+        </header>
+
+        <div class="legal-body">
+          <nav class="legal-toc" aria-labelledby="en-terms-toc">
+            <p id="en-terms-toc">On this page</p>
+            <ol>
+              <li><a href="#en-seller">1. Who sells</a></li>
+              <li><a href="#en-scope">2. What these terms cover</a></li>
+              <li><a href="#en-packages">3. Packages and prices</a></li>
+              <li><a href="#en-order">4. Ordering</a></li>
+              <li><a href="#en-payment">5. Payment and invoices</a></li>
+              <li><a href="#en-delivery">6. Delivery dates</a></li>
+              <li><a href="#en-process">7. How the work runs</a></li>
+              <li><a href="#en-revisions">8. Revisions and fixes</a></li>
+              <li><a href="#en-fit">9. If the brief does not fit the package</a></li>
+              <li><a href="#en-refunds">10. Refunds</a></li>
+              <li><a href="#en-withdrawal">11. Withdrawal right for individuals</a></li>
+              <li><a href="#en-delays">12. Delays and absence</a></li>
+              <li><a href="#en-client">13. What you provide</a></li>
+              <li><a href="#en-ownership">14. Ownership of the work</a></li>
+              <li><a href="#en-confidentiality">15. Confidentiality and portfolio</a></li>
+              <li><a href="#en-liability">16. Liability</a></li>
+              <li><a href="#en-data">17. Personal data</a></li>
+              <li><a href="#en-law">18. Disputes and applicable law</a></li>
+              <li><a href="#en-changes">19. Changes and language</a></li>
+            </ol>
+          </nav>
+
+          <div class="legal-text">
+            <section id="en-seller">
+              <h2>1. Who sells</h2>
+              <p>v2 studio is a design studio founded and run by Hugo Vermot. v2 studio is the trade name of the seller below.</p>
+              <dl class="legal-ids">
+                <dt>Seller</dt><dd><mark class="legal-ph">[Legal name of the seller]</mark></dd>
+                <dt>Legal form</dt><dd><mark class="legal-ph">[Legal form]</mark></dd>
+                <dt>SIREN / SIRET</dt><dd><mark class="legal-ph">[SIREN or SIRET number]</mark></dd>
+                <dt>Address</dt><dd><mark class="legal-ph">[Registered address]</mark></dd>
+                <dt>VAT</dt><dd><mark class="legal-ph">[VAT number, or “VAT not applicable, article 293 B of the French General Tax Code”]</mark></dd>
+                <dt>Email</dt><dd><a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a></dd>
+                <dt>Phone</dt><dd><mark class="legal-ph">[Phone number]</mark></dd>
+              </dl>
+              <p>In these terms, “we” means the seller above, and “you” means the person or the business that orders.</p>
+            </section>
+
+            <section id="en-scope">
+              <h2>2. What these terms cover</h2>
+              <p>These terms apply to every order of a Redesign or a Build placed on jobyougo.xyz/agence, by card or by email, and to the add-ons ordered with it. You accept them when you order: the order form asks you to tick a box.</p>
+              <ul>
+                <li><b>Custom projects</b> get a written quote. These terms apply to them too, except where the quote says otherwise. Then the quote applies.</li>
+                <li><b>Coaching</b> is not open yet. You can join its waiting list, and nothing is charged. Its terms will be added here before it opens.</li>
+                <li>The 30-minute discovery call is free and does not commit you to anything.</li>
+              </ul>
+            </section>
+
+            <section id="en-packages">
+              <h2>3. Packages and prices</h2>
+              <div class="legal-scroll">
+                <table class="legal-table">
+                  <thead><tr><th scope="col">Package</th><th scope="col">Price</th><th scope="col">Scope</th><th scope="col">Delivery</th><th scope="col">Revisions</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Redesign</th><td class="num">$390</td><td>1 page or 1 flow</td><td>5 business days</td><td>1 round</td></tr>
+                    <tr><th scope="row">Build (landing page or AI prototype)</th><td class="num">$590</td><td>1 page or 1 flow</td><td>7 business days</td><td>2 rounds + 14 days of fixes</td></tr>
+                    <tr><th scope="row">Custom</th><td class="num">from $2,500</td><td>Several pages or a full product</td><td>Set in the quote</td><td>Set in the quote</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>What each package includes, and what it does not, is listed on its card on the <a href="/agence/pricing">pricing page</a> and shown again in the order form before you pay. That list is part of the contract. Anything that is not on the “Included” list is not included: it can be added at a posted price, or quoted.</p>
+              <p>Two examples of what is not included. A Redesign gives you the coded redesign and its source; your developer puts it live, and integration into your CMS, codebase or back end is not included. A Build does not include domain, hosting or AI model usage fees: those providers bill them to your own accounts.</p>
+              <h3>Add-ons</h3>
+              <div class="legal-scroll">
+                <table class="legal-table">
+                  <thead><tr><th scope="col">Add-on</th><th scope="col">Price</th><th scope="col">Up to, per order</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Extra page, same style</th><td class="num">$190</td><td>5</td></tr>
+                    <tr><th scope="row">Extra flow, up to 5 screens</th><td class="num">$290</td><td>3</td></tr>
+                    <tr><th scope="row">Copywriting, per page</th><td class="num">$150</td><td>6</td></tr>
+                    <tr><th scope="row">Extra revision round</th><td class="num">$90</td><td>3</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Add-ons apply to a Redesign or a Build. When an order has add-ons, we confirm its delivery date in writing before Day 1.</p>
+              <h3>Prices</h3>
+              <ul>
+                <li>Prices are in US dollars (USD), excluding applicable taxes. <mark class="legal-ph">[VAT: the rate charged, or “VAT not applicable, article 293 B of the French General Tax Code”]</mark></li>
+                <li>Where a tax applies, it is shown before you pay and on your invoice.</li>
+                <li>The price that applies is the one shown in the order form when you order.</li>
+                <li>If your bank charges a currency conversion fee, that fee is between you and your bank.</li>
+              </ul>
+            </section>
+
+            <section id="en-order">
+              <h2>4. Ordering</h2>
+              <p>The order form has three steps: the package (with the track for a Build, and the add-ons), then your brief and your details, including whether you buy as a business or as an individual, then a review of the priced lines, the delivery time and the revisions.</p>
+              <p>Before you pay, you tick that you have read what the package includes and what it does not, and that you accept these terms. If you buy as an individual, you also ask us to start before the withdrawal period ends (section 11).</p>
+              <ul>
+                <li><b>By card.</b> You pay on Stripe’s secure page. The contract is concluded when the payment is confirmed. Stripe emails your receipt, and within one business day we confirm the scope in writing and book the kickoff call.</li>
+                <li><b>By email.</b> When online payment is off, or if you prefer it, the form prepares an email with your order. Nothing is sent until you press send. Within one business day we confirm the scope, the price and the date in writing, with a secure payment link. The contract is concluded when you pay.</li>
+              </ul>
+              <p>We keep a record of each order (scope, price, invoice) for 10 years, and send you a copy on request.</p>
+              <p>We may decline an order before Day 1, for example a project we do not take on: a full online shop, a native app from scratch, or a back end built in a week. If you have already paid, you get everything back (section 9).</p>
+            </section>
+
+            <section id="en-payment">
+              <h2>5. Payment and invoices</h2>
+              <ul>
+                <li><b>Redesign and Build:</b> paid in full before Day 1.</li>
+                <li><b>Custom projects:</b> a deposit to book the dates, the balance at delivery, as written in the quote.</li>
+                <li>Card payments are handled by Stripe. You enter your card details on Stripe’s page only; we never see or store them.</li>
+                <li>Every payment gets an invoice.</li>
+                <li><b>Business clients only:</b> an amount not paid by its due date bears late payment interest at three times the French legal interest rate, plus the fixed indemnity of €40 for collection costs (articles L441-10 and D441-5 of the French Commercial Code).</li>
+              </ul>
+            </section>
+
+            <section id="en-delivery">
+              <h2>6. Delivery dates</h2>
+              <ul>
+                <li>Delivery times are counted in business days, Monday to Friday.</li>
+                <li>The clock starts on the business day after we have all three: a complete brief, your files and the payment. That day is Day 1.</li>
+                <li>If feedback from your side takes more than one business day, the delivery date moves by the same amount.</li>
+                <li>The order form shows the date you would get if everything arrived that day. It is an estimate until we confirm the date in writing.</li>
+              </ul>
+            </section>
+
+            <section id="en-process">
+              <h2>7. How the work runs</h2>
+              <p>The steps below are those of a Redesign.</p>
+              <ul>
+                <li><b>Day 0:</b> a 30-minute call or a written brief. Scope, price and dates are confirmed in writing.</li>
+                <li><b>Day 1:</b> Hugo goes through your page as a first-time customer, on phone and laptop, compares it with your closest competitors, and writes down every place where people get stuck, ranked by impact.</li>
+                <li><b>Day 2:</b> you see the direction: the structure, one key screen and the tone. You approve it, or ask for changes before the build. This is the moment to say it is not right: we change the direction before building.</li>
+                <li><b>Days 3 and 4:</b> the full page in code, desktop and mobile, with your real content and every state.</li>
+                <li><b>Day 5:</b> the 12-point check, then delivery with the source, the completed grid and the handoff notes. Your revision rounds start.</li>
+              </ul>
+              <p>A Build follows the same steps and is delivered on Day 7. About 30 days after delivery, a follow-up call looks at your numbers with you. It needs access to your analytics.</p>
+            </section>
+
+            <section id="en-revisions">
+              <h2>8. Revisions and fixes</h2>
+              <ul>
+                <li>A revision round is one list of changes, sent in one message, within the agreed brief: wording, section order, colors, spacing, images.</li>
+                <li>A Redesign includes 1 round. A Build includes 2 rounds, plus small fixes for 14 days after delivery.</li>
+                <li>Rounds and fixes are to be used within 14 days of delivery. Rounds not used by then lapse.</li>
+                <li>A new page, a new feature or a new direction after Day 2 is a new request: an add-on at its posted price, or a quote.</li>
+                <li>An extra revision round costs $90.</li>
+              </ul>
+            </section>
+
+            <section id="en-fit">
+              <h2>9. If the brief does not fit the package</h2>
+              <p>We read every order before Day 1.</p>
+              <ul>
+                <li>If what you describe needs more than the package includes, we tell you within one business day and propose a way to fit it: add-ons at their posted prices, another package, or a quote. Nothing changes without your written agreement.</li>
+                <li>If you do not accept the proposal, or if we cannot deliver the package as sold for a reason on our side, we cancel the order before Day 1 and refund everything you paid within 14 days, by the same means of payment. No work has started, so nothing is kept.</li>
+              </ul>
+            </section>
+
+            <section id="en-refunds">
+              <h2>10. Refunds</h2>
+              <p>We do not offer a money-back guarantee. Instead, the scope is confirmed in writing before Day 1, and on Day 2 you see the direction and approve it or ask for changes before the build. Once you approve it, your revision rounds cover changes within the brief.</p>
+              <p>Money is returned only in the cases these terms describe: an order cancelled before Day 1 (section 9), the withdrawal right of individuals (section 11), and a delay on our side (section 12). If you are a consumer, nothing in these terms limits the rights the law gives you, including the legal guarantee of conformity.</p>
+            </section>
+
+            <section id="en-withdrawal">
+              <h2>11. Withdrawal right for individuals</h2>
+              <p>This section applies if you buy as an individual, for purposes outside your business. Business clients have no withdrawal right.</p>
+              <ul>
+                <li>You have 14 days from the day the contract is concluded to withdraw, without giving a reason.</li>
+                <li>To withdraw, tell us before the 14 days end, in a clear statement sent to <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>. You may use the model form below; it is not required.</li>
+                <li>We refund all payments received from you within 14 days of receiving your decision, by the same means of payment, at no cost to you.</li>
+              </ul>
+              <h3>Work started at your request</h3>
+              <p>A package starts on Day 1, usually well before the 14 days end. That is why, to order online as an individual, you ask us to start before the withdrawal period ends, and you acknowledge that you can no longer withdraw once the work is fully delivered.</p>
+              <p>If you withdraw after the work has started, you pay for the work done until you told us, in proportion to the total price of the package, and we refund the rest. If you would rather we wait until the 14 days have passed, write to us before you order, and we set Day 1 after that date.</p>
+              <p>Legal basis: articles L221-18 to L221-28 of the French Consumer Code.</p>
+              <h3>Model withdrawal form</h3>
+              <div class="legal-form">
+                <p>Fill it in and send it only if you want to withdraw from the contract.</p>
+                <p>To: <mark class="legal-ph">[Legal name of the seller]</mark>, <mark class="legal-ph">[Registered address]</mark>, chilka.v@gmail.com</p>
+                <p>I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract for the provision of the following service:</p>
+                <p>Ordered on:</p>
+                <p>Name of consumer(s):</p>
+                <p>Address of consumer(s):</p>
+                <p>Signature of consumer(s) (only if this form is sent on paper):</p>
+                <p>Date:</p>
+                <p>(*) Delete as appropriate.</p>
+              </div>
+            </section>
+
+            <section id="en-delays">
+              <h2>12. Delays and absence</h2>
+              <ul>
+                <li>If we miss the delivery date for a reason on our side, tell us and set a reasonable new date. If we miss that one too, you can end the order by email, and we refund the price of the work not delivered.</li>
+                <li>v2 studio is run by one person. If Hugo cannot work for a reason outside our control, such as illness or another case of force majeure, we tell you as soon as we can, and the dates move by the same time. If the delay goes beyond 10 business days, either of us can end the order, and we refund the price of the work not delivered.</li>
+                <li>Late feedback, missing files or missing access do not count as a delay on our side (section 6).</li>
+              </ul>
+            </section>
+
+            <section id="en-client">
+              <h2>13. What you provide</h2>
+              <ul>
+                <li>A brief that says what should change, for whom and by when.</li>
+                <li>For a Redesign: the link, your logo and brand files if you have them, the text you want to keep, and access to your analytics if you want the 30-day follow-up call. For a Build: a short description of the offer and who it is for, plus your marketing text if you have it. With no text yet, add the copywriting add-on.</li>
+                <li>Only material you have the right to use. You remain responsible for the text, images, logos and data you send us.</li>
+                <li>Timely feedback, above all on Day 2.</li>
+                <li>The accounts in your name: domain, hosting, AI model providers. Those providers bill their fees to you.</li>
+                <li>Putting the work live, unless the package says otherwise. A Redesign is handed to your developer. A Build landing page is deployed to a preview link or to your domain.</li>
+              </ul>
+            </section>
+
+            <section id="en-ownership">
+              <h2>14. Ownership of the work</h2>
+              <ul>
+                <li>Once the order is paid in full, the code, the design files and the images we produced for you are yours. We transfer to you all our economic rights in them: the rights to reproduce, show, adapt, modify, translate and distribute them, on any medium and in any format, for any purpose, worldwide, for the full legal term of copyright.</li>
+                <li>Until the order is paid in full, we keep these rights.</li>
+                <li>Your own material (logo, text, brand files, data) stays yours.</li>
+                <li>Third-party elements stay under their own licences: fonts, open-source code, icons or stock images. When a delivery uses them, the handoff notes say so.</li>
+                <li>Accounts and hosting stay in your name.</li>
+                <li>We write first drafts and first code with AI tools, mainly Cursor and Claude Code. Hugo makes the choices and reads every AI-generated line. In some countries, material made by AI alone is not protected by copyright: we transfer all the rights we hold, and cannot transfer rights that do not exist.</li>
+                <li>Under French law, an author’s moral rights cannot be transferred. The author keeps them.</li>
+              </ul>
+            </section>
+
+            <section id="en-confidentiality">
+              <h2>15. Confidentiality and portfolio</h2>
+              <p>We keep your brief, your files, your access and your unpublished work confidential, and use them only for your project.</p>
+              <p>We may show the work in our portfolio, unless you ask us not to. You can ask at any time, by email. We never show confidential data from your project.</p>
+            </section>
+
+            <section id="en-liability">
+              <h2>16. Liability</h2>
+              <ul>
+                <li>We deliver what the package lists, with a professional’s care. We do not promise a result, a metric, a ranking or a conversion lift for your project.</li>
+                <li>For business clients, our total liability for an order is limited to the price paid for that order, and we are not liable for indirect losses such as lost profit, lost revenue or lost data.</li>
+                <li>Nothing in these terms limits a liability that the law does not allow to limit, or the rights you have as a consumer.</li>
+              </ul>
+            </section>
+
+            <section id="en-data">
+              <h2>17. Personal data</h2>
+              <p>What we collect when you order, why, who processes it and your rights are explained in the <a href="/agence/legal#en-data">legal notices</a>.</p>
+            </section>
+
+            <section id="en-law">
+              <h2>18. Disputes and applicable law</h2>
+              <ul>
+                <li>These terms are governed by French law. If you are a consumer living in another country, you also keep the protection of the mandatory rules of your country.</li>
+                <li>If something goes wrong, write to <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a> first. We answer within one business day.</li>
+                <li>If you are a consumer, you can also go to a consumer mediator, free of charge: <mark class="legal-ph">[Name and website of the consumer mediator]</mark>.</li>
+                <li>For business clients, any dispute goes to the courts of <mark class="legal-ph">[City of the registered office]</mark>. Consumers can go to the courts the law gives them.</li>
+              </ul>
+            </section>
+
+            <section id="en-changes">
+              <h2>19. Changes and language</h2>
+              <ul>
+                <li>These terms are dated. The version you accepted when you ordered applies to your order.</li>
+                <li>They exist in English and in French. If the two versions ever differ, the French version prevails.</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      </article>
+
+      <article class="legal-doc" lang="fr" data-legal-lang="fr" data-doc-title="Conditions générales de vente · v2 studio" data-doc-desc="Conditions générales de vente des formules v2 studio : prix, délais, allers-retours, paiement, propriété et droit de rétractation." aria-labelledby="fr-terms-title">
+        <header class="legal-head">
+          <span class="dab" aria-hidden="true"></span>
+          <h1 class="display h2" id="fr-terms-title">Conditions générales de vente<br><em>pour chaque formule.</em></h1>
+          <p class="lede">Ce que vous achetez, quand c’est livré, ce que vous payez et ce qui vous appartient. Ces conditions s’appliquent à chaque Refonte et à chaque Création commandée sur ce site.</p>
+          <p class="legal-meta">Projet du 18 octobre 2026</p>
+          <p class="legal-draft" role="note"><b>Projet à relire.</b> Ces conditions n’ont pas encore été vérifiées par un expert-comptable ou un avocat, et les champs entre crochets restent à compléter. Elles ne s’appliquent encore à aucune commande.</p>
+        </header>
+
+        <div class="legal-body">
+          <nav class="legal-toc" aria-labelledby="fr-terms-toc">
+            <p id="fr-terms-toc">Sur cette page</p>
+            <ol>
+              <li><a href="#fr-vendeur">1. Le vendeur</a></li>
+              <li><a href="#fr-champ">2. Champ d’application</a></li>
+              <li><a href="#fr-formules">3. Formules et prix</a></li>
+              <li><a href="#fr-commande">4. Commande</a></li>
+              <li><a href="#fr-paiement">5. Paiement et factures</a></li>
+              <li><a href="#fr-delais">6. Délais de livraison</a></li>
+              <li><a href="#fr-deroulement">7. Déroulement</a></li>
+              <li><a href="#fr-allers-retours">8. Allers-retours et corrections</a></li>
+              <li><a href="#fr-adequation">9. Si le brief ne correspond pas à la formule</a></li>
+              <li><a href="#fr-remboursements">10. Remboursements</a></li>
+              <li><a href="#fr-retractation">11. Droit de rétractation des particuliers</a></li>
+              <li><a href="#fr-retards">12. Retards et absence</a></li>
+              <li><a href="#fr-client">13. Ce que vous fournissez</a></li>
+              <li><a href="#fr-propriete">14. Propriété du travail</a></li>
+              <li><a href="#fr-confidentialite">15. Confidentialité et portfolio</a></li>
+              <li><a href="#fr-responsabilite">16. Responsabilité</a></li>
+              <li><a href="#fr-donnees">17. Données personnelles</a></li>
+              <li><a href="#fr-litiges">18. Litiges et droit applicable</a></li>
+              <li><a href="#fr-modifications">19. Modifications et langue</a></li>
+            </ol>
+          </nav>
+
+          <div class="legal-text">
+            <section id="fr-vendeur">
+              <h2>1. Le vendeur</h2>
+              <p>v2 studio est un studio de design fondé et dirigé par Hugo Vermot. v2 studio est le nom commercial du vendeur ci-dessous.</p>
+              <dl class="legal-ids">
+                <dt>Vendeur</dt><dd><mark class="legal-ph">[Nom légal ou dénomination du vendeur]</mark></dd>
+                <dt>Forme juridique</dt><dd><mark class="legal-ph">[Forme juridique]</mark></dd>
+                <dt>SIREN / SIRET</dt><dd><mark class="legal-ph">[Numéro SIREN ou SIRET]</mark></dd>
+                <dt>Adresse</dt><dd><mark class="legal-ph">[Adresse du siège]</mark></dd>
+                <dt>TVA</dt><dd><mark class="legal-ph">[Numéro de TVA, ou «&nbsp;TVA non applicable, article 293 B du CGI&nbsp;»]</mark></dd>
+                <dt>E-mail</dt><dd><a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a></dd>
+                <dt>Téléphone</dt><dd><mark class="legal-ph">[Numéro de téléphone]</mark></dd>
+              </dl>
+              <p>Dans ces conditions, «&nbsp;nous&nbsp;» désigne le vendeur ci-dessus, et «&nbsp;vous&nbsp;» la personne ou l’entreprise qui commande.</p>
+            </section>
+
+            <section id="fr-champ">
+              <h2>2. Champ d’application</h2>
+              <p>Ces conditions s’appliquent à chaque commande d’une Refonte ou d’une Création passée sur jobyougo.xyz/agence, par carte ou par e-mail, et aux options commandées avec elle. Vous les acceptez en commandant&nbsp;: le formulaire de commande vous demande de cocher une case.</p>
+              <ul>
+                <li><b>Les projets sur devis</b> font l’objet d’un devis écrit. Ces conditions s’y appliquent aussi, sauf quand le devis prévoit autre chose. Le devis s’applique alors.</li>
+                <li><b>L’Accompagnement</b> n’est pas encore ouvert. Vous pouvez rejoindre sa liste d’attente, et rien n’est facturé. Ses conditions seront ajoutées ici avant son ouverture.</li>
+                <li>L’appel découverte de 30 minutes est gratuit et ne vous engage à rien.</li>
+              </ul>
+            </section>
+
+            <section id="fr-formules">
+              <h2>3. Formules et prix</h2>
+              <div class="legal-scroll">
+                <table class="legal-table">
+                  <thead><tr><th scope="col">Formule</th><th scope="col">Prix</th><th scope="col">Périmètre</th><th scope="col">Délai</th><th scope="col">Allers-retours</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Refonte</th><td class="num">390&nbsp;$</td><td>1 page ou 1 parcours</td><td>5 jours ouvrés</td><td>1 aller-retour</td></tr>
+                    <tr><th scope="row">Création (landing page ou prototype IA)</th><td class="num">590&nbsp;$</td><td>1 page ou 1 parcours</td><td>7 jours ouvrés</td><td>2 allers-retours + 14 jours de corrections</td></tr>
+                    <tr><th scope="row">Sur devis</th><td class="num">à partir de 2&nbsp;500&nbsp;$</td><td>Plusieurs pages ou un produit complet</td><td>Fixé au devis</td><td>Fixés au devis</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Ce que comprend chaque formule, et ce qu’elle ne comprend pas, figure sur sa carte dans la <a href="/agence/pricing">page des tarifs</a> et est rappelé dans le formulaire de commande avant le paiement. Cette liste fait partie du contrat. Ce qui ne figure pas dans la liste «&nbsp;Inclus&nbsp;» n’est pas compris&nbsp;: c’est une option à prix affiché, ou un devis.</p>
+              <p>Deux exemples de ce qui n’est pas compris. Une Refonte vous donne la refonte codée et son code source&nbsp;; votre développeur la met en ligne, et l’intégration dans votre CMS, votre code ou votre back-end n’est pas comprise. Une Création ne comprend pas les frais de nom de domaine, d’hébergement ni d’utilisation des modèles IA&nbsp;: ces fournisseurs les facturent sur vos propres comptes.</p>
+              <h3>Options</h3>
+              <div class="legal-scroll">
+                <table class="legal-table">
+                  <thead><tr><th scope="col">Option</th><th scope="col">Prix</th><th scope="col">Maximum par commande</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Page supplémentaire, même style</th><td class="num">190&nbsp;$</td><td>5</td></tr>
+                    <tr><th scope="row">Parcours supplémentaire, jusqu’à 5 écrans</th><td class="num">290&nbsp;$</td><td>3</td></tr>
+                    <tr><th scope="row">Rédaction, par page</th><td class="num">150&nbsp;$</td><td>6</td></tr>
+                    <tr><th scope="row">Aller-retour supplémentaire</th><td class="num">90&nbsp;$</td><td>3</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Les options s’ajoutent à une Refonte ou à une Création. Quand une commande comporte des options, nous confirmons sa date de livraison par écrit avant le jour 1.</p>
+              <h3>Prix</h3>
+              <ul>
+                <li>Les prix sont en dollars US (USD), hors taxes applicables. <mark class="legal-ph">[TVA&nbsp;: le taux appliqué, ou «&nbsp;TVA non applicable, article 293 B du CGI&nbsp;»]</mark></li>
+                <li>Quand une taxe s’applique, elle est indiquée avant le paiement et sur votre facture.</li>
+                <li>Le prix applicable est celui affiché dans le formulaire au moment de la commande.</li>
+                <li>Si votre banque facture des frais de conversion de devise, ces frais relèvent de votre banque.</li>
+              </ul>
+            </section>
+
+            <section id="fr-commande">
+              <h2>4. Commande</h2>
+              <p>Le formulaire de commande compte trois étapes&nbsp;: la formule (avec la variante pour une Création, et les options), puis votre brief et vos coordonnées, dont le fait d’acheter en tant qu’entreprise ou en tant que particulier, puis la vérification des lignes chiffrées, du délai et des allers-retours.</p>
+              <p>Avant de payer, vous cochez que vous avez lu ce que la formule comprend et ce qu’elle ne comprend pas, et que vous acceptez ces conditions. Si vous achetez en tant que particulier, vous demandez aussi que le travail commence avant la fin du délai de rétractation (article 11).</p>
+              <ul>
+                <li><b>Par carte.</b> Vous payez sur la page sécurisée de Stripe. Le contrat est conclu quand le paiement est confirmé. Stripe vous envoie votre reçu par e-mail et, sous un jour ouvré, nous confirmons le périmètre par écrit et fixons l’appel de lancement.</li>
+                <li><b>Par e-mail.</b> Quand le paiement en ligne est désactivé, ou si vous le préférez, le formulaire prépare un e-mail avec votre commande. Rien n’est envoyé tant que vous ne cliquez pas sur Envoyer. Sous un jour ouvré, nous confirmons par écrit le périmètre, le prix et la date, avec un lien de paiement sécurisé. Le contrat est conclu au paiement.</li>
+              </ul>
+              <p>Nous conservons une trace de chaque commande (périmètre, prix, facture) pendant 10 ans, et vous en envoyons une copie sur demande.</p>
+              <p>Nous pouvons refuser une commande avant le jour 1, par exemple pour un projet que nous ne prenons pas&nbsp;: une boutique en ligne complète, une app native de zéro, ou un back-end en une semaine. Si vous avez déjà payé, tout vous est remboursé (article 9).</p>
+            </section>
+
+            <section id="fr-paiement">
+              <h2>5. Paiement et factures</h2>
+              <ul>
+                <li><b>Refonte et Création&nbsp;:</b> réglées en totalité avant le jour 1.</li>
+                <li><b>Projets sur devis&nbsp;:</b> un acompte pour réserver les dates, le solde à la livraison, comme écrit au devis.</li>
+                <li>Les paiements par carte sont traités par Stripe. Vous saisissez votre carte sur la page de Stripe uniquement&nbsp;; nous ne la voyons ni ne la conservons jamais.</li>
+                <li>Chaque paiement donne lieu à une facture.</li>
+                <li><b>Clients professionnels uniquement&nbsp;:</b> toute somme non réglée à l’échéance porte des pénalités de retard égales à trois fois le taux d’intérêt légal, ainsi que l’indemnité forfaitaire de 40&nbsp;€ pour frais de recouvrement (articles L441-10 et D441-5 du Code de commerce).</li>
+              </ul>
+            </section>
+
+            <section id="fr-delais">
+              <h2>6. Délais de livraison</h2>
+              <ul>
+                <li>Les délais se comptent en jours ouvrés, du lundi au vendredi.</li>
+                <li>Le délai commence le jour ouvré qui suit la réception des trois éléments&nbsp;: un brief complet, vos fichiers et le paiement. Ce jour est le jour 1.</li>
+                <li>Si un retour de votre part prend plus d’un jour ouvré, la date de livraison se décale d’autant.</li>
+                <li>Le formulaire affiche la date que vous obtiendriez si tout arrivait le jour même. C’est une estimation, jusqu’à ce que nous confirmions la date par écrit.</li>
+              </ul>
+            </section>
+
+            <section id="fr-deroulement">
+              <h2>7. Déroulement</h2>
+              <p>Les étapes ci-dessous sont celles d’une Refonte.</p>
+              <ul>
+                <li><b>Jour 0&nbsp;:</b> un appel de 30 minutes ou un brief écrit. Le périmètre, le prix et les dates sont confirmés par écrit.</li>
+                <li><b>Jour 1&nbsp;:</b> Hugo parcourt votre page comme un nouveau client, sur téléphone et sur ordinateur, la compare à vos concurrents les plus proches, et note chaque endroit où les visiteurs bloquent, classé par impact.</li>
+                <li><b>Jour 2&nbsp;:</b> vous voyez la direction&nbsp;: la structure, un écran clé et le ton. Vous la validez, ou demandez des changements avant la construction. C’est le moment de dire si elle ne convient pas&nbsp;: nous changeons la direction avant de construire.</li>
+                <li><b>Jours 3 et 4&nbsp;:</b> la page complète en code, desktop et mobile, avec vos vrais contenus et tous les états.</li>
+                <li><b>Jour 5&nbsp;:</b> les 12 contrôles, puis la livraison avec le code source, la grille complétée et les notes de passation. Vos allers-retours commencent.</li>
+              </ul>
+              <p>Une Création suit les mêmes étapes et se livre au jour 7. Environ 30 jours après la livraison, un appel de suivi regarde vos chiffres avec vous. Il demande un accès à vos statistiques.</p>
+            </section>
+
+            <section id="fr-allers-retours">
+              <h2>8. Allers-retours et corrections</h2>
+              <ul>
+                <li>Un aller-retour est une liste de modifications, envoyée en un seul message, dans le cadre du brief convenu&nbsp;: textes, ordre des sections, couleurs, espacements, images.</li>
+                <li>La Refonte comprend 1 aller-retour. La Création en comprend 2, plus les petites corrections pendant les 14 jours suivant la livraison.</li>
+                <li>Allers-retours et corrections sont à utiliser dans les 14 jours suivant la livraison. Ceux qui ne sont pas utilisés à cette date sont perdus.</li>
+                <li>Une nouvelle page, une nouvelle fonctionnalité ou une nouvelle direction après le jour 2 est une nouvelle demande&nbsp;: une option à son prix affiché, ou un devis.</li>
+                <li>Un aller-retour supplémentaire coûte 90&nbsp;$.</li>
+              </ul>
+            </section>
+
+            <section id="fr-adequation">
+              <h2>9. Si le brief ne correspond pas à la formule</h2>
+              <p>Nous lisons chaque commande avant le jour 1.</p>
+              <ul>
+                <li>Si ce que vous décrivez demande plus que ce que comprend la formule, nous vous le disons sous un jour ouvré et proposons une solution&nbsp;: des options à leur prix affiché, une autre formule, ou un devis. Rien ne change sans votre accord écrit.</li>
+                <li>Si vous n’acceptez pas la proposition, ou si nous ne pouvons pas livrer la formule telle qu’elle est vendue pour une raison qui nous est propre, nous annulons la commande avant le jour 1 et vous remboursons la totalité des sommes versées sous 14 jours, par le même moyen de paiement. Aucun travail n’a commencé&nbsp;: rien n’est retenu.</li>
+              </ul>
+            </section>
+
+            <section id="fr-remboursements">
+              <h2>10. Remboursements</h2>
+              <p>Nous ne proposons pas de garantie «&nbsp;satisfait ou remboursé&nbsp;». À la place, le périmètre est confirmé par écrit avant le jour 1, et au jour 2 vous voyez la direction et la validez, ou demandez des changements avant la construction. Une fois la direction validée, vos allers-retours couvrent les changements dans le cadre du brief.</p>
+              <p>Un remboursement n’a lieu que dans les cas prévus par ces conditions&nbsp;: une commande annulée avant le jour 1 (article 9), le droit de rétractation des particuliers (article 11), et un retard de notre fait (article 12). Si vous êtes consommateur, rien dans ces conditions ne limite les droits que la loi vous donne, y compris la garantie légale de conformité.</p>
+            </section>
+
+            <section id="fr-retractation">
+              <h2>11. Droit de rétractation des particuliers</h2>
+              <p>Cet article s’applique si vous achetez en tant que particulier, à des fins qui n’entrent pas dans votre activité professionnelle. Les clients professionnels n’ont pas de droit de rétractation.</p>
+              <ul>
+                <li>Vous disposez de 14 jours à compter de la conclusion du contrat pour vous rétracter, sans avoir à donner de motif.</li>
+                <li>Pour vous rétracter, informez-nous avant la fin de ce délai par une déclaration claire envoyée à <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>. Vous pouvez utiliser le formulaire type ci-dessous, sans obligation.</li>
+                <li>Nous vous remboursons la totalité des sommes versées dans les 14 jours suivant la réception de votre décision, par le même moyen de paiement, sans frais pour vous.</li>
+              </ul>
+              <h3>Travail commencé à votre demande</h3>
+              <p>Une formule commence au jour 1, en général bien avant la fin des 14 jours. C’est pourquoi, pour commander en ligne en tant que particulier, vous demandez que le travail commence avant la fin du délai de rétractation, et vous reconnaissez que vous ne pouvez plus vous rétracter une fois le travail entièrement livré.</p>
+              <p>Si vous vous rétractez après le début du travail, vous payez le travail fait jusqu’à votre décision, en proportion du prix total de la formule, et nous remboursons le reste. Si vous préférez que nous attendions la fin des 14 jours, écrivez-nous avant de commander&nbsp;: nous fixons alors le jour 1 après cette date.</p>
+              <p>Fondement&nbsp;: articles L221-18 à L221-28 du Code de la consommation.</p>
+              <h3>Formulaire type de rétractation</h3>
+              <div class="legal-form">
+                <p>Veuillez compléter et renvoyer ce formulaire uniquement si vous souhaitez vous rétracter du contrat.</p>
+                <p>À l’attention de <mark class="legal-ph">[Nom légal ou dénomination du vendeur]</mark>, <mark class="legal-ph">[Adresse du siège]</mark>, chilka.v@gmail.com&nbsp;:</p>
+                <p>Je/nous (*) vous notifie/notifions (*) par la présente ma/notre (*) rétractation du contrat portant sur la prestation de services ci-dessous&nbsp;:</p>
+                <p>Commandé le&nbsp;:</p>
+                <p>Nom du (des) consommateur(s)&nbsp;:</p>
+                <p>Adresse du (des) consommateur(s)&nbsp;:</p>
+                <p>Signature du (des) consommateur(s) (uniquement en cas de notification du présent formulaire sur papier)&nbsp;:</p>
+                <p>Date&nbsp;:</p>
+                <p>(*) Rayez la mention inutile.</p>
+              </div>
+            </section>
+
+            <section id="fr-retards">
+              <h2>12. Retards et absence</h2>
+              <ul>
+                <li>Si nous manquons la date de livraison pour une raison qui nous est propre, dites-le-nous et fixez une nouvelle date raisonnable. Si nous manquons aussi celle-ci, vous pouvez mettre fin à la commande par e-mail, et nous remboursons le prix du travail non livré.</li>
+                <li>v2 studio est dirigé par une seule personne. Si Hugo ne peut pas travailler pour une raison indépendante de notre volonté, comme une maladie ou un autre cas de force majeure, nous vous prévenons dès que possible, et les dates se décalent d’autant. Si le retard dépasse 10 jours ouvrés, chacun de nous peut mettre fin à la commande, et nous remboursons le prix du travail non livré.</li>
+                <li>Un retour tardif, des fichiers ou des accès manquants ne sont pas un retard de notre fait (article 6).</li>
+              </ul>
+            </section>
+
+            <section id="fr-client">
+              <h2>13. Ce que vous fournissez</h2>
+              <ul>
+                <li>Un brief qui dit ce qui doit changer, pour qui et pour quand.</li>
+                <li>Pour une Refonte&nbsp;: le lien, votre logo et vos fichiers de marque si vous en avez, les textes à garder, et un accès à vos statistiques si vous voulez l’appel de suivi à 30 jours. Pour une Création&nbsp;: une courte description de l’offre et de la cible, et vos textes marketing si vous en avez. Sans textes, ajoutez l’option rédaction.</li>
+                <li>Uniquement des éléments que vous avez le droit d’utiliser. Vous restez responsable des textes, images, logos et données que vous nous envoyez.</li>
+                <li>Des retours dans les temps, surtout au jour 2.</li>
+                <li>Les comptes à votre nom&nbsp;: nom de domaine, hébergement, fournisseurs de modèles IA. Ces fournisseurs vous facturent leurs frais.</li>
+                <li>La mise en ligne, sauf si la formule prévoit autre chose. Une Refonte est remise à votre développeur. La landing page d’une Création est mise en ligne sur un lien de prévisualisation ou sur votre domaine.</li>
+              </ul>
+            </section>
+
+            <section id="fr-propriete">
+              <h2>14. Propriété du travail</h2>
+              <ul>
+                <li>Une fois la commande réglée en totalité, le code, les fichiers de design et les images que nous avons produits pour vous vous appartiennent. Nous vous cédons tous nos droits patrimoniaux d’auteur sur ces éléments&nbsp;: droits de reproduction, de représentation, d’adaptation, de modification, de traduction et de distribution, sur tout support et en tout format, pour tout usage, dans le monde entier, pour toute la durée légale de protection du droit d’auteur.</li>
+                <li>Tant que la commande n’est pas réglée en totalité, nous conservons ces droits.</li>
+                <li>Vos propres éléments (logo, textes, fichiers de marque, données) restent les vôtres.</li>
+                <li>Les éléments de tiers restent soumis à leur propre licence&nbsp;: polices, code open source, icônes ou images de banque. Quand une livraison en utilise, les notes de passation le précisent.</li>
+                <li>Les comptes et l’hébergement restent à votre nom.</li>
+                <li>Nous écrivons les premières versions et le premier code avec des outils d’IA, surtout Cursor et Claude Code. Hugo fait les choix et relit chaque ligne produite par l’IA. Dans certains pays, un contenu produit par la seule IA n’est pas protégé par le droit d’auteur&nbsp;: nous vous cédons tous les droits que nous détenons, et ne pouvons pas céder des droits qui n’existent pas.</li>
+                <li>En droit français, le droit moral de l’auteur est incessible. L’auteur le conserve.</li>
+              </ul>
+            </section>
+
+            <section id="fr-confidentialite">
+              <h2>15. Confidentialité et portfolio</h2>
+              <p>Nous gardons confidentiels votre brief, vos fichiers, vos accès et votre travail non publié, et ne les utilisons que pour votre projet.</p>
+              <p>Nous pouvons montrer le travail dans notre portfolio, sauf si vous le refusez. Vous pouvez le refuser à tout moment, par e-mail. Nous ne montrons jamais de données confidentielles de votre projet.</p>
+            </section>
+
+            <section id="fr-responsabilite">
+              <h2>16. Responsabilité</h2>
+              <ul>
+                <li>Nous livrons ce que la formule prévoit, avec le soin d’un professionnel. Nous ne promettons aucun résultat, aucun chiffre, aucun classement ni aucune hausse de conversion pour votre projet.</li>
+                <li>Pour les clients professionnels, notre responsabilité totale pour une commande est limitée au prix payé pour cette commande, et nous ne répondons pas des pertes indirectes, comme un manque à gagner, une perte de chiffre d’affaires ou une perte de données.</li>
+                <li>Rien dans ces conditions ne limite une responsabilité que la loi ne permet pas de limiter, ni vos droits de consommateur.</li>
+              </ul>
+            </section>
+
+            <section id="fr-donnees">
+              <h2>17. Données personnelles</h2>
+              <p>Ce que nous collectons quand vous commandez, pourquoi, qui le traite et quels sont vos droits&nbsp;: tout est expliqué dans les <a href="/agence/legal#fr-donnees">mentions légales</a>.</p>
+            </section>
+
+            <section id="fr-litiges">
+              <h2>18. Litiges et droit applicable</h2>
+              <ul>
+                <li>Ces conditions sont soumises au droit français. Si vous êtes un consommateur résidant dans un autre pays, vous gardez aussi la protection des règles impératives de votre pays.</li>
+                <li>En cas de problème, écrivez d’abord à <a href="mailto:chilka.v@gmail.com">chilka.v@gmail.com</a>. Nous répondons sous un jour ouvré.</li>
+                <li>Si vous êtes consommateur, vous pouvez aussi recourir gratuitement à un médiateur de la consommation&nbsp;: <mark class="legal-ph">[Nom et site du médiateur de la consommation]</mark>.</li>
+                <li>Pour les clients professionnels, tout litige relève des tribunaux de <mark class="legal-ph">[Ville du siège]</mark>. Les consommateurs peuvent saisir la juridiction que la loi leur ouvre.</li>
+              </ul>
+            </section>
+
+            <section id="fr-modifications">
+              <h2>19. Modifications et langue</h2>
+              <ul>
+                <li>Ces conditions sont datées. La version acceptée lors de votre commande s’applique à votre commande.</li>
+                <li>Elles existent en français et en anglais. Si les deux versions diffèrent un jour, la version française prévaut.</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>

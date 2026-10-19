@@ -3,9 +3,149 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Munsit — Home</title>
+<title>Munsit — Dashboard</title>
 <link rel="stylesheet" href="../assets/fonts.css">
 <link rel="stylesheet" href="../assets/munsit-mobile.css">
+<style>
+  /* Screen-scoped refinements. The shared munsit-mobile.css is untouched (the studio reads it too);
+     every selector below carries .screen-compose so it outranks the shared single-class rules. */
+
+  /* Canvas: one radial light, no grid lines (nothing here is measured against a grid). */
+  .screen-compose{background:radial-gradient(circle at 55% 18%,rgba(91,52,230,.3),transparent 30%),linear-gradient(180deg,#05060a,#090912);background-size:auto}
+  .screen-compose.theme-light{background:radial-gradient(circle at 55% 18%,rgba(140,91,255,.12),transparent 30%),linear-gradient(180deg,#f5f2ff,#ece8fb);background-size:auto}
+  .screen-compose .statusbar{margin-bottom:12px}
+  .screen-compose .compose-title{margin-top:22px}
+
+  /* Top bar: 38px targets, flat avatar with an initial behind the portrait. */
+  .screen-compose .compose-action{width:38px;height:38px;border-radius:12px;cursor:pointer;transition:background-color 220ms ease,color 220ms ease,transform 120ms ease}
+  .screen-compose .theme-toggle{width:38px;min-width:38px}
+  .screen-compose .compose-action:active{transform:scale(.94)}
+  .screen-compose .compose-avatar,
+  .screen-compose.theme-light .compose-avatar{position:relative;background:linear-gradient(180deg,#8c5bff,#5b34e6);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+  .screen-compose .compose-avatar::before,
+  .screen-compose .compose-clone-core::before{content:"N";position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-bricolage,"Inter",sans-serif);font-weight:700;font-size:16px;letter-spacing:-.04em;color:#fff}
+  .screen-compose .compose-clone-core::before{font-size:22px}
+  .screen-compose .compose-avatar img,
+  .screen-compose .compose-clone-core img{position:relative;z-index:1}
+
+  /* Tiles: pressable buttons, flat surfaces, one radius family (24 / 22 nav / 12 controls). */
+  .screen-compose .compose-tile,
+  .screen-compose .compose-clone-banner{border-radius:24px}
+  .screen-compose .compose-tile{appearance:none;-webkit-appearance:none;display:block;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;transition:transform 120ms ease,border-color 220ms ease,color 220ms ease}
+  .screen-compose .tile-tts,
+  .screen-compose .tile-stt{background:linear-gradient(180deg,rgba(17,15,31,.98),rgba(10,10,18,.98));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  .screen-compose.theme-light .tile-tts,
+  .screen-compose.theme-light .tile-stt{background:linear-gradient(180deg,#fff,#f3f0fc);box-shadow:inset 0 1px 0 #fff}
+  .screen-compose .compose-tile:hover{border-color:rgba(199,186,255,.24)}
+  .screen-compose.theme-light .compose-tile:hover{border-color:rgba(17,22,47,.18)}
+  .screen-compose .compose-tile:active{transform:scale(.985)}
+  .screen-compose .compose-tile:focus-visible{outline:2px solid #8c5bff;outline-offset:3px}
+  .screen-compose .compose-tile-small,
+  .screen-compose .compose-tile-copy{display:block}
+  .screen-compose .compose-tile .compose-tile-small{margin-top:12px}
+  .screen-compose .compose-tile-copy{max-width:none}
+  .screen-compose .compose-icon-core{background:rgba(199,186,255,.1);box-shadow:inset 0 0 0 1px rgba(199,186,255,.18)}
+  .screen-compose.theme-light .compose-tile-icon{background:none}
+  .screen-compose.theme-light .compose-icon-core{background:rgba(17,22,47,.05);box-shadow:inset 0 0 0 1px rgba(17,22,47,.08)}
+
+  /* Voice Clone banner: the one lit object. Copy left, the voiceprint right. */
+  .screen-compose .compose-clone-banner{padding:16px;transition:border-color 220ms ease,color 220ms ease}
+  .screen-compose .compose-clone-copy{max-width:none;flex:1 1 auto;min-width:0}
+  .screen-compose .compose-clone-copy .compose-tile-copy{margin-top:8px}
+  .screen-compose .compose-clone-sample{margin-top:10px;font-family:"SF Arabic","Segoe UI","Noto Naskh Arabic","Geeza Pro",Tahoma,sans-serif;font-size:14px;line-height:1.5;color:#f5f2ff;text-align:left;unicode-bidi:isolate}
+  .screen-compose .compose-clone-time{margin-top:4px;font-size:11px;line-height:1.3;color:rgba(245,242,255,.64);font-variant-numeric:tabular-nums}
+  .screen-compose .is-playing .compose-clone-time [data-vp-time]{color:#c7baff}
+  .screen-compose.theme-light .compose-clone-sample{color:#11162f}
+  .screen-compose.theme-light .compose-clone-time{color:rgba(17,22,47,.62)}
+  .screen-compose.theme-light .is-playing .compose-clone-time [data-vp-time]{color:#5b34e6}
+
+  /* The voiceprint: the user's own portrait ringed by a deterministic waveform, a progress arc outside it. */
+  .screen-compose .compose-voiceprint{position:relative;width:128px;height:128px;flex:0 0 128px;padding:0;border:0;background:none;appearance:none;-webkit-appearance:none;border-radius:50%;cursor:pointer;color:#8c5bff;-webkit-tap-highlight-color:transparent}
+  .screen-compose .compose-voiceprint:focus-visible{outline:2px solid #8c5bff;outline-offset:4px}
+  .screen-compose .compose-voiceprint > svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
+  .screen-compose .vp-track{fill:none;stroke:rgba(199,186,255,.16);stroke-width:1}
+  .screen-compose .vp-progress{fill:none;stroke:#8c5bff;stroke-width:2;stroke-linecap:round;stroke-dasharray:370.7;stroke-dashoffset:370.7}
+  .screen-compose .vp-bars rect{fill:#8c5bff;opacity:.85;transform-box:fill-box;transform-origin:50% 50%;animation:vpGrow 480ms cubic-bezier(.2,.9,.3,1) both;animation-delay:calc(300ms + var(--i,0)*10ms);transition:opacity 160ms ease}
+  .screen-compose .is-active .vp-bars rect{opacity:.38}
+  .screen-compose .is-active .vp-bars rect.is-lit{opacity:1}
+  @keyframes vpGrow{from{transform:scaleY(0)}}
+  .screen-compose .compose-clone-core{inset:36px;background:linear-gradient(180deg,#8c5bff,#5b34e6);box-shadow:inset 0 1px 0 rgba(255,255,255,.16);transition:box-shadow 220ms ease}
+  .screen-compose.theme-light .compose-clone-core{box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+  .screen-compose .is-playing .compose-clone-core,
+  .screen-compose.theme-light .is-playing .compose-clone-core{box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 0 0 3px rgba(140,91,255,.35)}
+  .screen-compose .vp-glyph{position:absolute;right:20px;bottom:20px;z-index:3;width:22px;height:22px;border-radius:50%;background:#8c5bff;color:#fff;display:grid;place-items:center;box-shadow:0 0 0 3px #110d26;transition:transform 120ms ease}
+  .screen-compose .vp-glyph svg{width:10px;height:10px;display:block}
+  .screen-compose .vp-glyph .vp-pause{display:none}
+  .screen-compose .is-playing .vp-glyph .vp-play{display:none}
+  .screen-compose .is-playing .vp-glyph .vp-pause{display:block}
+  .screen-compose .compose-voiceprint:hover .vp-glyph{transform:scale(1.08)}
+  .screen-compose .compose-voiceprint:active .vp-glyph{transform:scale(.94)}
+  .screen-compose.theme-light .vp-track{stroke:rgba(42,21,90,.14)}
+  .screen-compose.theme-light .vp-bars rect{fill:#5b34e6}
+  .screen-compose.theme-light .vp-glyph{box-shadow:0 0 0 3px #f7f5fd}
+
+  /* Primary action: the brand's violet fill, a static gradient edge, one hover sweep. */
+  .screen-compose .compose-promptbar{margin-top:12px}
+  .screen-compose .compose-shiny-cta,
+  .screen-compose.theme-light .compose-shiny-cta{animation:none;cursor:pointer;min-height:76px;padding:12px 16px 12px 18px;border-radius:24px;border:1px solid transparent;color:#fff;background:linear-gradient(135deg,#5b34e6 0%,#5b34e6 30%,#7a4dff 100%) padding-box,linear-gradient(135deg,rgba(255,255,255,.34),rgba(199,186,255,.36) 45%,rgba(255,255,255,.08)) border-box;box-shadow:0 14px 28px rgba(91,52,230,.26);transition:transform 120ms ease,box-shadow 180ms ease}
+  .screen-compose .compose-shiny-cta:hover{box-shadow:0 16px 30px rgba(91,52,230,.34)}
+  .screen-compose .compose-shiny-cta:active{transform:translateY(1px) scale(.99)}
+  .screen-compose .compose-shiny-cta:focus-visible{outline:none;box-shadow:inset 0 0 0 2px #f5f2ff,0 14px 28px rgba(91,52,230,.26)}
+  .screen-compose .compose-shiny-cta::before{display:none}
+  .screen-compose .compose-shiny-cta::after{inset:0 auto 0 -70%;inset-inline-start:-70%;inset-block-start:0;width:60%;height:100%;aspect-ratio:auto;translate:0 0;-webkit-mask-image:none;mask-image:none;opacity:1;animation:none;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.22) 50%,transparent 70%);transform:translateX(0);transition:none}
+  .screen-compose .compose-shiny-cta:hover::after,
+  .screen-compose .compose-shiny-cta:focus-visible::after{transform:translateX(280%);transition:transform 600ms cubic-bezier(.2,.9,.3,1)}
+  .screen-compose .compose-shiny-cta small,
+  .screen-compose.theme-light .compose-shiny-cta small{color:rgba(255,255,255,.92)}
+  .screen-compose .compose-shiny-cta > svg{transition:transform 180ms ease}
+  .screen-compose .compose-shiny-cta:hover > svg{transform:translateX(3px)}
+
+  /* Bottom nav: real buttons, AA labels, an ink pill that slides to the current tab. */
+  .screen-compose .compose-nav{transition:background-color 220ms ease,border-color 220ms ease}
+  .screen-compose .compose-nav-item{position:relative;z-index:1;appearance:none;-webkit-appearance:none;width:100%;min-height:40px;padding:4px 0 3px;border:0;border-radius:12px;background:none;font:inherit;font-size:11px;font-weight:600;letter-spacing:0;color:rgba(245,242,255,.6);justify-content:flex-start;cursor:pointer;transition:color 180ms ease}
+  .screen-compose .compose-nav-item[aria-current]{color:#f5f2ff}
+  .screen-compose .compose-nav-item:focus-visible,
+  .screen-compose .compose-nav-center:focus-visible,
+  .screen-compose .compose-action:focus-visible{outline:2px solid #8c5bff;outline-offset:2px}
+  .screen-compose .compose-nav-ink{position:absolute;top:0;left:0;width:44px;height:28px;border-radius:999px;background:rgba(140,91,255,.18);transform:translate(var(--x,0px),var(--y,0px));opacity:0;pointer-events:none}
+  .screen-compose .compose-nav.is-ready .compose-nav-ink{opacity:1;transition:transform 220ms cubic-bezier(.2,.9,.3,1)}
+  .screen-compose .compose-nav-center{appearance:none;-webkit-appearance:none;padding:0;font:inherit}
+  .screen-compose .compose-nav-center:hover{transform:translateY(-22px) scale(1.04)}
+  .screen-compose .compose-nav-center:active{transform:translateY(-22px) scale(.97)}
+  .screen-compose.theme-light .compose-nav-item{color:rgba(17,22,47,.62)}
+  .screen-compose.theme-light .compose-nav-item[aria-current]{color:#11162f}
+  .screen-compose.theme-light .compose-nav-ink{background:rgba(91,52,230,.12)}
+
+  /* Entrance: reading order is motion order, once. The fixed nav stays still. */
+  @keyframes composeRise{from{opacity:0;transform:translateY(12px)}}
+  .screen-compose .compose-shell > [style*="--i"]{animation:composeRise 420ms cubic-bezier(.2,.9,.3,1) both;animation-delay:calc(var(--i,0)*60ms)}
+
+  @media (prefers-reduced-motion:reduce){
+    .screen-compose .compose-shell > [style*="--i"],
+    .screen-compose .vp-bars rect{animation:none}
+    .screen-compose .compose-nav.is-ready .compose-nav-ink,
+    .screen-compose .compose-shiny-cta,
+    .screen-compose .compose-shiny-cta:hover::after,
+    .screen-compose .compose-shiny-cta:focus-visible::after,
+    .screen-compose .compose-shiny-cta > svg,
+    .screen-compose .compose-tile,
+    .screen-compose .compose-action,
+    .screen-compose .compose-nav-center,
+    .screen-compose .compose-nav-item,
+    .screen-compose .vp-glyph,
+    .screen-compose .vp-bars rect,
+    .screen-compose .compose-clone-core{transition:none}
+    .screen-compose .compose-shiny-cta:hover::after,
+    .screen-compose .compose-shiny-cta:focus-visible::after{transform:translateX(0);opacity:0}
+    .screen-compose .compose-shiny-cta:hover > svg,
+    .screen-compose .compose-voiceprint:hover .vp-glyph,
+    .screen-compose .compose-voiceprint:active .vp-glyph{transform:none}
+    .screen-compose .compose-nav-center:hover,
+    .screen-compose .compose-nav-center:active{transform:translateY(-22px)}
+    .screen-compose .compose-tile:active,
+    .screen-compose .compose-action:active{transform:none}
+  }
+</style>
 </head>
 <body class="screen-compose">
   <main class="screen">
@@ -16,7 +156,7 @@
 
     <section class="compose-home">
       <div class="compose-shell">
-        <div class="compose-topbar">
+        <div class="compose-topbar" style="--i:0">
           <div class="compose-profile">
             <div class="compose-avatar">
               <img src="https://images.unsplash.com/photo-1664359028599-c3ac398825e0?auto=format&fit=crop&fm=jpg&q=80&w=240&h=240" alt="Profile photo">
@@ -27,104 +167,89 @@
             </div>
           </div>
           <div class="compose-top-actions">
-            <button class="compose-action" aria-label="Notifications">
+            <button class="compose-action" type="button" aria-label="Notifications">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
             </button>
-            <button class="compose-action theme-toggle" id="theme-toggle" aria-label="Switch to light theme" aria-pressed="false" type="button">
+            <button class="compose-action theme-toggle" id="theme-toggle" aria-label="Switch to light theme" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.7 6.7 0 0 0 9.8 9.8Z"/></svg>
             </button>
           </div>
         </div>
 
-        <h1 class="compose-title">What would you like to do today?</h1>
+        <h1 class="compose-title" style="--i:1">What would you like to do today?</h1>
 
-        <div class="compose-grid">
-          <article class="compose-tile tile-tts">
-            <div class="compose-tile-head">
+        <div class="compose-grid" style="--i:2">
+          <button type="button" class="compose-tile tile-tts">
+            <span class="compose-tile-head">
               <span class="compose-tile-icon is-chat">
                 <span class="compose-icon-core">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 17.2c-2.3-1.3-3.8-3.6-3.8-6.2C3.2 6.6 7.1 3 12 3s8.8 3.6 8.8 8-3.9 8-8.8 8c-1.2 0-2.3-.2-3.4-.6L4 20l1.7-4.1Z"/></svg>
                 </span>
               </span>
-            </div>
-            <div class="compose-tile-small">Chat</div>
-            <div class="compose-tile-copy small">Write it, refine it, turn it into speech.</div>
-          </article>
+            </span>
+            <span class="compose-tile-small">Chat</span>
+            <span class="compose-tile-copy small">Write it, refine it, turn it into speech.</span>
+          </button>
 
-          <article class="compose-tile tile-stt">
-            <div class="compose-tile-head">
+          <button type="button" class="compose-tile tile-stt">
+            <span class="compose-tile-head">
               <span class="compose-tile-icon is-speak">
                 <span class="compose-icon-core">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4a3 3 0 0 1 3 3v4a3 3 0 1 1-6 0V7a3 3 0 0 1 3-3Z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7"/></svg>
                 </span>
               </span>
-            </div>
-            <div class="compose-tile-small">Speak</div>
-            <div class="compose-tile-copy small">Turn voice notes into clean transcripts.</div>
-          </article>
+            </span>
+            <span class="compose-tile-small">Speak</span>
+            <span class="compose-tile-copy small">Turn voice notes into clean transcripts.</span>
+          </button>
         </div>
 
-        <section class="compose-clone-banner">
+        <section class="compose-clone-banner" style="--i:3" aria-labelledby="clone-title">
           <div class="compose-clone-main">
             <div class="compose-clone-copy">
-              <div class="compose-tile-small">Voice Clone</div>
-              <div class="compose-tile-copy small">Create and reuse consent-based Arabic voice models with identity-safe presets.</div>
+              <div class="compose-tile-small" id="clone-title">Voice Clone</div>
+              <p class="compose-tile-copy small">Your voice, with consent on file.</p>
+              <p class="compose-clone-sample" lang="ar" dir="rtl">مرحباً، أنا نعيم.</p>
+              <p class="compose-clone-time"><span data-vp-time>0:00</span> / 0:14</p>
             </div>
-            <div class="compose-clone-orbit" aria-label="Voice clone orbit">
-              <div class="compose-clone-core">
-                <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Naiem&backgroundColor=b6e3f4,c0aede,d1d4f9" alt="Primary clone avatar">
-              </div>
-              <div class="compose-clone-ring ring-one"></div>
-              <div class="compose-clone-ring ring-two"></div>
-              <div class="compose-clone-node orbit-a">
-                <div class="compose-clone-face face-sm">
-                  <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Layla&backgroundColor=fde2e4,ffd6a5,ffcad4" alt="Clone avatar">
-                </div>
-              </div>
-              <div class="compose-clone-node orbit-b">
-                <div class="compose-clone-face face-lg">
-                  <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Omar&backgroundColor=d1d4f9,c0aede,b6e3f4" alt="Clone avatar">
-                </div>
-              </div>
-              <div class="compose-clone-node orbit-c">
-                <div class="compose-clone-face face-md">
-                  <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Mira&backgroundColor=f1f0ff,ffd6e0,e0c3fc" alt="Clone avatar">
-                </div>
-              </div>
-              <div class="compose-clone-node orbit-d">
-                <div class="compose-clone-face face-sm">
-                  <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Youssef&backgroundColor=b6e3f4,f1f0ff,c0aede" alt="Clone avatar">
-                </div>
-              </div>
-              <div class="compose-clone-node orbit-e">
-                <div class="compose-clone-face face-xs">
-                  <img src="https://api.dicebear.com/9.x/notionists/svg?seed=Hana&backgroundColor=ffd6e0,fde2e4,e0c3fc" alt="Clone avatar">
-                </div>
-              </div>
-            </div>
+            <button class="compose-voiceprint" type="button" aria-pressed="false" aria-label="Play a sample of your cloned voice">
+              <svg viewBox="0 0 128 128" width="128" height="128" aria-hidden="true" focusable="false">
+                <circle class="vp-track" cx="64" cy="64" r="59"/>
+                <circle class="vp-progress" cx="64" cy="64" r="59" transform="rotate(-90 64 64)"/>
+                <g class="vp-bars"></g>
+              </svg>
+              <span class="compose-clone-core">
+                <img src="https://images.unsplash.com/photo-1664359028599-c3ac398825e0?auto=format&fit=crop&fm=jpg&q=80&w=240&h=240" alt="">
+              </span>
+              <span class="vp-glyph" aria-hidden="true">
+                <svg class="vp-play" viewBox="0 0 10 10"><path d="M3 1.4v7.2L8.6 5Z" fill="currentColor"/></svg>
+                <svg class="vp-pause" viewBox="0 0 10 10"><path d="M2.2 1.5h2.1v7H2.2zM5.7 1.5h2.1v7H5.7z" fill="currentColor"/></svg>
+              </span>
+            </button>
           </div>
         </section>
 
-        <div class="compose-promptbar">
-          <button class="compose-shiny-cta" type="button" aria-label="Text to Speech Studio">
+        <div class="compose-promptbar" style="--i:4">
+          <button class="compose-shiny-cta" type="button">
             <span>
               <strong>Text to Speech Studio</strong>
-              <small>Paste Arabic text, choose a voice, and generate in one flow.</small>
+              <small>Paste Arabic text, pick Layla or Noor, listen.</small>
             </span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </button>
         </div>
 
         <nav class="compose-nav" aria-label="Primary">
-          <div class="compose-nav-item active">
+          <span class="compose-nav-ink" aria-hidden="true"></span>
+          <button type="button" class="compose-nav-item" aria-current="page">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>
             <span>Home</span>
-          </div>
-          <div class="compose-nav-item">
+          </button>
+          <button type="button" class="compose-nav-item">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M19 11a7 7 0 0 1-14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
             <span>Voices</span>
-          </div>
-          <div class="compose-nav-center" role="button" aria-label="New voice note">
+          </button>
+          <button type="button" class="compose-nav-center" aria-label="New voice note">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
               <line x1="2"  y1="11.5" x2="2"  y2="12.5"/>
               <line x1="7"  y1="9"    x2="7"  y2="15"/>
@@ -132,45 +257,183 @@
               <line x1="17" y1="9"    x2="17" y2="15"/>
               <line x1="22" y1="11.5" x2="22" y2="12.5"/>
             </svg>
-          </div>
-          <div class="compose-nav-item">
+          </button>
+          <button type="button" class="compose-nav-item">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg>
             <span>History</span>
-          </div>
-          <div class="compose-nav-item">
+          </button>
+          <button type="button" class="compose-nav-item">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>
             <span>Profile</span>
-          </div>
+          </button>
         </nav>
       </div>
     </section>
   </main>
   <script>
     (() => {
-      const storageKey = 'munsit-compose-theme';
       const body = document.body;
-      const toggle = document.getElementById('theme-toggle');
-      if (!toggle) return;
 
+      /* Theme: persisted when storage is reachable, dark when it is not (opaque origins throw). */
+      const storageKey = 'munsit-compose-theme';
+      const toggle = document.getElementById('theme-toggle');
       const moonIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.7 6.7 0 0 0 9.8 9.8Z"/></svg>';
       const sunIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.8v2.1M12 19.1v2.1M21.2 12h-2.1M4.9 12H2.8M18.5 5.5 17 7M7 17l-1.5 1.5M18.5 18.5 17 17M7 7 5.5 5.5"/></svg>';
+      const readTheme = () => { try { return window.localStorage.getItem(storageKey); } catch (e) { return null; } };
+      const saveTheme = (value) => { try { window.localStorage.setItem(storageKey, value); } catch (e) { /* storage blocked: the toggle still works for this view */ } };
 
       function applyTheme(theme) {
         const isLight = theme === 'light';
         body.classList.toggle('theme-light', isLight);
-        toggle.setAttribute('aria-pressed', String(isLight));
+        if (!toggle) return;
         toggle.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
         toggle.innerHTML = isLight ? sunIcon : moonIcon;
       }
 
-      const savedTheme = window.localStorage.getItem(storageKey);
-      applyTheme(savedTheme === 'light' ? 'light' : 'dark');
+      applyTheme(readTheme() === 'light' ? 'light' : 'dark');
+      if (toggle) {
+        toggle.addEventListener('click', () => {
+          const next = body.classList.contains('theme-light') ? 'dark' : 'light';
+          saveTheme(next);
+          applyTheme(next);
+        });
+      }
 
-      toggle.addEventListener('click', () => {
-        const nextTheme = body.classList.contains('theme-light') ? 'dark' : 'light';
-        window.localStorage.setItem(storageKey, nextTheme);
-        applyTheme(nextTheme);
+      /* Portraits: a blocked image leaves the violet disc with the initial behind it. */
+      document.querySelectorAll('.compose-avatar img, .compose-clone-core img').forEach((img) => {
+        const drop = () => img.remove();
+        if (img.complete && img.naturalWidth === 0) { drop(); return; }
+        img.addEventListener('error', drop, { once: true });
       });
+
+      /* Voiceprint: 48 deterministic bars around the portrait, a 14 s sample timeline owned by JS.
+         No audio is created or fetched; the arc, the lit bars and the counter are the state. */
+      const banner = document.querySelector('.compose-clone-banner');
+      const vp = banner && banner.querySelector('.compose-voiceprint');
+      if (vp) {
+        const NS = 'http://www.w3.org/2000/svg';
+        const barsGroup = vp.querySelector('.vp-bars');
+        const progress = vp.querySelector('.vp-progress');
+        const timeEl = banner.querySelector('[data-vp-time]');
+        const COUNT = 48;
+        const DURATION = 14;
+        const CIRC = 2 * Math.PI * 59;
+        const bars = [];
+        const frag = document.createDocumentFragment();
+        for (let n = 0; n < COUNT; n++) {
+          const h = Math.min(18, 6 + 12 * Math.abs(Math.sin(0.9 * n) + 0.5 * Math.sin(2.3 * n)));
+          const wrap = document.createElementNS(NS, 'g');
+          wrap.setAttribute('transform', 'rotate(' + (n * 360 / COUNT) + ' 64 64)');
+          const bar = document.createElementNS(NS, 'rect');
+          bar.setAttribute('x', '63');
+          bar.setAttribute('width', '2');
+          bar.setAttribute('rx', '1');
+          bar.setAttribute('y', (19 - h / 2).toFixed(2));
+          bar.setAttribute('height', h.toFixed(2));
+          bar.style.setProperty('--i', n);
+          wrap.appendChild(bar);
+          frag.appendChild(wrap);
+          bars.push(bar);
+        }
+        barsGroup.appendChild(frag);
+
+        let t = 0;
+        let playing = false;
+        let raf = 0;
+        let last = 0;
+        let shownSec = -1;
+        let lit = -1;
+        let finishTimer = 0;
+
+        function render() {
+          progress.style.strokeDashoffset = (CIRC * (1 - t / DURATION)).toFixed(2);
+          const sec = Math.floor(t);
+          if (sec !== shownSec) {
+            shownSec = sec;
+            timeEl.textContent = '0:' + String(Math.min(DURATION, sec)).padStart(2, '0');
+          }
+          const n = Math.min(COUNT, Math.floor(t / DURATION * COUNT));
+          if (n !== lit) {
+            lit = n;
+            bars.forEach((bar, i) => bar.classList.toggle('is-lit', i < n));
+          }
+        }
+
+        function frame(now) {
+          if (!playing) return;
+          t += Math.min(50, now - last) / 1000;
+          last = now;
+          if (t >= DURATION) {
+            t = DURATION;
+            render();
+            finish();
+            return;
+          }
+          render();
+          raf = requestAnimationFrame(frame);
+        }
+
+        function setPlaying(on) {
+          playing = on;
+          banner.classList.toggle('is-playing', on);
+          vp.setAttribute('aria-pressed', String(on));
+        }
+
+        function reset() {
+          t = 0;
+          shownSec = -1;
+          lit = -1;
+          banner.classList.remove('is-active');
+          render();
+        }
+
+        function play() {
+          clearTimeout(finishTimer);
+          if (t >= DURATION) reset();
+          banner.classList.add('is-active');
+          setPlaying(true);
+          last = performance.now();
+          raf = requestAnimationFrame(frame);
+        }
+
+        function pause() {
+          setPlaying(false);
+          cancelAnimationFrame(raf);
+        }
+
+        function finish() {
+          pause();
+          finishTimer = setTimeout(reset, 700);
+        }
+
+        vp.addEventListener('click', () => (playing ? pause() : play()));
+        document.addEventListener('visibilitychange', () => { if (document.hidden && playing) pause(); });
+        render();
+      }
+
+      /* Bottom nav: aria-current moves, the ink pill slides under it. One layout read per change. */
+      const nav = document.querySelector('.compose-nav');
+      if (nav) {
+        const items = Array.from(nav.querySelectorAll('.compose-nav-item'));
+        const ink = nav.querySelector('.compose-nav-ink');
+        const place = () => {
+          const current = items.find((btn) => btn.hasAttribute('aria-current')) || items[0];
+          if (!current || !ink) return;
+          ink.style.setProperty('--x', (current.offsetLeft + (current.offsetWidth - 44) / 2).toFixed(1) + 'px');
+          ink.style.setProperty('--y', current.offsetTop.toFixed(1) + 'px');
+        };
+        items.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            items.forEach((other) => other.removeAttribute('aria-current'));
+            btn.setAttribute('aria-current', 'page');
+            place();
+          });
+        });
+        place();
+        if (ink) void ink.offsetWidth; /* commit the first position before transitions are enabled */
+        nav.classList.add('is-ready');
+        window.addEventListener('resize', place);
+      }
     })();
   </script>
 </body>

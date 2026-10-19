@@ -3,14 +3,9 @@
       <div class="sec-head sec-head--split">
         <div>
           <span class="dab" aria-hidden="true"></span>
-          <h1 class="display h2" id="pricing-title" data-th="pricing_title" data-reveal>Four packages.<br><em>Prices on the page.</em></h1>
+          <h1 class="display h2" id="pricing-title" data-th="pricing_title" data-reveal>Three packages.<br><em>Prices on the page.</em></h1>
         </div>
         <p class="lede" data-t="pricing_sub">Each package has a fixed price, a written scope and a delivery date. You see all of it before you pay.</p>
-      </div>
-      <div class="pick" role="group" aria-labelledby="pick-title">
-        <p class="pick-title" id="pick-title" data-t="s_pick_title">Where are you starting from?</p>
-        <div class="pick-opts" id="pick-opts"></div>
-        <p class="pick-line sr-only" id="pick-line" aria-live="polite"></p>
       </div>
       <div class="prices" id="prices"></div>
       <noscript><p>Redesign $390, 5 business days · Build $590, 7 business days · Coaching $90/month (opening soon) · Custom projects from $2,500, fixed quote. Write to chilka.v@gmail.com to order.</p></noscript>
@@ -22,6 +17,8 @@
           <p class="addons-note" id="addons-note"></p>
         </div>
       </div>
+      <!-- Coaching is monthly, not a package: its own band (renderCoach in agence-story.js) -->
+      <article class="coach" id="coach" hidden></article>
       <div class="pricing-small">
         <p data-t="pricing_payment_line">Prices in US dollars, excluding applicable taxes. One-time packages are paid upfront; coaching is billed monthly.</p>
         <a href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="pricing_unsure">If two packages look close, book a 30-min call and we’ll tell you which one fits.</a>
@@ -35,7 +32,6 @@
         <span class="dab" aria-hidden="true"></span>
         <h2 class="display h2" id="faq-title" data-th="faq_headline" data-reveal>Questions<br><em>before you book.</em></h2>
         <p class="lede" data-t="faq_sub">If your question isn’t here, the 30-min call is free, or write to chilka.v@gmail.com.</p>
-        <a class="btn btn-ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer" data-t="faq_cta">Book a 30-min call</a>
       </div>
       <div class="faq-list" id="faq-list"></div>
     </div>

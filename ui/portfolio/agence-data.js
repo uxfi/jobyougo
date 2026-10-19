@@ -429,6 +429,10 @@ const AGENCY_OFFERS = /*OFFERS_JSON*/{
         "en": "Extra page, same style",
         "fr": "Page supplémentaire, même style"
       },
+      "details": {
+        "en": "One more page in the same design as your key page: up to 6 sections plus header and footer, desktop and mobile, with your real content, in the coded prototype.",
+        "fr": "Une page de plus, sur le même design que votre page clé : jusqu’à 6 sections plus en-tête et pied de page, desktop et mobile, avec vos vrais contenus, dans le prototype codé."
+      },
       "price": 190,
       "for": [
         "refonte",
@@ -441,6 +445,10 @@ const AGENCY_OFFERS = /*OFFERS_JSON*/{
       "name": {
         "en": "Extra flow, up to 5 screens",
         "fr": "Parcours supplémentaire, jusqu’à 5 écrans"
+      },
+      "details": {
+        "en": "One more user journey, such as sign-up, checkout or booking: up to 5 screens, redesigned for desktop and mobile and clickable in the prototype.",
+        "fr": "Un parcours de plus, par exemple inscription, commande ou réservation : jusqu’à 5 écrans, repensés en desktop et mobile et cliquables dans le prototype."
       },
       "price": 290,
       "for": [
@@ -455,6 +463,10 @@ const AGENCY_OFFERS = /*OFFERS_JSON*/{
         "en": "Copywriting, per page",
         "fr": "Rédaction, par page"
       },
+      "details": {
+        "en": "We write one page’s text from scratch: headline, sections and buttons, in your voice, from your brief and the kickoff call. Without it, we edit and tighten the text you send.",
+        "fr": "Nous écrivons de zéro les textes d’une page : titre, sections et boutons, dans votre ton, à partir de votre brief et de l’appel de lancement. Sans cette option, nous retravaillons et resserrons vos textes."
+      },
       "price": 150,
       "for": [
         "refonte",
@@ -467,6 +479,10 @@ const AGENCY_OFFERS = /*OFFERS_JSON*/{
       "name": {
         "en": "Extra revision round",
         "fr": "Aller-retour supplémentaire"
+      },
+      "details": {
+        "en": "One more round of changes after delivery: one list sent in one message, within the agreed brief (wording, section order, colors, spacing, images). Redesign includes 1 round, Build includes 2.",
+        "fr": "Un aller-retour de plus après livraison : une liste de modifications envoyée en un seul message, dans le cadre du brief validé (textes, ordre des sections, couleurs, espacements, images). La refonte en inclut 1, la création 2."
       },
       "price": 90,
       "for": [
@@ -538,10 +554,47 @@ const AGENCY_PROOF = [
   { n: 3, caseId: 'sg', offer: 'refonte', image: 'societe-generale-desktop.png', fit: 'contain', focus: 'center' },
 ];
 
-/* Section H: 12 checks (copy in check_N_*). Section F: 5 steps (step_N_*). No refund step (0): the Day 2 guarantee was dropped on 2026-10-12. */
+/* Brands the founder designed for, as an employee or a freelancer (EXP_LIST in portfolio/data.js). The page says
+   "we've worked with" (past tense), never "our clients" or "they trust us": these were roles held before v2 studio. Monochrome marks in images/brands/ (white parts knocked out, so CSS can
+   recolour them for dark grounds). `w` = shape: word (wide wordmark), mark (square emblem), wide (very wide). */
+const AGENCY_BRANDS = [
+  { id: 'lvmh', name: 'LVMH', logo: 'lvmh.png', w: 'word', role: { en: 'UX Designer', fr: 'UX Designer' }, years: '2021–2022' },
+  { id: 'bmw', name: 'BMW', logo: 'bmw.png', w: 'mark', role: { en: 'UI Designer', fr: 'UI Designer' }, years: '2020–2021' },
+  { id: 'renault', name: 'Renault Group', logo: 'renault.png', w: 'mark', role: { en: 'Product Designer', fr: 'Product Designer' }, years: '2019–2020' },
+  { id: 'sg', name: 'Société Générale', logo: 'societe-generale.png', w: 'word', role: { en: 'Senior Product Designer', fr: 'Senior Product Designer' }, years: '2023–2024' },
+  { id: 'shiseido', name: 'Shiseido', logo: 'shiseido.png', w: 'word', role: { en: 'Senior Product Designer', fr: 'Senior Product Designer' }, years: '2024' },
+  { id: 'sncf', name: 'SNCF', logo: 'sncf.png', w: 'badge', role: { en: 'Product Designer', fr: 'Product Designer' }, years: '2017–2019' },
+  { id: 'edenred', name: 'Edenred', logo: 'edenred.png', w: 'badge', role: { en: 'Senior Product Designer', fr: 'Senior Product Designer' }, years: '2023–2024' },
+  { id: 'casino', name: 'Casino Group', logo: 'casino.png', w: 'word', role: { en: 'UX / UI Designer', fr: 'UX / UI Designer' }, years: '2020–2021' },
+  { id: 'publicis', name: 'Marcel / Publicis', logo: 'publicis.png', w: 'word', role: { en: 'UX Designer', fr: 'UX Designer' }, years: '2015–2017' },
+  { id: 'francetv', name: 'France Télévisions', logo: 'france-tv.png', w: 'wide', role: { en: 'Web Graphic Designer', fr: 'Web Graphic Designer' }, years: '2013' },
+];
+
+/* The playground in motion: real interfaces from ui/interfaces, recorded as they run (images/reel/<id>.mp4, poster
+   <id>.jpg, 1200×814, about 10 s each). `src` opens the live page. */
+const AGENCY_REEL = [
+  { id: 'sobers-hero', name: 'Sobers', tone: 'dark', tag: { en: 'Mobile app · Cinematic scroll', fr: 'App mobile · Scroll cinématique' }, src: '/interfaces/sobers-hero.html' },
+  { id: 'motion-hero', name: 'Motion', tone: 'light', tag: { en: 'Photography · Editorial hero', fr: 'Photographie · Hero éditorial' }, src: '/interfaces/motion-hero.html' },
+  { id: 'munsit-studio', name: 'Munsit', tone: 'dark', tag: { en: 'AI voice · Text to speech', fr: 'IA vocale · Synthèse vocale' }, src: '/interfaces/munsit-studio.html' },
+  { id: 'maritana-hero', name: 'Maritana', tone: 'light', tag: { en: 'Mining · Corporate editorial', fr: 'Mines · Éditorial corporate' }, src: '/interfaces/maritana-hero.html' },
+  { id: 'upload-drop-glow', name: 'Upload Drop', tone: 'dark', tag: { en: 'Micro-interaction · Glass', fr: 'Micro-interaction · Verre' }, src: '/interfaces/upload-drop-glow.html' },
+  { id: 'devpilot-hero', name: 'Devpilot', tone: 'light', tag: { en: 'Recruitment SaaS · Landing', fr: 'SaaS de recrutement · Landing' }, src: '/interfaces/devpilot-hero.html' },
+];
+
+/* Client words. REAL quotes only, given by the client, with their permission to publish name, role and company.
+   Fake reviews are a misleading commercial practice in France and the EU. While this list is empty the section
+   stays hidden. One entry:
+   { name: 'Jane Doe', role: { en: 'Head of Product', fr: 'Head of Product' }, company: 'Acme', logo: 'acme.png' (images/brands/, optional),
+     photo: '/images/…jpg' (optional), quote: { en: '…', fr: '…' }, project: 'refonte' (offer id, optional), date: '2026-10' } */
+const AGENCY_TESTIMONIALS = [];
+
+/* Capacity, shown only when both numbers are set and true: "2 of 4 project slots left for November". Update
+   slots_left by hand when a project is booked; null hides the line. month: 'YYYY-MM' (the month it counts). */
+const AGENCY_AVAILABILITY = { slots_per_month: null, slots_left: null, month: null };
+
+/* Section H: 12 checks (copy in check_N_*). Section F: 5 steps (step_N_*). The Day 2 refund guarantee was dropped on 2026-10-12 and removed from every page on 2026-10-19. */
 const AGENCY_CHECK_COUNT = 12;
 const AGENCY_STEP_COUNT = 5;
-const AGENCY_REFUND_STEP = 0;
 
 /* Section J: FAQ slugs, in order (faq_{slug}_q / faq_{slug}_a, ids faq-{slug}). */
 const AGENCY_FAQ_SLUGS = ['new', 'scope', 'clock', 'revision', 'generic', 'who', 'inputs', 'ownership', 'payment', 'unhappy', 'cancel', 'bigger'];
@@ -605,6 +658,11 @@ const AGENCY_TYPING = {
 };
 
 /* ── Lookups shared with agence.js ── */
+/** Machine translation of an English string when the visitor's language is neither EN nor FR (agTr is set by the
+    agence shells); the string itself otherwise. */
+function agTrSafe(s) {
+  return typeof agTr === 'function' ? agTr(s) : s;
+}
 function agLang(lang) {
   if (lang === 'fr' || lang === 'en') return lang;
   return (typeof currentLang === 'string' && currentLang === 'fr') ? 'fr' : 'en';
@@ -616,9 +674,9 @@ function agT(key, lang) {
   const dict = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS) ? TRANSLATIONS : null;
   if (!dict) return '';
   const own = dict[l] && dict[l][key];
-  if (typeof own === 'string') return own;
+  if (typeof own === 'string') return agTrSafe(own);
   const en = dict.en && dict.en[key];
-  return typeof en === 'string' ? en : '';
+  return typeof en === 'string' ? agTrSafe(en) : '';
 }
 
 function agEsc(value) {
@@ -639,6 +697,13 @@ function agOffer(id) {
 function agPrice(amount, lang, monthly) {
   const l = agLang(lang);
   const n = Math.round(Number(amount) || 0);
+  // Other languages: the visitor's own currency format for US dollars ("390 US$", "US$390", "390 $").
+  const I = typeof window !== 'undefined' ? window.AG_I18N : null;
+  if (I && I.mt && I.intl) {
+    let s = '$' + n;
+    try { s = new Intl.NumberFormat(I.intl, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n); } catch (e) { /* unknown locale */ }
+    return s + (monthly ? '/' + (typeof agTr === 'function' ? agTr('month') : 'month') : '');
+  }
   if (l === 'fr') {
     const grouped = String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     return grouped + ' $' + (monthly ? '/mois' : '');

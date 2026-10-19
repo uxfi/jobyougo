@@ -6,8 +6,7 @@
 <title>Revenue Command Center</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="/ui/assets/fonts.css">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --command-navy: #070908;
@@ -24,18 +23,14 @@
     --inverse: #f3f6f2;
     --inverse-muted: #8b968d;
     --agent-blue: #c5cdc6;
-    --agent-blue-dark: #2f9a64;
-    --violet: #8d978e;
     --green: #3cba7a;
     --green-soft: rgba(60,186,122,0.14);
     --mark: #e7ece4;
     --amber: #d6a15a;
     --amber-soft: rgba(214,161,90,0.14);
-    --red: #e07a72;
     --red-soft: rgba(224,122,114,0.12);
-    --shadow: none;
     --font: "IBM Plex Sans", "Segoe UI", sans-serif;
-    --display: var(--font-instrument), Georgia, serif;
+    --display: "Instrument Serif", Georgia, serif;
     --mono: "IBM Plex Sans", "Segoe UI", sans-serif;
     --radius: 2px;
     --ease: cubic-bezier(.16, 1, .3, 1);
@@ -65,15 +60,6 @@
   :focus-visible {
     outline: 1px solid var(--mark);
     outline-offset: 2px;
-  }
-
-  .num {
-    font-family: var(--display);
-    font-size: 15px;
-    font-weight: 400;
-    letter-spacing: 0;
-    color: var(--slate);
-    font-variant-numeric: tabular-nums;
   }
 
   button, input { font: inherit; }
@@ -157,19 +143,19 @@
     width: 32px;
     height: 32px;
     margin-left: auto;
-    color: #dbe6f7;
+    color: var(--mark);
     border: 0;
     border-radius: 999px;
     background: transparent;
   }
 
-  .sidebar-toggle:hover { background: rgba(255,255,255,0.1); }
+  .sidebar-toggle:hover { background: rgba(231, 236, 228, .1); }
 
   .nav-section-label {
     padding: 8px 10px;
-    color: #6f7e94;
+    color: var(--inverse-muted);
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -202,7 +188,7 @@
     box-shadow: inset 2px 0 0 var(--mark);
   }
 
-  .nav-item:not(.active):hover { background: var(--nav-hover); color: #fff; }
+  .nav-item:not(.active):hover { background: var(--nav-hover); color: var(--ink); }
   .nav-label { white-space: nowrap; transition: opacity 160ms ease; }
   .nav-item .glyph {
     width: 26px;
@@ -341,7 +327,26 @@
     font-size: 15px;
   }
 
-  .command-bar input::placeholder { color: #8b968d; }
+  .command-bar input::placeholder { color: var(--slate); }
+
+  .command-empty {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 10px;
+    color: var(--slate);
+    font-size: 13px;
+  }
+
+  .command-empty kbd {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(231, 236, 228, .1);
+    color: var(--ink);
+    font: inherit;
+    font-size: 11px;
+  }
 
   .kbd {
     flex: 0 0 auto;
@@ -371,11 +376,6 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: auto;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
     color: var(--slate);
     font-size: 13px;
     font-weight: 500;
@@ -419,7 +419,7 @@
 
   .rise.is-in {
     animation: rise-in .55s var(--ease) both;
-    animation-delay: calc(var(--i, 0) * 70ms);
+    animation-delay: calc(var(--i, 0) * 60ms);
   }
 
   @keyframes rise-in {
@@ -431,10 +431,20 @@
     transform: translateY(12px);
   }
 
-  .rise.is-in .pop,
-  .chrome.is-in .pop {
+  .rise.is-in .pop {
     animation: rise-in .46s var(--ease) both;
     animation-delay: calc(var(--i, 0) * 60ms);
+  }
+
+  /* Hero beat: orb + title first, the composition draws, bars rise, the CTA lands last. */
+  .heading-actions {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  .rise.is-in .heading-actions {
+    animation: rise-in .46s var(--ease) both;
+    animation-delay: 260ms;
   }
 
   .pop.settled {
@@ -496,7 +506,7 @@
   }
 
   h1, h2, h3, p { margin: 0; }
-  h1, .briefing-copy h2, .section-title, .proposal h2, .opportunity-card h3, .metric-value, .impact, .activity-num, .week-col b, .vault-peak {
+  h1, .briefing-copy h2, .section-title, .proposal h2, .opportunity-card h3, .metric-value, .impact, .week-col b, .recovery-total, .recovery-legend b, .recovery-day strong, .queue-status b {
     font-family: var(--display);
     font-weight: 400;
     letter-spacing: -0.02em;
@@ -595,11 +605,9 @@
   .metric-card,
   .opportunity-card,
   .line-graph,
-  .donut-card,
   .day,
   .info-box,
-  .proposal,
-  .guardrail-mini {
+  .proposal {
     position: relative;
     border: 0;
     border-radius: 16px;
@@ -608,7 +616,6 @@
 
   .opportunity-card,
   .line-graph,
-  .donut-card,
   .day {
     background: var(--surface-soft);
   }
@@ -720,7 +727,7 @@
 
   .week-col {
     display: grid;
-    grid-template-rows: 22px minmax(0, 1fr);
+    grid-template-rows: 22px minmax(0, 1fr) 16px;
     align-items: end;
     justify-items: stretch;
     width: 100%;
@@ -741,6 +748,16 @@
   }
 
   .week-col.is-peak b { color: var(--ink); font-size: 18px; }
+
+  .week-col small {
+    justify-self: center;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--slate);
+  }
+
+  .week-col.is-peak small,
+  .week-col.is-on small { color: var(--ink); }
 
   .week-col i {
     display: block;
@@ -774,22 +791,99 @@
 
   .week-col.is-peak i { background: linear-gradient(180deg, #ffffff, #d5dbd2 46%, #8d968c); }
 
+  /* Where the $4,820 comes from: the three opportunity impacts sum to the headline. */
   .briefing-list {
     grid-column: 2;
-    grid-row: 3;
+    grid-row: 1 / span 3;
     align-self: stretch;
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 6px;
-    height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 18px;
     min-height: 0;
-    padding: 14px 16px;
-    text-align: center;
+    padding: 22px 20px;
   }
 
-  .vault-peak { font-size: 48px; line-height: .9; }
-  .briefing-list span { color: var(--slate); font-size: 15px; }
+  .recovery-total {
+    display: block;
+    font-size: 48px;
+    line-height: .9;
+    color: var(--ink);
+  }
+
+  .recovery-head span {
+    display: block;
+    margin-top: 8px;
+    color: var(--slate);
+    font-size: 13px;
+  }
+
+  .recovery-bar {
+    display: flex;
+    gap: 3px;
+    height: 14px;
+  }
+
+  .recovery-bar .seg {
+    flex: var(--f) 1 0px;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: var(--seg);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform .6s var(--ease) var(--d, 150ms), opacity 180ms ease, filter 160ms ease;
+  }
+
+  .recovery-bar .seg:nth-child(2) { --d: 240ms; }
+  .recovery-bar .seg:nth-child(3) { --d: 330ms; }
+  .briefing-list.is-in .seg { transform: none; }
+  .recovery-bar .seg.is-dim { opacity: .4; }
+  .recovery-bar .seg:hover,
+  .recovery-bar .seg:focus-visible { opacity: 1; filter: brightness(1.15); }
+
+  .recovery-legend {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .recovery-legend li {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    color: var(--slate);
+    font-size: 13px;
+    transition: color 160ms ease;
+  }
+
+  .recovery-legend i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--seg);
+  }
+
+  .recovery-legend b { font-size: 18px; line-height: 1; color: var(--ink); }
+  .recovery-legend li.is-live span { color: var(--ink); }
+
+  .recovery-day {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+
+  .recovery-day small { display: block; color: var(--slate); font-size: 12px; }
+  .recovery-day strong { display: block; margin-top: 4px; font-size: 22px; line-height: 1; color: var(--ink); }
+  .recovery-day > span { color: var(--slate); font-size: 12px; }
 
   .chart-caption {
     display: flex;
@@ -802,58 +896,6 @@
     margin-bottom: 10px;
   }
 
-  .bar-chart {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
-    align-items: end;
-    height: 74px;
-  }
-
-  .bar {
-    position: relative;
-    min-height: 12px;
-    border-radius: 1px 1px 0 0;
-    background: #b7c0b6;
-    transform: scaleY(0);
-    transform-origin: center bottom;
-    transition: filter 160ms ease, transform .5s var(--ease);
-  }
-
-  .bar-chart.is-in .bar { transform: scaleY(1); }
-  .bar-chart.is-in .bar:nth-child(2) { transition-delay: 50ms; }
-  .bar-chart.is-in .bar:nth-child(3) { transition-delay: 100ms; }
-  .bar-chart.is-in .bar:nth-child(4) { transition-delay: 150ms; }
-  .bar-chart.is-in .bar:nth-child(5) { transition-delay: 200ms; }
-  .bar-chart.is-in .bar:nth-child(6) { transition-delay: 250ms; }
-  .bar-chart.is-in .bar:nth-child(7) { transition-delay: 300ms; }
-
-  .briefing-fig {
-    width: min(100%, 148px);
-    margin: 0;
-    --hairline-plate: transparent;
-    --hairline-hi: var(--ink);
-    --hairline-edge: #9aa59c;
-    --hairline-mid: #c5cdc6;
-    --hairline-lo: #3a403c;
-    --hairline-stroke: 1.15;
-  }
-
-  .bar:hover { filter: brightness(1.15); }
-  .bar::after {
-    content: attr(data-value);
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 5px);
-    transform: translateX(-50%);
-    color: var(--ink);
-    font-size: 10px;
-    font-weight: 700;
-    opacity: 0;
-    transition: opacity 160ms ease;
-  }
-  .bar:hover::after { opacity: 1; }
-
   .metrics {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -865,10 +907,7 @@
     min-height: 148px;
     padding: 17px;
     overflow: hidden;
-    transition: transform .18s var(--ease), border-color .16s ease;
   }
-
-  .metric-card:hover { transform: translateY(-4px); }
 
   .metric-top {
     display: flex;
@@ -959,8 +998,12 @@
     background: rgba(214, 161, 90, .18);
   }
 
-  .mini-badge.blue,
-  .mini-badge.violet {
+  .mini-badge.green {
+    color: #d7f3e3;
+    background: var(--green-soft);
+  }
+
+  .mini-badge.blue {
     color: var(--ink);
     background: rgba(243, 246, 242, .1);
   }
@@ -982,23 +1025,53 @@
     font-size: 26px;
     line-height: 1;
   }
-  .tabs { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .tabs {
+    position: relative;
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(231, 236, 228, .06);
+  }
+
   .tab {
+    position: relative;
+    z-index: 1;
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    height: 32px;
+    height: 30px;
     padding: 0 14px;
     border: 0;
     border-radius: 999px;
-    background: rgba(231, 236, 228, .08);
+    background: transparent;
     color: var(--slate);
     font-size: 12px;
     font-weight: 500;
     line-height: 1;
+    transition: color 220ms var(--ease), background 160ms ease;
   }
-  .tab:hover { color: var(--ink); background: rgba(243, 246, 242, .09); }
+
+  .tab:hover { color: var(--ink); background: rgba(243, 246, 242, .06); }
   .tab.active { color: #121614; background: var(--mark); }
+  .tabs.has-ink .tab.active { background: transparent; }
+
+  /* Shared-element indicator: one pill slides between tabs instead of four repainting. */
+  .tab-ink {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 0;
+    border-radius: 999px;
+    background: var(--mark);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 220ms var(--ease), width 220ms var(--ease), opacity 120ms ease;
+  }
+
+  .tab-ink.is-ready { opacity: 1; }
 
   .opportunity-grid {
     display: grid;
@@ -1012,12 +1085,16 @@
     min-height: 210px;
     padding: 16px;
     cursor: pointer;
-    transition: border-color 160ms ease, transform .18s var(--ease);
+    transition: transform .18s var(--ease), box-shadow 160ms ease, background 160ms ease;
   }
 
   .opportunity-card:hover { transform: translateY(-4px); }
 
-  .opportunity-card.is-selected { background: #1e2420; }
+  .opportunity-card.is-hint { box-shadow: inset 0 0 0 1px var(--line); }
+  .opportunity-card.is-selected {
+    background: #1e2420;
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+  }
 
   .opportunity-top {
     display: flex;

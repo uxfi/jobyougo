@@ -936,7 +936,7 @@ function renderIfaceGrid() {
   const el = document.getElementById('ifaces-grid-el');
   if (!el) return;
   el.innerHTML = visibleInterfaces().map(iface => `
-    <div class="iface-card" onclick="openIfaceModal('${iface.id}')" title="${escapeHTML(iface.name)}">${siteIfaceBadgeHtml(iface)}
+    <div class="iface-card" role="button" tabindex="0" data-iface="${iface.id}" aria-label="${escapeHTML(iface.name)}">${siteIfaceBadgeHtml(iface)}
       ${iface.thumb
         ? `<img class="iface-card-thumb" src="${ifaceThumbSrc(iface.thumb)}" alt="${escapeHTML(iface.name)}" loading="lazy" decoding="async">`
         : `<div class="iface-card-thumb--empty"><span class="iface-card-initials">${escapeHTML(getIfaceInitials(iface.name))}</span></div>`
@@ -950,6 +950,21 @@ function renderIfaceGrid() {
       </div>
     </div>`).join('');
   bindIfaceMotion(el);
+  // One delegated click and one key handler for the grid (the cards used to carry an inline onclick).
+  if (!el.dataset.bound) {
+    el.dataset.bound = '1';
+    el.addEventListener('click', (e) => {
+      const c = e.target.closest('.iface-card[data-iface]');
+      if (c) openIfaceModal(c.dataset.iface);
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const c = e.target.closest('.iface-card[data-iface]');
+      if (!c || e.target !== c) return;
+      e.preventDefault();
+      openIfaceModal(c.dataset.iface);
+    });
+  }
 
   // Use requestAnimationFrame to ensure the grid is rendered before calculating height
   requestAnimationFrame(() => {
@@ -1076,9 +1091,9 @@ function getAbsolutePreviewUrl(src) {
 
 function copyUrlLabel(state) {
   const fr = typeof currentLang === 'undefined' || currentLang !== 'en';
-  if (state === 'copied') return fr ? 'Copié' : 'Copied';
-  if (state === 'failed') return fr ? 'Échec' : 'Copy failed';
-  return fr ? 'Copier l’URL' : 'Copy URL';
+  if (state === 'copied') return fr ? 'Copié' : ifaceTr('Copied');
+  if (state === 'failed') return fr ? 'Échec' : ifaceTr('Copy failed');
+  return fr ? 'Copier l’URL' : ifaceTr('Copy URL');
 }
 
 function setModalUrl(raw) {

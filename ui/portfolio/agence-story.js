@@ -15,7 +15,11 @@
   const smallMq = window.matchMedia('(max-width: 720px)');
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   let reduced = reducedMq.matches;
+  // lang = which hand-written copy to read (en or fr). Any other visitor language (SITE.locale) reads the English
+  // copy through agTr / agTrDeep (agence shells), which swap in the machine translation when there is one.
   let lang = SITE.initialLang === 'fr' ? 'fr' : 'en';
+  const tr = (s) => (typeof agTr === 'function' ? agTr(s) : s);
+  const trDeep = (o) => (typeof agTrDeep === 'function' ? agTrDeep(o) : o);
 
   const OFFERS = (typeof AGENCY_OFFERS === 'object' && AGENCY_OFFERS) ? AGENCY_OFFERS : { offers: [], addons: [] };
   const CAL = typeof AGENCY_CALENDLY === 'string' ? AGENCY_CALENDLY : 'https://calendly.com/chilka-v/30min';
@@ -24,7 +28,6 @@
   const PROOF = typeof AGENCY_PROOF !== 'undefined' ? AGENCY_PROOF : [];
   const CHECKS = typeof AGENCY_CHECK_COUNT === 'number' ? AGENCY_CHECK_COUNT : 12;
   const STEPS = typeof AGENCY_STEP_COUNT === 'number' ? AGENCY_STEP_COUNT : 5;
-  const REFUND_STEP = typeof AGENCY_REFUND_STEP === 'number' ? AGENCY_REFUND_STEP : 3;
   const FAQ = typeof AGENCY_FAQ_SLUGS !== 'undefined' ? AGENCY_FAQ_SLUGS : [];
   const OFFER_IDS = typeof AGENCY_OFFER_IDS !== 'undefined' ? AGENCY_OFFER_IDS : ['refonte', 'creation', 'accompagnement', 'custom', 'unsure'];
 
@@ -44,7 +47,7 @@
     { id: 'faq', target: 'faq', key: 's_ch_faq', color: PAINT.orange },
     { id: 'contact', target: 'contact', key: 's_ch_contact', color: PAINT.white },
   ];
-  /* One colour per chapter; only the ledger (the peak) empties the whole palette. */
+  /* One colour per chapter; only the 12 checks (the peak) empty the whole palette. */
   const CHECK_COLORS = [PAINT.pink, PAINT.yellow, PAINT.cyan, PAINT.orange, PAINT.lime, PAINT.purple];
 
   /* Story lines written for this page, and a few overrides of shared keys (t() reads STORY first).
@@ -67,28 +70,15 @@
       s_fox_a: 'Someone still has<br>to finish the work.',
       s_fox_line: 'The founder checks every screen. One paint colour per chapter, from here on.',
       details_headline: 'Every delivery passes the<br><em>same 12 checks.</em>',
-      s_checks_painted: 'checks painted',
       s_checks_all: 'All 12, line by line',
       s_check_close: 'Close',
       s_checks_lede: 'You get this grid with your files, completed and signed by the founder. A point that doesn’t apply is marked N/A.',
-      s_ledger_title: 'Detail check',
-      s_ledger_points: '12 points, read by hand',
-      s_ledger_field: 'Delivery',
-      s_ledger_field_v: 'Your page',
       s_ledger_sign: 'Checked by hand, founder',
       s_ledger_stamp: 'passed',
-      s_ledger_hint: 'Point at a line to read the rule behind it.',
-      s_guar_short: 'On Day 2 you see the structure, one key screen and the tone. If it doesn’t convince you, we refund 100%, with no form and no reason to give.',
-      s_guar_date: 'The delivery date is our commitment, and we tell you before it slips.',
-      s_terms: 'The guarantee in detail',
       s_process_note: 'Build: the same steps with two more build days, delivered on Day 7. Coaching: two calls a month.',
       step_4_body: 'The full page in code, desktop and mobile, with your real content and every state: empty, loading, error, success.',
       faq_cancel_a: 'Yes, any time before the next billing date. The current month stays paid and unused calls don’t roll over.',
       faq_payment_a: 'You order from the package card. Redesign and Build are paid in full before Day 1, and every payment gets an invoice. Coaching is billed monthly in advance. A custom project is paid in two parts: a deposit to book the dates, the balance at delivery. Prices are in US dollars, excluding applicable taxes.',
-      svc_4_promise: 'A senior product designer looks at your work twice a month, on a call, for teams who build themselves.',
-      svc_4_del_1: '2 calls of 45 min a month',
-      svc_4_del_3: 'A written review of 2 screens a month',
-      svc_4_del_4: 'Written priorities after each call',
       pricing_sub: 'Each package has a fixed price, a written scope and a delivery date. You see all of it before you pay.',
       s_price_more: '{n} more included',
       s_price_more_build: '{n} more, with every Build',
@@ -122,9 +112,7 @@
       s_ch_founder: 'The founder',
       s_ch_faq: 'FAQ',
       s_ch_contact: 'Contact',
-      s_more_proof: 'See the proof',
       s_more_done: 'What was done',
-      s_more_ba: 'Before and after',
       s_pick_title: 'Where are you starting from?',
       s_pick_refonte: 'My site is live, but people leave',
       s_pick_creation: 'I’m starting from a blank page',
@@ -134,17 +122,7 @@
       s_price_from: 'from',
       s_price_quote: 'fixed quote',
       s_pick_line: '{name}: {price}, {delivery}.',
-      s_svc_gets: 'What you get',
       s_soon: 'Soon',
-      s_proof_close: 'Close the proof',
-      s_gets_close: 'Close the list',
-      s_proof_img_1: 'The redesigned BMW homepage',
-      s_proof_img_2: 'The redesigned UpViral campaign builder',
-      s_proof_img_3: 'The Creads.io dashboard',
-      s_fig_svc_1: 'A brush repainting a web page',
-      s_fig_svc_2: 'A customer journey that drops its detour',
-      s_fig_svc_3: 'A prompt turning into a working screen',
-      s_fig_svc_4: 'A review call circling one detail of the screen',
       s_fig_step_1: 'A phone, for the kickoff call',
       s_fig_step_2: 'A dish aimed at your page',
       s_fig_step_3: 'A padlock: the direction locks in on Day 2',
@@ -168,28 +146,15 @@
       s_fox_a: 'Il faut encore quelqu’un<br>pour finir le travail.',
       s_fox_line: 'Le fondateur vérifie chaque écran. Une couleur de peinture par chapitre, à partir d’ici.',
       details_headline: 'Chaque livraison passe les<br><em>12 mêmes contrôles.</em>',
-      s_checks_painted: 'contrôles peints',
       s_checks_all: 'Les 12, ligne par ligne',
       s_check_close: 'Fermer',
       s_checks_lede: 'Vous recevez cette grille avec vos fichiers, complétée et signée par le fondateur. Un point qui ne s’applique pas est marqué « sans objet ».',
-      s_ledger_title: 'Contrôle des détails',
-      s_ledger_points: '12 points, relus à la main',
-      s_ledger_field: 'Livraison',
-      s_ledger_field_v: 'Votre page',
       s_ledger_sign: 'Vérifié à la main, fondateur',
       s_ledger_stamp: 'validé',
-      s_ledger_hint: 'Survolez une ligne pour lire la règle qui la fonde.',
-      s_guar_short: 'Au jour 2, vous voyez la structure, un écran clé et le ton. Si ça ne vous convainc pas, nous remboursons 100 %, sans formulaire ni justification.',
-      s_guar_date: 'La date de livraison est notre engagement, et nous vous prévenons avant tout retard.',
-      s_terms: 'La garantie en détail',
       s_process_note: 'Création : les mêmes étapes avec deux jours de construction en plus, livraison au jour 7. Accompagnement : deux appels par mois.',
       step_4_body: 'La page complète en code, desktop et mobile, avec vos vrais contenus et tous les états : vide, chargement, erreur, succès.',
       faq_cancel_a: 'Oui, à tout moment avant la prochaine échéance. Le mois en cours reste dû et les appels non utilisés ne sont pas reportés.',
       faq_payment_a: 'Vous commandez depuis la carte de la formule. La Refonte et la Création se règlent en totalité avant le jour 1, et chaque paiement donne lieu à une facture. L’Accompagnement est facturé chaque mois, d’avance. Un projet sur devis se règle en deux fois : un acompte pour réserver les dates, le solde à la livraison. Les prix sont en dollars US, hors taxes applicables.',
-      svc_4_promise: 'Le regard d’un designer produit senior sur votre travail, deux fois par mois en visio, pour les équipes qui construisent elles-mêmes.',
-      svc_4_del_1: '2 appels de 45 min par mois',
-      svc_4_del_3: 'Une revue écrite de 2 écrans par mois',
-      svc_4_del_4: 'Priorités écrites après chaque appel',
       pricing_sub: 'Chaque formule a un prix fixe, un périmètre écrit et une date de livraison. Vous voyez tout avant de payer.',
       s_price_more: '{n} de plus, inclus',
       s_price_more_build: '{n} de plus, dans chaque Création',
@@ -223,9 +188,7 @@
       s_ch_founder: 'Le fondateur',
       s_ch_faq: 'FAQ',
       s_ch_contact: 'Contact',
-      s_more_proof: 'Voir la preuve',
       s_more_done: 'Ce qui a été fait',
-      s_more_ba: 'Avant et après',
       s_pick_title: 'Vous partez d’où ?',
       s_pick_refonte: 'Mon site existe, mais les visiteurs partent',
       s_pick_creation: 'Je pars d’une page blanche',
@@ -235,17 +198,7 @@
       s_price_from: 'à partir de',
       s_price_quote: 'devis fixe',
       s_pick_line: '{name} : {price}, {delivery}.',
-      s_svc_gets: 'Ce que vous recevez',
       s_soon: 'Bientôt',
-      s_proof_close: 'Fermer la preuve',
-      s_gets_close: 'Fermer la liste',
-      s_proof_img_1: 'La page d’accueil BMW repensée',
-      s_proof_img_2: 'L’éditeur de campagne UpViral repensé',
-      s_proof_img_3: 'Le tableau de bord de Creads.io',
-      s_fig_svc_1: 'Un pinceau qui repeint une page web',
-      s_fig_svc_2: 'Un parcours client qui abandonne son détour',
-      s_fig_svc_3: 'Un prompt qui devient un écran fonctionnel',
-      s_fig_svc_4: 'Un appel de revue qui entoure un détail de l’écran',
       s_fig_step_1: 'Un téléphone, pour l’appel de lancement',
       s_fig_step_2: 'Une parabole pointée sur votre page',
       s_fig_step_3: 'Un cadenas : la direction se fixe au jour 2',
@@ -256,32 +209,12 @@
 
   /* The picture in each proof bubble: the cited project, or the founder for coaching (no project to cite).
      Loaded on first hover or open (data-src), not with the page. */
-  const SVC_PROOF_MEDIA = {
-    1: { src: '/images/bmw-homepage.webp', name: 'BMW', pos: '50% 3%' },
-    2: { src: '/images/after-upviral.png', name: 'UpViral', pos: '50% 6%' },
-    3: { src: '/images/creads-v2-dashboard.webp', name: 'Creads.io', pos: '0% 40%' },
-    4: { src: '/images/hugo_vermot.optimized.jpg', person: true },
-  };
-  function proofMedia(n) {
-    const m = SVC_PROOF_MEDIA[n];
-    if (!m) return '';
-    if (m.person) {
-      return `<div class="svcp-person"><img data-src="${esc(m.src)}" alt="" width="44" height="44" decoding="async"><span>${esc(t('founder_sign'))}</span></div>`;
-    }
-    return `<figure class="svcp-media"><img data-src="${esc(m.src)}" alt="${esc(t('s_proof_img_' + n))}" decoding="async" style="object-position:${esc(m.pos)}"><figcaption>${esc(m.name)}</figcaption></figure>`;
-  }
-  function loadProofMedia(el) {
-    const img = el && el.querySelector('img[data-src]');
-    if (!img) return;
-    img.src = img.dataset.src;
-    img.removeAttribute('data-src');
-  }
   /* Offers not open yet (coaching and its extra session): a 'Soon' tag wherever they are listed. */
   const SOON = new Set([...(OFFERS.offers || []), ...(OFFERS.addons || [])].filter((x) => x && x.open === false).map((x) => x.id));
   const soonTag = (id) => (SOON.has(id) ? `<span class="soon">${esc(t('s_soon'))}</span>` : '');
   /* One drawn scene per service, on the card's dark pigment panel (stroke = cream, accent = --c2, motion in CSS).
      1 a page repainted by a brush, 2 a journey that drops its friction detour, 3 a prompt that becomes a screen,
-     4 a review call that circles one detail. Labels: s_fig_svc_N. */
+     4 a review call that circles one detail. Decorative: the row's text says what the offer is. */
   const SVC_ICONS = {
     1: `<svg class="svc-ico" viewBox="0 0 160 120" aria-hidden="true" focusable="false">
       <defs><clipPath id="svc-wipe-1"><rect class="ico-wipe" x="20" y="18" width="120" height="84" rx="8"/></clipPath></defs>
@@ -367,19 +300,19 @@
   const esc = (v) => String(v == null ? '' : v)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const tidy = (s) => (typeof agTidyText === 'function' ? agTidyText(String(s == null ? '' : s)) : String(s == null ? '' : s));
-  const pick = (obj) => (obj && typeof obj === 'object') ? (obj[lang] != null ? obj[lang] : obj.en) : obj;
+  const pick = (obj) => (obj && typeof obj === 'object') ? trDeep(obj[lang] != null ? obj[lang] : obj.en) : obj;
 
   function t(key) {
     const own = STORY[lang] && STORY[lang][key];
-    if (typeof own === 'string') return own;
+    if (typeof own === 'string') return tr(own);
     if (typeof agT === 'function') {
       const v = agT(key, lang);
-      if (v) return v;
+      if (v) return tr(v);
     }
     const en = STORY.en[key];
-    return typeof en === 'string' ? en : '';
+    return typeof en === 'string' ? tr(en) : '';
   }
-  const tlist = (key) => (STORY[lang] && Array.isArray(STORY[lang][key]) ? STORY[lang][key] : (Array.isArray(STORY.en[key]) ? STORY.en[key] : []));
+  const tlist = (key) => trDeep(STORY[lang] && Array.isArray(STORY[lang][key]) ? STORY[lang][key] : (Array.isArray(STORY.en[key]) ? STORY.en[key] : []));
   const noArrow = (s) => String(s || '').replace(/\s*→\s*$/, '');
   const unquote = (s) => String(s || '').replace(/^[\s“”"«»  ]+|[\s“”"«»  ]+$/g, '');
   function price(amount) {
@@ -454,12 +387,11 @@
 
   function setLang(next, save) {
     lang = next === 'fr' ? 'fr' : 'en';
-    root.lang = lang;
+    root.lang = SITE.locale || lang;
     window.currentLang = lang;
     if (save) {
       try { window.localStorage.setItem(KEY, lang); } catch (e) { /* storage blocked */ }
     }
-    d.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.lang === lang ? 'true' : 'false'));
     applyText();
     renderAll();
     root.classList.remove('i18n-pending');
@@ -482,7 +414,7 @@
         chat: { brand: 'Replyly', badge: 'Powered by GPT', head: 'Answer every customer|in seconds', sub: 'An AI assistant trained on your help center, live in one click.', cta: 'Try it free', alt: 'Book a demo', links: ['Features', 'Pricing', 'Docs'], trust: 'No credit card required', name: 'Assistant', status: 'Online', msgs: [['Hi! How can I help you today?', 0], ['Where is my order #4821?', 1], ['It shipped this morning and arrives Friday 🎉', 0]], placeholder: 'Ask anything…' },
         chart: { brand: 'Metrix', badge: 'Analytics 3.0', head: 'See what actually|moves revenue', sub: 'Every metric, every team, one source of truth.', cta: 'Start free trial', alt: 'View live demo', links: ['Product', 'Customers', 'Pricing'], trust: 'SOC 2 · GDPR · ISO 27001', legend: ['Revenue', 'Churn'], period: 'Last 30 days', total: '$248,920' },
         phone: { brand: 'Pocket', badge: '#1 finance app', head: 'Your money,|finally simple', sub: 'Budgets, savings and cards in one calm place.', cta: 'Download the app', alt: 'Learn more', links: ['Features', 'Security', 'Help'], trust: '4.9 ★ on the App Store', balance: '$12,480.20', balanceLabel: 'Total balance', rows: [['Groceries', '-$42.10'], ['Salary', '+$3,200'], ['Coffee', '-$4.50']], send: 'Send money' },
-        redo: { eyebrow: 'Banking, without the noise', head: 'Know where|every euro goes.', sub: 'One account, one card and a clear view of your month. No fees you didn’t ask for.', cta: 'Open an account', alt: 'See how it works', trust: '4.9 · 120k reviews', links: ['Product', 'Cards', 'Savings', 'Help'], balance: 'Balance', amount: '€4,218.40', delta: '+€3,200 this week', cats: [['Groceries', '€312'], ['Transport', '€64'], ['Eating out', '€128']], holder: 'SARAH KOVACS', toast: ['Salary received', '+€3,200.00 · just now'], feats: [['Deposits protected', 'Up to €100,000, by law.'], ['Instant transfers', 'To anyone, in seconds.'], ['Spending sorted', 'Every purchase in its place.']], tag: 'New · Savings pots', ledger: [['€100k', 'deposits protected'], ['10 s', 'to send money'], ['€0', 'hidden fees']], note: 'your month,|at a glance' },
+        redo: { eyebrow: 'Banking, without the noise', head: 'Know where|every euro goes.', sub: 'One account, one card and a clear view of your month. No fees you didn’t ask for.', cta: 'Open an account', alt: 'See how it works', fact: 'No hidden fees. Your card, blocked in one tap.', links: ['Product', 'Cards', 'Savings', 'Help'], balance: 'Balance', amount: '€4,218.40', delta: '+€3,200 this week', cats: [['Groceries', '€312'], ['Transport', '€64'], ['Eating out', '€128']], holder: 'SARAH KOVACS', toast: ['Salary received', '+€3,200.00 · just now'], feats: [['Deposits protected', 'Up to €100,000, by law.'], ['Instant transfers', 'To anyone, in seconds.'], ['Spending sorted', 'Every purchase in its place.']], tag: 'New · Savings pots', ledger: [['€100k', 'deposits protected'], ['10 s', 'to send money'], ['€0', 'hidden fees']], note: 'your month,|at a glance' },
         kanban: { brand: 'Taskflow', badge: 'Now with AI planning', head: 'Plan the work,|skip the chaos', sub: 'Boards, timelines and docs for teams that ship.', cta: 'Get started free', alt: 'Watch the video', links: ['Product', 'Solutions', 'Pricing', 'Changelog'], trust: 'Loved by 4,000+ teams', cols: [['To do', 3], ['In progress', 2], ['Done', 4]] },
       },
     },
@@ -497,7 +429,7 @@
         chat: { brand: 'Replyly', badge: 'Propulsé par GPT', head: 'Répondez à chaque client|en quelques secondes', sub: 'Un assistant IA entraîné sur votre centre d’aide, en ligne en un clic.', cta: 'Essayer gratuitement', alt: 'Réserver une démo', links: ['Fonctions', 'Tarifs', 'Docs'], trust: 'Sans carte bancaire', name: 'Assistant', status: 'En ligne', msgs: [['Bonjour ! Comment puis-je vous aider ?', 0], ['Où en est ma commande #4821 ?', 1], ['Expédiée ce matin, livrée vendredi 🎉', 0]], placeholder: 'Posez votre question…' },
         chart: { brand: 'Metrix', badge: 'Analytics 3.0', head: 'Voyez ce qui fait|vraiment bouger le CA', sub: 'Chaque métrique, chaque équipe, une seule source de vérité.', cta: 'Essai gratuit', alt: 'Voir la démo', links: ['Produit', 'Clients', 'Tarifs'], trust: 'SOC 2 · RGPD · ISO 27001', legend: ['Revenu', 'Churn'], period: '30 derniers jours', total: '248 920 €' },
         phone: { brand: 'Pocket', badge: 'App finance n°1', head: 'Votre argent,|enfin simple', sub: 'Budgets, épargne et cartes dans un seul endroit calme.', cta: 'Télécharger l’app', alt: 'En savoir plus', links: ['Fonctions', 'Sécurité', 'Aide'], trust: '4,9 ★ sur l’App Store', balance: '12 480,20 €', balanceLabel: 'Solde total', rows: [['Courses', '-42,10 €'], ['Salaire', '+3 200 €'], ['Café', '-4,50 €']], send: 'Envoyer' },
-        redo: { eyebrow: 'La banque, sans le bruit', head: 'Sachez où va|chaque euro.', sub: 'Un compte, une carte et une vue claire de votre mois. Aucun frais que vous n’avez pas demandé.', cta: 'Ouvrir un compte', alt: 'Voir comment ça marche', trust: '4,9 · 120k avis', links: ['Produit', 'Cartes', 'Épargne', 'Aide'], balance: 'Solde', amount: '4 218,40 €', delta: '+3 200 € cette semaine', cats: [['Courses', '312 €'], ['Transports', '64 €'], ['Restaurants', '128 €']], holder: 'SARAH KOVACS', toast: ['Salaire reçu', '+3 200,00 € · à l’instant'], feats: [['Dépôts protégés', 'Jusqu’à 100 000 €, par la loi.'], ['Virements instantanés', 'À n’importe qui, en secondes.'], ['Dépenses classées', 'Chaque achat à sa place.']], tag: 'Nouveau · Cagnottes', ledger: [['100 k€', 'dépôts protégés'], ['10 s', 'pour envoyer'], ['0 €', 'frais cachés']], note: 'votre mois,|d’un coup d’œil' },
+        redo: { eyebrow: 'La banque, sans le bruit', head: 'Sachez où va|chaque euro.', sub: 'Un compte, une carte et une vue claire de votre mois. Aucun frais que vous n’avez pas demandé.', cta: 'Ouvrir un compte', alt: 'Voir comment ça marche', fact: 'Aucun frais caché. Votre carte, bloquée en un geste.', links: ['Produit', 'Cartes', 'Épargne', 'Aide'], balance: 'Solde', amount: '4 218,40 €', delta: '+3 200 € cette semaine', cats: [['Courses', '312 €'], ['Transports', '64 €'], ['Restaurants', '128 €']], holder: 'SARAH KOVACS', toast: ['Salaire reçu', '+3 200,00 € · à l’instant'], feats: [['Dépôts protégés', 'Jusqu’à 100 000 €, par la loi.'], ['Virements instantanés', 'À n’importe qui, en secondes.'], ['Dépenses classées', 'Chaque achat à sa place.']], tag: 'Nouveau · Cagnottes', ledger: [['100 k€', 'dépôts protégés'], ['10 s', 'pour envoyer'], ['0 €', 'frais cachés']], note: 'votre mois,|d’un coup d’œil' },
         kanban: { brand: 'Taskflow', badge: 'Avec planification IA', head: 'Planifiez le travail,|sans le chaos', sub: 'Tableaux, plannings et docs pour les équipes qui livrent.', cta: 'Commencer gratuitement', alt: 'Voir la vidéo', links: ['Produit', 'Solutions', 'Tarifs', 'Nouveautés'], trust: 'Adopté par plus de 4 000 équipes', cols: [['À faire', 3], ['En cours', 2], ['Terminé', 4]] },
       },
     },
@@ -511,7 +443,7 @@
     const HUES = { dash: 262, shop: 18, chat: 172, chart: 212, phone: 332, kanban: 138 };
     const count = KINDS.length;
     const chosen = small ? 3 : 4;
-    const site = SITES[lang] || SITES.en;
+    const site = trDeep(SITES[lang] || SITES.en);
     const bars = (seed) => Array.from({ length: 9 }, (_, k) => '<i style="--v:' + (0.25 + ((seed * 7 + k * 13) % 11) / 14).toFixed(2) + '"></i>').join('');
     const feats = (names) => '<div class="t-feats">' + names.map((n) => '<div><i class="t-ico"></i><b>' + esc(n) + '</b><s></s><s></s></div>').join('') + '</div>';
     const logos = '<div class="t-logos">' + site.logos.map((l) => '<span>' + esc(l) + '</span>').join('') + '</div>';
@@ -565,8 +497,8 @@
           + '<h4>' + esc(rh1) + '<br><em>' + esc(emTxt) + '<svg class="r-swash" viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3,9 C18,5 34,10 52,7 S82,4 97,8"/></svg></em>' + esc(rest) + '</h4>'
           + '<p>' + esc(r.sub) + '</p>'
           + '<div class="r-cta"><em>' + esc(r.cta) + '</em><i>' + esc(r.alt) + '<span aria-hidden="true">→</span></i></div>'
-          + '<div class="r-trust"><img class="r-face" src="/images/redo-face.jpg" alt="" loading="lazy" decoding="async"><span>★</span>' + esc(r.trust) + '</div></div>'
-          + '<div class="r-scene"><div class="r-arch" aria-hidden="true"></div><div class="r-device">'
+          + '<div class="r-fact"><i aria-hidden="true"></i>' + esc(r.fact) + '</div></div>'
+          + '<div class="r-scene"><div class="r-arch" aria-hidden="true"><svg class="r-cloud r-cloud--a" viewBox="0 0 120 60" aria-hidden="true"><ellipse class="rc-shade" cx="60" cy="47" rx="44" ry="9"/><g class="rc-body"><ellipse cx="34" cy="40" rx="20" ry="13"/><ellipse cx="60" cy="31" rx="24" ry="19"/><ellipse cx="86" cy="39" rx="20" ry="14"/><rect x="18" y="38" width="86" height="14" rx="7"/></g><ellipse class="rc-light" cx="54" cy="24" rx="12" ry="8"/></svg><svg class="r-cloud r-cloud--b" viewBox="0 0 120 60" aria-hidden="true"><ellipse class="rc-shade" cx="60" cy="47" rx="44" ry="9"/><g class="rc-body"><ellipse cx="34" cy="40" rx="20" ry="13"/><ellipse cx="60" cy="31" rx="24" ry="19"/><ellipse cx="86" cy="39" rx="20" ry="14"/><rect x="18" y="38" width="86" height="14" rx="7"/></g><ellipse class="rc-light" cx="54" cy="24" rx="12" ry="8"/></svg></div><div class="r-device">'
           // A real hand and phone (Unsplash photo by Jakub Żerdzicki, cut out, screen left transparent);
           // the HTML screen sits behind the photo, mapped onto the screen's four corners (see fitPocket).
           + '<div class="r-screen">'
@@ -598,133 +530,106 @@
     sameOrder = sameTiles.map((_, i) => ((i * 5 + 3) % count));
   }
 
+  /* The projects as stacked panels (2026-10-18): each one pins under the nav and the next slides over it
+     (agence-story.css). Count, figure, brand, what was done and the matching package, then the screenshot. */
   function renderCases() {
     const host = $('cases');
     if (!host) return;
-    host.innerHTML = PROOF.map((p) => {
+    const link = (n, offer) => {
+      const text = String(t('proof_link') || '').replace('{offer}', t(`proof_${n}_offer`));
+      return text ? `<a class="link-arrow case-link" href="#pricing" data-pick-offer="${esc(offer || 'refonte')}"><span>${esc(text.replace(/\s*→\s*$/, ''))}</span><span aria-hidden="true">→</span></a>` : '';
+    };
+    host.innerHTML = PROOF.map((p, i) => {
       const n = p.n;
       const name = t(`proof_${n}_name`);
       const kicker = t(`proof_${n}_kicker`);
-      return `<article class="case" style="--in:${reduced ? 1 : 0}">
-        <div class="case-shot${p.fit === 'contain' ? ' is-contain' : ''}"><img src="/images/${esc(p.image)}" alt="${esc(name)}, ${esc(kicker)}" loading="lazy" decoding="async" style="object-position:${esc(p.focus || 'center top')}"></div>
+      return `<article class="case" style="--i:${i};--in:${reduced ? 1 : 0}">
         <div class="case-body">
+          <p class="case-count">${pad(i + 1)} / ${pad(PROOF.length)}</p>
           <p class="case-stat"><strong>${esc(t(`proof_${n}_stat`))}</strong><span>${esc(t(`proof_${n}_label`))}</span></p>
           <h3 class="case-name">${esc(name)}</h3>
           <p class="case-kicker">${esc(kicker)} · ${esc(t(`proof_${n}_years`))}</p>
-          ${more('s_more_done', `<p class="case-done">${esc(t(`proof_${n}_done`))}</p>`)}
+          <p class="case-done">${esc(t(`proof_${n}_done`))}</p>
+          ${link(n, p.offer)}
         </div>
+        <figure class="case-shot${p.fit === 'contain' ? ' is-contain' : ''}"><span class="case-bar" aria-hidden="true"><i></i><i></i><i></i></span><img src="/images/${esc(p.image)}" alt="${esc(name)}, ${esc(kicker)}" loading="lazy" decoding="async" style="object-position:${esc(p.focus || 'center top')}"></figure>
       </article>`;
     }).join('');
     if (!reduced) observeIn(host.querySelectorAll('.case'));
   }
 
+  /* The ways to work with us (2026-10-19): a quiet list instead of four tiles. One row per offer: the drawn scene
+     on its night tile, the package name and price on one line, the promise, then the real proof line. The home
+     merges the two Redesign rows (one page or one flow); /agence/services (.page-stack) lists all four with the
+     deliverables open. One link for the whole section, in its head. */
   function renderServices() {
     const host = $('svc-track');
     if (!host) return;
-    const proofTag = t('svc_proof_tag');
-    // Home bento: the deliverables move into a popover beside the proof. The /agence/services page keeps them open.
     const sec = host.closest('.services');
-    const bento = !!sec && sec.classList.contains('is-bento');
-    host.innerHTML = SERVICES.map((s, i) => {
+    const full = !!sec && sec.classList.contains('page-stack');
+    const rows = full ? SERVICES : SERVICES.filter((s) => s.n !== 2);
+    host.innerHTML = rows.map((s) => {
       const n = s.n;
-      const dels = [];
-      for (let k = 1; k <= (s.deliverables || 0); k++) {
-        const v = t(`svc_${n}_del_${k}`);
-        if (v) dels.push(`<li>${esc(v)}</li>`);
-      }
-      const ev = t(`svc_${n}_evidence`);
-      /* "Redesign, flow option · $490": the label stays in the line, the price becomes a chip */
+      /* "Redesign, flow option · $390": the label is the name, the price goes beside it */
       const kicker = String(t(`svc_${n}_kicker`) || '');
       const cut = kicker.lastIndexOf(' · ');
-      const kLabel = cut > 0 ? kicker.slice(0, cut) : kicker;
-      const kPrice = cut > 0 ? kicker.slice(cut + 3) : '';
-      return `<article class="svc" data-svc="${n}" style="--i:${i}">
-        <div class="svc-visual" role="img" aria-label="${esc(t(`s_fig_svc_${n}`))}">
-          <span class="svc-n" aria-hidden="true">${pad(n)}</span>
-          ${SVC_ICONS[n] || ''}
+      const name = cut > 0 ? kicker.slice(0, cut) : kicker;
+      const price = cut > 0 ? kicker.slice(cut + 3) : '';
+      const scope = !full && n === 1 ? t('svc_1_scope') : '';
+      const dels = [];
+      if (full) for (let k = 1; k <= (s.deliverables || 0); k++) { const v = t(`svc_${n}_del_${k}`); if (v) dels.push(`<li>${esc(v)}</li>`); }
+      const ev = t(`svc_${n}_evidence`);
+      return `<li class="way" data-svc="${n}">
+        <figure class="way-fig" aria-hidden="true">${SVC_ICONS[n] || ''}</figure>
+        <div class="way-body">
+          <h3 class="way-head"><span class="way-title">${esc(name)}</span>${price ? `<span class="way-price">${esc(price)}</span>` : ''}${scope ? `<span class="way-scope">${esc(scope)}</span>` : ''}${soonTag(s.offer)}</h3>
+          <p class="way-promise">${esc(t(`svc_${n}_promise`))}</p>
+          ${dels.length ? `<ul class="way-list">${dels.join('')}</ul>` : ''}
+          ${ev ? `<p class="way-proof">${esc(ev)}</p>` : ''}
         </div>
-        <div class="svc-main">
-          <p class="svc-kicker"><span>${esc(kLabel)}</span>${kPrice ? `<b class="svc-price">${esc(kPrice)}</b>` : ''}${soonTag(s.offer)}</p>
-          <h3 class="svc-title">${esc(t(`svc_${n}_title`))}</h3>
-          <p class="svc-promise">${esc(t(`svc_${n}_promise`))}</p>
-        </div>
-        <div class="svc-side">
-          ${bento ? `<div class="svcp svcp--gets">
-            <button type="button" class="svcp-btn" aria-expanded="false" aria-controls="svcg-${n}">
-              <span class="svcp-ico" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M5.5 4.5h7M5.5 8h7M5.5 11.5h7"/><path class="svcp-ico-check" d="M2.6 4.5l.9.9 1.4-1.6"/><circle cx="3.4" cy="8" r=".7"/><circle cx="3.4" cy="11.5" r=".7"/></svg></span>
-              <span class="svcp-lbl">${esc(t('s_svc_gets'))}</span>
-            </button>
-            <div class="svcp-pop" id="svcg-${n}" role="region" aria-label="${esc(t('s_svc_gets'))}" inert>
-              <p class="svcp-head"><span class="svcp-dot" aria-hidden="true"></span>${esc(t('s_svc_gets'))}</p>
-              <ul class="svc-list">${dels.join('')}</ul>
-              <button type="button" class="svcp-close" aria-label="${esc(t('s_gets_close'))}"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg></button>
-            </div>
-          </div>` : `<p class="svc-gets">${esc(t('s_svc_gets'))}</p>
-          <ul class="svc-list">${dels.join('')}</ul>`}
-          ${ev ? `<div class="svcp">
-            <button type="button" class="svcp-btn" aria-expanded="false" aria-controls="svcp-${n}">
-              <span class="svcp-ico" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4L14 14"/><path class="svcp-ico-check" d="M5 7.1l1.4 1.4L9 5.8"/></svg></span>
-              <span class="svcp-lbl">${esc(t('s_more_proof'))}</span>
-            </button>
-            <div class="svcp-pop" id="svcp-${n}" role="region" aria-label="${esc(proofTag)}" inert>
-              ${proofMedia(n)}
-              <p class="svcp-head"><span class="svcp-dot" aria-hidden="true"></span>${esc(proofTag)}</p>
-              <p class="svc-evidence">${esc(ev)}</p>
-              <button type="button" class="svcp-close" aria-label="${esc(t('s_proof_close'))}"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg></button>
-            </div>
-          </div>` : ''}
-        </div>
-      </article>`;
+      </li>`;
     }).join('');
     svcCards = Array.from(host.children);
     svcActive = -1;
   }
 
+  /* One drawn glyph per check, 64 × 64: ink strokes, one accent in the cell's pigment (--c). Decorative: the
+     cell's number and name say what the check is. */
+  const CHECK_GLYPHS = {
+    1: '<svg viewBox="0 0 64 64"><g class="g-stroke"><rect x="8" y="10" width="22" height="16" rx="3" stroke-dasharray="3 3"/><rect x="34" y="10" width="22" height="16" rx="3"/><path d="M49 18a4 4 0 1 1-4-4"/><rect x="8" y="38" width="22" height="16" rx="3"/><path d="M14 46l3.5 3.5L25 42"/><rect x="34" y="38" width="22" height="16" rx="3"/><path d="M42 43l6 6M48 43l-6 6"/></g><circle class="g-acc" cx="49" cy="14" r="2.2"/></svg>',
+    2: '<svg viewBox="0 0 64 64"><g class="g-stroke"><rect x="8" y="22" width="48" height="20" rx="10"/><path d="M18 32h16M30 27l5 5-5 5"/></g><circle class="g-acc" cx="46" cy="32" r="3"/></svg>',
+    3: '<svg viewBox="0 0 64 64"><g class="g-stroke"><path d="M10 16h24M10 27h46M10 38h38M10 49h18"/></g><rect class="g-acc" x="56" y="23" width="3" height="8" rx="1.5"/></svg>',
+    4: '<svg viewBox="0 0 64 64"><g class="g-stroke"><rect x="18" y="6" width="28" height="52" rx="6"/><path d="M28 12h8"/><path class="g-acc-stroke" d="M24 48a12 12 0 0 1 16 0"/></g><circle class="g-acc" cx="32" cy="44" r="3"/></svg>',
+    5: '<svg viewBox="0 0 64 64"><g class="g-stroke"><rect x="20" y="20" width="24" height="24" rx="5"/><path d="M27 32h10"/><rect class="g-acc-stroke" x="12" y="12" width="40" height="40" rx="10" stroke-dasharray="6 4"/></g></svg>',
+    6: '<svg viewBox="0 0 64 64"><g class="g-stroke"><circle cx="32" cy="32" r="20"/></g><path class="g-fill" d="M32 12a20 20 0 0 1 0 40z"/><path class="g-acc" d="M32 12a20 20 0 0 0 0 40z" opacity=".45"/></svg>',
+    7: '<svg viewBox="0 0 64 64"><g class="g-stroke"><path d="M10 14h18"/><rect x="10" y="20" width="44" height="14" rx="3"/><path d="M10 46h24"/></g><circle class="g-acc" cx="48" cy="27" r="3"/><rect class="g-acc" x="10" y="40" width="3" height="10" rx="1.5"/></svg>',
+    8: '<svg viewBox="0 0 64 64"><g class="g-stroke"><path d="M10 54h44"/><rect x="12" y="42" width="8" height="12" rx="1.5"/><rect x="24" y="34" width="8" height="20" rx="1.5"/><rect x="36" y="24" width="8" height="30" rx="1.5"/></g><rect class="g-acc" x="48" y="12" width="8" height="42" rx="1.5"/></svg>',
+    9: '<svg viewBox="0 0 64 64"><g class="g-stroke"><path d="M10 22h44M16 22l-6 14h12zM48 22l-6 14h12zM32 22v26M22 48h20"/></g><path class="g-acc" d="M26 14h12l-6 8z"/></svg>',
+    10: '<svg viewBox="0 0 64 64"><g class="g-stroke"><path d="M8 42c10 0 10-20 20-20s10 20 20 20"/></g><rect class="g-acc" x="40" y="12" width="4" height="14" rx="1.5"/><rect class="g-acc" x="48" y="12" width="4" height="14" rx="1.5"/></svg>',
+    11: '<svg viewBox="0 0 64 64"><g class="g-stroke"><rect x="8" y="12" width="48" height="40" rx="5"/><path d="M8 34h48M14 41h18M14 47h26"/></g><path class="g-acc" d="M14 29l8-9 8 7 6-5 10 7v5H14z"/></svg>',
+    12: '<svg viewBox="0 0 64 64"><path class="g-acc" d="M32 10c2 11 5 14 16 16-11 2-14 5-16 16-2-11-5-14-16-16 11-2 14-5 16-16z" opacity=".6"/><g class="g-stroke"><path d="M14 50L50 14"/></g></svg>',
+  };
+  /* The 12 checks as a contact sheet (2026-10-19): twelve square cells on one paper sheet, each with its glyph,
+     number and name. The brush stamps the cells in reading order as the sheet comes up (drawChecks); hover,
+     focus or a tap turns a cell over to read the rule. Home and /agence/secret-touch share this. */
   function renderChecks() {
     const host = $('checks-list');
     if (!host) return;
-    const bl = t('details_before');
-    const al = t('details_after');
-    const sec = host.closest('.checks');
-    const ledger = !!sec && sec.classList.contains('is-ledger');
     let html = '';
     for (let i = 1; i <= CHECKS; i++) {
-      const title = t(`check_${i}_title`);
-      if (ledger) {
-        // One line of the grid: a box the brush ticks, the rule's name, and its before → after in one line.
-        // The rule itself is read in the sheet's footer (desktop) or under the line once opened (phones).
-        const c = CHECK_COLORS[(i - 1) % CHECK_COLORS.length];
-        html += `<li class="check ck-row" style="--c:${c}" data-i="${i - 1}">
-          <span class="ck-box" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="ck-tick" d="M5 12.6l4.3 4.3L19.2 7" pathLength="1"/></svg></span>
-          <span class="check-n">${pad(i)}</span>
-          <div class="ck-body">
-            <h3 class="check-title"><button type="button" class="ck-btn" aria-expanded="false" aria-controls="ckd-${i}"><span class="ct-base">${esc(title)}</span><span class="ct-paint" aria-hidden="true">${esc(title)}</span></button></h3>
-            <p class="ck-ba"><s><span class="sr-only">${esc(bl)}: </span>${esc(t(`check_${i}_before`))}</s><i aria-hidden="true">→</i><span><span class="sr-only">${esc(al)}: </span>${esc(t(`check_${i}_after`))}</span></p>
-            <p class="ck-desc" id="ckd-${i}">${esc(t(`check_${i}_desc`))}</p>
-          </div>
-        </li>`;
-        continue;
-      }
-      html += `<li class="check" style="--c:${CHECK_COLORS[(i - 1) % CHECK_COLORS.length]}">
-        <span class="check-n">${pad(i)}</span>
-        <div>
-          <h3 class="check-title"><span class="ct-base">${esc(title)}</span><span class="ct-paint" aria-hidden="true">${esc(title)}</span></h3>
-          <p class="check-desc">${esc(t(`check_${i}_desc`))}</p>
-          ${more('s_more_ba', `<p class="check-ba"><span class="ba-before"><b>${esc(bl)}</b><em>${esc(t(`check_${i}_before`))}</em></span><span class="ba-after"><b>${esc(al)}</b><em>${esc(t(`check_${i}_after`))}</em></span></p>`)}
-        </div>
+      const c = CHECK_COLORS[(i - 1) % CHECK_COLORS.length];
+      html += `<li class="ck" style="--c:${c}" data-i="${i - 1}">
+        <button type="button" class="ck-btn" aria-expanded="false" aria-controls="ckd-${i}">
+          <span class="ck-glyph" aria-hidden="true">${CHECK_GLYPHS[i] || ''}</span>
+          <span class="ck-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="ck-tick" d="M5 12.6l4.3 4.3L19.2 7" pathLength="1"/></svg></span>
+          <span class="ck-n">${pad(i)}</span>
+          <span class="ck-title">${esc(t(`check_${i}_title`))}</span>
+        </button>
+        <p class="ck-desc" id="ckd-${i}"><span class="ck-desc-n" aria-hidden="true">${pad(i)}</span>${esc(t(`check_${i}_desc`))}</p>
       </li>`;
     }
     host.innerHTML = html;
     checkRows = Array.from(host.children);
-    noteHover = -1;
-    notePinned = -1;
-    const noteEl = $('ledger-note');
-    if (noteEl) noteEl._i = undefined;
-    const board = $('tally-board');
-    if (board) {
-      board.innerHTML = checkRows.map((_, i) => `<i style="--c:${CHECK_COLORS[i % CHECK_COLORS.length]}"></i>`).join('');
-      tallyDots = Array.from(board.children);
-    }
     lastTally = -1;
   }
 
@@ -759,8 +664,9 @@
     return price(o.price) + (o.cadence === 'month' ? t('price_month') : '');
   }
 
-  /* A package card: who it is for, the price, what you walk away with, the facts (pages, delivery, rounds),
-     then the first lines of what is included (the rest folds), what is not, one action and how it is paid.
+  /* A package card, kept short (2026-10-18): who it is for, the price, the facts in one row (pages, delivery,
+     rounds), the first lines of what is included, then ONE fold holding the rest, what is not included and how
+     it is paid, and one action. The "or book a call" link lives once under the grid (pricing_unsure).
      Build carries two tracks: a switch picks the four lines that differ. Redesign and Build are ordered from
      the card (agence-checkout.js opens the order on [data-order]); coaching takes a waiting list; custom books a call. */
   const cardTrack = {};
@@ -775,7 +681,10 @@
     const host = $('prices');
     if (!host) return;
     const pay = OFFERS.payment || {};
-    host.innerHTML = (OFFERS.offers || []).map((o) => {
+    // Monthly offers (coaching) are not a package: they get their own band under the grid (renderCoach).
+    const packages = (OFFERS.offers || []).filter((o) => o.cadence !== 'month');
+    host.style.setProperty('--cols', packages.length);
+    host.innerHTML = packages.map((o) => {
       const monthly = o.cadence === 'month';
       const quote = o.cadence === 'quote';
       const icons = Array.isArray(o.includes_icons) ? o.includes_icons : [];
@@ -799,7 +708,21 @@
           ${tracks.map((tr) => `<button type="button" role="radio" class="price-track" data-card-track="${esc(o.id)}" data-track="${esc(tr.id)}" aria-checked="${tr.id === trackId ? 'true' : 'false'}" tabindex="${tr.id === trackId ? '0' : '-1'}">${esc(pick(tr.name))}</button>`).join('')}
         </div>
         <ul class="price-incl price-incl--track" data-track-list="${esc(o.id)}">${trackLines(o, trackId)}</ul>` : '';
-      const moreLabel = fillVars(t(tracks.length ? 's_price_more_build' : 's_price_more'), { n: folded.length });
+      // One fold per card: the rest of "Included", then "Not included", then how it is paid.
+      const foldLabel = folded.length
+        ? fillVars(t(tracks.length ? 's_price_more_build' : 's_price_more'), { n: folded.length })
+        : t('price_not_included');
+      const foldBody = (folded.length ? `<ul class="price-incl">${folded.join('')}</ul>` : '')
+        + (excl ? `<div class="price-excl">${folded.length ? `<p class="price-sub">${esc(t('price_not_included'))}</p>` : ''}<ul>${excl}</ul></div>` : '')
+        + (payLine ? `<p class="price-pay">${esc(tidy(payLine))}</p>` : '');
+      // The facts row: a value equal to the one before it ("Set in the quote" twice) is shown once.
+      const delivery = pick(o.delivery);
+      const revisions = monthly ? '' : pick(o.revisions);
+      const facts = [
+        pages ? [t('s_price_pages'), esc(pages)] : null,
+        [t('price_delivery'), esc(delivery) + (deliveryDetail ? `<small>${esc(tidy(deliveryDetail))}</small>` : '')],
+        revisions && revisions !== delivery ? [t('price_revisions'), esc(revisions)] : null,
+      ].filter(Boolean);
       return `<article class="price${o.highlighted ? ' is-featured' : ''}${quote ? ' is-quote' : ''}${soon ? ' is-soon' : ''}" data-card="${esc(o.id)}">
         <header class="price-top">
           <h3 class="price-name">${esc(pick(o.name))}${soonTag(o.id)}</h3>
@@ -807,22 +730,14 @@
         </header>
         <p class="price-for">${esc(tidy(pick(o.for)))}</p>
         <p class="price-amount"><strong>${amount}</strong><span class="price-cad">${esc(cad)}</span></p>
-        ${pick(o.outcome) ? `<p class="price-outcome">${esc(tidy(pick(o.outcome)))}</p>` : ''}
-        <dl class="price-meta">
-          ${pages ? `<div><dt>${esc(t('s_price_pages'))}</dt><dd>${esc(pages)}</dd></div>` : ''}
-          <div><dt>${esc(t('price_delivery'))}</dt><dd>${esc(pick(o.delivery))}${deliveryDetail ? `<small>${esc(tidy(deliveryDetail))}</small>` : ''}</dd></div>
-          ${monthly ? '' : `<div><dt>${esc(t('price_revisions'))}</dt><dd>${esc(pick(o.revisions))}</dd></div>`}
+        <dl class="price-meta" style="--n:${facts.length}">
+          ${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('')}
         </dl>
         ${switcher}
         ${shown.length ? `<ul class="price-incl">${shown.join('')}</ul>` : ''}
-        ${folded.length ? `<details class="price-more"><summary>${esc(moreLabel)}</summary><ul class="price-incl">${folded.join('')}</ul></details>` : ''}
-        ${excl ? `<details class="price-excl"><summary>${esc(t('price_not_included'))}</summary><ul>${excl}</ul></details>` : ''}
+        ${foldBody ? `<details class="price-more"><summary>${esc(foldLabel)}</summary>${foldBody}</details>` : ''}
         <div class="price-act">
           ${cta}
-          ${quote
-            ? `<a class="price-call" href="mailto:${esc(EMAIL)}">${esc(t('s_price_or_write'))}</a>`
-            : `<a class="price-call" href="${esc(CALENDLY)}" target="_blank" rel="noopener noreferrer">${esc(t('s_price_or_call'))}</a>`}
-          ${payLine ? `<p class="price-pay">${esc(tidy(payLine))}</p>` : ''}
         </div>
       </article>`;
     }).join('');
@@ -837,6 +752,33 @@
     const note = $('addons-note');
     if (note) note.textContent = t('s_addons_hint');
     renderOrderSteps();
+    renderCoach(pay);
+  }
+  /* Coaching is a monthly subscription, not a package: one wide band under the packages, in its own pigment,
+     with the "who" line, the first lines of what is included, the monthly price and the waiting-list action. */
+  const COACH_SHOWN = 4;
+  function renderCoach(pay) {
+    const host = $('coach');
+    if (!host) return;
+    const o = (OFFERS.offers || []).find((x) => x.cadence === 'month');
+    host.hidden = !o;
+    if (!o) { host.innerHTML = ''; return; }
+    const icons = Array.isArray(o.includes_icons) ? o.includes_icons : [];
+    const lines = (pick(o.includes) || []).slice(0, COACH_SHOWN)
+      .map((x, i) => `<li>${inclIcon(icons[i])}<span>${esc(tidy(x))}</span></li>`).join('');
+    const soon = SOON.has(o.id);
+    const payLine = pick((pay || {}).month);
+    host.innerHTML = `<div class="coach-head">
+        <p class="coach-kicker">${esc(t('s_pick_' + o.id) || '')}</p>
+        <h3 class="coach-name">${esc(pick(o.name))}${soonTag(o.id)}</h3>
+        <p class="coach-for">${esc(tidy(pick(o.outcome) || pick(o.for)))}</p>
+      </div>
+      <ul class="coach-incl price-incl">${lines}</ul>
+      <div class="coach-act">
+        <p class="coach-amount"><strong>${esc(price(o.price))}</strong><span>${esc(t('price_month'))}</span></p>
+        <button type="button" class="btn ${soon ? 'btn-line' : 'btn-ink'} coach-cta" ${soon ? 'data-offer' : 'data-order'}="${esc(o.id)}">${esc(pick(o.cta))}</button>
+        ${payLine ? `<p class="coach-pay">${esc(tidy(payLine))}</p>` : ''}
+      </div>`;
   }
   /* "How ordering works": three steps, worded for the mode the server runs (card payment on the page, or a payment link). */
   function renderOrderSteps() {
@@ -844,9 +786,9 @@
     if (!host) return;
     const paid = root.dataset.pay === 'stripe';
     const keys = paid ? ['s_step_pay_1', 's_step_pay_2', 's_step_pay_3'] : ['s_step_req_1', 's_step_req_2', 's_step_req_3'];
-    host.innerHTML = `<p class="os-title">${esc(t('s_steps_title'))}</p><ol class="os-list">${keys.map((k, i) => {
+    host.innerHTML = `<h3 class="os-title">${esc(t('s_steps_title'))}</h3><ol class="os-list">${keys.map((k, i) => {
       const [title, body] = tlist(k);
-      return `<li><span class="os-n" aria-hidden="true">${i + 1}</span><div><b>${esc(title || '')}</b><span>${esc(body || '')}</span></div></li>`;
+      return `<li><span class="os-n" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span><b>${esc(title || '')}</b><span class="os-body">${esc(body || '')}</span></li>`;
     }).join('')}</ol>`;
   }
   function setCardTrack(offerId, trackId) {
@@ -875,11 +817,10 @@
     let html = '';
     for (let i = 1; i <= STEPS; i++) {
       const [day, span] = STEP_DAYS[i - 1] || [i - 1, 1];
-      html += `<li class="step${i === REFUND_STEP ? ' step--refund' : ''}" style="--d:${day};--span:${span}">
+      html += `<li class="step" style="--d:${day};--span:${span}">
         <p class="step-marker">${esc(t(`step_${i}_marker`))}</p>
         <h3 class="step-title">${esc(t(`step_${i}_title`))}</h3>
         <p class="step-body">${esc(t(`step_${i}_body`))}</p>
-        ${i === REFUND_STEP ? `<span class="step-tag">${esc(t('process_refund_tag'))}</span>` : ''}
       </li>`;
     }
     host.innerHTML = html;
@@ -890,8 +831,7 @@
       const unit = String(t('step_1_marker') || 'Day 0').replace(/\d+\s*$/, '');
       let ticks = '';
       for (let n = 0; n < AGENDA_DAYS; n++) {
-        const refund = STEP_DAYS[REFUND_STEP - 1] && STEP_DAYS[REFUND_STEP - 1][0] === n;
-        ticks += `<span class="tick${refund ? ' tick--refund' : ''}" style="--n:${n}"><i></i><b>${esc(unit)}${/\s$/.test(unit) || !unit ? '' : ''}${n}</b></span>`;
+        ticks += `<span class="tick" style="--n:${n}"><i></i><b>${esc(unit)}${/\s$/.test(unit) || !unit ? '' : ''}${n}</b></span>`;
       }
       ruler.innerHTML = `<span class="ruler-line"></span><span class="ruler-fill"></span><span class="ruler-cursor"></span>${ticks}`;
       tickEls = Array.from(ruler.querySelectorAll('.tick'));
@@ -1014,18 +954,17 @@
       .map((s) => `<button type="button">${esc(s)}</button>`).join('');
   }
 
-  /* The rail: one dab per chapter, in reading order. */
+  /* The rail: one bead per chapter, in reading order. */
   function renderRail() {
     const list = $('rail-list');
     if (!list) return;
-    list.innerHTML = CHAPTERS.map((c, i) => `<li><button type="button" class="rail-dot" data-chapter="${c.id}" data-i="${i}" style="--c:${c.color}" aria-label="${esc(t(c.key))}"><i></i></button></li>`).join('');
+    list.innerHTML = CHAPTERS.map((c, i) => `<li><button type="button" class="rail-dot" data-chapter="${c.id}" data-i="${i}" aria-label="${esc(t(c.key))}"><i></i></button></li>`).join('');
     lastChapter = '';
   }
-  function railSay(text, color) {
+  function railSay(text) {
     const label = $('rail-label');
     if (!label) return;
     label.textContent = text;
-    label.style.setProperty('--tip', color);
   }
 
   /* Showcase page: every playground interface gets a line figure and a staggered entrance. */
@@ -1064,8 +1003,7 @@
     if (!cards.length) return;
     grid.dataset.dressed = '1';
     cards.forEach((card, i) => {
-      const m = (card.getAttribute('onclick') || '').match(/openIfaceModal\('([^']+)'\)/);
-      const id = m ? m[1] : '';
+      const id = card.dataset.iface || '';
       card.classList.add('play-card');
       card.style.setProperty('--i', String(i % 6));
       const overlay = card.querySelector('.iface-card-overlay');
@@ -1172,7 +1110,7 @@
     const target = parseInt(m[2].replace(/\D/g, ''), 10);
     if (!Number.isFinite(target) || target <= 0) return;
     const grouped = /[\s  ,.]/.test(m[2].trim());
-    const fmt = (n) => (grouped ? (lang === 'fr' ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : n.toLocaleString('en-US')) : String(n));
+    const fmt = (n) => (grouped ? (lang === 'fr' ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : n.toLocaleString(SITE.intl || 'en-US')) : String(n));
     const start = performance.now();
     const dur = 1400;
     (function step(now) {
@@ -1342,7 +1280,6 @@
   let sameTiles = [];
   let sameOrder = [];
   let checkRows = [];
-  let tallyDots = [];
   let lastTally = -1;
   let stepEls = [];
   let tickEls = [];
@@ -1351,7 +1288,6 @@
   let lastChapter = '';
   let svcDist = 0;
   let svcActive = -1;
-  let openProof = null;
   let horizontal = false;
   let heroP = 0;
   let lastHeroP = -1;
@@ -1429,9 +1365,12 @@
     if (b4) { const k = seg(p, 0.64, 0.74); setBeat(b4, k, 30 * (1 - k)); }
   }
 
-  /* The painter: the fox walks out of the forest and arrives with its palette. The whole pin is the clip:
-     it holds its first frame while the dab opens (the same frame as the poster), then plays to the fox's arrival. */
-  function drawFox(p, near) {
+  /* The painter: the fox walks out of the forest and arrives with its palette. The clip starts with the dab:
+     while the circle grows over the lookalike sites (`open`, 0 → 1), the first FOX_OPEN_SHARE of the clip plays,
+     so the scene is already moving inside the opening (2026-10-18, user request); the fox's own pin plays the
+     rest to its arrival. Without a dab (not pinned), the pin plays the whole clip. */
+  const FOX_OPEN_SHARE = 0.18;
+  function drawFox(p, near, open) {
     if (!fox) return;
     if (reduced) {
       foxBeats.forEach((b) => { b.style.opacity = ''; b.style.transform = ''; b.style.visibility = ''; });
@@ -1439,7 +1378,8 @@
       fox.classList.add('is-arrived');
       return;
     }
-    if (foxScrub && near) foxScrub.set(seg(p, 0.02, 0.96));
+    const share = open == null ? 0 : FOX_OPEN_SHARE;
+    if (foxScrub && near) foxScrub.set(share * seg(open || 0, 0.06, 1) + (1 - share) * seg(p, 0.02, 0.96));
     fox.style.setProperty('--arrive', seg(p, 0.86, 0.96).toFixed(3));
     fox.classList.toggle('is-arrived', p > 0.9);
     fox.style.setProperty('--scrim', (0.86 - 0.3 * seg(p, 0.14, 0.5)).toFixed(3));
@@ -1495,8 +1435,7 @@
         el._k = k;
         next.classList.add('is-opening');
         next.classList.remove('is-shut');
-        // The stage is held at the top of the viewport while its section is still rising: viewport = stage coordinates.
-        const lift = `translate3d(0, ${(-Math.max(0, rNext.top)).toFixed(1)}px, 0)`;
+        // .is-opening fixes the stage to the screen while its section is still rising (CSS), so viewport = stage coordinates.
         const ox = dabFrom ? dabFrom.x : window.innerWidth / 2;
         const oy = dabFrom ? dabFrom.y : vh / 2;
         const far = Math.hypot(Math.max(ox, window.innerWidth - ox), Math.max(oy, vh - oy));
@@ -1504,7 +1443,6 @@
         const size = (far / 0.42) * e;
         const place = (x, s) => {
           if (!x) return;
-          x.style.transform = lift;
           x.style.webkitMaskSize = x.style.maskSize = `${s.toFixed(1)}px ${s.toFixed(1)}px`;
           x.style.webkitMaskPosition = x.style.maskPosition = `${(ox - s / 2).toFixed(1)}px ${(oy - s / 2).toFixed(1)}px`;
         };
@@ -1559,7 +1497,6 @@
     });
     if (best !== svcActive) {
       svcActive = best;
-      if (openProof && !svcCards[best].contains(openProof)) setProof(openProof, false);
       svcCards.forEach((c, i) => {
         c.classList.toggle('is-active', i === best);
         c.style.setProperty('--in', i === best ? 1 : 0.6);
@@ -1567,36 +1504,6 @@
     }
   }
   /* The proof bubble: opens below its button, or above when the viewport has no room below. One at a time. */
-  function setProof(el, open) {
-    if (!el) return;
-    if (open && openProof && openProof !== el) setProof(openProof, false);
-    const btn = el.querySelector('.svcp-btn');
-    const pop = el.querySelector('.svcp-pop');
-    if (open) {
-      loadProofMedia(pop);
-      // A closed bubble is display:none, so open it before measuring where it fits.
-      el.classList.add('is-open');
-      const r = btn.getBoundingClientRect();
-      const need = pop.offsetHeight + 28;
-      const below = window.innerHeight - r.bottom;
-      const above = r.top - (nav ? nav.offsetHeight : 0);
-      el.classList.toggle('is-up', below < need && above > below);
-      pop.style.marginLeft = '';
-      pop.style.removeProperty('--tail');
-      // stay clear of the chapter rail on the right on desktop
-      const pad = window.innerWidth > 900 ? 64 : 12;
-      const overflow = r.left + pop.offsetWidth - (window.innerWidth - pad);
-      const shift = overflow > 0 ? -Math.min(overflow, Math.max(0, r.left - pad)) : 0;
-      if (shift) {
-        pop.style.marginLeft = shift + 'px';
-        pop.style.setProperty('--tail', Math.round(22 - shift) + 'px');
-      }
-    }
-    el.classList.toggle('is-open', open);
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) pop.removeAttribute('inert'); else pop.setAttribute('inert', '');
-    if (open) openProof = el; else if (openProof === el) openProof = null;
-  }
   /* Scroll the pin so this card sits in the middle of the stage (inverse of drawServices' easing). */
   function centerService(card, behavior) {
     if (!horizontal || !services || !card || svcDist <= 0) return;
@@ -1610,65 +1517,25 @@
 
   function drawChecks(vh, tops) {
     let count = 0;
-    let rowTop = null;
-    let inRow = 0;
-    // The home grid fits one screen on two columns: the brush ticks the twelve lines in reading order while the
-    // sheet rises from the bottom of the viewport to its upper third. On one column (phones) each line on its own.
-    const ledger = checkRows.length && checkRows[0].classList.contains('ck-row');
-    const twoCol = ledger && tops && tops.length > 6 && Math.abs(tops[6] - tops[0]) < 8;
-    const rise = twoCol ? clamp((vh * 0.92 - tops[0]) / (vh * 0.62)) : 0;
+    // The sheet is one block: the brush stamps the twelve cells in reading order while it rises from the bottom of
+    // the viewport to its upper third. Reduced motion: all stamped.
+    const rise = tops && tops.length ? clamp((vh * 0.92 - tops[0]) / (vh * 0.62)) : 0;
     checkRows.forEach((row, i) => {
-      let ink = 1;
-      if (!reduced && tops && twoCol) {
-        ink = clamp(rise * (checkRows.length + 1.5) - i);
-      } else if (!reduced && tops) {
-        // Bento tiles share a row: paint them one after the other, left to right.
-        if (rowTop != null && Math.abs(tops[i] - rowTop) < 4) inRow++; else { inRow = 0; rowTop = tops[i]; }
-        ink = clamp((vh * 0.62 - tops[i]) / (vh * 0.2) - inRow * 0.22);
-      }
+      const ink = !reduced && tops ? clamp(rise * (checkRows.length + 1.5) - i) : 1;
       row.style.setProperty('--ink', ink.toFixed(3));
       row.classList.toggle('is-painted', ink >= 0.995);
-      if (ink >= 0.995) {
-        count++;
-        // A painted line shows its before/after by itself; it never folds back on the way up.
-        if (!row.classList.contains('is-read')) {
-          row.classList.add('is-read');
-          const wrap = row.querySelector('.more');
-          const btn = row.querySelector('.more-btn');
-          const panel = row.querySelector('.more-panel');
-          if (wrap && btn && panel && !wrap.classList.contains('is-open')) { wrap.classList.add('is-open'); btn.setAttribute('aria-expanded', 'true'); panel.removeAttribute('inert'); }
-        }
-      }
+      if (ink >= 0.995) count++;
     });
     if (count !== lastTally) {
       lastTally = count;
       const n = $('tally-n');
       if (n) n.textContent = pad(count);
-      tallyDots.forEach((dot, i) => dot.classList.toggle('is-on', i < count));
-      const pill = $('tally-pill-n');
-      if (pill) pill.textContent = pad(count);
       const sheet = $('ledger');
       if (sheet) sheet.classList.toggle('is-passed', checkRows.length > 0 && count >= checkRows.length);
-      if (ledger) updateNote();
     }
   }
 
-  /* The sheet's footer reads one rule at a time: the line under the pointer or focus, else the opened one,
-     else the last line the brush ticked. */
-  let noteHover = -1;
-  let notePinned = -1;
-  function updateNote() {
-    const el = $('ledger-note');
-    if (!el || !checkRows.length || !checkRows[0].classList.contains('ck-row')) return;
-    const i = noteHover >= 0 ? noteHover : notePinned >= 0 ? notePinned : Math.max(-1, lastTally - 1);
-    if (el._i === i && el._lang === lang) return;
-    el._i = i;
-    el._lang = lang;
-    el.innerHTML = i < 0
-      ? `<span class="ln-hint">${esc(t('s_ledger_hint'))}</span>`
-      : `<b>${pad(i + 1)}</b><span>${esc(t(`check_${i + 1}_desc`))}</span>`;
-    checkRows.forEach((r, k) => r.classList.toggle('is-noted', k === i));
-  }
+  /* A tap or a click turns a cell over (hover and focus do it in CSS); one open cell at a time. */
   function openCheck(row, open) {
     checkRows.forEach((r) => {
       const on = r === row && open;
@@ -1676,8 +1543,6 @@
       const b = r.querySelector('.ck-btn');
       if (b) b.setAttribute('aria-expanded', on ? 'true' : 'false');
     });
-    notePinned = row && open ? Number(row.dataset.i) : -1;
-    updateNote();
   }
 
   function drawDay2(p) {
@@ -1759,7 +1624,7 @@
       const ch = CHAPTERS.find((c) => c.id === cur) || CHAPTERS[0];
       root.style.setProperty('--chapter', ch.color);
       d.querySelectorAll('.rail-dot').forEach((b) => { if (b.dataset.chapter === cur) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
-      railSay(t(ch.key), ch.color);
+      railSay(t(ch.key));
       if (rail && !reduced) {
         rail.classList.add('is-telling');
         clearTimeout(rail._tell);
@@ -1791,8 +1656,10 @@
     const rSame = same && rects.get(same);
     // Where the dab opens: the centre of the site that was finished by hand (only read while it opens).
     let dabFrom = null;
+    // How far the dab has opened onto the fox (null when the lookalike sheet is not pinned, so there is no dab).
+    const foxOpen = same && same._cover && rSame ? coverOf(same, rSame, vh) : null;
     if (same && same._cover && rSame) {
-      const k = coverOf(same, rSame, vh);
+      const k = foxOpen;
       const chosen = k > 0 && k < 1 && $('tiles') ? $('tiles').querySelector('.tile.is-chosen') : null;
       if (chosen) { const t0 = chosen.getBoundingClientRect(); dabFrom = { x: t0.left + t0.width / 2, y: t0.top + t0.height / 2 }; }
     }
@@ -1809,7 +1676,7 @@
       if (!motesRunning || heroP !== lastHeroP || heroMode !== lastHeroMode) { drawHero(clipP, pinP, heroMode === 2); lastHeroP = heroP; lastHeroMode = heroMode; }
     }
     if (same && rSame && (reduced || (rSame.bottom > 0 && rSame.top < vh))) drawSame(progressOf(same, rSame, vh));
-    if (fox && rFox) drawFox(progressOf(fox, rFox, vh), rFox.bottom > -vh && rFox.top < vh * 2);
+    if (fox && rFox) drawFox(progressOf(fox, rFox, vh), rFox.bottom > -vh && rFox.top < vh * 2, foxOpen);
     drawCovers(rects, vh, dabFrom);
     if (services) drawServices(progressOf(services, rects.get(services), vh));
     if (checkTops || reduced) drawChecks(vh, checkTops);
@@ -2064,7 +1931,7 @@
       const res = await fetch('/api/hrhv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, persona: 'agency', lang }),
+        body: JSON.stringify({ messages: history, persona: 'agency', lang: SITE.locale || lang }),
       });
       if (res.status === 429) {
         typing.remove();
@@ -2142,11 +2009,6 @@
     if (open) panel.removeAttribute('inert'); else panel.setAttribute('inert', '');
   }
   d.addEventListener('click', (e) => {
-    const proofBtn = e.target.closest('.svcp-btn');
-    if (proofBtn) { const el = proofBtn.closest('.svcp'); setProof(el, !el.classList.contains('is-open')); return; }
-    const proofClose = e.target.closest('.svcp-close');
-    if (proofClose) { const el = proofClose.closest('.svcp'); setProof(el, false); el.querySelector('.svcp-btn').focus({ preventScroll: true }); return; }
-    if (openProof && !openProof.contains(e.target)) setProof(openProof, false);
     const moreBtn = e.target.closest('.more-btn');
     if (moreBtn) { toggleDisclosure(moreBtn, '.more', '.more-panel'); return; }
     const qaBtn = e.target.closest('.qa-q');
@@ -2154,7 +2016,7 @@
     const trackBtn = e.target.closest('.price-track');
     if (trackBtn) { setCardTrack(trackBtn.dataset.cardTrack, trackBtn.dataset.track); return; }
     const ckBtn = e.target.closest('.ck-btn');
-    if (ckBtn) { const row = ckBtn.closest('.ck-row'); openCheck(row, !row.classList.contains('is-open')); return; }
+    if (ckBtn) { const row = ckBtn.closest('.ck'); openCheck(row, !row.classList.contains('is-open')); return; }
     const spotBtn = e.target.closest('.spot-btn');
     if (spotBtn) {
       const el = spotBtn.closest('.spot');
@@ -2213,11 +2075,11 @@
     const say = (e) => {
       const b = e.target.closest('.rail-dot');
       const ch = b && CHAPTERS.find((c) => c.id === b.dataset.chapter);
-      if (ch) railSay(t(ch.key), ch.color);
+      if (ch) railSay(t(ch.key));
     };
     rail.addEventListener('pointerover', say);
     rail.addEventListener('focusin', say);
-    const back = () => { const ch = CHAPTERS.find((c) => c.id === lastChapter) || CHAPTERS[0]; railSay(t(ch.key), ch.color); };
+    const back = () => { const ch = CHAPTERS.find((c) => c.id === lastChapter) || CHAPTERS[0]; railSay(t(ch.key)); };
     rail.addEventListener('pointerleave', back);
     rail.addEventListener('focusout', (e) => { if (!rail.contains(e.relatedTarget)) back(); });
   }
@@ -2231,23 +2093,12 @@
     setCardTrack(next.dataset.cardTrack, next.dataset.track);
     next.focus();
   });
-  // The grid's footer follows the pointer and the focus, line by line.
-  const checksList = $('checks-list');
-  if (checksList) {
-    const lineOf = (e) => { const r = e.target.closest && e.target.closest('.ck-row'); return r ? Number(r.dataset.i) : -1; };
-    checksList.addEventListener('pointerover', (e) => { const i = lineOf(e); if (i >= 0 && i !== noteHover) { noteHover = i; updateNote(); } });
-    checksList.addEventListener('pointerleave', () => { noteHover = -1; updateNote(); });
-    checksList.addEventListener('focusin', (e) => { const i = lineOf(e); if (i >= 0) { noteHover = i; updateNote(); } });
-    checksList.addEventListener('focusout', (e) => { if (!checksList.contains(e.relatedTarget)) { noteHover = -1; updateNote(); } });
-  }
   // Keyboard users reach the lateral service cards: scroll the pin to the focused card.
   d.addEventListener('focusin', (e) => {
     if (!horizontal || !track || !track.contains(e.target)) return;
     centerService(e.target.closest('.svc'), 'instant');
   });
   // Warm the proof picture as soon as the pointer or the focus reaches its button.
-  d.addEventListener('pointerover', (e) => { const b = e.target.closest && e.target.closest('.svcp-btn'); if (b) loadProofMedia(b.closest('.svcp')); });
-  d.addEventListener('focusin', (e) => { const b = e.target.closest && e.target.closest('.svcp-btn'); if (b) loadProofMedia(b.closest('.svcp')); });
   // A click on a waiting card brings it to the middle and makes it the active one.
   if (track) track.addEventListener('click', (e) => {
     const card = e.target.closest('.svc');
@@ -2256,12 +2107,10 @@
   });
   d.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (openProof) { const el = openProof; setProof(el, false); el.querySelector('.svcp-btn').focus({ preventScroll: true }); }
     closeSpots();
     if (chat && !chat.hidden) { setChat(false); chatToggle.focus(); }
     closeMenu();
   });
-  d.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
   const burger = nav && nav.querySelector('.nav-burger');
   if (burger) {
     burger.addEventListener('click', () => {

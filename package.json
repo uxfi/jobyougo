@@ -101,5 +101,8 @@
   },
   "bugs": {
     "url": "https://github.com/uxfi/jobyougo/issues"
+  },
+  "devDependencies": {
+    "acorn": "^8.14.0"
   }
 }

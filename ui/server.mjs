@@ -29,7 +29,9 @@ import {
 import { aggregateUsageEvents, readAiUsageEvents } from '../lib/ai-usage-log.mjs';
 import { getContributionCalendar } from '../lib/github-contributions.mjs';
 import { agenceRedirectTarget, agenceSubpageId, agencyLanguageInstruction, buildAgencyChatPrompt, isAgencePagePath, loadAgencyOffers, renderAgencePage, renderAgenceSubpage, resolveChatPersona } from '../lib/agence-site.mjs';
+import { localizeAgenceForRequest } from '../lib/agence-i18n.mjs';
 import { checkoutConfig, createCheckoutSession, makeRateLimiter, orderRecordFromEvent, priceOrder, publicCheckoutConfig, publicOrigin, readRawBody, retrieveCheckoutSession, stripeSessionParams, validateCustomer, verifyStripeSignature } from '../lib/agence-checkout.mjs';
+import { mailConfig, orderEmails, orderReference, sendMail } from '../lib/agence-mail.mjs';
 import { buildCvTemplateDataFromProfile, loadCvTemplateData } from '../lib/cv-template-data.mjs';
 import { computeProfileStatus, fillProfileGaps, homeLocationLabel, isMissingColumnError, mergeProfileSections, missingColumnName, normalizeProfileRow, profileToRow, sanitizeProfileInput } from '../lib/profile-shape.mjs';
 import { authorizedFor, locationSummaryLines, resolveLocationProfile, workModeAllowed } from '../lib/candidate-location.mjs';
@@ -294,7 +296,9 @@ function weakHash(str) {
 function sendText(req, res, body, status = 200) {
   const etag = `W/"${weakHash(body)}-${body.length.toString(36)}"`;
   res.setHeader('ETag', etag);
-  res.setHeader('Vary', 'Accept-Encoding');
+  // Keep a Vary set by the caller (the agence pages vary by Accept-Language and the language cookie).
+  const prevVary = res.getHeader('Vary');
+  res.setHeader('Vary', prevVary ? `${prevVary}, Accept-Encoding` : 'Accept-Encoding');
   if (req.headers['if-none-match'] === etag) { res.writeHead(304); res.end(); return; }
 
   const accept = req.headers['accept-encoding'] || '';
@@ -344,7 +348,8 @@ const agenceOrderLimited = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: Numb
 
 /** A paid agency order: one log line, plus a JSON line in AGENCE_ORDERS_FILE when set (Stripe stays the record). */
 async function recordAgenceOrder(record) {
-  console.log(`[agence] order ${record.paid ? 'paid' : 'completed'}: ${record.offer}${record.track ? '/' + record.track : ''} ${record.total} ${record.currency} (${record.session})`);
+  if (record.mode === 'email') console.log(`[agence] order received: ${record.ref} ${record.offer}${record.track ? '/' + record.track : ''} ${record.total} ${record.currency} → ${record.email}${record.confirmed ? '' : ' (confirmation email failed)'}`);
+  else console.log(`[agence] order ${record.paid ? 'paid' : 'completed'}: ${record.offer}${record.track ? '/' + record.track : ''} ${record.total} ${record.currency} (${record.session})`);
   const file = String(process.env.AGENCE_ORDERS_FILE || '').trim();
   if (!file) return;
   try {
@@ -8583,8 +8588,12 @@ const server = createServer(async (req, res) => {
     if (isAgencePagePath(path)) {
       const html = await renderAgencePage(__dirname);
       if (html != null) {
+        // Language from ?lang=, the cookie, the browser, then the country (lib/agence-i18n.mjs); no switch on the page.
+        const loc = await localizeAgenceForRequest(html, req, urlObj.searchParams, __dirname);
+        if (loc.setCookie) res.setHeader('Set-Cookie', loc.setCookie);
+        res.setHeader('Vary', 'Accept-Language, Cookie');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        sendText(req, res, html);
+        sendText(req, res, loc.html);
         return;
       }
     }
@@ -8592,8 +8601,11 @@ const server = createServer(async (req, res) => {
     if (agenceSub) {
       const html = await renderAgenceSubpage(__dirname, agenceSub);
       if (html != null) {
+        const loc = await localizeAgenceForRequest(html, req, urlObj.searchParams, __dirname);
+        if (loc.setCookie) res.setHeader('Set-Cookie', loc.setCookie);
+        res.setHeader('Vary', 'Accept-Language, Cookie');
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        sendText(req, res, html);
+        sendText(req, res, loc.html);
         return;
       }
     }
@@ -8686,9 +8698,52 @@ const server = createServer(async (req, res) => {
       if (!who.ok) return json(res, { error: who.error }, 422);
       const origin = publicOrigin(req);
       if (!origin) return json(res, { error: 'no_origin' }, 500);
-      const params = stripeSessionParams(priced.order, who.customer, { origin, lang, automaticTax: cfg.automaticTax });
+      // Stripe's page follows the visitor's language when Stripe has it; prices and line names stay EN/FR.
+      const locale = body && typeof body.locale === 'string' ? body.locale.slice(0, 16) : lang;
+      const params = stripeSessionParams(priced.order, who.customer, { origin, lang, locale, automaticTax: cfg.automaticTax });
       const session = await createCheckoutSession(params, process.env.STRIPE_SECRET_KEY);
       return json(res, { url: session.url });
+    }
+    // Email mode (lib/agence-mail.mjs): the order gets a reference and goes out as two emails, the whole order to
+    // the founder (Reply-To the buyer) and a confirmation to the buyer. 503 mail_off when no provider is set, so the
+    // page falls back to the visitor's own email app. A honeypot field and a minimum fill time keep bots out.
+    if (path === '/api/agence/order' && method === 'POST') {
+      if (agenceOrderLimited(clientIp(req))) {
+        res.setHeader('Retry-After', '600');
+        return json(res, { error: 'too_many_orders' }, 429);
+      }
+      const mail = mailConfig();
+      if (!mail.on) return json(res, { error: 'mail_off' }, 503);
+      const body = await readBody(req, { limit: 32 * 1024 });
+      if (!body || typeof body !== 'object') return json(res, { error: 'bad_json' }, 400);
+      if (String(body.website || '').trim()) return json(res, { error: 'spam' }, 422);
+      const opened = Number(body.openedAt);
+      if (Number.isFinite(opened) && opened > 0 && Date.now() - opened < 4000) return json(res, { error: 'spam' }, 422);
+      const lang = body.lang === 'fr' ? 'fr' : 'en';
+      const offers = await loadAgencyOffers(ROOT);
+      if (!offers) return json(res, { error: 'offers_unavailable' }, 503);
+      const priced = priceOrder(offers, body, lang);
+      if (!priced.ok) return json(res, { error: priced.error }, 422);
+      const who = validateCustomer(body.customer, { stage: 'request' });
+      if (!who.ok) return json(res, { error: who.error }, 422);
+      const ref = orderReference();
+      const locale = typeof body.locale === 'string' ? body.locale.slice(0, 16) : lang;
+      const emails = orderEmails({ order: priced.order, customer: who.customer, ref, lang, locale, origin: publicOrigin(req), to: mail.to, calendly: mail.calendly });
+      try {
+        await sendMail(mail, { ...emails.founder, replyTo: who.customer.email, tags: [{ name: 'kind', value: 'agence-order' }] });
+      } catch (err) {
+        console.error('[agence] order email failed:', err.message);
+        return json(res, { error: 'mail_failed' }, 502);
+      }
+      let confirmed = true;
+      try {
+        await sendMail(mail, { ...emails.buyer, replyTo: mail.to, tags: [{ name: 'kind', value: 'agence-confirmation' }] });
+      } catch (err) {
+        confirmed = false;
+        console.error('[agence] confirmation email failed:', err.message);
+      }
+      await recordAgenceOrder({ mode: 'email', ref, at: new Date().toISOString(), offer: priced.order.offer, track: priced.order.track, total: priced.order.total, currency: priced.order.currency, name: who.customer.name, email: who.customer.email, lang, confirmed });
+      return json(res, { ok: true, ref, confirmed });
     }
     if (path === '/api/agence/checkout/session' && method === 'GET') {
       if (checkoutConfig().mode !== 'stripe') return json(res, { error: 'payments_off' }, 503);

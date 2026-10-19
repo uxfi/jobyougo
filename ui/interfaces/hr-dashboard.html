@@ -14,65 +14,45 @@
   --border:    #e8edf2;
   --t1:        #1a1d23;
   --t2:        #5c6472;
-  --t3:        #9ba4b0;
+  --t3:        #6b7482;
   --blue:      #4a8ef0;
   --blue-d:    #2563eb;
   --blue-l:    #e8f0fe;
   --green-bg:  #e6f9ef;
-  --green-fg:  #17a84b;
+  --green-fg:  #0e7a36;
   --red-bg:    #fde8e8;
-  --red-fg:    #e03030;
+  --red-fg:    #b91c1c;
+  --amber:     #b45309;
   --cell-0:    #edf2f7;
   --cell-1:    #c3d9f7;
   --cell-2:    #7eb8ef;
   --cell-3:    #4a8ef0;
   --cell-4:    #1e5cbf;
   --shadow:    0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
-  --shadow-hover: 0 2px 8px rgba(0,0,0,.08), 0 8px 28px rgba(0,0,0,.09);
   --sidebar-w: 58px;
+  --ease:      cubic-bezier(.2,.7,.2,1);
+  --d-micro:   150ms;
+  --d-ui:      220ms;
+  --d-enter:   400ms;
 }
 
 html, body { height: 100%; background: var(--bg); font-family: var(--font-inter); font-size: 13px; color: var(--t1); -webkit-font-smoothing: antialiased; overflow: hidden; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--blue-d); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* ── Entrance keyframes ── */
+/* ── Keyframes ── */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(.96); }
-  to   { opacity: 1; transform: scale(1); }
-}
-@keyframes donutSpin {
-  from { stroke-dasharray: 0 301.6; }
-  to   { stroke-dasharray: 45.2 256.4; }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
 }
 @keyframes cellReveal {
-  from { opacity: 0; transform: scaleY(0); }
-  to   { opacity: 1; transform: scaleY(1); }
-}
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(74,142,240,.4); }
-  50%       { box-shadow: 0 0 0 5px rgba(74,142,240,0); }
-}
-@keyframes coinPulse {
-  0%,100% { color: #f4a523; }
-  50%     { color: #e69020; }
+  from { opacity: 0; transform: scaleY(.2); }
+  to   { opacity: 1; transform: none; }
 }
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-6px) scale(.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes notifBounce {
-  0%,100% { transform: rotate(0deg); }
-  20%     { transform: rotate(-15deg); }
-  40%     { transform: rotate(15deg); }
-  60%     { transform: rotate(-8deg); }
-  80%     { transform: rotate(8deg); }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* ── Layout ── */
@@ -84,127 +64,111 @@ html, body { height: 100%; background: var(--bg); font-family: var(--font-inter)
   background: var(--white); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; align-items: center;
   padding: 14px 0; gap: 2px; z-index: 10;
-  animation: fadeIn .4s ease both;
+  transition: margin-left var(--d-ui) var(--ease);
+}
+.app.rail-collapsed .sidebar {
+  margin-left: calc(-1 * var(--sidebar-w)); visibility: hidden;
+  transition: margin-left var(--d-ui) var(--ease), visibility 0s var(--d-ui);
 }
 .sb-logo {
   width: 34px; height: 34px; background: var(--blue); border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 14px; flex-shrink: 0; cursor: pointer;
-  transition: transform 200ms, box-shadow 200ms;
+  margin-bottom: 14px; flex-shrink: 0;
 }
-.sb-logo:hover { transform: scale(1.08); box-shadow: 0 4px 14px rgba(74,142,240,.4); }
-.sb-logo:active { transform: scale(.96); }
 .sb-logo svg { width: 17px; height: 17px; }
+.sb-nav { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 
 .sb-icon {
   width: 36px; height: 36px; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  color: var(--t3); cursor: pointer;
-  transition: background 150ms, color 150ms, transform 150ms;
-  position: relative;
+  color: var(--t3); position: relative;
+  transition: background var(--d-micro), color var(--d-micro);
 }
 .sb-icon svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.sb-icon:hover { background: var(--bg); color: var(--t2); transform: translateX(2px); }
-.sb-icon:active { transform: scale(.9); }
-.sb-icon.active { background: var(--blue-l); color: var(--blue); }
+.sb-icon:hover { background: var(--bg); color: var(--t2); }
+.sb-icon[aria-current="page"] { background: var(--blue-l); color: var(--blue-d); }
 
-/* Tooltip */
+/* Tooltip: on hover and on keyboard focus */
 .sb-icon::after {
   content: attr(data-tip);
-  position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  position: absolute; left: calc(100% + 10px); top: 50%;
   background: var(--t1); color: #fff; font-size: 11px; font-weight: 500;
-  padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+  padding: 4px 8px; border-radius: 6px; white-space: nowrap; z-index: 20;
   opacity: 0; pointer-events: none;
-  transition: opacity 150ms, transform 150ms;
-  transform: translateY(-50%) translateX(-4px);
+  transform: translate(-4px, -50%);
+  transition: opacity var(--d-micro), transform var(--d-micro);
 }
-.sb-icon:hover::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+.sb-icon:hover::after, .sb-icon:focus-visible::after { opacity: 1; transform: translate(0, -50%); }
 
 .sb-spacer { flex: 1; }
 .sb-avatar {
   width: 30px; height: 30px; border-radius: 50%;
-  background: linear-gradient(135deg, #4a8ef0, #7ab3f7);
+  background: linear-gradient(135deg, var(--cell-4), var(--blue-d));
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; color: #fff; cursor: pointer;
-  margin-top: 6px; transition: transform 200ms, box-shadow 200ms;
-  animation: pulse 3s 2s infinite;
+  font-size: 11px; font-weight: 700; color: #fff; margin-top: 6px;
 }
-.sb-avatar:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(74,142,240,.4); animation: none; }
-
-.sb-back {
-  width: 36px; height: 36px; border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--t3); cursor: pointer; transition: color 150ms, transform 150ms;
-}
-.sb-back:hover { color: var(--t2); transform: translateX(-2px); }
-.sb-back svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
 
 /* ── Main ── */
-.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Topbar ── */
 .topbar {
   background: var(--white); border-bottom: 1px solid var(--border);
   height: 54px; padding: 0 20px;
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
-  animation: fadeIn .35s ease both;
 }
+.tb-rail-toggle {
+  display: none; width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--border); color: var(--t2);
+  align-items: center; justify-content: center; margin-right: 2px;
+}
+.app.rail-collapsed .tb-rail-toggle { display: flex; }
+.tb-rail-toggle svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tb-user { display: flex; align-items: center; gap: 9px; }
 .tb-av {
   width: 34px; height: 34px; border-radius: 50%;
-  background: linear-gradient(135deg, #4a8ef0, #7ab3f7);
+  background: linear-gradient(135deg, var(--cell-4), var(--blue-d));
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
-  cursor: pointer; transition: transform 200ms;
+  font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
 }
-.tb-av:hover { transform: scale(1.08); }
 .tb-name { font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.2; }
 .tb-coins { font-size: 11px; color: var(--t3); }
-.tb-coins b { color: #f4a523; font-weight: 600; animation: coinPulse 3s 1.5s infinite; display: inline-block; }
+.tb-coins b { color: var(--amber); font-weight: 600; }
 .tb-plus {
-  width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid var(--border);
+  width: 22px; height: 22px; border-radius: 5px; border: 1.5px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  color: var(--t3); font-size: 14px; cursor: pointer; line-height: 1;
-  transition: background 150ms, border-color 150ms, color 150ms, transform 150ms;
+  color: var(--t2); font-size: 14px; line-height: 1;
+  transition: background var(--d-micro), border-color var(--d-micro), color var(--d-micro);
 }
-.tb-plus:hover { background: var(--blue-l); border-color: var(--blue); color: var(--blue); transform: rotate(90deg); }
+.tb-plus:hover { background: var(--blue-l); border-color: var(--blue); color: var(--blue-d); }
 
 .tb-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .tb-btn-icon {
   width: 34px; height: 34px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--white);
   display: flex; align-items: center; justify-content: center;
-  color: var(--t2); cursor: pointer; transition: background 150ms, border-color 150ms, transform 150ms;
-  position: relative;
+  color: var(--t2); position: relative;
+  transition: background var(--d-micro), border-color var(--d-micro);
 }
 .tb-btn-icon svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.tb-btn-icon:hover { background: var(--bg); border-color: #d0d7e2; transform: translateY(-1px); }
-.tb-btn-icon:active { transform: scale(.93); }
-
-/* Notification bell animation */
-.tb-btn-icon.notif svg { transform-origin: top center; }
-.tb-btn-icon.notif:hover svg { animation: notifBounce .6s ease; }
-
-/* Notif badge */
+.tb-btn-icon:hover { background: var(--bg); border-color: #d0d7e2; }
 .tb-btn-icon .badge {
   position: absolute; top: 6px; right: 6px;
   width: 7px; height: 7px; border-radius: 50%;
-  background: #ef4444; border: 1.5px solid var(--white);
-  animation: pulse 2s .5s infinite;
+  background: var(--red-fg); border: 1.5px solid var(--white);
 }
 
 .btn-new {
-  background: var(--blue); color: #fff; border: none;
+  background: var(--blue-d); color: #fff;
   padding: 0 14px; height: 34px; border-radius: 8px;
-  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-size: 12px; font-weight: 600;
   display: flex; align-items: center; gap: 5px;
-  transition: background 150ms, transform 150ms, box-shadow 150ms;
-  box-shadow: 0 2px 8px rgba(74,142,240,.3);
+  box-shadow: 0 2px 8px rgba(37,99,235,.25);
+  transition: filter var(--d-micro), transform var(--d-micro), box-shadow var(--d-micro);
 }
-.btn-new:hover { background: var(--blue-d); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(74,142,240,.45); }
-.btn-new:active { transform: scale(.96) translateY(0); box-shadow: none; }
-.btn-new svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2.5; stroke-linecap: round; transition: transform 200ms; }
-.btn-new:hover svg { transform: rotate(90deg); }
+.btn-new:hover { filter: brightness(.94); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,.35); }
+.btn-new:active { transform: none; box-shadow: none; }
+.btn-new svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2.5; stroke-linecap: round; }
 
 /* ── Content ── */
 .content { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -213,138 +177,139 @@ html, body { height: 100%; background: var(--bg); font-family: var(--font-inter)
 .hero {
   background: var(--white); border-radius: 14px;
   box-shadow: var(--shadow); padding: 18px 22px;
-  display: flex; align-items: center;
-  animation: fadeUp .4s .1s ease both;
-  transition: box-shadow 200ms;
+  display: flex; align-items: center; gap: 16px;
+  animation: fadeUp var(--d-enter) var(--ease) 40ms both;
 }
-.hero:hover { box-shadow: var(--shadow-hover); }
-.hero-left { flex: 1; }
-.hero-greeting { font-size: 12px; color: var(--t3); margin-bottom: 4px; }
-.hero-name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.hero-name { font-size: 26px; font-weight: 800; letter-spacing: -.5px; color: var(--t1); }
-.hero-location {
-  font-size: 11px; font-weight: 500; color: var(--t2);
-  background: #f0f3f7; border: 1px solid var(--border);
-  padding: 4px 10px; border-radius: 20px;
-  cursor: pointer; transition: background 150ms, border-color 150ms;
-}
-.hero-location:hover { background: var(--blue-l); border-color: #bcd4fb; color: var(--blue); }
+.hero-left { flex: 1; min-width: 0; }
+.hero-greeting { font-size: 12px; color: var(--t3); margin-bottom: 2px; }
+.hero-name { font-size: 18px; font-weight: 700; letter-spacing: -.2px; color: var(--t1); }
+.hero-date { font-size: 12px; color: var(--t2); margin-top: 3px; font-variant-numeric: tabular-nums; }
 
 .hero-tabs { display: flex; gap: 6px; margin-top: 12px; }
 .hero-tab {
   font-size: 12px; font-weight: 500; padding: 6px 16px; border-radius: 20px;
-  cursor: pointer; border: none; background: var(--bg); color: var(--t3);
-  transition: background 200ms, color 200ms, transform 150ms, box-shadow 150ms;
+  background: var(--bg); color: var(--t2);
+  transition: background var(--d-ui), color var(--d-ui);
 }
-.hero-tab:hover:not(.active) { background: #e4e8ef; color: var(--t2); }
-.hero-tab:active { transform: scale(.95); }
-.hero-tab.active { background: var(--t1); color: #fff; box-shadow: 0 2px 8px rgba(26,29,35,.25); }
+.hero-tab[aria-selected="false"]:hover { background: #e4e8ef; color: var(--t1); }
+.hero-tab[aria-selected="true"] { background: var(--t1); color: #fff; }
 
 .hero-right { text-align: right; }
 .hero-staff { font-size: 12px; color: var(--t3); margin-bottom: 4px; }
-.hero-count {
-  font-size: 28px; font-weight: 800; letter-spacing: -.6px; color: var(--t1);
-  transition: opacity 200ms, transform 200ms;
-}
-.hero-count.switching { opacity: 0; transform: translateY(4px); }
+.hero-count { font-size: 28px; font-weight: 800; letter-spacing: -.6px; color: var(--t1); line-height: 1.1; font-variant-numeric: tabular-nums; }
 
 /* ── Grid ── */
-.grid { display: grid; grid-template-columns: 1fr 252px; gap: 14px; }
-.grid-left { display: flex; flex-direction: column; gap: 14px; }
-.grid-right { display: flex; flex-direction: column; gap: 14px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 252px; gap: 14px; }
+.grid-left, .grid-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
 /* ── Card ── */
 .card {
   background: var(--white); border-radius: 14px;
   box-shadow: var(--shadow); padding: 18px 20px;
-  transition: box-shadow 200ms, transform 200ms;
+  animation: fadeUp var(--d-enter) var(--ease) both;
 }
-.card:hover { box-shadow: var(--shadow-hover); }
-.card-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.card-checkins  { animation-delay: 100ms; }
+.card-donut     { animation-delay: 140ms; }
+.card-team      { animation-delay: 180ms; }
+.card-headcount { animation-delay: 220ms; }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .card-title { font-size: 13px; font-weight: 600; color: var(--t2); }
+.card-sub { font-size: 11px; color: var(--t3); margin-top: 2px; }
 
-.card-contributors { animation: fadeUp .4s .18s ease both; }
-.card-team        { animation: fadeUp .4s .26s ease both; }
-.card-donut       { animation: fadeUp .4s .22s ease both; }
-.promo            { animation: scaleIn .4s .32s ease both; }
-
-/* ── Contributors ── */
+/* ── Check-ins ── */
 .contrib-nums { display: flex; gap: 28px; margin-bottom: 14px; }
-.cn-val { font-size: 24px; font-weight: 800; letter-spacing: -.5px; color: var(--t1); }
-.cn-lbl { font-size: 10px; color: var(--t3); margin-top: 1px; }
+.cn-val { font-size: 20px; font-weight: 800; letter-spacing: -.4px; color: var(--t1); font-variant-numeric: tabular-nums; }
+.cn-lbl { font-size: 11px; color: var(--t3); margin-top: 1px; }
 
-/* Status pill dropdown */
+/* Range picker (listbox) */
 .status-pill-wrap { position: relative; }
 .status-pill {
   display: flex; align-items: center; gap: 5px;
-  background: var(--blue-l); color: var(--blue);
+  background: var(--blue-l); color: var(--blue-d);
   font-size: 11px; font-weight: 500; padding: 5px 10px; border-radius: 8px;
-  cursor: pointer; white-space: nowrap; user-select: none;
-  transition: background 150ms;
+  white-space: nowrap; transition: box-shadow var(--d-micro);
 }
-.status-pill:hover { background: #d6e9fd; }
-.status-pill svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; transition: transform 200ms; }
-.status-pill.open svg { transform: rotate(180deg); }
+.status-pill:hover { box-shadow: inset 0 0 0 1px var(--cell-1); }
+.status-pill svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; transition: transform var(--d-ui); }
+.status-pill[aria-expanded="true"] svg { transform: rotate(180deg); }
 
 .pill-dropdown {
   position: absolute; top: calc(100% + 6px); right: 0;
   background: var(--white); border: 1px solid var(--border);
   border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.12);
-  padding: 4px; min-width: 110px; z-index: 50;
+  padding: 4px; min-width: 120px; z-index: 50;
   display: none;
 }
-.pill-dropdown.open { display: block; animation: slideDown 150ms ease both; }
+.pill-dropdown.open { display: block; animation: slideDown var(--d-micro) var(--ease) both; }
 .pill-opt {
+  display: block; width: 100%; text-align: left;
   padding: 7px 10px; font-size: 12px; color: var(--t2); border-radius: 7px;
-  cursor: pointer; transition: background 100ms;
+  transition: background 100ms;
 }
-.pill-opt:hover { background: var(--bg); }
-.pill-opt.active { color: var(--blue); font-weight: 600; background: var(--blue-l); }
+.pill-opt:hover, .pill-opt:focus-visible { background: var(--bg); outline-offset: -2px; }
+.pill-opt[aria-selected="true"] { color: var(--blue-d); font-weight: 600; background: var(--blue-l); }
 
-/* Heatmap */
-.hm-wrap { width: 100%; }
-.hm-months { display: flex; margin-bottom: 5px; padding-left: 30px; }
-.hm-month { font-size: 10px; color: var(--t3); flex: 1; }
+/* Heatmap: a grid whose column count follows the picker */
+.hm-wrap { width: 100%; --cols: 53; --wave-base: 350ms; }
+.hm-months {
+  display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 3px;
+  margin-left: 29px; max-width: calc(var(--cols) * 25px); height: 14px; margin-bottom: 4px;
+}
+.hm-month { grid-row: 1; font-size: 11px; line-height: 14px; color: var(--t3); white-space: nowrap; }
 .hm-rows { display: flex; flex-direction: column; gap: 3px; }
 .hm-row { display: flex; align-items: center; gap: 3px; }
-.hm-day { width: 26px; font-size: 10px; color: var(--t3); text-align: right; flex-shrink: 0; }
-.hm-cells { display: flex; gap: 3px; flex: 1; }
+.hm-day { width: 26px; font-size: 11px; color: var(--t3); text-align: right; flex-shrink: 0; }
+.hm-cells {
+  display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 3px;
+  flex: 1; min-width: 0; max-width: calc(var(--cols) * 25px);
+}
 .c {
-  flex: 1; height: 11px; border-radius: 2.5px;
-  background: var(--cell-0); min-width: 0; cursor: pointer;
-  transform-origin: bottom;
-  transition: filter 100ms, transform 100ms;
+  aspect-ratio: 1; border-radius: 2.5px; background: var(--cell-0); min-width: 0;
+  transform-origin: bottom; transition: filter 100ms;
+  animation: cellReveal 180ms var(--ease) both;
+  animation-delay: calc(var(--wave-base) + var(--col) * 8ms + var(--row) * 40ms);
 }
 .c.l1 { background: var(--cell-1); }
 .c.l2 { background: var(--cell-2); }
 .c.l3 { background: var(--cell-3); }
 .c.l4 { background: var(--cell-4); }
-.c:hover { filter: brightness(1.15); transform: scaleY(1.3); }
+.c.future { animation: none; opacity: .35; }
+.c:hover { filter: brightness(1.12); }
 
 .hm-legend { display: flex; align-items: center; gap: 5px; margin-top: 8px; justify-content: flex-end; }
-.hm-legend span { font-size: 10px; color: var(--t3); }
+.hm-legend span { font-size: 11px; color: var(--t3); }
 .hm-legend-cells { display: flex; gap: 3px; }
-.hm-legend-cells .c { width: 10px; height: 10px; flex: none; cursor: default; }
-.hm-legend-cells .c:hover { transform: none; filter: none; }
+.hm-legend-cells .c { width: 10px; height: 10px; aspect-ratio: auto; animation: none; }
+.hm-legend-cells .c:hover { filter: none; }
 
 /* Cell tooltip */
 .cell-tooltip {
   position: fixed; pointer-events: none; z-index: 200;
   background: var(--t1); color: #fff;
-  font-size: 10px; font-weight: 500; padding: 4px 8px; border-radius: 6px;
+  font-size: 11px; font-weight: 500; padding: 4px 8px; border-radius: 6px;
   white-space: nowrap; opacity: 0;
   transition: opacity 100ms;
 }
 .cell-tooltip.visible { opacity: 1; }
 
-/* ── Team Table ── */
-.search-btn {
-  width: 30px; height: 30px; border-radius: 50%;
-  background: var(--blue-l); color: var(--blue);
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: background 150ms, transform 150ms;
+/* ── Team ── */
+.team-tools { display: flex; align-items: center; gap: 6px; }
+.team-search {
+  width: 0; height: 30px; padding: 0; opacity: 0; visibility: hidden;
+  border: 1px solid var(--border); border-radius: 15px;
+  font: inherit; font-size: 12px; color: var(--t1); background: var(--white);
+  transition: width var(--d-ui) var(--ease), padding var(--d-ui) var(--ease), opacity var(--d-micro);
 }
-.search-btn:hover { background: #d0e4fc; transform: scale(1.1) rotate(10deg); }
+.team-tools.open .team-search { width: 190px; padding: 0 12px; opacity: 1; visibility: visible; }
+.team-search::placeholder { color: var(--t3); }
+.team-search:focus { outline: 2px solid var(--blue-d); outline-offset: 1px; }
+.search-btn {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  background: var(--blue-l); color: var(--blue-d);
+  display: flex; align-items: center; justify-content: center;
+  transition: box-shadow var(--d-micro);
+}
+.search-btn:hover, .search-btn[aria-expanded="true"] { box-shadow: inset 0 0 0 1px var(--cell-1); }
 .search-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
 
 table { width: 100%; border-collapse: collapse; }
@@ -352,171 +317,179 @@ thead th {
   text-align: left; font-size: 11px; font-weight: 500; color: var(--t3);
   padding-bottom: 10px; border-bottom: 1px solid var(--border);
 }
-tbody tr {
-  border-bottom: 1px solid var(--border);
-  transition: background 120ms; cursor: pointer;
-}
+tbody tr { border-bottom: 1px solid var(--border); transition: background 120ms; }
 tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: #f7f9fc; }
-tbody tr:hover td:first-child { border-radius: 8px 0 0 8px; }
-tbody tr:hover td:last-child { border-radius: 0 8px 8px 0; }
-tbody td { padding: 11px 0; vertical-align: middle; transition: padding 120ms; }
-td:not(:first-child) { padding-left: 8px; }
+tbody tr:hover .pemail, tbody tr:hover .tenure { color: var(--t2); }
+tbody td { padding: 10px 0; vertical-align: middle; }
+th:not(:first-child), td:not(:first-child) { padding-left: 8px; }
+tr[hidden] { display: none; }
+.team-empty td { padding: 18px 0; font-size: 12px; color: var(--t2); text-align: center; }
 
 .person { display: flex; align-items: center; gap: 9px; }
 .pav {
   width: 30px; height: 30px; border-radius: 50%;
+  background: var(--blue-l); color: var(--blue-d);
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
-  transition: transform 150ms;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
 }
-tbody tr:hover .pav { transform: scale(1.1); }
 .pname { font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.2; }
-.pemail { font-size: 10px; color: var(--t3); }
+.pemail { font-size: 11px; color: var(--t3); transition: color 120ms; }
 .role { font-size: 11.5px; color: var(--t2); font-weight: 500; }
-.tenure { font-size: 11px; color: var(--t3); white-space: nowrap; }
+.tenure { font-size: 11px; color: var(--t3); font-variant-numeric: tabular-nums; transition: color 120ms; }
 .prod {
-  font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
-  display: inline-block; white-space: nowrap; cursor: pointer;
-  transition: transform 150ms, box-shadow 150ms;
+  font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+  display: inline-block; white-space: nowrap;
 }
-.prod:hover { transform: scale(1.06); }
-.prod.hi { background: var(--green-bg); color: var(--green-fg); }
-.prod.lo { background: var(--red-bg); color: var(--red-fg); }
-.status-cell { font-size: 11.5px; color: var(--t2); white-space: nowrap; }
-.dots {
-  color: var(--t3); font-size: 15px; cursor: pointer; user-select: none; letter-spacing: 1px;
-  padding: 0 4px; border-radius: 4px; transition: background 150ms, color 150ms;
-}
-.dots:hover { background: var(--bg); color: var(--t2); }
+.prod.hi  { background: var(--green-bg); color: var(--green-fg); }
+.prod.mid { background: var(--blue-l); color: var(--blue-d); }
+.prod.lo  { background: var(--red-bg); color: var(--red-fg); }
+.status-cell { font-size: 11.5px; color: var(--t2); }
 
-/* ── Donut ── */
-.details-link { font-size: 11px; color: var(--blue); cursor: pointer; font-weight: 500; text-decoration: none; transition: opacity 150ms; }
-.details-link:hover { opacity: .7; }
-
-.donut-area { display: flex; flex-direction: column; align-items: center; padding: 6px 0 12px; }
-.donut-rel {
-  position: relative; width: 124px; height: 124px; margin-bottom: 18px;
-  cursor: pointer;
-}
+/* ── Turnover ── */
+.donut-area { display: flex; flex-direction: column; align-items: center; padding: 6px 0 4px; }
+.donut-rel { position: relative; width: 124px; height: 124px; margin-bottom: 16px; }
 .donut-rel svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-
-.donut-track { transition: stroke .3s; }
+.donut-track { stroke: var(--cell-0); }
 .donut-arc {
-  stroke-dasharray: 0 301.6;
-  stroke-linecap: round;
-  transition: stroke-dasharray .9s cubic-bezier(.4,0,.2,1), stroke .3s;
+  stroke: var(--blue); stroke-dasharray: 0 301.6; stroke-linecap: round;
+  transition: stroke-dasharray .9s var(--ease);
 }
 .donut-arc.animated { stroke-dasharray: 45.2 256.4; }
-
 .donut-label {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: 22px; font-weight: 800; letter-spacing: -.4px; color: var(--t1);
-  transition: transform 200ms;
+  font-size: 20px; font-weight: 800; letter-spacing: -.4px; color: var(--t1); font-variant-numeric: tabular-nums;
 }
-.donut-rel:hover .donut-label { transform: scale(1.08); }
-
 .donut-stats { width: 100%; display: flex; flex-direction: column; gap: 8px; }
-.ds-row { display: flex; justify-content: space-between; align-items: center; }
+.ds-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .ds-lbl { font-size: 11px; color: var(--t3); }
-.ds-val { font-size: 11.5px; font-weight: 600; color: var(--t2); }
+.ds-val { font-size: 11.5px; font-weight: 600; color: var(--t2); font-variant-numeric: tabular-nums; }
 .ds-sep { height: 1px; background: var(--border); }
-.ds-vs { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
-.ds-vs-lbl { font-size: 11px; color: var(--t3); }
-.badge-up {
-  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
-  background: var(--green-bg); color: var(--green-fg);
-  cursor: pointer; transition: transform 150ms;
+.badge-down {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+  background: var(--green-bg); color: var(--green-fg); white-space: nowrap;
 }
-.badge-up:hover { transform: scale(1.08); }
 
-/* ── Promo ── */
-.promo {
-  background: #d6e8fb; border-radius: 14px; padding: 18px;
-  display: flex; flex-direction: column; gap: 10px;
-  cursor: pointer; transition: transform 200ms, box-shadow 200ms;
+/* ── Headcount chart ── */
+.hc-head-val { text-align: right; flex-shrink: 0; }
+.hc-val { font-size: 20px; font-weight: 800; letter-spacing: -.4px; line-height: 1.1; color: var(--t1); font-variant-numeric: tabular-nums; }
+.hc-delta { font-size: 11px; color: var(--t2); margin-top: 1px; }
+.hc-svg { display: block; width: 100%; height: auto; overflow: visible; border-radius: 6px; }
+.hc-svg:focus-visible { outline: 2px solid var(--blue-d); outline-offset: 6px; }
+.hc-base { stroke: var(--border); stroke-width: 1; }
+.hc-area { fill: var(--blue-l); opacity: 0; transition: opacity 500ms var(--ease) 1100ms; }
+.hc-line {
+  fill: none; stroke: var(--blue); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+  transition: stroke-dashoffset 900ms var(--ease) 450ms;
 }
-.promo:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(74,142,240,.2); }
-.promo:active { transform: scale(.98); }
-.promo-brand { display: flex; align-items: center; gap: 7px; }
-.promo-icon {
-  width: 26px; height: 26px; background: var(--blue); border-radius: 7px;
-  display: flex; align-items: center; justify-content: center;
-  transition: transform 200ms;
+.hc-dot { fill: var(--white); stroke: var(--blue); stroke-width: 1.5; opacity: 0; transition: opacity 250ms var(--ease) calc(var(--i) * 60ms + 500ms); }
+.hc-bar { transform: scaleY(0); transform-box: fill-box; transition: transform 350ms var(--ease) calc(var(--i) * 40ms + 700ms); }
+.hc-bar.up   { fill: var(--cell-2); transform-origin: 50% 100%; }
+.hc-bar.down { fill: var(--red-fg); fill-opacity: .5; transform-origin: 50% 0%; }
+.hc-cursor { stroke: var(--t3); stroke-width: 1; stroke-dasharray: 2 3; opacity: 0; transition: opacity 300ms var(--ease) 1200ms, transform var(--d-ui) var(--ease); }
+.hc-sel { fill: var(--blue); stroke: var(--white); stroke-width: 1.5; opacity: 0; transition: opacity 300ms var(--ease) 1200ms, transform var(--d-ui) var(--ease); }
+.is-live .hc-area { opacity: 1; }
+.is-live .hc-line { stroke-dashoffset: 0; }
+.is-live .hc-dot, .is-live .hc-cursor, .is-live .hc-sel { opacity: 1; }
+.is-live .hc-bar { transform: none; }
+.hc-mon { font-size: 11px; font-weight: 500; fill: var(--t3); text-anchor: middle; }
+.hc-mon.sel { fill: var(--t1); font-weight: 600; }
+.hc-hit { fill: transparent; }
+.hc-caption { margin-top: 8px; font-size: 11.5px; color: var(--t2); min-height: 16px; font-variant-numeric: tabular-nums; }
+.hc-caption b { color: var(--t1); font-weight: 600; }
+.hc-legend { display: flex; gap: 12px; margin-top: 6px; font-size: 11px; color: var(--t3); }
+.hc-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.hc-legend .in i { background: var(--cell-2); }
+.hc-legend .out i { background: var(--red-fg); opacity: .5; }
+
+/* ── Responsive floor for the showcase frame ── */
+@media (max-width: 1100px) {
+  .hm-cells, .hm-months { gap: 2px; }
 }
-.promo:hover .promo-icon { transform: rotate(-8deg) scale(1.1); }
-.promo-icon svg { width: 13px; height: 13px; }
-.promo-name { font-size: 12px; font-weight: 700; color: var(--blue-d); }
-.promo-heading { font-size: 15px; font-weight: 700; color: var(--t1); line-height: 1.3; letter-spacing: -.2px; }
-.promo-footer { display: flex; align-items: center; gap: 8px; }
-.promo-stack { display: flex; }
-.promo-stack .av {
-  width: 24px; height: 24px; border-radius: 50%;
-  border: 2px solid #d6e8fb;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 8px; font-weight: 700; color: #fff;
-  margin-left: -7px; transition: transform 200ms, z-index 0s;
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
+  .hero { flex-wrap: wrap; }
+  .hero-right { text-align: left; }
+  .col-tenure { display: none; }
 }
-.promo-stack .av:first-child { margin-left: 0; }
-.promo-stack .av:hover { transform: translateY(-3px) scale(1.1); z-index: 5; }
-.promo-people { font-size: 11px; font-weight: 600; color: var(--blue-d); }
+@media (max-width: 600px) {
+  .content { padding: 12px; }
+  .topbar { padding: 0 12px; }
+  .tb-text { display: none; }
+  .btn-new span { display: none; }
+  .btn-new { padding: 0 10px; }
+  .col-status { display: none; }
+  .team-tools.open .team-search { width: 140px; }
+}
+
+/* ── Reduced motion: everything at rest, nothing missing ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .donut-arc { stroke-dasharray: 45.2 256.4; }
+  .hc-area, .hc-dot, .hc-cursor, .hc-sel { opacity: 1; }
+  .hc-line { stroke-dashoffset: 0; }
+  .hc-bar { transform: none; }
+}
 </style>
 </head>
 <body>
 
 <!-- Cell tooltip -->
-<div class="cell-tooltip" id="cell-tip"></div>
+<div class="cell-tooltip" id="cell-tip" aria-hidden="true"></div>
 
-<div class="app">
+<div class="app" id="app">
 
   <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sb-logo">
+  <aside class="sidebar" id="sidebar" aria-label="Primary">
+    <div class="sb-logo" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
       </svg>
     </div>
-    <div class="sb-icon active" data-tip="Dashboard">
-      <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-    </div>
-    <div class="sb-icon" data-tip="People">
-      <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/><circle cx="19" cy="7" r="3"/><path d="M22 21v-2a3 3 0 00-2-2.83"/></svg>
-    </div>
-    <div class="sb-icon" data-tip="Apps">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-    </div>
-    <div class="sb-icon" data-tip="Analytics">
-      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-    </div>
+    <nav class="sb-nav" aria-label="Sections">
+      <button type="button" class="sb-icon" data-tip="Dashboard" aria-label="Dashboard" aria-current="page">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 11h18M12 11v10"/></svg>
+      </button>
+      <button type="button" class="sb-icon" data-tip="People" aria-label="People">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/><circle cx="19" cy="7" r="3"/><path d="M22 21v-2a3 3 0 00-2-2.83"/></svg>
+      </button>
+      <button type="button" class="sb-icon" data-tip="Apps" aria-label="Apps">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      </button>
+      <button type="button" class="sb-icon" data-tip="Analytics" aria-label="Analytics">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </button>
+    </nav>
     <div class="sb-spacer"></div>
-    <div class="sb-back">
+    <button type="button" class="sb-icon" id="rail-collapse" data-tip="Collapse sidebar" aria-label="Collapse sidebar">
       <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-    </div>
-    <div class="sb-avatar">GJ</div>
+    </button>
+    <button type="button" class="sb-avatar" aria-label="Account, Georg Johnson">GJ</button>
   </aside>
 
   <div class="main">
     <!-- Topbar -->
     <header class="topbar">
+      <button type="button" class="tb-rail-toggle" id="rail-expand" aria-label="Expand sidebar">
+        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
       <div class="tb-user">
-        <div class="tb-av">GJ</div>
-        <div>
-          <div class="tb-name">Your Balance</div>
+        <div class="tb-av" aria-hidden="true">GJ</div>
+        <div class="tb-text">
+          <div class="tb-name">Your balance</div>
           <div class="tb-coins"><b>587 talent coins</b></div>
         </div>
-        <div class="tb-plus">+</div>
+        <button type="button" class="tb-plus" aria-label="Add talent coins">+</button>
       </div>
       <div class="tb-right">
-        <div class="tb-btn-icon">
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        </div>
-        <div class="tb-btn-icon notif">
+        <button type="button" class="tb-btn-icon" aria-label="Notifications, 1 unread">
           <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-          <div class="badge"></div>
-        </div>
-        <button class="btn-new">
+          <span class="badge" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="btn-new" aria-label="New job post">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New Job Post
+          <span>New Job Post</span>
         </button>
       </div>
     </header>
@@ -525,58 +498,59 @@ tbody tr:hover .pav { transform: scale(1.1); }
     <div class="content">
 
       <!-- Hero -->
-      <div class="hero">
+      <section class="hero" aria-label="Overview">
         <div class="hero-left">
-          <div class="hero-greeting">Good Morning,</div>
-          <div class="hero-name-row">
-            <div class="hero-name">Georg Johnson</div>
-            <div class="hero-location">Buffalo · Last Week</div>
-          </div>
-          <div class="hero-tabs">
-            <button class="hero-tab active" data-count="103" data-label="Company staff">Company</button>
-            <button class="hero-tab" data-count="1240" data-label="Job Seekers active">Job Seekers</button>
+          <div class="hero-greeting" id="greeting">Good morning,</div>
+          <h1 class="hero-name">Georg Johnson</h1>
+          <div class="hero-date" id="hero-date">Monday 19 October · 09:41 · Buffalo</div>
+          <div class="hero-tabs" role="tablist" aria-label="Population">
+            <button type="button" class="hero-tab" role="tab" aria-selected="true" data-count="103" data-label="Company staff">Company</button>
+            <button type="button" class="hero-tab" role="tab" aria-selected="false" tabindex="-1" data-count="1240" data-label="Active job seekers">Job Seekers</button>
           </div>
         </div>
         <div class="hero-right">
           <div class="hero-staff" id="hero-staff-label">Company staff</div>
-          <div class="hero-count" id="hero-count">103 employee</div>
+          <div class="hero-count" id="hero-count">103</div>
         </div>
-      </div>
+      </section>
 
       <!-- Grid -->
       <div class="grid">
         <div class="grid-left">
 
-          <!-- Contributors -->
-          <div class="card card-contributors">
+          <!-- Check-ins -->
+          <section class="card card-checkins" aria-labelledby="checkins-title">
             <div class="card-head">
-              <div class="card-title">Contributors</div>
-              <div class="status-pill-wrap">
-                <div class="status-pill" id="status-pill">
-                  Status · <span id="pill-text">Month</span>
-                  <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="pill-dropdown" id="pill-dropdown">
-                  <div class="pill-opt" data-val="Week">Week</div>
-                  <div class="pill-opt active" data-val="Month">Month</div>
-                  <div class="pill-opt" data-val="Year">Year</div>
+              <div>
+                <h2 class="card-title" id="checkins-title">Check-ins</h2>
+                <div class="card-sub" id="checkins-sub">Weekday check-ins · last 12 months</div>
+              </div>
+              <div class="status-pill-wrap" id="pill-wrap">
+                <button type="button" class="status-pill" id="status-pill" aria-haspopup="listbox" aria-expanded="false" aria-controls="pill-dropdown">
+                  Range · <span id="pill-text">Year</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="pill-dropdown" id="pill-dropdown" role="listbox" aria-label="Range">
+                  <button type="button" class="pill-opt" role="option" aria-selected="true" tabindex="-1" data-cols="53" data-label="Year" data-sub="last 12 months">Year</button>
+                  <button type="button" class="pill-opt" role="option" aria-selected="false" tabindex="-1" data-cols="26" data-label="6 months" data-sub="last 6 months">6 months</button>
+                  <button type="button" class="pill-opt" role="option" aria-selected="false" tabindex="-1" data-cols="13" data-label="Quarter" data-sub="last 13 weeks">Quarter</button>
                 </div>
               </div>
             </div>
             <div class="contrib-nums">
               <div>
-                <div class="cn-val" data-target="142029" id="cn-year">0</div>
-                <div class="cn-lbl">Contributor in this year</div>
+                <div class="cn-val" id="cn-year">20,418</div>
+                <div class="cn-lbl">This period</div>
               </div>
               <div>
-                <div class="cn-val" data-target="42562" id="cn-last">0</div>
-                <div class="cn-lbl">Contributors in the last year</div>
+                <div class="cn-val" id="cn-last">18,902</div>
+                <div class="cn-lbl">Same period last year</div>
               </div>
             </div>
-            <div class="hm-wrap">
-              <div class="hm-months" id="hm-months"></div>
-              <div class="hm-rows" id="hm-rows"></div>
-              <div class="hm-legend">
+            <div class="hm-wrap" id="hm-wrap">
+              <div class="hm-months" id="hm-months" aria-hidden="true"></div>
+              <div class="hm-rows" id="hm-rows" role="img" aria-label="Check-ins per weekday over the selected range"></div>
+              <div class="hm-legend" aria-hidden="true">
                 <span>Less</span>
                 <div class="hm-legend-cells">
                   <div class="c"></div><div class="c l1"></div><div class="c l2"></div><div class="c l3"></div><div class="c l4"></div>
@@ -584,107 +558,152 @@ tbody tr:hover .pav { transform: scale(1.1); }
                 <span>More</span>
               </div>
             </div>
-          </div>
+          </section>
 
           <!-- Team -->
-          <div class="card card-team">
+          <section class="card card-team" aria-labelledby="team-title">
             <div class="card-head">
-              <div class="card-title">Team Management</div>
-              <div class="search-btn">
-                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <div>
+                <h2 class="card-title" id="team-title">Team</h2>
+                <div class="card-sub" id="team-sub">5 people</div>
+              </div>
+              <div class="team-tools" id="team-tools">
+                <input type="search" class="team-search" id="team-search" placeholder="Name, role or status" aria-label="Filter team" autocomplete="off">
+                <button type="button" class="search-btn" id="search-btn" aria-label="Filter team" aria-expanded="false" aria-controls="team-search">
+                  <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
               </div>
             </div>
             <table>
+              <caption class="sr-only">Team members</caption>
               <thead>
                 <tr>
-                  <th>Name</th><th>Role</th><th>Length of employment</th><th>Productivity</th><th>Status</th><th></th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Role</th>
+                  <th scope="col" class="col-tenure">Tenure</th>
+                  <th scope="col">Productivity</th>
+                  <th scope="col" class="col-status">Status</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
+              <tbody id="team-body">
+                <tr data-person>
                   <td>
                     <div class="person">
-                      <div class="pav" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">AR</div>
-                      <div><div class="pname">Albert Richardson</div><div class="pemail">albert1ich@gmail.com</div></div>
+                      <div class="pav" aria-hidden="true">AR</div>
+                      <div><div class="pname">Albert Richardson</div><div class="pemail">a.richardson@hollowbrook.example</div></div>
                     </div>
                   </td>
                   <td><span class="role">Product Manager</span></td>
-                  <td><span class="tenure">1 year 8 months 19 days</span></td>
+                  <td class="col-tenure"><span class="tenure">1 yr 8 mo</span></td>
                   <td><span class="prod hi">High</span></td>
-                  <td><span class="status-cell">Free for project</span></td>
-                  <td><span class="dots">⋮</span></td>
+                  <td class="col-status"><span class="status-cell">Free for project</span></td>
                 </tr>
-                <tr>
+                <tr data-person>
                   <td>
                     <div class="person">
-                      <div class="pav" style="background:linear-gradient(135deg,#38bdf8,#6366f1)">EA</div>
-                      <div><div class="pname">Erik Anamo</div><div class="pemail">erikanamo.1@gmail.com</div></div>
+                      <div class="pav" aria-hidden="true">NH</div>
+                      <div><div class="pname">Noor Haddad</div><div class="pemail">n.haddad@hollowbrook.example</div></div>
+                    </div>
+                  </td>
+                  <td><span class="role">Recruiter</span></td>
+                  <td class="col-tenure"><span class="tenure">2 yr 3 mo</span></td>
+                  <td><span class="prod hi">High</span></td>
+                  <td class="col-status"><span class="status-cell">On project · backend hiring</span></td>
+                </tr>
+                <tr data-person>
+                  <td>
+                    <div class="person">
+                      <div class="pav" aria-hidden="true">EA</div>
+                      <div><div class="pname">Erik Anamo</div><div class="pemail">e.anamo@hollowbrook.example</div></div>
                     </div>
                   </td>
                   <td><span class="role">UI/UX Designer</span></td>
-                  <td><span class="tenure">8 months 30 days</span></td>
+                  <td class="col-tenure"><span class="tenure">8 mo</span></td>
                   <td><span class="prod lo">Low</span></td>
-                  <td><span class="status-cell">Free for project</span></td>
-                  <td><span class="dots">⋮</span></td>
+                  <td class="col-status"><span class="status-cell">Free for project</span></td>
+                </tr>
+                <tr data-person>
+                  <td>
+                    <div class="person">
+                      <div class="pav" aria-hidden="true">TF</div>
+                      <div><div class="pname">Tomás Ferreira</div><div class="pemail">t.ferreira@hollowbrook.example</div></div>
+                    </div>
+                  </td>
+                  <td><span class="role">Payroll Specialist</span></td>
+                  <td class="col-tenure"><span class="tenure">4 mo</span></td>
+                  <td><span class="prod mid">Medium</span></td>
+                  <td class="col-status"><span class="status-cell">Onboarding</span></td>
+                </tr>
+                <tr data-person>
+                  <td>
+                    <div class="person">
+                      <div class="pav" aria-hidden="true">ML</div>
+                      <div><div class="pname">Mei Lin</div><div class="pemail">m.lin@hollowbrook.example</div></div>
+                    </div>
+                  </td>
+                  <td><span class="role">Talent Partner</span></td>
+                  <td class="col-tenure"><span class="tenure">3 yr 1 mo</span></td>
+                  <td><span class="prod hi">High</span></td>
+                  <td class="col-status"><span class="status-cell">On project · design hiring</span></td>
                 </tr>
               </tbody>
             </table>
-          </div>
+          </section>
 
         </div><!-- grid-left -->
 
         <div class="grid-right">
 
           <!-- Turnover -->
-          <div class="card card-donut">
+          <section class="card card-donut" aria-labelledby="turnover-title">
             <div class="card-head">
-              <div class="card-title">Employee Turnover Rate</div>
-              <a class="details-link">Details ›</a>
+              <div>
+                <h2 class="card-title" id="turnover-title">Employee turnover</h2>
+                <div class="card-sub">Last 12 months</div>
+              </div>
             </div>
             <div class="donut-area">
-              <div class="donut-rel" id="donut-wrap">
-                <svg viewBox="0 0 120 120">
-                  <circle class="donut-track" cx="60" cy="60" r="48" fill="none" stroke="#edf2f7" stroke-width="13"/>
-                  <circle class="donut-arc" id="donut-arc" cx="60" cy="60" r="48" fill="none" stroke="#7ab3f0" stroke-width="13"/>
+              <div class="donut-rel" role="img" aria-label="Turnover 15 percent">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                  <circle class="donut-track" cx="60" cy="60" r="48" fill="none" stroke-width="13"/>
+                  <circle class="donut-arc" id="donut-arc" cx="60" cy="60" r="48" fill="none" stroke-width="13"/>
                 </svg>
-                <div class="donut-label">15%</div>
+                <div class="donut-label" id="donut-label">15%</div>
               </div>
               <div class="donut-stats">
                 <div class="ds-row">
-                  <span class="ds-lbl">Company Size</span>
-                  <span class="ds-val">189 People</span>
+                  <span class="ds-lbl">Left, 12 months</span>
+                  <span class="ds-val">15</span>
+                </div>
+                <div class="ds-row">
+                  <span class="ds-lbl">Joined, 12 months</span>
+                  <span class="ds-val">18</span>
                 </div>
                 <div class="ds-sep"></div>
                 <div class="ds-row">
-                  <span class="ds-lbl">Company Size</span>
-                  <span class="ds-val">189 People</span>
-                </div>
-                <div class="ds-vs">
-                  <span class="ds-vs-lbl">vs last month</span>
-                  <span class="badge-up">+8%</span>
+                  <span class="ds-lbl">vs last year (17.1%)</span>
+                  <span class="badge-down">▼ 2.1 pts</span>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <!-- Promo -->
-          <div class="promo">
-            <div class="promo-brand">
-              <div class="promo-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <!-- Headcount -->
+          <section class="card card-headcount" id="hc-card" aria-labelledby="hc-title">
+            <div class="card-head">
+              <div>
+                <h2 class="card-title" id="hc-title">Headcount</h2>
+                <div class="card-sub">Month by month</div>
               </div>
-              <span class="promo-name">TalentSync</span>
-            </div>
-            <div class="promo-heading">Become super-HR with several features</div>
-            <div class="promo-footer">
-              <div class="promo-stack">
-                <div class="av" style="background:#6366f1"></div>
-                <div class="av" style="background:#4a8ef0"></div>
-                <div class="av" style="background:#38bdf8"></div>
+              <div class="hc-head-val">
+                <div class="hc-val">103</div>
+                <div class="hc-delta">+3 vs last year</div>
               </div>
-              <span class="promo-people">230k+ people</span>
             </div>
-          </div>
+            <svg class="hc-svg" id="hc-svg" viewBox="0 0 212 96" tabindex="0" role="group" aria-label="Headcount by month. Use the arrow keys to move between months." aria-describedby="hc-caption"></svg>
+            <div class="hc-caption" id="hc-caption" aria-live="polite"></div>
+            <div class="hc-legend" aria-hidden="true"><span class="in"><i></i>Joined</span><span class="out"><i></i>Left</span></div>
+          </section>
 
         </div><!-- grid-right -->
       </div><!-- grid -->
@@ -693,165 +712,308 @@ tbody tr:hover .pav { transform: scale(1.1); }
 </div><!-- app -->
 
 <script>
-/* ── Sidebar nav ── */
-document.querySelectorAll('.sb-icon').forEach(icon => {
-  icon.addEventListener('click', () => {
-    document.querySelectorAll('.sb-icon').forEach(i => i.classList.remove('active'));
-    icon.classList.add('active');
-  });
+(() => {
+'use strict';
+const RM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('en-US');
+
+/* ── One dataset feeds the hero, the ring, the rows and the chart ── */
+const today = new Date(); today.setHours(0, 0, 0, 0);
+const DATA = {
+  staff: 103,
+  seekers: 1240,
+  startHc: 100,
+  // [joined, left] per month, oldest → newest. Sums: 18 joined, 15 left → 100 → 103.
+  flow: [[1,1],[2,1],[1,2],[3,1],[1,1],[2,2],[1,0],[0,2],[2,1],[1,1],[2,2],[2,1]]
+};
+let running = DATA.startHc;
+DATA.months = DATA.flow.map(([joined, left], i) => {
+  const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1);
+  running += joined - left;
+  return { d, label: d.toLocaleString('en-US', { month: 'short' }), joined, left, hc: running };
 });
 
-/* ── Hero tabs ── */
-const heroCount = document.getElementById('hero-count');
-const heroLabel = document.getElementById('hero-staff-label');
-document.querySelectorAll('.hero-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    if (tab.classList.contains('active')) return;
-    document.querySelectorAll('.hero-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    heroCount.classList.add('switching');
-    heroLabel.style.opacity = '0';
-    setTimeout(() => {
-      heroCount.textContent = tab.dataset.count + ' employee';
-      heroLabel.textContent = tab.dataset.label;
-      heroCount.classList.remove('switching');
-      heroLabel.style.opacity = '1';
-    }, 200);
-  });
-});
-
-/* ── Status pill dropdown ── */
-const pill = document.getElementById('status-pill');
-const dropdown = document.getElementById('pill-dropdown');
-const pillText = document.getElementById('pill-text');
-pill.addEventListener('click', e => {
-  e.stopPropagation();
-  const open = dropdown.classList.toggle('open');
-  pill.classList.toggle('open', open);
-});
-document.querySelectorAll('.pill-opt').forEach(opt => {
-  opt.addEventListener('click', e => {
-    e.stopPropagation();
-    document.querySelectorAll('.pill-opt').forEach(o => o.classList.remove('active'));
-    opt.classList.add('active');
-    pillText.textContent = opt.dataset.val;
-    dropdown.classList.remove('open');
-    pill.classList.remove('open');
-  });
-});
-document.addEventListener('click', () => {
-  dropdown.classList.remove('open');
-  pill.classList.remove('open');
-});
-
-/* ── Counter animation ── */
-function animateCounter(el, target, duration = 1400) {
-  const start = performance.now();
-  const fmt = n => n.toLocaleString('en-US');
-  function step(now) {
-    const p = Math.min((now - start) / duration, 1);
-    const ease = 1 - Math.pow(1 - p, 3);
-    el.textContent = fmt(Math.round(ease * target));
-    if (p < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
+/* ── Number tween (reduced motion: final value at once) ── */
+function tween(el, to, { from = 0, duration = 1200, suffix = '', delay = 0 } = {}) {
+  el._val = to;
+  if (RM) { el.textContent = fmt(to) + suffix; return; }
+  const token = el._tw = {};
+  if (delay) el.textContent = fmt(from) + suffix;
+  const run = () => {
+    const start = performance.now();
+    const step = now => {
+      if (el._tw !== token) return;
+      const p = Math.min((now - start) / duration, 1);
+      const e = 1 - Math.pow(1 - p, 3);
+      el.textContent = fmt(from + (to - from) * e) + suffix;
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  delay ? setTimeout(run, delay) : run();
 }
 
-/* ── Heatmap ── */
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul'];
-const DAYS   = ['Mon','','Wed','','Fri'];
-const COLS   = 53;
+/* ── Greeting and date from the clock ── */
+const greetEl = $('greeting'), dateEl = $('hero-date');
+const dateFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+const timeFmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+function clock() {
+  const now = new Date(), h = now.getHours();
+  greetEl.textContent = (h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening') + ',';
+  dateEl.textContent = `${dateFmt.format(now)} · ${timeFmt.format(now)} · Buffalo`;
+}
+clock();
+setInterval(clock, 20000);
+
+/* ── Sidebar: section buttons + collapsible rail ── */
+const navBtns = [...document.querySelectorAll('.sb-nav .sb-icon')];
+navBtns.forEach(b => b.addEventListener('click', () => {
+  navBtns.forEach(o => o.removeAttribute('aria-current'));
+  b.setAttribute('aria-current', 'page');
+}));
+const app = $('app'), collapseBtn = $('rail-collapse'), expandBtn = $('rail-expand');
+collapseBtn.addEventListener('click', () => { app.classList.add('rail-collapsed'); expandBtn.focus(); });
+expandBtn.addEventListener('click', () => { app.classList.remove('rail-collapsed'); collapseBtn.focus(); });
+
+/* ── Hero tabs: the number counts to the new value ── */
+const heroCount = $('hero-count'), heroLabel = $('hero-staff-label');
+const tabs = [...document.querySelectorAll('.hero-tab')];
+heroCount._val = DATA.staff;
+function selectTab(tab) {
+  tabs.forEach(t => { const on = t === tab; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; });
+  heroLabel.textContent = tab.dataset.label;
+  tween(heroCount, +tab.dataset.count, { from: heroCount._val, duration: 500 });
+}
+tabs.forEach((tab, i) => {
+  tab.addEventListener('click', () => { if (tab.getAttribute('aria-selected') !== 'true') selectTab(tab); });
+  tab.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    next.focus(); selectTab(next);
+  });
+});
+
+/* ── Check-ins: 106 weeks × 5 weekdays, deterministic, shaped like attendance ── */
+const WEEKS = 106, BASE = [90, 94, 86, 80, 58], DAY_LBL = ['Mon', '', 'Wed', '', 'Fri'];
 function seededRand(seed) {
-  let s = seed;
-  return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
+  let s = seed >>> 0;
+  return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
 }
 const rng = seededRand(0xdeadbeef);
-
-// Month header
-const monthsEl = document.getElementById('hm-months');
-const sp = document.createElement('div'); sp.style.cssText = 'width:30px;flex-shrink:0;'; monthsEl.appendChild(sp);
-MONTHS.forEach(m => {
-  const d = document.createElement('div'); d.className = 'hm-month'; d.textContent = m; monthsEl.appendChild(d);
-});
-
-// Tooltip
-const tip = document.getElementById('cell-tip');
-const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul'];
-
-// Rows + cells
-const rowsEl = document.getElementById('hm-rows');
-const allCells = [];
-DAYS.forEach((label, di) => {
-  const row = document.createElement('div'); row.className = 'hm-row';
-  const dayEl = document.createElement('div'); dayEl.className = 'hm-day'; dayEl.textContent = label; row.appendChild(dayEl);
-  const cells = document.createElement('div'); cells.className = 'hm-cells';
-  for (let c = 0; c < COLS; c++) {
-    const cell = document.createElement('div');
-    const r = rng();
-    const lvl = r < .3 ? 0 : r < .52 ? 1 : r < .72 ? 2 : r < .87 ? 3 : 4;
-    const count = Math.round(lvl * 8 + rng() * 5);
-    cell.className = 'c' + (lvl > 0 ? ' l' + lvl : '');
-    cell.dataset.count = count;
-    cell.dataset.col = c;
-
-    cell.addEventListener('mousemove', e => {
-      const mo = months[Math.floor(c / 7.6)];
-      const day = days[di % 7];
-      tip.textContent = `${count} contributions · ${day}, ${mo}`;
-      tip.classList.add('visible');
-      tip.style.left = (e.clientX + 12) + 'px';
-      tip.style.top  = (e.clientY - 28) + 'px';
-    });
-    cell.addEventListener('mouseleave', () => tip.classList.remove('visible'));
-
-    cells.appendChild(cell);
-    allCells.push({ el: cell, delay: c * 8 + di * 40 });
+const thisMonday = new Date(today); thisMonday.setDate(today.getDate() - (today.getDay() + 6) % 7);
+const MATRIX = [];
+for (let w = 0; w < WEEKS; w++) {
+  const ws = new Date(thisMonday); ws.setDate(thisMonday.getDate() - (WEEKS - 1 - w) * 7);
+  const m = ws.getMonth(), dd = ws.getDate();
+  let season = 1;
+  if ((m === 11 && dd >= 20) || (m === 0 && dd <= 3)) season = .35;   // year-end closure
+  else if (m === 7) season = .7;                                       // August
+  else if (m === 4 && dd >= 22) season = .82;                          // late May
+  const growth = .92 + .08 * w / (WEEKS - 1);                          // the team grew
+  const cohort = w % 17 === 5 ? 1.06 : 1;                              // onboarding weeks
+  const row = [];
+  for (let d = 0; d < 5; d++) {
+    const date = new Date(ws); date.setDate(ws.getDate() + d);
+    const noise = (rng() - .5) * 24, holiday = rng() < .012;
+    let count = holiday ? 6 + rng() * 10 : BASE[d] * season * growth * cohort + noise;
+    count = Math.max(0, Math.min(DATA.staff, Math.round(count)));
+    row.push({ count, date, future: date > today });
   }
-  row.appendChild(cells); rowsEl.appendChild(row);
-});
+  MATRIX.push(row);
+}
+const lvlOf = n => n < 30 ? 0 : n < 60 ? 1 : n < 75 ? 2 : n < 88 ? 3 : 4;
+const tipFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const monFmt = new Intl.DateTimeFormat('en-US', { month: 'short' });
+const tip = $('cell-tip'), rowsEl = $('hm-rows'), monthsEl = $('hm-months'), hmWrap = $('hm-wrap');
+const cnYear = $('cn-year'), cnLast = $('cn-last');
+function sumWeeks(from, to) {
+  let s = 0;
+  for (let w = Math.max(0, from); w < to; w++) for (const c of MATRIX[w]) if (!c.future) s += c.count;
+  return s;
+}
+let built = false;
+function renderHeatmap(cols) {
+  const first = WEEKS - cols;
+  hmWrap.style.setProperty('--cols', cols);
+  hmWrap.style.setProperty('--wave-base', built ? '0ms' : '350ms');
 
-/* ── Donut ── */
-const arc = document.getElementById('donut-arc');
-
-/* ── Intersection Observer — trigger animations on enter ── */
-const observer = new IntersectionObserver(entries => {
-  entries.forEach(entry => {
-    if (!entry.isIntersecting) return;
-
-    // Counters
-    animateCounter(document.getElementById('cn-year'), 142029, 1600);
-    animateCounter(document.getElementById('cn-last'), 42562, 1300);
-
-    // Heatmap reveal — wave left to right
-    allCells.forEach(({ el, delay }) => {
-      el.style.opacity = '0';
-      el.style.transform = 'scaleY(0)';
-      setTimeout(() => {
-        el.style.transition = 'opacity 180ms ease, transform 180ms ease';
-        el.style.opacity = '1';
-        el.style.transform = 'scaleY(1)';
-      }, 300 + delay);
-    });
-
-    // Donut
-    setTimeout(() => arc.classList.add('animated'), 400);
-
-    observer.disconnect();
+  // Month labels at the first week of each month
+  monthsEl.textContent = '';
+  const marks = []; let prev = -1;
+  for (let i = 0; i < cols; i++) {
+    const mo = MATRIX[first + i][0].date.getMonth();
+    if (mo !== prev) { marks.push(i); prev = mo; }
+  }
+  marks.forEach((col, k) => {
+    if (k === 0 && marks.length > 1 && marks[1] - col < 3) return; // no room before the next label
+    const s = document.createElement('span');
+    s.className = 'hm-month'; s.style.gridColumn = col + 1;
+    s.textContent = monFmt.format(MATRIX[first + col][0].date);
+    monthsEl.appendChild(s);
   });
-}, { threshold: .1 });
 
-observer.observe(document.querySelector('.card-contributors'));
+  // Rows
+  rowsEl.textContent = '';
+  DAY_LBL.forEach((lbl, d) => {
+    const row = document.createElement('div'); row.className = 'hm-row';
+    const dayEl = document.createElement('div'); dayEl.className = 'hm-day'; dayEl.textContent = lbl; row.appendChild(dayEl);
+    const cells = document.createElement('div'); cells.className = 'hm-cells';
+    for (let i = 0; i < cols; i++) {
+      const c = MATRIX[first + i][d];
+      const cell = document.createElement('div');
+      const lvl = lvlOf(c.count);
+      cell.className = c.future ? 'c future' : 'c' + (lvl ? ' l' + lvl : '');
+      cell.style.setProperty('--col', i); cell.style.setProperty('--row', d);
+      if (!c.future) {
+        cell.addEventListener('pointermove', e => {
+          tip.textContent = `${c.count} check-ins · ${tipFmt.format(c.date)}`;
+          tip.classList.add('visible');
+          tip.style.left = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8) + 'px';
+          tip.style.top = (e.clientY - 28) + 'px';
+        });
+        cell.addEventListener('pointerleave', () => tip.classList.remove('visible'));
+      }
+      cells.appendChild(cell);
+    }
+    row.appendChild(cells); rowsEl.appendChild(row);
+  });
 
-/* ── Donut hover — pulse on click ── */
-document.getElementById('donut-wrap').addEventListener('click', () => {
-  arc.style.transition = 'none';
-  arc.classList.remove('animated');
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    arc.style.transition = 'stroke-dasharray .9s cubic-bezier(.4,0,.2,1)';
-    arc.classList.add('animated');
-  }));
+  // Totals are sums of what is on screen
+  const period = sumWeeks(first, WEEKS), last = sumWeeks(first - 52, WEEKS - 52);
+  tween(cnYear, period, { from: built ? cnYear._val : 0, duration: built ? 700 : 1400, delay: built ? 0 : 350 });
+  tween(cnLast, last,   { from: built ? cnLast._val : 0, duration: built ? 700 : 1200, delay: built ? 0 : 350 });
+  rowsEl.setAttribute('aria-label', `${fmt(period)} check-ins over the last ${cols} weeks, by weekday`);
+  built = true;
+}
+
+/* ── Range picker: a real listbox ── */
+const pill = $('status-pill'), dropdown = $('pill-dropdown'), pillText = $('pill-text'), pillWrap = $('pill-wrap');
+const opts = [...dropdown.querySelectorAll('.pill-opt')];
+function setOpen(open) { dropdown.classList.toggle('open', open); pill.setAttribute('aria-expanded', open); }
+function choose(opt) {
+  if (opt.getAttribute('aria-selected') === 'true') return;
+  opts.forEach(o => o.setAttribute('aria-selected', o === opt));
+  pillText.textContent = opt.dataset.label;
+  $('checkins-sub').textContent = 'Weekday check-ins · ' + opt.dataset.sub;
+  renderHeatmap(+opt.dataset.cols);
+}
+pill.addEventListener('click', () => {
+  const open = !dropdown.classList.contains('open');
+  setOpen(open);
+  if (open) (opts.find(o => o.getAttribute('aria-selected') === 'true') || opts[0]).focus();
 });
+opts.forEach((opt, i) => {
+  opt.addEventListener('click', () => { choose(opt); setOpen(false); pill.focus(); });
+  opt.addEventListener('keydown', e => {
+    let n = null;
+    if (e.key === 'ArrowDown') n = (i + 1) % opts.length;
+    else if (e.key === 'ArrowUp') n = (i + opts.length - 1) % opts.length;
+    else if (e.key === 'Home') n = 0;
+    else if (e.key === 'End') n = opts.length - 1;
+    if (n === null) return;
+    e.preventDefault(); opts[n].focus();
+  });
+});
+pillWrap.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && dropdown.classList.contains('open')) { e.stopPropagation(); setOpen(false); pill.focus(); }
+});
+pillWrap.addEventListener('focusout', e => { if (!pillWrap.contains(e.relatedTarget)) setOpen(false); });
+document.addEventListener('click', e => { if (!pillWrap.contains(e.target)) setOpen(false); });
+
+/* ── Team search: filters rows, shows an empty state ── */
+const tools = $('team-tools'), searchBtn = $('search-btn'), searchInput = $('team-search');
+const teamBody = $('team-body'), teamSub = $('team-sub');
+const rows = [...teamBody.querySelectorAll('tr[data-person]')];
+rows.forEach(r => { r.dataset.search = r.textContent.toLowerCase().replace(/\s+/g, ' '); });
+const emptyRow = document.createElement('tr'); emptyRow.className = 'team-empty'; emptyRow.hidden = true;
+const emptyCell = document.createElement('td'); emptyCell.colSpan = 5; emptyRow.appendChild(emptyCell); teamBody.appendChild(emptyRow);
+function filterTeam() {
+  const raw = searchInput.value.trim(), q = raw.toLowerCase();
+  let n = 0;
+  rows.forEach(r => { const hit = !q || r.dataset.search.includes(q); r.hidden = !hit; if (hit) n++; });
+  emptyRow.hidden = n > 0;
+  if (!n) emptyCell.textContent = `No one matches “${raw}”`;
+  teamSub.textContent = q ? `${n} of ${rows.length} people` : `${rows.length} people`;
+}
+function openSearch(open) {
+  tools.classList.toggle('open', open);
+  searchBtn.setAttribute('aria-expanded', open);
+  if (open) searchInput.focus();
+}
+searchBtn.addEventListener('click', () => {
+  const open = !tools.classList.contains('open');
+  openSearch(open);
+  if (!open) { searchInput.value = ''; filterTeam(); }
+});
+searchInput.addEventListener('input', filterTeam);
+searchInput.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  e.preventDefault(); searchInput.value = ''; filterTeam(); openSearch(false); searchBtn.focus();
+});
+
+/* ── Turnover ring ── */
+const arc = $('donut-arc'), donutLabel = $('donut-label');
+if (!RM) donutLabel.textContent = '0%';
+function startDonut() { arc.classList.add('animated'); tween(donutLabel, 15, { from: 0, duration: 900, suffix: '%' }); }
+
+/* ── Headcount chart: 12 months, joiners up, leavers down, one cursor ── */
+const NS = 'http://www.w3.org/2000/svg';
+const svg = $('hc-svg'), cap = $('hc-caption');
+const mk = (tag, attrs) => {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  svg.appendChild(n); return n;
+};
+const X0 = 8, X1 = 204, TOP = 12, BOT = 54, BASE_Y = 58, BAR_Y = 72, LAST = DATA.months.length - 1;
+const xs = DATA.months.map((_, i) => X0 + i * (X1 - X0) / LAST);
+const hcs = DATA.months.map(m => m.hc), lo = Math.min(...hcs) - 1, hi = Math.max(...hcs) + 1;
+const yOf = v => BOT - (v - lo) / (hi - lo) * (BOT - TOP);
+const pts = DATA.months.map((m, i) => `${xs[i].toFixed(1)},${yOf(m.hc).toFixed(1)}`);
+mk('path', { class: 'hc-area', d: `M${xs[0].toFixed(1)},${BASE_Y} L${pts.join(' L')} L${xs[LAST].toFixed(1)},${BASE_Y} Z` });
+mk('line', { class: 'hc-base', x1: X0 - 4, x2: X1 + 4, y1: BASE_Y, y2: BASE_Y });
+mk('line', { class: 'hc-base', x1: X0 - 4, x2: X1 + 4, y1: BAR_Y + .5, y2: BAR_Y + .5 });
+DATA.months.forEach((m, i) => {
+  if (m.joined) mk('rect', { class: 'hc-bar up', x: xs[i] - 3, y: BAR_Y - m.joined * 4, width: 6, height: m.joined * 4, rx: 1, style: `--i:${i}` });
+  if (m.left)   mk('rect', { class: 'hc-bar down', x: xs[i] - 3, y: BAR_Y + 1, width: 6, height: m.left * 4, rx: 1, style: `--i:${i}` });
+});
+const cursor = mk('line', { class: 'hc-cursor', x1: 0, x2: 0, y1: TOP - 6, y2: BAR_Y + 10 });
+mk('path', { class: 'hc-line', d: 'M' + pts.join(' L'), pathLength: 1 });
+DATA.months.forEach((m, i) => mk('circle', { class: 'hc-dot', cx: xs[i], cy: yOf(m.hc), r: 2, style: `--i:${i}` }));
+const selDot = mk('circle', { class: 'hc-sel', cx: 0, cy: 0, r: 3.5 });
+const labels = DATA.months.map((m, i) => { const t = mk('text', { class: 'hc-mon', x: xs[i], y: 92 }); t.textContent = m.label[0]; return t; });
+const hits = DATA.months.map((m, i) => mk('rect', { class: 'hc-hit', x: xs[i] - 8.9, y: 0, width: 17.8, height: 96 }));
+
+let selI = LAST;
+function selectMonth(i) {
+  selI = i;
+  const m = DATA.months[i];
+  cursor.style.transform = `translateX(${xs[i]}px)`;
+  selDot.style.transform = `translate(${xs[i]}px, ${yOf(m.hc)}px)`;
+  labels.forEach((t, k) => t.classList.toggle('sel', k === i));
+  cap.textContent = '';
+  const b = document.createElement('b'); b.textContent = `${m.label} ${m.d.getFullYear()}`;
+  cap.append(b, ` · ${m.hc} people · ${m.joined} joined · ${m.left} left`);
+}
+hits.forEach((h, i) => h.addEventListener('pointerenter', () => selectMonth(i)));
+svg.addEventListener('pointerleave', () => selectMonth(LAST));
+svg.addEventListener('keydown', e => {
+  let n = selI;
+  if (e.key === 'ArrowRight') n = Math.min(LAST, selI + 1);
+  else if (e.key === 'ArrowLeft') n = Math.max(0, selI - 1);
+  else if (e.key === 'Home') n = 0;
+  else if (e.key === 'End') n = LAST;
+  else return;
+  e.preventDefault(); selectMonth(n);
+});
+selectMonth(LAST);
+
+/* ── Entrance: cards fade up (CSS), heatmap waves in, then counters, ring and chart ── */
+renderHeatmap(53);
+const goLive = () => { $('hc-card').classList.add('is-live'); startDonut(); };
+if (RM) goLive(); else setTimeout(goLive, 400);
+})();
 </script>
 </body>
 </html>

@@ -10,20 +10,22 @@
   const d = document;
   const root = d.documentElement;
   const lang = () => (root.lang === 'fr' ? 'fr' : 'en');
+  // Visitors in other languages read the English copy through the machine translation (agTrDeep, agence shells).
+  const tx = (v) => (typeof agTrDeep === 'function' ? agTrDeep(v) : v);
   const esc = (v) => String(v == null ? '' : v)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   /* ── Types of business ── */
   const BIZ = [
-    { id: 'saas', en: 'SaaS & B2B', fr: 'SaaS & B2B', c: '#3d6a8c', c2: '#9fd0f0' },
-    { id: 'ai', en: 'AI products', fr: 'Produits IA', c: '#64559f', c2: '#c3b5ff' },
-    { id: 'fintech', en: 'Fintech & banking', fr: 'Fintech & banque', c: '#2f7f6e', c2: '#86e3bf' },
-    { id: 'proptech', en: 'Real estate', fr: 'Immobilier', c: '#8a5d3e', c2: '#f0c39a' },
-    { id: 'ecommerce', en: 'E-commerce & retail', fr: 'E-commerce & retail', c: '#b5603a', c2: '#f6b08a' },
-    { id: 'marketplace', en: 'Marketplaces', fr: 'Marketplaces', c: '#8f7430', c2: '#efd58a' },
-    { id: 'luxury', en: 'Luxury & beauty', fr: 'Luxe & beauté', c: '#8a4f63', c2: '#f2b8ca' },
-    { id: 'mobility', en: 'Mobility & travel', fr: 'Mobilité & voyage', c: '#35768a', c2: '#9fdcec' },
-    { id: 'enterprise', en: 'Large groups', fr: 'Grands groupes', c: '#4f5e3a', c2: '#c8dca0' },
+    { id: 'saas', en: 'SaaS & B2B', fr: 'SaaS & B2B', c: 'color-mix(in srgb, var(--p-blue) 42%, var(--ink))', c2: 'var(--p-blue)' },
+    { id: 'ai', en: 'AI products', fr: 'Produits IA', c: 'color-mix(in srgb, var(--p-purple) 42%, var(--ink))', c2: 'var(--p-purple)' },
+    { id: 'fintech', en: 'Fintech & banking', fr: 'Fintech & banque', c: 'color-mix(in srgb, var(--p-moss) 42%, var(--ink))', c2: 'var(--p-moss)' },
+    { id: 'proptech', en: 'Real estate', fr: 'Immobilier', c: 'color-mix(in srgb, var(--p-sienna) 42%, var(--ink))', c2: 'var(--p-sienna)' },
+    { id: 'ecommerce', en: 'E-commerce & retail', fr: 'E-commerce & retail', c: 'color-mix(in srgb, var(--p-orange) 42%, var(--ink))', c2: 'var(--p-orange)' },
+    { id: 'marketplace', en: 'Marketplaces', fr: 'Marketplaces', c: 'color-mix(in srgb, var(--p-yellow) 42%, var(--ink))', c2: 'var(--p-yellow)' },
+    { id: 'luxury', en: 'Luxury & beauty', fr: 'Luxe & beauté', c: 'color-mix(in srgb, var(--p-pink) 42%, var(--ink))', c2: 'var(--p-pink)' },
+    { id: 'mobility', en: 'Mobility & travel', fr: 'Mobilité & voyage', c: 'color-mix(in srgb, var(--p-cyan) 42%, var(--ink))', c2: 'var(--p-cyan)' },
+    { id: 'enterprise', en: 'Large groups', fr: 'Grands groupes', c: 'color-mix(in srgb, var(--p-lime) 42%, var(--ink))', c2: 'var(--p-lime)' },
   ];
 
   /* ── UI strings ── */
@@ -48,12 +50,10 @@
       prev: 'Previous',
       cta: 'Want this level of finish on your product?',
       cta_btn: 'Start a project',
-      cta_pricing: 'See the packages',
       biz_title: 'Built around<br><em>your kind of business.</em>',
       biz_lede: 'The packages stay the same. What we look at first depends on what you sell and who has to trust it.',
       biz_sr_problem: 'The problem:',
       biz_sr_fix: 'What we do:',
-      biz_count: '{n} types of business, {p} projects',
       proj_1: '1 project', proj_n: '{n} projects',
       biz_see: 'What we do for it',
       doc_title: '{name}, a v2 studio project',
@@ -78,18 +78,16 @@
       prev: 'Précédent',
       cta: 'Vous voulez ce niveau de finition sur votre produit ?',
       cta_btn: 'Lancer un projet',
-      cta_pricing: 'Voir les formules',
       biz_title: 'Pensé pour<br><em>votre type d’activité.</em>',
       biz_lede: 'Les formules restent les mêmes. Ce que nous regardons en premier dépend de ce que vous vendez et de qui doit vous faire confiance.',
       biz_sr_problem: 'Le problème :',
       biz_sr_fix: 'Ce que nous faisons :',
-      biz_count: '{n} types d’activité, {p} projets',
       proj_1: '1 projet', proj_n: '{n} projets',
       biz_see: 'Ce que nous faisons',
       doc_title: '{name}, un projet v2 studio',
     },
   };
-  const s = (k) => (L[lang()] && L[lang()][k]) || L.en[k] || '';
+  const s = (k) => tx((L[lang()] && L[lang()][k]) || L.en[k] || '');
 
   /* ── The projects ── */
   const WORK = [
@@ -366,7 +364,8 @@
       ],
     },
     {
-      id: 'sg', company: 'Société Générale', logo: '/images/societegenerale.png', hero: '/images/sg-cover.webp', card: '/images/sg-cover.webp',
+      id: 'sg', company: 'Société Générale', logo: '/images/societegenerale.png', hero: '/images/sg-building.webp', card: '/images/sg-building.webp',
+      heroCredit: 'Photo: Arthur Weidmann · CC BY-SA 4.0', heroCreditUrl: 'https://commons.wikimedia.org/wiki/File:Si%C3%A8ge_central_de_la_Soci%C3%A9t%C3%A9_G%C3%A9n%C3%A9rale_ext%C3%A9rieur.jpg',
       biz: ['fintech', 'enterprise'], year: '2023 – 2024', url: 'https://particuliers.sg.fr/', platforms: { en: 'Mobile, desktop', fr: 'Mobile, desktop' },
       en: {
         sector: 'Banking · Investment',
@@ -410,7 +409,7 @@
     },
   ];
   const byId = (id) => WORK.find((p) => p.id === id);
-  const copy = (p) => p[lang()] || p.en;
+  const copy = (p) => tx(p[lang()] || p.en);
 
   /* ── The bestiary: one spirit animal per type of business, painted in one house style
      (translucent brushstrokes, pastel iridescence, light from the top left, paper background).
@@ -599,7 +598,7 @@
   };
 
   /* ── Renderers ── */
-  const bizName = (id) => { const b = BIZ.find((x) => x.id === id); return b ? (b[lang()] || b.en) : id; };
+  const bizName = (id) => { const b = BIZ.find((x) => x.id === id); return b ? tx(b[lang()] || b.en) : id; };
   const projectHref = (id) => (SITE_PAGE() === 'showcase' ? '#work/' + id : '/agence/showcase#work/' + id);
   function SITE_PAGE() { return (window.SITE && window.SITE.page) || ''; }
 
@@ -640,7 +639,7 @@
   }
 
   function figure(g, alt) {
-    const cap = g[lang()] || g.en || '';
+    const cap = tx(g[lang()] || g.en || '');
     if (g.kind === 'tall') {
       return `<figure class="wd-fig wd-fig--tall"><div class="wd-browser"><div class="wd-chrome"><i></i><i></i><i></i><span>${esc(g.url || '')}</span></div>
         <div class="wd-scroll" tabindex="0" aria-label="${esc(cap)}"><img src="${esc(g.src)}" alt="${esc(alt)}" loading="lazy" decoding="async"></div></div>
@@ -669,11 +668,12 @@
           <h1 class="display wd-title" id="wd-title" tabindex="-1">${esc(p.company)}<br><em>${esc(c.tagline)}</em></h1>
           <dl class="wd-meta">
             <div><dt>${esc(s('year'))}</dt><dd>${esc(p.year)}</dd></div>
-            <div><dt>${esc(s('platforms'))}</dt><dd>${esc((p.platforms[lang()] || p.platforms.en))}</dd></div>
+            <div><dt>${esc(s('platforms'))}</dt><dd>${esc(tx(p.platforms[lang()] || p.platforms.en))}</dd></div>
             <div><dt>${esc(s('team'))}</dt><dd>${esc(c.team)}</dd></div>
             ${p.url ? `<div><dt>Web</dt><dd><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(s('visit'))} <span aria-hidden="true">↗</span></a></dd></div>` : ''}
           </dl>
         </div>
+        ${p.heroCredit ? `<a class="wd-credit" href="${esc(p.heroCreditUrl || '#')}" target="_blank" rel="noopener noreferrer">${esc(p.heroCredit)}</a>` : ''}
       </header>
       <section class="wd-intro">
         <div class="wrap wd-intro-in">
@@ -704,7 +704,6 @@
           <div class="wd-result-cta">
             <p>${esc(s('cta'))}</p>
             <button type="button" class="btn btn-primary" data-offer="">${esc(s('cta_btn'))}</button>
-            <a class="btn btn-ghost" href="/agence/pricing">${esc(s('cta_pricing'))}</a>
           </div>
         </div>
       </section>
@@ -725,11 +724,9 @@
   function renderBiz() {
     const host = d.getElementById('biz');
     if (!host) return;
-    const meta = d.getElementById('biz-count');
-    if (meta) meta.textContent = s('biz_count').replace('{n}', BIZ.length).replace('{p}', WORK.length);
     const b = BIZ.find((x) => x.id === bizTab);
     const pos = BIZ.indexOf(b);
-    const bc = BIZ_COPY[bizTab][lang()] || BIZ_COPY[bizTab].en;
+    const bc = tx(BIZ_COPY[bizTab][lang()] || BIZ_COPY[bizTab].en);
     const work = WORK.filter((p) => p.biz.includes(bizTab));
 
     const index = d.getElementById('biz-index');
@@ -741,16 +738,16 @@
         const n = WORK.filter((p) => p.biz.includes(x.id)).length;
         const on = bizTab === x.id;
         return `<button type="button" role="tab" class="biz-item" id="biz-tab-${x.id}" aria-controls="biz-panel" aria-selected="${on}" tabindex="${on ? 0 : -1}" data-biz="${x.id}" style="--bc:${x.c};--bc2:${x.c2}">
-          <span class="biz-num">${String(i + 1).padStart(2, '0')}</span><span class="biz-name">${esc(x[lang()] || x.en)}</span><span class="biz-n">${esc(projCount(n))}</span><i aria-hidden="true">→</i></button>`;
+          <span class="biz-num">${String(i + 1).padStart(2, '0')}</span><span class="biz-name">${esc(tx(x[lang()] || x.en))}</span><span class="biz-n">${esc(projCount(n))}</span><i aria-hidden="true">→</i></button>`;
       }).join('');
     }
 
     const cap = d.getElementById('biz-caption');
-    const an = ANIMAL[bizTab] && (ANIMAL[bizTab][lang()] || ANIMAL[bizTab].en);
+    const an = ANIMAL[bizTab] && tx(ANIMAL[bizTab][lang()] || ANIMAL[bizTab].en);
     if (cap && an) {
       cap.style.setProperty('--bc', b.c);
       cap.style.setProperty('--bc2', b.c2);
-      cap.innerHTML = `<span class="biz-cap-n">${String(pos + 1).padStart(2, '0')} / ${String(BIZ.length).padStart(2, '0')} · ${esc(b[lang()] || b.en)}</span>
+      cap.innerHTML = `<span class="biz-cap-n">${String(pos + 1).padStart(2, '0')} / ${String(BIZ.length).padStart(2, '0')} · ${esc(tx(b[lang()] || b.en))}</span>
         <b>${esc(an[0])}</b><span class="biz-cap-line">${esc(an[1])}</span>
         <a class="biz-cap-go" href="#biz-panel">${esc(s('biz_see'))}<span aria-hidden="true">↓</span></a>`;
       cap.classList.remove('is-in'); void cap.offsetWidth; cap.classList.add('is-in');

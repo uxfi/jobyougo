@@ -3,7 +3,7 @@
 
 /* ── Work list (showcase) ── */
 .work { background: var(--paper); color: var(--ink); padding: calc(var(--nav-h) + clamp(40px, 7vh, 88px)) 0 var(--section); --c: var(--p-yellow); }
-.work .lede { margin-top: 18px; color: var(--ink-2); }
+.work .lede { color: var(--ink-2); }
 .work-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 clamp(28px, 4vh, 44px); }
 .wf {
   display: inline-flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px;
@@ -26,9 +26,9 @@
 .wcard:hover .wcard-shot img { transform: scale(1.04); }
 .wcard-stat {
   position: absolute; left: 14px; bottom: 14px; display: inline-flex; align-items: baseline; gap: 8px; max-width: calc(100% - 28px);
-  padding: 8px 12px; border-radius: 8px; background: rgba(11, 16, 10, .72); backdrop-filter: blur(8px); color: var(--cream); font-size: 13px;
+  padding: 8px 12px; border-radius: 8px; background: rgba(13, 12, 18, .72); backdrop-filter: blur(8px); color: var(--cream); font-size: 13px;
 }
-.wcard-stat b { font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: 22px; line-height: 1; color: var(--accent); }
+.wcard-stat b { font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: 22px; line-height: 1; color: var(--accent); background: var(--holo); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; padding-right: .1em; }
 .wcard-body { display: flex; flex-direction: column; gap: 8px; }
 .wcard-meta { display: flex; align-items: center; gap: 10px; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
 .wcard-meta i { width: 18px; height: 1px; background: currentColor; opacity: .5; }
@@ -45,9 +45,12 @@
 body.is-project .progress { opacity: 0; }
 .wd-hero { position: relative; isolation: isolate; min-height: min(86vh, 820px); display: flex; align-items: flex-end; color: var(--cream); background: var(--night); overflow: hidden; }
 .wd-hero-bg { position: absolute; inset: 0; z-index: -1; background: var(--bg) center / cover no-repeat; transform: scale(1.04); animation: wd-settle 1.6s var(--ease) both; }
-.wd-hero-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 16, 10, .55) 0%, rgba(11, 16, 10, .2) 35%, rgba(11, 16, 10, .88) 100%); }
+.wd-hero-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(13, 12, 18, .55) 0%, rgba(13, 12, 18, .2) 35%, rgba(13, 12, 18, .88) 100%); }
 @keyframes wd-settle { from { transform: scale(1.12); opacity: .4; } }
 .wd-hero-in { padding: calc(var(--nav-h) + 40px) 0 clamp(36px, 6vh, 64px); }
+/* photo credit (CC BY-SA covers need one): bottom-right of the hero, in its bottom padding */
+.wd-credit { position: absolute; right: 18px; bottom: 12px; z-index: 1; font-family: var(--f-mono); font-size: 11px; letter-spacing: .02em; line-height: 1; color: var(--cream-3); text-decoration: none; white-space: nowrap; transition: color .2s; }
+.wd-credit:hover, .wd-credit:focus-visible { color: var(--cream); }
 .wd-back { display: inline-flex; align-items: center; gap: 10px; margin-bottom: clamp(28px, 6vh, 64px); color: var(--cream-2); text-decoration: none; font-weight: 600; font-size: 15px; }
 .wd-back span { transition: transform .25s var(--ease); }
 .wd-back:hover { color: var(--cream); }
@@ -63,7 +66,7 @@ body.is-project .progress { opacity: 0; }
 
 .wd-intro { background: var(--paper); color: var(--ink); padding: clamp(56px, 9vh, 104px) 0; }
 .wd-intro-in { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 5vw, 96px); align-items: start; }
-.wd-stat b { display: block; font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: clamp(64px, 8vw, 128px); line-height: .9; letter-spacing: -.02em; color: var(--deep, #0b0c1f); }
+.wd-stat b { display: block; font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: clamp(64px, 8vw, 128px); line-height: .9; letter-spacing: -.02em; color: var(--deep, #0d0c14); }
 .wd-stat span { display: block; margin-top: 12px; font-size: 16px; color: var(--ink-2); max-width: 22ch; }
 .wd-summary { font-size: clamp(22px, 2vw, 30px); line-height: 1.32; letter-spacing: -.015em; }
 .wd-scope { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
@@ -80,7 +83,7 @@ body.is-project .progress { opacity: 0; }
 .wd-steps ol { display: grid; }
 .wd-steps li { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 24px; padding: 26px 0; border-top: 1px solid var(--rule); }
 .wd-steps li:last-child { border-bottom: 1px solid var(--rule); }
-.wd-n { font-family: var(--f-serif); font-style: italic; font-size: 44px; line-height: .9; color: var(--c, var(--p-yellow)); }
+.wd-n { font-family: var(--f-serif); font-style: italic; font-size: 44px; line-height: .9; color: color-mix(in srgb, var(--c, var(--p-yellow)) 55%, var(--ink)); }
 .wd-steps h3 { font-size: clamp(20px, 1.7vw, 26px); font-weight: 600; letter-spacing: -.02em; margin-bottom: 8px; }
 .wd-steps p { font-size: 16.5px; line-height: 1.6; color: var(--ink-2); max-width: 62ch; }
 
@@ -91,7 +94,7 @@ body.is-project .progress { opacity: 0; }
 .wd-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(20px, 2.4vw, 32px); align-items: start; }
 .wd-browser { overflow: hidden; border-radius: var(--r-big); background: #fff; box-shadow: var(--e2); border: 1px solid var(--rule); }
 .wd-chrome { display: flex; align-items: center; gap: 7px; padding: 12px 16px; border-bottom: 1px solid var(--rule); background: var(--paper-2); }
-.wd-chrome i { width: 11px; height: 11px; border-radius: 50%; background: #e4ddd0; }
+.wd-chrome i { width: 11px; height: 11px; border-radius: 50%; background: #e3e0ea; }
 .wd-chrome i:nth-child(1) { background: #ff5f57; } .wd-chrome i:nth-child(2) { background: #febc2e; } .wd-chrome i:nth-child(3) { background: #28c840; }
 .wd-chrome span { margin-left: 12px; padding: 4px 12px; border-radius: 6px; background: #fff; font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
 .wd-scroll { height: min(72vh, 760px); overflow-y: auto; overscroll-behavior: contain; }
@@ -121,11 +124,10 @@ body.is-project .progress { opacity: 0; }
 /* ── Services by type of business. The hero holds the bestiary: one spirit animal per type, painted in one house style,
    cross-faded behind the page and melting into the paper; the index of types sits on the left, the animal's caption
    at the bottom right. The lit panel with the details follows. ── */
-.biz-sec { position: relative; isolation: isolate; background: var(--paper); color: var(--ink); padding: var(--section) 0; --c: var(--p-blue); --art-h: clamp(620px, 100svh, 980px); }
+.biz-sec { position: relative; isolation: isolate; background: var(--paper); color: var(--ink); padding: var(--section) 0; --c: var(--p-blue); --art-h: clamp(560px, 78svh, 880px); }
 /* clip, not hidden: a hidden box can still be scrolled by focus or scrollIntoView */
 .biz-sec--first { overflow: hidden; overflow: clip; padding-top: calc(var(--nav-h) + clamp(28px, 5vh, 64px)); }
 .biz-sec--first + .services.page-stack { padding-top: var(--section); }
-.biz-meta { margin: 20px 0 10px; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 
 .biz-art {
   position: absolute; z-index: -1; top: 0; right: -4vw; height: var(--art-h); aspect-ratio: 16 / 9; pointer-events: none;
@@ -190,7 +192,7 @@ body.is-project .progress { opacity: 0; }
   background:
     radial-gradient(70% 60% at 100% 0%, color-mix(in srgb, var(--bc2) 30%, transparent), transparent 62%),
     radial-gradient(60% 70% at 0% 100%, color-mix(in srgb, var(--bc) 70%, transparent), transparent 66%),
-    linear-gradient(160deg, #15172f, #0b0c1f 70%);
+    linear-gradient(160deg, #1d1b2b, #0d0c14 70%);
   box-shadow: 0 30px 70px -40px color-mix(in srgb, var(--bc) 80%, #000);
   animation: biz-in .5s var(--ease) both;
 }
@@ -202,12 +204,12 @@ body.is-project .progress { opacity: 0; }
 .biz-lead h3 { font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: clamp(38px, 3.8vw, 60px); line-height: .98; letter-spacing: -.015em; }
 .biz-lead p { justify-self: end; max-width: 42ch; font-size: 18px; line-height: 1.55; color: var(--cream-2); }
 
-.biz-fixes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid rgba(244, 239, 228, .14); }
+.biz-fixes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid rgba(243, 241, 247, .14); }
 /* each item spans the two rows of the list (subgrid), so the answers line up even when a problem wraps */
 .biz-fixes li { grid-row: span 2; display: grid; grid-template-rows: subgrid; row-gap: 14px; align-content: start; padding: 26px clamp(18px, 2.2vw, 32px) 6px 0; }
-.biz-fixes li + li { padding-left: clamp(18px, 2.2vw, 32px); border-left: 1px solid rgba(244, 239, 228, .12); }
+.biz-fixes li + li { padding-left: clamp(18px, 2.2vw, 32px); border-left: 1px solid rgba(243, 241, 247, .12); }
 .biz-fixes s {
-  font-size: 15px; line-height: 1.5; color: rgba(244, 239, 228, .7);
+  font-size: 15px; line-height: 1.5; color: rgba(243, 241, 247, .7);
   text-decoration-line: line-through; text-decoration-color: rgba(240, 138, 116, .85); text-decoration-thickness: 1.5px;
 }
 .biz-fixes p { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; font-size: clamp(17px, 1.35vw, 20px); line-height: 1.4; letter-spacing: -.01em; color: var(--cream); }
@@ -217,8 +219,8 @@ body.is-project .progress { opacity: 0; }
 .biz-pcard { display: grid; align-content: start; gap: 18px; color: inherit; text-decoration: none; }
 .biz-pcard.is-single { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: center; gap: clamp(24px, 3.4vw, 56px); }
 .biz-pcard-shot {
-  position: relative; display: block; overflow: hidden; aspect-ratio: 16 / 10; border-radius: 14px; background: rgba(244, 239, 228, .06);
-  box-shadow: 0 30px 60px -34px rgba(0, 0, 0, .9), 0 0 0 1px rgba(244, 239, 228, .1);
+  position: relative; display: block; overflow: hidden; aspect-ratio: 16 / 10; border-radius: 14px; background: rgba(243, 241, 247, .06);
+  box-shadow: 0 30px 60px -34px rgba(0, 0, 0, .9), 0 0 0 1px rgba(243, 241, 247, .1);
 }
 .biz-pcard-shot img { width: 100%; height: 100%; object-fit: cover; transition: transform .9s var(--ease); }
 .biz-pcard:hover .biz-pcard-shot img { transform: scale(1.045); }
@@ -269,10 +271,29 @@ body.page .faq { padding-top: var(--section); }
   .biz-lead, .biz-fixes, .biz-proj, .biz-pcard.is-single { grid-template-columns: 1fr; }
   .biz-lead p { justify-self: start; }
   .biz-fixes li { padding: 20px 0 6px; }
-  .biz-fixes li + li { padding-left: 0; border-left: 0; border-top: 1px solid rgba(244, 239, 228, .12); }
+  .biz-fixes li + li { padding-left: 0; border-left: 0; border-top: 1px solid rgba(243, 241, 247, .12); }
 }
 @media (prefers-reduced-motion: reduce) {
   .wcard-shot img, .wd-hero-bg, .biz-panel, .biz-pcard-shot img, .biz-item, .wd-next-card, .biz-caption.is-in > * { transition: none; animation: none; }
   .biz-art-img, .biz-art-img.is-on, .biz-art-img.is-off { transition: opacity .2s linear; animation: none; scale: 1; translate: none; }
   .wd-hero-bg { transform: none; }
 }
+
+/* ── Small type, heavier (2026-10-18): thin text at small sizes was hard to read. Cabinet Grotesk and JetBrains Mono are variable,
+   so text at 14px and below is set at 500 and text up to 15.5px at 450. Generated from scratch/small-type-audit.cjs;
+   new small text should use these weights too. Placed last so it wins over the rules above. ── */
+.wd-meta dd,
+.wd-fig figcaption,
+.biz-fixes s,
+.biz-pcard-sum,
+.biz-name { font-weight: 450; }
+.wcard-stat,
+.wcard-meta,
+.wd-kicker,
+.wd-meta dt,
+.wd-chrome span,
+.wd-next-txt small,
+.biz-cap-n,
+.biz-num,
+.biz-n,
+.biz-pcard-stat { font-weight: 500; }
