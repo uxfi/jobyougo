@@ -66,6 +66,7 @@ import { cleanFetchUrl, retryPolicy, backoffDelayMs } from '../lib/fetch-politen
 import { cleanJobDescriptionText } from '../lib/jd-clean.mjs';
 import { isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mjs';
 import { careersFeedFor, hasCareersFeed } from '../lib/careers-feeds.mjs';
+import { detectAtsProvider } from '../lib/ats-autodetect.mjs';
 import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
 import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
 import { createScanLogger } from '../lib/scan-log.mjs';
@@ -2027,6 +2028,10 @@ function getCompanyScanAccess(company = {}) {
       apiSource: 'derived_lever',
     };
   }
+
+  // A careers_url on a known ATS host uses its provider plugin (public feed), before any web search.
+  const autoProvider = detectAtsProvider(company, jobBoardProviders);
+  if (autoProvider) return { mode: 'provider', provider: autoProvider, providerSource: 'derived' };
 
   if ((company.scan_method || '').toLowerCase() === 'websearch' && company.scan_query) {
     return { mode: 'websearch', query: company.scan_query };
@@ -4969,8 +4974,9 @@ async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
       const jobs = (await fetchJobBoard(aggregator)).map(job => ({
         ...job, publishedAt: normalizeDateValue(job.publishedAt),
       }));
-      console.log(`[scan] [${aggregator.provider}] ${aggregator.name}: ${jobs.length} jobs`);
-      return { ok: true, jobs, engine: aggregator.provider,
+      console.log(`[scan] [${aggregator.provider}] ${aggregator.name}: ${jobs.length} jobs, ${jobs.filter(j => portalsTitleFilter.test(j.title || '')).length} after filter`);
+      scanLog.summary({ company: aggregator.name, engine: aggregator.provider, found: jobs.length, junkIgnored: 0, afterFilter: jobs.filter(j => portalsTitleFilter.test(j.title || '')).length });
+      return { ok: true, empty: jobs.length === 0, jobs, engine: aggregator.provider,
         section: buildJobSection(aggregator.name, jobs, { includeCompany: true }) };
     } catch (error) {
       console.warn(`[scan] [${aggregator.provider}] ${aggregator.name}: ${error.message}`);
@@ -10072,7 +10078,7 @@ const server = createServer(async (req, res) => {
           selectedCompanies.forEach(company => {
             const access = getCompanyScanAccess(company);
             if (access.mode === 'provider') {
-              providerCompanies.push(company);
+              providerCompanies.push({ ...company, provider: access.provider });
               return;
             }
             if (access.mode === 'api' && access.apiUrl) {

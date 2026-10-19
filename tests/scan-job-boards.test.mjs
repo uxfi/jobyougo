@@ -41,6 +41,8 @@ try {
     normalizeDateValue: value => new Date(value).toISOString().slice(0, 10),
     buildJobSection: (name, values) => `${name}: ${values[0].title}`,
     console: { log() {}, warn() {} },
+    portalsTitleFilter: { test: () => true },
+    scanLog: { summary() {} },
   });
   vm.runInContext(server.slice(start, end), context);
   const result = await context.fetchAggregatorSection(sources[1]);
