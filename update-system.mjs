@@ -246,6 +246,8 @@ const SYSTEM_PATHS = [
   'lib/careers-feeds.mjs',
   'lib/job-board-throttle.mjs',
   'lib/ats-autodetect.mjs',
+  'lib/visit-counter.mjs',
+  'api/visits.mjs',
   'lib/scan-careers-wait.mjs',
   'lib/scan-engine-backoff.mjs',
   'lib/scan-funnel.mjs',
