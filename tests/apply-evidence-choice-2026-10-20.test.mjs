@@ -39,22 +39,23 @@ test('the prompt carries the full CV, the portfolio and the honesty rules', asyn
   assert.match(prompt, /Brand Agent/);
   assert.match(prompt, /vibe coding/i);
   assert.match(prompt, /"Daily"/);
-  assert.match(prompt, /subjective or personal/);
+  assert.match(prompt, /Every field gets an answer/);
+  assert.doesNotMatch(prompt, /\{"pick": null\}/);
 });
 
 test('picks map to the real option text and are flagged with their reason', async () => {
   const chatFn = fakeChat(JSON.stringify({
     0: { pick: 1, why: 'builds through AI-assisted vibe coding, not an engineer', source: 'CV: OneAsset' },
     1: { pick: 0, why: 'Shiseido global eCommerce', source: 'CV: Shiseido Group' },
-    2: { pick: null },
+    2: { pick: 0, why: 'Creads.io is the launched product', source: 'portfolio' },
   }));
   const out = await resolveUnknownFields({ fields, spec, career, portfolio, chatFn });
   assert.equal(out['0'], 'I can build individual components with some help');
   assert.equal(out['1'], 'Yes, it was the main focus of a past role');
-  assert.equal(out['2'], undefined, 'a subjective question stays manual');
+  assert.equal(out['2'], 'Project A', 'a subjective list still gets the best-supported option');
   assert.match(out.inferred['0'].why, /vibe coding/);
   assert.equal(out.inferred['1'].source, 'CV: Shiseido Group');
-  assert.deepEqual(Object.keys(out).sort(), ['0', '1'], 'the review notes are not answers');
+  assert.deepEqual(Object.keys(out).sort(), ['0', '1', '2'], 'the review notes are not answers');
 });
 
 test('a bare number from an older-style reply still works and is flagged', async () => {

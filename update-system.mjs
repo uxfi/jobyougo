@@ -273,6 +273,7 @@ const SYSTEM_PATHS = [
   'lib/apply-send-proof.mjs',
   'lib/apply-tool-match.mjs',
   'lib/apply-evidence.mjs',
+  'lib/apply-custom-choice.mjs',
   'lib/candidate-location.mjs',
   'lib/contact-finder.mjs',
   'lib/cv-import.mjs',
