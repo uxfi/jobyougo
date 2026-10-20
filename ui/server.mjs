@@ -72,6 +72,7 @@ import { isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mj
 import { careersFeedFor, hasCareersFeed } from '../lib/careers-feeds.mjs';
 import { detectAtsProvider } from '../lib/ats-autodetect.mjs';
 import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
+import { runAtsExplorer } from '../lib/ats-explorer.mjs';
 import { createEngineBackoff, createQuerySpacer, createEngineRotation } from '../lib/scan-engine-backoff.mjs';
 import { createScanLogger } from '../lib/scan-log.mjs';
 import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
@@ -10296,6 +10297,31 @@ const server = createServer(async (req, res) => {
             console.warn(`[scan] Failed to update scan-state.json: ${err.message}`);
           });
 
+          // ATS explorer: passive (ATS URLs seen in this run) + a small rotating
+          // budget of site:<ats> queries through the same web-search engine
+          // (its circuits/pauses apply). Adds tech/product companies to
+          // tracked_companies; never fails the scan (lib/ats-explorer.mjs).
+          if (!IS_VERCEL) {
+            try {
+              const seenJobUrls = [...directResults, ...providerResults, ...webSearchResults, ...aggregatorResults]
+                .flatMap(r => (r.status === 'fulfilled' ? r.value?.jobs || [] : []))
+                .concat(playwrightResults.flatMap(r => r?.jobs || []))
+                .map(j => j?.url).filter(Boolean);
+              await runAtsExplorer({
+                portalsPath: PORTALS_FILE,
+                dataDir: join(ROOT, 'data'),
+                config: portalsConfig,
+                offerUrls: seenJobUrls,
+                search: async (query) => {
+                  const res = await fetchWebSearchSection({ name: `[explorer] ${query}`, query });
+                  if (!res || res.skipped || isWebSearchEngineBlocked(res)) return { blocked: true };
+                  return { urls: (res.jobs || []).map(j => j?.url).filter(Boolean), text: typeof res.section === 'string' ? res.section : '' };
+                },
+              });
+            } catch (err) {
+              console.warn(`[scan] [explorer] skipped: ${err.message}`);
+            }
+          }
           scanUrlPublishedAt = new Map();
           directResults
             .filter(r => r.status === 'fulfilled' && r.value?.jobs?.length)

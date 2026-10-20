@@ -76,6 +76,7 @@ import { withPortalHealthLock } from './portal-health-lock.mjs';
 import { localToday } from './lib/local-today.mjs';
 import { printScanSummaryHeader } from './lib/scan-summary-marker.mjs';
 import { appendDecisionLog, decisionLogRecord, evaluateCandidate, summarizeDecisions } from './lib/scan-decision.mjs';
+import { runAtsExplorer, makeApiSearch } from './lib/ats-explorer.mjs';
 import { loadPortalsForProfile } from './lib/scan-targeting.mjs';
 import { resolveLocationProfile } from './lib/candidate-location.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
@@ -3887,6 +3888,23 @@ async function main() {
     }
     for (const [status, group] of byStatus) {
       await appendToScanHistory(group, date, status);
+    }
+  }
+
+  // 6.5. ATS explorer (lib/ats-explorer.mjs): ATS boards behind this run's
+  // offers (aggregators/boards) + optional sanctioned search API queries.
+  // Adds tech/product companies to tracked_companies; never fails the scan.
+  if (!dryRun) {
+    try {
+      await runAtsExplorer({
+        portalsPath: PORTALS_PATH,
+        dataDir: path.join(DATA_ROOT, 'data'),
+        config,
+        offerUrls: [...newOffers, ...cooldownOffers.map(c => c.job)].map(o => o?.url).filter(Boolean),
+        search: makeApiSearch(process.env),
+      });
+    } catch (err) {
+      console.warn(`[scan] [explorer] skipped: ${err.message}`);
     }
   }
 
