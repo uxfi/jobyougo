@@ -18,6 +18,7 @@ import { classifyField } from '../lib/apply-classify.mjs';
 import { resolveUnknownFields, polishApplicationAnswer, hasUnresolvedPlaceholder } from '../lib/apply-llm.mjs';
 import { applicationVoiceFor, cvSummaryFor } from '../lib/application-writing.mjs';
 import { careerIndexFor } from '../lib/form-answer.mjs';
+import { portfolioEvidenceFor } from '../lib/apply-evidence.mjs';
 import {
   shouldFillField,
   isSubstantiveOptionalQuestion,
@@ -2579,6 +2580,7 @@ export class ApplyBridge {
             })),
             spec,
             career: careerIndexFor(spec, ROOT),
+            portfolio: portfolioEvidenceFor(spec, ROOT),
             styleGuide: applicationVoiceFor(spec, ROOT),
             // What the form already says, so "Are you located in France?"
             // agrees with the location typed two fields above — earlier
@@ -2595,9 +2597,14 @@ export class ApplyBridge {
           const text = Array.isArray(a) ? a[0] : a;
           if (text && !hasUnresolvedPlaceholder(String(text))) rememberAnswer(memory, f, a);
         });
+        const deduced = answers.inferred || {};
         return fieldsToAnswer.map((f) => {
           const k = ask.indexOf(f);
-          return updateFor(f, k >= 0 ? answers[String(k)] : knownAnswer(memory, f));
+          const u = updateFor(f, k >= 0 ? answers[String(k)] : knownAnswer(memory, f));
+          // A pick the model deduced from the CV/portfolio: shown for review.
+          const why = k >= 0 ? deduced[String(k)] : null;
+          if (u && why) u.inferred = [why.why, why.source && `source : ${why.source}`].filter(Boolean).join(' — ') || 'déduit';
+          return u;
         }).filter(Boolean);
       };
       // Fill; return the blind lists whose real options the widget showed.
@@ -2612,7 +2619,7 @@ export class ApplyBridge {
           const target = targetBySlot.get(slotKey(o));
           const landed = String(o.actualValue ?? '').trim();
           if (o.ok && landed && !/^unchecked$/i.test(landed)) {
-            const flags = { llm: true, ...(o.kept ? { kept: true } : {}) };
+            const flags = { llm: true, ...(o.kept ? { kept: true } : {}), ...(u.inferred ? { inferred: u.inferred } : {}) };
             filled.push(target ? row(target, { value: o.actualValue || '', ...flags }) : { label: u.label, value: o.actualValue || '', ...flags });
             if (target) written.add(stableKey(target));
             continue;

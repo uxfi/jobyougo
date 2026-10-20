@@ -8558,7 +8558,8 @@ function openAutoApplyModal(app) {
 
     const filled = s.filled || [];
     $('aa-filled-count').textContent = filled.length;
-    $('aa-filled').innerHTML = filled.map(f => `<li><strong>${escapeHtml(f.label)}</strong> → ${escapeHtml(f.value)}</li>`).join('');
+    // A pick deduced from the CV/portfolio (no own answer for it) is flagged for review.
+    $('aa-filled').innerHTML = filled.map(f => `<li><strong>${escapeHtml(f.label)}</strong> → ${escapeHtml(f.value)}${f.inferred ? ` <span style="color:#b45309" title="${escapeHtml(f.inferred)}">⚠ déduit, à relire — ${escapeHtml(f.inferred)}</span>` : ''}</li>`).join('');
     $('aa-log').textContent = (s.steps || []).map(st => st.text).join('\n');
 
     const waiting = s.state === 'needs_human' || s.state === 'ready_to_review';

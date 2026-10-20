@@ -271,6 +271,7 @@ const SYSTEM_PATHS = [
   'lib/apply-refill.mjs',
   'lib/apply-send-proof.mjs',
   'lib/apply-tool-match.mjs',
+  'lib/apply-evidence.mjs',
   'lib/candidate-location.mjs',
   'lib/contact-finder.mjs',
   'lib/cv-import.mjs',

@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { resolveUnknownFields } from './lib/apply-llm.mjs';
 import { careerIndexFor } from './lib/form-answer.mjs';
+import { portfolioEvidenceFor } from './lib/apply-evidence.mjs';
 import { classifyField } from './lib/apply-classify.mjs';
 import { pickDeclineOption, pickSelectOption, llmKind, yesNoText, isDemographicLabel } from './lib/apply-select.mjs';
 import { polishApplicationAnswer, hasUnresolvedPlaceholder, applicationVoiceFor, cvSummaryFor } from './lib/application-writing.mjs';
@@ -1990,6 +1991,7 @@ async function fillFields(frame, spec) {
         fields: llmTargets.map(f => ({ i: f.i, label: f.label, kind: llmKind(f), required: f.required, multiple: fieldIsMulti(f), options: f.options, maxLength: f.maxLength })),
         spec,
         career: careerIndexFor(spec, ROOT),
+        portfolio: portfolioEvidenceFor(spec, ROOT),
         styleGuide: applicationVoiceFor(spec, ROOT),
         answered: filled,
       });
