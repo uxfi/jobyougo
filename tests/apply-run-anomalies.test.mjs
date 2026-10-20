@@ -420,7 +420,8 @@ test('replay review: words inside words, tools, currencies', () => {
   assert.equal(classifyField(f('How many years of B2C/consumer facing product design experience do you have? *'), spec), null);
   assert.equal(classifyField(f('Years of UX/UI experience'), spec)?.value, '12');
   assert.equal(classifyField(f('What is the minimum salary that you would accept in British £ ONLY and per month'), spec)?.leaveBlank, true);
-  assert.equal(classifyField(f('What are your salary expectations for this role? (Please provide a range in USD.)'), spec)?.leaveBlank, true);
+  // Hugo 2026-10-20: a USD form gets the EUR expectation converted at ~1.1 (rounded up) instead of a blank.
+  assert.match(String(classifyField(f('What are your salary expectations for this role? (Please provide a range in USD.)'), spec)?.value || ''), /^\d+/);
   assert.equal(classifyField(f('Please mention your current monthly compensation *'), spec)?.leaveBlank, true);
   assert.equal(classifyField(f('Desired Salary Range Format'), spec)?.value, 'Annual');
   assert.equal(classifyField(f('Please describe your experience building and launching customer-facing AI-native products', { type: 'textarea', tag: 'textarea' }), spec)?.leaveBlank, undefined);
