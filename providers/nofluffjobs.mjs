@@ -5,6 +5,9 @@
 // It intentionally returns only the core scanner job fields; richer skill and
 // salary metadata can be added later if the provider contract is expanded.
 
+// Slow upstream: the shared 10s deadline aborted full scans ("This operation was aborted").
+export const REQUEST_TIMEOUT_MS = 30_000;
+
 const ALLOWED_HOSTS = new Set(['nofluffjobs.com']);
 const API_URL = 'https://nofluffjobs.com/api/search/posting';
 const JOB_BASE = 'https://nofluffjobs.com/pl/job/';
@@ -151,6 +154,7 @@ export default {
           'content-type': 'application/infiniteSearch+json',
         },
         redirect: 'error',
+        timeoutMs: REQUEST_TIMEOUT_MS,
       });
       for (const job of parseNoFluffJobsResponse(json)) {
         if (seen.has(job.url)) continue;

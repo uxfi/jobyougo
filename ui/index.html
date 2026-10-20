@@ -6708,7 +6708,7 @@ async function renderReportAffiliates(filename) {
 
 // ─── Load data ────────────────────────────────────────────────────────────────
 window.loadAll = async function loadAll() {
-  const [apps, pipe, reports, portals, queries, cvs, scanState, monetization, drops] = await Promise.all([
+  const [apps, pipe, reports, portals, queries, cvs, scanState, monetization, drops, scanSourceList] = await Promise.all([
     api('/api/applications').catch(() => []),
     api('/api/pipeline').catch(() => []),
     api('/api/reports').catch(() => []),
@@ -6718,6 +6718,7 @@ window.loadAll = async function loadAll() {
     api('/api/scan-state').catch(() => ({})),
     api('/api/monetization').catch(() => null),
     api('/api/pipeline/dropped').catch(() => ({ drops: [] })),
+    api('/api/scan-sources').catch(() => null),
   ]);
   state.applications = normalizeApplications(apps);
   state.pipeline     = pipe;
@@ -6727,6 +6728,7 @@ window.loadAll = async function loadAll() {
   state.portals      = portals;
   state.queries      = queries;
   state.scanState    = scanState;
+  state.scanSources  = scanSourceList;
   state.monetization = monetization;
   renderAll();
   loadSponsoredJobs();
@@ -6902,8 +6904,12 @@ function renderDashboard() {
   const readyToApply = scoredApps
     .filter(a => ['Evaluated', 'Evaluada', 'Started'].includes(a.Status) && parseFloat(a.Score) >= 4)
     .sort(byScoreDesc);
-  const enabledPortals = (state.portals || []).filter(p => p.enabled).length;
-  const enabledBoards = (state.queries || []).filter(q => q.enabled).length;
+  // Same source of truth as the scan picker (/api/scan-sources: enabled only).
+  const sources = state.scanSources;
+  const enabledPortals = sources ? (sources.companies || []).length : (state.portals || []).filter(p => p.enabled).length;
+  const enabledBoards = sources
+    ? (sources.queries || []).length + (sources.aggregators || []).length + (sources.rss || []).length
+    : (state.queries || []).filter(q => q.enabled).length;
 
   const activityDays = lastDayKeys(21);
   const sparkDays = activityDays.slice(-14);
@@ -10171,6 +10177,14 @@ document.getElementById('portal-save-btn').addEventListener('click', async () =>
 });
 
 // ─── Queries (Job Boards) ─────────────────────────────────────────────────────
+// Job Boards tab groups, one per portals.yml section the scan picker reads.
+const QUERY_GROUP_LABELS = {
+  search_queries: 'General',
+  eu_job_boards: 'EU / Asia',
+  freelance_portals: 'Freelance',
+  job_boards: 'API & RSS job boards',
+};
+
 function renderQueries({ keepToolbar = false } = {}) {
   const allQueries = state.queries || [];
   let queries = allQueries;
@@ -10219,8 +10233,8 @@ function renderQueries({ keepToolbar = false } = {}) {
   const tbody = document.getElementById('queries-tbody');
   const groups = groupBy(
     queries,
-    item => item.section === 'eu_job_boards' ? 'eu_job_boards' : 'search_queries',
-    id => id === 'eu_job_boards' ? 'EU / Asia' : 'General',
+    item => QUERY_GROUP_LABELS[item.section] ? item.section : 'search_queries',
+    id => QUERY_GROUP_LABELS[id] || QUERY_GROUP_LABELS.search_queries,
     'boards',
   );
   tbody.innerHTML = queries.length
@@ -10239,13 +10253,13 @@ function renderQueries({ keepToolbar = false } = {}) {
               <span class="portal-row-link is-query" title="${escapeHtml(p.query)}">${highlightText(p.query, query)}</span>
             </div>
             <span class="query-row-scan">${scanStateEl(p.name)}</span>
-            <span class="row-actions">
+            <span class="row-actions">${p.readOnly ? '' : `
               <button class="btn-icon" data-edit-query="${encodeURIComponent(p.name)}" title="Edit" aria-label="Edit ${escapeHtml(p.name)}">
                 <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M10.5 2.5l2 2L5 12H3v-2L10.5 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
               </button>
               <button class="btn-icon is-danger" data-delete-query="${encodeURIComponent(p.name)}" title="Delete" aria-label="Delete ${escapeHtml(p.name)}">
                 <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M2.5 4h10M5.5 4V2.5h4V4M3.5 4l.5 8a1 1 0 001 1h5a1 1 0 001-1l.5-8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
+              </button>`}
             </span>
           </div>`).join('');
         return `<section class="portal-fold">

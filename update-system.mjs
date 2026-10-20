@@ -250,6 +250,7 @@ const SYSTEM_PATHS = [
   'api/visits.mjs',
   'lib/scan-careers-wait.mjs',
   'lib/scan-engine-backoff.mjs',
+  'lib/portal-query-sources.mjs',
   'lib/scan-funnel.mjs',
   'lib/scan-log.mjs',
   'lib/scan-title-junk.mjs',

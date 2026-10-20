@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { ROOT } from './helpers.mjs';
-import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
+import { createEngineBackoff, createQuerySpacer, createEngineRotation } from '../lib/scan-engine-backoff.mjs';
 import { createCircuitProbe } from '../lib/web-search-circuit-probe.mjs';
 import { serpDiagnostic } from '../lib/serp-page-check.mjs';
 
@@ -25,6 +25,7 @@ function load(engines) {
     process: { env: { SCAN_QUERY_SPACING_MS: '0' } },
     createEngineBackoff,
     createQuerySpacer,
+    createEngineRotation,
     createCircuitProbe,
     serpDiagnostic,
     Number,

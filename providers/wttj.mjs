@@ -40,6 +40,9 @@
 // present) is attached as `salary: {min, max, currency}` so scan.mjs's
 // salary_filter can gate on it.
 
+// Slow upstream: the shared 10s deadline aborted full scans ("This operation was aborted").
+export const REQUEST_TIMEOUT_MS = 30_000;
+
 const ENV_URL = 'https://www.welcometothejungle.com/api/env';
 const SITE_ORIGIN = 'https://www.welcometothejungle.com';
 const INDEX = 'wttj_jobs_production_en';
@@ -198,6 +201,7 @@ export default {
     // 1. Fresh Algolia credentials from the site's public env endpoint.
     const envText = await ctx.fetchText(assertHost(ENV_URL, 'www.welcometothejungle.com', 'env'), {
       redirect: 'error',
+      timeoutMs: REQUEST_TIMEOUT_MS,
     });
     const { appId, apiKey } = parseEnvPayload(envText);
     const algoliaHost = `${appId}-dsn.algolia.net`;
@@ -224,6 +228,7 @@ export default {
         await ctx.fetchJson(url, {
           method: 'POST',
           redirect: 'error',
+          timeoutMs: REQUEST_TIMEOUT_MS,
           headers: {
             'x-algolia-application-id': appId,
             'x-algolia-api-key': apiKey,

@@ -71,7 +71,7 @@ import { isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mj
 import { careersFeedFor, hasCareersFeed } from '../lib/careers-feeds.mjs';
 import { detectAtsProvider } from '../lib/ats-autodetect.mjs';
 import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
-import { createEngineBackoff, createQuerySpacer } from '../lib/scan-engine-backoff.mjs';
+import { createEngineBackoff, createQuerySpacer, createEngineRotation } from '../lib/scan-engine-backoff.mjs';
 import { createScanLogger } from '../lib/scan-log.mjs';
 import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
 import { CONSENT_DISMISS_SCRIPT, needsLongerWait, createSolveCooldown, createDetailBudget } from '../lib/scan-careers-wait.mjs';
@@ -105,6 +105,7 @@ import { getScanAggregators, fetchJobBoardPolite, jobBoardProviders } from '../l
 import { createSourceThrottle } from '../lib/job-board-throttle.mjs';
 import { classifyEmptySerp, serpDiagnostic } from '../lib/serp-page-check.mjs';
 import { createCircuitProbe } from '../lib/web-search-circuit-probe.mjs';
+import { QUERY_SECTIONS, listQuerySources } from '../lib/portal-query-sources.mjs';
 import { buildCountryEligibilityFilter, buildLocationFilter } from '../scan.mjs';
 import {
   appendDecisionLog,
@@ -4528,6 +4529,7 @@ const PINCHTAB_SEARCH_ENGINES = {
 const ENGINE_DEAD_AFTER = 5;
 // A blocked engine rests (base x 2^n, jitter) and is skipped without a request; queries are slightly spaced.
 const engineBackoff = createEngineBackoff({ baseMs: Math.max(1000, Number.parseInt(process.env.SCAN_ENGINE_COOLDOWN_MS || '60000', 10) || 60000) });
+const engineRotation = createEngineRotation({ maxWaitMs: Math.max(0, Number.parseInt(process.env.SCAN_ENGINE_ROTATION_MAX_WAIT_MS || '0', 10) || 0) }); // opt-in: the circuit probe already waits out cooldowns
 const querySpacer = createQuerySpacer({ spacingMs: Math.max(0, Number.parseInt(process.env.SCAN_QUERY_SPACING_MS || '400', 10) || 0) });
 const ENGINE_RETRY_EVERY = 8;
 const engineHealth = new Map();
@@ -4566,7 +4568,12 @@ async function fetchPinchtabEnginesMerged(source) {
   let loaded = 0;
   let lastBlocked = null;
   let skippedCooling = false;
-  for (const id of engines) {
+  const rotationWait = engineRotation.waitMs(engines, engineBackoff);
+  if (rotationWait > 0) { // only with SCAN_ENGINE_ROTATION_MAX_WAIT_MS set
+    console.log(`[scan] [WebSearch] every ready engine keeps answering empty while another cools down: waiting ${Math.round(rotationWait / 1000)}s`);
+    await new Promise(resolve => setTimeout(resolve, rotationWait));
+  }
+  for (const id of engineRotation.order(engines, engineBackoff)) {
     const run = PINCHTAB_SEARCH_ENGINES[id];
     if (!run) continue;
     if (minResults > 0 && merged.length >= minResults) break;
@@ -4598,6 +4605,7 @@ async function fetchPinchtabEnginesMerged(source) {
       added += 1;
     }
     noteEngineResult(id, added > 0);
+    engineRotation.note(id, added);
     if (added > 0) engineBackoff.ok(id);
     engineLog.push(`${id}:${added}`);
   }
@@ -6473,14 +6481,7 @@ async function recordManualApplicationDelete({ company, role, jobUrl, date, user
 
 async function getQueries() {
   const { parsed } = await readPortalsYaml();
-  const sq = (parsed.search_queries || []).map(q => ({ ...q, section: 'search_queries' }));
-  const eu = (parsed.eu_job_boards  || []).map(q => ({ ...q, section: 'eu_job_boards'  }));
-  return [...sq, ...eu].map(q => ({
-    name:    q.name    || '',
-    query:   q.query   || '',
-    enabled: q.enabled !== false,
-    section: q.section,
-  }));
+  return listQuerySources(parsed);
 }
 
 async function addQuery(entry) {
@@ -6530,7 +6531,7 @@ async function deleteQuery(name) {
 
 async function toggleQuery(name, enabled) {
   const { parsed } = await readPortalsYaml();
-  for (const section of ['search_queries', 'eu_job_boards']) {
+  for (const section of QUERY_SECTIONS) {
     const list = parsed[section] || [];
     const entry = list.find(q => q.name === name);
     if (entry) {
@@ -9401,7 +9402,7 @@ const server = createServer(async (req, res) => {
       if (method === 'PATCH') {
         const bulk = readBulkEnabledBody(await readBody(req));
         if (!bulk) return json(res, { error: 'Expected { enabled: boolean, names: string[] }' }, 400);
-        const updated = await setPortalsEnabled(['search_queries', 'eu_job_boards'], bulk.names, bulk.enabled);
+        const updated = await setPortalsEnabled(QUERY_SECTIONS, bulk.names, bulk.enabled);
         return json(res, { ok: true, updated });
       }
     }
