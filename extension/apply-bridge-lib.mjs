@@ -19,6 +19,7 @@ import { resolveUnknownFields, polishApplicationAnswer, hasUnresolvedPlaceholder
 import { applicationVoiceFor, cvSummaryFor } from '../lib/application-writing.mjs';
 import { careerIndexFor } from '../lib/form-answer.mjs';
 import { portfolioEvidenceFor } from '../lib/apply-evidence.mjs';
+import { solveInAttachedTab, SOLVABLE_KINDS } from '../lib/apply-captcha-attach.mjs';
 import {
   shouldFillField,
   isSubstantiveOptionalQuestion,
@@ -1079,6 +1080,10 @@ export class ApplyBridge {
    * command is queued), 'timeout' or 'gone' (tab closed).
    */
   async _waitHuman(run, page, stage, { timeoutMs = 15 * 60 * 1000 } = {}) {
+    // A captcha or bot wall: PinchTab, attached to this Chrome, solves it in
+    // this tab first. Not configured or failed: the wait below, as before.
+    const auto = await this._solveViaAttach(run, page, stage);
+    if (auto) return auto;
     const info = pageStateMessage(page.kind, page.evidence);
     await this._reportPageState(run, page);
     const started = Date.now();
@@ -1105,6 +1110,35 @@ export class ApplyBridge {
     }
     await run.push(`${info.pending?.label || 'Blocage'} toujours là après ${Math.round(timeoutMs / 60000)} min — à toi de jouer.`);
     return { status: 'timeout', page };
+  }
+
+  /** { status: 'resolved', page } when PinchTab cleared the challenge, else null. */
+  async _solveViaAttach(run, page, stage) {
+    if (!SOLVABLE_KINDS.has(page?.kind)) return null;
+    let url = '';
+    try {
+      const frames = await this.pageSignals(run.tabId);
+      const top = (frames || []).find((f) => (f?.frameId ?? 0) === 0) || (frames || [])[0];
+      url = String(top?.url || top?.result?.url || '');
+    } catch { return null; }
+    const solve = this.solveCaptcha || solveInAttachedTab;
+    const res = await solve({ url, kind: page.kind });
+    if (!res?.available) return null;
+    if (!res.solved) {
+      await run.push(`Captcha : PinchTab n'a pas pu le résoudre (${res.reason || 'échec'}) — à toi de jouer.`);
+      return null;
+    }
+    let now;
+    try { now = await this.pageState(run.tabId, stage, run.originUrl); } catch { return null; }
+    if (now.kind === page.kind) {
+      await run.push('Captcha : PinchTab dit résolu mais la page le montre encore — à toi de jouer.');
+      return null;
+    }
+    await run.push(`Captcha résolu via PinchTab (${res.reason || page.kind}) — reprise automatique.`, {
+      state: stage === 'navigate' ? 'navigating' : 'filling',
+      message: 'Resuming…',
+    });
+    return { status: 'resolved', page: now };
   }
 
   _adoptContext(run, { expectedHref = '', deadTabId = null } = {}) {

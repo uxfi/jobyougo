@@ -274,6 +274,7 @@ const SYSTEM_PATHS = [
   'lib/apply-tool-match.mjs',
   'lib/apply-evidence.mjs',
   'lib/apply-custom-choice.mjs',
+  'lib/apply-captcha-attach.mjs',
   'lib/candidate-location.mjs',
   'lib/contact-finder.mjs',
   'lib/cv-import.mjs',
