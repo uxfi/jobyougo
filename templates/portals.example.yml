@@ -981,6 +981,9 @@ search_queries:
 #   comeet          api: https://www.comeet.co/careers-api/2.0/company/<uid>/positions?token=<token>
 #   personio        <slug>.jobs.personio.(de|com)
 #   pinpoint        <slug>.pinpointhq.com
+#   traffit         <slug>.traffit.com
+#   dvinci          <customer>.dvinci-hr.com
+#   hirehive        <tenant>.hirehive.com
 #   prevueaps       <tenant>.prevueaps.ca  (or api: field; domainId resolved from the tenant's /jobs/ page)
 #   rippling        ats.rippling.com/<slug>/jobs
 #   jibeapply       <slug>.jibeapply.com/jobs  (or provider: jibeapply + api: for a branded host's own /jobs path)
@@ -1067,6 +1070,18 @@ search_queries:
 #
 # - name: Example Pinpoint Co
 #   careers_url: https://exampleco.pinpointhq.com         # any *.pinpointhq.com host
+#   enabled: true
+#
+# - name: Example Traffit Co
+#   careers_url: https://exampleco.traffit.com/career/    # any *.traffit.com host
+#   enabled: true
+#
+# - name: Example d.vinci Co
+#   careers_url: https://exampleco.dvinci-hr.com/         # any *.dvinci-hr.com host
+#   enabled: true
+#
+# - name: Example HireHive Co
+#   careers_url: https://exampleco.hirehive.com/          # any *.hirehive.com host
 #   enabled: true
 #
 # - name: Example PrevueAPS Co
