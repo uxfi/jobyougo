@@ -7418,7 +7418,7 @@ async function dropInternPipelineItems(items = [], userId, levelPolicy = levelPo
       historyStatus: 'title_dropped',
       historyPortal: 'pipeline-jev',
     });
-    console.log(`[pipeline] title filter dropped ${rejected.length} offer(s) below the target level`);
+    console.log(`[pipeline] level/scope filter dropped ${rejected.length} offer(s): ${rejected.map(item => `${pipelineItemToJevCandidate(item).title || item.url} (${item.titleReason})`).join('; ')}`);
   }
   return { current, rejected };
 }
@@ -10952,7 +10952,7 @@ const server = createServer(async (req, res) => {
         });
         const systemPrompt = budget.systemPrompt;
         const parts = budget.parts;
-        console.log(`[${mode}] prompt budget ${budget.beforeChars} → ${budget.afterChars} chars`);
+        console.log(`[${mode}] prompt budget ${budget.beforeChars} → ${budget.afterChars} chars${mode === 'scan' ? ' (scan: Jev selects, no chat prompt is sent)' : ''}`);
         let questionStories = '';
         if (mode === 'question') {
           const asked = urlObj.searchParams.get('question') || '';

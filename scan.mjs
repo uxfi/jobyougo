@@ -506,12 +506,19 @@ export const REMOTE_TITLE_RE = /(?<![a-z])remote(?=$|\s*[^a-z\s]|\s+in\b)/;
 // restores the previous behavior while a false positive admits an on-site role.
 export const REMOTE_NEGATED_RE = /\b(?:non|not|no)[^a-z]*remote/;
 
+// The same marker in the other words boards use: German "(Home Office) (m/w/d)"
+// (Arbeitsagentur gives only the city), JobStreet "| Work From Home |" / "- WFH",
+// "Full Remote". "Home Office" counts only bracketed or fused ("(Home Office)",
+// "Homeoffice"): bare, it is the UK ministry ("Designer, Home Office").
+// Same rescue-only tier as REMOTE_TITLE_RE, after block.
+export const WFH_TITLE_RE = /[(\[]\s*(?:100\s*%\s*)?home[\s-]?office|(?<![a-z])homeoffice(?![a-z])|(?<![a-z])work(?:ing)?[\s-]+from[\s-]+home(?![a-z])|(?<![a-z])wfh(?![a-z])|(?<![a-z])(?:full|fully|100\s*%)[\s-]*remote(?![a-z])|t[ée]l[ée]travail\s+(?:complet|total|100)/;
+
 /** @param {unknown} title @returns {boolean} whether the title marks the role remote. */
 export function titleSignalsRemote(title) {
   if (typeof title !== 'string' || title.trim() === '') return false;
   const lower = title.toLowerCase();
   if (REMOTE_NEGATED_RE.test(lower)) return false;
-  return REMOTE_TITLE_RE.test(lower);
+  return REMOTE_TITLE_RE.test(lower) || WFH_TITLE_RE.test(lower);
 }
 
 // `url` and `title` are optional. Callers that omit them get the original
