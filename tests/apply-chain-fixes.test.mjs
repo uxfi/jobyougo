@@ -32,7 +32,7 @@ test('the navigation model only clicks controls that read as a way into an appli
 });
 
 test('a send with no confirmation waits for the user instead of marking the run sent', () => {
-  const block = BRIDGE.slice(BRIDGE.indexOf('clicked.stillForm && clicked.urlChanged === false'), BRIDGE.indexOf("await push(`Envoyé: « ${clicked.text || 'Submit'} »`, {"));
+  const block = BRIDGE.slice(BRIDGE.indexOf('clicked.stillForm && clicked.urlChanged === false'), BRIDGE.indexOf('// Nothing read yet: the thank-you page'));
   assert.match(block, /state: 'needs_human'/);
   assert.doesNotMatch(block, /state: 'submitted'/);
   assert.match(block, /return false;/);

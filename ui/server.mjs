@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { createServer } from 'http';
+import { applyRelaunchBlock } from '../lib/apply-send-proof.mjs';
 import { readFile, writeFile, appendFile, readdir, stat, mkdir, mkdtemp, rm, access, copyFile } from 'fs/promises';
 import { createReadStream, watch } from 'fs';
 import { join, dirname, resolve, sep, basename } from 'path';
@@ -6430,7 +6431,7 @@ async function applyRunMeta(runDir) {
 // "Probably sent, no confirmation read": the runner flags it since 2026-10-18;
 // older runs only say it in the message.
 function applyRunUnconfirmed(s) {
-  return s?.state === 'submitted' && (s.unconfirmed === true || /probablement envoy/i.test(String(s.message || '')));
+  return s?.state === 'submitted' && (s.unconfirmed === true || /probablement envoy|Sent\?/i.test(String(s.message || '')));
 }
 
 async function latestApplyRunsByReport(userId) {
@@ -9675,6 +9676,13 @@ const server = createServer(async (req, res) => {
       const report = cleanString(urlObj.searchParams.get('report'));
       if (!report || report.includes('/') || report.includes('..')) {
         return json(res, { error: 'report filename is required' }, 400);
+      }
+      // Double-send guard: a run of this offer already clicked Send (confirmed
+      // or not). A queue must never send it again; the user can force it.
+      if (body.force !== true) {
+        const prior = (await latestApplyRunsByReport(req.userId).catch(() => ({})))[report];
+        const block = applyRelaunchBlock(prior);
+        if (block) return json(res, block, 409);
       }
       try {
         const spec = await buildApplySpec({

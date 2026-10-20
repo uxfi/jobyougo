@@ -8403,19 +8403,26 @@ function openAutoApplyModal(app) {
         poll();
         return;
       }
-      const r = await api('/api/apply/start', {
-        method: 'POST',
-        body: JSON.stringify({
-          report: app.report,
-          company: app.company,
-          role: app.role,
-          num: app.num || undefined,
-          region: choices.region,
-          autoSubmit: choices.autoSubmit,
-          solveChallenges: choices.solveChallenges,
-          tabId: app.tabId || undefined,
-        }),
-      });
+      const startBody = {
+        report: app.report,
+        company: app.company,
+        role: app.role,
+        num: app.num || undefined,
+        region: choices.region,
+        autoSubmit: choices.autoSubmit,
+        solveChallenges: choices.solveChallenges,
+        tabId: app.tabId || undefined,
+      };
+      let r;
+      try {
+        r = await api('/api/apply/start', { method: 'POST', body: JSON.stringify(startBody) });
+      } catch (err) {
+        // An earlier run of this offer already clicked Send: never send twice
+        // on a queue; a single launch asks first.
+        if (chain || !/already sent/i.test(String(err?.message || ''))
+          || !confirm(`${err.message}\n\nLaunch a new application anyway?`)) throw err;
+        r = await api('/api/apply/start', { method: 'POST', body: JSON.stringify({ ...startBody, force: true }) });
+      }
       if (!r?.runId) throw new Error(r?.error || 'Launch incomplete');
       hideLaunchGate(gate);
       runId = r.runId;

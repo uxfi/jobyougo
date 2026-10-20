@@ -421,7 +421,21 @@ function collectFields() {
     const isListboxRole = (el.getAttribute('role') || '').toLowerCase() === 'listbox';
     const ariaListbox = isListboxRole && !!el.querySelector('[role="option"]');
     if (isListboxRole && !ariaListbox) continue;
-    if (el.matches(':disabled') || el.readOnly || el.closest('[inert], [hidden]')
+    // Screenloop draws its CV slot as a read-only "Choose file" box plus a
+    // "Browse" button that creates the <input type=file> only when clicked:
+    // that box is the file field (the upload goes through the file chooser).
+    const filePickerProxy = el.readOnly && el.tagName === 'INPUT' && (() => {
+      const hint = `${el.getAttribute('placeholder') || ''} ${el.name || ''}`;
+      if (!/choose (a )?file|select (a )?file|filename\b|\.filename$/i.test(hint)) return false;
+      for (let n = el.parentElement, d = 0; n && d < 3; d++, n = n.parentElement) {
+        if (n.querySelector('input[type="file"]')) return false;
+        const btn = [...n.querySelectorAll('button, [role="button"]')]
+          .find((b) => /^(browse|choose( a)? file|select( a)? file|upload|parcourir|durchsuchen)\b/i.test((b.innerText || b.getAttribute('aria-label') || '').trim()));
+        if (btn) return true;
+      }
+      return false;
+    })();
+    if (el.matches(':disabled') || (el.readOnly && !filePickerProxy) || el.closest('[inert], [hidden]')
       || (!ariaListbox && el.closest('[aria-disabled="true"]'))) continue;
     // A careers-site job search ("Search by Location" on Capgemini's job page)
     // is no application field: the run typed the candidate's city into it and
@@ -453,6 +467,10 @@ function collectFields() {
     else if (role === 'radio') type = 'radio';
     else if (role === 'combobox' || isPopupList) type = 'text';
     else type = isCE ? 'textarea' : (el.type || tag).toLowerCase();
+    if (filePickerProxy) {
+      type = 'file';
+      el.setAttribute('data-co-file-proxy', '1');
+    }
     // A menu button outside the page's form ("Help and feedback" under a
     // Google Form, an account menu) is page chrome, not a question.
     if (popup === 'menu' && !el.closest('form') && document.querySelector('form input:not([type="hidden"]), form textarea, form select')) continue;
@@ -568,7 +586,18 @@ function collectFields() {
     // Ashby marks the sibling <label for> with a "_required_" class and draws
     // its asterisk in CSS: neither the input nor the label text carries it.
     const forLabel = labelByFor(el);
-    const required = el.required || requiredAttr || /[*✱]/.test(label) || /\brequired\b/i.test(label)
+    // Screenloop: <div><label>Question</label><span>*</span></div> then the
+    // control — the asterisk is a sibling of the label, not in its text.
+    let siblingStar = false;
+    for (let n = el.parentElement, d = 0; n && d < 4 && !siblingStar; d++, n = n.parentElement) {
+      if (/^(FORM|BODY|HTML|MAIN)$/.test(n.tagName)) break;
+      const head = [...n.children].find((c) => !c.contains(el) && c.querySelector?.('label'));
+      if (!head) continue;
+      if (head.querySelector('input, textarea, select')) break;
+      siblingStar = /[*✱]\s*$/.test((head.textContent || '').trim());
+      break;
+    }
+    const required = siblingStar || el.required || requiredAttr || /[*✱]/.test(label) || /\brequired\b/i.test(label)
       || choiceRequired || wrapperRequired || Boolean(forLabel && isRequiredNode(forLabel, ''));
     const selectWrapper = el.closest('[class*="select__container"], [class*="select-shell"], [class*="Select-container" i], [class*="react-select" i], [class*="Select-control"], spl-select, oc-select, [class*="oneclick" i], [class*="ant-select"], [class*="el-select"], [class*="MuiSelect"], [class*="MuiAutocomplete"], .select2-container, [class*="choices" i], [data-automation-id*="select" i], [data-automation-id*="dropdown" i]');
     let shadowRequired = null;

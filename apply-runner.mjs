@@ -2204,7 +2204,9 @@ async function detectSubmitRejection(page) {
 
 // Confirmation-page phrasing per supported market, same rationale/structure
 // as the rejection banner above.
-const CONFIRM_TEXT_EN = "thank you|application (received|submitted|sent)|we('|’)ve received|successfully (submitted|applied)|your application has been";
+// Not a bare "thank you": "Thank you for your interest in X" sits on
+// postings and cookie banners, and read as a sent application.
+const CONFIRM_TEXT_EN = "thank(s| you) for (applying|your application|submitting)|application (received|submitted|sent)|we('|’)ve received your application|successfully (submitted|applied)|your application has been (received|submitted|sent)|you('|’)ve (successfully )?applied";
 const CONFIRM_TEXT_FR = "merci pour votre candidature|candidature (envoyée|reçue|bien reçue)";
 const CONFIRM_TEXT_DE = "vielen dank für (ihre|deine) bewerbung|bewerbung (wurde |ist )?(erfolgreich )?(eingegangen|übermittelt|versendet|eingereicht)|wir haben (ihre|deine) bewerbung erhalten";
 const CONFIRM_TEXT_AR = "شكرا لتقديم طلبك|تم استلام طلبك|تم تقديم طلبك بنجاح";

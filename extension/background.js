@@ -1167,7 +1167,7 @@ function detectSubmitRejectionInPage() {
   // confirmation page's newsletter or search boxes are not.
   const filledStill = [...document.querySelectorAll('[data-co-i]')].filter(visible);
   const stillForm = files.length > 0 || otherFillable.some(visible) || filledStill.length >= 2;
-  const confirmed = /thank you for (applying|your application|your interest)|application (has been |was )?(submitted|received|sent|complete)|successfully (submitted|applied|sent)|we('ve| have) received your application|candidature (envoy[ée]e|re[çc]ue|transmise|enregistr[ée]e)|merci (pour|de) (votre|ta) candidature|gracias por (tu|su) (candidatura|solicitud)|vielen dank f[üu]r (ihre|deine) bewerbung|grazie per (la tua|la sua) candidatura/i.test(bodyText);
+  const confirmed = /thank you for (applying|your application)|application (has been |was )?(submitted|received|sent|complete)|successfully (submitted|applied|sent)|we('ve| have) received your application|candidature (envoy[ée]e|re[çc]ue|transmise|enregistr[ée]e)|merci (pour|de) (votre|ta) candidature|gracias por (tu|su) (candidatura|solicitud)|vielen dank f[üu]r (ihre|deine) bewerbung|grazie per (la tua|la sua) candidatura/i.test(bodyText);
   let sample = (textErrs[0]?.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 80);
   if (!sample && banner) sample = bodyText.slice(banner.index, banner.index + 120).trim();
   return { errorCount, stillForm, confirmed, sample };
@@ -1283,14 +1283,22 @@ async function dismissCookiesInTab(tabId) {
   const [{ result }] = await chrome.scripting.executeScript({
     target: { tabId },
     func: () => {
-      const re = /^(accept( all)?( cookies)?|i (agree|accept)|tout accepter|accepter( tout)?|allow all|got it|ok|j'accepte)$/i;
-      for (const el of document.querySelectorAll('button, a')) {
+      // Optional cookies are declined when the banner offers it (Workable:
+      // "Accept all" / "Decline all"); accept only a banner with no refusal.
+      const decline = /^(decline( all)?( optional)?( cookies)?|reject( all)?( optional)?( cookies)?|refuse( all)?|tout refuser|refuser( tout)?|continuer sans accepter|only (necessary|essential)( cookies)?|use (only )?(necessary|essential) cookies( only)?|alle ablehnen|ablehnen)$/i;
+      const accept = /^(accept( all)?( cookies)?|i (agree|accept)|tout accepter|accepter( tout)?|allow all|got it|ok|j'accepte)$/i;
+      const buttons = [...document.querySelectorAll('button, a')].filter((el) => {
         const t = (el.innerText || '').replace(/\s+/g, ' ').trim();
-        if (!t || t.length > 40 || !re.test(t)) continue;
+        if (!t || t.length > 40) return false;
         const r = el.getBoundingClientRect();
-        if (r.width < 5 || r.height < 5) continue;
-        el.click();
-        return t;
+        return r.width >= 5 && r.height >= 5;
+      });
+      for (const re of [decline, accept]) {
+        const el = buttons.find((b) => re.test((b.innerText || '').replace(/\s+/g, ' ').trim()));
+        if (el) {
+          el.click();
+          return (el.innerText || '').replace(/\s+/g, ' ').trim();
+        }
       }
       return null;
     },
@@ -2652,6 +2660,56 @@ async function pokeFileInputEvents(session) {
   }).catch(() => null);
 }
 
+/**
+ * A file slot drawn as a read-only box + "Browse" button (collect-fields marks
+ * it data-co-file-proxy): intercept the file chooser the button opens and
+ * hand it the local file. Nothing is clicked when no such slot is marked.
+ */
+async function trySetFileViaChooser(session, i, path) {
+  const sameSession = (src) => src.tabId === session.tabId && (src.sessionId || '') === (session.sessionId || '');
+  let onEvent = null;
+  try {
+    const found = await chrome.debugger.sendCommand(session, 'Runtime.evaluate', {
+      expression: `(() => {
+        const idx = ${JSON.stringify(String(i))};
+        const box = document.querySelector('[data-co-file-proxy="1"][data-co-upload="1"]')
+          || document.querySelector('[data-co-file-proxy="1"][data-co-i="' + idx.replace(/"/g, '') + '"]');
+        if (!box) return false;
+        for (let n = box.parentElement, d = 0; n && d < 3; d++, n = n.parentElement) {
+          const btn = [...n.querySelectorAll('button, [role="button"]')]
+            .find((b) => /^(browse|choose( a)? file|select( a)? file|upload|parcourir|durchsuchen)\\b/i.test((b.innerText || b.getAttribute('aria-label') || '').trim()));
+          if (btn) { btn.setAttribute('data-co-chooser', '1'); return true; }
+        }
+        return false;
+      })()`,
+      returnByValue: true,
+    }).catch(() => null);
+    if (found?.result?.value !== true) return { ok: false };
+    await chrome.debugger.sendCommand(session, 'Page.enable', {}).catch(() => {});
+    await chrome.debugger.sendCommand(session, 'Page.setInterceptFileChooserDialog', { enabled: true });
+    const opened = new Promise((resolve) => {
+      onEvent = (src, method, params) => {
+        if (method === 'Page.fileChooserOpened' && sameSession(src)) resolve(params);
+      };
+      chrome.debugger.onEvent.addListener(onEvent);
+      setTimeout(() => resolve(null), 5000);
+    });
+    await chrome.debugger.sendCommand(session, 'Runtime.evaluate', {
+      expression: `document.querySelector('[data-co-chooser="1"]')?.click()`,
+      userGesture: true,
+    });
+    const params = await opened;
+    if (!params?.backendNodeId) return { ok: false, error: 'file chooser not opened' };
+    await chrome.debugger.sendCommand(session, 'DOM.setFileInputFiles', { backendNodeId: params.backendNodeId, files: [path] });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err?.message || err) };
+  } finally {
+    if (onEvent) chrome.debugger.onEvent.removeListener(onEvent);
+    await chrome.debugger.sendCommand(session, 'Page.setInterceptFileChooserDialog', { enabled: false }).catch(() => {});
+  }
+}
+
 /** Search one CDP session for a marked file input and attach the local file. */
 async function trySetFileInputInSession(session, i, path) {
   let searchId;
@@ -2739,6 +2797,10 @@ async function trySetFileInputInSession(session, i, path) {
         }
       }
     }
+    // No <input type=file> in the page yet (Screenloop creates it when its
+    // "Browse" button is clicked): open the chooser under CDP interception.
+    const viaChooser = await trySetFileViaChooser(session, i, path);
+    if (viaChooser.ok) return viaChooser;
     return { ok: false };
   } catch (err) {
     return { ok: false, error: String(err?.message || err) };

@@ -200,6 +200,37 @@ function listPayload(f, { optionText = '', plan = {}, identity = {} } = {}) {
  * retry) and long answers are typed in small chunks. A flat 45 s cut the N26
  * form off halfway — the run ended in error while the tab kept typing.
  */
+/**
+ * State written when a send click went through. Only a confirmation read on
+ * the page (thank-you text, post-apply URL) counts as proof: a form that
+ * merely disappeared, a URL that changed, or a click with nothing read is
+ * "sent?" — the dashboard leaves it Started until the user confirms (an
+ * AssessFirst run marked Applied had in fact stopped on "verify your email to
+ * complete the application"). `evidence` is the page text that proved it.
+ */
+export const WEAK_SEND_EVIDENCE = new Set(['', 'formulaire disparu']);
+export function sentStateFields(evidence = '') {
+  const proof = String(evidence || '').trim();
+  if (!WEAK_SEND_EVIDENCE.has(proof)) {
+    return {
+      state: 'submitted',
+      confirmed: true,
+      unconfirmed: false,
+      confirmEvidence: proof.slice(0, 120),
+      message: 'Application sent — confirmation read on the page.',
+      pending: [],
+    };
+  }
+  return {
+    state: 'submitted',
+    confirmed: false,
+    unconfirmed: true,
+    confirmEvidence: proof,
+    message: '📨 Sent? The send was clicked but no confirmation was read on the page. Check the tab (or your inbox), then mark it applied.',
+    pending: [],
+  };
+}
+
 export function fillTimeoutMs(updates = []) {
   let ms = 20000;
   for (const u of updates || []) {
@@ -1198,7 +1229,15 @@ export class ApplyBridge {
 
     for (let hop = 0; hop < maxHops; hop++) {
       if (await run.aborted()) return 'aborted';
-      try { await this.dismissCookies(run.tabId); } catch { /* ignore */ }
+      let cookieClosed = null;
+      try { cookieClosed = await this.dismissCookies(run.tabId); } catch { /* ignore */ }
+      // A cookie dialog that showed up after the Apply click swallowed it
+      // (jobs.workable.com: the application modal never opened): once the
+      // banner is gone, the same Apply may be clicked again.
+      if (hop > 0 && (cookieClosed?.clicked || cookieClosed?.text) && attempted.size) {
+        await push(`Bannière cookies fermée (« ${cookieClosed.text || cookieClosed.clicked} ») — nouvel essai du bouton Apply.`);
+        attempted.clear();
+      }
 
       // 1) Fields first — if the form is already on screen, fill it. Do NOT
       //    scroll/click Apply (that was the "only scrolls" bug on Greenhouse).
@@ -1971,11 +2010,23 @@ export class ApplyBridge {
         });
         return false;
       }
-      await push(`Envoyé: « ${clicked.text || 'Submit'} »`, {
-        state: 'submitted',
-        message: 'Application sent. Check the confirmation in the tab.',
-        pending: [],
-      });
+      // Nothing read yet: the thank-you page (or a "verify your e-mail"
+      // step) often lands a few seconds later. Read it again before deciding.
+      let late = { kind: 'none', evidence: '' };
+      for (let k = 0; k < 3 && late.kind === 'none'; k++) {
+        await sleep(2000);
+        late = await this.pageState(run.tabId, 'sent', run.originUrl).catch((err) => {
+          if (isTabGone(err)) throw err;
+          return { kind: 'none', evidence: '' };
+        });
+      }
+      if (late.kind !== 'none' && late.kind !== 'confirmed' && !(late.kind === 'closed' && run.ignoreClosed)) {
+        await this._reportPageState(run, late);
+        return false;
+      }
+      const evidence = late.kind === 'confirmed' ? late.evidence : '';
+      const fields = sentStateFields(evidence);
+      await push(`Envoyé: « ${clicked.text || 'Submit'} »${fields.confirmed ? ` — confirmation lue (« ${String(evidence).slice(0, 60)} »)` : ' — aucune confirmation lue, à vérifier'}`, fields);
       return true;
     }
     if (clicked?.rejected) {
@@ -2009,11 +2060,11 @@ export class ApplyBridge {
       }
     };
     const sent = async (text, evidence = '') => {
-      await push(`Envoyé: « ${text || 'Submit'} »${evidence ? ` — confirmation lue (« ${String(evidence).slice(0, 60)} »)` : ''}`, {
-        state: 'submitted',
-        message: 'Application sent. Check the confirmation in the tab.',
-        pending: [],
-      });
+      const fields = sentStateFields(evidence);
+      const note = fields.confirmed
+        ? ` — confirmation lue (« ${String(evidence).slice(0, 60)} »)`
+        : ` — aucune confirmation lue${evidence ? ` (${evidence})` : ''}, à vérifier`;
+      await push(`Envoyé: « ${text || 'Submit'} »${note}`, fields);
       return true;
     };
     let page = await read();
@@ -2701,6 +2752,9 @@ export class ApplyBridge {
       if (action === 'manual_sent') {
         await push('Envoi confirmé manuellement.', {
           state: 'submitted',
+          confirmed: true,
+          unconfirmed: false,
+          confirmEvidence: 'confirmé par l’utilisateur',
           message: '📨 Send confirmed manually.',
         });
         return { ok: true, submitted: true };
