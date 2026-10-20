@@ -79,3 +79,22 @@ test('bridge: attach unavailable → null and no message (behaviour unchanged)',
   assert.equal(r.msgs.length, 0);
   assert.equal(await bridgeWith({ solveResult: { available: true, solved: true }, after: { kind: 'none' } })._solveViaAttach(r, { kind: 'email_code' }, 'sent'), null, 'e-mail codes still wait for Hugo');
 });
+test('an attached instance listed without a name (live /instances shape) is reused', async () => {
+  let attached = 0;
+  const r = await solveInAttachedTab({ url: FORM, kind: 'captcha', env: ENV, deps: deps({
+    instances: async () => [{ id: 'inst_59b2', status: 'running', attached: false, mode: 'headless' }, { id: 'inst_att', status: 'running', attached: true }],
+    attach: async () => { attached++; return { id: 'new' }; },
+    instanceTabs: async (id) => (id === 'inst_att' ? [{ id: 'T1', instanceId: id, title: 'x', url: FORM }] : []),
+  }) });
+  assert.equal(attached, 0);
+  assert.equal(r.solved, true);
+});
+
+test('only the headless default instance: attach is called once', async () => {
+  let attached = 0;
+  await solveInAttachedTab({ url: FORM, kind: 'captcha', env: ENV, deps: deps({
+    instances: async () => [{ id: 'inst_59b2', status: 'running', attached: false }],
+    attach: async () => { attached++; return { id: 'inst_1' }; },
+  }) });
+  assert.equal(attached, 1);
+});
