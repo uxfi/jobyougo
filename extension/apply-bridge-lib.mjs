@@ -25,7 +25,7 @@ import {
   isGenericDocumentSlot,
   cvFallbackFor,
   isComboboxField,
-  listTypeQuery,
+  listTypeQuery, dialAnswerCountry, labelIsOnlyPlaceholder,
   listTypeQueryAlt,
   fieldIsMulti,
   shouldReplaceFilledValue,
@@ -261,7 +261,7 @@ export function planToUpdate(f, plan, identity = {}, spec = {}) {
     if (!text) return null;
     // Other spellings of the same answer to look for in the open list
     // ("Bangkok, Thailand" → "Bangkok"). Matched only, never typed.
-    const alternates = [plan.selectMatch, plan.selectText, plan.value]
+    const alternates = [plan.selectMatch, plan.selectText, plan.value, dialAnswerCountry(text)]
       .map((v) => String(v ?? '').trim())
       .filter((v, k, all) => v && v !== text && v.length <= 60 && all.indexOf(v) === k);
     return {
@@ -2409,6 +2409,12 @@ export class ApplyBridge {
         }
         if (exhausted(liveF)) {
           if (liveF.required) pending.push(row(liveF, { reason: `requis — non rempli après ${MAX_FIELD_ATTEMPTS} essais` }));
+          continue;
+        }
+        if (labelIsOnlyPlaceholder(liveF)) {
+          // No question text: the model would guess (two "Select... Yes No"
+          // Lever questions were both answered "Yes"). The user answers it.
+          pending.push(row(liveF, { reason: liveF.required ? 'requis — question illisible (libellé introuvable), à remplir manuellement' : 'question illisible (libellé introuvable) — à vérifier' }));
           continue;
         }
         targets.push(liveF);
