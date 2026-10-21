@@ -79,6 +79,7 @@ import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
 import { CONSENT_DISMISS_SCRIPT, needsLongerWait, createSolveCooldown, createDetailBudget } from '../lib/scan-careers-wait.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
 import { createPageFetcher, findContacts, providersFromEnv, ownCompanyNames, targetCompany } from '../lib/contact-finder.mjs';
+import { safeCompanyHint, stripUnsourcedCompanyBlurb } from '../lib/email-target-guard.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
 import { postingDateFromPage, postingStatusFromApi } from '../lib/posting-date.mjs';
 import { OWN_EMPLOYER_CODE, REPETITION_LOOP_CODE, extractEvaluationScore, ownEmployerConfusion, resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
@@ -8431,6 +8432,8 @@ function publicContact(contact) {
     persona: contact.persona || 'unknown',
     kind: contact.kind || '',
     confidence: contact.confidence || 'guess',
+    // found = printed on a page / in the posting; guessed = built from a pattern.
+    status: contact.status || (contact.confidence === 'verified' ? 'found' : 'guessed'),
     score: contact.score ?? 0,
     mx: contact.mx ?? null,
     linkedinUrl: contact.linkedinUrl || '',
@@ -8634,7 +8637,8 @@ async function draftApplicationEmailRequest(body = {}, userId) {
       notes: cleanString(body.notes),
       language: emailLanguage,
       roleHint,
-      companyHint,
+      // Never one of the candidate's own companies (a tracker row once said "OneAsset" for a Vertech offer).
+      companyHint: safeCompanyHint(companyHint, cv),
       log: message => console.log(`[application-email] ${message}`),
     });
   } catch (err) {
@@ -8642,6 +8646,11 @@ async function draftApplicationEmailRequest(body = {}, userId) {
     return { status: 502, payload: { error: `Generation failed: ${err.message}` } };
   }
   if (!draft) return { status: 502, payload: { error: 'The model returned no usable email. Try again.' } };
+  // Nothing read about the company: a sentence describing it is invented.
+  {
+    const blurb = stripUnsourcedCompanyBlurb(draft.body, { company: draft.company || safeCompanyHint(companyHint, cv), sourceText: [job.text, companyText].filter(Boolean).join('\n') });
+    if (blurb.removed.length) { draft.body = blurb.body; draft.removed = [...(draft.removed || []), ...blurb.removed]; }
+  }
 
   const warnings = [
     ...draft.removed.map(sentence => `Phrase retirée (fait absent de ton CV) : « ${sentence.slice(0, 140)} »`),
@@ -10044,8 +10053,14 @@ const server = createServer(async (req, res) => {
         // The target is the offer's employer, never one of the candidate's
         // own companies (a Glassdoor page read signed-in starts with the
         // user's header: "… at OneAsset" was searched for a Vertech offer).
+        // The candidate's own addresses (CV, profile) are never a contact.
+        let ownEmails = [];
         {
-          const own = ownCompanyNames(indexCareer(await getCvMarkdown(req.userId).catch(() => '')));
+          const cvMd = await getCvMarkdown(req.userId).catch(() => '');
+          ownEmails = String(cvMd || '').match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) || [];
+          const prof = await getProfile(req.userId).catch(() => ({}));
+          if (prof?.candidate?.email) ownEmails.push(String(prof.candidate.email));
+          const own = ownCompanyNames(indexCareer(cvMd));
           const target = targetCompany({ company, jobUrl, jobText, own });
           if (target.rejected.length) {
             console.warn(`[contact-finder] own company skipped as target: ${target.rejected.join(', ')}`);
@@ -10060,7 +10075,7 @@ const server = createServer(async (req, res) => {
           if (pinchtab.up) resetPinchtabHealthCache();
         }
 
-        const found = await findContacts({ company, role, jobUrl, jobText, jobHtml }, {
+        const found = await findContacts({ company, role, jobUrl, jobText, jobHtml, ownEmails }, {
           fetchPage: contactFinderPageFetcher,
           webSearch: contactFinderWebSearch,
           providers: providersFromEnv(),
