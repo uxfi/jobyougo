@@ -106,7 +106,7 @@ import { formatReportNumber, releaseReportNumbers, reserveReportNumbers } from '
 import { getScanAggregators, fetchJobBoardPolite, jobBoardProviders } from '../lib/scan-job-boards.mjs';
 import { createSourceThrottle } from '../lib/job-board-throttle.mjs';
 import { classifyEmptySerp, serpDiagnostic } from '../lib/serp-page-check.mjs';
-import { createCircuitProbe } from '../lib/web-search-circuit-probe.mjs';
+import { createCircuitProbe, probeCooldowns } from '../lib/web-search-circuit-probe.mjs';
 import { QUERY_SECTIONS, listQuerySources } from '../lib/portal-query-sources.mjs';
 import { buildCountryEligibilityFilter, buildLocationFilter } from '../scan.mjs';
 import {
@@ -128,7 +128,8 @@ import {
   isUndatedReview,
 } from '../lib/scan-decision.mjs';
 import { portalsForProfile, scanTermsFrom } from '../lib/scan-targeting.mjs';
-import { loadQueryYield, recordQueryYield, saveQueryYield, shouldSkipQuery } from '../lib/web-search-yield.mjs';
+import { loadQueryYield, orderWebSearchSources, recordQueryYield, saveQueryYield, shouldSkipQuery } from '../lib/web-search-yield.mjs';
+import { runAtsBoardResolver } from '../lib/ats-board-resolver.mjs';
 import { SCAN_HISTORY_RETENTION_DAYS, ensureScanMemoryDir, pruneScanHistoryLines, scanHistoryCutoff, scanMemoryPaths } from '../lib/scan-memory.mjs';
 import { appendGateDrop, readGateDrops } from '../lib/gate-drops.mjs';
 import { settleWithLimit } from '../lib/scan-concurrency.mjs';
@@ -1882,9 +1883,10 @@ let _webSearchConsecFail = 0;
 const WEB_SEARCH_FAIL_BUDGET = 8;
 function webSearchCircuitOpen() { return _webSearchConsecFail >= WEB_SEARCH_FAIL_BUDGET; }
 // Half-open probes once the circuit is open (lib/web-search-circuit-probe.mjs).
+// maxWaitMs covers Brave's second challenge rest (60 s x 2, +25% jitter).
 const webSearchProbe = createCircuitProbe({
-  maxProbes: Math.max(0, Number(process.env.SCAN_WEBSEARCH_PROBES ?? 2) || 0),
-  maxWaitMs: 90000,
+  maxProbes: Math.max(0, Number(process.env.SCAN_WEBSEARCH_PROBES ?? 4) || 0),
+  maxWaitMs: 150000,
 });
 // One page diagnostic per engine per run when a results page reads empty.
 const _serpDiagLogged = new Set();
@@ -1902,6 +1904,7 @@ function resetWebSearchCircuit() {
 function recordWebSearchOutcome(ok) {
   if (ok) {
     _webSearchConsecFail = 0;
+    webSearchProbe.ok();
     return;
   }
   _webSearchConsecFail += 1;
@@ -3666,6 +3669,10 @@ const SCAN_DIRECT_DEADLINE_MS = 60_000;
 const SCAN_PROVIDER_CONCURRENCY = 4;
 const SCAN_PROVIDER_DEADLINE_MS = 120_000;
 
+// Greenhouse/Ashby/Lever boards that answered 404/410 in this scan, by company
+// name: the board resolver (lib/ats-board-resolver.mjs) repoints them at the end of the run.
+const staleAtsBoards = new Map();
+
 async function fetchSourceSection(source = {}) {
   const { name, url, type, query = '', careers_url = '' } = source;
   const provider = inferApiProviderFromUrl(url);
@@ -3676,6 +3683,9 @@ async function fetchSourceSection(source = {}) {
     careers_url,
   };
   const fallbackToSecondarySource = async (reason) => {
+    if ((provider === 'greenhouse' || provider === 'ashby' || provider === 'lever') && source.isCompany && /\bHTTP\s+(?:404|410)\b/i.test(String(reason))) {
+      staleAtsBoards.set(name, { provider, reason: String(reason) });
+    }
     // Dead Greenhouse/Ashby/Lever board tokens (HTTP 404/410) must not burn
     // SearchAPI quota or Playwright crawl time — especially on API-only scans.
     // A configured search query can discover a migrated ATS. Do not retry the
@@ -4535,7 +4545,10 @@ const engineRotation = createEngineRotation({ maxWaitMs: Math.max(0, Number.pars
 const querySpacer = createQuerySpacer({ spacingMs: Math.max(0, Number.parseInt(process.env.SCAN_QUERY_SPACING_MS || '400', 10) || 0) });
 const ENGINE_RETRY_EVERY = 8;
 const engineHealth = new Map();
-function resetEngineHealth() { engineHealth.clear(); engineBackoff.reset(); }
+// Engines that returned at least one result in this run: the half-open probe
+// waits for their cooldown, not for an engine that only ever answers empty.
+const enginesThatAnswered = new Set();
+function resetEngineHealth() { engineHealth.clear(); engineBackoff.reset(); enginesThatAnswered.clear(); }
 // Only while another engine still answers: with every engine dead, the web-search
 // circuit breaker decides, and nothing rests.
 function engineIsResting(id, allIds = []) {
@@ -4549,6 +4562,7 @@ function noteEngineResult(id, useful) {
   const h = engineHealth.get(id) || { dead: 0, skipped: 0 };
   h.dead = useful ? 0 : h.dead + 1;
   engineHealth.set(id, h);
+  if (useful) enginesThatAnswered.add(id);
 }
 
 // Run the configured PinchTab engines in order and MERGE their results (dedup
@@ -4613,7 +4627,15 @@ async function fetchPinchtabEnginesMerged(source) {
   }
   if (!loaded) {
     recordWebSearchOutcome(false);
-    return lastBlocked || { ok: false, section: null, jobs: [], engine: 'pinchtab', error: 'no web-search engine configured' };
+    // Every engine sat out this query (cooling after a challenge, or resting
+    // after answering empty): that is not a missing configuration.
+    const configured = engines.filter(id => PINCHTAB_SEARCH_ENGINES[id]);
+    return lastBlocked || {
+      ok: false, section: null, jobs: [], engine: 'pinchtab',
+      error: configured.length
+        ? `every web-search engine is resting (${engineLog.join(', ')})`
+        : 'no web-search engine configured',
+    };
   }
   // Search pages often return something even while another engine is blocked,
   // but those results can all be outside the user's target profile. Count that
@@ -5189,8 +5211,10 @@ async function fetchWebSearchSectionsSequential(sources = []) {
     for (const source of sources) {
       if (webSearchCircuitOpen()) {
         // Half-open: when the engines were only resting (captcha cooldown),
-        // wait for the shortest cooldown and let one query through.
-        const cooldowns = (webSearchConfig.engines || []).map(id => engineBackoff.remainingMs(id));
+        // wait for the cooldown of the engine that answers and let one query
+        // through. An engine that only answers empty has no cooldown and must
+        // not count (probeCooldowns).
+        const cooldowns = probeCooldowns(webSearchConfig.engines || [], id => engineBackoff.remainingMs(id), enginesThatAnswered);
         const gate = await webSearchProbe.next(cooldowns);
         if (!gate.probe) {
           results.push({ status: 'fulfilled', value: { ok: false, skipped: 'circuit-breaker', section: null, jobs: [], engine: 'web-search', error: 'web-search circuit open', note: gate.reason } });
@@ -10152,6 +10176,7 @@ const server = createServer(async (req, res) => {
           resetPinchtabSolveCircuit();
           resetWebSearchCircuit();
           resetEngineHealth();
+          staleAtsBoards.clear();
           resetPinchtabHealthCache();
           if (!IS_VERCEL) {
             const pinchtab = await ensurePinchtabRunning({
@@ -10256,6 +10281,12 @@ const server = createServer(async (req, res) => {
           if (restingQueries.length) {
             console.log(`[scan] [WebSearch] ${restingQueries.length} quer${restingQueries.length === 1 ? 'y' : 'ies'} resting after 3 empty runs: ${restingQueries.join(', ')}`);
           }
+          // Best expected yield first (lib/web-search-yield.mjs), in place: the
+          // results below are matched to these sources by index.
+          if (webSearchSources.length > 1) {
+            webSearchSources.splice(0, webSearchSources.length, ...orderWebSearchSources(webSearchSources, queryYield));
+            console.log(`[scan] [WebSearch] ordered by past yield, best first: ${webSearchSources.slice(0, 3).map(s => s.name).join(' · ')}…`);
+          }
 
           const selectedAggregators = getScanAggregators(portalsConfig)
             .filter(a => a.enabled !== false && inSel('aggregators', a.name));
@@ -10320,6 +10351,21 @@ const server = createServer(async (req, res) => {
               });
             } catch (err) {
               console.warn(`[scan] [explorer] skipped: ${err.message}`);
+            }
+            // Board resolver: tracked companies with no ATS board (they fall back
+            // to the search engines) or whose board answered 404 get their public
+            // board found by slug and verified by name, without a search engine.
+            // Takes effect on the next scan; ATS_RESOLVER=0 turns it off.
+            try {
+              await runAtsBoardResolver({
+                portalsPath: PORTALS_FILE,
+                dataDir: join(ROOT, 'data'),
+                accessOf: getCompanyScanAccess,
+                stale: staleAtsBoards,
+                config: portalsConfig,
+              });
+            } catch (err) {
+              console.warn(`[scan] [resolver] skipped: ${err.message}`);
             }
           }
           scanUrlPublishedAt = new Map();

@@ -468,123 +468,43 @@ function whenMethod3DReady(fn) {
   tick();
 }
 
+/* Every method card shows its 3D icon from the start (a WebGL still, animated while hovered). The whole
+   rail mounts once the section nears the viewport, so cards scrolled in sideways are already drawn. */
 function mountProjectMethodIcons(p, mountToken) {
   const steps = PROJECT_METHODS[p.id];
   if (!steps || !steps.length) return;
-  if (window.matchMedia('(max-width: 768px)').matches) return;
+  const section = document.querySelector('#proj-page-content .proj-method');
   const stages = [...document.querySelectorAll('.method-token-stage')];
-  if (!stages.length) return;
+  if (!section || !stages.length) return;
 
-  const visible = new Set();
-  let activeStage = null;
-  let mountGen = 0;
-
-  function pickStage(prefer) {
-    if (prefer && visible.has(prefer)) return prefer;
-    const cx = window.innerWidth / 2;
-    let best = null;
-    let bestDist = Infinity;
-    visible.forEach((stage) => {
-      const rect = stage.getBoundingClientRect();
-      const dist = Math.abs(rect.left + rect.width / 2 - cx);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = stage;
-      }
-    });
-    return best;
-  }
-
-  function release(stage) {
-    const instance = stage._method3d;
-    stage._method3d = null;
-    stage._method3dPending = false;
-    if (instance) {
-      try { instance.dispose(); } catch {}
-      window._projStage3DList = (window._projStage3DList || []).filter((item) => item !== instance);
-    }
-    const cssObj = stage.querySelector('.method-obj');
-    if (cssObj) cssObj.hidden = false;
-    if (activeStage === stage) activeStage = null;
-  }
-
-  async function activate(stage) {
-    if (!stage || mountToken !== projStage3DToken) return;
-    if (activeStage === stage && (stage._method3d || stage._method3dPending)) return;
-    const gen = ++mountGen;
-    if (activeStage && activeStage !== stage) release(activeStage);
-    activeStage = stage;
-    if (stage._method3d || stage._method3dPending) return;
-    if (!window.mountMethodIcon3D && !window.mountStage3D) {
-      whenMethod3DReady(() => {
-        if (gen === mountGen && mountToken === projStage3DToken && activeStage === stage) activate(stage);
-      });
-      return;
-    }
+  async function mount(stage) {
+    if (mountToken !== projStage3DToken || stage._method3d || stage._method3dPending) return;
     const index = Number(String(stage.id || '').replace('method-stage-', ''));
-    const step = steps[index];
-    const meta = step && METHOD_STEPS[step.type];
+    const meta = steps[index] && METHOD_STEPS[steps[index].type];
     if (!meta) return;
     stage._method3dPending = true;
     let instance = null;
     try {
-      if (meta.src && window.mountStage3D) {
-        const iso = stage.querySelector('.method-obj');
-        if (iso) iso.hidden = true;
-        instance = await window.mountStage3D({
-          stage,
-          variants: [{
-            id: meta.id,
-            label: methodLangText(meta.label),
-            src: meta.src,
-            exposure: 2.5,
-            ambient: 1.3,
-            key: 3.4,
-            rim: 2.4,
-            fill: 1.3,
-          }],
-          storageKey: `methodIcon_${meta.id}`,
-          targetSize: 1.25,
-        });
-      } else if (window.mountMethodIcon3D) {
-        instance = await window.mountMethodIcon3D({ stage, type: meta.id });
-      }
+      instance = await window.mountMethodIcon3D({ stage, type: meta.id });
     } catch (err) {
       console.warn('Method icon', err);
     }
     stage._method3dPending = false;
-    if (gen !== mountGen || mountToken !== projStage3DToken || activeStage !== stage) {
+    if (mountToken !== projStage3DToken) {
       instance?.dispose();
-      const cssObj = stage.querySelector('.method-obj');
-      if (cssObj) cssObj.hidden = false;
       return;
     }
     stage._method3d = instance || null;
     if (instance) window._projStage3DList.push(instance);
   }
 
-  methodIconIo = new IntersectionObserver((entries) => {
-    if (mountToken !== projStage3DToken) return;
-    entries.forEach((entry) => {
-      const stage = entry.target;
-      if (entry.isIntersecting) visible.add(stage);
-      else {
-        visible.delete(stage);
-        if (activeStage === stage) release(stage);
-      }
-    });
-    const next = pickStage(null);
-    if (next) activate(next);
-  }, { rootMargin: '40px' });
-
-  stages.forEach((stage) => {
-    methodIconIo.observe(stage);
-    const card = stage.closest('.proj-method-card') || stage;
-    card.addEventListener('pointerenter', () => {
-      if (mountToken !== projStage3DToken || !visible.has(stage)) return;
-      activate(stage);
-    });
-  });
+  methodIconIo = new IntersectionObserver((entries, io) => {
+    if (mountToken !== projStage3DToken || !entries.some(e => e.isIntersecting)) return;
+    io.disconnect();
+    if (methodIconIo === io) methodIconIo = null;
+    whenMethod3DReady(() => stages.forEach(mount));
+  }, { rootMargin: '400px 0px' });
+  methodIconIo.observe(section);
 }
 
 function goHome() {
@@ -2629,6 +2549,87 @@ function renderNarrativeBlock(b, stepsHTML, p) {
           </div>
         </div>
       </div>`;
+    case 'bereal-goals':
+      return `<div class="proj-n-block br-sec">
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+        <div class="br-goals">
+          <div class="br-goal br-goal--head"><span>Goal</span><span>Metric to track (hypothesis)</span><span>Why</span></div>
+          ${(b.items || []).map(x => `<div class="br-goal"><b>${x.goal}</b><span>${x.metric}</span><span>${x.why}</span></div>`).join('')}
+        </div>
+      </div>`;
+    case 'bereal-teardown':
+      return `<div class="proj-n-block br-sec">
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+        <div class="br-tear">
+          ${(b.screens || []).map(s => `<figure class="br-tear-item"><span class="br-tear-n">${s.n}</span><img src="${s.src}" alt="${s.cap}" loading="lazy" decoding="async"><figcaption>${s.cap}</figcaption></figure>`).join('')}
+        </div>
+        ${b.credit ? `<div class="br-credit">${b.credit}</div>` : ''}
+        ${b.friction ? `<div class="br-friction"><div class="proj-n-label">Friction points</div><div class="br-friction-grid">${b.friction.map((f, i) => `<div class="br-friction-item"><span>${String(i + 1).padStart(2, '0')}</span><b>${f.t}</b><p>${f.d}</p></div>`).join('')}</div></div>` : ''}
+      </div>`;
+    case 'bereal-hmw':
+      return `<div class="proj-n-block br-sec">
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        ${b.body ? `<div class="proj-n-body br-statement">${b.body}</div>` : ''}
+        <ul class="br-hmw">${(b.items || []).map(x => `<li>${x}</li>`).join('')}</ul>
+      </div>`;
+    case 'bereal-decision':
+      return `<div class="proj-n-block br-sec">
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        <div class="br-dec">
+          <div class="br-dec-col"><small>The problem</small><p>${b.problem}</p></div>
+          <div class="br-dec-col"><small>Options I considered</small><ol class="br-opts">${(b.options || []).map(o => `<li><b>${o.t}</b>${o.d}</li>`).join('')}</ol></div>
+          <div class="br-dec-col br-dec-chosen"><small>What I chose</small><p>${b.chosen}</p><small>Why</small>${Array.isArray(b.why) ? `<ul class="br-why">${b.why.map(w => `<li>${w}</li>`).join("")}</ul>` : `<p>${b.why}</p>`}</div>
+        </div>
+      </div>`;
+    case 'bereal-list':
+      return `<div class="proj-n-block br-sec">
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        <div class="br-list">${(b.items || []).map(x => `<div class="br-list-item"><b>${x.t}</b><p>${x.d}</p></div>`).join('')}</div>
+      </div>`;
+    case 'bereal-proto':
+      return `<div class="proj-n-block br-sec">
+        <div class="br-proto" data-br-proto>
+          <div class="br-proto-text">
+            ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+            ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+            ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+            <ol class="br-steps" role="tablist">
+              ${['Capture', 'Add context', 'Pick a circle', 'Post', 'See it in the feed'].map((s, i) => `<li><button type="button" data-br-step="${i}" class="${i === 0 ? 'is-active' : ''}"><span>${String(i + 1).padStart(2, '0')}</span>${s}</button></li>`).join('')}
+            </ol>
+            <a class="br-open" href="/demos/bereal/" target="_blank" rel="noopener">Open full screen ↗</a>
+          </div>
+          <div class="br-phone"><div class="br-phone-screen">
+            <iframe src="/demos/bereal/" title="BeReal. posting flow prototype" loading="lazy"></iframe>
+          </div></div>
+        </div>
+      </div>`;
+    case 'bereal-benchmark':
+      return `<div class="proj-n-block br-sec">
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+        <div class="br-bench">
+          ${(b.rows || []).map(r => `<div class="br-bench-row">
+            <div class="br-bench-app">${r.logo ? `<img src="${r.logo}" alt="" width="28" height="28" loading="lazy" decoding="async">` : ''}<span>${r.app}</span></div>
+            <div><small>What they do well</small>${r.well || r.posting || ''}</div>
+            <div class="br-bench-ins"><small>Insight for BeReal</small>${r.insight}</div>
+          </div>`).join('')}
+        </div>
+        ${b.insights ? `<div class="br-insights"><div class="proj-n-label">Key insights</div><ul>${b.insights.map(x => `<li>${x}</li>`).join('')}</ul></div>` : ''}
+      </div>`;
+    case 'bereal-principles':
+      return `<div class="proj-n-block br-sec">
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        <div class="br-principles">${(b.items || []).map((x, i) => `<div class="br-principle"><span>${String(i + 1).padStart(2, '0')}</span><b>${x.t}</b><p>${x.d}</p></div>`).join('')}</div>
+      </div>`;
     case 'tools-row':
       return `<div class="proj-n-block">
         ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
@@ -2687,220 +2688,6 @@ function methodLangText(dict) {
   if (!dict) return '';
   if (typeof dict === 'string') return dict;
   return dict[currentLang] || dict.en || '';
-}
-
-function box3d(color, w, h, d) {
-  return `<div class="box3d ${color}" style="--w:${w}px;--h:${h}px;--d:${d}px"><i class="f-front"></i><i class="f-back"></i><i class="f-left"></i><i class="f-right"></i><i class="f-top"></i><i class="f-bot"></i></div>`;
-}
-function cyl3d(color, r, h) {
-  const n = 12;
-  const seg = (2 * Math.PI * r / n + 0.8).toFixed(1);
-  const segs = Array.from({ length: n }, (_, i) =>
-    `<i class="cyl-seg" style="transform:rotateY(${i * (360 / n)}deg) translateZ(${r}px)"></i>`
-  ).join('');
-  return `<div class="cyl3d ${color}" style="--r:${r}px;--h:${h}px;--seg:${seg}px">${segs}<i class="cyl-cap cap-top"></i><i class="cyl-cap cap-bot"></i></div>`;
-}
-function pyr3d(color, w, h) {
-  return `<div class="pyr3d ${color}" style="--w:${w}px;--h:${h}px"><i class="pyr-f" style="transform:rotateY(0deg) rotateX(26deg)"></i><i class="pyr-f" style="transform:rotateY(90deg) rotateX(26deg)"></i><i class="pyr-f" style="transform:rotateY(180deg) rotateX(26deg)"></i><i class="pyr-f" style="transform:rotateY(270deg) rotateX(26deg)"></i></div>`;
-}
-function ball3d(color, r) {
-  return `<div class="ball3d ${color}" style="--r:${r}px"></div>`;
-}
-function s3dItem(x, y, z, rot, html) {
-  return `<div class="s3d-item" style="transform:translate3d(${x}px,${y}px,${z}px) ${rot || ''}">${html}</div>`;
-}
-
-function renderMethodObject(type) {
-  const shapes = {
-    research:
-      s3dItem(-16, 18, -12, '', box3d('paper', 54, 70, 8)) +
-      s3dItem(10, -8, 8, 'rotateX(78deg)', cyl3d('gold', 32, 11)) +
-      s3dItem(34, 28, 16, 'rotateZ(38deg) rotateX(8deg)', box3d('gold', 11, 46, 11)) +
-      s3dItem(38, 48, 16, '', ball3d('gold', 7)),
-    'user-research':
-      s3dItem(-28, -24, 0, '', ball3d('skin', 15)) +
-      s3dItem(-28, 16, 0, '', box3d('teal', 28, 36, 20)) +
-      s3dItem(26, -30, 12, '', ball3d('skin', 17)) +
-      s3dItem(26, 12, 12, '', box3d('blue', 30, 40, 22)),
-    workshops:
-      s3dItem(-22, 14, -14, 'rotateY(-28deg) rotateX(10deg)', box3d('orange', 70, 8, 70)) +
-      s3dItem(-8, 2, 2, 'rotateY(-8deg)', box3d('yellow', 70, 8, 70)) +
-      s3dItem(18, -12, 14, 'rotateY(24deg) rotateX(-8deg)', box3d('mint', 70, 8, 70)) +
-      s3dItem(8, -28, 18, '', ball3d('pink', 6)),
-    'user-flows':
-      s3dItem(-36, 12, 14, '', box3d('gold', 30, 30, 30)) +
-      s3dItem(22, -22, -8, '', box3d('blue', 40, 30, 40)) +
-      s3dItem(8, 32, 24, '', box3d('teal', 26, 26, 26)),
-    ia:
-      s3dItem(0, -32, 0, '', box3d('ink', 88, 20, 40)) +
-      s3dItem(-32, 16, 0, '', box3d('paper', 32, 28, 32)) +
-      s3dItem(0, 22, 4, '', box3d('gold', 24, 36, 24)) +
-      s3dItem(32, 16, 0, '', box3d('paper', 32, 28, 32)),
-    wireframe:
-      s3dItem(-12, 18, -20, '', box3d('frame paper', 92, 64, 8)) +
-      s3dItem(0, 2, 0, '', box3d('frame paper', 92, 64, 8)) +
-      s3dItem(12, -14, 20, '', box3d('frame paper', 92, 64, 8)),
-    prototype:
-      s3dItem(0, 0, 0, 'rotateX(-8deg) rotateY(12deg)', box3d('night phone', 50, 102, 14)),
-    'user-tests':
-      s3dItem(0, 10, 0, '', box3d('paper clip', 74, 94, 10)) +
-      s3dItem(0, -44, 8, '', box3d('green', 28, 16, 18)),
-    'ui-design':
-      s3dItem(0, 4, 0, '', box3d('paper window', 110, 74, 14)),
-    'design-system':
-      s3dItem(-26, 16, -22, '', box3d('orange', 34, 34, 34)) +
-      s3dItem(24, 16, -22, '', box3d('blue', 34, 34, 34)) +
-      s3dItem(-26, 16, 20, '', box3d('green', 34, 34, 34)) +
-      s3dItem(24, -6, 20, '', box3d('pink', 34, 52, 34)),
-    'ai-vibe-code':
-      s3dItem(0, 22, -6, '', box3d('night', 92, 62, 14)) +
-      s3dItem(0, 10, 4, '', box3d('purple', 76, 42, 6)) +
-      s3dItem(-22, 2, 12, '', box3d('mint', 22, 7, 5)) +
-      s3dItem(8, 10, 12, '', box3d('pink', 30, 7, 5)) +
-      s3dItem(24, -6, 12, '', box3d('gold', 18, 7, 5)) +
-      s3dItem(-28, -4, 12, '', box3d('mint', 8, 18, 5)) +
-      s3dItem(40, -30, 26, '', pyr3d('purple', 24, 34)) +
-      s3dItem(-40, -26, 22, '', ball3d('mint', 8)) +
-      s3dItem(18, -34, 18, '', ball3d('pink', 6)),
-    audit:
-      s3dItem(-18, 18, -10, '', box3d('paper', 58, 78, 10)) +
-      s3dItem(-18, -28, 0, '', box3d('orange', 22, 12, 12)) +
-      s3dItem(-28, 2, 8, '', box3d('orange', 28, 6, 5)) +
-      s3dItem(-10, 12, 8, '', box3d('yellow', 34, 6, 5)) +
-      s3dItem(-18, 22, 8, '', box3d('green', 22, 6, 5)) +
-      s3dItem(28, -6, 18, 'rotateX(18deg) rotateZ(-12deg)', cyl3d('gold', 22, 8)) +
-      s3dItem(28, -6, 18, 'rotateX(18deg) rotateZ(-12deg)', cyl3d('paper', 14, 4)) +
-      s3dItem(42, 18, 22, 'rotateZ(38deg) rotateX(10deg)', box3d('gold', 8, 36, 8)) +
-      s3dItem(-6, -8, 20, '', ball3d('orange', 7)) +
-      s3dItem(8, 6, 16, '', ball3d('yellow', 5)),
-    handoff:
-      s3dItem(-34, 10, -8, 'rotateY(22deg)', box3d('frame paper', 52, 68, 8)) +
-      s3dItem(-34, 0, 0, 'rotateY(22deg)', box3d('blue', 28, 18, 4)) +
-      s3dItem(-34, 18, 0, 'rotateY(22deg)', box3d('teal', 20, 10, 4)) +
-      s3dItem(-2, 4, 6, 'rotateZ(90deg)', cyl3d('gold', 5, 26)) +
-      s3dItem(8, 4, 6, '', box3d('gold', 10, 10, 10)) +
-      s3dItem(36, 8, 4, 'rotateY(-18deg)', box3d('night', 54, 64, 12)) +
-      s3dItem(36, -2, 12, 'rotateY(-18deg)', box3d('mint', 30, 6, 4)) +
-      s3dItem(36, 8, 12, 'rotateY(-18deg)', box3d('blue', 38, 6, 4)) +
-      s3dItem(36, 18, 12, 'rotateY(-18deg)', box3d('gold', 22, 6, 4)),
-    brand:
-      s3dItem(0, 18, 0, '', cyl3d('paper', 42, 12)) +
-      s3dItem(-20, -8, 12, '', ball3d('orange', 10)) +
-      s3dItem(20, -12, -8, '', ball3d('blue', 11)) +
-      s3dItem(4, -4, 22, '', ball3d('green', 9)) +
-      s3dItem(-4, -18, 4, '', ball3d('pink', 8)),
-    'product-vision':
-      s3dItem(0, 34, 0, '', box3d('paper', 70, 10, 70)) +
-      s3dItem(0, 24, 0, 'rotateX(90deg)', cyl3d('gold', 34, 5)) +
-      s3dItem(0, 20, 0, 'rotateX(90deg)', cyl3d('paper', 22, 5)) +
-      s3dItem(0, 16, 0, 'rotateX(90deg)', cyl3d('gold', 10, 6)) +
-      s3dItem(0, -8, 0, '', box3d('ink', 14, 44, 14)) +
-      s3dItem(0, -34, 0, '', ball3d('yellow', 9)) +
-      s3dItem(32, -18, 18, '', box3d('gold', 10, 10, 10)),
-    'journey-mapping':
-      s3dItem(-42, 26, 12, '', box3d('teal', 30, 12, 30)) +
-      s3dItem(-6, 4, 0, '', box3d('blue', 30, 12, 30)) +
-      s3dItem(34, -22, -12, '', box3d('gold', 30, 12, 30)) +
-      s3dItem(-42, 8, 12, '', ball3d('mint', 9)) +
-      s3dItem(-6, -14, 0, '', ball3d('blue', 9)) +
-      s3dItem(34, -40, -12, '', ball3d('gold', 10)) +
-      s3dItem(-24, 14, 6, 'rotateZ(38deg) rotateX(8deg)', cyl3d('teal', 3.5, 40)) +
-      s3dItem(14, -10, -6, 'rotateZ(40deg) rotateX(-10deg)', cyl3d('blue', 3.5, 42)) +
-      s3dItem(34, -52, -12, '', box3d('yellow', 12, 8, 12)),
-    automation:
-      s3dItem(-22, 6, 0, 'rotateX(72deg)', cyl3d('green', 20, 14)) +
-      s3dItem(-22, 6, 30, 'rotateX(72deg)', box3d('green', 12, 14, 16)) +
-      s3dItem(-22, 6, -30, 'rotateX(72deg)', box3d('green', 12, 14, 16)) +
-      s3dItem(4, 6, 0, 'rotateX(72deg)', box3d('green', 16, 14, 12)) +
-      s3dItem(-48, 6, 0, 'rotateX(72deg)', box3d('green', 16, 14, 12)) +
-      s3dItem(-22, 6, 0, 'rotateX(72deg)', cyl3d('night', 7, 16)) +
-      s3dItem(30, 16, 16, 'rotateX(72deg)', cyl3d('mint', 14, 12)) +
-      s3dItem(30, 16, 36, 'rotateX(72deg)', box3d('mint', 9, 12, 12)) +
-      s3dItem(30, 16, -4, 'rotateX(72deg)', box3d('mint', 9, 12, 12)) +
-      s3dItem(48, 16, 16, 'rotateX(72deg)', box3d('mint', 12, 12, 9)) +
-      s3dItem(12, 16, 16, 'rotateX(72deg)', box3d('mint', 12, 12, 9)) +
-      s3dItem(30, 16, 16, 'rotateX(72deg)', cyl3d('night', 5, 14)) +
-      s3dItem(4, 10, 8, 'rotateZ(90deg)', cyl3d('gold', 4, 20)),
-    'data-ops':
-      s3dItem(0, 28, -8, '', box3d('night', 96, 10, 58)) +
-      s3dItem(-30, 4, 8, '', box3d('mint', 16, 36, 12)) +
-      s3dItem(-8, -2, 8, '', box3d('green', 16, 48, 12)) +
-      s3dItem(14, 8, 8, '', box3d('teal', 16, 28, 12)) +
-      s3dItem(36, 0, 8, '', box3d('gold', 16, 44, 12)) +
-      s3dItem(-34, -28, 18, '', ball3d('mint', 6)) +
-      s3dItem(38, -30, 18, '', ball3d('gold', 5)),
-    'project-mgmt':
-      s3dItem(0, 16, -8, '', box3d('paper', 92, 8, 64)) +
-      s3dItem(-28, 4, 4, '', box3d('ink', 22, 58, 40)) +
-      s3dItem(0, 4, 8, '', box3d('orange', 22, 58, 40)) +
-      s3dItem(28, 4, 2, '', box3d('mint', 22, 58, 40)) +
-      s3dItem(-28, -18, 18, '', box3d('yellow', 16, 10, 22)),
-    'dev-follow':
-      s3dItem(0, 10, 0, '', box3d('night', 92, 68, 12)) +
-      s3dItem(-22, 4, 12, '', box3d('green', 16, 16, 16)) +
-      s3dItem(0, -2, 12, '', box3d('mint', 16, 28, 16)) +
-      s3dItem(22, 0, 12, '', box3d('green', 16, 22, 16)),
-    'ai-agent':
-      s3dItem(0, -6, 0, '', box3d('purple', 36, 44, 22)) +
-      s3dItem(0, -36, 8, '', ball3d('paper', 16)) +
-      s3dItem(28, -18, 16, '', pyr3d('mint', 18, 26)) +
-      s3dItem(-30, -8, 14, '', box3d('night', 22, 16, 8)),
-    database:
-      s3dItem(0, 22, 0, '', cyl3d('blue', 46, 16)) +
-      s3dItem(0, 2, 0, '', cyl3d('ink', 52, 16)) +
-      s3dItem(0, -18, 0, '', cyl3d('teal', 40, 16)),
-    'api-connectors':
-      s3dItem(-36, 4, 0, '', box3d('blue', 28, 28, 16)) +
-      s3dItem(36, 4, 0, '', box3d('orange', 28, 28, 16)) +
-      s3dItem(0, 4, 4, 'rotateZ(90deg)', cyl3d('gold', 6, 36)) +
-      s3dItem(0, -22, 12, '', ball3d('mint', 7)),
-    communication:
-      s3dItem(-8, 6, 0, '', box3d('paper', 68, 46, 12)) +
-      s3dItem(30, 18, 10, '', ball3d('pink', 13)) +
-      s3dItem(42, 2, 16, '', box3d('orange', 16, 12, 8)) +
-      s3dItem(-38, -22, 12, '', box3d('blue', 26, 16, 8)),
-    seo:
-      s3dItem(-6, 4, 0, 'rotateX(72deg)', cyl3d('paper', 34, 10)) +
-      s3dItem(-6, 4, 0, 'rotateX(72deg)', cyl3d('night', 20, 12)) +
-      s3dItem(22, 26, 8, 'rotateZ(42deg)', box3d('ink', 8, 34, 8)) +
-      s3dItem(-34, -18, 14, '', box3d('paper', 34, 42, 8)),
-    marketing:
-      s3dItem(-8, 34, 0, '', box3d('orange', 72, 10, 48)) +
-      s3dItem(-8, 16, 0, '', box3d('yellow', 54, 10, 40)) +
-      s3dItem(-8, -2, 0, '', box3d('gold', 36, 10, 32)) +
-      s3dItem(-8, -20, 0, '', box3d('night', 22, 10, 24)) +
-      s3dItem(42, 4, 16, '', box3d('pink', 12, 48, 12)) +
-      s3dItem(58, 12, 16, '', box3d('orange', 12, 32, 12)) +
-      s3dItem(74, 20, 16, '', box3d('yellow', 12, 18, 12)) +
-      s3dItem(-48, -22, 18, '', ball3d('pink', 8)) +
-      s3dItem(20, -34, 20, '', ball3d('yellow', 6)),
-    'game-3d':
-      s3dItem(0, 34, 0, '', box3d('night', 78, 12, 78)) +
-      s3dItem(0, 6, 0, '', pyr3d('gold', 58, 78)) +
-      s3dItem(-34, 16, 26, '', box3d('teal', 16, 30, 16)) +
-      s3dItem(36, 18, 22, '', box3d('orange', 14, 26, 14)) +
-      s3dItem(0, -36, 6, '', ball3d('yellow', 9)) +
-      s3dItem(28, -8, 30, '', ball3d('gold', 6)),
-  };
-  return `<div class="s3d-shadow"></div><div class="s3d-scene">${shapes[type] || shapes.research}</div>`;
-}
-
-function renderMethodMinis(id, extraClass) {
-  const steps = PROJECT_METHODS[id];
-  if (!steps || !steps.length) return '';
-  const names = steps.map(step => {
-    const meta = METHOD_STEPS[step.type];
-    return meta ? methodLangText(meta.label) : '';
-  }).filter(Boolean).join(', ');
-  const cls = extraClass ? `proj-list-methods ${extraClass}` : 'proj-list-methods';
-  return `<div class="${cls}" aria-label="${names.replace(/"/g, '&quot;')}">${steps.map((step, i) => {
-    const meta = METHOD_STEPS[step.type];
-    if (!meta) return '';
-    const name = methodLangText(meta.label).replace(/"/g, '&quot;');
-    return `<div class="proj-list-method" data-type="${step.type}" title="${name}">
-      <div class="method-obj" data-type="${step.type}" style="--d:${(i * 0.18).toFixed(2)}s">${renderMethodObject(step.type)}</div>
-    </div>`;
-  }).join('')}</div>`;
 }
 
 function getUsedMethodTypes() {
@@ -2971,7 +2758,8 @@ function methodBannerSlots(count, width) {
   const cols = Math.max(narrow ? 5 : 11, Math.min(24, Math.round(width / pitch)));
   const gap = narrow ? 12 : 20;
   const holeRows = 3;
-  let holeCols = narrow ? cols : Math.min(8, Math.max(6, cols - 8));
+  // wide enough on desktop for the count panel to keep its subtitle on one line (two tile columns each side)
+  let holeCols = narrow ? cols : Math.min(10, cols - 4);
   if (holeCols > cols - (narrow ? 0 : 2)) holeCols = Math.max(4, cols - (narrow ? 0 : 2));
   if ((cols - holeCols) % 2) holeCols = Math.max(4, holeCols - 1);
   let rows = narrow ? 7 : 5;
@@ -3034,10 +2822,40 @@ function burstMethods(root, track) {
   });
 }
 
+/* Each tile shows the same WebGL icon as the project method cards (a still, animated while hovered),
+   mounted once the grid nears the viewport and remounted when a resize rebuilds the grid. */
+let methodsCarouselIcons = [];
+let methodsCarouselIo = null;
+let methodsCarouselWidth = 0;
+
+function mountMethodsCarouselIcons(root, track) {
+  methodsCarouselIo?.disconnect();
+  methodsCarouselIcons.forEach(icon => { try { icon.dispose(); } catch {} });
+  methodsCarouselIcons = [];
+  if (!('IntersectionObserver' in window)) return;
+  const stages = [...track.querySelectorAll('.methods-carousel-visual[data-type]')];
+  methodsCarouselIo = new IntersectionObserver((entries, io) => {
+    if (!entries.some(e => e.isIntersecting)) return;
+    io.disconnect();
+    whenMethod3DReady(() => stages.forEach(async (stage) => {
+      try {
+        const icon = await window.mountMethodIcon3D({ stage, type: stage.dataset.type });
+        if (!icon) return;
+        if (!stage.isConnected) { icon.dispose(); return; }
+        methodsCarouselIcons.push(icon);
+      } catch (err) {
+        console.warn('Method icon', err);
+      }
+    }));
+  }, { rootMargin: '400px 0px' });
+  methodsCarouselIo.observe(root);
+}
+
 function renderMethodsCarousel() {
   const root = document.getElementById('methods-carousel');
   const track = document.getElementById('methods-carousel-track');
   if (!root || !track) return;
+  methodsCarouselWidth = root.clientWidth;
   const types = getUsedMethodTypes();
   const countEl = document.getElementById('methods-count');
   if (countEl) countEl.textContent = String(types.length);
@@ -3058,19 +2876,21 @@ function renderMethodsCarousel() {
     const slot = layout.slots[i] || layout.slots[layout.slots.length - 1];
     const jitter = methodJitter(type);
     return `<div class="methods-carousel-item" data-type="${type}" style="--c:${slot.c};--r:${slot.r};--jx:${jitter.jx}px;--jy:${jitter.jy}px;--jr:${jitter.jr}deg">
-      <div class="methods-carousel-visual" aria-hidden="true">
-        <div class="method-obj" data-type="${type}">${renderMethodObject(type)}</div>
-      </div>
+      <div class="methods-carousel-visual" data-type="${type}" aria-hidden="true"></div>
       <div class="methods-carousel-label" data-method-type-label="${type}">${name}</div>
     </div>`;
   }).join('');
   burstMethods(root, track);
+  mountMethodsCarouselIcons(root, track);
   if (!renderMethodsCarousel.bound) {
     renderMethodsCarousel.bound = true;
     let timer;
+    // The grid depends on the width only: a height-only resize (a phone's URL bar) keeps the drawn icons.
     window.addEventListener('resize', () => {
       clearTimeout(timer);
-      timer = setTimeout(renderMethodsCarousel, 150);
+      timer = setTimeout(() => {
+        if (root.clientWidth !== methodsCarouselWidth) renderMethodsCarousel();
+      }, 150);
     });
   }
 }
@@ -3097,9 +2917,7 @@ function renderMethodSchema(p) {
             return `<li class="proj-method-card" data-type="${step.type}">
               <div class="method-visual">
                 <span class="method-frame-num">${num}</span>
-                <div class="method-token-stage" id="method-stage-${i}" data-method-type="${step.type}">
-                  <div class="method-obj" data-type="${step.type}" style="--d:${(i * 0.22).toFixed(2)}s">${renderMethodObject(step.type)}</div>
-                </div>
+                <div class="method-token-stage" id="method-stage-${i}" data-method-type="${step.type}"></div>
               </div>
               <div class="method-caption">
                 <strong class="proj-method-name" data-method-type-label="${step.type}">${name}</strong>
@@ -3433,6 +3251,19 @@ const WORK_MOOD = {
   shiseido: null,
 };
 
+// The hover cover shows the project's logo in white over its image. Logos drawn on an opaque tile would turn
+// into a white square under the CSS filter, so those use a white cut-out made for this.
+const WORK_LOGO_WHITE = {
+  skiset: '../images/skiset-logo-white.png',
+  vloggy: '../images/vloggy_logo-white.png',
+  panfy: '../images/panfy_icon-white.png',
+  jarvos: '../images/jarvos-logo-white.svg',
+  'ancient-world': '../images/ancient-world-logo-white.svg',
+  // white parts inside the mark (BMW quadrants and letters, SNCF lettering) stay see-through
+  bmw: '../images/bmw-white.png',
+  sncf: '../images/sncf-white.png',
+};
+
 function workShotHTML(src, frame, logo, loading, fit) {
   if (!src) return '';
   const lazy = loading ? ` loading="${loading}"` : '';
@@ -3466,7 +3297,8 @@ function renderProjList() {
   const listed = publicProjects().filter(p => !listExclude.includes(p.id));
   let rowIndex = 0;
   const rowsHTML = (siteOrder ? sortBySiteWorkOrder(listed, siteOrder) : listed.sort((a, b) => {
-    const rank = p => p.id === 'arlequin' ? featuredOrder.length + 1 : (featuredOrder.includes(p.id) ? featuredOrder.indexOf(p.id) : featuredOrder.length);
+    // Vloggy sits near the end (after BMW, SNCF and the rest), Arlequin last
+    const rank = p => p.id === 'arlequin' ? featuredOrder.length + 1 : p.id === 'vloggy' ? featuredOrder.length + 0.5 : (featuredOrder.includes(p.id) ? featuredOrder.indexOf(p.id) : featuredOrder.length);
     return rank(a) - rank(b);
   })).map(p => {
     // Hardcoded taxonomy mapping requested by user
@@ -3485,6 +3317,7 @@ function renderProjList() {
     else if (id === 'sg') derivedTags.push('B2C', 'FinTech');
     else if (id === 'arlequin') derivedTags.push('FinTech', 'Web3');
     else if (id === 'upviral') derivedTags.push('B2B', 'SaaS');
+    else if (id === 'bereal') derivedTags.push('B2C', 'Mobile App');
     else if (id === 'edenred') derivedTags.push('B2B', 'FinTech', 'Mobile App');
     else if (id === 'oneasset') { if (!siteCfg()) derivedTags.push('AI Product'); } // host page: OneAsset is not an AI product
     else if (p.group === 'automation') derivedTags.push('Automation', 'CRM Ops');
@@ -3517,7 +3350,7 @@ function renderProjList() {
     <div class="work-row" data-id="${p.id}" data-visual="${screen}" data-frame="${frame}" data-fit="${shot && shot.fit || ''}" data-logo="${p.logo || ''}" onclick="openProject('${p.id}')">
       <div class="work-thumb">${workShotHTML(screen, frame, p.logo, 'lazy', shot && shot.fit)}</div>
       <span class="work-n">${n}</span>
-      <span class="work-cover">${mood ? `<img src="${mood}" alt="" loading="${loading}" decoding="async">` : (p.logo ? `<img class="is-logo" src="${p.logo}" alt="" loading="${loading}" decoding="async">` : '')}</span>
+      <span class="work-cover${mood && p.logo ? ' has-logo' : ''}">${mood ? `<img src="${mood}" alt="" loading="${loading}" decoding="async">${p.logo ? `<img class="work-cover-logo" src="${WORK_LOGO_WHITE[p.id] || p.logo}" alt="" loading="${loading}" decoding="async">` : ''}` : (p.logo ? `<img class="is-logo" src="${p.logo}" alt="" loading="${loading}" decoding="async">` : '')}</span>
       <div class="work-main">
         <div class="work-name"><span class="proj-list-name">${p.company}</span></div>
         <p class="work-sub">${p.subtitle || p.desc.replace(/[.!?]+$/, '')}</p>
@@ -4329,18 +4162,6 @@ function setLang(lang, opts) {
     const text = lang === 'fr' ? (el.dataset.noteFr || el.dataset.noteEn) : el.dataset.noteEn;
     if (text) el.textContent = text;
   });
-  document.querySelectorAll('.proj-list-method[data-type]').forEach(el => {
-    const meta = METHOD_STEPS[el.getAttribute('data-type')];
-    if (meta) el.setAttribute('title', methodLangText(meta.label));
-  });
-  document.querySelectorAll('.proj-list-methods').forEach(el => {
-    const names = [...el.querySelectorAll('.proj-list-method[data-type]')].map(node => {
-      const meta = METHOD_STEPS[node.getAttribute('data-type')];
-      return meta ? methodLangText(meta.label) : '';
-    }).filter(Boolean).join(', ');
-    if (names) el.setAttribute('aria-label', names);
-  });
-
   if (typeof renderGithubActivity === 'function') renderGithubActivity();
   renderClientsTable(); // the ledger's "now" / "Present" labels follow the language
   if (typeof renderStoryModalContent === 'function') renderStoryModalContent();
@@ -4492,6 +4313,24 @@ if (SITE_INITIAL_LANG) {
   else boot();
 })();
 
+/* How I work: the three cards rise in one after the other the first time the section is on screen
+   (portfolio.html .hw-reveal / .is-in; CSS does nothing under reduced motion). */
+(function howIWorkReveal() {
+  const run = () => {
+    const sec = document.querySelector('.hw-section');
+    if (!sec || !('IntersectionObserver' in window)) return;
+    sec.classList.add('hw-reveal');
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some(e => e.isIntersecting)) return;
+      sec.classList.add('is-in');
+      io.disconnect();
+    }, { threshold: 0.15 });
+    io.observe(sec);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+  else run();
+})();
+
 /* ── Hello World laptop (2026-10-18): closed until its section is on screen, then it opens, boots on
    "Hello World" and plays the screens of the three highlighted projects; the bubble of the project on
    screen lights up, and hovering a bubble shows its screen. Styles in #editorial-sections (.m-intro). ── */
@@ -4536,3 +4375,19 @@ if (SITE_INITIAL_LANG) {
     b.addEventListener('focus', pick);
   });
 })();
+
+// BeReal. case study: step rail drives the embedded prototype (ui/demos/bereal) via postMessage.
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-br-step]');
+  if (!t) return;
+  const root = t.closest('[data-br-proto]');
+  const frame = root && root.querySelector('iframe');
+  if (!frame || !frame.contentWindow) return;
+  frame.contentWindow.postMessage({ bereal: 'go', step: +t.dataset.brStep }, '*');
+  root.querySelectorAll('[data-br-step]').forEach(x => x.classList.toggle('is-active', x === t));
+});
+window.addEventListener('message', (e) => {
+  const d = e.data;
+  if (!d || d.bereal !== 'step') return;
+  document.querySelectorAll('[data-br-proto] [data-br-step]').forEach(x => x.classList.toggle('is-active', +x.dataset.brStep === d.step));
+});

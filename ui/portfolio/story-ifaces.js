@@ -605,6 +605,18 @@ document.getElementById('story-modal')?.addEventListener('click', (event) => {
 ═══════════════════════════════════════════ */
 const INTERFACES = [
   {
+    id: 'bereal-posting-flow',
+    name: 'BeReal. — Posting Flow',
+    tag: 'Mobile · Social · Design challenge',
+    type: 'mobile',
+    thumb: 'covers/iface-bereal-posting-flow.webp',
+    caseStudy: 'bereal', // portfolio case study: /portfolio#project/bereal
+    screens: [
+      { label: 'Posting flow', src: 'demos/bereal/' },
+      { label: 'Feed', src: 'demos/bereal/?step=feed' }
+    ]
+  },
+  {
     id: 'challenge-live-webinar',
     name: '5-Day Challenge — Webinar Opt-in',
     tag: 'Landing · Webinar · Cal-inspired',

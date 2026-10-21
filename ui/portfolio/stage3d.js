@@ -54,7 +54,7 @@
     camera.position.set(0, 0, 9.5);
 
     // Small stages (method icons loaded from a GLB) are drawn at the screen's pixel density with antialiasing,
-    // otherwise they look pixelated next to the crisp CSS icons; the big hero stage keeps 1x for performance.
+    // otherwise they look pixelated; the big hero stage keeps 1x for performance.
     const small = stage.clientWidth > 0 && stage.clientWidth <= 420;
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
@@ -907,31 +907,51 @@
     }
   }
 
-  // Only one method icon is live at a time (app.js releases the previous one
-  // before activating the next), so they share one WebGL context and its
-  // canvas moves between stages. A fresh renderer per card meant a new
-  // context, shader compile and geometry upload every time a card woke up.
+  // Every method icon shows its WebGL model from the start: a still of the rest pose is drawn once into the
+  // stage's own 2D canvas by a small offscreen renderer. Only the hovered icon animates, so a single live
+  // WebGL context is shared by all stages and its canvas moves to whichever one the pointer is on.
+  function methodPixelRatio() {
+    // At least 2x even on 1x screens: the browser scales the 2x buffer down (supersampling), so edges stay
+    // clean where 1x + MSAA alone still looked pixelated; capped at 3x for very dense screens.
+    return Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
+  }
+
+  function createMethodRenderer(THREE) {
+    const renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true,
+      stencil: false,
+      depth: true,
+    });
+    renderer.setPixelRatio(methodPixelRatio());
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.28;
+    renderer.setClearColor(0x000000, 0);
+    return renderer;
+  }
+
+  function createMethodScene(THREE) {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 40);
+    camera.position.set(0, 0.12, 3.4);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.52));
+    const key = new THREE.DirectionalLight(0xfff4e0, 2.55);
+    key.position.set(2.6, 3.4, 3.2);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x9fffd1, 1.65);
+    rim.position.set(-2.6, 1.2, -2.4);
+    scene.add(rim);
+    const fill = new THREE.DirectionalLight(0xbcd4ff, 0.95);
+    fill.position.set(0, -2.2, 1.6);
+    scene.add(fill);
+    return { scene, camera };
+  }
+
   let sharedMethodRenderer = null;
   let methodRendererOwner = null;
   function getMethodRenderer(THREE) {
-    if (!sharedMethodRenderer) {
-      // A ~168px canvas: antialiasing and the screen's pixel density (capped at 2x) cost little and keep the
-      // icon as sharp as the CSS version it replaces on hover (1x without AA looked pixelated on HiDPI screens).
-      const renderer = new THREE.WebGLRenderer({
-        alpha: true,
-        antialias: true,
-        stencil: false,
-        depth: true,
-      });
-      // At least 2x even on 1x screens: the browser scales the 2x buffer down (supersampling), so edges stay
-      // clean where 1x + MSAA alone still looked pixelated; capped at 3x for very dense screens.
-      renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio || 1, 2), 3));
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.28;
-      renderer.setClearColor(0x000000, 0);
-      sharedMethodRenderer = renderer;
-    }
+    if (!sharedMethodRenderer) sharedMethodRenderer = createMethodRenderer(THREE);
     return sharedMethodRenderer;
   }
 
@@ -954,32 +974,41 @@
     return model;
   }
 
-  function createMethodIcon3D(THREE, options, RoomEnvironment) {
+  let stillKit = null;
+  function drawMethodStill(THREE, canvas, type) {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return false;
+    if (!stillKit) stillKit = { renderer: createMethodRenderer(THREE), ...createMethodScene(THREE) };
+    const { renderer, scene, camera } = stillKit;
+    const ratio = methodPixelRatio();
+    renderer.setPixelRatio(ratio);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    // The cached model may sit in a live scene: borrow it and give it back where it was.
+    const model = getMethodModel(THREE, type);
+    const home = model.parent;
+    scene.add(model);
+    model.rotation.y = -0.5;
+    model.position.y = model.userData.baseY;
+    animateMethodParts(model, 0, true);
+    renderer.render(scene, camera);
+    canvas.width = Math.round(w * ratio);
+    canvas.height = Math.round(h * ratio);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Same task as render(), so the WebGL drawing buffer has not been cleared yet.
+    ctx.drawImage(renderer.domElement, 0, 0, canvas.width, canvas.height);
+    scene.remove(model);
+    if (home) home.add(model);
+    return true;
+  }
+
+  function createMethodIcon3D(THREE, options) {
     const { stage, type } = options;
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 40);
-    camera.position.set(0, 0.12, 3.4);
-
-    const renderer = getMethodRenderer(THREE);
+    const { scene, camera } = createMethodScene(THREE);
     const owner = {};
-    methodRendererOwner = owner;
     const ownsRenderer = () => methodRendererOwner === owner;
-    renderer.setSize(stage.clientWidth, stage.clientHeight, false);
-    stage.appendChild(renderer.domElement);
-
-    let envTarget = null;
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.52));
-    const key = new THREE.DirectionalLight(0xfff4e0, 2.55);
-    key.position.set(2.6, 3.4, 3.2);
-    scene.add(key);
-    const rim = new THREE.DirectionalLight(0x9fffd1, 1.65);
-    rim.position.set(-2.6, 1.2, -2.4);
-    scene.add(rim);
-    const fill = new THREE.DirectionalLight(0xbcd4ff, 0.95);
-    fill.position.set(0, -2.2, 1.6);
-    scene.add(fill);
-
     const model = getMethodModel(THREE, type);
     const spinSpeed = ({
       research: 0.28, 'user-research': 0.34, workshops: 0.3, 'user-flows': 0.4,
@@ -994,10 +1023,21 @@
       automation: 0.02, database: 0.025, 'data-ops': 0.04, prototype: 0.05,
       'ai-agent': 0.055, 'game-3d': 0.05, brand: 0.045,
     }[type] || 0.045);
-    scene.add(model);
 
-    const cssObj = stage.querySelector('.method-obj');
-    if (cssObj) cssObj.hidden = true;
+    let still = stage.querySelector('canvas.method-still');
+    if (!still) {
+      still = document.createElement('canvas');
+      still.className = 'method-still';
+      still.setAttribute('aria-hidden', 'true');
+      stage.prepend(still);
+    }
+    let stillW = 0, stillH = 0;
+    function drawStill() {
+      if (!drawMethodStill(THREE, still, type)) return;
+      stillW = stage.clientWidth;
+      stillH = stage.clientHeight;
+    }
+    drawStill();
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let hovering = false;
@@ -1005,103 +1045,108 @@
     let rafId = null;
     let isVisible = true;
 
-    function poseRest() {
-      if (!ownsRenderer()) return;
-      model.rotation.y = -0.5;
-      model.position.y = model.userData.baseY;
-      animateMethodParts(model, 0, true);
-      renderer.render(scene, camera);
-    }
-
-    function frame(t) {
-      if (!ownsRenderer()) return;
+    function loop() {
+      rafId = null;
+      if (!ownsRenderer()) {
+        // another stage took the live canvas: show this one's still again
+        still.style.visibility = '';
+        return;
+      }
+      if (!hovering || !isVisible) return;
+      const t = clock.getElapsedTime();
       model.rotation.y = -0.5 + t * spinSpeed;
       model.position.y = model.userData.baseY + Math.sin(t * 1.35) * bobAmp;
       animateMethodParts(model, t, false);
-      renderer.render(scene, camera);
+      sharedMethodRenderer.render(scene, camera);
+      // The live canvas is transparent: the still under it would show a second copy of the model once it
+      // turns. Hidden only after the first live frame (the rest pose, same as the still), so nothing blinks.
+      still.style.visibility = 'hidden';
+      rafId = requestAnimationFrame(loop);
     }
 
-    function loop() {
+    // Lays the live canvas over the still; the still shows again as soon as the canvas leaves.
+    function acquire() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      if (!w || !h) return false;
+      const renderer = getMethodRenderer(THREE);
+      methodRendererOwner = owner;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      scene.add(model);
+      if (renderer.domElement.parentNode !== stage) stage.appendChild(renderer.domElement);
+      return true;
+    }
+
+    function releaseLive() {
+      if (rafId) cancelAnimationFrame(rafId);
       rafId = null;
-      if (!hovering || !isVisible || reduceMotion) return;
-      frame(clock.getElapsedTime());
-      rafId = requestAnimationFrame(loop);
+      if (model.parent === scene) scene.remove(model);
+      still.style.visibility = '';
+      if (!ownsRenderer()) return;
+      methodRendererOwner = null;
+      const canvas = sharedMethodRenderer.domElement;
+      if (canvas.parentNode === stage) stage.removeChild(canvas);
     }
 
     function startLoop() {
       if (rafId || !hovering || !isVisible || reduceMotion) return;
+      if (!ownsRenderer() && !acquire()) return;
+      clock.start();
       rafId = requestAnimationFrame(loop);
     }
 
-    function stopLoop() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = null;
-    }
-
     const onEnter = () => { hovering = true; startLoop(); };
-    const onLeave = () => { hovering = false; stopLoop(); poseRest(); };
+    const onLeave = () => { hovering = false; releaseLive(); };
     stage.addEventListener('pointerenter', onEnter);
     stage.addEventListener('pointerleave', onLeave);
 
+    // The stage can mount before it has a size (hidden, still laying out): the still is drawn once it has one.
     const ro = new ResizeObserver(() => {
       const w = stage.clientWidth, h = stage.clientHeight;
-      if (!w || !h || !ownsRenderer()) return;
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      if (!rafId) poseRest();
+      if (!w || !h || (w === stillW && h === stillH)) return;
+      drawStill();
+      if (ownsRenderer()) {
+        sharedMethodRenderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
     });
     ro.observe(stage);
-
-    function startAnim() {
-      isVisible = true;
-      if (hovering) startLoop();
-      else poseRest();
-    }
-    function stopAnim() {
-      isVisible = false;
-      stopLoop();
-    }
 
     let io = null;
     if ('IntersectionObserver' in window) {
       io = new IntersectionObserver(([entry]) => {
-        const on = entry.isIntersecting && document.visibilityState !== 'hidden';
-        if (on) startAnim(); else stopAnim();
+        isVisible = entry.isIntersecting && document.visibilityState !== 'hidden';
+        if (isVisible) startLoop(); else releaseLive();
       }, { rootMargin: '40px' });
       io.observe(stage);
     }
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') {
-        stopAnim();
+        isVisible = false;
+        releaseLive();
         return;
       }
       const rect = stage.getBoundingClientRect();
-      if (rect.bottom > 0 && rect.top < window.innerHeight) startAnim();
-      else stopAnim();
+      isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+      startLoop();
     };
     document.addEventListener('visibilitychange', onVisibility);
-    poseRest();
-    // The icon is mounted asynchronously after the card's pointerenter: if the pointer is already on the card,
-    // start spinning now instead of waiting for a second hover.
+    // The icon is mounted asynchronously: if the pointer is already on it, start spinning now instead of
+    // waiting for a second hover.
     if (stage.matches(':hover')) onEnter();
 
     return {
       dispose() {
-        stopAnim();
+        releaseLive();
         ro.disconnect();
         io?.disconnect();
         document.removeEventListener('visibilitychange', onVisibility);
         stage.removeEventListener('pointerenter', onEnter);
         stage.removeEventListener('pointerleave', onLeave);
-        // The model stays cached and the renderer stays alive for the next card.
-        scene.remove(model);
-        scene.environment = null;
-        envTarget?.dispose();
-        if (ownsRenderer()) methodRendererOwner = null;
-        if (renderer.domElement.parentNode === stage) {
-          stage.removeChild(renderer.domElement);
-        }
+        // The model stays cached and both renderers stay alive for the next stages.
+        still.remove();
       },
     };
   }
@@ -1113,7 +1158,7 @@
 
   window.mountMethodIcon3D = async (options) => {
     const [THREE] = await loadThreeModules();
-    return createMethodIcon3D(THREE, options, null);
+    return createMethodIcon3D(THREE, options);
   };
 
   // Hero 3D waits until Selected work has painted — work list is the critical path.

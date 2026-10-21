@@ -1,0 +1,8 @@
+Photos from Pexels (Pexels License: free to use, no attribution required; credited anyway).
+back-cafe     Dũng Phạm         https://www.pexels.com/photo/18207374/
+back-desk     Pexels            https://www.pexels.com/photo/8472384/
+back-park     Pew Nguyen        https://www.pexels.com/photo/16925047/
+front-hugo    Cédric            https://www.pexels.com/photo/32064453/  (stand-in model, not Hugo)
+front-julie   Helena Lopes      https://www.pexels.com/photo/27087003/
+front-sam     David Shittu      https://www.pexels.com/photo/35037061/
+front-tom     Vitaly Gariev     https://www.pexels.com/photo/36812601/

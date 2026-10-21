@@ -226,13 +226,9 @@
     }
   }
 
-  function canMount3D() {
-    return wide(769) && !reduced();
-  }
-
   function mountServiceStages() {
     const grid = $('svc-grid');
-    if (!grid || !canMount3D()) return;
+    if (!grid) return;
     const started = Date.now();
     const attempt = () => {
       if (typeof window.mountMethodIcon3D !== 'function') {
@@ -248,8 +244,6 @@
           if (!inst) return;
           if (grid.dataset.renderToken !== token || !stage.isConnected) { inst.dispose && inst.dispose(); return; }
           svcInstances.push(inst);
-          const obj = stage.querySelector('.method-obj');
-          if (obj) obj.hidden = true;
         } catch (err) {
           console.warn('Service icon', err);
         }
@@ -260,7 +254,7 @@
 
   function scheduleServiceStages() {
     const grid = $('svc-grid');
-    if (!grid || !canMount3D()) return;
+    if (!grid) return;
     if (svcMountObserver) svcMountObserver.disconnect();
     if (!('IntersectionObserver' in window)) { mountServiceStages(); return; }
     svcMountObserver = new IntersectionObserver((entries) => {
@@ -279,8 +273,6 @@
     disposeServiceStages();
     const openEvidence = new Set([...grid.querySelectorAll('.svc-evidence.is-open')].map(ev => ev.closest('.svc-card')?.id).filter(Boolean));
     grid.dataset.renderToken = String(Date.now());
-    const staticObj = (type) => (typeof window.renderMethodObject === 'function'
-      ? `<div class="method-obj" data-type="${type}">${window.renderMethodObject(type)}</div>` : '');
     grid.innerHTML = AGENCY_SERVICES.map((s) => {
       const k = (suffix) => t(`svc_${s.n}_${suffix}`, l);
       const dels = [];
@@ -288,7 +280,7 @@
       return `
       <article class="svc-card" id="${s.id}">
         <div class="svc-card-top">
-          <div class="svc-stage" data-type="${s.icon}" aria-hidden="true">${staticObj(s.icon)}</div>
+          <div class="svc-stage" data-type="${s.icon}" aria-hidden="true"></div>
           <p class="svc-kicker">${esc(k('kicker'))}</p>
         </div>
         <h3 class="svc-title">${esc(k('title'))}</h3>
