@@ -44,3 +44,10 @@ docs
 .vercel
 .DS_Store
 .claude
+
+# Unreferenced heavy images (2026-10-21): the function was 252 MB for a 250 MB cap.
+# lvmh.webp is the cover in use; the three PNGs are leftovers of old interface covers.
+ui/covers/lvmh.jpg
+ui/assets/lung-3d.png
+ui/assets/doctor-mark.png
+ui/assets/opero-platform.png
