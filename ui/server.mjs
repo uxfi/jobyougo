@@ -78,7 +78,7 @@ import { createScanLogger } from '../lib/scan-log.mjs';
 import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
 import { CONSENT_DISMISS_SCRIPT, needsLongerWait, createSolveCooldown, createDetailBudget } from '../lib/scan-careers-wait.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
-import { createPageFetcher, findContacts, providersFromEnv } from '../lib/contact-finder.mjs';
+import { createPageFetcher, findContacts, providersFromEnv, ownCompanyNames, targetCompany } from '../lib/contact-finder.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
 import { postingDateFromPage, postingStatusFromApi } from '../lib/posting-date.mjs';
 import { OWN_EMPLOYER_CODE, REPETITION_LOOP_CODE, extractEvaluationScore, ownEmployerConfusion, resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
@@ -8527,14 +8527,6 @@ async function contactFinderJudgePeople(candidates, { company = '', companyText 
   }
 }
 
-/** Company name from a posting's first lines ("Senior Designer at Acme", "Acme — Lead Designer"). */
-function companyNameFromJobText(jobText) {
-  const head = String(jobText || '').split('\n').slice(0, 8).join('\n');
-  // An explicit "Company:" line wins over "Designer at Paris office".
-  const m = head.match(/^(?:Company|Entreprise|Employer|Société)\s*:\s*(.+)$/im) || head.match(/\b(?:at|chez|@)\s+([A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,2})/);
-  return m ? cleanString(m[1]).slice(0, 60) : '';
-}
-
 /**
  * The application email for one request body: recipient and/or offer link,
  * optional pasted posting, optional known contact (name, title, persona from
@@ -10048,7 +10040,19 @@ const server = createServer(async (req, res) => {
             }
           }
           if (!jobText) send('warning', { text: 'L\'annonce n\'a pas pu être lue : la recherche se base sur le nom de l\'entreprise.' });
-          if (!company && jobText) company = companyNameFromJobText(jobText);
+        }
+        // The target is the offer's employer, never one of the candidate's
+        // own companies (a Glassdoor page read signed-in starts with the
+        // user's header: "… at OneAsset" was searched for a Vertech offer).
+        {
+          const own = ownCompanyNames(indexCareer(await getCvMarkdown(req.userId).catch(() => '')));
+          const target = targetCompany({ company, jobUrl, jobText, own });
+          if (target.rejected.length) {
+            console.warn(`[contact-finder] own company skipped as target: ${target.rejected.join(', ')}`);
+            send('warning', { text: `« ${target.rejected.join(', ')} » est une entreprise de votre CV : ignorée comme cible.` });
+          }
+          company = target.company;
+          if (!company && !jobUrl) { send('error', { text: 'Entreprise de l\'offre introuvable.' }); return finish(); }
         }
 
         if (!IS_VERCEL && !(await pinchtabIsUp())) {
