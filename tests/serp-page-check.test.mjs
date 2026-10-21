@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { classifyEmptySerp, serpDiagnostic } from '../lib/serp-page-check.mjs';
-import { createCircuitProbe } from '../lib/web-search-circuit-probe.mjs';
+import { createCircuitProbe, probeCooldowns } from '../lib/web-search-circuit-probe.mjs';
 
 const filler = ' '.repeat(10) + 'Settings Privacy Feedback All Images News Videos Maps Shopping '.repeat(6);
 
@@ -43,11 +43,41 @@ test('the half-open probe waits for the shortest cooldown, at most twice per run
   assert.equal((await probe.next([0])).probe, false, 'a PinchTab that cannot open tabs gets no probe');
 });
 
+test('the probe waits for the engine that answers, not for one that only returns empty', async () => {
+  // 2026-10-21: Brave rested 67 s, Google 105 s, DuckDuckGo (answering 0, never
+  // blocked) had no cooldown: the shortest one was 0 and both probes fired at once.
+  const cooldown = { brave: 67000, google: 105000, duckduckgo: 0 };
+  const remaining = (id) => cooldown[id];
+  const engines = ['brave', 'duckduckgo', 'google'];
+  assert.deepEqual(probeCooldowns(engines, remaining, new Set(['brave'])), [67000]);
+  assert.deepEqual(probeCooldowns(engines, remaining, new Set()), [67000, 105000], 'nobody answered yet: only real cooldowns count');
+  assert.deepEqual(probeCooldowns(engines, () => 0, new Set()), [0], 'nothing cooling: probe now');
+  assert.deepEqual(probeCooldowns(engines, remaining, new Set(['brave', 'duckduckgo'])), [67000, 0], 'a ready engine that answers means no wait');
+
+  const waits = [];
+  const probe = createCircuitProbe({ maxProbes: 2, maxWaitMs: 150000, sleep: async (ms) => { waits.push(ms); } });
+  const gate = await probe.next(probeCooldowns(engines, remaining, new Set(['brave'])));
+  assert.deepEqual(gate, { probe: true, waitedMs: 67000, reason: '' });
+  assert.deepEqual(waits, [67000]);
+});
+
+test('a real answer clears the failed probes, so a later challenge gets probed again', async () => {
+  const probe = createCircuitProbe({ maxProbes: 2, sleep: async () => {} });
+  assert.equal((await probe.next([0])).probe, true);
+  assert.equal((await probe.next([0])).probe, true);
+  assert.equal((await probe.next([0])).probe, false);
+  probe.ok();
+  assert.equal((await probe.next([0])).probe, true);
+});
+
 test('the scan recap counts circuit-breaker skips apart and shows the real error', () => {
   const src = readFileSync(new URL('../ui/server.mjs', import.meta.url), 'utf8');
   assert.match(src, /skipped: 'circuit-breaker'/);
   assert.match(src, /skipped \(circuit-breaker\)/);
   assert.match(src, /webSearchProbe\.next\(cooldowns\)/);
+  assert.match(src, /probeCooldowns\(webSearchConfig\.engines/);
+  assert.match(src, /every web-search engine is resting/);
+  assert.match(src, /orderWebSearchSources\(webSearchSources, queryYield\)/);
   assert.match(src, /classifyEmptySerp\(/);
   assert.match(src, /const selectionNote = sel/);
   assert.doesNotMatch(src, /✗ \$\{src\?\.name\}: returned ok=false`\);/);
