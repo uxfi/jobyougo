@@ -9,6 +9,7 @@ import { ApplyBridge } from '../extension/apply-bridge-lib.mjs';
 const ENV = { PINCHTAB_ATTACH_CDP_URL: 'http://127.0.0.1:9222' };
 const FORM = 'https://jobs.ashbyhq.com/darkroom/7f7a/application';
 const deps = (over = {}) => ({
+  resolveWs: async () => 'ws://127.0.0.1:9222/devtools/browser/abc',
   health: async () => true,
   instances: async () => [],
   attach: async () => ({ id: 'inst_1' }),
@@ -97,4 +98,16 @@ test('only the headless default instance: attach is called once', async () => {
     attach: async () => { attached++; return { id: 'inst_1' }; },
   }) });
   assert.equal(attached, 1);
+});
+
+test('an http DevTools origin is attached through its ws:// browser URL', async () => {
+  let got = '';
+  const { resolveCdpWs } = await import('../lib/apply-captcha-attach.mjs');
+  const ws = await resolveCdpWs('http://127.0.0.1:9222', async (u) => { got = u; return { json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1:9222/devtools/browser/X' }) }; });
+  assert.equal(got, 'http://127.0.0.1:9222/json/version');
+  assert.equal(ws, 'ws://127.0.0.1:9222/devtools/browser/X');
+  assert.equal(await resolveCdpWs('ws://127.0.0.1:9222/devtools/browser/Y'), 'ws://127.0.0.1:9222/devtools/browser/Y');
+  let sent = '';
+  await solveInAttachedTab({ url: FORM, kind: 'captcha', env: ENV, deps: deps({ attach: async (u) => { sent = u; return { id: 'inst_1' }; } }) });
+  assert.match(sent, /^ws:\/\//);
 });
