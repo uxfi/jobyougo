@@ -8,6 +8,8 @@
   window.scheduleStage3DInit = scheduleStage3DInit;
 
   const isMobile3D = () => window.matchMedia('(max-width: 768px)').matches;
+  // the home hero object is also skipped on tablets (matches the CSS that hides .hero-3d)
+  const isHeroHidden3D = () => window.matchMedia('(max-width: 1199px), (hover: none) and (pointer: coarse)').matches;
 
   // Absolute CDN URLs: bare "three" imports break when this file is loaded as
   // an external module (import maps are unreliable across that boundary).
@@ -1163,7 +1165,7 @@
 
   // Hero 3D waits until Selected work has painted — work list is the critical path.
   const heroStage = document.getElementById('hero-3d-stage');
-  if (heroStage && !isMobile3D()) {
+  if (heroStage && !isHeroHidden3D()) {
     const startHero = () => {
       scheduleStage3DInit(() => {
         window.mountStage3D({

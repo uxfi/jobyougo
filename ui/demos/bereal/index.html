@@ -6,10 +6,10 @@
 <title>BeReal. posting flow — prototype</title>
 <!-- Photos: Pexels (free licence), see img/CREDITS.txt -->
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Caveat:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Caveat:wght@700&family=Inter:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
   :root { --bg:#000; --s1:#0e0e0f; --s2:#1a1a1c; --tx:#fff; --mut:rgba(255,255,255,.52); --line:rgba(255,255,255,.1); --late:#ff453a; --ok:#30d158; --acc:#c6f432;
-    --disp:"Bricolage Grotesque","SF Pro Rounded",ui-rounded,-apple-system,system-ui,sans-serif; --hand:"Caveat","Bradley Hand","Segoe Print",cursive;
+    --disp:"Bricolage Grotesque","SF Pro Rounded",ui-rounded,-apple-system,system-ui,sans-serif; --hand:"Caveat","Bradley Hand","Segoe Print",cursive; --serif:"DM Serif Display",Georgia,serif; --mono:"Space Mono",ui-monospace,monospace;
     --spring:cubic-bezier(.34,1.56,.64,1); --soft:cubic-bezier(.2,.8,.2,1); }
   * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
   html,body { height:100%; background:var(--bg); color:var(--tx); font:15px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif; overflow:hidden; }
@@ -17,7 +17,7 @@
   button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
   .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
   .app { position:relative; width:100%; height:100%; max-width:430px; margin:0 auto; overflow:hidden; overflow:clip; }
-  .scr { position:absolute; inset:0; display:flex; flex-direction:column; padding:54px 16px 26px; opacity:0; pointer-events:none; transform:translateX(24px) scale(.985); transition:opacity .3s ease, transform .45s var(--soft); }
+  .scr { position:absolute; inset:0; display:flex; flex-direction:column; padding:54px 16px 26px; opacity:0; pointer-events:none; transform:translateX(24px) scale(.985); transition:opacity .3s ease, transform .45s var(--soft), filter .45s ease, border-radius .45s ease; }
   .scr.on { opacity:1; pointer-events:auto; transform:none; }
   .top { display:flex; align-items:center; justify-content:space-between; height:38px; margin-bottom:12px; }
   .top b { font:600 16px/1 var(--disp); letter-spacing:-.01em; }
@@ -32,8 +32,19 @@
   .ico:active { transform:scale(.86); }
   .ico svg { width:18px; height:18px; }
   .timer { font:600 13px/1 var(--disp); font-variant-numeric:tabular-nums; height:30px; padding:0 11px; border-radius:15px; display:inline-flex; align-items:center; gap:6px; }
-  .timer .ic { color:var(--acc); }
-  .timer.late { color:#ff8a80; } .timer.late .ic { color:var(--late); }
+  .timer { cursor:pointer; transition:transform .45s var(--spring); } .timer:active { transform:scale(.94); }
+  .timer.late { color:#ff8a80; }
+  .tring { width:15px; height:15px; flex:none; transform:rotate(-90deg); }
+  .tring circle { fill:none; stroke-width:3; } .tring .bg { stroke:rgba(255,255,255,.2); }
+  .tring .fg { stroke:var(--acc); stroke-dasharray:100; stroke-linecap:round; transition:stroke-dashoffset 1s linear; }
+  .timer.late .tring .fg { stroke:var(--late); }
+  .top { position:relative; } .top .logo { position:absolute; left:50%; transform:translateX(-50%); }
+  /* timer explanation: popover under the pill */
+  .tip { position:absolute; z-index:12; top:102px; right:16px; width:262px; padding:14px 16px 15px; border-radius:22px; opacity:0; transform:scale(.7) translateY(-6px); transform-origin:calc(100% - 42px) 0; pointer-events:none; transition:transform .45s var(--spring), opacity .2s; }
+  .tip.open { opacity:1; transform:none; pointer-events:auto; }
+  .tip::before { content:''; position:absolute; top:-6px; right:36px; width:14px; height:14px; transform:rotate(45deg); border-radius:3px 0 0 0; background:rgba(46,46,50,.92); }
+  .tip b { display:block; font:700 15px/1.2 var(--disp); margin-bottom:6px; }
+  .tip p { font-size:13px; line-height:1.4; color:rgba(255,255,255,.75); } .tip p + p { margin-top:6px; }
 
   /* photos */
   .ph { position:absolute; inset:0; border-radius:inherit; overflow:hidden; background:#111 center/cover no-repeat; }
@@ -65,14 +76,21 @@
   /* liquid recording edge */
   .rline { position:absolute; inset:0; width:100%; height:100%; z-index:5; pointer-events:none; opacity:0; transition:opacity .3s; overflow:visible; }
   .rec .rline { opacity:1; }
-  .rline rect { fill:none; stroke-linecap:round; }
+  .rline path { fill:none; stroke-linecap:round; stroke-linejoin:round; }
   .rline .base { stroke:rgba(255,255,255,.18); stroke-width:1.5; }
-  .rline .prog { stroke:#fff; stroke-width:2; stroke-dasharray:1 1; stroke-dashoffset:1; }
-  .rline .tip { stroke:#fff; stroke-width:5; stroke-dasharray:.018 .982; stroke-dashoffset:.018; filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px rgba(255,255,255,.7)); opacity:.9; }
+  .rline .prog { stroke:#fff; stroke-width:2; stroke-dasharray:var(--L) var(--L); stroke-dashoffset:var(--L); }
+  .rline .rtip { stroke:#fff; stroke-width:4; stroke-dasharray:0 var(--L); stroke-dashoffset:0; opacity:.95; }
+  .rline .rtipg { stroke-width:10; opacity:.22; } /* class 'rtip', not 'tip': the tooltip .tip rule (absolute, top/right, scale) hijacked this path and drew it across the photo */
   .rec .rline .prog { animation:prog var(--max,15s) linear forwards; }
-  .rec .rline .tip { animation:tip var(--max,15s) linear forwards; }
-  @keyframes prog { to { stroke-dashoffset:0; } } @keyframes tip { to { stroke-dashoffset:-.982; } }
-  .rec .cam { animation:wob 3.2s ease-in-out infinite; }
+  .rec .rline .rtip { animation:rtip var(--max,15s) linear forwards; }
+  @keyframes prog { to { stroke-dashoffset:0; } } @keyframes rtip { to { stroke-dashoffset:calc(var(--L) * -1); } }
+  /* recording: the frame wobbles and an animated aura breathes around it */
+  .rec .cam { box-shadow:0 0 30px 4px rgba(198,244,50,.4); animation:wob 3.2s ease-in-out infinite, aura 3.6s linear infinite; }
+  @keyframes aura {
+    0%, 100% { box-shadow:0 0 22px 2px rgba(198,244,50,.55), 0 0 64px 14px rgba(198,244,50,.22); }
+    33% { box-shadow:0 0 30px 4px rgba(94,231,255,.55), 0 0 80px 18px rgba(94,231,255,.2); }
+    66% { box-shadow:0 0 26px 3px rgba(255,95,162,.55), 0 0 72px 16px rgba(255,95,162,.2); }
+  }
   @keyframes wob { 0%,100% { border-radius:24px 26px 23px 25px; transform:scale(.992) } 33% { border-radius:27px 22px 26px 23px; transform:scale(.996,.989) } 66% { border-radius:22px 27px 24px 27px; transform:scale(.989,.995) } }
   .recpill { position:absolute; top:12px; right:12px; z-index:7; height:26px; padding:0 10px; border-radius:13px; display:flex; align-items:center; gap:6px; font:600 12px/1 var(--disp); font-variant-numeric:tabular-nums; opacity:0; transform:scale(.7); transition:opacity .2s, transform .45s var(--spring); pointer-events:none; }
   .recpill i { width:7px; height:7px; border-radius:50%; background:var(--late); animation:rdot 1s ease-in-out infinite; }
@@ -100,9 +118,9 @@
   .stk.drag { cursor:grabbing; transition:none; --sc:1.08; filter:drop-shadow(0 14px 18px rgba(0,0,0,.45)); }
   .stk.drop { animation:jelly .6s var(--soft); }
   @keyframes jelly { 0% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1.08) } 25% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1.12,.88) } 50% { transform:translate(-50%,-50%) rotate(var(--r)) scale(.94,1.06) } 75% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1.02,.98) } 100% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1) } }
-  .s-loc { padding:7px 11px 7px 8px; border-radius:13px; background:#fff; color:#111; font:800 14px/1 var(--disp); letter-spacing:-.01em; box-shadow:0 0 0 2.5px #fff; }
+  .s-loc { padding:7px 11px 7px 8px; border-radius:13px; background:#fff; color:#111; font:800 14px/1 var(--disp); letter-spacing:-.01em; box-shadow:0 0 0 1.5px #fff; }
   .s-loc svg { width:15px; height:15px; color:var(--late); }
-  .s-mus { padding:5px 11px 5px 5px; border-radius:14px; background:#141414; color:#fff; font:600 12px/1.1 var(--disp); box-shadow:0 0 0 2.5px #fff; }
+  .s-mus { padding:5px 11px 5px 5px; border-radius:14px; background:#141414; color:#fff; font:600 12px/1.1 var(--disp); box-shadow:0 0 0 1.5px #fff; }
   .s-mus .vin { width:30px; height:30px; border-radius:50%; background:radial-gradient(circle, var(--acc) 0 18%, #111 19% 24%, #2a2a2a 25% 38%, #1a1a1a 39% 52%, #2a2a2a 53% 66%, #111 67%); animation:spin 3s linear infinite; box-shadow:inset 0 0 0 1px rgba(255,255,255,.15); }
   @keyframes spin { to { transform:rotate(1turn); } }
   .s-mus small { display:block; color:var(--mut); font-size:10px; font-weight:600; }
@@ -110,40 +128,41 @@
   .eq i { width:2.5px; height:100%; border-radius:2px; background:var(--acc); transform-origin:bottom; animation:eq .9s ease-in-out infinite; }
   .eq i:nth-child(2) { animation-delay:-.3s; } .eq i:nth-child(3) { animation-delay:-.6s; } .eq i:nth-child(4) { animation-delay:-.15s; }
   @keyframes eq { 0%,100% { transform:scaleY(.3) } 50% { transform:scaleY(1) } }
-  .s-tag { padding:4px 12px 6px; border-radius:12px; background:var(--acc); color:#111; font:700 22px/1 var(--hand); box-shadow:0 0 0 2.5px #fff; }
+  .s-tag { padding:4px 12px 6px; border-radius:12px; background:var(--acc); color:#111; font:700 22px/1 var(--hand); box-shadow:0 0 0 1.5px #fff; }
   .mine .stk-layer .stk, .sheet .stk { cursor:default; }
   .mine .stk-layer { transform:scale(.36); transform-origin:0 0; width:278%; height:278%; inset:auto; left:0; top:0; }
-  .flabel { position:absolute; left:50%; top:18px; z-index:6; padding:6px 12px; border-radius:11px; background:#fff; color:#111; font:800 15px/1 var(--disp); box-shadow:0 0 0 2.5px #fff, 0 6px 14px rgba(0,0,0,.35); opacity:0; transform:translateX(-50%) rotate(-3deg) scale(.6); pointer-events:none; }
+  .flabel { position:absolute; left:50%; top:18px; z-index:6; padding:6px 12px; border-radius:11px; background:#fff; color:#111; font:800 15px/1 var(--disp); box-shadow:0 0 0 1.5px #fff, 0 6px 14px rgba(0,0,0,.35); opacity:0; transform:translateX(-50%) rotate(-3deg) scale(.6); pointer-events:none; }
   .flabel.show { animation:flab 1.1s var(--soft) forwards; }
   @keyframes flab { 0% { opacity:0; transform:translateX(-50%) rotate(-3deg) scale(.6) } 22% { opacity:1; transform:translateX(-50%) rotate(-3deg) scale(1.08) } 34% { transform:translateX(-50%) rotate(-3deg) scale(1) } 75% { opacity:1; transform:translateX(-50%) rotate(-3deg) scale(1) } 100% { opacity:0; transform:translateX(-50%) translateY(-6px) rotate(-3deg) scale(.92) } }
   .edit .ph-back, .edit .pip { will-change:transform; }
-  .edit.swl .ph-back, .edit.swl .pip { animation:swl .45s var(--spring); } .edit.swr .ph-back, .edit.swr .pip { animation:swr .45s var(--spring); }
-  @keyframes swl { 0% { transform:translateX(26px) scale(.95); opacity:.6 } 100% { transform:none; opacity:1 } }
-  @keyframes swr { 0% { transform:translateX(-26px) scale(.95); opacity:.6 } 100% { transform:none; opacity:1 } }
+  .edit.swl > .ph, .edit.swl .pip { animation:swl .45s var(--spring); } .edit.swr > .ph, .edit.swr .pip { animation:swr .45s var(--spring); }
+  @keyframes swl { 0% { translate:26px 0; scale:.95; opacity:.6 } 100% { translate:0 0; scale:1; opacity:1 } }
+  @keyframes swr { 0% { translate:-26px 0; scale:.95; opacity:.6 } 100% { translate:0 0; scale:1; opacity:1 } }
 
   /* context */
-  .edit { aspect-ratio:3/4; width:100%; touch-action:pan-y; user-select:none; flex:none; max-height:calc(100% - 210px); align-self:center; }
-  .fdots { display:flex; justify-content:center; gap:5px; margin-top:4px; height:6px; }
-  .fdots button { width:6px; height:6px; padding:0; border-radius:3px; background:rgba(255,255,255,.28); transition:width .45s var(--spring), background .2s; }
-  .fdots button.on { background:#fff; width:18px; }
+  /* same tall frame as the camera; it gives room when a suggestion row opens */
+  .edit { flex:1 1 auto; min-height:0; width:100%; touch-action:pan-y; user-select:none; align-self:center; transition:border-radius .3s; }
   .cbub { position:relative; z-index:5; align-self:flex-start; display:block; width:fit-content; max-width:75%; margin:0 0 -10px 16px; transform:translateY(-42%) rotate(-2.5deg);
     padding:8px 13px; border-radius:18px; border-bottom-left-radius:5px; background:#F2F2F7; color:#000; font:500 15px/1.3 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif; text-align:left;
-    box-shadow:0 0 0 2.5px #fff, 0 6px 14px rgba(0,0,0,.35); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:visible; overflow-wrap:anywhere; }
+    box-shadow:0 0 0 1.5px #fff, 0 6px 14px rgba(0,0,0,.35); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:visible; overflow-wrap:anywhere; }
   .cbub.in { animation:bubIn .6s var(--soft) both; }
   @keyframes bubIn { 0% { transform:translateY(-42%) rotate(-2.5deg) scale(.6); opacity:0 } 45% { transform:translateY(-42%) rotate(-2.5deg) scale(1.06); opacity:1 } 70% { transform:translateY(-42%) rotate(-5deg) scale(.99) } 100% { transform:translateY(-42%) rotate(-2.5deg) scale(1) } }
   .cbub[hidden] { display:none; }
+  .cbub { white-space:pre-wrap; } /* show every typed space, including doubles */
   .cbub::before { content:''; position:absolute; left:-4px; bottom:0; width:12px; height:12px; background:#F2F2F7; clip-path:path('M12 0 C12 6 8 10 0 12 C5 12 9 11 12 9 Z'); }
   .cbub.sm { margin:8px 0 0 6px; transform:rotate(-2deg); font-size:13px; }
   .post .cbub { margin-left:14px; }
   input.capfield { width:100%; margin-top:10px; padding:12px 14px; border-radius:16px; border:0; outline:none; font:inherit; font-size:15px; color:#fff; caret-color:var(--acc); background:rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.2); }
   input::placeholder { color:var(--mut); }
   .tray-wrap { position:relative; margin-top:14px; }
-  .tray { display:flex; padding:5px; border-radius:24px; gap:2px; }
-  .tool { position:relative; z-index:1; flex:1; height:50px; border-radius:19px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font:600 10.5px/1 var(--disp); color:rgba(255,255,255,.75); transition:color .2s, transform .45s var(--spring); }
+  /* tools: four separate glass buttons */
+  .tray { display:flex; gap:8px; }
+  .tray .blob { display:none; }
+  .tool { position:relative; z-index:1; flex:1; height:58px; border-radius:20px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font:600 10.5px/1 var(--disp); color:rgba(255,255,255,.75); transition:color .2s, transform .45s var(--spring); }
   
   
   .tool.sel { color:#fff; } 
-  .tool.has::after { content:''; position:absolute; top:7px; right:calc(50% - 15px); width:6px; height:6px; border-radius:50%; background:var(--acc); }
+  .tool.has::after { content:''; position:absolute; top:8px; right:calc(50% - 16px); left:auto; bottom:auto; width:6px; height:6px; border-radius:50%; background:var(--acc); mix-blend-mode:normal; }
   .blob { position:absolute; z-index:0; top:5px; left:5px; height:50px; border-radius:19px; background:rgba(255,255,255,.14); box-shadow:inset 0 1px 0 rgba(255,255,255,.35), inset 0 0 12px rgba(255,255,255,.06); opacity:0;
     transition:transform .55s var(--spring), width .55s var(--spring), opacity .25s; }
   .blob.on { opacity:1; } .blob.stretch { animation:stretch .55s var(--soft); }
@@ -153,6 +172,9 @@
   .sheet > div { overflow:hidden; }
   .sugg { display:flex; gap:12px; align-items:center; padding:8px 4px 10px; overflow-x:auto; scrollbar-width:none; }
   .sugg::-webkit-scrollbar { display:none; }
+  /* stickers in the row must not block the swipe; mouse users drag the row */
+  .sugg .stk { touch-action:pan-x; cursor:pointer; }
+  .sugg.is-dragging { cursor:grabbing; } .sugg.is-dragging * { pointer-events:none; }
   .sugg > button { flex:none; position:relative; }
   .sugg .stk { position:relative; transform:rotate(var(--r)); left:auto; top:auto; animation:stkIn2 .5s var(--spring) both; }
   .sugg > button:nth-child(2) .stk { animation-delay:.05s } .sugg > button:nth-child(3) .stk { animation-delay:.1s } .sugg > button:nth-child(4) .stk { animation-delay:.15s }
@@ -199,7 +221,7 @@
   .fr .av { transition:transform .45s var(--spring); }
   .fr.on .av { box-shadow:0 0 0 2px #000, 0 0 0 4px var(--acc); transform:scale(.94); } .fr.on { color:#fff; }
   .fr.on .av::after { content:''; position:absolute; right:-4px; bottom:-4px; width:20px; height:20px; border-radius:50%; background:var(--acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23111' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat; animation:chk .5s var(--spring); }
-  .send { position:sticky; bottom:0; flex:none; margin-top:auto; height:56px; border-radius:28px; background:var(--acc); color:#111; font:700 16px/1 var(--disp); display:flex; align-items:center; justify-content:center; gap:10px; overflow:hidden; transition:transform .45s var(--spring), opacity .2s; box-shadow:0 -14px 18px #000, 0 10px 30px rgba(198,244,50,.18); }
+  .send { flex:none; margin-top:14px; height:56px; border-radius:28px; background:var(--acc); color:#111; font:700 16px/1 var(--disp); display:flex; align-items:center; justify-content:center; gap:10px; overflow:hidden; transition:transform .45s var(--spring), opacity .2s; box-shadow:0 10px 30px rgba(198,244,50,.18); }
   .send:active { transform:scale(.97); }
   .send:disabled { opacity:.4; }
   
@@ -249,11 +271,11 @@
   .ring-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ok); margin-right:5px; vertical-align:0; }
   .av.ring { box-shadow:0 0 0 2px #000, 0 0 0 4px var(--ok); }
   .fof-empty { font-size:13px; color:var(--mut); text-align:center; padding:30px 0; }
-  .tabs { display:flex; justify-content:space-around; align-items:center; padding:8px 8px 0; border-top:1px solid var(--line); }
+  .tabs { position:absolute; left:14px; right:14px; bottom:20px; z-index:8; height:64px; padding:0 6px; border-radius:32px; display:flex; justify-content:space-between; align-items:center; gap:2px; }
   .tabs span { display:flex; flex-direction:column; align-items:center; font-size:18px; color:var(--mut); } .tabs span.on { color:#fff; }
   .tabs small { font:600 10px/1 var(--disp); margin-top:3px; }
   .tabs .cam-tab { width:44px; height:44px; border-radius:50%; border:3px solid #fff; color:#fff; justify-content:center; font-size:16px; }
-  .restart { position:absolute; right:16px; bottom:84px; font:600 12px/1 var(--disp); padding:9px 12px; border-radius:99px; }
+  .restart { position:absolute; right:16px; bottom:98px; z-index:8; font:600 12px/1 var(--disp); padding:9px 12px; border-radius:99px; }
 
   /* filters (both photos; no face retouch) */
   .dual[data-flt="film"] .ph { filter:sepia(.28) saturate(1.2) contrast(1.06) brightness(1.04) hue-rotate(-6deg); }
@@ -326,14 +348,55 @@
   .srch { flex:none; display:flex; align-items:center; gap:6px; height:34px; padding:0 12px; border-radius:17px; background:rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.18); color:var(--mut); }
   .srch .ic { --is:15px; } .srch .sheet-in { width:100px; height:auto; padding:0; background:none; box-shadow:none; border-radius:0; }
   .x .ic { --is:14px; }
-  .tab { display:flex; flex-direction:column; align-items:center; color:var(--mut); padding:2px 6px; } .tab.on { color:#fff; } .tab .ic { --is:24px; } .tabs .ic, .newc .ic { display:inline-grid; border:0; width:var(--is); height:var(--is); }
-  .tabs .cam-tab { display:grid; place-items:center; } .cam-tab i { width:26px; height:26px; border-radius:50%; background:#fff; transition:transform .4s var(--spring); } .cam-tab:active i { transform:scale(.8); }
+  .tab { flex:1; height:52px; border-radius:26px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--mut); transition:background .25s, color .2s; } .tab.on { color:#fff; background:rgba(255,255,255,.13); } .tab .ic { --is:22px; } .tabs .ic, .newc .ic { display:inline-grid; border:0; width:var(--is); height:var(--is); }
+  .tabs .cam-tab { flex:none; width:48px; height:48px; margin:0 4px; display:grid; place-items:center; } .cam-tab i { width:26px; height:26px; border-radius:50%; background:#fff; transition:transform .4s var(--spring); } .cam-tab:active i { transform:scale(.8); }
   .react button { display:inline-flex; align-items:center; gap:6px; } .react .ic { --is:18px; }
   .ph-head .who { flex:1; min-width:0; } .more { width:32px; height:32px; display:grid; place-items:center; color:var(--mut); } .more .ic { --is:22px; }
   .seenbtn { display:inline-flex; align-items:center; gap:5px; } .seenbtn .ic { --is:14px; }
   .restart { display:inline-flex; align-items:center; gap:6px; } .restart .ic { --is:14px; }
   .aud .ic { --is:12px; }
   .s-loc svg.pin { width:15px; height:15px; fill:var(--late); }
+
+  /* own post: detail view + options sheet */
+  .mine-row .dual, .mine h3 { cursor:pointer; }
+  .od { position:absolute; inset:0; z-index:16; display:flex; flex-direction:column; padding:54px 16px 24px; background:#000; opacity:0; pointer-events:none; transition:opacity .25s ease; touch-action:none; }
+  .od.on { opacity:1; pointer-events:auto; }
+  .od .top { margin-bottom:10px; } .od .top b { font:800 18px/1 var(--disp); }
+  .od-dual { width:100%; aspect-ratio:3/4; flex:none; transform-origin:0 0; will-change:transform; }
+  .od-dual .stk-layer .stk { cursor:default; }
+  .od-meta { margin-top:4px; font-size:12.5px; color:var(--mut); display:flex; gap:6px; align-items:center; }
+  .od-meta .aud { display:inline-flex; gap:4px; align-items:center; color:#fff; font:600 12.5px/1 var(--disp); } .od-meta .ic { --is:13px; }
+  .od-row { display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .od-row .seen span, .od-rm span { width:30px; height:30px; }
+  .od-row .lbl { font:600 13px/1.2 var(--disp); } .od-row small { display:block; color:var(--mut); font:500 11.5px system-ui; }
+  .od-rm { display:flex; gap:8px; margin-left:auto; }
+  .od-rm span { position:relative; border-radius:50%; background:#222 center/cover; border:2px solid #000; }
+  .od-rm span i { position:absolute; right:-6px; bottom:-6px; font-style:normal; font-size:14px; }
+  .od-cap { margin-top:10px; }
+  .od .cbub { margin-left:16px; }
+  .os { position:absolute; left:8px; right:8px; bottom:8px; z-index:17; padding:8px 10px 12px; border-radius:34px; transform:translateY(110%); transition:transform .5s var(--spring); }
+  .os.on { transform:none; }
+  .os-scrim { position:absolute; inset:0; z-index:16; background:rgba(0,0,0,.45); opacity:0; pointer-events:none; transition:opacity .25s; }
+  .os-scrim.on { opacity:1; pointer-events:auto; }
+  .os .grab { width:36px; height:5px; border-radius:3px; background:rgba(255,255,255,.3); margin:2px auto 8px; }
+  .os h4 { font:800 18px/1.1 var(--disp); margin:4px 8px 10px; }
+  .os-row { width:100%; display:flex; align-items:center; gap:14px; padding:12px 10px; border-radius:18px; text-align:left; font:600 15px/1.2 var(--disp); transition:background .2s, transform .4s var(--spring); }
+  .os-row:active { background:rgba(255,255,255,.08); transform:scale(.98); }
+  .os-row .ic { --is:22px; } .os-row small { display:block; font:500 12px system-ui; color:var(--mut); margin-top:2px; }
+  .os-row.danger { color:#ff5a4f; }
+  .os-row .av { width:36px; height:36px; font-size:11px; flex:none; }
+  .os-row .chk { margin-left:auto; } .os-row.on .chk { background:var(--acc); box-shadow:none; } .os-row.on .chk svg { opacity:1; } .os-row.on .chk path { animation:draw .35s .05s var(--soft) forwards; }
+  .os-row .em2 { width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:rgba(255,255,255,.1); flex:none; } .os-row .em2 .ic { --is:18px; }
+  .os-btns { display:flex; gap:8px; margin-top:8px; }
+  .os-btns button { flex:1; height:50px; border-radius:25px; font:700 15px/1 var(--disp); background:rgba(255,255,255,.1); }
+  .os-btns .del { background:#ff453a; color:#fff; } .os-btns .ok { background:var(--acc); color:#111; }
+  .toast { position:absolute; left:50%; top:58px; z-index:30; display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:20px; font:600 13px/1 var(--disp); transform:translate(-50%,-30px) scale(.8); opacity:0; transition:transform .5s var(--spring), opacity .2s; pointer-events:none; white-space:nowrap; }
+  .toast.on { transform:translate(-50%,0); opacity:1; } .toast .ic { --is:16px; color:var(--acc); }
+  .mine.gone { animation:mineOut .45s var(--soft) forwards; }
+  @keyframes mineOut { to { transform:scale(.85); opacity:0; } }
+  .mine-empty { display:flex; align-items:center; gap:14px; width:100%; text-align:left; }
+  .mine-empty .slot { width:72px; aspect-ratio:3/4; border-radius:13px; border:1.5px dashed rgba(255,255,255,.3); display:grid; place-items:center; flex:none; } .mine-empty .slot .ic { --is:24px; }
+  .mine-empty b { font:800 17px/1.1 var(--disp); display:block; } .mine-empty small { color:var(--mut); font-size:12.5px; }
   /* simulated iOS keyboard (dark) */
   .kb { --u:calc(min(100vw, 430px) / 390); position:absolute; left:0; right:0; bottom:0; z-index:20; height:calc(291 * var(--u)); padding:calc(8 * var(--u)) calc(3 * var(--u)) calc(22 * var(--u)); background:rgba(43,43,43,.96); backdrop-filter:blur(20px); transform:translateY(100%); visibility:hidden; transition:transform .3s var(--soft), visibility 0s .3s; font-family:-apple-system,"SF Pro Text",system-ui,sans-serif; display:flex; flex-direction:column; gap:calc(11 * var(--u)); }
   .kb.on { transform:none; visibility:visible; transition:transform .3s var(--soft); }
@@ -341,15 +404,200 @@
   .kb .k { flex:0 0 calc(32 * var(--u)); height:calc(42 * var(--u)); border-radius:calc(5 * var(--u)); background:#6b6b6b; color:#fff; font-size:calc(22 * var(--u)); display:grid; place-items:center; box-shadow:0 1px 0 rgba(0,0,0,.45); user-select:none; }
   .kb .k:active { background:#8a8a8a; }
   .kb .k.f { background:#464646; font-size:calc(15 * var(--u)); } .kb .k.w { flex-basis:calc(42 * var(--u)); }
+  .kb, .kb .k { touch-action:manipulation; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
   .kb .k.sp { flex:1 1 auto; font-size:calc(15 * var(--u)); } .kb .k.ret { flex-basis:calc(88 * var(--u)); background:#0a84ff; font-size:calc(15 * var(--u)); }
   .kb .k.f.on { background:#fff; color:#000; }
   .kb .ft { display:flex; justify-content:space-between; padding:0 calc(18 * var(--u)); color:#aaa; font-size:calc(22 * var(--u)); margin-top:auto; }
-  #s2 { overflow-y:auto; scrollbar-width:none; } #s2::-webkit-scrollbar { display:none; }
+
+  /* iOS status bar */
+  .sbar { position:absolute; top:0; left:0; right:0; z-index:40; height:54px; padding:0 26px 0 46px; display:flex; align-items:center; justify-content:space-between; font:600 16px/1 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif; letter-spacing:-.01em; pointer-events:none; }
+  .sbar .sb-r { display:flex; align-items:center; gap:6px; } .sbar svg { display:block; }
+
+  /* camera: zoom levels, front flash, tap the small photo to swap */
+  .zoom { position:absolute; z-index:6; left:50%; bottom:12px; transform:translateX(-50%); display:flex; align-items:center; gap:4px; padding:4px; border-radius:22px; }
+  .zoom button { width:30px; height:30px; border-radius:50%; font:600 11px/1 -apple-system,system-ui,sans-serif; color:#fff; background:rgba(0,0,0,.28); transition:transform .4s var(--spring), width .4s var(--spring), height .4s var(--spring), color .2s; }
+  .zoom button.on { width:36px; height:36px; color:var(--acc); font-size:12px; background:rgba(0,0,0,.5); }
+  .zoom button:active { transform:scale(.88); }
+  #camMain, .zm.ph-back { transform:scale(var(--zs,1.3)); transition:transform .5s var(--soft); }
+  .flash.retina { background:#fff3d6; animation:retina .9s ease; }
+  @keyframes retina { 0% { opacity:0 } 12%, 62% { opacity:1 } 100% { opacity:0 } }
+  .edit .pip, .post .pip { cursor:pointer; }
+  /* selfie slot: drag between the top corners, push it off an edge to hide it (iOS picture-in-picture stash) */
+  .cam .pip { cursor:grab; touch-action:none; }
+  .cam .pip.dragging { cursor:grabbing; transition:none; box-shadow:0 16px 32px rgba(0,0,0,.6); }
+  .pip-tab { position:absolute; z-index:4; top:0; width:24px; height:64px; display:grid; place-items:center; color:#fff; opacity:0; pointer-events:none; transition:opacity .25s, transform .5s var(--spring); }
+  .pip-tab.l { left:0; border-radius:0 16px 16px 0; transform:translateX(-100%); }
+  .pip-tab.r { right:0; border-radius:16px 0 0 16px; transform:translateX(100%); }
+  .pip-tab.show { opacity:1; pointer-events:auto; transform:none; }
+  .pip-tab .ic { --is:14px; }
+  .pip.pop { animation:pipPop .45s var(--spring); }
+  @keyframes pipPop { 0% { scale:.86 } 60% { scale:1.04 } 100% { scale:1 } }
+
+  /* context: audience chip + send, 2 screens from shutter to Send */
+  .circ-btn .cb-t { display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .circ-btn .cb-t small { font:500 11px/1 -apple-system,system-ui,sans-serif; color:var(--mut); }
+  .circ-btn #audChip { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .circ-btn .chev { transform:rotate(-90deg); }
+  .go-btn.send-now { background:var(--acc); color:#111; box-shadow:0 8px 24px rgba(198,244,50,.22); }
+  .go-btn.fly .ic { animation:plane .5s cubic-bezier(.5,0,.75,0) forwards; }
+  .go-btn:disabled { opacity:.4; }
+
+  /* audience: iOS sheet, medium detent to pick, large detent to edit a circle */
+  .scrim { position:absolute; inset:0; z-index:14; background:rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:opacity .4s ease; }
+  .aud-on #scrim, .pk-on #pkScrim { opacity:1; pointer-events:auto; }
+  .isheet { --ease:cubic-bezier(.32,.72,0,1); position:absolute; left:8px; right:8px; bottom:8px; z-index:15; display:flex; flex-direction:column; min-height:0; max-height:calc(100% - 60px); padding:0 16px 16px; border-radius:40px;
+    background:rgba(30,30,32,.8); -webkit-backdrop-filter:blur(32px) saturate(1.8); backdrop-filter:blur(32px) saturate(1.8);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(255,255,255,.06), 0 -12px 40px rgba(0,0,0,.45);
+    transform:translateY(calc(100% + 24px)); visibility:hidden;
+    transition:transform .55s var(--ease), left .5s var(--ease), right .5s var(--ease), bottom .5s var(--ease), border-radius .5s var(--ease), min-height .5s var(--ease), padding .5s var(--ease), visibility 0s .55s; }
+  .aud-on #s2, .pk-on #pk { transform:none; visibility:visible; transition:transform .55s var(--ease), left .5s var(--ease), right .5s var(--ease), bottom .5s var(--ease), border-radius .5s var(--ease), min-height .5s var(--ease), padding .5s var(--ease); }
+  .isheet.large { left:0; right:0; bottom:0; min-height:calc(100% - 60px); border-radius:40px 40px 0 0; padding-bottom:26px; }
+  .isheet.drag { transition:none; }
+  .grab { flex:none; display:grid; place-items:center; height:22px; margin:0 -16px; touch-action:none; cursor:grab; }
+  .grab i { width:36px; height:5px; border-radius:3px; background:rgba(255,255,255,.3); }
+  .sh-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; touch-action:none; }
+  .sh-head h2 { font-size:28px; margin:4px 0 2px; }
+  .sh-x { flex:none; width:32px; height:32px; } .sh-x .ic { --is:15px; }
+  .sh-body { flex:1 1 auto; min-height:0; overflow-y:auto; margin:0 -16px; padding:0 16px 4px; scrollbar-width:none; }
+  .sh-body::-webkit-scrollbar { display:none; }
+  .app.aud-large #s1, .app.pk-on #s1 { transform:scale(.92) translateY(6px); filter:brightness(.5); border-radius:34px; background:#0b0b0c; }
+
+  /* feed: floating glass tab bar, RealMojis instead of like counts */
+  #s4 { padding-bottom:0; } .feed { padding-bottom:110px; }
+
+  /* first open: empty feed, friends' posts locked until you post */
+  #s5 { padding-left:0; padding-right:0; padding-bottom:0; } #s5 .top { padding:0 16px; }
+  .empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 30px 104px; }
+  .lock-stack { position:relative; width:190px; height:196px; margin-bottom:24px; }
+  .lock-stack .dual { position:absolute; width:124px; aspect-ratio:3/4; border-radius:18px; box-shadow:0 14px 34px rgba(0,0,0,.55); }
+  .lock-stack .dual:nth-child(1) { left:0; top:22px; transform:rotate(-9deg); }
+  .lock-stack .dual:nth-child(2) { right:0; top:4px; transform:rotate(7deg); }
+  .lock-stack .ph { filter:blur(9px) brightness(.8); transform:scale(1.15); }
+  .lock-stack .pip { width:36%; top:8px; left:8px; border-radius:9px; border-width:1.5px; }
+  .lock-badge { position:absolute; z-index:4; left:50%; top:54%; transform:translate(-50%,-50%); width:54px; height:54px; border-radius:50%; display:grid; place-items:center; }
+  .empty h2 { align-self:center; font-size:30px; margin:0 0 10px; }
+  .wave { display:inline-block; transform-origin:70% 85%; animation:wave 2.4s ease-in-out .6s infinite; }
+  @keyframes wave { 0%, 60%, 100% { transform:none } 8% { transform:rotate(16deg) } 16% { transform:rotate(-8deg) } 24% { transform:rotate(16deg) } 32% { transform:rotate(-4deg) } 40% { transform:rotate(10deg) } 48% { transform:rotate(0) } }
+  .empty p { max-width:290px; font-size:15px; line-height:1.4; color:var(--mut); }
+  .posted { display:inline-flex; align-items:center; gap:8px; margin-top:16px; padding:5px 12px 5px 5px; border-radius:99px; background:rgba(255,255,255,.07); font-size:13px; color:rgba(255,255,255,.82); }
+  .posted .avs { display:flex; } .posted .avs span { width:24px; height:24px; border-radius:50%; background:#222 center/cover; box-shadow:0 0 0 2px #000; margin-left:-7px; } .posted .avs span:first-child { margin-left:0; }
+  .cta { margin-top:26px; height:56px; padding:0 28px 0 22px; border-radius:28px; background:var(--acc); color:#111; font:700 17px/1 var(--disp); display:inline-flex; align-items:center; gap:10px; box-shadow:0 10px 30px rgba(198,244,50,.2); transition:transform .45s var(--spring); }
+  .cta:active { transform:scale(.96); }
+  .cta i { width:18px; height:18px; border-radius:50%; border:2.5px solid #111; }
+  /* profile tab: my photo, my initials when there is no photo */
+  .tab-av { position:relative; width:24px; height:24px; border-radius:50%; overflow:hidden; display:grid; place-items:center; background:#3a86ff; color:#fff; font:700 9px/1 var(--disp); box-shadow:0 0 0 1.5px rgba(255,255,255,.45); transition:box-shadow .2s; }
+  .tab-av img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .tab.on .tab-av { box-shadow:0 0 0 2px #fff; }
+  /* add friends: plus badge on the friends button */
+  .addb { position:absolute; right:-3px; bottom:-3px; width:17px; height:17px; border-radius:50%; background:var(--acc); display:grid; place-items:center; box-shadow:0 0 0 2px #000; } .addb svg { width:10px; height:10px; }
+  .tool.sel { box-shadow:inset 0 0 0 1.5px var(--acc), 0 8px 24px rgba(0,0,0,.35); }
+  .tool:active { transform:scale(.94); }
+  /* keyboard up: the screen keeps its top bar and shrinks to the space left; tools and Send step aside */
+  .scr.kb-open { padding-bottom:calc(var(--kbh) + 10px); }
+  .scr.kb-open .tray-wrap, .scr.kb-open .next-row { display:none; }
+  .isheet.kb-open { bottom:var(--kbh); min-height:0; max-height:calc(100% - var(--kbh) - 60px); border-radius:40px; }
+  .isheet.kb-open .send { display:none; }
+  /* suggestion row: round search and "see all" buttons */
+  .sugg .sq { flex:none; width:38px; height:38px; border-radius:50%; display:grid; place-items:center; color:#fff; }
+  .sugg .sq .ic { --is:17px; }
+  .sugg .sq svg.ex { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+  /* picker sheet */
+  .pk-srch { flex:none; display:flex; align-items:center; gap:8px; height:44px; margin:12px 0 10px; padding:0 14px; border-radius:22px; background:rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.14); color:var(--mut); }
+  .pk-srch .ic { --is:17px; }
+  .pk-srch input { flex:1; min-width:0; height:100%; padding:0; border:0; outline:none; background:none; color:#fff; font:inherit; font-size:15px; caret-color:var(--acc); }
+  .pk-vis { flex:none; width:40px; height:40px; display:grid; place-items:center; }
+  .pk-vis .av { width:36px; height:36px; font-size:11px; }
+  .pk-vis svg.pin { width:24px; height:24px; fill:var(--late); }
+  .pk-vis .ic { --is:18px; color:var(--mut); }
+  .pk-vis .vin { width:34px; height:34px; border-radius:50%; background:radial-gradient(circle, var(--acc) 0 18%, #111 19% 24%, #2a2a2a 25% 38%, #1a1a1a 39% 52%, #2a2a2a 53% 66%, #111 67%); box-shadow:inset 0 0 0 1px rgba(255,255,255,.15); }
+  .pk-empty { padding:24px 0; text-align:center; color:var(--mut); font-size:14px; }
+  /* stickers: tap to cycle the look */
+  .s-tag.v1 { background:#fff; color:#111; }
+  .s-tag.v2 { background:#111; color:var(--acc); box-shadow:0 0 0 1.5px var(--acc); }
+  .s-tag.v3 { background:rgba(255,255,255,.2); color:#fff; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:none; }
+  .s-loc.v1 { background:#111; color:#fff; box-shadow:0 0 0 1.5px #fff; }
+  .s-loc.v2 { background:var(--acc); color:#111; } .s-loc.v2 svg.pin { fill:#111; }
+  .s-loc.v3 { background:rgba(0,0,0,.35); color:#fff; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:none; }
+  .s-mus.v1 { background:#fff; color:#111; } .s-mus.v1 small { color:rgba(0,0,0,.5); }
+  .s-mus.v2 { background:var(--acc); color:#111; } .s-mus.v2 small { color:rgba(0,0,0,.55); } .s-mus.v2 .eq i { background:#111; }
+  /* each look has its own type: hand, display, mono, serif italic */
+  .s-tag.v1 { font:800 15px/1 var(--disp); letter-spacing:-.01em; padding:7px 11px; }
+  .s-tag.v2 { font:700 13px/1 var(--mono); padding:7px 11px; }
+  .s-tag.v3 { font:italic 400 18px/1 var(--serif); padding:5px 12px 7px; }
+  .s-loc.v1 { font:700 12.5px/1 var(--mono); }
+  .s-loc.v2 { font:700 21px/1 var(--hand); padding:4px 12px 6px 8px; }
+  .s-loc.v3 { font:italic 400 17px/1 var(--serif); }
+  .s-mus.v1 { font:italic 400 15px/1.1 var(--serif); }
+  .s-mus.v2 { font:700 11.5px/1.1 var(--mono); }
+  .s-mus.v1 small, .s-mus.v2 small { font:600 10px/1.2 var(--disp); }
+  /* music, cover card: generated cover, a record sliding out behind it, title and artist below */
+  .cov { flex:none; position:relative; display:block; width:30px; height:30px; border-radius:8px;
+    background:radial-gradient(circle at 28% 24%, hsl(var(--h) 95% 72% / .85), transparent 55%), linear-gradient(140deg, hsl(var(--h) 78% 55%), hsl(calc(var(--h) + 60) 70% 28%)); box-shadow:inset 0 0 0 1px rgba(255,255,255,.14); }
+  .cov::after { content:attr(data-l); position:absolute; left:4px; bottom:1px; font:italic 400 17px/1 var(--serif); color:rgba(255,255,255,.92); }
+  .cov.img { background-size:cover !important; background-position:center !important; }
+  .cov.img::after, .s-mus.v3 .cov.img::after { content:none; }
+  .pk-vis .cov { width:38px; height:38px; border-radius:9px; } .pk-vis .cov::after { font-size:21px; left:5px; }
+  .s-mus .art { display:none; }
+  .s-mus small b { font-weight:inherit; }
+  .s-mus.v3 { flex-direction:column; align-items:stretch; gap:8px; width:118px; padding:7px 7px 9px; border-radius:16px; background:#fff; color:#111; white-space:normal; }
+  .s-mus.v3 .vin, .s-mus.v3 .eq, .s-mus.v3 .src { display:none; }
+  .s-mus.v3 .art { display:inline; }
+  .s-mus.v3 .cov { width:100%; height:auto; aspect-ratio:1; border-radius:10px;
+    background:radial-gradient(circle at 28% 24%, hsl(var(--h) 95% 72% / .85), transparent 55%), linear-gradient(140deg, hsl(var(--h) 78% 55%), hsl(calc(var(--h) + 60) 70% 28%)); box-shadow:0 4px 10px rgba(0,0,0,.25); }
+  .s-mus.v3 .cov::after { content:attr(data-l); position:absolute; left:9px; bottom:4px; font:italic 400 34px/1 var(--serif); color:rgba(255,255,255,.92); }
+  .s-mus.v3 .cov::before { content:''; position:absolute; z-index:-1; top:6%; right:-20%; width:88%; aspect-ratio:1; border-radius:50%;
+    background:radial-gradient(circle, var(--acc) 0 12%, #111 13% 17%, #222 18% 32%, #161616 33% 48%, #222 49% 66%, #111 67%); animation:spin 4s linear infinite; }
+  .s-mus.v3 .mt { font:800 13px/1.15 var(--disp); padding:0 2px; }
+  .s-mus.v3 small { display:block; margin-top:3px; font:600 11px/1.2 var(--disp); color:rgba(0,0,0,.55); }
+  .stk { transition:transform .5s var(--spring), background .25s, color .25s, box-shadow .25s; }
+  /* Send swallows the mascot, then breathes to invite the tap */
+  .go-btn.fed { animation:gulp .6s var(--spring), ready 2.4s ease-in-out .6s infinite; }
+  @keyframes gulp { 0% { transform:scale(1) } 30% { transform:scale(.8) } 65% { transform:scale(1.14) } 100% { transform:scale(1) } }
+  @keyframes ready { 0%, 100% { box-shadow:0 8px 24px rgba(198,244,50,.22), 0 0 0 0 rgba(198,244,50,.45); } 50% { box-shadow:0 8px 24px rgba(198,244,50,.32), 0 0 0 12px rgba(198,244,50,0); } }
+  /* audience chip: the friends it reaches, as a ring of avatars */
+  .circ-btn .em.ringav { position:relative; display:block; background:rgba(255,255,255,.08); }
+  .ringav .av { position:absolute; left:50%; top:50%; width:19px; height:19px; margin:-9.5px 0 0 -9.5px; font-size:7px; border:1.5px solid #1c1c1e; box-sizing:border-box;
+    transform:rotate(var(--a)) translateY(-9.5px) rotate(calc(-1 * var(--a))); }
+  .ringav .av.solo { width:28px; height:28px; margin:-14px 0 0 -14px; font-size:10px; transform:none; }
+  .ringav > .ic { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); }
+  .ringav.pop { animation:ringPop .55s var(--spring); }
+  @keyframes ringPop { 0% { transform:scale(.7) rotate(-30deg) } 60% { transform:scale(1.1) rotate(6deg) } 100% { transform:none } }
+  /* own post card, lighter: one meta line, seen count beside the faces, a small Bonus */
+  .mine { padding:12px; }
+  .mine-row { align-items:center; gap:14px; }
+  .mine .dual { width:72px; border-radius:13px; }
+  .mine h3 { font-size:17px; }
+  .mine .mine-meta { margin-top:4px; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mine .aud { display:inline; padding:0; margin:0; background:none; font:inherit; color:#fff; }
+  .mine .aud .ic { vertical-align:-2px; margin-right:2px; }
+  .mine .aud .ring-dot { margin-right:4px; }
+  .seenbtn { margin-top:9px; gap:8px; font:600 12px/1 var(--disp); color:var(--mut); }
+  .seenbtn .seen { margin-top:0; }
+  .seenbtn .seen span { width:20px; height:20px; border-width:2px; border-color:#1a1a1a; }
+  .seenbtn[aria-pressed="false"] .seen { display:none; }
+  .bonus { width:40px; height:40px; aspect-ratio:auto; border-radius:50%; gap:0; align-self:flex-start; position:relative; }
+  .bonus b { font-size:18px; line-height:1; }
+  .bonus small { position:absolute; top:calc(100% + 4px); left:50%; transform:translateX(-50%); font:600 10px/1 var(--disp); color:var(--mut); white-space:nowrap; }
+  /* notifications: top right, profile lives in the tab bar */
+  .notif { position:relative; } .notif .nbadge { position:absolute; top:-3px; right:-3px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--late); color:#fff; font:700 10px/17px -apple-system,system-ui,sans-serif; text-align:center; box-shadow:0 0 0 2px #000; }
+  .tleft { margin-top:12px; font:600 13px/1 var(--disp); color:var(--mut); font-variant-numeric:tabular-nums; }
+  .tabs.glass, .rm-pick.glass, .pip-tab.glass, .tip.glass, .lock-badge.glass { background:linear-gradient(160deg, rgba(44,44,48,.74), rgba(18,18,20,.66)); -webkit-backdrop-filter:blur(24px) saturate(1.4); backdrop-filter:blur(24px) saturate(1.4); }
+  .react { position:relative; align-items:center; }
+  .rm-stack { display:flex; align-items:center; margin-right:4px; }
+  .rm { position:relative; flex:none; width:34px; height:34px; border-radius:50%; background:#222 center/cover; box-shadow:0 0 0 2px #000; margin-left:-8px; }
+  .rm:first-child { margin-left:0; }
+  .rm i { position:absolute; right:-5px; bottom:-4px; font-style:normal; font-size:14px; line-height:1; filter:drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+  .rm.new { animation:rmIn .55s var(--spring); }
+  @keyframes rmIn { 0% { transform:scale(.3) rotate(-20deg); opacity:0 } 60% { transform:scale(1.15) rotate(6deg); opacity:1 } 100% { transform:none } }
+  .rm-pick { position:absolute; left:0; bottom:46px; z-index:7; display:flex; gap:2px; padding:6px; border-radius:28px; opacity:0; transform:scale(.6) translateY(8px); transform-origin:20% 100%; pointer-events:none; transition:transform .4s var(--spring), opacity .2s; }
+  .rm-pick.open { opacity:1; transform:none; pointer-events:auto; }
+  .react .rm-pick button { width:40px; height:40px; padding:0; border-radius:50%; background:none; font-size:22px; display:grid; place-items:center; }
+  .react .rm-pick button.flashm { background:var(--acc); color:#111; font-size:17px; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
-    .s-mus .vin, .eq i, .mo-b, .mo .eye, .pip-ph::after, .rec .cam { animation:none !important; }
-    .rec .rline .prog, .rec .rline .tip { animation-duration:var(--max,15s) !important; }
+    .s-mus .vin, .eq i, .mo-b, .mo .eye, .pip-ph::after, .rec .cam, .wave { animation:none !important; }
+    .rec .rline .prog, .rec .rline .rtip { animation-duration:var(--max,15s) !important; }
     #liqT animate { display:none; }
     .ic.fx { animation:none !important; }
   }
@@ -357,8 +605,9 @@
 </head>
 <body>
 <!-- Icons: Phosphor Icons (Bold + Fill), MIT License, (c) 2023 Phosphor Icons, phosphoricons.com. Paths inlined, no CDN. -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="p-x" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></symbol><symbol id="p-x-f" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM181.66,170.34a8,8,0,0,1-11.32,11.32L128,139.31,85.66,181.66a8,8,0,0,1-11.32-11.32L116.69,128,74.34,85.66A8,8,0,0,1,85.66,74.34L128,116.69l42.34-42.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol><symbol id="p-arrow-counter-clockwise" viewBox="0 0 256 256"><path d="M228,128a100,100,0,0,1-98.66,100H128a99.39,99.39,0,0,1-68.62-27.29,12,12,0,0,1,16.48-17.45,76,76,0,1,0-1.57-109c-.13.13-.25.25-.39.37L54.89,92H72a12,12,0,0,1,0,24H24a12,12,0,0,1-12-12V56a12,12,0,0,1,24,0V76.72L57.48,57.06A100,100,0,0,1,228,128Z"/></symbol><symbol id="p-arrow-counter-clockwise-f" viewBox="0 0 256 256"><path d="M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L60.63,81.29l17,17A8,8,0,0,1,72,112H24a8,8,0,0,1-8-8V56A8,8,0,0,1,29.66,50.3L49.31,70,60.25,60A96,96,0,0,1,224,128Z"/></symbol><symbol id="p-lightning" viewBox="0 0 256 256"><path d="M219.71,117.38a12,12,0,0,0-7.25-8.52L161.28,88.39l10.59-70.61a12,12,0,0,0-20.64-10l-112,120a12,12,0,0,0,4.31,19.33l51.18,20.47L84.13,238.22a12,12,0,0,0,20.64,10l112-120A12,12,0,0,0,219.71,117.38ZM113.6,203.55l6.27-41.77a12,12,0,0,0-7.41-12.92L68.74,131.37,142.4,52.45l-6.27,41.77a12,12,0,0,0,7.41,12.92l43.72,17.49Z"/></symbol><symbol id="p-lightning-f" viewBox="0 0 256 256"><path d="M213.85,125.46l-112,120a8,8,0,0,1-13.69-7l14.66-73.33L45.19,143.49a8,8,0,0,1-3-13l112-120a8,8,0,0,1,13.69,7L153.18,90.9l57.63,21.61a8,8,0,0,1,3,12.95Z"/></symbol><symbol id="p-camera-rotate" viewBox="0 0 256 256"><path d="M208,52H182.42L170,33.34A12,12,0,0,0,160,28H96a12,12,0,0,0-10,5.34L73.57,52H48A28,28,0,0,0,20,80V192a28,28,0,0,0,28,28H208a28,28,0,0,0,28-28V80A28,28,0,0,0,208,52Zm4,140a4,4,0,0,1-4,4H48a4,4,0,0,1-4-4V80a4,4,0,0,1,4-4H80a12,12,0,0,0,10-5.34L102.42,52h51.15L166,70.66A12,12,0,0,0,176,76h32a4,4,0,0,1,4,4Zm-32-92v20a12,12,0,0,1-12,12H148a12,12,0,0,1-7.76-21.14,28.07,28.07,0,0,0-29,2.73A12,12,0,0,1,96.79,94.4a52.28,52.28,0,0,1,61.14-.91A12,12,0,0,1,180,100Zm-18.41,52.8a12,12,0,0,1-2.38,16.8,51.71,51.71,0,0,1-31.13,10.34,52.3,52.3,0,0,1-30-9.44A12,12,0,0,1,76,164V144a12,12,0,0,1,12-12h20a12,12,0,0,1,7.76,21.14,28.07,28.07,0,0,0,29-2.73A12,12,0,0,1,161.59,152.8Z"/></symbol><symbol id="p-camera-rotate-f" viewBox="0 0 256 256"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56ZM156.81,166.4A48.21,48.21,0,0,1,96,163.77V168a8,8,0,0,1-16,0V144a8,8,0,0,1,8-8h24a8,8,0,0,1,0,16h-5.15a32.12,32.12,0,0,0,40.34,1.61,8,8,0,0,1,9.62,12.79ZM176,120a8,8,0,0,1-8,8H144a8,8,0,0,1,0-16h5.15a32.12,32.12,0,0,0-40.34-1.61A8,8,0,0,1,99.19,97.6,48.21,48.21,0,0,1,160,100.23V96a8,8,0,0,1,16,0Z"/></symbol><symbol id="p-timer" viewBox="0 0 256 256"><path d="M128,44a96,96,0,1,0,96,96A96.11,96.11,0,0,0,128,44Zm0,168a72,72,0,1,1,72-72A72.08,72.08,0,0,1,128,212ZM164.49,99.51a12,12,0,0,1,0,17l-28,28a12,12,0,0,1-17-17l28-28A12,12,0,0,1,164.49,99.51ZM92,16A12,12,0,0,1,104,4h48a12,12,0,0,1,0,24H104A12,12,0,0,1,92,16Z"/></symbol><symbol id="p-timer-f" viewBox="0 0 256 256"><path d="M128,40a96,96,0,1,0,96,96A96.11,96.11,0,0,0,128,40Zm45.66,61.66-40,40a8,8,0,0,1-11.32-11.32l40-40a8,8,0,0,1,11.32,11.32ZM96,16a8,8,0,0,1,8-8h48a8,8,0,0,1,0,16H104A8,8,0,0,1,96,16Z"/></symbol><symbol id="p-text-aa" viewBox="0 0 256 256"><path d="M90.86,50.89a12,12,0,0,0-21.72,0l-64,136a12,12,0,0,0,21.71,10.22L42.44,164h75.12l15.58,33.11a12,12,0,0,0,21.72-10.22ZM53.74,140,80,84.18,106.27,140ZM200,84c-13.85,0-24.77,3.86-32.45,11.48a12,12,0,1,0,16.9,17c3-3,8.26-4.52,15.55-4.52,11,0,20,7.18,20,16v4.39A47.28,47.28,0,0,0,200,124c-24.26,0-44,17.94-44,40s19.74,40,44,40a47.18,47.18,0,0,0,22-5.38A12,12,0,0,0,244,192V124C244,101.94,224.26,84,200,84Zm0,96c-11,0-20-7.18-20-16s9-16,20-16,20,7.18,20,16S211,180,200,180Z"/></symbol><symbol id="p-text-aa-f" viewBox="0 0 256 256"><path d="M200,156c0,6.5-7.33,12-16,12s-16-5.5-16-12,7.33-12,16-12S200,149.5,200,156ZM232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM143.37,172.88l-44-104a8,8,0,0,0-14.74,0l-44,104a8,8,0,0,0,14.74,6.24L66.84,152h50.32l11.47,27.12a8,8,0,0,0,14.74-6.24ZM216,124c0-15.44-14.36-28-32-28a34.86,34.86,0,0,0-20.78,6.68,8,8,0,0,0,9.56,12.83A18.84,18.84,0,0,1,184,112c8.56,0,15.8,5.36,16,11.76v8A35.24,35.24,0,0,0,184,128c-17.64,0-32,12.56-32,28s14.36,28,32,28a35.13,35.13,0,0,0,16.93-4.26A8,8,0,0,0,216,176ZM73.61,136h36.78L92,92.53Z"/></symbol><symbol id="p-map-pin" viewBox="0 0 256 256"><path d="M128,60a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,60Zm0,64a20,20,0,1,1,20-20A20,20,0,0,1,128,124Zm0-112a92.1,92.1,0,0,0-92,92c0,77.36,81.64,135.4,85.12,137.83a12,12,0,0,0,13.76,0,259,259,0,0,0,42.18-39C205.15,170.57,220,136.37,220,104A92.1,92.1,0,0,0,128,12Zm31.3,174.71A249.35,249.35,0,0,1,128,216.89a249.35,249.35,0,0,1-31.3-30.18C80,167.37,60,137.31,60,104a68,68,0,0,1,136,0C196,137.31,176,167.37,159.3,186.71Z"/></symbol><symbol id="p-map-pin-f" viewBox="0 0 256 256"><path d="M128,16a88.1,88.1,0,0,0-88,88c0,75.3,80,132.17,83.41,134.55a8,8,0,0,0,9.18,0C136,236.17,216,179.3,216,104A88.1,88.1,0,0,0,128,16Zm0,56a32,32,0,1,1-32,32A32,32,0,0,1,128,72Z"/></symbol><symbol id="p-music-notes" viewBox="0 0 256 256"><path d="M215.38,14.54a12,12,0,0,0-10.29-2.18l-128,32A12,12,0,0,0,68,56V159.35A40,40,0,1,0,92,196V113.37l104-26v40A40,40,0,1,0,220,164V24A12,12,0,0,0,215.38,14.54ZM52,212a16,16,0,1,1,16-16A16,16,0,0,1,52,212ZM92,88.63V65.37l104-26V62.63ZM180,180a16,16,0,1,1,16-16A16,16,0,0,1,180,180Z"/></symbol><symbol id="p-music-notes-f" viewBox="0 0 256 256"><path d="M212.92,17.71a7.89,7.89,0,0,0-6.86-1.46l-128,32A8,8,0,0,0,72,56V166.1A36,36,0,1,0,88,196V102.25l112-28V134.1A36,36,0,1,0,216,164V24A8,8,0,0,0,212.92,17.71Z"/></symbol><symbol id="p-at" viewBox="0 0 256 256"><path d="M128,20a108,108,0,0,0,0,216c22.27,0,45.69-6.73,62.64-18a12,12,0,1,0-13.29-20c-13,8.63-31.89,14-49.35,14a84,84,0,1,1,84-84c0,9.29-1.67,17.08-4.69,21.95-2.64,4.24-6,6.05-11.31,6.05s-8.67-1.81-11.31-6.05c-3-4.87-4.69-12.66-4.69-21.95V88a12,12,0,0,0-23.49-3.46,52,52,0,1,0,8.86,79.57C172.3,174.3,182.81,180,196,180c24.67,0,40-19.92,40-52A108.12,108.12,0,0,0,128,20Zm0,136a28,28,0,1,1,28-28A28,28,0,0,1,128,156Z"/></symbol><symbol id="p-at-f" viewBox="0 0 256 256"><path d="M232,128c0,.51,0,1,0,1.52-.34,14.26-5.63,30.48-28,30.48-23.14,0-28-17.4-28-32V88a8,8,0,0,0-8.53-8A8.17,8.17,0,0,0,160,88.27v4a48,48,0,1,0,6.73,64.05,40.19,40.19,0,0,0,3.38,5C175.48,168,185.71,176,204,176a54.81,54.81,0,0,0,9.22-.75,4,4,0,0,1,4.09,6A104.05,104.05,0,0,1,125.91,232C71.13,230.9,26.2,186.86,24.08,132.11A104,104,0,1,1,232,128ZM96,128a32,32,0,1,0,32-32A32,32,0,0,0,96,128Z"/></symbol><symbol id="p-magnifying-glass" viewBox="0 0 256 256"><path d="M232.49,215.51,185,168a92.12,92.12,0,1,0-17,17l47.53,47.54a12,12,0,0,0,17-17ZM44,112a68,68,0,1,1,68,68A68.07,68.07,0,0,1,44,112Z"/></symbol><symbol id="p-magnifying-glass-f" viewBox="0 0 256 256"><path d="M168,112a56,56,0,1,1-56-56A56,56,0,0,1,168,112Zm61.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88,88,0,1,1,11.32-11.31l50.06,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z"/></symbol><symbol id="p-globe-hemisphere-west" viewBox="0 0 256 256"><path d="M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm84,108a83.64,83.64,0,0,1-4.47,27L167,130a19.65,19.65,0,0,0-7.8-2.78l-22.82-3.08A20.14,20.14,0,0,0,117.72,132h-4.07l-2.71-5.6a19.88,19.88,0,0,0-13.8-10.84L94.46,115l4-7h14.39a20,20,0,0,0,9.66-2.49l12.25-6.76a20.57,20.57,0,0,0,3.74-2.68l26.92-24.33A20,20,0,0,0,172,56.49,84,84,0,0,1,212,128ZM140.76,45l6.2,11.1L122.75,78l-10.93,6H96.14A20.05,20.05,0,0,0,78.78,94.06l-4.49,7.85L67.68,84.28l9.91-23.42A83.91,83.91,0,0,1,140.76,45ZM44,128a83.52,83.52,0,0,1,4.4-26.77l7.74,20.65a19.89,19.89,0,0,0,14.52,12.53l19.53,4.2,3,6.1a20.11,20.11,0,0,0,13.55,10.77l-5,11.12a20,20,0,0,0,3.58,21.71l.21.22,18.16,18.7-.89,4.59A84.09,84.09,0,0,1,44,128Zm103.65,81.66a20.11,20.11,0,0,0-5-17.3l-.21-.22-17.72-18.25,11.37-25.52,19,2.56,41.43,25.48A84.2,84.2,0,0,1,147.65,209.66Z"/></symbol><symbol id="p-globe-hemisphere-west-f" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.62,87.62,0,0,1-6.4,32.94l-44.7-27.49a15.92,15.92,0,0,0-6.24-2.23l-22.82-3.08a16.11,16.11,0,0,0-16,7.86h-8.72l-3.8-7.86a15.91,15.91,0,0,0-11-8.67l-8-1.73L96.14,104h16.71a16.06,16.06,0,0,0,7.73-2l12.25-6.76a16.62,16.62,0,0,0,3-2.14l26.91-24.34A15.93,15.93,0,0,0,166,49.1l-.36-.65A88.11,88.11,0,0,1,216,128ZM40,128a87.53,87.53,0,0,1,8.54-37.8l11.34,30.27a16,16,0,0,0,11.62,10l21.43,4.61L96.74,143a16.09,16.09,0,0,0,14.4,9h1.48l-7.23,16.23a16,16,0,0,0,2.86,17.37l.14.14L128,205.94l-1.94,10A88.11,88.11,0,0,1,40,128Z"/></symbol><symbol id="p-sparkle" viewBox="0 0 256 256"><path d="M199,125.31l-49.88-18.39L130.69,57a19.92,19.92,0,0,0-37.38,0L74.92,106.92,25,125.31a19.92,19.92,0,0,0,0,37.38l49.88,18.39L93.31,231a19.92,19.92,0,0,0,37.38,0l18.39-49.88L199,162.69a19.92,19.92,0,0,0,0-37.38Zm-63.38,35.16a12,12,0,0,0-7.11,7.11L112,212.28l-16.47-44.7a12,12,0,0,0-7.11-7.11L43.72,144l44.7-16.47a12,12,0,0,0,7.11-7.11L112,75.72l16.47,44.7a12,12,0,0,0,7.11,7.11L180.28,144ZM140,40a12,12,0,0,1,12-12h12V16a12,12,0,0,1,24,0V28h12a12,12,0,0,1,0,24H188V64a12,12,0,0,1-24,0V52H152A12,12,0,0,1,140,40ZM252,88a12,12,0,0,1-12,12h-4v4a12,12,0,0,1-24,0v-4h-4a12,12,0,0,1,0-24h4V72a12,12,0,0,1,24,0v4h4A12,12,0,0,1,252,88Z"/></symbol><symbol id="p-sparkle-f" viewBox="0 0 256 256"><path d="M208,144a15.78,15.78,0,0,1-10.42,14.94L146,178l-19,51.62a15.92,15.92,0,0,1-29.88,0L78,178l-51.62-19a15.92,15.92,0,0,1,0-29.88L78,110l19-51.62a15.92,15.92,0,0,1,29.88,0L146,110l51.62,19A15.78,15.78,0,0,1,208,144ZM152,48h16V64a8,8,0,0,0,16,0V48h16a8,8,0,0,0,0-16H184V16a8,8,0,0,0-16,0V32H152a8,8,0,0,0,0,16Zm88,32h-8V72a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16h8v8a8,8,0,0,0,16,0V96h8a8,8,0,0,0,0-16Z"/></symbol><symbol id="p-house" viewBox="0 0 256 256"><path d="M222.14,105.85l-80-80a20,20,0,0,0-28.28,0l-80,80A19.86,19.86,0,0,0,28,120v96a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V164h24v52a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V120A19.86,19.86,0,0,0,222.14,105.85ZM204,204H164V152a12,12,0,0,0-12-12H104a12,12,0,0,0-12,12v52H52V121.65l76-76,76,76Z"/></symbol><symbol id="p-house-f" viewBox="0 0 256 256"><path d="M224,120v96a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V164a4,4,0,0,0-4-4H108a4,4,0,0,0-4,4v52a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V120a16,16,0,0,1,4.69-11.31l80-80a16,16,0,0,1,22.62,0l80,80A16,16,0,0,1,224,120Z"/></symbol><symbol id="p-couch" viewBox="0 0 256 256"><path d="M244,104V72a20,20,0,0,0-20-20H32A20,20,0,0,0,12,72v32a20,20,0,0,0-8,16v48a20,20,0,0,0,20,20h4v12a12,12,0,0,0,24,0V188H204v12a12,12,0,0,0,24,0V188h4a20,20,0,0,0,20-20V120A20,20,0,0,0,244,104Zm-24-4H208a20,20,0,0,0-20,20v4H140V76h80ZM116,76v48H68v-4a20,20,0,0,0-20-20H36V76Zm112,88H28V124H44v12a12,12,0,0,0,12,12H200a12,12,0,0,0,12-12V124h16Z"/></symbol><symbol id="p-couch-f" viewBox="0 0 256 256"><path d="M16,100V72A16,16,0,0,1,32,56h84a4,4,0,0,1,4,4v76H64a32,32,0,0,0-32-32H20A4,4,0,0,1,16,100Zm208,4h12a4,4,0,0,0,4-4V72a16,16,0,0,0-16-16H140a4,4,0,0,0-4,4v76h56A32,32,0,0,1,224,104Zm8,16h-8a16,16,0,0,0-16,16v8a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8v-8a16,16,0,0,0-16-16H24A16,16,0,0,0,8,136v32a16,16,0,0,0,16,16h8v15.73A8.18,8.18,0,0,0,39.47,208,8,8,0,0,0,48,200V184H208v15.73a8.17,8.17,0,0,0,7.47,8.25,8,8,0,0,0,8.53-8V184h8a16,16,0,0,0,16-16V136A16,16,0,0,0,232,120Z"/></symbol><symbol id="p-pencil-simple" viewBox="0 0 256 256"><path d="M230.14,70.54,185.46,25.85a20,20,0,0,0-28.29,0L33.86,149.17A19.85,19.85,0,0,0,28,163.31V208a20,20,0,0,0,20,20H92.69a19.86,19.86,0,0,0,14.14-5.86L230.14,98.82a20,20,0,0,0,0-28.28ZM91,204H52V165l84-84,39,39ZM192,103,153,64l18.34-18.34,39,39Z"/></symbol><symbol id="p-pencil-simple-f" viewBox="0 0 256 256"><path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM192,108.68,147.31,64l24-24L216,84.68Z"/></symbol><symbol id="p-plus" viewBox="0 0 256 256"><path d="M228,128a12,12,0,0,1-12,12H140v76a12,12,0,0,1-24,0V140H40a12,12,0,0,1,0-24h76V40a12,12,0,0,1,24,0v76h76A12,12,0,0,1,228,128Z"/></symbol><symbol id="p-plus-f" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM184,136H136v48a8,8,0,0,1-16,0V136H72a8,8,0,0,1,0-16h48V72a8,8,0,0,1,16,0v48h48a8,8,0,0,1,0,16Z"/></symbol><symbol id="p-check" viewBox="0 0 256 256"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></symbol><symbol id="p-check-f" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z"/></symbol><symbol id="p-paper-plane-tilt" viewBox="0 0 256 256"><path d="M230.14,25.86a20,20,0,0,0-19.57-5.11l-.22.07L18.44,79a20,20,0,0,0-3.06,37.25L99,157l40.71,83.65a19.81,19.81,0,0,0,18,11.38c.57,0,1.15,0,1.73-.07A19.82,19.82,0,0,0,177,237.56L235.18,45.65a1.42,1.42,0,0,0,.07-.22A20,20,0,0,0,230.14,25.86ZM156.91,221.07l-34.37-70.64,46-45.95a12,12,0,0,0-17-17l-46,46L34.93,99.09,210,46Z"/></symbol><symbol id="p-paper-plane-tilt-f" viewBox="0 0 256 256"><path d="M231.4,44.34s0,.1,0,.15l-58.2,191.94a15.88,15.88,0,0,1-14,11.51q-.69.06-1.38.06a15.86,15.86,0,0,1-14.42-9.15L107,164.15a4,4,0,0,1,.77-4.58l57.92-57.92a8,8,0,0,0-11.31-11.31L96.43,148.26a4,4,0,0,1-4.58.77L17.08,112.64a16,16,0,0,1,2.49-29.8l191.94-58.2.15,0A16,16,0,0,1,231.4,44.34Z"/></symbol><symbol id="p-arrow-right" viewBox="0 0 256 256"><path d="M224.49,136.49l-72,72a12,12,0,0,1-17-17L187,140H40a12,12,0,0,1,0-24H187L135.51,64.48a12,12,0,0,1,17-17l72,72A12,12,0,0,1,224.49,136.49Z"/></symbol><symbol id="p-arrow-right-f" viewBox="0 0 256 256"><path d="M221.66,133.66l-72,72A8,8,0,0,1,136,200V136H40a8,8,0,0,1,0-16h96V56a8,8,0,0,1,13.66-5.66l72,72A8,8,0,0,1,221.66,133.66Z"/></symbol><symbol id="p-caret-left" viewBox="0 0 256 256"><path d="M168.49,199.51a12,12,0,0,1-17,17l-80-80a12,12,0,0,1,0-17l80-80a12,12,0,0,1,17,17L97,128Z"/></symbol><symbol id="p-caret-left-f" viewBox="0 0 256 256"><path d="M168,48V208a8,8,0,0,1-13.66,5.66l-80-80a8,8,0,0,1,0-11.32l80-80A8,8,0,0,1,168,48Z"/></symbol><symbol id="p-caret-right" viewBox="0 0 256 256"><path d="M184.49,136.49l-80,80a12,12,0,0,1-17-17L159,128,87.51,56.49a12,12,0,1,1,17-17l80,80A12,12,0,0,1,184.49,136.49Z"/></symbol><symbol id="p-caret-right-f" viewBox="0 0 256 256"><path d="M181.66,133.66l-80,80A8,8,0,0,1,88,208V48a8,8,0,0,1,13.66-5.66l80,80A8,8,0,0,1,181.66,133.66Z"/></symbol><symbol id="p-drop-half" viewBox="0 0 256 256"><path d="M134.88,6.17a12,12,0,0,0-13.76,0,259,259,0,0,0-42.18,39C50.85,77.43,36,111.63,36,144a92,92,0,0,0,184,0C220,66.64,138.36,8.6,134.88,6.17ZM194.08,160H140V144h56A68,68,0,0,1,194.08,160ZM140,120V104h47a115,115,0,0,1,5.68,16Zm19.3-58.71A197.29,197.29,0,0,1,173.68,80H140V41.46A243.5,243.5,0,0,1,159.3,61.29ZM60,144c0-33.31,20-63.37,36.7-82.71A243.5,243.5,0,0,1,116,41.46V210.92A68.1,68.1,0,0,1,60,144Zm80,66.92V184h42.94A68,68,0,0,1,140,210.92Z"/></symbol><symbol id="p-drop-half-f" viewBox="0 0 256 256"><path d="M174,47.75a254.19,254.19,0,0,0-41.45-38.3,8,8,0,0,0-9.18,0A254.19,254.19,0,0,0,82,47.75C54.51,79.32,40,112.6,40,144a88,88,0,0,0,176,0C216,112.6,201.49,79.32,174,47.75ZM56,144c0-57.23,55.47-105,72-118V216A72.08,72.08,0,0,1,56,144Z"/></symbol><symbol id="p-users-three" viewBox="0 0 256 256"><path d="M164.38,181.1a52,52,0,1,0-72.76,0,75.89,75.89,0,0,0-30,28.89,12,12,0,0,0,20.78,12,53,53,0,0,1,91.22,0,12,12,0,1,0,20.78-12A75.89,75.89,0,0,0,164.38,181.1ZM100,144a28,28,0,1,1,28,28A28,28,0,0,1,100,144Zm147.21,9.59a12,12,0,0,1-16.81-2.39c-8.33-11.09-19.85-19.59-29.33-21.64a12,12,0,0,1-1.82-22.91,20,20,0,1,0-24.78-28.3,12,12,0,1,1-21-11.6,44,44,0,1,1,73.28,48.35,92.18,92.18,0,0,1,22.85,21.69A12,12,0,0,1,247.21,153.59Zm-192.28-24c-9.48,2.05-21,10.55-29.33,21.65A12,12,0,0,1,6.41,136.79,92.37,92.37,0,0,1,29.26,115.1a44,44,0,1,1,73.28-48.35,12,12,0,1,1-21,11.6,20,20,0,1,0-24.78,28.3,12,12,0,0,1-1.82,22.91Z"/></symbol><symbol id="p-users-three-f" viewBox="0 0 256 256"><path d="M64.12,147.8a4,4,0,0,1-4,4.2H16a8,8,0,0,1-7.8-6.17,8.35,8.35,0,0,1,1.62-6.93A67.79,67.79,0,0,1,37,117.51a40,40,0,1,1,66.46-35.8,3.94,3.94,0,0,1-2.27,4.18A64.08,64.08,0,0,0,64,144C64,145.28,64,146.54,64.12,147.8Zm182-8.91A67.76,67.76,0,0,0,219,117.51a40,40,0,1,0-66.46-35.8,3.94,3.94,0,0,0,2.27,4.18A64.08,64.08,0,0,1,192,144c0,1.28,0,2.54-.12,3.8a4,4,0,0,0,4,4.2H240a8,8,0,0,0,7.8-6.17A8.33,8.33,0,0,0,246.17,138.89Zm-89,43.18a48,48,0,1,0-58.37,0A72.13,72.13,0,0,0,65.07,212,8,8,0,0,0,72,224H184a8,8,0,0,0,6.93-12A72.15,72.15,0,0,0,157.19,182.07Z"/></symbol><symbol id="p-chat-circle" viewBox="0 0 256 256"><path d="M128,20A108,108,0,0,0,31.85,177.23L21,209.66A20,20,0,0,0,46.34,235l32.43-10.81A108,108,0,1,0,128,20Zm0,192a84,84,0,0,1-42.06-11.27,12,12,0,0,0-6-1.62,12.1,12.1,0,0,0-3.8.62l-29.79,9.93,9.93-29.79a12,12,0,0,0-1-9.81A84,84,0,1,1,128,212Z"/></symbol><symbol id="p-chat-circle-f" viewBox="0 0 256 256"><path d="M232,128A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Z"/></symbol><symbol id="p-smiley" viewBox="0 0 256 256"><path d="M178.39,158c-11,19.06-29.39,30-50.39,30s-39.36-10.93-50.39-30a12,12,0,0,1,20.78-12c3.89,6.73,12.91,18,29.61,18s25.72-11.28,29.61-18a12,12,0,1,1,20.78,12ZM236,128A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-24,0a84,84,0,1,0-84,84A84.09,84.09,0,0,0,212,128ZM92,124a16,16,0,1,0-16-16A16,16,0,0,0,92,124Zm72-32a16,16,0,1,0,16,16A16,16,0,0,0,164,92Z"/></symbol><symbol id="p-smiley-f" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM92,96a12,12,0,1,1-12,12A12,12,0,0,1,92,96Zm82.92,60c-10.29,17.79-27.39,28-46.92,28s-36.63-10.2-46.92-28a8,8,0,1,1,13.84-8c7.47,12.91,19.21,20,33.08,20s25.61-7.1,33.08-20a8,8,0,1,1,13.84,8ZM164,120a12,12,0,1,1,12-12A12,12,0,0,1,164,120Z"/></symbol><symbol id="p-eye" viewBox="0 0 256 256"><path d="M251,123.13c-.37-.81-9.13-20.26-28.48-39.61C196.63,57.67,164,44,128,44S59.37,57.67,33.51,83.52C14.16,102.87,5.4,122.32,5,123.13a12.08,12.08,0,0,0,0,9.75c.37.82,9.13,20.26,28.49,39.61C59.37,198.34,92,212,128,212s68.63-13.66,94.48-39.51c19.36-19.35,28.12-38.79,28.49-39.61A12.08,12.08,0,0,0,251,123.13Zm-46.06,33C183.47,177.27,157.59,188,128,188s-55.47-10.73-76.91-31.88A130.36,130.36,0,0,1,29.52,128,130.45,130.45,0,0,1,51.09,99.89C72.54,78.73,98.41,68,128,68s55.46,10.73,76.91,31.89A130.36,130.36,0,0,1,226.48,128,130.45,130.45,0,0,1,204.91,156.12ZM128,84a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,84Zm0,64a20,20,0,1,1,20-20A20,20,0,0,1,128,148Z"/></symbol><symbol id="p-eye-f" viewBox="0 0 256 256"><path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z"/></symbol><symbol id="p-dots-three" viewBox="0 0 256 256"><path d="M144,128a16,16,0,1,1-16-16A16,16,0,0,1,144,128ZM60,112a16,16,0,1,0,16,16A16,16,0,0,0,60,112Zm136,0a16,16,0,1,0,16,16A16,16,0,0,0,196,112Z"/></symbol><symbol id="p-dots-three-f" viewBox="0 0 256 256"><path d="M224,80H32A16,16,0,0,0,16,96v64a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V96A16,16,0,0,0,224,80ZM60,140a12,12,0,1,1,12-12A12,12,0,0,1,60,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,196,140Z"/></symbol><symbol id="p-chat-teardrop-text" viewBox="0 0 256 256"><path d="M176,108a12,12,0,0,1-12,12H96a12,12,0,0,1,0-24h68A12,12,0,0,1,176,108Zm-12,28H96a12,12,0,0,0,0,24h68a12,12,0,0,0,0-24Zm72-12A104.11,104.11,0,0,1,132,228H48a20,20,0,0,1-20-20V124a104,104,0,0,1,208,0Zm-24,0a80,80,0,0,0-160,0v80h80A80.09,80.09,0,0,0,212,124Z"/></symbol><symbol id="p-chat-teardrop-text-f" viewBox="0 0 256 256"><path d="M132,24A100.11,100.11,0,0,0,32,124v84a16,16,0,0,0,16,16h84a100,100,0,0,0,0-200Zm32,128H96a8,8,0,0,1,0-16h68a8,8,0,0,1,0,16Zm0-32H96a8,8,0,0,1,0-16h68a8,8,0,0,1,0,16Z"/></symbol><symbol id="p-images" viewBox="0 0 256 256"><path d="M160,88a16,16,0,1,1,16,16A16,16,0,0,1,160,88Zm76-32V160a20,20,0,0,1-20,20H204v20a20,20,0,0,1-20,20H40a20,20,0,0,1-20-20V88A20,20,0,0,1,40,68H60V56A20,20,0,0,1,80,36H216A20,20,0,0,1,236,56ZM180,180H80a20,20,0,0,1-20-20V92H44V196H180Zm-21.66-24L124,121.66,89.66,156ZM212,60H84v67.72l25.86-25.86a20,20,0,0,1,28.28,0L192.28,156H212Z"/></symbol><symbol id="p-images-f" viewBox="0 0 256 256"><path d="M216,40H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V184h16a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM172,72a12,12,0,1,1-12,12A12,12,0,0,1,172,72Zm12,128H40V88H56v80a16,16,0,0,0,16,16H184Zm32-32H72V120.69l30.34-30.35a8,8,0,0,1,11.32,0L163.31,140,189,114.34a8,8,0,0,1,11.31,0L216,130.07V168Z"/></symbol><symbol id="p-user-circle" viewBox="0 0 256 256"><path d="M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20ZM79.57,196.57a60,60,0,0,1,96.86,0,83.72,83.72,0,0,1-96.86,0ZM100,120a28,28,0,1,1,28,28A28,28,0,0,1,100,120ZM194,179.94a83.48,83.48,0,0,0-29-23.42,52,52,0,1,0-74,0,83.48,83.48,0,0,0-29,23.42,84,84,0,1,1,131.9,0Z"/></symbol><symbol id="p-user-circle-f" viewBox="0 0 256 256"><path d="M172,120a44,44,0,1,1-44-44A44.05,44.05,0,0,1,172,120Zm60,8A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88.09,88.09,0,0,0-91.47-87.93C77.43,41.89,39.87,81.12,40,128.25a87.65,87.65,0,0,0,22.24,58.16A79.71,79.71,0,0,1,84,165.1a4,4,0,0,1,4.83.32,59.83,59.83,0,0,0,78.28,0,4,4,0,0,1,4.83-.32,79.71,79.71,0,0,1,21.79,21.31A87.62,87.62,0,0,0,216,128Z"/></symbol><symbol id="p-arrow-clockwise" viewBox="0 0 256 256"><path d="M244,56v48a12,12,0,0,1-12,12H184a12,12,0,1,1,0-24H201.1l-19-17.38c-.13-.12-.26-.24-.38-.37A76,76,0,1,0,127,204h1a75.53,75.53,0,0,0,52.15-20.72,12,12,0,0,1,16.49,17.45A99.45,99.45,0,0,1,128,228h-1.37A100,100,0,1,1,198.51,57.06L220,76.72V56a12,12,0,0,1,24,0Z"/></symbol><symbol id="p-arrow-clockwise-f" viewBox="0 0 256 256"><path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1-5.66-13.66l17-17-10.55-9.65-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,1,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60l10.93,10L226.34,50.3A8,8,0,0,1,240,56Z"/></symbol><symbol id="p-heart" viewBox="0 0 256 256"><path d="M178,36c-20.09,0-37.92,7.93-50,21.56C115.92,43.93,98.09,36,78,36a66.08,66.08,0,0,0-66,66c0,72.34,105.81,130.14,110.31,132.57a12,12,0,0,0,11.38,0C138.19,232.14,244,174.34,244,102A66.08,66.08,0,0,0,178,36Zm-5.49,142.36A328.69,328.69,0,0,1,128,210.16a328.69,328.69,0,0,1-44.51-31.8C61.82,159.77,36,131.42,36,102A42,42,0,0,1,78,60c17.8,0,32.7,9.4,38.89,24.54a12,12,0,0,0,22.22,0C145.3,69.4,160.2,60,178,60a42,42,0,0,1,42,42C220,131.42,194.18,159.77,172.51,178.36Z"/></symbol><symbol id="p-heart-f" viewBox="0 0 256 256"><path d="M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z"/></symbol><symbol id="p-fire" viewBox="0 0 256 256"><path d="M177.62,159.6a52,52,0,0,1-34,34,12.2,12.2,0,0,1-3.6.55,12,12,0,0,1-3.6-23.45,28,28,0,0,0,18.32-18.32,12,12,0,0,1,22.9,7.2ZM220,144a92,92,0,0,1-184,0c0-28.81,11.27-58.18,33.48-87.28a12,12,0,0,1,17.9-1.33L107.07,74.5,127,19.89a12,12,0,0,1,18.94-5.12C168.2,33.25,220,82.85,220,144Zm-24,0c0-41.71-30.61-78.39-52.52-99.29l-20.21,55.4a12,12,0,0,1-19.63,4.5L80.71,82.36C67,103.38,60,124.06,60,144a68,68,0,0,0,136,0Z"/></symbol><symbol id="p-fire-f" viewBox="0 0 256 256"><path d="M143.38,17.85a8,8,0,0,0-12.63,3.41l-22,60.41L84.59,58.26a8,8,0,0,0-11.93.89C51,87.53,40,116.08,40,144a88,88,0,0,0,176,0C216,84.55,165.21,36,143.38,17.85Zm40.51,135.49a57.6,57.6,0,0,1-46.56,46.55A7.65,7.65,0,0,1,136,200a8,8,0,0,1-1.32-15.89c16.57-2.79,30.63-16.85,33.44-33.45a8,8,0,0,1,15.78,2.68Z"/></symbol><symbol id="p-users" viewBox="0 0 256 256"><path d="M125.18,156.94a64,64,0,1,0-82.36,0,100.23,100.23,0,0,0-39.49,32,12,12,0,0,0,19.35,14.2,76,76,0,0,1,122.64,0,12,12,0,0,0,19.36-14.2A100.33,100.33,0,0,0,125.18,156.94ZM44,108a40,40,0,1,1,40,40A40,40,0,0,1,44,108Zm206.1,97.67a12,12,0,0,1-16.78-2.57A76.31,76.31,0,0,0,172,172a12,12,0,0,1,0-24,40,40,0,1,0-10.3-78.67,12,12,0,1,1-6.16-23.19,64,64,0,0,1,57.64,110.8,100.23,100.23,0,0,1,39.49,32A12,12,0,0,1,250.1,205.67Z"/></symbol><symbol id="p-users-f" viewBox="0 0 256 256"><path d="M164.47,195.63a8,8,0,0,1-6.7,12.37H10.23a8,8,0,0,1-6.7-12.37,95.83,95.83,0,0,1,47.22-37.71,60,60,0,1,1,66.5,0A95.83,95.83,0,0,1,164.47,195.63Zm87.91-.15a95.87,95.87,0,0,0-47.13-37.56A60,60,0,0,0,144.7,54.59a4,4,0,0,0-1.33,6A75.83,75.83,0,0,1,147,150.53a4,4,0,0,0,1.07,5.53,112.32,112.32,0,0,1,29.85,30.83,23.92,23.92,0,0,1,3.65,16.47,4,4,0,0,0,3.95,4.64h60.3a8,8,0,0,0,7.73-5.93A8.22,8.22,0,0,0,252.38,195.48Z"/></symbol>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="p-download-simple" viewBox="0 0 256 256"><path d="M228,144v64a12,12,0,0,1-12,12H40a12,12,0,0,1-12-12V144a12,12,0,0,1,24,0v52H204V144a12,12,0,0,1,24,0Zm-108.49,8.49a12,12,0,0,0,17,0l40-40a12,12,0,0,0-17-17L140,115V32a12,12,0,0,0-24,0v83L96.49,95.51a12,12,0,0,0-17,17Z"/></symbol><symbol id="p-download-simple-f" viewBox="0 0 256 256"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40A8,8,0,0,0,168,96H136V32a8,8,0,0,0-16,0V96H88a8,8,0,0,0-5.66,13.66Z"/></symbol><symbol id="p-export" viewBox="0 0 256 256"><path d="M220,112v96a20,20,0,0,1-20,20H56a20,20,0,0,1-20-20V112A20,20,0,0,1,56,92H76a12,12,0,0,1,0,24H60v88H196V116H180a12,12,0,0,1,0-24h20A20,20,0,0,1,220,112ZM96.49,72.49,116,53v83a12,12,0,0,0,24,0V53l19.51,19.52a12,12,0,1,0,17-17l-40-40a12,12,0,0,0-17,0l-40,40a12,12,0,1,0,17,17Z"/></symbol><symbol id="p-export-f" viewBox="0 0 256 256"><path d="M216,112v96a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V112A16,16,0,0,1,56,96h64v48a8,8,0,0,0,16,0V96h64A16,16,0,0,1,216,112ZM136,43.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,69.66L120,43.31V96h16Z"/></symbol><symbol id="p-trash" viewBox="0 0 256 256"><path d="M216,48H180V36A28,28,0,0,0,152,8H104A28,28,0,0,0,76,36V48H40a12,12,0,0,0,0,24h4V208a20,20,0,0,0,20,20H192a20,20,0,0,0,20-20V72h4a12,12,0,0,0,0-24ZM100,36a4,4,0,0,1,4-4h48a4,4,0,0,1,4,4V48H100Zm88,168H68V72H188ZM116,104v64a12,12,0,0,1-24,0V104a12,12,0,0,1,24,0Zm48,0v64a12,12,0,0,1-24,0V104a12,12,0,0,1,24,0Z"/></symbol><symbol id="p-trash-f" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM112,168a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm0-120H96V40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8Z"/></symbol><symbol id="p-x" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></symbol><symbol id="p-x-f" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM181.66,170.34a8,8,0,0,1-11.32,11.32L128,139.31,85.66,181.66a8,8,0,0,1-11.32-11.32L116.69,128,74.34,85.66A8,8,0,0,1,85.66,74.34L128,116.69l42.34-42.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol><symbol id="p-arrow-counter-clockwise" viewBox="0 0 256 256"><path d="M228,128a100,100,0,0,1-98.66,100H128a99.39,99.39,0,0,1-68.62-27.29,12,12,0,0,1,16.48-17.45,76,76,0,1,0-1.57-109c-.13.13-.25.25-.39.37L54.89,92H72a12,12,0,0,1,0,24H24a12,12,0,0,1-12-12V56a12,12,0,0,1,24,0V76.72L57.48,57.06A100,100,0,0,1,228,128Z"/></symbol><symbol id="p-arrow-counter-clockwise-f" viewBox="0 0 256 256"><path d="M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L60.63,81.29l17,17A8,8,0,0,1,72,112H24a8,8,0,0,1-8-8V56A8,8,0,0,1,29.66,50.3L49.31,70,60.25,60A96,96,0,0,1,224,128Z"/></symbol><symbol id="p-lightning" viewBox="0 0 256 256"><path d="M219.71,117.38a12,12,0,0,0-7.25-8.52L161.28,88.39l10.59-70.61a12,12,0,0,0-20.64-10l-112,120a12,12,0,0,0,4.31,19.33l51.18,20.47L84.13,238.22a12,12,0,0,0,20.64,10l112-120A12,12,0,0,0,219.71,117.38ZM113.6,203.55l6.27-41.77a12,12,0,0,0-7.41-12.92L68.74,131.37,142.4,52.45l-6.27,41.77a12,12,0,0,0,7.41,12.92l43.72,17.49Z"/></symbol><symbol id="p-lightning-f" viewBox="0 0 256 256"><path d="M213.85,125.46l-112,120a8,8,0,0,1-13.69-7l14.66-73.33L45.19,143.49a8,8,0,0,1-3-13l112-120a8,8,0,0,1,13.69,7L153.18,90.9l57.63,21.61a8,8,0,0,1,3,12.95Z"/></symbol><symbol id="p-camera-rotate" viewBox="0 0 256 256"><path d="M208,52H182.42L170,33.34A12,12,0,0,0,160,28H96a12,12,0,0,0-10,5.34L73.57,52H48A28,28,0,0,0,20,80V192a28,28,0,0,0,28,28H208a28,28,0,0,0,28-28V80A28,28,0,0,0,208,52Zm4,140a4,4,0,0,1-4,4H48a4,4,0,0,1-4-4V80a4,4,0,0,1,4-4H80a12,12,0,0,0,10-5.34L102.42,52h51.15L166,70.66A12,12,0,0,0,176,76h32a4,4,0,0,1,4,4Zm-32-92v20a12,12,0,0,1-12,12H148a12,12,0,0,1-7.76-21.14,28.07,28.07,0,0,0-29,2.73A12,12,0,0,1,96.79,94.4a52.28,52.28,0,0,1,61.14-.91A12,12,0,0,1,180,100Zm-18.41,52.8a12,12,0,0,1-2.38,16.8,51.71,51.71,0,0,1-31.13,10.34,52.3,52.3,0,0,1-30-9.44A12,12,0,0,1,76,164V144a12,12,0,0,1,12-12h20a12,12,0,0,1,7.76,21.14,28.07,28.07,0,0,0,29-2.73A12,12,0,0,1,161.59,152.8Z"/></symbol><symbol id="p-camera-rotate-f" viewBox="0 0 256 256"><path d="M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56ZM156.81,166.4A48.21,48.21,0,0,1,96,163.77V168a8,8,0,0,1-16,0V144a8,8,0,0,1,8-8h24a8,8,0,0,1,0,16h-5.15a32.12,32.12,0,0,0,40.34,1.61,8,8,0,0,1,9.62,12.79ZM176,120a8,8,0,0,1-8,8H144a8,8,0,0,1,0-16h5.15a32.12,32.12,0,0,0-40.34-1.61A8,8,0,0,1,99.19,97.6,48.21,48.21,0,0,1,160,100.23V96a8,8,0,0,1,16,0Z"/></symbol><symbol id="p-timer" viewBox="0 0 256 256"><path d="M128,44a96,96,0,1,0,96,96A96.11,96.11,0,0,0,128,44Zm0,168a72,72,0,1,1,72-72A72.08,72.08,0,0,1,128,212ZM164.49,99.51a12,12,0,0,1,0,17l-28,28a12,12,0,0,1-17-17l28-28A12,12,0,0,1,164.49,99.51ZM92,16A12,12,0,0,1,104,4h48a12,12,0,0,1,0,24H104A12,12,0,0,1,92,16Z"/></symbol><symbol id="p-timer-f" viewBox="0 0 256 256"><path d="M128,40a96,96,0,1,0,96,96A96.11,96.11,0,0,0,128,40Zm45.66,61.66-40,40a8,8,0,0,1-11.32-11.32l40-40a8,8,0,0,1,11.32,11.32ZM96,16a8,8,0,0,1,8-8h48a8,8,0,0,1,0,16H104A8,8,0,0,1,96,16Z"/></symbol><symbol id="p-text-aa" viewBox="0 0 256 256"><path d="M90.86,50.89a12,12,0,0,0-21.72,0l-64,136a12,12,0,0,0,21.71,10.22L42.44,164h75.12l15.58,33.11a12,12,0,0,0,21.72-10.22ZM53.74,140,80,84.18,106.27,140ZM200,84c-13.85,0-24.77,3.86-32.45,11.48a12,12,0,1,0,16.9,17c3-3,8.26-4.52,15.55-4.52,11,0,20,7.18,20,16v4.39A47.28,47.28,0,0,0,200,124c-24.26,0-44,17.94-44,40s19.74,40,44,40a47.18,47.18,0,0,0,22-5.38A12,12,0,0,0,244,192V124C244,101.94,224.26,84,200,84Zm0,96c-11,0-20-7.18-20-16s9-16,20-16,20,7.18,20,16S211,180,200,180Z"/></symbol><symbol id="p-text-aa-f" viewBox="0 0 256 256"><path d="M200,156c0,6.5-7.33,12-16,12s-16-5.5-16-12,7.33-12,16-12S200,149.5,200,156ZM232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM143.37,172.88l-44-104a8,8,0,0,0-14.74,0l-44,104a8,8,0,0,0,14.74,6.24L66.84,152h50.32l11.47,27.12a8,8,0,0,0,14.74-6.24ZM216,124c0-15.44-14.36-28-32-28a34.86,34.86,0,0,0-20.78,6.68,8,8,0,0,0,9.56,12.83A18.84,18.84,0,0,1,184,112c8.56,0,15.8,5.36,16,11.76v8A35.24,35.24,0,0,0,184,128c-17.64,0-32,12.56-32,28s14.36,28,32,28a35.13,35.13,0,0,0,16.93-4.26A8,8,0,0,0,216,176ZM73.61,136h36.78L92,92.53Z"/></symbol><symbol id="p-map-pin" viewBox="0 0 256 256"><path d="M128,60a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,60Zm0,64a20,20,0,1,1,20-20A20,20,0,0,1,128,124Zm0-112a92.1,92.1,0,0,0-92,92c0,77.36,81.64,135.4,85.12,137.83a12,12,0,0,0,13.76,0,259,259,0,0,0,42.18-39C205.15,170.57,220,136.37,220,104A92.1,92.1,0,0,0,128,12Zm31.3,174.71A249.35,249.35,0,0,1,128,216.89a249.35,249.35,0,0,1-31.3-30.18C80,167.37,60,137.31,60,104a68,68,0,0,1,136,0C196,137.31,176,167.37,159.3,186.71Z"/></symbol><symbol id="p-map-pin-f" viewBox="0 0 256 256"><path d="M128,16a88.1,88.1,0,0,0-88,88c0,75.3,80,132.17,83.41,134.55a8,8,0,0,0,9.18,0C136,236.17,216,179.3,216,104A88.1,88.1,0,0,0,128,16Zm0,56a32,32,0,1,1-32,32A32,32,0,0,1,128,72Z"/></symbol><symbol id="p-music-notes" viewBox="0 0 256 256"><path d="M215.38,14.54a12,12,0,0,0-10.29-2.18l-128,32A12,12,0,0,0,68,56V159.35A40,40,0,1,0,92,196V113.37l104-26v40A40,40,0,1,0,220,164V24A12,12,0,0,0,215.38,14.54ZM52,212a16,16,0,1,1,16-16A16,16,0,0,1,52,212ZM92,88.63V65.37l104-26V62.63ZM180,180a16,16,0,1,1,16-16A16,16,0,0,1,180,180Z"/></symbol><symbol id="p-music-notes-f" viewBox="0 0 256 256"><path d="M212.92,17.71a7.89,7.89,0,0,0-6.86-1.46l-128,32A8,8,0,0,0,72,56V166.1A36,36,0,1,0,88,196V102.25l112-28V134.1A36,36,0,1,0,216,164V24A8,8,0,0,0,212.92,17.71Z"/></symbol><symbol id="p-at" viewBox="0 0 256 256"><path d="M128,20a108,108,0,0,0,0,216c22.27,0,45.69-6.73,62.64-18a12,12,0,1,0-13.29-20c-13,8.63-31.89,14-49.35,14a84,84,0,1,1,84-84c0,9.29-1.67,17.08-4.69,21.95-2.64,4.24-6,6.05-11.31,6.05s-8.67-1.81-11.31-6.05c-3-4.87-4.69-12.66-4.69-21.95V88a12,12,0,0,0-23.49-3.46,52,52,0,1,0,8.86,79.57C172.3,174.3,182.81,180,196,180c24.67,0,40-19.92,40-52A108.12,108.12,0,0,0,128,20Zm0,136a28,28,0,1,1,28-28A28,28,0,0,1,128,156Z"/></symbol><symbol id="p-at-f" viewBox="0 0 256 256"><path d="M232,128c0,.51,0,1,0,1.52-.34,14.26-5.63,30.48-28,30.48-23.14,0-28-17.4-28-32V88a8,8,0,0,0-8.53-8A8.17,8.17,0,0,0,160,88.27v4a48,48,0,1,0,6.73,64.05,40.19,40.19,0,0,0,3.38,5C175.48,168,185.71,176,204,176a54.81,54.81,0,0,0,9.22-.75,4,4,0,0,1,4.09,6A104.05,104.05,0,0,1,125.91,232C71.13,230.9,26.2,186.86,24.08,132.11A104,104,0,1,1,232,128ZM96,128a32,32,0,1,0,32-32A32,32,0,0,0,96,128Z"/></symbol><symbol id="p-magnifying-glass" viewBox="0 0 256 256"><path d="M232.49,215.51,185,168a92.12,92.12,0,1,0-17,17l47.53,47.54a12,12,0,0,0,17-17ZM44,112a68,68,0,1,1,68,68A68.07,68.07,0,0,1,44,112Z"/></symbol><symbol id="p-magnifying-glass-f" viewBox="0 0 256 256"><path d="M168,112a56,56,0,1,1-56-56A56,56,0,0,1,168,112Zm61.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88,88,0,1,1,11.32-11.31l50.06,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z"/></symbol><symbol id="p-globe-hemisphere-west" viewBox="0 0 256 256"><path d="M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm84,108a83.64,83.64,0,0,1-4.47,27L167,130a19.65,19.65,0,0,0-7.8-2.78l-22.82-3.08A20.14,20.14,0,0,0,117.72,132h-4.07l-2.71-5.6a19.88,19.88,0,0,0-13.8-10.84L94.46,115l4-7h14.39a20,20,0,0,0,9.66-2.49l12.25-6.76a20.57,20.57,0,0,0,3.74-2.68l26.92-24.33A20,20,0,0,0,172,56.49,84,84,0,0,1,212,128ZM140.76,45l6.2,11.1L122.75,78l-10.93,6H96.14A20.05,20.05,0,0,0,78.78,94.06l-4.49,7.85L67.68,84.28l9.91-23.42A83.91,83.91,0,0,1,140.76,45ZM44,128a83.52,83.52,0,0,1,4.4-26.77l7.74,20.65a19.89,19.89,0,0,0,14.52,12.53l19.53,4.2,3,6.1a20.11,20.11,0,0,0,13.55,10.77l-5,11.12a20,20,0,0,0,3.58,21.71l.21.22,18.16,18.7-.89,4.59A84.09,84.09,0,0,1,44,128Zm103.65,81.66a20.11,20.11,0,0,0-5-17.3l-.21-.22-17.72-18.25,11.37-25.52,19,2.56,41.43,25.48A84.2,84.2,0,0,1,147.65,209.66Z"/></symbol><symbol id="p-globe-hemisphere-west-f" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.62,87.62,0,0,1-6.4,32.94l-44.7-27.49a15.92,15.92,0,0,0-6.24-2.23l-22.82-3.08a16.11,16.11,0,0,0-16,7.86h-8.72l-3.8-7.86a15.91,15.91,0,0,0-11-8.67l-8-1.73L96.14,104h16.71a16.06,16.06,0,0,0,7.73-2l12.25-6.76a16.62,16.62,0,0,0,3-2.14l26.91-24.34A15.93,15.93,0,0,0,166,49.1l-.36-.65A88.11,88.11,0,0,1,216,128ZM40,128a87.53,87.53,0,0,1,8.54-37.8l11.34,30.27a16,16,0,0,0,11.62,10l21.43,4.61L96.74,143a16.09,16.09,0,0,0,14.4,9h1.48l-7.23,16.23a16,16,0,0,0,2.86,17.37l.14.14L128,205.94l-1.94,10A88.11,88.11,0,0,1,40,128Z"/></symbol><symbol id="p-sparkle" viewBox="0 0 256 256"><path d="M199,125.31l-49.88-18.39L130.69,57a19.92,19.92,0,0,0-37.38,0L74.92,106.92,25,125.31a19.92,19.92,0,0,0,0,37.38l49.88,18.39L93.31,231a19.92,19.92,0,0,0,37.38,0l18.39-49.88L199,162.69a19.92,19.92,0,0,0,0-37.38Zm-63.38,35.16a12,12,0,0,0-7.11,7.11L112,212.28l-16.47-44.7a12,12,0,0,0-7.11-7.11L43.72,144l44.7-16.47a12,12,0,0,0,7.11-7.11L112,75.72l16.47,44.7a12,12,0,0,0,7.11,7.11L180.28,144ZM140,40a12,12,0,0,1,12-12h12V16a12,12,0,0,1,24,0V28h12a12,12,0,0,1,0,24H188V64a12,12,0,0,1-24,0V52H152A12,12,0,0,1,140,40ZM252,88a12,12,0,0,1-12,12h-4v4a12,12,0,0,1-24,0v-4h-4a12,12,0,0,1,0-24h4V72a12,12,0,0,1,24,0v4h4A12,12,0,0,1,252,88Z"/></symbol><symbol id="p-sparkle-f" viewBox="0 0 256 256"><path d="M208,144a15.78,15.78,0,0,1-10.42,14.94L146,178l-19,51.62a15.92,15.92,0,0,1-29.88,0L78,178l-51.62-19a15.92,15.92,0,0,1,0-29.88L78,110l19-51.62a15.92,15.92,0,0,1,29.88,0L146,110l51.62,19A15.78,15.78,0,0,1,208,144ZM152,48h16V64a8,8,0,0,0,16,0V48h16a8,8,0,0,0,0-16H184V16a8,8,0,0,0-16,0V32H152a8,8,0,0,0,0,16Zm88,32h-8V72a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16h8v8a8,8,0,0,0,16,0V96h8a8,8,0,0,0,0-16Z"/></symbol><symbol id="p-house" viewBox="0 0 256 256"><path d="M222.14,105.85l-80-80a20,20,0,0,0-28.28,0l-80,80A19.86,19.86,0,0,0,28,120v96a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V164h24v52a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V120A19.86,19.86,0,0,0,222.14,105.85ZM204,204H164V152a12,12,0,0,0-12-12H104a12,12,0,0,0-12,12v52H52V121.65l76-76,76,76Z"/></symbol><symbol id="p-house-f" viewBox="0 0 256 256"><path d="M224,120v96a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V164a4,4,0,0,0-4-4H108a4,4,0,0,0-4,4v52a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V120a16,16,0,0,1,4.69-11.31l80-80a16,16,0,0,1,22.62,0l80,80A16,16,0,0,1,224,120Z"/></symbol><symbol id="p-couch" viewBox="0 0 256 256"><path d="M244,104V72a20,20,0,0,0-20-20H32A20,20,0,0,0,12,72v32a20,20,0,0,0-8,16v48a20,20,0,0,0,20,20h4v12a12,12,0,0,0,24,0V188H204v12a12,12,0,0,0,24,0V188h4a20,20,0,0,0,20-20V120A20,20,0,0,0,244,104Zm-24-4H208a20,20,0,0,0-20,20v4H140V76h80ZM116,76v48H68v-4a20,20,0,0,0-20-20H36V76Zm112,88H28V124H44v12a12,12,0,0,0,12,12H200a12,12,0,0,0,12-12V124h16Z"/></symbol><symbol id="p-couch-f" viewBox="0 0 256 256"><path d="M16,100V72A16,16,0,0,1,32,56h84a4,4,0,0,1,4,4v76H64a32,32,0,0,0-32-32H20A4,4,0,0,1,16,100Zm208,4h12a4,4,0,0,0,4-4V72a16,16,0,0,0-16-16H140a4,4,0,0,0-4,4v76h56A32,32,0,0,1,224,104Zm8,16h-8a16,16,0,0,0-16,16v8a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8v-8a16,16,0,0,0-16-16H24A16,16,0,0,0,8,136v32a16,16,0,0,0,16,16h8v15.73A8.18,8.18,0,0,0,39.47,208,8,8,0,0,0,48,200V184H208v15.73a8.17,8.17,0,0,0,7.47,8.25,8,8,0,0,0,8.53-8V184h8a16,16,0,0,0,16-16V136A16,16,0,0,0,232,120Z"/></symbol><symbol id="p-pencil-simple" viewBox="0 0 256 256"><path d="M230.14,70.54,185.46,25.85a20,20,0,0,0-28.29,0L33.86,149.17A19.85,19.85,0,0,0,28,163.31V208a20,20,0,0,0,20,20H92.69a19.86,19.86,0,0,0,14.14-5.86L230.14,98.82a20,20,0,0,0,0-28.28ZM91,204H52V165l84-84,39,39ZM192,103,153,64l18.34-18.34,39,39Z"/></symbol><symbol id="p-pencil-simple-f" viewBox="0 0 256 256"><path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM192,108.68,147.31,64l24-24L216,84.68Z"/></symbol><symbol id="p-plus" viewBox="0 0 256 256"><path d="M228,128a12,12,0,0,1-12,12H140v76a12,12,0,0,1-24,0V140H40a12,12,0,0,1,0-24h76V40a12,12,0,0,1,24,0v76h76A12,12,0,0,1,228,128Z"/></symbol><symbol id="p-plus-f" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM184,136H136v48a8,8,0,0,1-16,0V136H72a8,8,0,0,1,0-16h48V72a8,8,0,0,1,16,0v48h48a8,8,0,0,1,0,16Z"/></symbol><symbol id="p-check" viewBox="0 0 256 256"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></symbol><symbol id="p-check-f" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z"/></symbol><symbol id="p-paper-plane-tilt" viewBox="0 0 256 256"><path d="M230.14,25.86a20,20,0,0,0-19.57-5.11l-.22.07L18.44,79a20,20,0,0,0-3.06,37.25L99,157l40.71,83.65a19.81,19.81,0,0,0,18,11.38c.57,0,1.15,0,1.73-.07A19.82,19.82,0,0,0,177,237.56L235.18,45.65a1.42,1.42,0,0,0,.07-.22A20,20,0,0,0,230.14,25.86ZM156.91,221.07l-34.37-70.64,46-45.95a12,12,0,0,0-17-17l-46,46L34.93,99.09,210,46Z"/></symbol><symbol id="p-paper-plane-tilt-f" viewBox="0 0 256 256"><path d="M231.4,44.34s0,.1,0,.15l-58.2,191.94a15.88,15.88,0,0,1-14,11.51q-.69.06-1.38.06a15.86,15.86,0,0,1-14.42-9.15L107,164.15a4,4,0,0,1,.77-4.58l57.92-57.92a8,8,0,0,0-11.31-11.31L96.43,148.26a4,4,0,0,1-4.58.77L17.08,112.64a16,16,0,0,1,2.49-29.8l191.94-58.2.15,0A16,16,0,0,1,231.4,44.34Z"/></symbol><symbol id="p-arrow-right" viewBox="0 0 256 256"><path d="M224.49,136.49l-72,72a12,12,0,0,1-17-17L187,140H40a12,12,0,0,1,0-24H187L135.51,64.48a12,12,0,0,1,17-17l72,72A12,12,0,0,1,224.49,136.49Z"/></symbol><symbol id="p-arrow-right-f" viewBox="0 0 256 256"><path d="M221.66,133.66l-72,72A8,8,0,0,1,136,200V136H40a8,8,0,0,1,0-16h96V56a8,8,0,0,1,13.66-5.66l72,72A8,8,0,0,1,221.66,133.66Z"/></symbol><symbol id="p-caret-left" viewBox="0 0 256 256"><path d="M168.49,199.51a12,12,0,0,1-17,17l-80-80a12,12,0,0,1,0-17l80-80a12,12,0,0,1,17,17L97,128Z"/></symbol><symbol id="p-caret-left-f" viewBox="0 0 256 256"><path d="M168,48V208a8,8,0,0,1-13.66,5.66l-80-80a8,8,0,0,1,0-11.32l80-80A8,8,0,0,1,168,48Z"/></symbol><symbol id="p-caret-right" viewBox="0 0 256 256"><path d="M184.49,136.49l-80,80a12,12,0,0,1-17-17L159,128,87.51,56.49a12,12,0,1,1,17-17l80,80A12,12,0,0,1,184.49,136.49Z"/></symbol><symbol id="p-caret-right-f" viewBox="0 0 256 256"><path d="M181.66,133.66l-80,80A8,8,0,0,1,88,208V48a8,8,0,0,1,13.66-5.66l80,80A8,8,0,0,1,181.66,133.66Z"/></symbol><symbol id="p-drop-half" viewBox="0 0 256 256"><path d="M134.88,6.17a12,12,0,0,0-13.76,0,259,259,0,0,0-42.18,39C50.85,77.43,36,111.63,36,144a92,92,0,0,0,184,0C220,66.64,138.36,8.6,134.88,6.17ZM194.08,160H140V144h56A68,68,0,0,1,194.08,160ZM140,120V104h47a115,115,0,0,1,5.68,16Zm19.3-58.71A197.29,197.29,0,0,1,173.68,80H140V41.46A243.5,243.5,0,0,1,159.3,61.29ZM60,144c0-33.31,20-63.37,36.7-82.71A243.5,243.5,0,0,1,116,41.46V210.92A68.1,68.1,0,0,1,60,144Zm80,66.92V184h42.94A68,68,0,0,1,140,210.92Z"/></symbol><symbol id="p-drop-half-f" viewBox="0 0 256 256"><path d="M174,47.75a254.19,254.19,0,0,0-41.45-38.3,8,8,0,0,0-9.18,0A254.19,254.19,0,0,0,82,47.75C54.51,79.32,40,112.6,40,144a88,88,0,0,0,176,0C216,112.6,201.49,79.32,174,47.75ZM56,144c0-57.23,55.47-105,72-118V216A72.08,72.08,0,0,1,56,144Z"/></symbol><symbol id="p-users-three" viewBox="0 0 256 256"><path d="M164.38,181.1a52,52,0,1,0-72.76,0,75.89,75.89,0,0,0-30,28.89,12,12,0,0,0,20.78,12,53,53,0,0,1,91.22,0,12,12,0,1,0,20.78-12A75.89,75.89,0,0,0,164.38,181.1ZM100,144a28,28,0,1,1,28,28A28,28,0,0,1,100,144Zm147.21,9.59a12,12,0,0,1-16.81-2.39c-8.33-11.09-19.85-19.59-29.33-21.64a12,12,0,0,1-1.82-22.91,20,20,0,1,0-24.78-28.3,12,12,0,1,1-21-11.6,44,44,0,1,1,73.28,48.35,92.18,92.18,0,0,1,22.85,21.69A12,12,0,0,1,247.21,153.59Zm-192.28-24c-9.48,2.05-21,10.55-29.33,21.65A12,12,0,0,1,6.41,136.79,92.37,92.37,0,0,1,29.26,115.1a44,44,0,1,1,73.28-48.35,12,12,0,1,1-21,11.6,20,20,0,1,0-24.78,28.3,12,12,0,0,1-1.82,22.91Z"/></symbol><symbol id="p-users-three-f" viewBox="0 0 256 256"><path d="M64.12,147.8a4,4,0,0,1-4,4.2H16a8,8,0,0,1-7.8-6.17,8.35,8.35,0,0,1,1.62-6.93A67.79,67.79,0,0,1,37,117.51a40,40,0,1,1,66.46-35.8,3.94,3.94,0,0,1-2.27,4.18A64.08,64.08,0,0,0,64,144C64,145.28,64,146.54,64.12,147.8Zm182-8.91A67.76,67.76,0,0,0,219,117.51a40,40,0,1,0-66.46-35.8,3.94,3.94,0,0,0,2.27,4.18A64.08,64.08,0,0,1,192,144c0,1.28,0,2.54-.12,3.8a4,4,0,0,0,4,4.2H240a8,8,0,0,0,7.8-6.17A8.33,8.33,0,0,0,246.17,138.89Zm-89,43.18a48,48,0,1,0-58.37,0A72.13,72.13,0,0,0,65.07,212,8,8,0,0,0,72,224H184a8,8,0,0,0,6.93-12A72.15,72.15,0,0,0,157.19,182.07Z"/></symbol><symbol id="p-chat-circle" viewBox="0 0 256 256"><path d="M128,20A108,108,0,0,0,31.85,177.23L21,209.66A20,20,0,0,0,46.34,235l32.43-10.81A108,108,0,1,0,128,20Zm0,192a84,84,0,0,1-42.06-11.27,12,12,0,0,0-6-1.62,12.1,12.1,0,0,0-3.8.62l-29.79,9.93,9.93-29.79a12,12,0,0,0-1-9.81A84,84,0,1,1,128,212Z"/></symbol><symbol id="p-chat-circle-f" viewBox="0 0 256 256"><path d="M232,128A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Z"/></symbol><symbol id="p-smiley" viewBox="0 0 256 256"><path d="M178.39,158c-11,19.06-29.39,30-50.39,30s-39.36-10.93-50.39-30a12,12,0,0,1,20.78-12c3.89,6.73,12.91,18,29.61,18s25.72-11.28,29.61-18a12,12,0,1,1,20.78,12ZM236,128A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-24,0a84,84,0,1,0-84,84A84.09,84.09,0,0,0,212,128ZM92,124a16,16,0,1,0-16-16A16,16,0,0,0,92,124Zm72-32a16,16,0,1,0,16,16A16,16,0,0,0,164,92Z"/></symbol><symbol id="p-smiley-f" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM92,96a12,12,0,1,1-12,12A12,12,0,0,1,92,96Zm82.92,60c-10.29,17.79-27.39,28-46.92,28s-36.63-10.2-46.92-28a8,8,0,1,1,13.84-8c7.47,12.91,19.21,20,33.08,20s25.61-7.1,33.08-20a8,8,0,1,1,13.84,8ZM164,120a12,12,0,1,1,12-12A12,12,0,0,1,164,120Z"/></symbol><symbol id="p-eye" viewBox="0 0 256 256"><path d="M251,123.13c-.37-.81-9.13-20.26-28.48-39.61C196.63,57.67,164,44,128,44S59.37,57.67,33.51,83.52C14.16,102.87,5.4,122.32,5,123.13a12.08,12.08,0,0,0,0,9.75c.37.82,9.13,20.26,28.49,39.61C59.37,198.34,92,212,128,212s68.63-13.66,94.48-39.51c19.36-19.35,28.12-38.79,28.49-39.61A12.08,12.08,0,0,0,251,123.13Zm-46.06,33C183.47,177.27,157.59,188,128,188s-55.47-10.73-76.91-31.88A130.36,130.36,0,0,1,29.52,128,130.45,130.45,0,0,1,51.09,99.89C72.54,78.73,98.41,68,128,68s55.46,10.73,76.91,31.89A130.36,130.36,0,0,1,226.48,128,130.45,130.45,0,0,1,204.91,156.12ZM128,84a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,84Zm0,64a20,20,0,1,1,20-20A20,20,0,0,1,128,148Z"/></symbol><symbol id="p-eye-f" viewBox="0 0 256 256"><path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z"/></symbol><symbol id="p-dots-three" viewBox="0 0 256 256"><path d="M144,128a16,16,0,1,1-16-16A16,16,0,0,1,144,128ZM60,112a16,16,0,1,0,16,16A16,16,0,0,0,60,112Zm136,0a16,16,0,1,0,16,16A16,16,0,0,0,196,112Z"/></symbol><symbol id="p-dots-three-f" viewBox="0 0 256 256"><path d="M224,80H32A16,16,0,0,0,16,96v64a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V96A16,16,0,0,0,224,80ZM60,140a12,12,0,1,1,12-12A12,12,0,0,1,60,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,196,140Z"/></symbol><symbol id="p-chat-teardrop-text" viewBox="0 0 256 256"><path d="M176,108a12,12,0,0,1-12,12H96a12,12,0,0,1,0-24h68A12,12,0,0,1,176,108Zm-12,28H96a12,12,0,0,0,0,24h68a12,12,0,0,0,0-24Zm72-12A104.11,104.11,0,0,1,132,228H48a20,20,0,0,1-20-20V124a104,104,0,0,1,208,0Zm-24,0a80,80,0,0,0-160,0v80h80A80.09,80.09,0,0,0,212,124Z"/></symbol><symbol id="p-chat-teardrop-text-f" viewBox="0 0 256 256"><path d="M132,24A100.11,100.11,0,0,0,32,124v84a16,16,0,0,0,16,16h84a100,100,0,0,0,0-200Zm32,128H96a8,8,0,0,1,0-16h68a8,8,0,0,1,0,16Zm0-32H96a8,8,0,0,1,0-16h68a8,8,0,0,1,0,16Z"/></symbol><symbol id="p-images" viewBox="0 0 256 256"><path d="M160,88a16,16,0,1,1,16,16A16,16,0,0,1,160,88Zm76-32V160a20,20,0,0,1-20,20H204v20a20,20,0,0,1-20,20H40a20,20,0,0,1-20-20V88A20,20,0,0,1,40,68H60V56A20,20,0,0,1,80,36H216A20,20,0,0,1,236,56ZM180,180H80a20,20,0,0,1-20-20V92H44V196H180Zm-21.66-24L124,121.66,89.66,156ZM212,60H84v67.72l25.86-25.86a20,20,0,0,1,28.28,0L192.28,156H212Z"/></symbol><symbol id="p-images-f" viewBox="0 0 256 256"><path d="M216,40H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V184h16a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM172,72a12,12,0,1,1-12,12A12,12,0,0,1,172,72Zm12,128H40V88H56v80a16,16,0,0,0,16,16H184Zm32-32H72V120.69l30.34-30.35a8,8,0,0,1,11.32,0L163.31,140,189,114.34a8,8,0,0,1,11.31,0L216,130.07V168Z"/></symbol><symbol id="p-user-circle" viewBox="0 0 256 256"><path d="M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20ZM79.57,196.57a60,60,0,0,1,96.86,0,83.72,83.72,0,0,1-96.86,0ZM100,120a28,28,0,1,1,28,28A28,28,0,0,1,100,120ZM194,179.94a83.48,83.48,0,0,0-29-23.42,52,52,0,1,0-74,0,83.48,83.48,0,0,0-29,23.42,84,84,0,1,1,131.9,0Z"/></symbol><symbol id="p-user-circle-f" viewBox="0 0 256 256"><path d="M172,120a44,44,0,1,1-44-44A44.05,44.05,0,0,1,172,120Zm60,8A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88.09,88.09,0,0,0-91.47-87.93C77.43,41.89,39.87,81.12,40,128.25a87.65,87.65,0,0,0,22.24,58.16A79.71,79.71,0,0,1,84,165.1a4,4,0,0,1,4.83.32,59.83,59.83,0,0,0,78.28,0,4,4,0,0,1,4.83-.32,79.71,79.71,0,0,1,21.79,21.31A87.62,87.62,0,0,0,216,128Z"/></symbol><symbol id="p-arrow-clockwise" viewBox="0 0 256 256"><path d="M244,56v48a12,12,0,0,1-12,12H184a12,12,0,1,1,0-24H201.1l-19-17.38c-.13-.12-.26-.24-.38-.37A76,76,0,1,0,127,204h1a75.53,75.53,0,0,0,52.15-20.72,12,12,0,0,1,16.49,17.45A99.45,99.45,0,0,1,128,228h-1.37A100,100,0,1,1,198.51,57.06L220,76.72V56a12,12,0,0,1,24,0Z"/></symbol><symbol id="p-arrow-clockwise-f" viewBox="0 0 256 256"><path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1-5.66-13.66l17-17-10.55-9.65-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,1,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60l10.93,10L226.34,50.3A8,8,0,0,1,240,56Z"/></symbol><symbol id="p-heart" viewBox="0 0 256 256"><path d="M178,36c-20.09,0-37.92,7.93-50,21.56C115.92,43.93,98.09,36,78,36a66.08,66.08,0,0,0-66,66c0,72.34,105.81,130.14,110.31,132.57a12,12,0,0,0,11.38,0C138.19,232.14,244,174.34,244,102A66.08,66.08,0,0,0,178,36Zm-5.49,142.36A328.69,328.69,0,0,1,128,210.16a328.69,328.69,0,0,1-44.51-31.8C61.82,159.77,36,131.42,36,102A42,42,0,0,1,78,60c17.8,0,32.7,9.4,38.89,24.54a12,12,0,0,0,22.22,0C145.3,69.4,160.2,60,178,60a42,42,0,0,1,42,42C220,131.42,194.18,159.77,172.51,178.36Z"/></symbol><symbol id="p-heart-f" viewBox="0 0 256 256"><path d="M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z"/></symbol><symbol id="p-fire" viewBox="0 0 256 256"><path d="M177.62,159.6a52,52,0,0,1-34,34,12.2,12.2,0,0,1-3.6.55,12,12,0,0,1-3.6-23.45,28,28,0,0,0,18.32-18.32,12,12,0,0,1,22.9,7.2ZM220,144a92,92,0,0,1-184,0c0-28.81,11.27-58.18,33.48-87.28a12,12,0,0,1,17.9-1.33L107.07,74.5,127,19.89a12,12,0,0,1,18.94-5.12C168.2,33.25,220,82.85,220,144Zm-24,0c0-41.71-30.61-78.39-52.52-99.29l-20.21,55.4a12,12,0,0,1-19.63,4.5L80.71,82.36C67,103.38,60,124.06,60,144a68,68,0,0,0,136,0Z"/></symbol><symbol id="p-fire-f" viewBox="0 0 256 256"><path d="M143.38,17.85a8,8,0,0,0-12.63,3.41l-22,60.41L84.59,58.26a8,8,0,0,0-11.93.89C51,87.53,40,116.08,40,144a88,88,0,0,0,176,0C216,84.55,165.21,36,143.38,17.85Zm40.51,135.49a57.6,57.6,0,0,1-46.56,46.55A7.65,7.65,0,0,1,136,200a8,8,0,0,1-1.32-15.89c16.57-2.79,30.63-16.85,33.44-33.45a8,8,0,0,1,15.78,2.68Z"/></symbol><symbol id="p-users" viewBox="0 0 256 256"><path d="M125.18,156.94a64,64,0,1,0-82.36,0,100.23,100.23,0,0,0-39.49,32,12,12,0,0,0,19.35,14.2,76,76,0,0,1,122.64,0,12,12,0,0,0,19.36-14.2A100.33,100.33,0,0,0,125.18,156.94ZM44,108a40,40,0,1,1,40,40A40,40,0,0,1,44,108Zm206.1,97.67a12,12,0,0,1-16.78-2.57A76.31,76.31,0,0,0,172,172a12,12,0,0,1,0-24,40,40,0,1,0-10.3-78.67,12,12,0,1,1-6.16-23.19,64,64,0,0,1,57.64,110.8,100.23,100.23,0,0,1,39.49,32A12,12,0,0,1,250.1,205.67Z"/></symbol><symbol id="p-users-f" viewBox="0 0 256 256"><path d="M164.47,195.63a8,8,0,0,1-6.7,12.37H10.23a8,8,0,0,1-6.7-12.37,95.83,95.83,0,0,1,47.22-37.71,60,60,0,1,1,66.5,0A95.83,95.83,0,0,1,164.47,195.63Zm87.91-.15a95.87,95.87,0,0,0-47.13-37.56A60,60,0,0,0,144.7,54.59a4,4,0,0,0-1.33,6A75.83,75.83,0,0,1,147,150.53a4,4,0,0,0,1.07,5.53,112.32,112.32,0,0,1,29.85,30.83,23.92,23.92,0,0,1,3.65,16.47,4,4,0,0,0,3.95,4.64h60.3a8,8,0,0,0,7.73-5.93A8.22,8.22,0,0,0,252.38,195.48Z"/></symbol>
   <filter id="liq" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence id="liqT" type="fractalNoise" baseFrequency="0.012" numOctaves="1" seed="3"><animate attributeName="baseFrequency" dur="4s" values="0.012;0.02;0.012" repeatCount="indefinite"/></feTurbulence><feDisplacementMap in="SourceGraphic" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <symbol id="p-bell" viewBox="0 0 256 256"><path d="M128 34a66 66 0 0 0-66 66c0 44-12 66-24 82h180c-12-16-24-38-24-82a66 66 0 0 0-66-66z" fill="none" stroke="currentColor" stroke-width="22" stroke-linejoin="round"/><path d="M102 212a28 28 0 0 0 52 0" fill="none" stroke="currentColor" stroke-width="22" stroke-linecap="round"/></symbol><symbol id="p-bell-f" viewBox="0 0 256 256"><path d="M128 26a74 74 0 0 0-74 74c0 42-11 62-22 77a12 12 0 0 0 10 19h172a12 12 0 0 0 10-19c-11-15-22-35-22-77a74 74 0 0 0-74-74zM98 210a32 32 0 0 0 60 0z"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 22s7-6.3 7-12a7 7 0 1 0-14 0c0 5.7 7 12 7 12z" fill="currentColor"/><circle cx="12" cy="10" r="2.6" fill="#fff"/></symbol>
   <symbol id="i-pin-o" viewBox="0 0 24 24"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.200 6.5 11 6.5 11z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
   <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5.5l10-2V16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="16.5" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
@@ -367,8 +616,27 @@
   <symbol id="i-plane" viewBox="0 0 24 24"><path d="M21 3 3 10.5l7 2.5 2.5 7L21 3z" fill="currentColor"/><path d="m10 13 5-5" stroke="var(--acc)" stroke-width="1.6" stroke-linecap="round"/></symbol>
 </defs></svg>
 <div class="app" id="app">
+  <div class="sbar" aria-hidden="true"><span>9:41</span><span class="sb-r">
+    <svg width="18" height="12" viewBox="0 0 18 12"><rect y="8" width="3" height="4" rx="1" fill="#fff"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="#fff"/><rect x="10" y="3" width="3" height="9" rx="1" fill="#fff"/><rect x="15" width="3" height="12" rx="1" fill="#fff"/></svg>
+    <svg width="16" height="12" viewBox="0 0 16 12"><path d="M1.6 4.4a9.2 9.2 0 0 1 12.8 0M4.2 7.1a5.4 5.4 0 0 1 7.6 0" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/><circle cx="8" cy="10.2" r="1.5" fill="#fff"/></svg>
+    <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="#fff" stroke-opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2.4" fill="#fff"/><path d="M25 4.5v4c.8-.3 1.4-1.1 1.4-2s-.6-1.7-1.4-2z" fill="#fff" fill-opacity=".45"/></svg>
+  </span></div>
   <div class="flash" id="flash"></div>
   <div class="kb" id="kb" aria-hidden="true"></div>
+  <!-- own post detail (opens from the compact feed card) -->
+  <section class="od" id="od" role="dialog" aria-modal="true" aria-labelledby="odT" inert>
+    <div class="top"><button class="ico glass" id="odX" aria-label="Close"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-x"/></svg><svg class="f"><use href="#p-x-f"/></svg></span></button><b id="odT">Your BeReal.</b><button class="ico glass" id="odMore" aria-label="Options" aria-haspopup="dialog"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-dots-three"/></svg><svg class="f"><use href="#p-dots-three-f"/></svg></span></button></div>
+    <div class="dual od-dual" id="odDual" data-flt="original"><div class="ph ph-back"></div><div class="pip"><div class="ph ph-front"></div></div><div class="stk-layer" id="odStk"></div></div>
+    <div class="cbub" id="odBub" hidden></div>
+    <input class="capfield od-cap" id="odCap" type="text" inputmode="none" autocomplete="off" placeholder="Say something…" maxlength="60" style="display:none">
+    <div class="od-meta"><span id="odMeta">On time · just now</span> · <span class="aud" id="odAud"></span></div>
+    <div class="od-row"><button class="seenbtn" id="odSeen" style="margin:0"><span class="ic" data-fx="blink"><svg class="o"><use href="#p-eye"/></svg><svg class="f"><use href="#p-eye-f"/></svg></span><span class="seen"><span style="background:#e76f51">LM</span><span style="background:#222 url(img/av-julie.webp) center/cover;color:transparent">JD</span><span style="background:#222 url(img/av-sam.webp) center/cover;color:transparent">SA</span><span style="background:#222 url(img/av-tom.webp) center/cover;color:transparent">TB</span></span><span class="lbl">Seen by 6<small>Only you see this</small></span></button>
+      <div class="od-rm" aria-label="RealMojis received"><span style="background-image:url(img/front-julie.webp)"><i>😍</i></span><span style="background-image:url(img/front-sam.webp)"><i>😂</i></span><span style="background-image:url(img/av-tom.webp)"><i>🔥</i></span></div></div>
+  </section>
+  <div class="os-scrim" id="osScrim"></div>
+  <section class="os glass" id="os" role="dialog" aria-modal="true" aria-label="Post options" inert><div class="grab"></div><div id="osBody"></div></section>
+  <div class="toast glass" id="toast" role="status" aria-live="polite"></div>
+
   <div class="mo" id="mo" aria-hidden="true"><div class="mo-b"><svg viewBox="0 0 48 48">
     <path d="M24 3.5c6.5 7.6 17.5 16 17.5 26.3C41.5 39.4 33.7 46 24 46S6.5 39.4 6.5 29.8C6.5 19.5 17.5 11.1 24 3.5z" fill="var(--acc)"/>
     <path d="M14.5 22.5c1.4-3.4 4-6.2 6.6-8.8" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2.4" stroke-linecap="round"/>
@@ -379,12 +647,15 @@
 
   <!-- 1 · Capture -->
   <section class="scr" id="s0" data-step="capture">
-    <div class="top"><button class="ico glass" aria-label="Close"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-x"/></svg><svg class="f"><use href="#p-x-f"/></svg></span></button><span class="logo">BeReal.</span><span class="timer glass" id="timer"><span class="ic" data-fx="tick"><svg class="o"><use href="#p-timer"/></svg><svg class="f"><use href="#p-timer-f"/></svg></span><span>1:47</span></span></div>
+    <div class="top"><button class="ico glass" id="camClose" aria-label="Close the camera"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-x"/></svg><svg class="f"><use href="#p-x-f"/></svg></span></button><span class="logo">BeReal.</span><button class="timer glass" id="timer" aria-expanded="false" aria-controls="timerTip"><svg class="tring" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="8"/><circle class="fg" cx="10" cy="10" r="8" pathLength="100"/></svg><span class="tl">1:47 left</span></button></div>
+    <div class="tip glass" id="timerTip" role="dialog" aria-labelledby="tipT"><b id="tipT">⚠️ Time to BeReal. ⚠️</b><p id="tipP">Your friends just got the same ping as you. Snap yours in the next 2 minutes and you’re on time!</p><p id="tipP2">Missed it? No stress, you can still post today. Friends will just see you were a little late 😉</p></div>
     <div class="dual cam" id="cam">
       <div class="ph ph-back" id="camMain"></div>
       <div class="pip" id="camPip" title="Selfie slot"><div class="ph ph-front" id="camSmall"></div><div class="pip-ph" id="pipPh"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="9" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c1.4-3.6 4.2-5.4 7.5-5.4s6.1 1.8 7.5 5.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div></div>
-      <svg class="rline" id="rline" aria-hidden="true"><g filter="url(#liq)"><rect class="base" pathLength="1"/><rect class="prog" pathLength="1"/><rect class="tip" pathLength="1"/></g></svg>
+      <button class="pip-tab glass l" id="pipTab" aria-label="Show selfie preview" tabindex="-1"></button>
+      <svg class="rline" id="rline" aria-hidden="true"><g filter="url(#liq)"><path class="base"/><path class="prog"/></g><path class="rtip rtipg"/><path class="rtip"/></svg>
       <div class="recpill glass" id="recPill" aria-live="polite"><i></i><span>0:00</span></div>
+      <div class="zoom glass" id="zoom" role="group" aria-label="Zoom"><button data-z=".5" aria-label="Zoom 0.5×">.5</button><button class="on" data-z="1" aria-label="Zoom 1×">1×</button><button data-z="2" aria-label="Zoom 2×">2</button></div>
       <div class="count" id="count" hidden></div>
       <span class="sr" id="camHint" aria-live="polite"></span>
     </div>
@@ -393,69 +664,77 @@
 
   <!-- 2 · Add context -->
   <section class="scr" id="s1" data-step="context">
-    <div class="top"><button class="ico glass" data-go="0" aria-label="Retake"><span class="ic" data-fx="spinb"><svg class="o"><use href="#p-arrow-counter-clockwise"/></svg><svg class="f"><use href="#p-arrow-counter-clockwise-f"/></svg></span></button><span class="logo">BeReal.</span><button class="ico glass" id="fltBtn" aria-label="Next filter"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-drop-half"/></svg><svg class="f"><use href="#p-drop-half-f"/></svg></span></button></div>
-    <div class="dual edit" id="editDual" data-flt="original" aria-label="Swipe to change filter">
-      <div class="ph ph-back"></div>
+    <div class="top"><button class="ico glass" data-go="0" aria-label="Retake"><span class="ic" data-fx="spinb"><svg class="o"><use href="#p-arrow-counter-clockwise"/></svg><svg class="f"><use href="#p-arrow-counter-clockwise-f"/></svg></span></button><span class="logo">BeReal.</span></div>
+    <div class="dual edit" id="editDual" data-flt="original" tabindex="0" aria-label="Photo preview. Swipe, or use the left and right arrow keys, to change the filter">
+      <div class="ph ph-back zm"></div>
       <div class="pip"><div class="ph ph-front"></div></div>
       <div class="stk-layer" id="chips"></div>
       <div class="flabel" id="fLabel">Original</div>
     </div>
     <button class="cbub" id="capBub" hidden aria-label="Edit caption"></button>
     <input class="capfield" id="capField" type="text" inputmode="none" autocomplete="off" placeholder="Say something…" maxlength="60" style="display:none">
-    <div class="fdots" id="fDots"></div>
     <div class="tray-wrap">
-      <div class="tray glass" id="tray">
+      <div class="tray" id="tray">
         <span class="blob" id="blob"></span>
-        <button class="tool" data-tool="caption"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-text-aa"/></svg><svg class="f"><use href="#p-text-aa-f"/></svg></span>Text</button>
-        <button class="tool" data-tool="location"><span class="ic" data-fx="drop"><svg class="o"><use href="#p-map-pin"/></svg><svg class="f"><use href="#p-map-pin-f"/></svg></span>Place</button>
-        <button class="tool" data-tool="music"><span class="ic" data-fx="wiggle"><svg class="o"><use href="#p-music-notes"/></svg><svg class="f"><use href="#p-music-notes-f"/></svg></span>Music</button>
-        <button class="tool" data-tool="tag"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-at"/></svg><svg class="f"><use href="#p-at-f"/></svg></span>Tag</button>
+        <button class="tool glass" data-tool="caption"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-text-aa"/></svg><svg class="f"><use href="#p-text-aa-f"/></svg></span>Text</button>
+        <button class="tool glass" data-tool="location"><span class="ic" data-fx="drop"><svg class="o"><use href="#p-map-pin"/></svg><svg class="f"><use href="#p-map-pin-f"/></svg></span>Place</button>
+        <button class="tool glass" data-tool="music"><span class="ic" data-fx="wiggle"><svg class="o"><use href="#p-music-notes"/></svg><svg class="f"><use href="#p-music-notes-f"/></svg></span>Music</button>
+        <button class="tool glass" data-tool="tag"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-at"/></svg><svg class="f"><use href="#p-at-f"/></svg></span>Tag</button>
       </div>
     </div>
     <div class="sheet" id="sheet"><div><div class="sugg" id="sugg"></div></div></div>
     <div class="next-row">
-      <button class="circ-btn glass" data-go="2"><span class="em" id="audEm"></span><span id="audChip">All friends</span><span class="chev"><span class="ic" data-fx="nudge"><svg class="o"><use href="#p-caret-right"/></svg><svg class="f"><use href="#p-caret-right-f"/></svg></span></span></button>
-      <button class="go-btn" data-go="2" aria-label="Next: pick a circle"><span class="ic" data-fx="nudge"><svg class="o"><use href="#p-arrow-right"/></svg><svg class="f"><use href="#p-arrow-right-f"/></svg></span></button>
+      <button class="circ-btn glass" id="audOpen" data-go="2" aria-haspopup="dialog"><span class="em" id="audEm"></span><span class="cb-t"><small>Sending to</small><span id="audChip">All friends</span></span><span class="chev"><span class="ic" data-fx="nudge"><svg class="o"><use href="#p-caret-right"/></svg><svg class="f"><use href="#p-caret-right-f"/></svg></span></span></button>
+      <button class="go-btn send-now" id="sendNow" aria-label="Send to all friends"><span class="ic" data-fx=""><svg class="o"><use href="#p-paper-plane-tilt"/></svg><svg class="f"><use href="#p-paper-plane-tilt-f"/></svg></span></button>
     </div>
   </section>
 
-  <!-- 3 · Audience -->
-  <section class="scr" id="s2" data-step="audience">
-    <div class="top"><button class="ico glass" data-go="1" aria-label="Back"><span class="ic" data-fx="nudgel"><svg class="o"><use href="#p-caret-left"/></svg><svg class="f"><use href="#p-caret-left-f"/></svg></span></button><span style="width:38px"></span></div>
-    <h2 id="audH">Who's it for?</h2>
-    <div class="note" id="audNote">Private. Nobody's notified.</div>
-    <div class="opts" id="opts"></div>
-    <button class="newc" id="newC"><span><span class="ic" data-fx="rot"><svg class="o"><use href="#p-plus"/></svg><svg class="f"><use href="#p-plus-f"/></svg></span></span>New circle</button>
-    <input class="cname" id="cName" type="text" inputmode="none" autocomplete="off" placeholder="Circle name" maxlength="24" style="display:none">
-    <div class="friends" id="friends" style="display:none"></div>
-    <div style="flex:1;min-height:16px"></div>
+  <!-- 3 · Audience: iOS sheet over the preview -->
+  <div class="scrim" id="scrim"></div>
+  <section class="isheet" id="s2" data-step="audience" role="dialog" aria-modal="true" aria-labelledby="audH">
+    <div class="grab" id="grab"><i></i></div>
+    <div class="sh-head"><div><h2 id="audH">Who's it for?</h2><div class="note" id="audNote">Private. Nobody's notified.</div></div><button class="ico glass sh-x" data-go="1" aria-label="Close"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-x"/></svg><svg class="f"><use href="#p-x-f"/></svg></span></button></div>
+    <div class="sh-body">
+      <div class="opts" id="opts"></div>
+      <button class="newc" id="newC"><span><span class="ic" data-fx="rot"><svg class="o"><use href="#p-plus"/></svg><svg class="f"><use href="#p-plus-f"/></svg></span></span>New circle</button>
+      <input class="cname" id="cName" type="text" inputmode="none" autocomplete="off" placeholder="Circle name" maxlength="24" style="display:none">
+      <div class="friends" id="friends" style="display:none"></div>
+    </div>
     <button class="send" id="postBtn"><span class="lbl">Send to all friends</span><span class="ic" data-fx=""><svg class="o"><use href="#p-paper-plane-tilt"/></svg><svg class="f"><use href="#p-paper-plane-tilt-f"/></svg></span></button>
+  </section>
+
+  <!-- context picker: full list for Place, Music, Tag -->
+  <div class="scrim" id="pkScrim"></div>
+  <section class="isheet large" id="pk" role="dialog" aria-modal="true" aria-labelledby="pkT" inert>
+    <div class="grab"><i></i></div>
+    <div class="sh-head"><div><h2 id="pkT">Add music</h2><div class="note" id="pkN"></div></div><button class="ico glass sh-x" id="pkX" aria-label="Close"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-x"/></svg><svg class="f"><use href="#p-x-f"/></svg></span></button></div>
+    <label class="pk-srch"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-magnifying-glass"/></svg><svg class="f"><use href="#p-magnifying-glass-f"/></svg></span><input id="pkIn" type="text" inputmode="none" autocomplete="off" placeholder="Search"></label>
+    <div class="sh-body"><div class="opts" id="pkList" role="listbox"></div></div>
   </section>
 
   <!-- 4 · Posting -->
   <section class="scr" id="s3" data-step="post">
     <div class="post-wrap">
       <div class="whoosh"><i></i><i></i><i></i></div>
-      <div class="dual mini" id="mini" data-flt="original"><div class="ph ph-back"></div><div class="pip"><div class="ph ph-front"></div></div></div>
+      <div class="dual mini" id="mini" data-flt="original"><div class="ph ph-back zm"></div><div class="pip"><div class="ph ph-front"></div></div></div>
       <div class="sent" id="sentTxt">Sent to all friends</div>
     </div>
   </section>
 
   <!-- 5 · Feed -->
   <section class="scr" id="s4" data-step="feed">
-    <div class="top"><button class="ico glass" aria-label="Friends"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-users"/></svg><svg class="f"><use href="#p-users-f"/></svg></span></button><span class="logo">BeReal.</span><span class="ico av img" style="background-image:url(img/av-hugo.webp)" aria-label="Your profile"></span></div>
-    <div class="seg glass" id="fchips"><span class="seg-ind" id="segInd"></span><button class="on" data-f="all">All</button><button data-f="circle"><i class="ring-dot"></i>Circles</button><button data-f="fof">Friends of friends</button></div>
+    <div class="top"><button class="ico glass" aria-label="Add friends"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-users"/></svg><svg class="f"><use href="#p-users-f"/></svg></span><span class="addb" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M6 2.5v7M2.5 6h7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/></svg></span></button><span class="logo">BeReal.</span><button class="ico glass notif" aria-label="Notifications, 2 new"><span class="ic" data-fx="wiggle"><svg class="o"><use href="#p-bell"/></svg><svg class="f"><use href="#p-bell-f"/></svg></span><span class="nbadge" aria-hidden="true">2</span></button></div>
+    <div class="seg glass" id="fchips"><span class="seg-ind" id="segInd"></span><button class="on" data-f="all">All</button><button data-f="circle"><i class="ring-dot"></i>Circles</button><button data-f="fof">Mutuals</button></div>
     <div class="feed">
       <div class="mine">
         <div class="mine-row">
           <div class="dual" id="mineDual" data-flt="original"><div class="ph ph-back"></div><div class="pip"><div class="ph ph-front"></div></div><div class="stk-layer" id="mineStk"></div></div>
           <div style="min-width:0;flex:1">
             <h3>Your BeReal.</h3>
-            <p id="mineMeta">On time · just now</p>
-            <div class="aud" id="mineAud">🌍 All friends</div>
-            <button class="seenbtn" id="seenBtn" aria-pressed="true"><span class="ic" data-fx="blink"><svg class="o"><use href="#p-eye"/></svg><svg class="f"><use href="#p-eye-f"/></svg></span><span>Seen by 6 · only you see this</span></button><div class="seen" id="seenAv"><span style="background:#e76f51">LM</span><span style="background:#222 url(img/av-julie.webp) center/cover;color:transparent">JD</span><span style="background:#222 url(img/av-sam.webp) center/cover;color:transparent">SA</span><span style="background:#3a86ff">+3</span></div>
+            <p class="mine-meta"><span id="mineMeta">On time</span> · <span class="aud" id="mineAud">All friends</span></p>
+            <button class="seenbtn" id="seenBtn" aria-pressed="true" title="Only you see this"><span class="seen" id="seenAv"><span style="background:#e76f51">LM</span><span style="background:#222 url(img/av-julie.webp) center/cover;color:transparent">JD</span><span style="background:#222 url(img/av-sam.webp) center/cover;color:transparent">SA</span></span><span class="seen-l">Seen by 6</span></button>
           </div>
-          <button class="bonus" aria-label="Post a Bonus BeReal"><b>+</b><span>Bonus<br>2 left</span></button>
+          <button class="bonus" aria-label="Post a Bonus BeReal, 2 left"><b>+</b><small>Bonus</small></button>
         </div>
         <div class="cbub sm" id="mineBub" hidden></div>
       </div>
@@ -463,16 +742,34 @@
         <div class="ph-head"><span class="av img ring" style="background-image:url(img/av-julie.webp)"></span><span class="who"><b>julie.d</b><small><i class="ring-dot"></i>In a circle · Canal Saint-Martin · 4 min late</small></span><button class="more" aria-label="More"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-dots-three"/></svg><svg class="f"><use href="#p-dots-three-f"/></svg></span></button></div>
         <div class="dual"><div class="ph ph-b2"></div><div class="pip"><div class="ph ph-f2"></div></div></div>
         <div class="cbub">morning walk with this one 🐶</div>
-        <div class="react"><button class="tgl" aria-pressed="false" aria-label="Like"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-heart"/></svg><svg class="f"><use href="#p-heart-f"/></svg></span><span>3</span></button><button class="tgl" aria-pressed="false" aria-label="RealMoji"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-smiley"/></svg><svg class="f"><use href="#p-smiley-f"/></svg></span></button><button aria-label="Reply"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-chat-circle"/></svg><svg class="f"><use href="#p-chat-circle-f"/></svg></span><span>Reply</span></button></div>
+        <div class="react"><span class="rm-stack" aria-label="RealMojis from tom and sam"><span class="rm" style="background-image:url(img/av-tom.webp)"><i>😂</i></span><span class="rm" style="background-image:url(img/av-sam.webp)"><i>😍</i></span></span><button class="rm-btn" aria-label="Add a RealMoji" aria-expanded="false"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-smiley"/></svg><svg class="f"><use href="#p-smiley-f"/></svg></span></button><button aria-label="Comment"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-chat-circle"/></svg><svg class="f"><use href="#p-chat-circle-f"/></svg></span><span>Comment</span></button></div>
       </div>
       <div class="post" data-kind="all">
         <div class="ph-head"><span class="av img" style="background-image:url(img/av-sam.webp)"></span><span class="who"><b>sam.a</b><small>On time · ♪ lo-fi focus</small></span><button class="more" aria-label="More"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-dots-three"/></svg><svg class="f"><use href="#p-dots-three-f"/></svg></span></button></div>
         <div class="dual"><div class="ph ph-b3"></div><div class="pip"><div class="ph ph-f3"></div></div></div>
-        <div class="react"><button class="tgl" aria-pressed="false" aria-label="Fire"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-fire"/></svg><svg class="f"><use href="#p-fire-f"/></svg></span><span>5</span></button><button class="tgl" aria-pressed="false" aria-label="RealMoji"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-smiley"/></svg><svg class="f"><use href="#p-smiley-f"/></svg></span></button><button aria-label="Reply"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-chat-circle"/></svg><svg class="f"><use href="#p-chat-circle-f"/></svg></span><span>Reply</span></button></div>
+        <div class="react"><span class="rm-stack" aria-label="RealMojis from julie and tom"><span class="rm" style="background-image:url(img/av-julie.webp)"><i>😃</i></span><span class="rm" style="background-image:url(img/av-tom.webp)"><i>⚡</i></span></span><button class="rm-btn" aria-label="Add a RealMoji" aria-expanded="false"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-smiley"/></svg><svg class="f"><use href="#p-smiley-f"/></svg></span></button><button aria-label="Comment"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-chat-circle"/></svg><svg class="f"><use href="#p-chat-circle-f"/></svg></span><span>Comment</span></button></div>
       </div>
     </div>
-    <nav class="tabs"><button class="tab on"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-house"/></svg><svg class="f"><use href="#p-house-f"/></svg></span><small>Home</small></button><button class="tab"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-chat-teardrop-text"/></svg><svg class="f"><use href="#p-chat-teardrop-text-f"/></svg></span><small>Chat</small></button><button class="cam-tab" data-go="0" aria-label="New BeReal"><i></i></button><button class="tab"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-images"/></svg><svg class="f"><use href="#p-images-f"/></svg></span><small>Memories</small></button><button class="tab"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-user-circle"/></svg><svg class="f"><use href="#p-user-circle-f"/></svg></span><small>Profile</small></button></nav>
-    <button class="restart glass" data-go="0"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-arrow-clockwise"/></svg><svg class="f"><use href="#p-arrow-clockwise-f"/></svg></span>Replay</button>
+    <nav class="tabs glass"><button class="tab on"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-house"/></svg><svg class="f"><use href="#p-house-f"/></svg></span><small>Home</small></button><button class="tab"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-chat-teardrop-text"/></svg><svg class="f"><use href="#p-chat-teardrop-text-f"/></svg></span><small>Chat</small></button><button class="cam-tab" data-go="0" aria-label="New BeReal"><i></i></button><button class="tab"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-images"/></svg><svg class="f"><use href="#p-images-f"/></svg></span><small>Memories</small></button><button class="tab"><span class="tab-av" aria-hidden="true"><span>HV</span><img src="img/av-hugo.webp" alt="" onerror="this.remove()"></span><small>Profile</small></button></nav>
+    <button class="restart glass" data-go="5"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-arrow-clockwise"/></svg><svg class="f"><use href="#p-arrow-clockwise-f"/></svg></span>Replay</button>
+  </section>
+
+  <!-- 0 · First open: empty feed, friends' posts stay hidden until you post -->
+  <section class="scr" id="s5" data-step="start">
+    <div class="top"><button class="ico glass" aria-label="Add friends"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-users"/></svg><svg class="f"><use href="#p-users-f"/></svg></span><span class="addb" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M6 2.5v7M2.5 6h7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/></svg></span></button><span class="logo">BeReal.</span><button class="ico glass notif" aria-label="Notifications, 2 new"><span class="ic" data-fx="wiggle"><svg class="o"><use href="#p-bell"/></svg><svg class="f"><use href="#p-bell-f"/></svg></span><span class="nbadge" aria-hidden="true">2</span></button></div>
+    <div class="empty">
+      <div class="lock-stack" aria-hidden="true">
+        <div class="dual"><div class="ph ph-b2"></div><div class="pip"><div class="ph ph-f2"></div></div></div>
+        <div class="dual"><div class="ph ph-b3"></div><div class="pip"><div class="ph ph-f3"></div></div></div>
+        <span class="lock-badge glass"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="5" y="10.5" width="14" height="10" rx="3" fill="#fff"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+      </div>
+      <h2>Your first BeReal. <span class="wave" aria-hidden="true">👋</span></h2>
+      <p>Your friends’ posts unlock as soon as you share yours. Two photos, no filters, just your moment right now.</p>
+      <div class="posted"><span class="avs"><span style="background-image:url(img/av-julie.webp)"></span><span style="background-image:url(img/av-sam.webp)"></span><span style="background-image:url(img/av-tom.webp)"></span></span>julie and 4 friends already posted</div>
+      <button class="cta" data-go="0"><i></i>Take my BeReal</button>
+      <div class="tleft" id="homeT">1:47 left to be on time</div>
+    </div>
+    <nav class="tabs glass"><button class="tab on"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-house"/></svg><svg class="f"><use href="#p-house-f"/></svg></span><small>Home</small></button><button class="tab"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-chat-teardrop-text"/></svg><svg class="f"><use href="#p-chat-teardrop-text-f"/></svg></span><small>Chat</small></button><button class="cam-tab" data-go="0" aria-label="New BeReal"><i></i></button><button class="tab"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-images"/></svg><svg class="f"><use href="#p-images-f"/></svg></span><small>Memories</small></button><button class="tab"><span class="tab-av" aria-hidden="true"><span>HV</span><img src="img/av-hugo.webp" alt="" onerror="this.remove()"></span><small>Profile</small></button></nav>
   </section>
 </div>
 <button class="mcchip glass" id="mcChip" aria-pressed="true">Multi-cam: on</button>
@@ -487,24 +784,27 @@
   document.addEventListener('pointerdown', e => { const b = e.target.closest('button,.edit-l,.srch'); if (b && !b.closest('#kb')) { fxIcon(b.classList.contains('edit-l') ? b : (e.target.closest('.edit-l') || b)); } }, true);
   document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && document.activeElement && document.activeElement.matches('button')) fxIcon(document.activeElement); });
   document.addEventListener('click', e => { const t = e.target.closest('.tgl, #flashBtn'); if (t) t.setAttribute('aria-pressed', t.getAttribute('aria-pressed') !== 'true'); const tb = e.target.closest('.tab'); if (tb) document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === tb)); });
-  const STEPS = ['capture', 'context', 'audience', 'post', 'feed'];
+  // 'start' (first open, empty feed) is last so the flow steps keep their numbers
+  const STEPS = ['capture', 'context', 'audience', 'post', 'feed', 'start'];
   const FRIENDS = [['LM','#e76f51'],['JD','#2a9d8f','julie'],['SA','#8338ec','sam'],['TB','#ffb703','tom'],['NK','#3a86ff'],['EO','#fb5607'],['RC','#06d6a0'],['MP','#ef476f']];
   const FMAP = Object.fromEntries(FRIENDS.map(f => [f[0], f]));
   const LOC_ALL = ['Paris 11e', 'Canal Saint-Martin', 'Hide location'], LOC_CIRCLE = ['Canal Saint-Martin', 'Paris 11e', 'Hide location'];
   const SUGGEST = { caption: [], location: LOC_ALL, music: ['♪ Now playing', '♪ Golden hour'], tag: ['@julie.d', '@sam.a', '@tom.b'] };
   const POS = { location: { x: 32, y: 74, r: -4 }, music: { x: 64, y: 87, r: 3 }, tag: { x: 72, y: 13, r: -3 } };
-  const state = { step: 0, swapped: false, ctx: {}, aud: 'all', pos: JSON.parse(JSON.stringify(POS)) };
+  const state = { step: 0, swapped: false, ctx: {}, aud: 'all', pos: JSON.parse(JSON.stringify(POS)), sty: { location: 0, music: 0, tag: 0 } };
   let postTimer = null;
   const mo = $('#mo');
 
+  // step → element on screen: the audience step is a sheet over the context screen
+  const SCR = ['#s0', '#s1', '#s2', '#s3', '#s4', '#s5'];
   function moAt(step) {
-    const scr = $$('.scr')[step]; const sr = scr.getBoundingClientRect();
-    const A = { 0: ['#cam', r => [r.right - 58, r.bottom - 26]], 1: ['#tray', r => [r.right - 46, r.top - 54]], 2: ['#audH', r => [r.left + r.width + 8, r.top - 8]], 3: ['#sentTxt', r => [r.left + r.width / 2 - 22, r.bottom + 16]] };
-    const a = A[step]; mo.classList.toggle('hide', !a); if (!a) return;
+    const scr = $(SCR[step]); const sr = $('#app').getBoundingClientRect();
+    const A = { 0: ['#cam', r => [r.right - 58, r.bottom - 26]], 1: ['#editDual', r => [r.right - 54, r.bottom - 30]], 2: ['#audH', r => [r.left + r.width + 8, r.top - 8]], 3: ['#sentTxt', r => [r.left + r.width / 2 - 22, r.bottom + 16]], 5: ['.lock-stack', r => [r.left + r.width / 2 - 22, r.top - 30]] };
+    const a = A[step]; const off = !a || (step === 2 && $('#s2').classList.contains('large')) || (step === 1 && state.moGone); mo.classList.toggle('hide', off); if (off) return;
     const el = $(a[0], scr); if (!el) return;
     const r = el.getBoundingClientRect(); const rel = { left: r.left - sr.left, right: r.right - sr.left, top: r.top - sr.top, bottom: r.bottom - sr.top, width: r.width, height: r.height };
     const [x, y] = a[1](rel); mo.style.transform = `translate(${x}px,${y}px)`;
-    look(step === 0 ? [-2, 1.5] : step === 1 ? [-2, 1] : step === 2 ? [-2, 0] : [0, 0]);
+    look(step === 0 ? [-2, 1.5] : step === 1 ? [-2, 1] : step === 2 ? [-2, 0] : step === 5 ? [0, 2] : [0, 0]);
   }
   function look([x, y]) { mo.style.setProperty('--lx', x + 'px'); mo.style.setProperty('--ly', y + 'px'); }
   function moFx(c, ms) { mo.classList.remove(c); void mo.offsetWidth; mo.classList.add(c); if (ms) setTimeout(() => mo.classList.remove(c), ms); }
@@ -514,18 +814,29 @@
     i = Math.max(0, Math.min(STEPS.length - 1, i | 0));
     const from = state.step; state.step = i;
     const miniRect = (i === 4 && from === 3) ? $('#mini').getBoundingClientRect() : null;
-    $$('.scr').forEach((s, k) => s.classList.toggle('on', k === i));
-    clearTimeout(postTimer); kbHide();
+    const shown = i === 2 ? '#s1' : SCR[i];
+    $$('.scr').forEach(s => s.classList.toggle('on', '#' + s.id === shown));
+    $('#app').classList.toggle('aud-on', i === 2); $('#s2').inert = i !== 2; $('#s1').inert = i === 2;
+    clearTimeout(postTimer); kbHide(); tipShow(false); pkClose();
     if (i !== 1) closeSheet();
+    if (i !== 2 && editing) { editing = null; syncAud(); }
+    if (i === 2) setTimeout(() => state.step === 2 && moAt(2), 560);
     mo.classList.remove('cheer', 'peek');
+    if (i === 3) state.posted = true;
+    if (i === 5) state.posted = false;
     if (i === 3) {
       const m = $('#mini'); m.style.animation = 'none'; void m.offsetWidth; m.style.animation = '';
       setTimeout(() => moFx('cheer', 1600), 350);
       postTimer = setTimeout(() => go(4), 1450);
     }
+    if (i === 4 && from === 3) mineRestore();
+    if (i !== 4 && $('#od').classList.contains('on')) { $('#od').classList.remove('on'); $('#od').inert = true; osClose(); }
     if (i === 4) { syncFeed(); requestAnimationFrame(segMove); if (miniRect) morphMine(miniRect); }
+    if (i === 5) setTimeout(() => state.step === 5 && moFx('cheer', 1600), 450);
     requestAnimationFrame(() => moAt(i));
     if (i === 1) requestAnimationFrame(blobMove);
+    if (i !== 1 && state.moGone) { state.moGone = false; $('#sendNow').classList.remove('fed'); }
+    if (i === 1) setTimeout(checkDive, 600);
     if (!silent) try { parent.postMessage({ bereal: 'step', step: i, name: STEPS[i] }, '*'); } catch (e) {}
   }
   function morphMine(a) {
@@ -549,18 +860,81 @@
   $('#flip').onclick = swap;
   const shoot = $('#shoot'); let holdT = null, recT = null, recS = 0, recording = false;
   const hint = () => (state.mc ? 'Back first, then selfie. Live selfie top-left' : 'Back first, then selfie. Selfie fills in during the 3-2-1');
+  // selfie slot: tap to swap, drag between the top corners, push it off an edge to hide it.
+  // Hidden, the selfie is still taken: it just stays a surprise. Side and hidden state are kept.
+  const pip = $('#camPip'), pipTab = $('#pipTab');
+  state.pip = { side: 'l', hidden: false };
+  let pd = null, pipDragged = false;
+  function pipX(side, hidden) {
+    const cw = $('#cam').clientWidth, pw = pip.offsetWidth;
+    if (hidden) return side === 'l' ? -(pw + 20) : cw - 4;
+    return side === 'l' ? 0 : cw - pw - 24;
+  }
+  function pipPlace() {
+    const { side, hidden } = state.pip;
+    pip.classList.remove('dragging');
+    pip.style.transform = `translateX(${pipX(side, hidden)}px)`;
+    pipTab.className = `pip-tab glass ${side}${hidden ? ' show' : ''}`;
+    pipTab.innerHTML = side === 'l' ? IC('caret-right', 'nudge') : IC('caret-left', 'nudgel');
+    pipTab.style.top = (pip.offsetTop + pip.offsetHeight / 2 - 32) + 'px';
+    pipTab.tabIndex = hidden ? 0 : -1;
+    pip.setAttribute('aria-hidden', hidden);
+  }
+  pip.addEventListener('pointerdown', e => {
+    if (recording) return;
+    pd = { x: e.clientX, y: e.clientY, base: pipX(state.pip.side, false) }; pipDragged = false;
+    pip.setPointerCapture && pip.setPointerCapture(e.pointerId);
+  });
+  pip.addEventListener('pointermove', e => {
+    if (!pd) return; const dx = e.clientX - pd.x, dy = e.clientY - pd.y;
+    if (!pipDragged && Math.hypot(dx, dy) < 6) return;
+    pipDragged = true; pip.classList.add('dragging');
+    pip.style.transform = `translate(${pd.base + dx}px, ${dy * .25}px)`;
+  });
+  const pipUp = e => {
+    if (!pd) return; const base = pd.base, dx = e.clientX - pd.x; pd = null;
+    if (!pipDragged) return;
+    const cw = $('#cam').clientWidth, pw = pip.offsetWidth, left = 12 + base + dx;
+    const hide = left < -pw * .35 ? 'l' : left + pw > cw + pw * .35 ? 'r' : null;
+    state.pip = { side: hide || (left + pw / 2 < cw / 2 ? 'l' : 'r'), hidden: !!hide };
+    pipPlace();
+    if (hide) { try { navigator.vibrate && navigator.vibrate(10); } catch (err) {} $('#camHint').textContent = 'Selfie preview hidden. The selfie is still taken.'; moFx('squish', 600); }
+  };
+  pip.addEventListener('pointerup', pipUp); pip.addEventListener('pointercancel', pipUp);
+  pip.addEventListener('click', () => { if (pipDragged) { pipDragged = false; return; } swap(); });
+  pipTab.addEventListener('click', () => { state.pip.hidden = false; pipPlace(); $('#camHint').textContent = hint(); });
+  addEventListener('resize', pipPlace);
+  pipPlace();
+  // zoom levels, as in the iOS Camera app (the photo is cropped, so .5× is the full frame)
+  const ZS = { '.5': 1, '1': 1.3, '2': 2.1 };
+  $$('#zoom button').forEach(b => b.onclick = () => {
+    $$('#zoom button').forEach(x => { x.classList.toggle('on', x === b); x.textContent = x === b ? x.dataset.z + '×' : x.dataset.z; });
+    $('#app').style.setProperty('--zs', ZS[b.dataset.z]);
+  });
+  // close the camera: back to the feed you came from (empty until you post)
+  $('#camClose').addEventListener('click', () => {
+    if (recording) { recording = false; clearInterval(recT); $('#app').classList.remove('rec'); }
+    go(state.posted ? 4 : 5);
+  });
+  const flashOn = () => $('#flashBtn').getAttribute('aria-pressed') === 'true';
   function photo() {
     const f = $('#flash'), c = $('#count'); let n = 3;
-    const flash = () => { f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); };
+    const flash = () => { f.classList.remove('go', 'retina'); void f.offsetWidth; f.classList.add('go'); };
+    // front flash: with Flash on, the screen glows warm white while the selfie is taken
+    const retina = () => { f.classList.remove('go', 'retina'); void f.offsetWidth; f.classList.add('retina'); };
     const show = v => { c.innerHTML = `<span>${v}</span>`; };
     flash(); c.hidden = false; show(n); $('#camHint').textContent = 'Selfie in 3'; $('#cam').classList.remove('filled');
     mo.classList.add('peek'); look([-3, -3]);
-    const t = setInterval(() => { n--; if (n > 0) { show(n); $('#camHint').textContent = `Selfie in ${n}`; if (n === 1) $('#cam').classList.add('filled'); return; } clearInterval(t); c.hidden = true; flash(); mo.classList.remove('peek'); moFx('squish', 600); $('#camHint').textContent = hint(); setTimeout(() => go(1), 320); }, 450);
+    const t = setInterval(() => { if (state.step !== 0) { clearInterval(t); c.hidden = true; mo.classList.remove('peek'); return; } n--; if (n > 0) { show(n); $('#camHint').textContent = `Selfie in ${n}`; if (n === 1) $('#cam').classList.add('filled'); return; } clearInterval(t); c.hidden = true; const front = flashOn(); front ? retina() : flash(); mo.classList.remove('peek'); moFx('squish', 600); $('#camHint').textContent = hint(); setTimeout(() => state.step === 0 && go(1), front && !RM.matches ? 760 : 320); }, 450);
   }
   function sizeLine() {
     const r = $('#cam').getBoundingClientRect(); const s = $('#rline');
-    s.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
-    $$('rect', s).forEach(x => { x.setAttribute('x', 1.5); x.setAttribute('y', 1.5); x.setAttribute('width', r.width - 3); x.setAttribute('height', r.height - 3); x.setAttribute('rx', 22); });
+    // explicit rounded-rect perimeter path starting top-centre (no pathLength: fractional dashes on rect drew a stray segment across the photo)
+    const c = $('#cam'), w = c.offsetWidth, hh = c.offsetHeight, i = 1.5, k = 22, x0 = i, y0 = i, x1 = w - i, y1 = hh - i;
+    s.setAttribute('viewBox', `0 0 ${w} ${hh}`);
+    const d = `M${w / 2} ${y0}H${x1 - k}A${k} ${k} 0 0 1 ${x1} ${y0 + k}V${y1 - k}A${k} ${k} 0 0 1 ${x1 - k} ${y1}H${x0 + k}A${k} ${k} 0 0 1 ${x0} ${y1 - k}V${y0 + k}A${k} ${k} 0 0 1 ${x0 + k} ${y0}Z`;
+    $$('path', s).forEach(p => p.setAttribute('d', d));
+    s.style.setProperty('--L', $('path', s).getTotalLength().toFixed(1) + 'px');
   }
   function recStart() {
     sizeLine(); recording = true; recS = 0; $('#app').classList.add('rec'); $('#recPill span').textContent = '0:00'; $('#camHint').textContent = 'Recording';
@@ -569,7 +943,7 @@
   }
   function recStop() {
     if (!recording) return; recording = false; clearInterval(recT); $('#app').classList.remove('rec');
-    $('#camHint').textContent = hint(); state.video = Math.max(1, recS); moFx('squish', 600); setTimeout(() => go(1), 300);
+    $('#camHint').textContent = hint(); state.video = Math.max(1, recS); moFx('squish', 600); setTimeout(() => state.step === 0 && go(1), 300);
   }
   const squash = () => { shoot.classList.remove('squash'); void shoot.offsetWidth; shoot.classList.add('squash'); moFx('squish', 600); try { navigator.vibrate && navigator.vibrate(8); } catch (e) {} };
   shoot.addEventListener('pointerdown', e => { e.preventDefault(); shoot.setPointerCapture && shoot.setPointerCapture(e.pointerId); squash(); holdT = setTimeout(() => { holdT = null; recStart(); }, 350); });
@@ -582,58 +956,92 @@
   $('#mcChip').classList.toggle('show', window === parent && innerWidth > 560);
   setMC(new URLSearchParams(location.search).get('multicam') !== '0');
   window.__rec = { start: recStart, stop: recStop };
-  let sec = 107; setInterval(() => { sec = Math.max(0, sec - 1); const t = $('#timer'); t.lastChild.textContent = sec ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : 'Late'; t.classList.toggle('late', !sec); mo.classList.toggle('sleep', !sec && state.step === 0); }, 1000);
+  // time left in the 2-minute window after the daily notification; tap the pill for an explanation
+  let sec = 107;
+  function tick() {
+    const t = $('#timer'), m = Math.floor(sec / 60), s = String(sec % 60).padStart(2, '0');
+    $('.tl', t).textContent = sec ? `${m}:${s} left` : 'Late';
+    $('.tring .fg', t).style.strokeDashoffset = 100 - sec / 120 * 100;
+    t.classList.toggle('late', !sec);
+    t.setAttribute('aria-label', sec ? `${m}:${s} left to post on time. What is this?` : 'Late. What is this?');
+    $('#tipT').textContent = sec ? '⚠️ Time to BeReal. ⚠️' : 'A little late? It happens 😅';
+    $('#tipP').textContent = sec ? 'Your friends just got the same ping as you. Snap yours in the next 2 minutes and you’re on time!' : 'The 2 minutes are up, but your BeReal. is still waiting for you.';
+    $('#homeT').textContent = sec ? `${m}:${s} left to be on time` : 'Late, but you can still post today';
+    $('#tipP2').textContent = sec ? 'Missed it? No stress, you can still post today. Friends will just see you were a little late 😉' : 'Post it anyway: friends love a real moment, even a late one.';
+    mo.classList.toggle('sleep', !sec && state.step === 0);
+  }
+  tick(); setInterval(() => { sec = Math.max(0, sec - 1); tick(); }, 1000);
+  const tip = $('#timerTip'); tip.inert = true;
+  function tipShow(on) { tip.classList.toggle('open', on); tip.inert = !on; $('#timer').setAttribute('aria-expanded', on); }
+  $('#timer').addEventListener('click', () => tipShow(!tip.classList.contains('open')));
+  document.addEventListener('pointerdown', e => { if (tip.classList.contains('open') && !e.target.closest('#timer, #timerTip')) tipShow(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') tipShow(false); });
 
   // filters
   const FILTERS = [['original','Original'],['film','Film'],['bw','B&W'],['night','Flash night']];
   state.flt = 0;
-  $('#fDots').innerHTML = FILTERS.map((f, i) => `<button aria-label="${f[1]}" data-fi="${i}"></button>`).join('');
   function setFlt(i, quiet, dir) {
     const prev = state.flt; state.flt = (i + FILTERS.length) % FILTERS.length; const [id, name] = FILTERS[state.flt];
     ['#editDual', '#mineDual', '#mini'].forEach(s => $(s).dataset.flt = id);
-    $$('#fDots button').forEach((b, k) => b.classList.toggle('on', k === state.flt));
     const l = $('#fLabel'); l.textContent = name;
     if (!quiet) {
       const e = $('#editDual'); e.classList.remove('swl', 'swr'); void e.offsetWidth; e.classList.add((dir || (state.flt > prev ? 1 : -1)) > 0 ? 'swl' : 'swr');
       l.classList.remove('show'); void l.offsetWidth; l.classList.add('show');
     }
   }
-  $$('#fDots button').forEach(b => b.onclick = () => setFlt(+b.dataset.fi));
   let sx = null;
-  $('#editDual').addEventListener('pointerdown', e => { if (!e.target.closest('button,.stk')) { sx = e.clientX; e.preventDefault(); } });
+  $('#editDual').addEventListener('pointerdown', e => { if (!e.target.closest('button,.stk,.pip')) { sx = e.clientX; e.preventDefault(); } });
   $('#editDual').addEventListener('pointercancel', () => { sx = null; });
   document.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 40) setFlt(state.flt + (dx < 0 ? 1 : -1), false, dx < 0 ? 1 : -1); });
   setFlt(0, true);
-  $('#fltBtn').onclick = () => setFlt(state.flt + 1, false, 1);
+  $('#editDual').addEventListener('keydown', e => { if (e.target !== e.currentTarget) return; if (e.key === 'ArrowRight') setFlt(state.flt + 1, false, 1); else if (e.key === 'ArrowLeft') setFlt(state.flt - 1, false, -1); });
 
   // stickers
+  // generated cover (no real album art): hue and initial come from the title
+  const COVERS = { 'Now playing': 'now-playing', 'Golden hour': 'golden-hour', 'Espresso': 'espresso', 'Birds of a Feather': 'birds-of-a-feather', 'Pink + White': 'pink-white', 'Midnight City': 'midnight-city', 'Sunday Best': 'sunday-best' };
+  const coverHTML = t => COVERS[t] ? `<span class="cov img" style="background-image:url(img/covers/${COVERS[t]}.webp)"></span>` : `<span class="cov" style="--h:${[...t].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7) % 360}" data-l="${t.charAt(0)}"></span>`;
   function stkHTML(k, v) {
     if (k === 'location') return `<svg class="pin"><use href="#p-map-pin-f"/></svg>${v}`;
-    if (k === 'music') return `<span class="vin"></span><span>${v.replace(/^♪\s*/, '')}<small>Spotify</small></span><span class="eq"><i></i><i></i><i></i><i></i></span>`;
+    if (k === 'music') {
+      const t = v.replace(/^♪\s*/, '');
+      const it = PK.music.items().find(x => x[0] === v), art = it && it[0] !== '♪ Now playing' ? it[2] : 'Spotify';
+      return `${coverHTML(t)}<span class="mt">${t}<small><b class="src">Spotify</b><b class="art">${art}</b></small></span><span class="eq"><i></i><i></i><i></i><i></i></span>`;
+    }
     return v;
   }
   const CLS = { location: 's-loc', music: 's-mus', tag: 's-tag' };
   let shown = new Set();
+  const STY_N = { location: 4, music: 4, tag: 4 };
   function renderStickers(box, interactive) {
     const keys = ['location', 'music', 'tag'].filter(k => state.ctx[k]);
-    box.innerHTML = keys.map(k => { const p = state.pos[k]; const fresh = interactive && !shown.has(k + state.ctx[k]); return `<div class="stk ${CLS[k]}${fresh ? ' in' : ''}" data-k="${k}" style="left:${p.x}%;top:${p.y}%;--r:${p.r}deg">${stkHTML(k, state.ctx[k])}</div>`; }).join('');
+    box.innerHTML = keys.map(k => { const p = state.pos[k]; const fresh = interactive && !shown.has(k + state.ctx[k]); return `<div class="stk ${CLS[k]} v${state.sty[k]}${fresh ? ' in' : ''}" data-k="${k}" title="Tap to change the style, drag to move" style="left:${p.x}%;top:${p.y}%;--r:${p.r}deg">${stkHTML(k, state.ctx[k])}</div>`; }).join('');
     if (interactive) { shown = new Set(keys.map(k => k + state.ctx[k])); $$('.stk', box).forEach(dragify); }
   }
   function dragify(el) {
     let st = null;
     el.addEventListener('pointerdown', e => {
       e.stopPropagation(); e.preventDefault(); el.setPointerCapture && el.setPointerCapture(e.pointerId);
-      st = { box: el.parentElement.getBoundingClientRect(), lx: e.clientX, t: performance.now() };
+      st = { box: el.parentElement.getBoundingClientRect(), lx: e.clientX, t: performance.now(), x0: e.clientX, y0: e.clientY, moved: false };
       el.classList.remove('in', 'drop'); el.classList.add('drag');
     });
     el.addEventListener('pointermove', e => {
       if (!st) return; const k = el.dataset.k; const b = st.box;
+      if (!st.moved && Math.hypot(e.clientX - st.x0, e.clientY - st.y0) < 5) return;
+      st.moved = true;
       const x = Math.max(8, Math.min(92, (e.clientX - b.left) / b.width * 100)), y = Math.max(6, Math.min(94, (e.clientY - b.top) / b.height * 100));
       state.pos[k].x = x; state.pos[k].y = y; el.style.left = x + '%'; el.style.top = y + '%';
       const now = performance.now(); const vx = (e.clientX - st.lx) / Math.max(1, now - st.t); st.lx = e.clientX; st.t = now;
       el.style.setProperty('--sk', Math.max(-10, Math.min(10, -vx * 9)) + 'deg');
     });
-    const end = () => { if (!st) return; st = null; el.classList.remove('drag'); el.style.setProperty('--sk', '0deg'); void el.offsetWidth; el.classList.add('drop'); };
+    const end = () => {
+      if (!st) return;
+      // a tap (no drag) cycles the sticker's look
+      if (!st.moved) { const k = el.dataset.k; el.classList.remove('v' + state.sty[k]); state.sty[k] = (state.sty[k] + 1) % STY_N[k]; el.classList.add('v' + state.sty[k]); try { navigator.vibrate && navigator.vibrate(6); } catch (err) {}
+        // a taller look (the cover card) must stay inside the photo
+        const bx = el.parentElement.getBoundingClientRect(), r = el.getBoundingClientRect(), p = state.pos[k];
+        if (r.bottom > bx.bottom - 6) p.y -= (r.bottom - bx.bottom + 10) / bx.height * 100; else if (r.top < bx.top + 6) p.y += (bx.top - r.top + 10) / bx.height * 100;
+        el.style.top = p.y + '%'; }
+      st = null; el.classList.remove('drag'); el.style.setProperty('--sk', '0deg'); void el.offsetWidth; el.classList.add('drop'); };
     el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
   }
 
@@ -653,6 +1061,32 @@
     const bub = $('#capBub'); const showB = !!state.ctx.caption && !editingCap; const was = !bub.hidden && bub.textContent === (state.ctx.caption || '');
     bub.hidden = !showB; bub.textContent = state.ctx.caption || ''; if (showB && !was) { bub.classList.remove('in'); void bub.offsetWidth; bub.classList.add('in'); }
     cf.style.display = editingCap ? '' : 'none';
+    checkDive();
+  }
+  // all four context items added: the mascot dives into Send; remove one and it pops back out
+  const ctxFull = () => ['caption', 'location', 'music', 'tag'].every(k => state.ctx[k]);
+  function checkDive() {
+    if (state.step !== 1) return;
+    if (ctxFull() && !state.moGone) setTimeout(() => { if (state.step === 1 && !state.moGone && ctxFull() && !kbField) dive(); }, 500);
+    else if (!ctxFull() && state.moGone) { state.moGone = false; $('#sendNow').classList.remove('fed'); mo.classList.remove('hide'); moAt(1); moFx('peek', 450); }
+  }
+  function dive() {
+    state.moGone = true;
+    const b = $('#sendNow').getBoundingClientRect(), a = $('#app').getBoundingClientRect(), m = mo.getBoundingClientRect();
+    const x0 = m.left - a.left, y0 = m.top - a.top, x1 = b.left - a.left + b.width / 2 - 22, y1 = b.top - a.top + b.height / 2 - 22;
+    look([2, 3]);
+    const done = () => {
+      mo.classList.add('hide'); mo.style.transform = `translate(${x1}px,${y1}px)`;
+      const btn = $('#sendNow'); btn.classList.remove('fed'); void btn.offsetWidth; btn.classList.add('fed');
+      try { navigator.vibrate && navigator.vibrate(12); } catch (e) {}
+    };
+    if (RM.matches || !mo.animate) return done();
+    mo.animate([
+      { transform: `translate(${x0}px,${y0}px)` },
+      { transform: `translate(${x0 + (x1 - x0) * .35}px,${Math.min(y0, y1) - 70}px) scale(1.12,.9)`, offset: .4 },
+      { transform: `translate(${x1}px,${y1 - 10}px) scale(.75,1.2)`, offset: .85 },
+      { transform: `translate(${x1}px,${y1}px) scale(.1)`, opacity: 0 },
+    ], { duration: 820, easing: 'cubic-bezier(.45,0,.55,1)' }).onfinish = done;
   }
   function openCaption() { const cf = $('#capField'); cf.style.display = ''; $('#capBub').hidden = true; cf.focus(); }
   $$('[data-tool]').forEach(t => t.onclick = () => {
@@ -660,16 +1094,70 @@
     if (openTool === k) { closeSheet(); return; }
     openTool = k; $$('.tool').forEach(x => x.classList.toggle('sel', x === t)); blobMove();
     if (k === 'caption') { $('#sheet').classList.remove('open'); openCaption(); return; }
-    const search = (k === 'tag' || k === 'music') ? `<label class="srch">${IC('magnifying-glass','pop')}<input class="sheet-in" type="text" inputmode="none" autocomplete="off" data-k="${k}" placeholder="${k === 'tag' ? 'Search friends' : 'Search a song'}"></label>` : '';
+    const search = `<button class="sq glass" data-pk-search aria-label="${PK[k].ph}">${IC('magnifying-glass','pop')}</button><button class="sq glass" data-pk-all aria-label="See all: ${PK[k].title}"><svg class="ex" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg></button>`;
     const rots = [-3, 2, -2, 3];
     $('#sugg').innerHTML = search + SUGGEST[k].map((v, i) => v === 'Hide location' ? `<button class="x glass" data-k="${k}" data-v="" aria-label="Hide location">${IC('x','spin')}</button>` : `<button data-k="${k}" data-v="${v}"><span class="stk ${CLS[k]}" style="--r:${rots[i % 4]}deg">${stkHTML(k, v)}</span></button>`).join('') + (state.ctx[k] && k !== 'location' ? `<button class="x glass" data-k="${k}" data-v="" aria-label="Remove">${IC('x','spin')}</button>` : '');
     $('#sheet').classList.add('open');
-    $$('#sugg button').forEach(b => b.onclick = () => { const v = b.dataset.v; if (!v) delete state.ctx[k]; else state.ctx[k] = v; renderCtx(); moFx('squish', 600); });
-    const si = $('#sugg .sheet-in'); if (si) si.addEventListener('keydown', e => { if (e.key === 'Enter' && si.value.trim()) { state.ctx[k] = (k === 'tag' ? '@' : '♪ ') + si.value.trim().replace(/^[@♪ ]+/, ''); renderCtx(); } });
+    $('#sugg [data-pk-search]').onclick = () => pkOpen(k, true);
+    $('#sugg [data-pk-all]').onclick = () => pkOpen(k, false);
+    $$('#sugg button[data-k]').forEach(b => b.onclick = () => { const v = b.dataset.v; if (!v) delete state.ctx[k]; else state.ctx[k] = v; renderCtx(); moFx('squish', 600); });
   });
+
+  // full list for a context tool, in a large sheet: search at the top, tap a row to add it
+  const handle = m => '@' + (FMAP[m][2] ? FMAP[m][2] + '.' + m[1].toLowerCase() : m.toLowerCase());
+  const PIN = '<svg class="pin" viewBox="0 0 256 256"><use href="#p-map-pin-f"/></svg>';
+  const PK = {
+    location: { title: 'Add a place', ph: 'Search places', note: () => state.sel.has('all') ? 'Closest first. All friends see the city.' : 'Closest first. Your circle sees the exact spot.',
+      items: () => [['Canal Saint-Martin', 'Canal Saint-Martin', '120 m'], ['Paris 11e', 'Paris 11e', 'Neighbourhood'], ['Café Oberkampf', 'Café Oberkampf', '300 m'], ['République', 'Place de la République', '600 m'], ['Parc de Belleville', 'Parc de Belleville', '1.2 km'], ['Paris', 'Paris', 'City only'], ['', 'Hide location', 'Nobody sees where you are']] },
+    music: { title: 'Add music', ph: 'Search songs', note: () => 'What’s playing, or any song. No account needed.',
+      items: () => [['♪ Now playing', 'Now playing', 'From Spotify'], ['♪ Golden hour', 'Golden hour', 'JVKE'], ['♪ Espresso', 'Espresso', 'Sabrina Carpenter'], ['♪ Birds of a Feather', 'Birds of a Feather', 'Billie Eilish'], ['♪ Pink + White', 'Pink + White', 'Frank Ocean'], ['♪ Midnight City', 'Midnight City', 'M83'], ['♪ Sunday Best', 'Sunday Best', 'Surfaces']] },
+    tag: { title: 'Tag a friend', ph: 'Search friends', note: () => state.sel.has('all') ? 'Everyone you can tag.' : 'People in your circle come first.',
+      items: () => { const inC = new Set(state.sel.has('all') ? [] : picked().flatMap(c => c.members)); return [...FRIENDS].sort((a, b) => inC.has(b[0]) - inC.has(a[0])).map(([m]) => [handle(m), handle(m).slice(1), inC.has(m) ? 'In your circle' : 'Friend', m]); } },
+  };
+  let pkKind = null;
+  function pkVis(k, it) { return k === 'location' ? (it[0] ? PIN : IC('x', 'spin')) : k === 'music' ? coverHTML(it[1]) : avHTML(it[3]); }
+  function pkRender() {
+    const k = pkKind, q = $('#pkIn').value.trim().toLowerCase().replace(/^[@♪ ]+/, '');
+    let rows = PK[k].items().filter(it => !q || (it[1] + ' ' + it[2]).toLowerCase().includes(q));
+    if (q && !rows.some(it => it[1].toLowerCase() === q)) { const raw = $('#pkIn').value.trim().replace(/^[@♪ ]+/, ''); rows = rows.concat([[k === 'tag' ? '@' + raw : k === 'music' ? '♪ ' + raw : raw, 'Use “' + raw + '”', 'Not in the list', k === 'tag' ? null : undefined]]); }
+    $('#pkList').innerHTML = rows.map(it => { const on = !!it[0] && state.ctx[k] === it[0]; const vis = it[3] === null ? '<span class="av ghost"></span>' : pkVis(k, it); return `<button class="opt pk-row${on ? ' on' : ''}" role="option" aria-selected="${on}" data-v="${it[0]}"><span class="pk-vis">${vis}</span><span class="nm">${it[1]}<small>${it[2]}</small></span>${CHK}</button>`; }).join('') || '<p class="pk-empty">Nothing found.</p>';
+  }
+  function pkOpen(k, focus) {
+    pkKind = k; $('#pkT').textContent = PK[k].title; $('#pkN').textContent = PK[k].note(); $('#pkIn').placeholder = PK[k].ph; $('#pkIn').value = '';
+    pkRender(); $('#pk .sh-body').scrollTop = 0;
+    $('#app').classList.add('pk-on'); $('#pk').inert = false; mo.classList.add('hide');
+    if (focus) setTimeout(() => pkKind === k && $('#pkIn').focus(), 420);
+  }
+  function pkClose() {
+    if (!pkKind) return;
+    if (kbField === $('#pkIn')) kbHide();
+    pkKind = null; $('#app').classList.remove('pk-on'); $('#pk').inert = true;
+    requestAnimationFrame(() => moAt(state.step));
+  }
+  $('#pkIn').addEventListener('input', pkRender);
+  $('#pkIn').addEventListener('keydown', e => { if (e.key === 'Enter') { const first = $('#pkList .pk-row'); if (first) first.click(); } });
+  $('#pkList').addEventListener('click', e => {
+    const r = e.target.closest('.pk-row'); if (!r) return; const k = pkKind, v = r.dataset.v;
+    if (v) state.ctx[k] = v; else delete state.ctx[k];
+    renderCtx(); moFx('squish', 600); pkClose();
+  });
+  $('#pkX').addEventListener('click', pkClose); $('#pkScrim').addEventListener('click', pkClose);
+  // suggestion row: drag with the mouse (touch keeps the native swipe); a drag never picks a sticker
+  (() => {
+    const row = $('#sugg'); let st = null, moved = false;
+    row.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' || e.button !== 0) return; st = { x: e.clientX, left: row.scrollLeft }; moved = false; });
+    addEventListener('pointermove', e => {
+      if (!st) return; const dx = e.clientX - st.x;
+      if (!moved && Math.abs(dx) < 6) return;
+      if (!moved) { moved = true; row.classList.add('is-dragging'); }
+      row.scrollLeft = st.left - dx;
+    });
+    addEventListener('pointerup', () => { if (!st) return; st = null; row.classList.remove('is-dragging'); });
+    row.addEventListener('click', e => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+  })();
   $('#capField').addEventListener('blur', () => setTimeout(() => { renderCtx(); if (openTool === 'caption') closeSheet(); }, 0));
   $('#capBub').onclick = openCaption;
-  $('#capField').addEventListener('input', e => { const v = e.target.value.trim(); if (v) state.ctx.caption = v; else delete state.ctx.caption; renderCtx(); });
+  $('#capField').addEventListener('input', e => { const v = e.target.value; if (v.trim()) state.ctx.caption = v; else delete state.ctx.caption; renderCtx(); }); // keep spaces as typed (no trim while editing)
 
   // audience
   const CIRCLES = [
@@ -681,7 +1169,24 @@
   let editing = null;
   const avHTML = n => { const f = FMAP[n]; return f[2] ? `<span class="av img" style="background-image:url(img/av-${f[2]}.webp)">${n}</span>` : `<span class="av" style="background:${f[1]}">${n}</span>`; };
   $('#friends').innerHTML = FRIENDS.map(([n, c, img]) => `<button class="fr" data-f="${n}"><span class="av${img ? ' img' : ''}" style="background:${img ? `#222 url(img/av-${img}.webp) center/cover` : c}">${n}</span>${img || n.toLowerCase()}</button>`).join('');
-  const cur = () => CIRCLES.find(c => c.id === state.aud);
+  // several circles can be picked together; All friends stands alone
+  state.sel = new Set(['all']);
+  const byId = id => CIRCLES.find(c => c.id === id);
+  const picked = () => CIRCLES.filter(c => state.sel.has(c.id));
+  const reach = () => new Set(picked().flatMap(c => c.members || [])).size;
+  function pick(id) {
+    if (id === 'all') { state.sel = new Set(['all']); return; }
+    state.sel.delete('all');
+    state.sel.has(id) ? state.sel.delete(id) : state.sel.add(id);
+    if (!state.sel.size) state.sel.add('all');
+  }
+  // who gets it, in words: "all friends", "Close friends", "Close friends + Family", "3 circles"
+  function audLabel() {
+    if (state.sel.has('all')) return 'all friends';
+    const p = picked();
+    return p.length <= 2 ? p.map(c => c.name).join(' + ') : `${p.length} circles`;
+  }
+  const audIcon = () => { const p = picked(); return state.sel.has('all') ? 'globe-hemisphere-west' : p.length === 1 ? p[0].em : 'users-three'; };
   const CHK = '<span class="chk"><svg viewBox="0 0 24 24"><path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
   function cluster(c) {
     const ms = c.id === 'all' ? ['JD', 'SA', 'TB'] : c.members.slice(0, 3);
@@ -689,56 +1194,188 @@
     return `<span class="clu">${avs}<span class="emo">${IC(c.em)}</span></span>`;
   }
   function renderOpts() {
-    $('#opts').innerHTML = CIRCLES.filter(c => c.id === 'all' || c.members.length || c.id === editing).map(c => `<button class="opt${c.id === state.aud ? ' on' : ''}" data-aud="${c.id}">${cluster(c)}<span class="nm">${c.name}<small>${c.sub || (c.members.length + ' people')}</small></span>${c.id !== 'all' ? `<span class="edit-l" data-edit="${c.id}" role="button" aria-label="Edit ${c.name}">${IC('pencil-simple','scrib')}</span>` : ''}${CHK}</button>`).join('');
+    $('#opts').innerHTML = CIRCLES.filter(c => c.id === 'all' || c.members.length || c.id === editing).map(c => `<button class="opt${state.sel.has(c.id) ? ' on' : ''}" data-aud="${c.id}" aria-pressed="${state.sel.has(c.id)}">${cluster(c)}<span class="nm">${c.name}<small>${c.sub || (c.members.length + ' people')}</small></span>${c.id !== 'all' ? `<span class="edit-l" data-edit="${c.id}" role="button" aria-label="Edit ${c.name}">${IC('pencil-simple','scrib')}</span>` : ''}${CHK}</button>`).join('');
     $$('.opt').forEach(o => o.onclick = ev => {
-      const ed = ev.target.dataset.edit; state.aud = o.dataset.aud;
-      editing = ed ? (editing === ed ? null : ed) : (editing === state.aud ? editing : null);
+      const ed = ev.target.closest('[data-edit]')?.dataset.edit;
+      if (ed) { editing = editing === ed ? null : ed; if (editing && !state.sel.has(ed)) pick(ed); }
+      else { pick(o.dataset.aud); if (editing && !state.sel.has(editing)) editing = null; }
       syncAud();
     });
   }
   const sendLbl = t => { $('#postBtn .lbl').textContent = t; };
   function syncAud() {
     renderOpts();
-    const c = cur(); const show = !!editing && editing === state.aud;
+    const ec = editing && byId(editing), show = !!ec;
     $('#friends').style.display = show ? '' : 'none';
-    const cn = $('#cName'); const isNew = show && /^new/.test(c.id); cn.style.display = isNew ? '' : 'none'; if (isNew && document.activeElement !== cn) cn.value = c.name === 'New circle' ? '' : c.name;
-    $$('.fr').forEach(f => f.classList.toggle('on', show && c.members.includes(f.dataset.f)));
-    $('#audNote').textContent = show ? `Editing ${c.name}. Silent: nobody's notified.` : "Private. Nobody's notified.";
-    const n = c.members ? c.members.length : 0;
-    sendLbl(c.id === 'all' ? 'Send to all friends' : n ? `Send to ${c.name}` : 'Add people first');
-    $('#postBtn').disabled = c.id !== 'all' && !n;
-    $('#audChip').textContent = c.name; $('#audEm').innerHTML = IC(c.em);
-    SUGGEST.tag = c.members && c.members.length ? c.members.slice(0, 3).map(m => '@' + (FMAP[m][2] ? FMAP[m][2] + '.' + m[1].toLowerCase() : m.toLowerCase())) : ['@julie.d', '@sam.a', '@tom.b'];
-    SUGGEST.location = c.id === 'all' ? LOC_ALL : LOC_CIRCLE;
+    const cn = $('#cName'); const isNew = show && /^new/.test(ec.id); cn.style.display = isNew ? '' : 'none'; if (isNew && document.activeElement !== cn) cn.value = ec.name === 'New circle' ? '' : ec.name;
+    $$('.fr').forEach(f => f.classList.toggle('on', show && ec.members.includes(f.dataset.f)));
+    const all = state.sel.has('all'), n = reach(), lbl = audLabel(), ok = all || n > 0;
+    $('#audNote').textContent = show ? `Editing ${ec.name}. Silent: nobody's notified.` : all ? "Private. Nobody's notified." : `${n} ${n === 1 ? 'person' : 'people'} · private, nobody's notified.`;
+    sendLbl(ok ? `Send to ${lbl}` : 'Add people first');
+    $('#postBtn').disabled = $('#sendNow').disabled = !ok;
+    $('#sendNow').setAttribute('aria-label', `Send to ${lbl}`);
+    $('#s2').classList.toggle('large', show); $('#app').classList.toggle('aud-large', show);
+    if (state.step === 2) setTimeout(() => state.step === 2 && moAt(2), 520);
+    $('#audChip').textContent = all ? 'All friends' : lbl;
+    // the chip shows who it reaches: up to four friends in a ring, one in the middle when alone
+    const ring = (all ? ['JD', 'SA', 'TB', 'LM'] : [...new Set(picked().flatMap(c => c.members))]).slice(0, 4);
+    const em = $('#audEm'), key = ring.join();
+    if (em.dataset.ring !== key) {
+      em.dataset.ring = key; em.classList.add('ringav');
+      em.innerHTML = ring.length ? ring.map((m, i) => avHTML(m).replace('style="', 'style="--a:' + (ring.length > 1 ? i * 360 / ring.length : 0) + 'deg;').replace('class="av', ring.length === 1 ? 'class="av solo' : 'class="av')).join('') : IC('users-three');
+      em.classList.remove('pop'); void em.offsetWidth; em.classList.add('pop');
+    }
+    const members = all ? [] : [...new Set(picked().flatMap(c => c.members))];
+    SUGGEST.tag = members.length ? members.slice(0, 3).map(m => '@' + (FMAP[m][2] ? FMAP[m][2] + '.' + m[1].toLowerCase() : m.toLowerCase())) : ['@julie.d', '@sam.a', '@tom.b'];
+    SUGGEST.location = all ? LOC_ALL : LOC_CIRCLE;
   }
-  $$('.fr').forEach(f => f.onclick = () => { const c = cur(); if (!c.members) return; const k = f.dataset.f; const i = c.members.indexOf(k); i < 0 ? c.members.push(k) : c.members.splice(i, 1); syncAud(); });
-  $('#cName').addEventListener('input', e => { const c = cur(); c.name = e.target.value.trim() || 'New circle'; const sel = $(`.opt[data-aud="${c.id}"] .nm`); if (sel) sel.firstChild.textContent = c.name; if (c.members.length) sendLbl(`Send to ${c.name}`); });
-  $('#newC').onclick = () => { const id = 'new' + CIRCLES.length; CIRCLES.push({ id, em:'users-three', name:'New circle', members:[] }); state.aud = id; editing = id; syncAud(); };
+  $$('.fr').forEach(f => f.onclick = () => { const c = editing && byId(editing); if (!c) return; const k = f.dataset.f; const i = c.members.indexOf(k); i < 0 ? c.members.push(k) : c.members.splice(i, 1); syncAud(); });
+  $('#cName').addEventListener('input', e => { const c = editing && byId(editing); if (!c) return; c.name = e.target.value.trim() ? e.target.value : 'New circle'; const sel = $(`.opt[data-aud="${c.id}"] .nm`); if (sel) sel.firstChild.textContent = c.name; if (reach()) sendLbl(`Send to ${audLabel()}`); });
+  $('#newC').onclick = () => { const id = 'new' + CIRCLES.length; CIRCLES.push({ id, em:'users-three', name:'New circle', members:[] }); pick(id); editing = id; syncAud(); };
 
-  function audLabel() { const c = cur(); return c.id === 'all' ? 'all friends' : c.name; }
   function syncFeed() {
-    const c = cur(); $('#mineAud').innerHTML = (c.id === 'all' ? '' : '<i class="ring-dot"></i>') + IC(c.em) + c.name;
-    const bits = ['On time · just now'];
+    const all = state.sel.has('all');
+    $('#mineAud').innerHTML = (all ? '' : '<i class="ring-dot"></i>') + IC(audIcon()) + (all ? 'All friends' : audLabel());
+    const bits = ['On time'];
     if (state.flt) bits.push(FILTERS[state.flt][1]);
     $('#mineMeta').textContent = bits.join(' · ');
     renderStickers($('#mineStk'), false);
     const mb = $('#mineBub'); mb.hidden = !state.ctx.caption; mb.textContent = state.ctx.caption || '';
   }
-  $('#seenBtn').onclick = () => { const b = $('#seenBtn'); const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.lastChild.textContent = on ? 'Seen by 6 · only you see this' : 'Show who saw it'; };
+  function seenToggle() { const b = $('#seenBtn'); const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.querySelector('.seen-l').textContent = on ? 'Seen by 6' : 'Who saw it?'; }
+  $('#seenBtn').onclick = seenToggle;
+  // ---- own post: detail view + options ----
+  const VIEWERS = [['JD', 'julie.d', 'Canal Saint-Martin · 2 min ago'], ['SA', 'sam.a', 'Montmartre · 5 min ago'], ['TB', 'tom.b', 'Lyon · 8 min ago'], ['LM', 'lea.m', 'Paris 11e · 12 min ago'], ['NK', 'nina.k', 'Marseille · 20 min ago'], ['EO', 'emma.o', 'Belleville · 31 min ago']];
+  let toastT;
+  function toast(msg, ic = 'check') { const t = $('#toast'); t.innerHTML = IC(ic) + msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1800); }
+  function syncOd() {
+    const all = state.sel.has('all');
+    $('#odDual').dataset.flt = FILTERS[state.flt][0];
+    renderStickers($('#odStk'), false);
+    const b = $('#odBub'); b.hidden = !state.ctx.caption || $('#odCap').style.display === ''; b.textContent = state.ctx.caption || '';
+    $('#odAud').innerHTML = (all ? '' : '<i class="ring-dot"></i>') + IC(audIcon()) + (all ? 'All friends' : audLabel());
+    $('#odMeta').textContent = $('#mineMeta').textContent + ' · just now';
+  }
+  function flip(el, from) { if (RM.matches) return; const to = el.getBoundingClientRect(); el.style.transition = 'none'; el.style.transform = `translate(${from.left - to.left}px,${from.top - to.top}px) scale(${from.width / to.width})`; void el.offsetWidth; el.style.transition = 'transform .55s cubic-bezier(.34,1.2,.5,1), border-radius .55s'; el.style.transform = ''; }
+  function odOpen() {
+    if (state.mineGone) return;
+    syncOd(); const od = $('#od'); od.inert = false; od.classList.add('on'); od.style.transform = '';
+    flip($('#odDual'), $('#mineDual').getBoundingClientRect());
+  }
+  function odClose() {
+    osClose(); kbHide(); const od = $('#od'), d = $('#odDual');
+    if (!RM.matches) { const a = $('#mineDual').getBoundingClientRect(), b = d.getBoundingClientRect(); d.style.transition = 'transform .4s cubic-bezier(.4,0,.2,1)'; d.style.transform = `translate(${a.left - b.left}px,${a.top - b.top}px) scale(${a.width / b.width})`; }
+    od.classList.remove('on'); od.inert = true;
+    setTimeout(() => { d.style.transition = ''; d.style.transform = ''; od.style.transform = ''; od.style.transition = ''; }, 420);
+  }
+  $('#mineDual').addEventListener('click', odOpen); $('.mine h3').addEventListener('click', odOpen);
+  $('#odX').onclick = odClose;
+  // swipe down to close
+  let odY = null;
+  $('#od').addEventListener('pointerdown', e => { if (e.target.closest('button,input,.os')) return; odY = e.clientY; });
+  $('#od').addEventListener('pointermove', e => { if (odY == null) return; const dy = Math.max(0, e.clientY - odY); $('#od').style.transition = 'none'; $('#od').style.transform = `translateY(${dy * .6}px) scale(${1 - dy / 3000})`; });
+  const odUp = e => { if (odY == null) return; const dy = e.clientY - odY; odY = null; $('#od').style.transition = 'transform .4s var(--spring)'; if (dy > 110) odClose(); else $('#od').style.transform = ''; };
+  $('#od').addEventListener('pointerup', odUp); $('#od').addEventListener('pointercancel', odUp);
+  const CHK2 = CHK;
+  function osRender(view) {
+    const B = $('#osBody');
+    if (view === 'circle') {
+      B.innerHTML = `<h4>Who sees it</h4>` + CIRCLES.filter(c => c.id === 'all' || c.members.length).map(c => `<button class="os-row${state.sel.has(c.id) ? ' on' : ''}" data-c="${c.id}"><span class="em2">${IC(c.em)}</span><span>${c.name}<small>${c.sub || c.members.length + ' people'}</small></span>${CHK2}</button>`).join('') + `<div class="os-btns"><button class="ok" data-os="done">Done</button></div>`;
+      $$('.os-row[data-c]', B).forEach(r => r.onclick = () => { pick(r.dataset.c); syncAud(); syncFeed(); syncOd(); osRender('circle'); });
+    } else if (view === 'seen') {
+      B.innerHTML = `<h4>Seen by 6</h4>` + VIEWERS.map(([k, n, w]) => `<div class="os-row">${avHTML(k)}<span>${n}<small>${w}</small></span></div>`).join('') + `<div class="os-btns"><button data-os="back">Back</button></div>`;
+    } else if (view === 'del') {
+      B.innerHTML = `<h4>Delete this BeReal?</h4><p style="margin:0 8px 6px;color:var(--mut);font-size:13px">It disappears for everyone. You can post again today.</p><div class="os-btns"><button data-os="back">Cancel</button><button class="del" data-os="delok">Delete</button></div>`;
+    } else {
+      const rows = [['cap', 'pencil-simple', 'Edit caption', 'scrib'], ['circle', 'users-three', 'Change circle', 'pop', audLabel()], ['seen', 'eye', 'See who viewed', 'blink', '6 friends'], ['save', 'download-simple', 'Save to camera roll', 'drop'], ['share', 'export', 'Share', 'pop'], ['del', 'trash', 'Delete', 'pop']];
+      B.innerHTML = rows.map(([id, ic, t, fx, sub]) => `<button class="os-row${id === 'del' ? ' danger' : ''}" data-os="${id}">${IC(ic, fx)}<span>${t}${sub ? `<small>${sub.replace(/^all/, 'All')}</small>` : ''}</span></button>`).join('');
+    }
+    $$('[data-os]', B).forEach(b => b.onclick = () => osAct(b.dataset.os));
+  }
+  function osOpen() { osRender(); $('#os').inert = false; $('#os').classList.add('on'); $('#osScrim').classList.add('on'); }
+  function osClose() { $('#os').classList.remove('on'); $('#os').inert = true; $('#osScrim').classList.remove('on'); }
+  $('#odMore').onclick = osOpen; $('#osScrim').onclick = osClose;
+  function osAct(a) {
+    if (a === 'circle' || a === 'seen' || a === 'del') return osRender(a);
+    if (a === 'back') return osRender();
+    if (a === 'done') { osClose(); return toast('Now shared with ' + audLabel(), audIcon()); }
+    if (a === 'save') { osClose(); return toast('Saved to Photos', 'download-simple'); }
+    if (a === 'share') { osClose(); const url = location.origin + '/demos/bereal/?step=feed'; try { if (navigator.share) { navigator.share({ title: 'My BeReal.', url }).catch(() => {}); return; } navigator.clipboard && navigator.clipboard.writeText(url).catch(() => {}); } catch (e) {} return toast('Link copied', 'export'); }
+    if (a === 'cap') { osClose(); const c = $('#odCap'); c.value = state.ctx.caption || ''; c.style.display = ''; $('#odBub').hidden = true; c.focus(); return; }
+    if (a === 'delok') { osClose(); odClose(); setTimeout(mineDelete, 380); }
+  }
+  $('#odCap').addEventListener('input', e => { const v = e.target.value; if (v.trim()) state.ctx.caption = v; else delete state.ctx.caption; syncFeed(); });
+  $('#odCap').addEventListener('blur', () => setTimeout(() => { $('#odCap').style.display = 'none'; syncOd(); }, 0));
+  let mineHTML = null;
+  function mineDelete() {
+    const m = $('.mine'); state.mineGone = true; m.classList.add('gone');
+    setTimeout(() => {
+      mineHTML = mineHTML || m.innerHTML;
+      m.classList.remove('gone');
+      m.innerHTML = `<button class="mine-empty" data-repost><span class="slot">${IC('plus', 'rot')}</span><span><b>Post your BeReal.</b><small>Deleted. You can take a new one today.</small></span></button>`;
+      m.querySelector('[data-repost]').onclick = () => go(0);
+      toast('BeReal deleted', 'trash');
+    }, 450);
+  }
+  function mineRestore() { if (!state.mineGone || !mineHTML) return; const m = $('.mine'); m.innerHTML = mineHTML; state.mineGone = false; $('#mineDual').addEventListener('click', odOpen); $('.mine h3').addEventListener('click', odOpen); $('#seenBtn').onclick = seenToggle; }
+
   function segMove() { const b = $('#fchips button.on'); const i = $('#segInd'); if (!b || !b.offsetWidth) return; i.style.width = b.offsetWidth + 'px'; i.style.transform = `translateX(${b.offsetLeft}px)`; }
   $$('#fchips button').forEach(b => b.onclick = () => {
     $$('#fchips button').forEach(x => x.classList.toggle('on', x === b)); segMove();
     const f = b.dataset.f; $$('.post').forEach(p => p.style.display = (f === 'all' || p.dataset.kind === f) ? '' : 'none');
-    let em = $('.fof-empty'); if (f === 'fof' && !em) { em = document.createElement('div'); em.className = 'fof-empty'; em.textContent = 'Friends of friends posts appear here.'; $('.feed').appendChild(em); } if (em) em.hidden = f !== 'fof';
+    let em = $('.fof-empty'); if (f === 'fof' && !em) { em = document.createElement('div'); em.className = 'fof-empty'; em.textContent = 'Posts from your mutuals appear here.'; $('.feed').appendChild(em); } if (em) em.hidden = f !== 'fof';
   });
 
   $$('[data-go]').forEach(b => b.addEventListener('click', () => go(+b.dataset.go)));
-  $('#postBtn').addEventListener('click', () => {
-    const b = $('#postBtn'); if (b.disabled) return;
+  // Send from the preview (remembered circle) or from the sheet: both name the audience
+  function send(b) {
+    if (b.disabled) return;
     $('#sentTxt').textContent = 'Sent to ' + audLabel();
     b.classList.remove('fly'); void b.offsetWidth; b.classList.add('fly');
     setTimeout(() => { go(3); b.classList.remove('fly'); }, RM.matches ? 0 : 420);
+  }
+  $('#postBtn').addEventListener('click', () => send($('#postBtn')));
+  $('#sendNow').addEventListener('click', () => send($('#sendNow')));
+  $('#scrim').addEventListener('click', () => go(1));
+  document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (pkKind) pkClose(); else if (state.step === 2 && !kbField) go(1); });
+  // drag a sheet down by its grabber or header to dismiss it
+  function sheetDrag(sh, close) {
+    let y0 = null, dy = 0;
+    const down = e => { if (e.target.closest('button, input')) return; y0 = e.clientY; dy = 0; sh.classList.add('drag'); sh.setPointerCapture && sh.setPointerCapture(e.pointerId); };
+    $('.grab', sh).addEventListener('pointerdown', down); $('.sh-head', sh).addEventListener('pointerdown', down);
+    sh.addEventListener('pointermove', e => { if (y0 == null) return; const d = e.clientY - y0; dy = d > 0 ? d : d * .15; sh.style.transform = `translateY(${dy}px)`; });
+    const up = () => { if (y0 == null) return; y0 = null; sh.classList.remove('drag'); sh.style.transform = ''; if (dy > 90) close(); };
+    sh.addEventListener('pointerup', up); sh.addEventListener('pointercancel', up);
+  }
+  sheetDrag($('#s2'), () => go(1));
+  sheetDrag($('#pk'), pkClose);
+
+  // tap the small photo to swap it with the big one, BeReal's core gesture
+  const photoTok = el => [...el.classList].find(c => c !== 'ph' && c.startsWith('ph-'));
+  document.addEventListener('click', e => {
+    const pip = e.target.closest('#editDual .pip, .post .pip'); if (!pip) return;
+    const a = pip.closest('.dual').querySelector(':scope > .ph'), b = pip.querySelector('.ph');
+    const ta = photoTok(a), tb = photoTok(b); a.classList.replace(ta, tb); b.classList.replace(tb, ta);
+    pip.classList.remove('pop'); void pip.offsetWidth; pip.classList.add('pop');
   });
+
+  // RealMojis: selfie reactions, no like counts
+  const RMOJI = ['👍', '😃', '😲', '😍', '😂', '⚡'];
+  function rmClose(r) { const p = $('.rm-pick', r); p.classList.remove('open'); p.inert = true; $('.rm-btn', r).setAttribute('aria-expanded', 'false'); }
+  $$('.react').forEach(r => {
+    const pick = document.createElement('div'); pick.className = 'rm-pick glass'; pick.inert = true;
+    pick.innerHTML = RMOJI.map(m => `<button type="button"${m === '⚡' ? ' class="flashm" aria-label="Instant RealMoji"' : ` aria-label="RealMoji ${m}"`}>${m}</button>`).join('');
+    r.appendChild(pick);
+    $('.rm-btn', r).addEventListener('click', () => { if (pick.classList.contains('open')) return rmClose(r); $$('.react').forEach(rmClose); pick.classList.add('open'); pick.inert = false; $('.rm-btn', r).setAttribute('aria-expanded', 'true'); });
+    pick.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const st = $('.rm-stack', r); let me = $('.rm.me', st);
+      if (!me) { me = document.createElement('span'); me.className = 'rm me'; me.style.backgroundImage = 'url(img/av-hugo.webp)'; st.prepend(me); }
+      me.innerHTML = `<i>${b.textContent}</i>`; me.classList.remove('new'); void me.offsetWidth; me.classList.add('new');
+      rmClose(r);
+    });
+  });
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('.react')) $$('.react').forEach(rmClose); });
 
   // simulated iOS keyboard
   const KB = { a:['qwertyuiop','asdfghjkl','zxcvbnm'], n:['1234567890','-/:;()$&@"',".,?!'"] };
@@ -748,15 +1385,18 @@
     const row = s => [...s].map(c => `<span class="k" data-c="${c}">${t(c)}</span>`).join('');
     $('#kb').innerHTML = `<div class="r">${row(L[0])}</div><div class="r">${row(L[1])}</div>
       <div class="r"><span class="k f w${kbShift ? ' on' : ''}" data-a="shift">${kbNum ? '#+=' : '⇧'}</span>${row(L[2])}<span class="k f w" data-a="del">⌫</span></div>
-      <div class="r"><span class="k f w" data-a="num">${kbNum ? 'ABC' : '123'}</span><span class="k f w" data-a="emoji">☺︎</span><span class="k sp" data-c=" ">space</span><span class="k ret" data-a="ret">${kbField && kbField.classList.contains('sheet-in') ? 'search' : 'return'}</span></div>
+      <div class="r"><span class="k f w" data-a="num">${kbNum ? 'ABC' : '123'}</span><span class="k f w" data-a="emoji">☺︎</span><span class="k sp" data-c=" ">space</span><span class="k ret" data-a="ret">${kbField && kbField.id === 'pkIn' ? 'search' : 'return'}</span></div>
       <div class="ft"><span>🌐︎</span><span>🎙︎</span></div>`;
   }
   function kbShow(f) {
     kbField = f; kbRender(); $('#kb').classList.add('on'); $('#app').scrollTop = 0;
-    const scr = f.closest('.scr'); scr.style.transform = 'none';
-    requestAnimationFrame(() => { const kh = $('#kb').offsetHeight, ah = $('#app').clientHeight, fb = f.getBoundingClientRect().bottom - $('#app').getBoundingClientRect().top; const shift = Math.max(0, fb - (ah - kh) + 12); scr.style.transform = shift ? `translateY(-${shift}px)` : ''; mo.classList.toggle('hide', !!shift); });
+    // the screen (or the sheet) shrinks to the space above the keyboard instead of sliding up
+    const scr = f.closest('.scr, .isheet, .od');
+    scr.style.setProperty('--kbh', $('#kb').offsetHeight + 'px'); scr.classList.add('kb-open'); mo.classList.add('hide');
+    setTimeout(() => kbField === f && f.scrollIntoView({ block: 'nearest', behavior: RM.matches ? 'auto' : 'smooth' }), 520); // after the sheet has settled
   }
-  function kbHide() { if (!kbField) return; const scr = kbField.closest('.scr'); kbField.blur(); kbField = null; $('#kb').classList.remove('on'); if (scr) scr.style.transform = ''; $('#app').scrollTop = 0; requestAnimationFrame(() => moAt(state.step)); }
+  function kbHide() { if (!kbField) return; const scr = kbField.closest('.scr, .isheet, .od'); kbField.blur(); kbField = null; $('#kb').classList.remove('on'); if (scr) { scr.classList.remove('kb-open'); scr.style.removeProperty('--kbh'); } $('#app').scrollTop = 0; requestAnimationFrame(() => moAt(state.step)); }
+  let lastKey = 0;
   function kbInsert(s) {
     const f = kbField; if (!f) return; const a = f.selectionStart ?? f.value.length, b = f.selectionEnd ?? a;
     if (s === null) { if (a === b && a > 0) f.setRangeText('', a - 1, a, 'end'); else f.setRangeText('', a, b, 'end'); }
@@ -766,6 +1406,7 @@
   }
   $('#kb').addEventListener('pointerdown', e => {
     e.preventDefault(); const k = e.target.closest('.k'); if (!k) return;
+    if (e.timeStamp - lastKey < 25) return; lastKey = e.timeStamp;
     if (k.dataset.c != null) { kbInsert(kbShift && !kbNum ? k.dataset.c.toUpperCase() : k.dataset.c); if (kbShift) { kbShift = false; kbRender(); } return; }
     const a = k.dataset.a;
     if (a === 'shift') { kbShift = !kbShift; kbRender(); } else if (a === 'num') { kbNum = !kbNum; kbShift = false; kbRender(); }
@@ -780,9 +1421,9 @@
   window.addEventListener('message', e => { const d = e.data; if (!d) return; if (d.bereal === 'filter') setFlt(+d.i || 0); if (d.bereal === 'go') go(typeof d.step === 'number' ? d.step : STEPS.indexOf(d.step), true); if (d.bereal === 'setMulticam') setMC(!!d.on); });
   window.__bereal = { setFlt, go, state, renderCtx };
   const q = new URLSearchParams(location.search).get('step');
-  const start = q == null ? 0 : (isNaN(+q) ? STEPS.indexOf(q) : +q);
+  const start = q == null ? 5 : (isNaN(+q) ? STEPS.indexOf(q) : +q);
   syncAud(); renderCtx();
-  if (start >= 1) { state.ctx = { caption: 'sunday reset ☀️', location: 'Paris 11e', music: '♪ Now playing' }; renderCtx(); }
+  if (start >= 1 && start <= 4) { state.ctx = { caption: 'sunday reset ☀️', location: 'Paris 11e', music: '♪ Now playing' }; renderCtx(); }
   go(start < 0 ? 0 : start, true);
   document.fonts && document.fonts.ready.then(() => moAt(state.step));
 })();

@@ -1188,6 +1188,14 @@ document.addEventListener('click', (e) => {
   else if (t.dataset.crLaunch !== undefined) crLiveLaunch(root);
 });
 
+// BeReal. brief questions: one line icon per topic (stroke drawn by CSS)
+const BR_HMW_ICONS = {
+  camera: '<path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/>',
+  sticker: '<path d="M5 4h14v9l-6 6H5z"/><path d="M13 19v-6h6"/>',
+  people: '<circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.4"/><path d="M3.5 19c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6M14.6 14.6c2.6-.4 4.8.9 5.6 3.9"/>',
+  feed: '<rect x="5" y="3.5" width="14" height="7.5" rx="2"/><rect x="5" y="13" width="14" height="7.5" rx="2"/>',
+};
+
 function renderNarrativeBlock(b, stepsHTML, p) {
   switch (b.type) {
     case 'text':
@@ -2549,6 +2557,23 @@ function renderNarrativeBlock(b, stepsHTML, p) {
           </div>
         </div>
       </div>`;
+    case 'bereal-tabs': {
+      // groups several bereal-* blocks under one tab bar to keep the case study short
+      const uid = 'brt-' + (b.id || 'x');
+      const tabs = b.tabs || [];
+      return `<div class="proj-n-block br-sec br-tabs-block" data-br-tabs>
+        ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
+        ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
+        <div class="br-tabs" role="tablist" aria-label="${(b.title || b.label || '').replace(/"/g, '&quot;')}">
+          ${tabs.map((t, i) => `<button type="button" role="tab" id="${uid}-t${i}" aria-controls="${uid}-p${i}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${t.name}</button>`).join('')}
+        </div>
+        ${tabs.map((t, i) => `<div class="br-tab-panel" role="tabpanel" id="${uid}-p${i}" aria-labelledby="${uid}-t${i}" tabindex="0"${i ? ' hidden' : ''}>
+          ${renderNarrativeBlock(t.block, stepsHTML, p)}
+          ${tabs[i + 1] ? `<button type="button" class="br-tab-next" data-br-tab-next="${i + 1}">Next: ${tabs[i + 1].name} <span aria-hidden="true">→</span></button>` : ''}
+        </div>`).join('')}
+      </div>`;
+    }
     case 'bereal-goals':
       return `<div class="proj-n-block br-sec">
         ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
@@ -2565,7 +2590,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
         ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
         <div class="br-tear">
-          ${(b.screens || []).map(s => `<figure class="br-tear-item"><span class="br-tear-n">${s.n}</span><img src="${s.src}" alt="${s.cap}" loading="lazy" decoding="async"><figcaption>${s.cap}</figcaption></figure>`).join('')}
+          ${(b.screens || []).map(s => `<figure class="br-tear-item"><img src="${s.src}" alt="${s.cap}" loading="lazy" decoding="async">${s.name ? `<figcaption class="br-tag">${s.name}</figcaption>` : ''}</figure>`).join('')}
         </div>
         ${b.credit ? `<div class="br-credit">${b.credit}</div>` : ''}
         ${b.friction ? `<div class="br-friction"><div class="proj-n-label">Friction points</div><div class="br-friction-grid">${b.friction.map((f, i) => `<div class="br-friction-item"><span>${String(i + 1).padStart(2, '0')}</span><b>${f.t}</b><p>${f.d}</p></div>`).join('')}</div></div>` : ''}
@@ -2575,12 +2600,14 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
         ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
         ${b.body ? `<div class="proj-n-body br-statement">${b.body}</div>` : ''}
-        <ul class="br-hmw">${(b.items || []).map(x => `<li>${x}</li>`).join('')}</ul>
+        <ul class="br-hmw">${(b.items || []).map(x => typeof x === 'string' ? `<li>${x}</li>`
+          : `<li><span class="br-hmw-ic" aria-hidden="true"><svg viewBox="0 0 24 24">${BR_HMW_ICONS[x.icon] || ''}</svg></span><b>${x.t}</b><span>${x.q}</span></li>`).join('')}</ul>
       </div>`;
     case 'bereal-decision':
       return `<div class="proj-n-block br-sec">
         ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
         ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
+        ${b.screens ? `<div class="br-dec-screens">${b.screens.map(s => `<figure><img src="${s.src}" alt="${s.cap}" width="393" height="852" loading="lazy" decoding="async">${s.name ? `<figcaption class="br-tag">${s.name}</figcaption>` : ''}</figure>`).join('')}</div>` : ''}
         <div class="br-dec">
           <div class="br-dec-col"><small>The problem</small><p>${b.problem}</p></div>
           <div class="br-dec-col"><small>Options I considered</small><ol class="br-opts">${(b.options || []).map(o => `<li><b>${o.t}</b>${o.d}</li>`).join('')}</ol></div>
@@ -2601,7 +2628,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
             ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
             <ol class="br-steps" role="tablist">
-              ${['Capture', 'Add context', 'Pick a circle', 'Post', 'See it in the feed'].map((s, i) => `<li><button type="button" data-br-step="${i}" class="${i === 0 ? 'is-active' : ''}"><span>${String(i + 1).padStart(2, '0')}</span>${s}</button></li>`).join('')}
+              ${[[5, 'First open: empty feed'], [0, 'Capture'], [1, 'Add context'], [2, 'Pick a circle'], [3, 'Post'], [4, 'See it in the feed']].map(([step, s], i) => `<li><button type="button" data-br-step="${step}" class="${i === 0 ? 'is-active' : ''}"><span>${String(i + 1).padStart(2, '0')}</span>${s}</button></li>`).join('')}
             </ol>
             <a class="br-open" href="/demos/bereal/" target="_blank" rel="noopener">Open full screen ↗</a>
           </div>
@@ -4375,6 +4402,36 @@ if (SITE_INITIAL_LANG) {
     b.addEventListener('focus', pick);
   });
 })();
+
+// BeReal. case study: tab blocks (bereal-tabs). Click, arrow keys, Home/End, and a "Next" button per panel.
+function brTabSelect(root, i, focus) {
+  const tabs = [...root.querySelectorAll(':scope > .br-tabs [role="tab"]')];
+  const panels = [...root.querySelectorAll(':scope > .br-tab-panel')];
+  if (!tabs[i]) return;
+  tabs.forEach((t, k) => { t.setAttribute('aria-selected', k === i); t.tabIndex = k === i ? 0 : -1; });
+  panels.forEach((pn, k) => { pn.hidden = k !== i; });
+  if (focus) tabs[i].focus();
+  tabs[i].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-br-tabs] > .br-tabs [role="tab"]');
+  const next = e.target.closest('[data-br-tab-next]');
+  if (!tab && !next) return;
+  const root = (tab || next).closest('[data-br-tabs]');
+  if (tab) return brTabSelect(root, [...tab.parentElement.children].indexOf(tab));
+  brTabSelect(root, +next.dataset.brTabNext);
+  const bar = root.querySelector(':scope > .br-tabs');
+  if (bar.getBoundingClientRect().top < 0) bar.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+});
+document.addEventListener('keydown', (e) => {
+  const tab = e.target.closest && e.target.closest('[data-br-tabs] > .br-tabs [role="tab"]');
+  if (!tab) return;
+  const list = [...tab.parentElement.children], i = list.indexOf(tab), n = list.length;
+  const to = { ArrowRight: (i + 1) % n, ArrowLeft: (i - 1 + n) % n, Home: 0, End: n - 1 }[e.key];
+  if (to == null) return;
+  e.preventDefault();
+  brTabSelect(tab.closest('[data-br-tabs]'), to, true);
+});
 
 // BeReal. case study: step rail drives the embedded prototype (ui/demos/bereal) via postMessage.
 document.addEventListener('click', (e) => {
