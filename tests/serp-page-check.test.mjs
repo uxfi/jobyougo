@@ -26,6 +26,15 @@ test('a results page the selectors read nothing from is an error, not a fake 0',
   assert.deepEqual(classifyEmptySerp(page), { kind: 'blocked', reason: 'unparsed results page' });
   assert.equal(classifyEmptySerp({ url: 'https://duckduckgo.com/?q=x', title: '', bodyText: '' }).reason, 'blank page');
   assert.match(serpDiagnostic(page), /^duckduckgo\.com\/ title="site:jobs\.lever\.co/);
+  assert.doesNotMatch(serpDiagnostic(page), /anchors=/);
+  assert.match(serpDiagnostic({ ...page, diag: { anchors: 40, headings: 9 } }), /body=".*" anchors=40 headings=9$/);
+});
+
+test('Google reads an unparsed results page a second time before resting', () => {
+  const src = readFileSync(new URL('../ui/server.mjs', import.meta.url), 'utf8');
+  assert.match(src, /read on the second pass \(late render\)/);
+  assert.match(src, /reason === 'unparsed results page'/);
+  assert.match(src, /serpDiagnostic\(\{ url: result\?\.url, title: result\?\.title, bodyText, diag: result\?\.diag \}\)/);
 });
 
 test('the half-open probe waits for the shortest cooldown, at most twice per run', async () => {

@@ -1894,7 +1894,7 @@ const _serpDiagLogged = new Set();
 function noteEmptySerp(label, result, bodyText, reason) {
   if (_serpDiagLogged.has(label)) return;
   _serpDiagLogged.add(label);
-  console.warn(`[scan] [${label}] empty page treated as blocked (${reason}): ${serpDiagnostic({ url: result?.url, title: result?.title, bodyText })}`);
+  console.warn(`[scan] [${label}] empty page treated as blocked (${reason}): ${serpDiagnostic({ url: result?.url, title: result?.title, bodyText, diag: result?.diag })}`);
 }
 function resetWebSearchCircuit() {
   if (_webSearchConsecFail) console.log(`[scan] [websearch] resetting circuit-breaker (had ${_webSearchConsecFail} consecutive failures)`);
@@ -2156,6 +2156,15 @@ function buildScanCandidateRecords(sourceName, jobs = [], { includeCompany = fal
 
 function dedupeScanCandidates(candidates = []) {
   return dedupeCandidates(candidates);
+}
+
+// "N after title filter" for a board's fetch line: the roles the decision stage
+// will see, the same filters and the same merge of one role republished per
+// country (Bjak: 983 matching postings, 29 roles on 2026-10-22).
+function titleFilterLogTail(name, jobs = []) {
+  const matching = jobs.filter(job => job?.title && job?.url && !isCareerNavigationTitle(job.title) && portalsTitleFilter.test(job.title));
+  const roles = dedupeScanCandidates(matching.map(job => ({ company: name, title: job.title, url: job.url }))).length;
+  return `${roles} after title filter${matching.length > roles ? ` (${matching.length} postings, same-role copies merged)` : ''}`;
 }
 
 // ─── Published-date enrichment ────────────────────────────────────────────────
@@ -3854,7 +3863,7 @@ async function fetchSourceSection(source = {}) {
         ),
       }));
     }
-    console.log(`[scan] [${logType.toUpperCase()}] "${name}" → ${jobs.length} jobs total, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after title filter`);
+    console.log(`[scan] [${logType.toUpperCase()}] "${name}" → ${jobs.length} jobs total, ${titleFilterLogTail(name, jobs)}`);
   } else if (type === 'rss') {
     const txt = body;
     const itemRe = /<(item|entry)[^>]*>([\s\S]*?)<\/\1>/gi;
@@ -3893,7 +3902,7 @@ async function fetchSourceSection(source = {}) {
         });
       }
     }
-    console.log(`[scan] [RSS] "${name}" → ${jobs.length} items, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after title filter`);
+    console.log(`[scan] [RSS] "${name}" → ${jobs.length} items, ${titleFilterLogTail(name, jobs)}`);
   }
 
   return { ok: true, section: buildJobSection(name, jobs), jobs, engine: provider ? `${provider}-api` : type };
@@ -4228,6 +4237,11 @@ const PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT = `(() => {
     title: document.title || '',
     bodyText: normalizeText(document.body && document.body.innerText || '').slice(0, 4000),
     jobs: results.slice(0, 20),
+    // What the page held, for the scan log when it still reads as empty.
+    diag: {
+      anchors: document.querySelectorAll('a[href]').length,
+      headings: document.querySelectorAll('h3, [role="heading"]').length,
+    },
   };
 })()`;
 
@@ -4341,11 +4355,25 @@ async function fetchPinchtabSearchSection({ name, query }) {
     console.log(`[scan] [PinchTab/Google] "${name}" → q: ${query.slice(0, 80)}...`);
     tabId = await pinchtabNavigate(searchUrl, { timeout: 25000 });
     await new Promise(resolve => setTimeout(resolve, 1800));
-    const result = await pinchtabEvaluate(tabId, PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 12000 }) || {};
+    let result = await pinchtabEvaluate(tabId, PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 12000 }) || {};
     let jobs = Array.isArray(result.jobs) ? result.jobs : [];
-    const bodyText = cleanString(result.bodyText || '');
+    let bodyText = cleanString(result.bodyText || '');
     if (/server encountered a temporary error|502\.?\s+that.s an error|503 service unavailable/i.test(bodyText)) {
       throw new Error('Google returned a temporary server error');
+    }
+    // A results page that reads 0 links (2026-10-22: "Web results UI/UX Designer
+    // @ Da…" with 0 parsed) may still be rendering: read it once more before
+    // the engine is put to rest as blocked.
+    if (!jobs.length && !looksLikeChallengePage(bodyText)
+      && classifyEmptySerp({ url: result.url || searchUrl, title: result.title || '', bodyText }).reason === 'unparsed results page') {
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      const again = await pinchtabEvaluate(tabId, PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, { awaitPromise: false, timeout: 12000 }) || {};
+      if (Array.isArray(again.jobs) && again.jobs.length) {
+        console.log(`[scan] [PinchTab/Google] "${name}" → ${again.jobs.length} results read on the second pass (late render)`);
+      }
+      result = again;
+      jobs = Array.isArray(again.jobs) ? again.jobs : [];
+      bodyText = cleanString(again.bodyText || '');
     }
     jobs = await smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript: PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, label: 'PinchTab/Google' });
 
@@ -10545,6 +10573,7 @@ const server = createServer(async (req, res) => {
             // A posting located in an on-site exception keeps its hybrid/on-site words.
             locationProfile: scanLoc,
             locationAllows: (candidate, context) => locationAllows(candidate.location, candidate.url, candidate.title, context),
+            locationWhy: (candidate, context) => locationAllows.explain(candidate.location, candidate.url, candidate.title, context),
             countryAllows: (candidate) => countryAllows(candidate.description),
             firstSeenFor: (candidate) => historyByUrl.get(candidate.normalizedUrl || normalizeUrlKey(candidate.url))?.first_seen || '',
           };

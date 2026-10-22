@@ -63,3 +63,29 @@ test('on-site outside Bangkok stays rejected', () => {
   const hybridParis = decide({ title: 'Senior Product Designer - Hybrid', location: 'Paris' });
   assert.equal(hybridParis.disposition, 'reject');
 });
+
+test('the filter names the rule that rejects, and agrees with the predicate', () => {
+  const rows = [
+    ['Austin, TX, USA', 'Product Designer', 'block "usa"'],
+    ['Berlin', 'Senior Product Designer', 'matches no allow entry'],
+    ['Remote', 'Product Designer', ''],
+    ['Germany', 'Product Designer', ''],
+  ];
+  for (const [location, title, why] of rows) {
+    assert.equal(filter.explain(location, '', title), why, location);
+    assert.equal(filter(location, '', title), why === '', location);
+  }
+  assert.equal(buildLocationFilter(null).explain('Berlin'), '');
+  assert.equal(buildLocationFilter({ block: ['uk'], strict: true }).explain('', ''), 'no location to judge (strict)');
+});
+
+test('a location reject carries the rule when the caller can name it', () => {
+  const explained = evaluateCandidate(
+    { url: 'https://example.com/j/1', company: 'Acme', title: 'Senior Product Designer', location: 'Berlin' },
+    { location_filter: LOCATION_FILTER },
+    { locationProfile: PROFILE, locationAllows: (c, ctx) => filter(c.location, c.url, c.title, ctx), locationWhy: (c, ctx) => filter.explain(c.location, c.url, c.title, ctx) },
+  );
+  assert.equal(explained.reasonCode, 'location');
+  assert.deepEqual(explained.reasons, ['location_filter rejected: matches no allow entry']);
+  assert.deepEqual(decide({ title: 'Senior Product Designer', location: 'Berlin' }).reasons, ['location_filter rejected']);
+});

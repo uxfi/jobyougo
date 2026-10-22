@@ -75,6 +75,44 @@ test('benefit and skill lines bind nothing; a slash choice counts', () => {
   }
 });
 
+// The live portals.yml also rejects "office-based" (Affirm's reason on 2026-10-22).
+const OFFICE_FILTER = { ...FILTER, rejected_any: [...FILTER.rejected_any, 'office-based'] };
+
+test('a line about other jobs and a technical "hybrid" bind nothing (2026-10-22: Affirm, Cresta)', () => {
+  for (const description of [
+    'Some positions may occasionally require in-person work at an Affirm office, and a few are office-based due to the nature of the work.',
+    'Design and develop virtual agent solutions using flow-based, prompt-based, and hybrid architectures.',
+  ]) {
+    const result = assessRemote(offer({ location: 'Remote UK', remoteEvidence: 'Remote UK', description }), OFFICE_FILTER);
+    assert.notEqual(result.disposition, 'reject', `${description} → ${result.reason}`);
+  }
+});
+
+test('a hybrid option and a mix of work modes bind nothing (2026-10-22: SkyCell)', () => {
+  for (const description of [
+    'Product designers can live within the UK, Spain, and the Netherlands, with remote working available within these countries. Hybrid option available in the Netherlands.',
+    'Our global teams work across our offices in Zurich and Basel, with a mix of on-site, hybrid and remote working.',
+  ]) {
+    const result = assessRemote(offer({
+      location: 'Netherlands, Amsterdam · Spain, Madrid · United Kingdom, London · Remote',
+      remoteEvidence: 'Remote job',
+      description,
+    }), FILTER);
+    assert.notEqual(result.disposition, 'reject', `${description} → ${result.reason}`);
+  }
+});
+
+test('a hybrid line about this job still rejects', () => {
+  for (const description of [
+    'Our hybrid work approach means three days a week in the office.',
+    'This role is office-based in Paris, a few days a week.',
+    'Some travel is expected. The position is hybrid.',
+  ]) {
+    const result = assessRemote(offer({ location: 'Remote UK', remoteEvidence: 'Remote UK', description }), OFFICE_FILTER);
+    assert.equal(result.disposition, 'reject', description);
+  }
+});
+
 test('bindingAttendanceText keeps the binding sentences', () => {
   const text = bindingAttendanceText('Interviews may be onsite. The role is hybrid, 2 days in Paris.');
   assert.match(text, /role is hybrid/);

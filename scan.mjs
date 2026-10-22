@@ -362,6 +362,11 @@ function compileLocationKeywordList(value) {
   return normalizeKeywordList(value).map(compileLocationKeyword);
 }
 
+// The same matchers with their keyword kept, so a rejection can name the rule.
+function compileNamedLocationKeywords(value) {
+  return normalizeKeywordList(value).map(keyword => ({ keyword, match: compileLocationKeyword(keyword) }));
+}
+
 // Frozen USPS state-name + abbreviation table. Not a world gazetteer: only
 // consulted when always_allow already names the United States as a country,
 // so EU-targeted configs (no US token) keep their previous semantics.
@@ -524,8 +529,16 @@ export function titleSignalsRemote(title) {
 
 // `url` and `title` are optional. Callers that omit them get the original
 // location-only semantics, which is what the existing unit tests exercise.
+//
+// The returned predicate also carries `.explain(location, url, title, ctx)`:
+// the rule that rejects ('block "uk"', 'matches no allow entry'…), '' when the
+// posting passes.
 export function buildLocationFilter(locationFilter) {
-  if (!locationFilter) return () => true;
+  if (!locationFilter) {
+    const open = () => true;
+    open.explain = () => '';
+    return open;
+  }
   const alwaysAllowKeywords = normalizeKeywordList(locationFilter.always_allow);
   const alwaysAllow = alwaysAllowKeywords.map(compileLocationKeyword);
   // US-targeted configs list the country in always_allow and foreign cities
@@ -535,24 +548,26 @@ export function buildLocationFilter(locationFilter) {
   if (alwaysAllowKeywords.some(k => US_COUNTRY_ALWAYS_ALLOW.has(k))) {
     alwaysAllow.push(...US_STATE_ALWAYS_ALLOW_MATCHERS);
   }
-  const allow = compileLocationKeywordList(locationFilter.allow);
-  const block = compileLocationKeywordList(locationFilter.block);
-  const blockHard = compileLocationKeywordList(locationFilter.block_hard);
+  const allow = compileNamedLocationKeywords(locationFilter.allow);
+  const block = compileNamedLocationKeywords(locationFilter.block);
+  const blockHard = compileNamedLocationKeywords(locationFilter.block_hard);
   // Opt-in: fail closed when there is nothing to judge on. Only meaningful when
   // a restricting tier is configured — `{ strict: true }` alone restricts
   // nothing and must not reject every location-less posting (#3276).
   const strict = locationFilter.strict === true
     && (allow.length > 0 || block.length > 0 || blockHard.length > 0);
 
-  return (location, url, title, { remoteConfirmed = false } = {}) => {
+  const PASS = Object.freeze({ ok: true, why: '' });
+  const judge = (location, url, title, { remoteConfirmed = false } = {}) => {
     const lower = typeof location === 'string' ? location.trim().toLowerCase() : '';
     const hint = locationHintFromUrl(url);
     // Nothing to judge on either field → pass (don't penalize missing data),
     // unless the config opted into strict mode: a location-restricted sweep
     // against a provider that never returns a location would otherwise let
     // every out-of-region posting through (#3276).
-    if (lower === '' && hint === '') return !strict;
+    if (lower === '' && hint === '') return strict ? { ok: false, why: 'no location to judge (strict)' } : PASS;
     const matches = (m) => (lower !== '' && m(lower)) || (hint !== '' && m(hint));
+    const hitOf = (entries) => entries.find(entry => matches(entry.match));
     // `block_hard` is the ONE tier always_allow cannot override. It exists because
     // a European city name can be a whole word inside a non-European location, so
     // word-boundary matching (#2087) does not catch it and always_allow's
@@ -567,20 +582,25 @@ export function buildLocationFilter(locationFilter) {
     // Madrid" must not die on a London entry) — so the user marks the entries
     // that are country-level and therefore never a false rejection. Opt-in and
     // additive: a config without `block_hard` behaves exactly as before.
-    if (blockHard.length > 0 && blockHard.some(matches)) return false;
+    const hardHit = hitOf(blockHard);
+    if (hardHit) return { ok: false, why: `block_hard "${hardHit.keyword}"` };
     // always_allow still wins over block, and may be satisfied by either field:
     // a genuinely US role whose display string says "United States" is never
     // rejected because of what its URL happens to contain.
-    if (alwaysAllow.length > 0 && alwaysAllow.some(matches)) return true;
-    if (block.length > 0 && block.some(matches)) return false;
-    if (allow.length === 0) return true;
-    if (allow.some(matches)) return true;
+    if (alwaysAllow.length > 0 && alwaysAllow.some(matches)) return PASS;
+    const blockHit = hitOf(block);
+    if (blockHit) return { ok: false, why: `block "${blockHit.keyword}"` };
+    if (allow.length === 0) return PASS;
+    if (hitOf(allow)) return PASS;
     // Last resort only. Deliberately placed AFTER `block` so a remote title can
     // never rescue a blocked location — "Program Manager - Remote" in Bengaluru
     // stays rejected. This widens `allow`, never `block`. A remote role the
     // remote check already confirmed (remote + allowed geography) counts too.
-    return remoteConfirmed || titleSignalsRemote(title);
+    return remoteConfirmed || titleSignalsRemote(title) ? PASS : { ok: false, why: 'matches no allow entry' };
   };
+  const filter = (...args) => judge(...args).ok;
+  filter.explain = (...args) => judge(...args).why;
+  return filter;
 }
 
 // ── Posting-age filter ──────────────────────────────────────────────
