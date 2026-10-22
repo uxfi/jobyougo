@@ -36,6 +36,14 @@ import {
   cleanSentenceQuality,
   trimToWordBudget,
   availabilityLine,
+  toolsNamedIn,
+  replacedTools,
+  findToolContradictions,
+  stripToolContradictions,
+  genericMotivationSentences,
+  stripGenericMotivation,
+  describeGenericMotivation,
+  STRONG_MATCH_SCORE,
   numberCvLines,
   validatePostingMatches,
   mergePostingMatches,
@@ -1484,6 +1492,125 @@ test('end to end: duplicate and garbled sentences are cleaned and the Galian fig
 test('availability comes from the profile when the CV text does not state it, and says contract or CDI', () => {
   const profile = { availability: { desired_engagement: 'New contract or CDI role' } };
   assert.equal(availabilityLine('Designer, full remote.', 'en', profile), "I'm available for a contract or CDI role, full remote.");
-  assert.equal(availabilityLine('Designer, full remote.', 'en', {}), "I'm available for a role, full remote.");
+  assert.equal(availabilityLine('Designer, full remote.', 'en', {}), 'I work full remote.', 'only the remote part is stated: a sentence of its own, not "a role, full remote"');
   assert.equal(availabilityLine('Designer.', 'en', { search: { contract_types: ['Contract', 'CDI'] } }), "I'm available for a contract or CDI role.");
+});
+
+// ── 2026-10-21, DConstruct PLUS (UI/UX Designer): broken availability sentence,
+// a generic motivation, and a proof that told a Figma shop the candidate had
+// replaced Figma.
+const FIGMA_CV = [
+  '# Hugo Vermot', '**Location:** Full remote', '',
+  '## Summary', 'Senior product designer with 12 years across consumer apps and SaaS.', '',
+  '## Experience',
+  '### OneAsset - Senior Product Designer / Product Lead', 'Feb 2026 - Present',
+  '- Replaced Figma mockups as the source of truth with prototypes coded in Cursor and Claude Code.',
+  '- Ran user interviews and designed complex journeys with engineering.',
+  '### Renault - Design Lead', '2019 - 2021',
+  '- Built a multi-country design system adopted across teams, cutting development time by 20%.', '',
+  '## Skills',
+  '- Tools: Figma (10/10), Sketch, Adobe XD, Principle, Zeplin',
+].join('\n');
+const FIGMA_JOB = [
+  'UI/UX Designer', 'Dconstruct is looking for a UI/UX Designer.', '',
+  'Responsibilities',
+  '1. Create wireframes, mockups, and prototypes that communicate design concepts and user flows.', '',
+  '2. Develop and maintain design systems, style guides and design documentation.', '',
+  'Qualifications',
+  '1. Proficiency in design tools such as Sketch, Adobe XD, Figma, or similar.',
+].join('\n');
+
+test('availability is a sentence of its own in every case, and follows a posting that asks for the office', () => {
+  assert.equal(availabilityLine('Designer, full remote.', 'en', {}), 'I work full remote.');
+  assert.equal(availabilityLine('Designer, full remote.', 'fr', {}), 'Je travaille en full remote.');
+  assert.equal(availabilityLine('Designer, contract or CDI.', 'en', {}), "I'm available for a contract or CDI role.");
+  assert.equal(availabilityLine('Designer, full remote.', 'en', {}, { jobText: 'Hybrid: three days a week in our office.' }), '', 'an office posting is not told "full remote"');
+  assert.equal(availabilityLine('Designer, contract or CDI, full remote.', 'en', {}, { jobText: 'Hybrid, 3 days in the office.' }), "I'm available for a contract or CDI role.");
+  assert.equal(availabilityLine('Designer, full remote.', 'en', {}, { jobText: 'On-site or remote, your choice.' }), 'I work full remote.', 'a posting that also says remote keeps it');
+  for (const text of ['Designer, full remote.', 'Designer, contract.', 'Designer, contract, full remote.']) {
+    assert.doesNotMatch(availabilityLine(text, 'en', {}), /available for a role/);
+  }
+});
+
+test('a tool the posting asks for is named, a sentence saying it was replaced is not', () => {
+  assert.deepEqual(toolsNamedIn(FIGMA_JOB), ['Sketch', 'Adobe XD', 'Figma']);
+  assert.deepEqual(toolsNamedIn('Figmol is my internal Figma-like tool. I sketch ideas.'), [], 'Figmol, Figma-like and the verb are not the tools');
+  assert.deepEqual(replacedTools('Replaced Figma mockups as the source of truth with prototypes coded in Cursor.'), ['Figma']);
+  assert.deepEqual(replacedTools('Replaced Sketch with Figma for the whole team.'), ['Sketch'], '"with Figma" is what it was replaced by');
+  assert.deepEqual(replacedTools('Instead of Figma, I prototype in code.'), ['Figma']);
+  assert.deepEqual(replacedTools('Remplacé les maquettes Figma par des prototypes codés.'), ['Figma']);
+  assert.deepEqual(replacedTools('I design in Figma every day.'), []);
+  const body = 'Hello,\n\nIn my current role, I replaced Figma mockups as the source of truth with prototypes. I ran user interviews.\n\nBest,\nHugo';
+  assert.equal(findToolContradictions(body, FIGMA_JOB).length, 1);
+  assert.deepEqual(findToolContradictions(body, 'We need a UX designer who prototypes in code.'), [], 'no tool asked, nothing to contradict');
+  const out = stripToolContradictions(body, FIGMA_JOB);
+  assert.doesNotMatch(out.body, /replaced Figma/);
+  assert.match(out.body, /I ran user interviews\./);
+});
+
+test('the posting\'s tools are answered from the CV tool list and the "replaced Figma" line never answers anything', () => {
+  const matches = matchPostingToCv(FIGMA_JOB, FIGMA_CV, 3);
+  assert.equal(matches[0].skills, true);
+  assert.equal(matches[0].proof, 'Tools: Figma, Sketch');
+  assert.match(matches[0].need, /Proficiency in design tools/);
+  assert.ok(matches[0].score >= STRONG_MATCH_SCORE, 'a tool named by both sides is a strong match');
+  assert.ok(matches.length <= 3);
+  assert.ok(matches.every(match => !/Replaced Figma/.test(match.proof)));
+  const text = formatPostingMatches(matches, { unnamedEmployers: ['OneAsset'] });
+  assert.match(text, /Tools: Figma, Sketch/);
+  assert.doesNotMatch(text, /Replaced Figma/);
+  // no tool list in the CV: nothing is invented
+  const bare = FIGMA_CV.replace(/\n## Skills\n- Tools:.*$/m, '');
+  assert.ok(matchPostingToCv(FIGMA_JOB, bare, 3).every(match => !match.skills));
+  // a posting that names no tool is untouched by all this
+  assert.ok(matchPostingToCv('Responsibilities\n1. Develop and maintain design systems and style guides.', FIGMA_CV, 3).every(match => !match.skills));
+});
+
+test('a reason that fits any company is not a motivation, a concrete one stays', () => {
+  const email = [
+    'Hello,',
+    "I'm applying for the UI/UX Designer role at Dconstruct. You need prototypes and a design system.",
+    "I want to work on smarter robotics and data intelligence because they solve real-world problems with measurable impact. I've built AI-powered product systems that ship fast, and I'd love to bring that to your team.",
+    'Your inspection robots feed a data platform, and that is the kind of problem I want to work on, because operators read dense data under time pressure. My CV is attached.',
+    'Best,\nHugo',
+  ].join('\n\n');
+  const generic = genericMotivationSentences(email);
+  assert.equal(generic.length, 2);
+  assert.match(generic[0], /real-world problems/);
+  assert.match(generic[1], /bring that to your team/);
+  const out = stripGenericMotivation(email);
+  assert.deepEqual(out.removed, generic);
+  assert.doesNotMatch(out.body, /real-world|bring that to your team/);
+  assert.match(out.body, /operators read dense data/, 'a concrete reason is kept');
+  assert.match(out.body, /^Hello,\n\n/);
+  assert.match(out.body, /Best,\nHugo$/);
+  // a proof sentence is not a motivation, whatever its words
+  const proof = 'Hello,\n\nI shipped a checkout redesign with measurable impact on conversion.\n\nCould we talk this week?\n\nBest,\nHugo';
+  assert.deepEqual(genericMotivationSentences(proof), []);
+  assert.match(describeGenericMotivation(generic[0]), /^Motivation générique/);
+  // French
+  assert.equal(genericMotivationSentences('Bonjour,\n\nJe veux travailler chez vous parce que vous résolvez des problèmes concrets avec un impact mesurable.\n\nMerci.\n\nBien à vous').length, 1);
+});
+
+test('end to end: the DConstruct draft loses its generic motivation and its "replaced Figma" line, and gets a real availability sentence', async () => {
+  const body = [
+    'Hello,',
+    "I'm applying for the UI/UX Designer role at Dconstruct. You ask for prototypes, a design system and Figma.",
+    'In my current role, I replaced Figma mockups as the source of truth with prototypes coded in Cursor and Claude Code. At Renault, I built a multi-country design system adopted across teams.',
+    "I want to work on smarter robotics because they solve real-world problems with measurable impact. I'd love to bring that to your team. My CV is attached. Could we talk this week?",
+  ].join('\n\n');
+  const draft = await generateApplicationEmail({
+    chat: async () => `COMPANY: Dconstruct\nROLE: UI/UX Designer\nLANGUAGE: en\nSUBJECT: UI/UX Designer - Hugo Vermot\nBODY:\n${body}`,
+    model: 'x', cv: FIGMA_CV, compactedCv: FIGMA_CV, profileData: PROFILE, jobText: FIGMA_JOB, language: 'en',
+    roleHint: 'UI/UX Designer', companyHint: 'Dconstruct', matcher: 'rules',
+  });
+  assert.doesNotMatch(draft.body, /real-world|measurable impact|bring that to your team/);
+  assert.doesNotMatch(draft.body, /replaced Figma/i);
+  assert.match(draft.body, /I work full remote\./);
+  assert.doesNotMatch(draft.body, /available for a role/);
+  assert.match(draft.body, /multi-country design system/, 'the grounded proof stays');
+  assert.match(draft.body, /Could we talk this week\?/);
+  assert.ok(draft.removed.some(sentence => /real-world/.test(sentence)));
+  assert.ok(draft.removed.some(sentence => /replaced Figma/i.test(sentence)));
+  assert.doesNotMatch(draft.issues.join('\n'), /Motivation générique|Outil écarté/, 'what was cut is no longer reported');
 });

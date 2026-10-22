@@ -100,3 +100,81 @@ test('a known company is written and read unchanged', () => {
   const line = formatPipelineMarkdown({ url: WEB_HIT.url, company: 'Deliveroo', title: WEB_HIT.title });
   assert.equal(extractPipelineNoteParts(parsePipeline(line)[0].note).company, 'Deliveroo');
 });
+
+// 2026-10-21: web-search hits on Glassdoor / Indeed have no company in the entry.
+// The model got no readable posting, headed its report with the CV's own job
+// (OneAsset) and scored it 4.8 to 5.0/5: #1040, #1042, #1045, #1052, plus #848,
+// #990 and #1018 earlier.
+const glassdoor = (slug, title) => ({
+  url: `https://www.glassdoor.com/job-listing/${slug}-JV_KO0,14_KE15,41.htm?jl=1010148788011`,
+  company: '',
+  title,
+  engine: 'pinchtab-brave',
+  source: 'Glassdoor — Europe Remote AI',
+});
+
+test('a Glassdoor "X hiring Y Job in Z" title names the employer and the role', () => {
+  assert.deepEqual(
+    pipelineOfferIdentity(glassdoor('ux-ui-designer-vertech-industrial-systems', 'Vertech Industrial Systems hiring UX/UI Designer Job in Remote | Glassdoor')),
+    { company: 'Vertech Industrial Systems', title: 'UX/UI Designer' },
+  );
+  assert.deepEqual(
+    pipelineOfferIdentity(glassdoor('product-designer-design-systems-chess-com', 'Chess.com hiring Product Designer, Design Systems Job in Remote | Glassdoor')),
+    { company: 'Chess.com', title: 'Product Designer, Design Systems' },
+  );
+  assert.deepEqual(
+    pipelineOfferIdentity(glassdoor('senior-product-designerin-europace', 'Europace hiring (Senior) Product Designerin - remote (w/m/d) Job in Home office')),
+    { company: 'Europace', title: '(Senior) Product Designerin - remote (w/m/d)' },
+  );
+});
+
+test('a Glassdoor title without the employer takes it from the address, after the role', () => {
+  assert.deepEqual(
+    pipelineOfferIdentity(glassdoor('sr-ux-ui-designer-maven-workforce-pvt-ltd', 'Sr. UX/UI Designer Job in Remote | Glassdoor')),
+    { company: 'Maven Workforce Pvt Ltd', title: 'Sr. UX/UI Designer Job in Remote | Glassdoor' },
+    'the role is left as scanned when only the address named the employer',
+  );
+  assert.equal(pipelineOfferIdentity(glassdoor('product-designer', 'Product Designer Job in Remote | Glassdoor')).company, '', 'nothing after the role in the address');
+  assert.equal(pipelineOfferIdentity(glassdoor('designer-remote-job', 'Designer Job | Glassdoor')).company, '', 'filler words are not a company');
+});
+
+test('"Role @ Company" names the employer; Indeed and other pages that name none stay unknown', () => {
+  assert.deepEqual(
+    pipelineOfferIdentity({ url: 'https://jobs.ashbyhq.com/tentens/1', company: '', title: 'Product Designer (UI/UX) @ TENTENS Tech', engine: 'pinchtab-brave' }),
+    { company: 'TENTENS Tech', title: 'Product Designer (UI/UX)' },
+  );
+  for (const title of ['Product Designer - Remote - Indeed.com', 'Graphic cum Product Designer Design Jobs Singapore', 'UI/UX Design for Global Dating App Startup :: Behance']) {
+    assert.equal(pipelineOfferIdentity({ url: 'https://www.indeed.com/viewjob?jk=ec29970ce9410d04', company: '', title, engine: 'pinchtab-brave' }).company, '', title);
+  }
+  assert.equal(pipelineOfferIdentity({ url: 'https://www.linkedin.com/jobs/view/1', company: '', title: 'We are hiring a Senior Product Designer | LinkedIn', engine: 'pinchtab-brave' }).company, '', '"We are" is not an employer');
+});
+
+test('a structured entry keeps its own company over anything read from the title', () => {
+  const entry = { url: 'https://www.glassdoor.com/job-listing/x', company: 'Acme', title: 'Other Co hiring Designer Job in Remote', engine: 'greenhouse-api', source: 'Acme' };
+  assert.deepEqual(pipelineOfferIdentity(entry), { company: 'Acme', title: 'Other Co hiring Designer Job in Remote' });
+});
+
+test("a report headed with the candidate's own employer needs a posting that names it", () => {
+  const posting = 'Vertech Industrial Systems is hiring a UX/UI Designer. Remote.';
+  // unknown offer company + evidence: the posting never mentions OneAsset
+  assert.equal(ownEmployerConfusion('OneAsset', '', OWN, posting), 'OneAsset');
+  assert.equal(ownEmployerConfusion('One Asset', '', OWN, ''), '', 'a different spelling is not the same name: no flag without that name');
+  assert.equal(ownEmployerConfusion('OneAsset', '', OWN, ''), 'OneAsset', 'no posting text at all');
+  // a posting that really is about that employer is left alone
+  assert.equal(ownEmployerConfusion('OneAsset', '', OWN, 'OneAsset is hiring a Product Designer in Paris'), '');
+  assert.equal(ownEmployerConfusion('OneAsset', '', OWN, 'Senior Product Designer at oneasset.io'), '', 'case and punctuation do not matter');
+  // the header names another company: not this guard's business
+  assert.equal(ownEmployerConfusion('Vertech Industrial Systems', '', OWN, posting), '');
+  // without evidence the old contract holds (callers that do not pass any)
+  assert.equal(ownEmployerConfusion('OneAsset', '', OWN), '');
+  // a known offer company keeps the earlier behaviour whatever the evidence says
+  assert.equal(ownEmployerConfusion('OneAsset', 'Deliveroo', OWN, 'OneAsset OneAsset OneAsset'), 'OneAsset');
+});
+
+test('the evaluation passes the posting to the own-employer guard', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../ui/server.mjs', import.meta.url), 'utf8');
+  assert.match(src, /pipelineJdText = String\(jdResult\.text \|\| ''\);/);
+  assert.match(src, /const offerEvidence = mode === 'pipeline' && pipelineTarget\s*\?\s*\[pipelineJdText, pipelineTarget\.title, pipelineTarget\.note, pipelineTarget\.url\]/);
+  assert.match(src, /\.filter\(Boolean\), offerEvidence\)/);
+});

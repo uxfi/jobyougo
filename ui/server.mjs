@@ -107,7 +107,7 @@ import { formatReportNumber, releaseReportNumbers, reserveReportNumbers } from '
 import { getScanAggregators, fetchJobBoardPolite, jobBoardProviders } from '../lib/scan-job-boards.mjs';
 import { createSourceThrottle } from '../lib/job-board-throttle.mjs';
 import { classifyEmptySerp, serpDiagnostic } from '../lib/serp-page-check.mjs';
-import { createCircuitProbe, probeCooldowns } from '../lib/web-search-circuit-probe.mjs';
+import { cooldownWaitMs, createCircuitProbe, probeCooldowns } from '../lib/web-search-circuit-probe.mjs';
 import { QUERY_SECTIONS, listQuerySources } from '../lib/portal-query-sources.mjs';
 import { buildCountryEligibilityFilter, buildLocationFilter } from '../scan.mjs';
 import {
@@ -4545,6 +4545,8 @@ const engineBackoff = createEngineBackoff({ baseMs: Math.max(1000, Number.parseI
 const engineRotation = createEngineRotation({ maxWaitMs: Math.max(0, Number.parseInt(process.env.SCAN_ENGINE_ROTATION_MAX_WAIT_MS || '0', 10) || 0) }); // opt-in: the circuit probe already waits out cooldowns
 const querySpacer = createQuerySpacer({ spacingMs: Math.max(0, Number.parseInt(process.env.SCAN_QUERY_SPACING_MS || '400', 10) || 0) });
 const ENGINE_RETRY_EVERY = 8;
+// Longest rest of the answering engine a query waits out (Brave rests ~60 s after a challenge, 120 s on a second one in a row).
+const ENGINE_PATIENCE_MS = 150000;
 const engineHealth = new Map();
 // Engines that returned at least one result in this run: the half-open probe
 // waits for their cooldown, not for an engine that only ever answers empty.
@@ -4577,7 +4579,7 @@ function noteEngineResult(id, useful) {
 // almost every query) must not reset it while the others sit behind captchas
 // (2026-10-16, 10 empty queries in a row never tripped it). Clean 0-hit
 // answers from every engine are still a working search, not a failure.
-async function fetchPinchtabEnginesMerged(source) {
+async function fetchPinchtabEnginesMerged(source, { patient = false } = {}) {
   const { engines, minResults } = webSearchConfig;
   const merged = [];
   const seen = new Set();
@@ -4585,6 +4587,15 @@ async function fetchPinchtabEnginesMerged(source) {
   let loaded = 0;
   let lastBlocked = null;
   let skippedCooling = false;
+  // Patient callers (the scan's own web phase, the explorer) wait for the
+  // engine that has been answering instead of losing the query to its rest.
+  if (patient) {
+    const patience = cooldownWaitMs(engines, id => engineBackoff.remainingMs(id), enginesThatAnswered, { maxWaitMs: ENGINE_PATIENCE_MS });
+    if (patience > 0) {
+      console.log(`[scan] [WebSearch] ${engines.filter(id => enginesThatAnswered.has(id)).join('/')} is resting: waiting ${Math.round(patience / 1000)}s for "${source.name}" instead of failing it`);
+      await sleep(patience + 250);
+    }
+  }
   const rotationWait = engineRotation.waitMs(engines, engineBackoff);
   if (rotationWait > 0) { // only with SCAN_ENGINE_ROTATION_MAX_WAIT_MS set
     console.log(`[scan] [WebSearch] every ready engine keeps answering empty while another cools down: waiting ${Math.round(rotationWait / 1000)}s`);
@@ -4631,8 +4642,9 @@ async function fetchPinchtabEnginesMerged(source) {
     // Every engine sat out this query (cooling after a challenge, or resting
     // after answering empty): that is not a missing configuration.
     const configured = engines.filter(id => PINCHTAB_SEARCH_ENGINES[id]);
-    return lastBlocked || {
-      ok: false, section: null, jobs: [], engine: 'pinchtab',
+    // `paused`: cut short by an engine's rest, not by the query itself: the scan replays it once.
+    return lastBlocked ? { ...lastBlocked, paused: true } : {
+      ok: false, section: null, jobs: [], engine: 'pinchtab', paused: configured.length > 0,
       error: configured.length
         ? `every web-search engine is resting (${engineLog.join(', ')})`
         : 'no web-search engine configured',
@@ -4647,7 +4659,11 @@ async function fetchPinchtabEnginesMerged(source) {
   const used = engineLog.filter(entry => !/:(?:blocked|cooldown|resting)$/.test(entry)).map(entry => entry.split(':')[0]);
   console.log(`[scan] [WebSearch] "${source.name}" → ${merged.length} merged results (${engineLog.join(', ')}), ${merged.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
   // Engines answered cleanly with nothing relevant = legitimately empty, not a failed fetch.
-  return { ok: true, empty: merged.length === 0, section: buildJobSection(source.name, merged), jobs: merged, engine: `pinchtab-${used.join('+')}` };
+  // With one engine blocked or cooling meanwhile, the nothing says little: `paused`.
+  return {
+    ok: true, empty: merged.length === 0, section: buildJobSection(source.name, merged), jobs: merged,
+    engine: `pinchtab-${used.join('+')}`, paused: !hasRelevantResult && Boolean(lastBlocked || skippedCooling),
+  };
 }
 
 function buildTheirStackPayload(portalsConfig = {}) {
@@ -5111,7 +5127,7 @@ async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
   return { ok: false, section: null, jobs: [], engine: 'aggregator', error: 'unsupported provider' };
 }
 
-async function fetchWebSearchSection(source, sharedBrowser = null) {
+async function fetchWebSearchSection(source, sharedBrowser = null, { patient = false } = {}) {
   if (webSearchCircuitOpen()) {
     return { ok: false, skipped: 'circuit-breaker', section: null, error: 'web-search circuit open' };
   }
@@ -5152,7 +5168,7 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
   // Every configured engine (portals.yml `web_search.engines`) is queried and
   // the results merged — see fetchPinchtabEnginesMerged.
   if (await pinchtabIsUp()) {
-    return asEmptyIfClean(await fetchPinchtabEnginesMerged(source));
+    return asEmptyIfClean(await fetchPinchtabEnginesMerged(source, { patient }));
   }
 
   if (!serpApiCircuitOpen() && (SERPAPI_KEY || process.env.SEARCHAPI_KEY)) {
@@ -5193,6 +5209,51 @@ async function fetchWebSearchSection(source, sharedBrowser = null) {
   return asEmptyIfClean(chromeGoogleResult);
 }
 
+// A query an engine's rest cut short (`paused`, or skipped by the circuit while
+// the engines only rested) says nothing about the query itself. Once the main
+// pass is over, each one is replayed a single time; the patient wait then lets
+// Brave come back first. A wedged PinchTab is a different failure: no replay.
+const WEB_SEARCH_REPLAY_MAX = 25;
+function cutShortByPause(value) {
+  if (!value) return false;
+  if (value.paused === true) return true;
+  return value.skipped === 'circuit-breaker' && value.note !== 'search browser cannot open tabs';
+}
+async function replayPausedQueries(sources, results) {
+  if (webSearchProbe.wedged || !(await pinchtabIsUp())) return 0;
+  const todo = results
+    .map((result, i) => (result?.status === 'fulfilled' && cutShortByPause(result.value) ? i : -1))
+    .filter(i => i >= 0)
+    .slice(0, WEB_SEARCH_REPLAY_MAX);
+  if (!todo.length) return 0;
+  console.log(`[scan] [websearch] replaying ${todo.length} quer${todo.length === 1 ? 'y' : 'ies'} that a paused engine cut short (once each)`);
+  _webSearchConsecFail = 0;
+  let recovered = 0;
+  let misses = 0;
+  for (const i of todo) {
+    if (misses >= 3) {
+      console.warn('[scan] [websearch] replay stopped: 3 queries in a row came back cut short again');
+      break;
+    }
+    let value = null;
+    try {
+      value = await fetchPinchtabEnginesMerged(sources[i], { patient: true });
+    } catch {
+      misses += 1;
+      continue;
+    }
+    if (cutShortByPause(value) || isWebSearchEngineBlocked(value)) {
+      misses += 1;
+      continue;
+    }
+    results[i] = { status: 'fulfilled', value };
+    recovered += 1;
+    misses = 0;
+  }
+  console.log(`[scan] [websearch] replay: ${recovered}/${todo.length} recovered`);
+  return recovered;
+}
+
 async function fetchWebSearchSectionsSequential(sources = []) {
   const results = [];
   let sharedBrowser = null;
@@ -5225,11 +5286,12 @@ async function fetchWebSearchSectionsSequential(sources = []) {
         _webSearchConsecFail = WEB_SEARCH_FAIL_BUDGET - 1;
       }
       try {
-        results.push({ status: 'fulfilled', value: await fetchWebSearchSection(source, sharedBrowser) });
+        results.push({ status: 'fulfilled', value: await fetchWebSearchSection(source, sharedBrowser, { patient: true }) });
       } catch (err) {
         results.push({ status: 'rejected', reason: err });
       }
     }
+    await replayPausedQueries(sources, results);
   } finally {
     await sharedBrowser?.ctx?.close().catch(() => {});
     if (sharedBrowser?.tempProfile) await rm(sharedBrowser.tempProfile, { recursive: true, force: true }).catch(() => {});
@@ -10188,6 +10250,9 @@ const server = createServer(async (req, res) => {
         let profileGate = null;
         // Pipeline offer: main language of its JD ('' when unknown).
         let pipelineLanguage = '';
+        // The job description the model was given: a report that names the
+        // candidate's own employer is only believable if the posting does too.
+        let pipelineJdText = '';
         if (mode === 'scan') {
           resetSerpApiCircuit();
           resetLocalGoogleCircuit();
@@ -10363,7 +10428,7 @@ const server = createServer(async (req, res) => {
                 config: portalsConfig,
                 offerUrls: seenJobUrls,
                 search: async (query) => {
-                  const res = await fetchWebSearchSection({ name: `[explorer] ${query}`, query });
+                  const res = await fetchWebSearchSection({ name: `[explorer] ${query}`, query }, null, { patient: true });
                   if (!res || res.skipped || isWebSearchEngineBlocked(res)) return { blocked: true };
                   return { urls: (res.jobs || []).map(j => j?.url).filter(Boolean), text: typeof res.section === 'string' ? res.section : '' };
                 },
@@ -10418,7 +10483,8 @@ const server = createServer(async (req, res) => {
             const result = webSearchResults[index];
             recordQueryYield(queryYield, source.query, {
               hits: webSearchRecords[index].length,
-              blocked: result?.status !== 'fulfilled' || Boolean(result.value?.error),
+              // a query an engine's rest cut short (and the replay did not recover) is not an empty run
+              blocked: result?.status !== 'fulfilled' || Boolean(result.value?.error) || Boolean(result.value?.paused),
             }, today);
           });
           await ensureScanMemoryDir(scanMemory).then(() => saveQueryYield(queryYieldPath, queryYield, today)).catch(err =>
@@ -10861,6 +10927,7 @@ const server = createServer(async (req, res) => {
               return;
             }
             pipelineLanguage = detectJdLanguage(jdResult.text).code;
+            pipelineJdText = String(jdResult.text || '');
             const languageLine = pipelineLanguage && pipelineLanguage !== 'fr' && pipelineLanguage !== 'en'
               ? `Langue de l'annonce : ${detectJdLanguage(jdResult.text).label}\n`
               : '';
@@ -11556,18 +11623,26 @@ Règles:
           // ── VALIDATE before writing ──────────────────────────────────────
           // A scored evaluation of the candidate's own job is not an evaluation.
           const career = mode === 'pipeline' ? indexCareer(cv) : null;
+          // A search-engine hit names no company: then the posting itself has to
+          // mention the employer the header names (2026-10-21: Glassdoor and Indeed
+          // pages the model could not read came back as "OneAsset", 4.8 to 5.0/5).
+          const offerEvidence = mode === 'pipeline' && pipelineTarget
+            ? [pipelineJdText, pipelineTarget.title, pipelineTarget.note, pipelineTarget.url].filter(Boolean).join('\n')
+            : undefined;
           const ownEmployer = career
             ? ownEmployerConfusion(headerCompany, offer.company, [
               profileStruct?.search?.current_role?.company,
               ...career.employerNames,
               ...career.sideNames,
-            ].filter(Boolean))
+            ].filter(Boolean), offerEvidence)
             : '';
           const validation = ownEmployer
             ? {
               valid: false,
               code: OWN_EMPLOYER_CODE,
-              reason: `the model evaluated the candidate's own employer (${ownEmployer}) instead of the ${offer.company} offer. The URL stays in the pipeline`,
+              reason: offer.company
+                ? `the model evaluated the candidate's own employer (${ownEmployer}) instead of the ${offer.company} offer. The URL stays in the pipeline`
+                : `the model named the candidate's own employer (${ownEmployer}) and the posting never mentions it: it had no readable job description. The URL stays in the pipeline`,
             }
             : validateReportContent(reportContent, scoreRaw, company, role);
 

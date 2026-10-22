@@ -249,3 +249,43 @@ ok('a negative answer to the question is not a denial of work',
 ok('how the candidate works is not a denial, past experience gaps are',
   !opensWithDenial('I never ship without testing with users.') && !opensWithDenial("I don't design for edge cases first.")
   && !opensWithDenial("I don't have to rely on gut feeling.") && opensWithDenial('I never worked in gaming.'));
+
+// 2026-10-21, Zenara: "Describe a vague stakeholder request you turned into a
+// feature" stayed blank on the form. The report text writes "LVMH" and "Cursor",
+// the CV "LVMH Group": a real employer and a tool were read as brands never
+// worked at, and every draft was thrown away.
+const zenaraOffer = 'Match CV: LVMH stakeholder interviews, Renault Renew marketplace\nStack: Sketch, Adobe XD, ChatGPT, Cursor, Vercel v0';
+const zenaraAllowed = ['LVMH Group', 'Renault Group', 'France Télévisions'];
+const zenara = { company: 'Zenara Health', offer: zenaraOffer, allowed: zenaraAllowed };
+ok('the short name of a real employer is that employer',
+  !claimsUnworkedBrand('I ran stakeholder interviews at LVMH and designed one shared platform for the maisons.', zenara)
+  && !claimsUnworkedBrand('I led the Renew redesign at Renault across several countries.', zenara)
+  && !claimsUnworkedBrand('I designed the children app for France across every screen.', zenara));
+ok('a tool used is not work at that tool',
+  !claimsUnworkedBrand('I prototyped the flow in Cursor, then shipped it with the engineers.', zenara)
+  && !claimsUnworkedBrand('I designed it in Sketch and Adobe XD, and drafted the brief with ChatGPT.', zenara)
+  && claimsUnworkedBrand('At Cursor, I designed the editor.', zenara));
+ok('a brand the CV never lists is still invented work',
+  claimsUnworkedBrand('At Zenara Health, I led the onboarding redesign.', zenara)
+  && claimsUnworkedBrand('I designed the dashboard at Zenflow for two years.', { ...zenara, offer: `${zenaraOffer}\nZenflow, a health platform` }));
+
+const lvmhAnswer = 'I ran stakeholder interviews at LVMH across several brand teams and turned their conflicting needs into one shared platform. I designed the journey maps and monitoring tools that the teams still use.';
+const lvmhWritten = await writeFormAnswer({
+  question: 'Describe a vague customer or stakeholder request you turned into a designed, buildable feature. What did you produce, and what shipped?',
+  company: 'Zenara Health',
+  role: 'Product Lead',
+  career: '- UX / Product Designer : LVMH Group (2022 – 2023): Ran stakeholder interviews across brand teams. Built journey maps and internal monitoring tools.',
+  offerContext: zenaraOffer,
+  complete: async () => lvmhAnswer,
+});
+ok('a grounded answer about a real employer is kept', lvmhWritten.answer === lvmhAnswer && lvmhWritten.refused.length === 0);
+
+const deniedWritten = await writeFormAnswer({
+  question: 'Describe a vague customer or stakeholder request you turned into a designed, buildable feature.',
+  company: 'Zenara Health',
+  role: 'Product Lead',
+  career: '- UX / Product Designer : LVMH Group (2022 – 2023): Brand platform for the maisons.',
+  offerContext: zenaraOffer,
+  complete: async () => "I've never worked on a request like that.",
+});
+ok('a thrown-away answer says why', deniedWritten.answer === '' && deniedWritten.refused.includes('denial'));

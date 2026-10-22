@@ -2551,11 +2551,21 @@ export class ApplyBridge {
         });
       }
 
-      const updateFor = (f, ans) => {
+      // What made the writer drop its own draft, in words for the pending row.
+      const REFUSED_WHY = {
+        brand: 'elle citait une marque comme employeur',
+        denial: 'elle niait une expérience du CV',
+        language: 'mauvaise langue',
+        'side-project': 'elle prenait un projet perso comme preuve',
+        junk: "ce n'était pas une réponse",
+        slop: 'formules toutes faites',
+      };
+      const updateFor = (f, ans, refusedCodes) => {
         const label = fieldLabel(f);
         const text = Array.isArray(ans) ? ans[0] : ans;
         if (!text) {
-          if (f.required) pending.push(row(f, { reason: 'requis — sans réponse, à remplir manuellement' }));
+          const why = (refusedCodes || []).map((code) => REFUSED_WHY[code]).filter(Boolean).join(', ');
+          if (f.required) pending.push(row(f, { reason: why ? `requis — réponse écartée (${why}), à remplir manuellement` : 'requis — sans réponse, à remplir manuellement' }));
           return null;
         }
         if (hasUnresolvedPlaceholder(String(text))) {
@@ -2634,7 +2644,7 @@ export class ApplyBridge {
         const deduced = answers.inferred || {};
         return fieldsToAnswer.map((f) => {
           const k = ask.indexOf(f);
-          const u = updateFor(f, k >= 0 ? answers[String(k)] : knownAnswer(memory, f));
+          const u = updateFor(f, k >= 0 ? answers[String(k)] : knownAnswer(memory, f), k >= 0 ? answers.refused?.[String(k)] : undefined);
           // A pick the model deduced from the CV/portfolio: shown for review.
           const why = k >= 0 ? deduced[String(k)] : null;
           if (u && why) u.inferred = [why.why, why.source && `source : ${why.source}`].filter(Boolean).join(' — ') || 'déduit';
