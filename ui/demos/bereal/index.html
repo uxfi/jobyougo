@@ -58,9 +58,13 @@
   /* capture */
   .cam { flex:1; aspect-ratio:3/4; max-height:calc(100% - 150px); align-self:center; width:100%; transition:border-radius .6s var(--soft), transform .6s var(--spring); }
   .cam .pip { cursor:pointer; }
-  .count { position:absolute; inset:0; z-index:6; display:grid; place-items:center; font:800 104px/1 var(--disp); text-shadow:0 6px 30px rgba(0,0,0,.45); pointer-events:none; }
-  .count span { display:block; animation:cnt .45s var(--spring) both; }
-  @keyframes cnt { 0% { transform:scale(.4); opacity:0 } 55% { transform:scale(1.12); opacity:1 } 100% { transform:scale(1) } }
+  /* instant capture: the frame clicks for the back photo, then the selfie slot flashes and pops */
+  .cam.snap { animation:snap .34s var(--soft); }
+  @keyframes snap { 0% { transform:scale(1) } 28% { transform:scale(.965) } 100% { transform:scale(1) } }
+  .cam .pip::after { content:''; position:absolute; inset:0; z-index:2; border-radius:inherit; background:#fff; opacity:0; pointer-events:none; }
+  .cam .pip.snap { animation:pipPop .45s var(--spring); }
+  .cam .pip.snap::after { animation:pipFlash .42s ease-out; }
+  @keyframes pipFlash { 0% { opacity:.95 } 100% { opacity:0 } }
   .shut-row { display:flex; align-items:center; justify-content:space-between; padding:22px 26px 0; margin-top:auto; }
   .shut { position:relative; width:80px; height:80px; border-radius:50%; display:grid; place-items:center; touch-action:none; }
   .shut::before { content:''; position:absolute; inset:0; border-radius:50%; border:4px solid #fff; transition:transform .5s var(--spring); }
@@ -117,6 +121,16 @@
     58% { transform:translate(-50%,-50%) rotate(calc(var(--r) - 5deg)) scale(.98) } 76% { transform:translate(-50%,-50%) rotate(calc(var(--r) + 3deg)) scale(1.01) } 100% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1) } }
   .stk.drag { cursor:grabbing; transition:none; --sc:1.08; filter:drop-shadow(0 14px 18px rgba(0,0,0,.45)); }
   .stk.drop { animation:jelly .6s var(--soft); }
+  /* drag a sticker: a trash rises at the bottom of the photo; drop it there to remove the sticker */
+  .trash { position:absolute; z-index:3; left:50%; bottom:16px; width:50px; height:50px; margin-left:-25px; border-radius:50%; display:grid; place-items:center; color:#fff; pointer-events:none;
+    background:rgba(20,20,22,.55); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35);
+    opacity:0; transform:translateY(18px) scale(.7); transition:opacity .2s, transform .45s var(--spring), background .2s, box-shadow .2s; }
+  .trash svg { width:22px; height:22px; fill:currentColor; }
+  .edit.dragging .trash { opacity:1; transform:none; }
+  .edit .trash.hot { background:var(--late); box-shadow:none; transform:scale(1.22); }
+  .stk.drag.doomed { --sc:.55; opacity:.7; transition:transform .25s var(--soft), opacity .2s; }
+  .stk.binned { animation:binned .3s var(--soft) forwards; }
+  @keyframes binned { to { transform:translate(-50%,-50%) rotate(var(--r)) scale(.1); opacity:0; } }
   @keyframes jelly { 0% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1.08) } 25% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1.12,.88) } 50% { transform:translate(-50%,-50%) rotate(var(--r)) scale(.94,1.06) } 75% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1.02,.98) } 100% { transform:translate(-50%,-50%) rotate(var(--r)) scale(1) } }
   .s-loc { padding:7px 11px 7px 8px; border-radius:13px; background:#fff; color:#111; font:800 14px/1 var(--disp); letter-spacing:-.01em; box-shadow:0 0 0 1.5px #fff; }
   .s-loc svg { width:15px; height:15px; color:var(--late); }
@@ -128,7 +142,9 @@
   .eq i { width:2.5px; height:100%; border-radius:2px; background:var(--acc); transform-origin:bottom; animation:eq .9s ease-in-out infinite; }
   .eq i:nth-child(2) { animation-delay:-.3s; } .eq i:nth-child(3) { animation-delay:-.6s; } .eq i:nth-child(4) { animation-delay:-.15s; }
   @keyframes eq { 0%,100% { transform:scaleY(.3) } 50% { transform:scaleY(1) } }
-  .s-tag { padding:4px 12px 6px; border-radius:12px; background:var(--acc); color:#111; font:700 22px/1 var(--hand); box-shadow:0 0 0 1.5px #fff; }
+  /* tag: the friend's face and handle, dark and quiet by default */
+  .s-tag { padding:4px 12px 4px 4px; border-radius:16px; background:#141414; color:#fff; font:600 13.5px/1 var(--disp); letter-spacing:-.01em; box-shadow:0 0 0 1.5px #fff; }
+  .s-tag .tav { flex:none; width:24px; height:24px; border-radius:50%; background:#333 center/cover; display:grid; place-items:center; font:700 8.5px/1 var(--disp); color:#fff; box-shadow:0 0 0 1.5px rgba(255,255,255,.18); }
   .mine .stk-layer .stk, .sheet .stk { cursor:default; }
   .mine .stk-layer { transform:scale(.36); transform-origin:0 0; width:278%; height:278%; inset:auto; left:0; top:0; }
   .flabel { position:absolute; left:50%; top:18px; z-index:6; padding:6px 12px; border-radius:11px; background:#fff; color:#111; font:800 15px/1 var(--disp); box-shadow:0 0 0 1.5px #fff, 0 6px 14px rgba(0,0,0,.35); opacity:0; transform:translateX(-50%) rotate(-3deg) scale(.6); pointer-events:none; }
@@ -180,7 +196,6 @@
   .sugg > button:nth-child(2) .stk { animation-delay:.05s } .sugg > button:nth-child(3) .stk { animation-delay:.1s } .sugg > button:nth-child(4) .stk { animation-delay:.15s }
   @keyframes stkIn2 { from { transform:rotate(var(--r)) scale(.5); opacity:0 } }
   .sugg > button:active .stk { transform:rotate(var(--r)) scale(.9); }
-  .x { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:14px; color:var(--mut); }
   .sheet-in { flex:none; width:128px; height:34px; padding:0 12px; border-radius:17px; border:0; outline:none; color:#fff; font:inherit; font-size:13px; caret-color:var(--acc); background:rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.18); }
   .next-row { display:flex; gap:10px; margin-top:auto; padding-top:14px; align-items:center; }
   .circ-btn { flex:1; height:54px; border-radius:27px; display:flex; align-items:center; gap:10px; padding:0 16px 0 8px; font:600 15px/1 var(--disp); text-align:left; transition:transform .45s var(--spring); }
@@ -286,8 +301,10 @@
   .dual[data-flt="night"]::after { background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.55) 100%); }
 
   /* mascot: a droplet that lives in the UI */
-  .mo { --lx:0px; --ly:0px; position:absolute; left:0; top:0; z-index:18; width:44px; height:44px; pointer-events:none; transition:transform .8s var(--spring), opacity .3s; will-change:transform; }
+  .mo { --lx:0px; --ly:0px; position:absolute; left:0; top:0; z-index:18; width:44px; height:44px; pointer-events:none; transition:transform .8s var(--spring), opacity .3s, z-index 0s; will-change:transform; }
   .mo.hide { opacity:0; }
+  /* on the camera it rides the timer: tucked behind the pill's left end (it goes behind once it has landed) */
+  .mo.ride { z-index:0; transition:transform .8s var(--spring), opacity .3s, z-index 0s .7s; }
   .mo-b { width:100%; height:100%; transform-origin:50% 100%; animation:breathe 3.6s ease-in-out infinite; }
   @keyframes breathe { 50% { transform:scale(1.04,.96) } }
   .mo svg { width:100%; height:100%; overflow:visible; filter:drop-shadow(0 4px 8px rgba(0,0,0,.45)); }
@@ -347,7 +364,6 @@
   @keyframes draw { to { stroke-dashoffset:0 } }
   .srch { flex:none; display:flex; align-items:center; gap:6px; height:34px; padding:0 12px; border-radius:17px; background:rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.18); color:var(--mut); }
   .srch .ic { --is:15px; } .srch .sheet-in { width:100px; height:auto; padding:0; background:none; box-shadow:none; border-radius:0; }
-  .x .ic { --is:14px; }
   .tab { flex:1; height:52px; border-radius:26px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--mut); transition:background .25s, color .2s; } .tab.on { color:#fff; background:rgba(255,255,255,.13); } .tab .ic { --is:22px; } .tabs .ic, .newc .ic { display:inline-grid; border:0; width:var(--is); height:var(--is); }
   .tabs .cam-tab { flex:none; width:48px; height:48px; margin:0 4px; display:grid; place-items:center; } .cam-tab i { width:26px; height:26px; border-radius:50%; background:#fff; transition:transform .4s var(--spring); } .cam-tab:active i { transform:scale(.8); }
   .react button { display:inline-flex; align-items:center; gap:6px; } .react .ic { --is:18px; }
@@ -497,10 +513,18 @@
   .scr.kb-open .tray-wrap, .scr.kb-open .next-row { display:none; }
   .isheet.kb-open { bottom:var(--kbh); min-height:0; max-height:calc(100% - var(--kbh) - 60px); border-radius:40px; }
   .isheet.kb-open .send { display:none; }
-  /* suggestion row: round search and "see all" buttons */
+  /* suggestion row: a round search button first */
   .sugg .sq { flex:none; width:38px; height:38px; border-radius:50%; display:grid; place-items:center; color:#fff; }
   .sugg .sq .ic { --is:17px; }
-  .sugg .sq svg.ex { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+  /* "All" floats over the row's right edge: the stickers fade and slide under it, a spacer lets the last one clear it */
+  .sugg-wrap { position:relative; }
+  .sugg { -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 132px), transparent calc(100% - 70px)); mask-image:linear-gradient(to right, #000 calc(100% - 132px), transparent calc(100% - 70px)); }
+  .sugg::after { content:''; flex:none; width:116px; height:1px; }
+  .sugg-all { position:absolute; z-index:2; right:2px; top:50%; height:36px; padding:0 13px 0 11px; border-radius:18px; display:inline-flex; align-items:center; gap:6px; background:#fff; color:#111; font:700 13px/1 var(--disp);
+    box-shadow:0 6px 18px rgba(0,0,0,.5); transform:translateY(-50%); transition:transform .45s var(--spring); }
+  .sugg-all:active { transform:translateY(-50%) scale(.92); }
+  .sugg-all svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+  .sugg-all:focus-visible { outline-offset:3px; }
   /* picker sheet */
   .pk-srch { flex:none; display:flex; align-items:center; gap:8px; height:44px; margin:12px 0 10px; padding:0 14px; border-radius:22px; background:rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.14); color:var(--mut); }
   .pk-srch .ic { --is:17px; }
@@ -511,9 +535,24 @@
   .pk-vis .ic { --is:18px; color:var(--mut); }
   .pk-vis .vin { width:34px; height:34px; border-radius:50%; background:radial-gradient(circle, var(--acc) 0 18%, #111 19% 24%, #2a2a2a 25% 38%, #1a1a1a 39% 52%, #2a2a2a 53% 66%, #111 67%); box-shadow:inset 0 0 0 1px rgba(255,255,255,.15); }
   .pk-empty { padding:24px 0; text-align:center; color:var(--mut); font-size:14px; }
+  /* music picker: a play button beside each song, a ring that fills over the preview, bars on the cover while it plays */
+  .pk-item { position:relative; } .pk-item > .opt { width:100%; }
+  .pk-mus .nm { padding-right:46px; } .pk-mus .pk-vis { position:relative; }
+  .pk-play { position:absolute; z-index:1; right:48px; top:50%; width:36px; height:36px; margin-top:-18px; border-radius:50%; display:grid; place-items:center; background:rgba(255,255,255,.1); color:#fff; transition:transform .45s var(--spring), background .2s, color .2s; }
+  .pk-play:active { transform:scale(.88); }
+  .pk-play > svg { grid-area:1/1; }
+  .pv-ring { width:36px; height:36px; transform:rotate(-90deg); opacity:0; transition:opacity .2s; }
+  .pv-ring circle { fill:none; stroke-width:2.5; } .pv-ring .bg { stroke:rgba(198,244,50,.2); }
+  .pv-ring .fg { stroke:var(--acc); stroke-dasharray:100; stroke-dashoffset:100; stroke-linecap:round; }
+  .pv-ic { width:15px; height:15px; fill:currentColor; } .pv-ic .pa { display:none; }
+  .pk-play.on { background:rgba(198,244,50,.14); color:var(--acc); } .pk-play.on .pv-ring { opacity:1; }
+  .pk-play.on .pl { display:none; } .pk-play.on .pa { display:inline; }
+  .pk-eq { position:absolute; right:-3px; bottom:-3px; height:16px; padding:2px 3px; border-radius:6px; background:rgba(0,0,0,.72); opacity:0; transform:scale(.6); transition:opacity .2s, transform .35s var(--spring); }
+  .pk-eq i { width:2px; }
+  .on-air .pk-eq { opacity:1; transform:none; }
   /* stickers: tap to cycle the look */
   .s-tag.v1 { background:#fff; color:#111; }
-  .s-tag.v2 { background:#111; color:var(--acc); box-shadow:0 0 0 1.5px var(--acc); }
+  .s-tag.v2 { background:var(--acc); color:#111; }
   .s-tag.v3 { background:rgba(255,255,255,.2); color:#fff; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:none; }
   .s-loc.v1 { background:#111; color:#fff; box-shadow:0 0 0 1.5px #fff; }
   .s-loc.v2 { background:var(--acc); color:#111; } .s-loc.v2 svg.pin { fill:#111; }
@@ -521,9 +560,9 @@
   .s-mus.v1 { background:#fff; color:#111; } .s-mus.v1 small { color:rgba(0,0,0,.5); }
   .s-mus.v2 { background:var(--acc); color:#111; } .s-mus.v2 small { color:rgba(0,0,0,.55); } .s-mus.v2 .eq i { background:#111; }
   /* each look has its own type: hand, display, mono, serif italic */
-  .s-tag.v1 { font:800 15px/1 var(--disp); letter-spacing:-.01em; padding:7px 11px; }
-  .s-tag.v2 { font:700 13px/1 var(--mono); padding:7px 11px; }
-  .s-tag.v3 { font:italic 400 18px/1 var(--serif); padding:5px 12px 7px; }
+  .s-tag.v1 { font:800 15px/1 var(--disp); letter-spacing:-.01em; padding:4px 12px 4px 4px; }
+  .s-tag.v2 { font:700 21px/1 var(--hand); padding:3px 12px 3px 4px; }
+  .s-tag.v3 { font:italic 400 18px/1 var(--serif); padding:4px 12px 4px 4px; }
   .s-loc.v1 { font:700 12.5px/1 var(--mono); }
   .s-loc.v2 { font:700 21px/1 var(--hand); padding:4px 12px 6px 8px; }
   .s-loc.v3 { font:italic 400 17px/1 var(--serif); }
@@ -656,7 +695,6 @@
       <svg class="rline" id="rline" aria-hidden="true"><g filter="url(#liq)"><path class="base"/><path class="prog"/></g><path class="rtip rtipg"/><path class="rtip"/></svg>
       <div class="recpill glass" id="recPill" aria-live="polite"><i></i><span>0:00</span></div>
       <div class="zoom glass" id="zoom" role="group" aria-label="Zoom"><button data-z=".5" aria-label="Zoom 0.5×">.5</button><button class="on" data-z="1" aria-label="Zoom 1×">1×</button><button data-z="2" aria-label="Zoom 2×">2</button></div>
-      <div class="count" id="count" hidden></div>
       <span class="sr" id="camHint" aria-live="polite"></span>
     </div>
     <div class="shut-row"><button class="ico glass" id="flashBtn" aria-label="Flash" aria-pressed="false"><span class="ic" data-fx="zap"><svg class="o"><use href="#p-lightning"/></svg><svg class="f"><use href="#p-lightning-f"/></svg></span></button><button class="shut" id="shoot" aria-label="Tap for photo, hold for video"><i></i></button><button class="ico glass" id="flip" aria-label="Swap cameras"><span class="ic" data-fx="flip"><svg class="o"><use href="#p-camera-rotate"/></svg><svg class="f"><use href="#p-camera-rotate-f"/></svg></span></button></div>
@@ -670,6 +708,7 @@
       <div class="pip"><div class="ph ph-front"></div></div>
       <div class="stk-layer" id="chips"></div>
       <div class="flabel" id="fLabel">Original</div>
+      <div class="trash" id="trash" aria-hidden="true"><svg viewBox="0 0 256 256"><use href="#p-trash"/></svg></div>
     </div>
     <button class="cbub" id="capBub" hidden aria-label="Edit caption"></button>
     <input class="capfield" id="capField" type="text" inputmode="none" autocomplete="off" placeholder="Say something…" maxlength="60" style="display:none">
@@ -682,7 +721,7 @@
         <button class="tool glass" data-tool="tag"><span class="ic" data-fx="spin"><svg class="o"><use href="#p-at"/></svg><svg class="f"><use href="#p-at-f"/></svg></span>Tag</button>
       </div>
     </div>
-    <div class="sheet" id="sheet"><div><div class="sugg" id="sugg"></div></div></div>
+    <div class="sheet" id="sheet"><div><div class="sugg-wrap"><div class="sugg" id="sugg"></div><button class="sugg-all" id="suggAll" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg>All</button></div></div></div>
     <div class="next-row">
       <button class="circ-btn glass" id="audOpen" data-go="2" aria-haspopup="dialog"><span class="em" id="audEm"></span><span class="cb-t"><small>Sending to</small><span id="audChip">All friends</span></span><span class="chev"><span class="ic" data-fx="nudge"><svg class="o"><use href="#p-caret-right"/></svg><svg class="f"><use href="#p-caret-right-f"/></svg></span></span></button>
       <button class="go-btn send-now" id="sendNow" aria-label="Send to all friends"><span class="ic" data-fx=""><svg class="o"><use href="#p-paper-plane-tilt"/></svg><svg class="f"><use href="#p-paper-plane-tilt-f"/></svg></span></button>
@@ -724,7 +763,7 @@
   <!-- 5 · Feed -->
   <section class="scr" id="s4" data-step="feed">
     <div class="top"><button class="ico glass" aria-label="Add friends"><span class="ic" data-fx="pop"><svg class="o"><use href="#p-users"/></svg><svg class="f"><use href="#p-users-f"/></svg></span><span class="addb" aria-hidden="true"><svg viewBox="0 0 12 12"><path d="M6 2.5v7M2.5 6h7" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"/></svg></span></button><span class="logo">BeReal.</span><button class="ico glass notif" aria-label="Notifications, 2 new"><span class="ic" data-fx="wiggle"><svg class="o"><use href="#p-bell"/></svg><svg class="f"><use href="#p-bell-f"/></svg></span><span class="nbadge" aria-hidden="true">2</span></button></div>
-    <div class="seg glass" id="fchips"><span class="seg-ind" id="segInd"></span><button class="on" data-f="all">All</button><button data-f="circle"><i class="ring-dot"></i>Circles</button><button data-f="fof">Mutuals</button></div>
+    <div class="seg glass" id="fchips"><span class="seg-ind" id="segInd"></span><button class="on" data-f="all">All</button><button data-f="circle"><i class="ring-dot"></i>Circles</button><button data-f="fof">Friends of friends</button></div>
     <div class="feed">
       <div class="mine">
         <div class="mine-row">
@@ -764,7 +803,7 @@
         <span class="lock-badge glass"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="5" y="10.5" width="14" height="10" rx="3" fill="#fff"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span>
       </div>
       <h2>Your first BeReal. <span class="wave" aria-hidden="true">👋</span></h2>
-      <p>Your friends’ posts unlock as soon as you share yours. Two photos, no filters, just your moment right now.</p>
+      <p>Your friends’ posts unlock as soon as you share yours. Two photos, no beauty filters, just your moment right now.</p>
       <div class="posted"><span class="avs"><span style="background-image:url(img/av-julie.webp)"></span><span style="background-image:url(img/av-sam.webp)"></span><span style="background-image:url(img/av-tom.webp)"></span></span>julie and 4 friends already posted</div>
       <button class="cta" data-go="0"><i></i>Take my BeReal</button>
       <div class="tleft" id="homeT">1:47 left to be on time</div>
@@ -788,7 +827,7 @@
   const STEPS = ['capture', 'context', 'audience', 'post', 'feed', 'start'];
   const FRIENDS = [['LM','#e76f51'],['JD','#2a9d8f','julie'],['SA','#8338ec','sam'],['TB','#ffb703','tom'],['NK','#3a86ff'],['EO','#fb5607'],['RC','#06d6a0'],['MP','#ef476f']];
   const FMAP = Object.fromEntries(FRIENDS.map(f => [f[0], f]));
-  const LOC_ALL = ['Paris 11e', 'Canal Saint-Martin', 'Hide location'], LOC_CIRCLE = ['Canal Saint-Martin', 'Paris 11e', 'Hide location'];
+  const LOC_ALL = ['Paris', 'Paris 11e'], LOC_CIRCLE = ['Canal Saint-Martin', 'Paris 11e'];
   const SUGGEST = { caption: [], location: LOC_ALL, music: ['♪ Now playing', '♪ Golden hour'], tag: ['@julie.d', '@sam.a', '@tom.b'] };
   const POS = { location: { x: 32, y: 74, r: -4 }, music: { x: 64, y: 87, r: 3 }, tag: { x: 72, y: 13, r: -3 } };
   const state = { step: 0, swapped: false, ctx: {}, aud: 'all', pos: JSON.parse(JSON.stringify(POS)), sty: { location: 0, music: 0, tag: 0 } };
@@ -797,9 +836,17 @@
 
   // step → element on screen: the audience step is a sheet over the context screen
   const SCR = ['#s0', '#s1', '#s2', '#s3', '#s4', '#s5'];
+  // camera: the mascot rides the timer, peeking from behind the pill's left end.
+  // Layout boxes, not getBoundingClientRect: read while the screen slides in, those put it anywhere.
+  function onTimer() {
+    const s = $('#s0'), bar = $('.top', s), t = $('#timer', s);
+    return [bar.offsetLeft + t.offsetLeft - 32, bar.offsetTop + t.offsetTop + t.offsetHeight / 2 - 24];
+  }
   function moAt(step) {
     const scr = $(SCR[step]); const sr = $('#app').getBoundingClientRect();
-    const A = { 0: ['#cam', r => [r.right - 58, r.bottom - 26]], 1: ['#editDual', r => [r.right - 54, r.bottom - 30]], 2: ['#audH', r => [r.left + r.width + 8, r.top - 8]], 3: ['#sentTxt', r => [r.left + r.width / 2 - 22, r.bottom + 16]], 5: ['.lock-stack', r => [r.left + r.width / 2 - 22, r.top - 30]] };
+    mo.classList.toggle('ride', step === 0);
+    if (step === 0) { const [x, y] = onTimer(); mo.classList.remove('hide'); mo.style.transform = `translate(${x}px,${y}px)`; look([2.5, .5]); return; }
+    const A = { 1: ['#editDual', r => [r.right - 54, r.bottom - 30]], 2: ['#audH', r => [r.left + r.width + 8, r.top - 8]], 3: ['#sentTxt', r => [r.left + r.width / 2 - 22, r.bottom + 16]], 5: ['.lock-stack', r => [r.left + r.width / 2 - 22, r.top - 30]] };
     const a = A[step]; const off = !a || (step === 2 && $('#s2').classList.contains('large')) || (step === 1 && state.moGone); mo.classList.toggle('hide', off); if (off) return;
     const el = $(a[0], scr); if (!el) return;
     const r = el.getBoundingClientRect(); const rel = { left: r.left - sr.left, right: r.right - sr.left, top: r.top - sr.top, bottom: r.bottom - sr.top, width: r.width, height: r.height };
@@ -824,6 +871,7 @@
     mo.classList.remove('cheer', 'peek');
     if (i === 3) state.posted = true;
     if (i === 5) state.posted = false;
+    if (i === 0) $('#cam').classList.remove('filled');
     if (i === 3) {
       const m = $('#mini'); m.style.animation = 'none'; void m.offsetWidth; m.style.animation = '';
       setTimeout(() => moFx('cheer', 1600), 350);
@@ -859,7 +907,7 @@
   }
   $('#flip').onclick = swap;
   const shoot = $('#shoot'); let holdT = null, recT = null, recS = 0, recording = false;
-  const hint = () => (state.mc ? 'Back first, then selfie. Live selfie top-left' : 'Back first, then selfie. Selfie fills in during the 3-2-1');
+  const hint = () => (state.mc ? 'Back photo, then the selfie right after. Live selfie top-left' : 'Back photo, then the selfie right after');
   // selfie slot: tap to swap, drag between the top corners, push it off an edge to hide it.
   // Hidden, the selfie is still taken: it just stays a surprise. Side and hidden state are kept.
   const pip = $('#camPip'), pipTab = $('#pipTab');
@@ -917,15 +965,26 @@
     go(state.posted ? 4 : 5);
   });
   const flashOn = () => $('#flashBtn').getAttribute('aria-pressed') === 'true';
+  // one tap, both photos: the back photo, then the selfie right after (no countdown).
+  // The frame clicks for the back photo; the selfie slot flashes and pops for the selfie.
+  let snapping = false;
   function photo() {
-    const f = $('#flash'), c = $('#count'); let n = 3;
+    if (snapping) return; snapping = true;
+    const f = $('#flash'), cam = $('#cam');
     const flash = () => { f.classList.remove('go', 'retina'); void f.offsetWidth; f.classList.add('go'); };
     // front flash: with Flash on, the screen glows warm white while the selfie is taken
     const retina = () => { f.classList.remove('go', 'retina'); void f.offsetWidth; f.classList.add('retina'); };
-    const show = v => { c.innerHTML = `<span>${v}</span>`; };
-    flash(); c.hidden = false; show(n); $('#camHint').textContent = 'Selfie in 3'; $('#cam').classList.remove('filled');
-    mo.classList.add('peek'); look([-3, -3]);
-    const t = setInterval(() => { if (state.step !== 0) { clearInterval(t); c.hidden = true; mo.classList.remove('peek'); return; } n--; if (n > 0) { show(n); $('#camHint').textContent = `Selfie in ${n}`; if (n === 1) $('#cam').classList.add('filled'); return; } clearInterval(t); c.hidden = true; const front = flashOn(); front ? retina() : flash(); mo.classList.remove('peek'); moFx('squish', 600); $('#camHint').textContent = hint(); setTimeout(() => state.step === 0 && go(1), front && !RM.matches ? 760 : 320); }, 450);
+    const snap = el => { el.classList.remove('snap'); void el.offsetWidth; el.classList.add('snap'); setTimeout(() => el.classList.remove('snap'), 480); };
+    const front = flashOn(), slow = front && !RM.matches;
+    flash(); snap(cam); cam.classList.remove('filled'); $('#camHint').textContent = 'Back photo taken';
+    if (front) setTimeout(retina, 90);
+    setTimeout(() => {
+      if (state.step !== 0) { snapping = false; return; }
+      snap(pip); cam.classList.add('filled'); moFx('squish', 600);
+      try { navigator.vibrate && navigator.vibrate(8); } catch (e) {}
+      $('#camHint').textContent = 'Selfie taken';
+      setTimeout(() => { snapping = false; if (state.step === 0) { $('#camHint').textContent = hint(); go(1); } }, slow ? 560 : 380);
+    }, slow ? 380 : 170);
   }
   function sizeLine() {
     const r = $('#cam').getBoundingClientRect(); const s = $('#rline');
@@ -938,7 +997,7 @@
   }
   function recStart() {
     sizeLine(); recording = true; recS = 0; $('#app').classList.add('rec'); $('#recPill span').textContent = '0:00'; $('#camHint').textContent = 'Recording';
-    look([0, -2]);
+    look([-1.5, 2.5]);
     recT = setInterval(() => { recS++; $('#recPill span').textContent = `0:${String(recS).padStart(2, '0')}`; if (recS >= 15) recStop(); }, 1000);
   }
   function recStop() {
@@ -969,7 +1028,10 @@
     $('#homeT').textContent = sec ? `${m}:${s} left to be on time` : 'Late, but you can still post today';
     $('#tipP2').textContent = sec ? 'Missed it? No stress, you can still post today. Friends will just see you were a little late 😉' : 'Post it anyway: friends love a real moment, even a late one.';
     mo.classList.toggle('sleep', !sec && state.step === 0);
+    // "Late" is a shorter pill: the mascot follows its left end
+    if (!sec !== wasLate) { wasLate = !sec; if (state.step === 0) moAt(0); }
   }
+  let wasLate = false;
   tick(); setInterval(() => { sec = Math.max(0, sec - 1); tick(); }, 1000);
   const tip = $('#timerTip'); tip.inert = true;
   function tipShow(on) { tip.classList.toggle('open', on); tip.inert = !on; $('#timer').setAttribute('aria-expanded', on); }
@@ -1007,6 +1069,7 @@
       const it = PK.music.items().find(x => x[0] === v), art = it && it[0] !== '♪ Now playing' ? it[2] : 'Spotify';
       return `${coverHTML(t)}<span class="mt">${t}<small><b class="src">Spotify</b><b class="art">${art}</b></small></span><span class="eq"><i></i><i></i><i></i><i></i></span>`;
     }
+    if (k === 'tag') { const f = FRIENDS.find(([m]) => handle(m) === v); return `${f ? (f[2] ? `<span class="tav" style="background-image:url(img/av-${f[2]}.webp)"></span>` : `<span class="tav" style="background:${f[1]}">${f[0]}</span>`) : '<span class="tav"></span>'}${v}`; }
     return v;
   }
   const CLS = { location: 's-loc', music: 's-mus', tag: 's-tag' };
@@ -1027,7 +1090,11 @@
     el.addEventListener('pointermove', e => {
       if (!st) return; const k = el.dataset.k; const b = st.box;
       if (!st.moved && Math.hypot(e.clientX - st.x0, e.clientY - st.y0) < 5) return;
+      if (!st.moved) $('#editDual').classList.add('dragging');
       st.moved = true;
+      // over the trash: it turns red and the sticker shrinks, ready to go
+      const tr = $('#trash').getBoundingClientRect(), hot = Math.hypot(e.clientX - (tr.left + tr.width / 2), e.clientY - (tr.top + tr.height / 2)) < 46;
+      if (hot !== !!st.hot) { st.hot = hot; $('#trash').classList.toggle('hot', hot); el.classList.toggle('doomed', hot); if (hot) try { navigator.vibrate && navigator.vibrate(10); } catch (err) {} }
       const x = Math.max(8, Math.min(92, (e.clientX - b.left) / b.width * 100)), y = Math.max(6, Math.min(94, (e.clientY - b.top) / b.height * 100));
       state.pos[k].x = x; state.pos[k].y = y; el.style.left = x + '%'; el.style.top = y + '%';
       const now = performance.now(); const vx = (e.clientX - st.lx) / Math.max(1, now - st.t); st.lx = e.clientX; st.t = now;
@@ -1035,6 +1102,12 @@
     });
     const end = () => {
       if (!st) return;
+      $('#editDual').classList.remove('dragging'); $('#trash').classList.remove('hot');
+      if (st.hot) {
+        const k = el.dataset.k; st = null; state.pos[k] = { ...POS[k] }; delete state.ctx[k];
+        el.classList.remove('drag', 'doomed'); el.classList.add('binned'); moFx('squish', 600);
+        setTimeout(renderCtx, 280); return;
+      }
       // a tap (no drag) cycles the sticker's look
       if (!st.moved) { const k = el.dataset.k; el.classList.remove('v' + state.sty[k]); state.sty[k] = (state.sty[k] + 1) % STY_N[k]; el.classList.add('v' + state.sty[k]); try { navigator.vibrate && navigator.vibrate(6); } catch (err) {}
         // a taller look (the cover card) must stay inside the photo
@@ -1053,7 +1126,7 @@
     b.style.width = t.offsetWidth + 'px'; b.style.transform = `translateX(${t.offsetLeft - 5}px)`;
     b.classList.remove('stretch'); void b.offsetWidth; b.classList.add('stretch');
   }
-  function closeSheet() { openTool = null; $('#sheet').classList.remove('open'); $$('.tool').forEach(t => t.classList.remove('sel')); blobMove(); }
+  function closeSheet() { openTool = null; $('#sheet').classList.remove('open'); $('#sheet').inert = true; $$('.tool').forEach(t => t.classList.remove('sel')); blobMove(); }
   function renderCtx() {
     renderStickers($('#chips'), true);
     $$('.tool').forEach(t => t.classList.toggle('has', !!state.ctx[t.dataset.tool]));
@@ -1093,13 +1166,15 @@
     const k = t.dataset.tool;
     if (openTool === k) { closeSheet(); return; }
     openTool = k; $$('.tool').forEach(x => x.classList.toggle('sel', x === t)); blobMove();
-    if (k === 'caption') { $('#sheet').classList.remove('open'); openCaption(); return; }
-    const search = `<button class="sq glass" data-pk-search aria-label="${PK[k].ph}">${IC('magnifying-glass','pop')}</button><button class="sq glass" data-pk-all aria-label="See all: ${PK[k].title}"><svg class="ex" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg></button>`;
+    if (k === 'caption') { $('#sheet').classList.remove('open'); $('#sheet').inert = true; openCaption(); return; }
+    const search = `<button class="sq glass" data-pk-search aria-label="${PK[k].ph}">${IC('magnifying-glass','pop')}</button>`;
     const rots = [-3, 2, -2, 3];
-    $('#sugg').innerHTML = search + SUGGEST[k].map((v, i) => v === 'Hide location' ? `<button class="x glass" data-k="${k}" data-v="" aria-label="Hide location">${IC('x','spin')}</button>` : `<button data-k="${k}" data-v="${v}"><span class="stk ${CLS[k]}" style="--r:${rots[i % 4]}deg">${stkHTML(k, v)}</span></button>`).join('') + (state.ctx[k] && k !== 'location' ? `<button class="x glass" data-k="${k}" data-v="" aria-label="Remove">${IC('x','spin')}</button>` : '');
-    $('#sheet').classList.add('open');
+    // no remove button in the row: a sticker goes by dragging it to the trash (or from the full list)
+    $('#sugg').innerHTML = search + SUGGEST[k].map((v, i) => `<button data-k="${k}" data-v="${v}"><span class="stk ${CLS[k]}" style="--r:${rots[i % 4]}deg">${stkHTML(k, v)}</span></button>`).join('');
+    $('#sheet').classList.add('open'); $('#sheet').inert = false;
+    $('#sugg').scrollLeft = 0;
     $('#sugg [data-pk-search]').onclick = () => pkOpen(k, true);
-    $('#sugg [data-pk-all]').onclick = () => pkOpen(k, false);
+    $('#suggAll').onclick = () => pkOpen(k, false); $('#suggAll').setAttribute('aria-label', `See all: ${PK[k].title}`);
     $$('#sugg button[data-k]').forEach(b => b.onclick = () => { const v = b.dataset.v; if (!v) delete state.ctx[k]; else state.ctx[k] = v; renderCtx(); moFx('squish', 600); });
   });
 
@@ -1109,7 +1184,7 @@
   const PK = {
     location: { title: 'Add a place', ph: 'Search places', note: () => state.sel.has('all') ? 'Closest first. All friends see the city.' : 'Closest first. Your circle sees the exact spot.',
       items: () => [['Canal Saint-Martin', 'Canal Saint-Martin', '120 m'], ['Paris 11e', 'Paris 11e', 'Neighbourhood'], ['Café Oberkampf', 'Café Oberkampf', '300 m'], ['République', 'Place de la République', '600 m'], ['Parc de Belleville', 'Parc de Belleville', '1.2 km'], ['Paris', 'Paris', 'City only'], ['', 'Hide location', 'Nobody sees where you are']] },
-    music: { title: 'Add music', ph: 'Search songs', note: () => 'What’s playing, or any song. No account needed.',
+    music: { title: 'Add music', ph: 'Search songs', note: () => 'What’s playing from a linked app, or any song by search.',
       items: () => [['♪ Now playing', 'Now playing', 'From Spotify'], ['♪ Golden hour', 'Golden hour', 'JVKE'], ['♪ Espresso', 'Espresso', 'Sabrina Carpenter'], ['♪ Birds of a Feather', 'Birds of a Feather', 'Billie Eilish'], ['♪ Pink + White', 'Pink + White', 'Frank Ocean'], ['♪ Midnight City', 'Midnight City', 'M83'], ['♪ Sunday Best', 'Sunday Best', 'Surfaces']] },
     tag: { title: 'Tag a friend', ph: 'Search friends', note: () => state.sel.has('all') ? 'Everyone you can tag.' : 'People in your circle come first.',
       items: () => { const inC = new Set(state.sel.has('all') ? [] : picked().flatMap(c => c.members)); return [...FRIENDS].sort((a, b) => inC.has(b[0]) - inC.has(a[0])).map(([m]) => [handle(m), handle(m).slice(1), inC.has(m) ? 'In your circle' : 'Friend', m]); } },
@@ -1118,9 +1193,59 @@
   function pkVis(k, it) { return k === 'location' ? (it[0] ? PIN : IC('x', 'spin')) : k === 'music' ? coverHTML(it[1]) : avHTML(it[3]); }
   function pkRender() {
     const k = pkKind, q = $('#pkIn').value.trim().toLowerCase().replace(/^[@♪ ]+/, '');
+    const rm = k !== 'location' && state.ctx[k] && !q ? [['', 'Remove', k === 'music' ? 'Take the song off the photo' : 'Take the tag off the photo']] : [];
     let rows = PK[k].items().filter(it => !q || (it[1] + ' ' + it[2]).toLowerCase().includes(q));
     if (q && !rows.some(it => it[1].toLowerCase() === q)) { const raw = $('#pkIn').value.trim().replace(/^[@♪ ]+/, ''); rows = rows.concat([[k === 'tag' ? '@' + raw : k === 'music' ? '♪ ' + raw : raw, 'Use “' + raw + '”', 'Not in the list', k === 'tag' ? null : undefined]]); }
-    $('#pkList').innerHTML = rows.map(it => { const on = !!it[0] && state.ctx[k] === it[0]; const vis = it[3] === null ? '<span class="av ghost"></span>' : pkVis(k, it); return `<button class="opt pk-row${on ? ' on' : ''}" role="option" aria-selected="${on}" data-v="${it[0]}"><span class="pk-vis">${vis}</span><span class="nm">${it[1]}<small>${it[2]}</small></span>${CHK}</button>`; }).join('') || '<p class="pk-empty">Nothing found.</p>';
+    rows = rows.concat(rm);
+    $('#pkList').innerHTML = rows.map(it => {
+      const on = !!it[0] && state.ctx[k] === it[0]; const vis = it[0] === '' ? IC('x', 'spin') : it[3] === null ? '<span class="av ghost"></span>' : pkVis(k, it);
+      // songs from the catalogue get a play button beside the row (a sibling: a button can't hold a button)
+      const song = k === 'music' && it[0] !== '' && it[2] !== 'Not in the list';
+      const row = `<button class="opt pk-row${song ? ' pk-mus' : ''}${on ? ' on' : ''}" role="option" aria-selected="${on}" data-v="${it[0]}"><span class="pk-vis">${vis}${song ? '<span class="eq pk-eq"><i></i><i></i><i></i><i></i></span>' : ''}</span><span class="nm">${it[1]}<small>${it[2]}</small></span>${CHK}</button>`;
+      return song ? `<div class="pk-item">${row}<button class="pk-play" data-pv="${it[0]}" data-t="${it[1]}" aria-pressed="false" aria-label="Preview ${it[1]}">${PV_IC}</button></div>` : row;
+    }).join('') || '<p class="pk-empty">Nothing found.</p>';
+    pvSync();
+  }
+  // music picker: tap ▶ to hear a song before adding it. The stand-in is a 15 s loop made with
+  // Web Audio, its key, tempo and chords drawn from the title; the real app plays the catalogue's preview.
+  const PV_LEN = 15;
+  const PV_IC = '<svg class="pv-ring" viewBox="0 0 36 36" aria-hidden="true"><circle class="bg" cx="18" cy="18" r="16"/><circle class="fg" cx="18" cy="18" r="16" pathLength="100"/></svg><svg class="pv-ic" viewBox="0 0 24 24" aria-hidden="true"><path class="pl" d="M8 5.2c0-.8.9-1.3 1.6-.9l10 6.3c.6.4.6 1.4 0 1.8l-10 6.3c-.7.4-1.6-.1-1.6-.9z"/><path class="pa" d="M6.5 5.5a1 1 0 0 1 1-1h2.6a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H7.5a1 1 0 0 1-1-1zM12.9 5.5a1 1 0 0 1 1-1h2.6a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-2.6a1 1 0 0 1-1-1z"/></svg>';
+  let pv = null;
+  function pvSync() {
+    $$('#pkList .pk-item').forEach(it => {
+      const b = $('.pk-play', it), on = !!pv && b.dataset.pv === pv.v;
+      it.classList.toggle('on-air', on); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+      b.setAttribute('aria-label', (on ? 'Stop preview: ' : 'Preview ') + b.dataset.t);
+      if (!on) $('.fg', b).style.strokeDashoffset = 100;
+    });
+  }
+  function pvStop() {
+    if (!pv) return; const p = pv; pv = null; cancelAnimationFrame(p.raf);
+    try { const t = p.ctx.currentTime, g = p.out.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setTargetAtTime(0, t, .05); setTimeout(() => p.ctx.close(), 300); } catch (e) {}
+    pvSync();
+  }
+  function pvPlay(v) {
+    pvStop();
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const ctx = new AC(), out = ctx.createGain(), lp = ctx.createBiquadFilter(), t0 = ctx.currentTime + .05;
+    lp.type = 'lowpass'; lp.frequency.value = 2200; lp.connect(out); out.connect(ctx.destination);
+    out.gain.setValueAtTime(0, t0); out.gain.linearRampToValueAtTime(.12, t0 + .3); out.gain.setValueAtTime(.12, t0 + PV_LEN - .8); out.gain.linearRampToValueAtTime(0, t0 + PV_LEN);
+    const seed = [...v].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const root = 196 * 2 ** ((seed % 7) / 12), beat = 60 / (84 + seed % 28) / 2;
+    const loop = [[0, 7, 9, 5], [0, 5, 7, 9], [0, 9, 5, 7], [9, 5, 0, 7]][seed % 4];
+    const note = (s, t, len, type, vol) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.value = root * 2 ** (s / 12); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + len); o.connect(g); g.connect(lp); o.start(t); o.stop(t + len + .05); };
+    for (let i = 0, t = t0; t < t0 + PV_LEN - .4; i++, t += beat) {
+      const r = loop[Math.floor(i / 8) % 4], third = r === 9 ? 3 : 4;
+      note(r + [0, 7, 12, 12 + third, 12, 7, 12, 19][i % 8], t, beat * 1.8, 'triangle', .22);
+      if (i % 8 === 0) note(r - 12, t, beat * 8, 'sine', .3);
+    }
+    const p = pv = { v, ctx, out, raf: 0 };
+    const step = () => {
+      if (pv !== p) return; const e = ctx.currentTime - t0; if (e >= PV_LEN) return pvStop();
+      const b = $$('#pkList .pk-play').find(x => x.dataset.pv === v); if (b) $('.fg', b).style.strokeDashoffset = 100 - Math.max(0, e) / PV_LEN * 100;
+      p.raf = requestAnimationFrame(step);
+    };
+    pvSync(); step();
   }
   function pkOpen(k, focus) {
     pkKind = k; $('#pkT').textContent = PK[k].title; $('#pkN').textContent = PK[k].note(); $('#pkIn').placeholder = PK[k].ph; $('#pkIn').value = '';
@@ -1131,12 +1256,13 @@
   function pkClose() {
     if (!pkKind) return;
     if (kbField === $('#pkIn')) kbHide();
-    pkKind = null; $('#app').classList.remove('pk-on'); $('#pk').inert = true;
+    pvStop(); pkKind = null; $('#app').classList.remove('pk-on'); $('#pk').inert = true;
     requestAnimationFrame(() => moAt(state.step));
   }
   $('#pkIn').addEventListener('input', pkRender);
   $('#pkIn').addEventListener('keydown', e => { if (e.key === 'Enter') { const first = $('#pkList .pk-row'); if (first) first.click(); } });
   $('#pkList').addEventListener('click', e => {
+    const pb = e.target.closest('.pk-play'); if (pb) { if (pv && pv.v === pb.dataset.pv) pvStop(); else pvPlay(pb.dataset.pv); return; }
     const r = e.target.closest('.pk-row'); if (!r) return; const k = pkKind, v = r.dataset.v;
     if (v) state.ctx[k] = v; else delete state.ctx[k];
     renderCtx(); moFx('squish', 600); pkClose();
@@ -1161,7 +1287,7 @@
 
   // audience
   const CIRCLES = [
-    { id:'all', em:'globe-hemisphere-west', name:'All friends', sub:'42 friends' },
+    { id:'all', em:'users', name:'All friends', sub:'42 friends' },
     { id:'close', em:'sparkle', name:'Close friends', members:['LM','JD','SA','TB','NK','EO'] },
     { id:'family', em:'house', name:'Family', members:['EO','RC','MP','NK'] },
     { id:'room', em:'couch', name:'Roommates', members:['JD','TB','SA'] },
@@ -1186,7 +1312,7 @@
     const p = picked();
     return p.length <= 2 ? p.map(c => c.name).join(' + ') : `${p.length} circles`;
   }
-  const audIcon = () => { const p = picked(); return state.sel.has('all') ? 'globe-hemisphere-west' : p.length === 1 ? p[0].em : 'users-three'; };
+  const audIcon = () => { const p = picked(); return state.sel.has('all') ? 'users' : p.length === 1 ? p[0].em : 'users-three'; };
   const CHK = '<span class="chk"><svg viewBox="0 0 24 24"><path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
   function cluster(c) {
     const ms = c.id === 'all' ? ['JD', 'SA', 'TB'] : c.members.slice(0, 3);
@@ -1245,7 +1371,7 @@
   function seenToggle() { const b = $('#seenBtn'); const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.querySelector('.seen-l').textContent = on ? 'Seen by 6' : 'Who saw it?'; }
   $('#seenBtn').onclick = seenToggle;
   // ---- own post: detail view + options ----
-  const VIEWERS = [['JD', 'julie.d', 'Canal Saint-Martin · 2 min ago'], ['SA', 'sam.a', 'Montmartre · 5 min ago'], ['TB', 'tom.b', 'Lyon · 8 min ago'], ['LM', 'lea.m', 'Paris 11e · 12 min ago'], ['NK', 'nina.k', 'Marseille · 20 min ago'], ['EO', 'emma.o', 'Belleville · 31 min ago']];
+  const VIEWERS = [['JD', 'julie.d', '2 min ago'], ['SA', 'sam.a', '5 min ago'], ['TB', 'tom.b', '8 min ago'], ['LM', 'lea.m', '12 min ago'], ['NK', 'nina.k', '20 min ago'], ['EO', 'emma.o', '31 min ago']];
   let toastT;
   function toast(msg, ic = 'check') { const t = $('#toast'); t.innerHTML = IC(ic) + msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1800); }
   function syncOd() {
@@ -1323,7 +1449,7 @@
   $$('#fchips button').forEach(b => b.onclick = () => {
     $$('#fchips button').forEach(x => x.classList.toggle('on', x === b)); segMove();
     const f = b.dataset.f; $$('.post').forEach(p => p.style.display = (f === 'all' || p.dataset.kind === f) ? '' : 'none');
-    let em = $('.fof-empty'); if (f === 'fof' && !em) { em = document.createElement('div'); em.className = 'fof-empty'; em.textContent = 'Posts from your mutuals appear here.'; $('.feed').appendChild(em); } if (em) em.hidden = f !== 'fof';
+    let em = $('.fof-empty'); if (f === 'fof' && !em) { em = document.createElement('div'); em.className = 'fof-empty'; em.textContent = 'Posts from friends of friends appear here.'; $('.feed').appendChild(em); } if (em) em.hidden = f !== 'fof';
   });
 
   $$('[data-go]').forEach(b => b.addEventListener('click', () => go(+b.dataset.go)));
