@@ -276,6 +276,8 @@ const SYSTEM_PATHS = [
   'lib/apply-custom-choice.mjs',
   'lib/apply-captcha-attach.mjs',
   'lib/ats-board-resolver.mjs',
+  'lib/email-target-guard.mjs',
+  'lib/non-employer-hosts.mjs',
   'resolve-boards.mjs',
   'lib/candidate-location.mjs',
   'lib/contact-finder.mjs',
