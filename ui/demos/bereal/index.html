@@ -472,7 +472,8 @@
   .grab { flex:none; display:grid; place-items:center; height:22px; margin:0 -16px; touch-action:none; cursor:grab; }
   .grab i { width:36px; height:5px; border-radius:3px; background:rgba(255,255,255,.3); }
   .sh-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; touch-action:none; }
-  .sh-head h2 { font-size:28px; margin:4px 0 2px; }
+  /* fit-content: the mascot sits after the title text, so it stays put when the note under it changes width */
+  .sh-head h2 { font-size:28px; margin:4px 0 2px; width:fit-content; }
   .sh-x { flex:none; width:32px; height:32px; } .sh-x .ic { --is:15px; }
   .sh-body { flex:1 1 auto; min-height:0; overflow-y:auto; margin:0 -16px; padding:0 16px 4px; scrollbar-width:none; }
   .sh-body::-webkit-scrollbar { display:none; }
@@ -845,13 +846,28 @@
   function moAt(step) {
     const scr = $(SCR[step]); const sr = $('#app').getBoundingClientRect();
     mo.classList.toggle('ride', step === 0);
-    if (step === 0) { const [x, y] = onTimer(); mo.classList.remove('hide'); mo.style.transform = `translate(${x}px,${y}px)`; look([2.5, .5]); return; }
-    const A = { 1: ['#editDual', r => [r.right - 54, r.bottom - 30]], 2: ['#audH', r => [r.left + r.width + 8, r.top - 8]], 3: ['#sentTxt', r => [r.left + r.width / 2 - 22, r.bottom + 16]], 5: ['.lock-stack', r => [r.left + r.width / 2 - 22, r.top - 30]] };
+    if (step === 0) {
+      const [x, y] = onTimer(), to = `translate(${x}px,${y}px)`; look([2.5, .5]);
+      // arriving from another screen (or hidden, say by the keyboard), it doesn't fly across the camera:
+      // it lands behind the timer out of sight and pops out from there
+      const pop = mo._step !== 0 || mo.classList.contains('hide'); mo._step = 0;
+      if (!pop) { mo.style.transform = to; return; }
+      mo.classList.add('hide'); mo.style.transition = 'none'; mo.style.transform = to; void mo.offsetWidth; mo.style.transition = '';
+      requestAnimationFrame(() => { if (mo._step !== 0) return; mo.classList.remove('hide'); moFx('peek', 450); });
+      return;
+    }
+    mo._step = step;
+    // context: top right of the screen, in the bar's free corner (same corner as the timer on the camera)
+    if (step === 1) {
+      const off = state.moGone; mo.classList.toggle('hide', off); if (off) return;
+      const bar = $('.top', scr); mo.style.transform = `translate(${bar.offsetLeft + bar.offsetWidth - 44}px,${bar.offsetTop + bar.offsetHeight / 2 - 24}px)`; look([-2, 2]); return;
+    }
+    const A = { 2: ['.sh-x', r => [r.left - 52, r.top + r.height / 2 - 26]], 3: ['#sentTxt', r => [r.left + r.width / 2 - 22, r.bottom + 16]], 5: ['.lock-stack', r => [r.left + r.width / 2 - 22, r.top - 30]] };
     const a = A[step]; const off = !a || (step === 2 && $('#s2').classList.contains('large')) || (step === 1 && state.moGone); mo.classList.toggle('hide', off); if (off) return;
     const el = $(a[0], scr); if (!el) return;
     const r = el.getBoundingClientRect(); const rel = { left: r.left - sr.left, right: r.right - sr.left, top: r.top - sr.top, bottom: r.bottom - sr.top, width: r.width, height: r.height };
     const [x, y] = a[1](rel); mo.style.transform = `translate(${x}px,${y}px)`;
-    look(step === 0 ? [-2, 1.5] : step === 1 ? [-2, 1] : step === 2 ? [-2, 0] : step === 5 ? [0, 2] : [0, 0]);
+    look(step === 0 ? [-2, 1.5] : step === 1 ? [-2, 1] : step === 2 ? [-2, 1.5] : step === 5 ? [0, 2] : [0, 0]);
   }
   function look([x, y]) { mo.style.setProperty('--lx', x + 'px'); mo.style.setProperty('--ly', y + 'px'); }
   function moFx(c, ms) { mo.classList.remove(c); void mo.offsetWidth; mo.classList.add(c); if (ms) setTimeout(() => mo.classList.remove(c), ms); }

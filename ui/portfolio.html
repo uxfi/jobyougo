@@ -8469,12 +8469,23 @@
   .br-proto .proj-n-label { color:rgba(255,255,255,.55); }
   .br-proto .proj-n-title, .br-proto .proj-n-body { color:#fff; }
   .br-proto .proj-n-body { opacity:.75; }
-  .br-steps { list-style:none; margin:28px 0 20px; padding:0; display:flex; flex-direction:column; gap:6px; }
-  .br-steps button { display:flex; gap:14px; align-items:center; width:100%; text-align:left; padding:12px 14px; border-radius:14px; border:1px solid rgba(255,255,255,.1); background:transparent; color:rgba(255,255,255,.6); font:600 15px/1.2 inherit; cursor:pointer; transition:all .2s; }
-  .br-steps button span { font:500 11px/1 'JetBrains Mono', ui-monospace, monospace; opacity:.6; }
-  .br-steps button:hover { color:#fff; border-color:rgba(255,255,255,.3); }
-  .br-steps button.is-active { color:#000; background:#fff; border-color:#fff; }
-  .br-open { color:#fff; font-size:13px; opacity:.7; text-decoration:none; } .br-open:hover { opacity:1; }
+  .br-proto-text { max-width:460px; }
+  /* steps: one list, number + name + a one-line hint; the white row is the step on the phone */
+  .br-steps { list-style:none; margin:28px 0 0; padding:0; display:grid; gap:2px; }
+  .br-steps button { display:grid; grid-template-columns:30px 1fr; align-items:center; gap:10px; width:100%; text-align:left; padding:10px 14px; border-radius:14px; border:0; background:transparent; color:rgba(255,255,255,.7); font:600 15px/1.2 inherit; cursor:pointer; transition:background .2s, color .2s; }
+  .br-steps .n { font:500 11px/1 'JetBrains Mono', ui-monospace, monospace; opacity:.5; }
+  .br-steps small { display:block; margin-top:3px; font-size:12.5px; font-weight:400; line-height:1.3; opacity:.62; }
+  .br-steps button:hover { color:#fff; background:rgba(255,255,255,.07); }
+  .br-steps button.is-active { color:#000; background:#fff; }
+  .br-steps button:focus-visible, .br-open:focus-visible { outline:2px solid #c6f432; outline-offset:2px; }
+  /* gestures: the verb in the prototype's lime, what it does after it */
+  .br-try { margin-top:22px; padding-top:20px; border-top:1px solid rgba(255,255,255,.12); }
+  .br-try-h { font:500 11px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.5); }
+  .br-try ul { list-style:none; margin:12px 0 0; padding:0; display:grid; gap:7px; }
+  .br-try li { display:grid; grid-template-columns:52px 1fr; gap:8px; font-size:14px; line-height:1.4; color:rgba(255,255,255,.72); }
+  .br-try b { color:#c6f432; font-weight:600; }
+  .br-open { display:inline-flex; align-items:center; gap:8px; margin-top:24px; height:42px; padding:0 18px; border-radius:21px; border:1px solid rgba(255,255,255,.28); color:#fff; font-size:14px; font-weight:600; text-decoration:none; transition:background .2s, color .2s, border-color .2s; }
+  .br-open:hover { background:#fff; color:#000; border-color:#fff; }
   .br-phone { width:393px; height:852px; max-width:100%; padding:12px; border-radius:62px; background:#1a1a1a; box-shadow:0 0 0 2px #333, 0 40px 100px rgba(0,0,0,.5); transform-origin:top center; }
   .br-phone-screen { position:relative; width:100%; height:100%; border-radius:50px; overflow:hidden; background:#000; }
   .br-phone-screen::before { content:''; position:absolute; top:11px; left:50%; transform:translateX(-50%); width:120px; height:34px; border-radius:20px; background:#000; z-index:2; pointer-events:none; }
@@ -8500,7 +8511,11 @@
   .br-friction { margin-top:28px; }
   .br-friction-grid, .br-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px; }
   .br-friction-item, .br-list-item { border:1px solid var(--rule, rgba(0,0,0,.1)); border-radius:16px; padding:18px; }
-  .br-friction-item span { font:500 11px/1 'JetBrains Mono', ui-monospace, monospace; color:#d00; }
+  .br-fr-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .br-fr-ic { flex:none; width:36px; height:36px; border-radius:11px; background:#000; color:#c6f432; display:grid; place-items:center; }
+  .br-fr-ic svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .br-friction-item .br-fr-n { font:500 11px/1 'JetBrains Mono', ui-monospace, monospace; color:#d00; }
+  .br-friction-item .br-fr-top + b { margin-top:14px; }
   .br-friction-item b, .br-list-item b { display:block; font-size:15px; margin:8px 0 6px; } .br-list-item b { margin-top:0; }
   .br-friction-item p, .br-list-item p { margin:0; font-size:14px; line-height:1.5; opacity:.75; }
   .br-statement { font-size:20px; line-height:1.45; }
@@ -8534,13 +8549,15 @@
   .br-dec-col small { display:block; font:500 10px/1 'JetBrains Mono', ui-monospace, monospace; text-transform:uppercase; letter-spacing:.12em; opacity:.55; margin-bottom:10px; }
   .br-dec-col p { margin:0 0 14px; } .br-dec-col p:last-child { margin:0; }
   .br-dec-chosen { background:#000; color:#fff; border-color:#000; }
-  .br-why { margin:0; padding-left:18px; display:grid; gap:6px; }
+  .br-why { margin:0; padding:0; list-style:none; display:grid; gap:6px; }
+  .br-why li { position:relative; padding-left:24px; }
+  .br-why li::before { content:'→'; position:absolute; left:0; top:0; opacity:.6; }
   .br-opts { margin:0; padding-left:18px; display:grid; gap:10px; } .br-opts b { display:block; }
   @media (max-width: 980px) { .br-dec { grid-template-columns:1fr; } .br-goal { grid-template-columns:1fr; gap:4px; } .br-goal--head { display:none; } .br-tear-item { width:170px; } }
   @media (max-width: 980px) {
     .br-proto { grid-template-columns:1fr; padding:28px 20px; gap:28px; justify-items:center; }
-    .br-proto-text { width:100%; min-width:0; }
-    .br-steps { flex-direction:row; overflow-x:auto; } .br-steps button { white-space:nowrap; }
+    .br-proto-text { width:100%; min-width:0; max-width:none; }
+    .br-steps { grid-template-columns:1fr 1fr; gap:4px; }
     .br-principles { grid-template-columns:1fr 1fr; }
     .br-bench-row { grid-template-columns:1fr; gap:8px; }
   }
@@ -8551,6 +8568,7 @@
   @media (max-width: 460px) {
     .br-phone { width:340px; height:737px; border-radius:54px; padding:10px; } .br-phone-screen { border-radius:44px; }
     .br-principles { grid-template-columns:1fr; }
+    .br-steps { grid-template-columns:1fr; }
   }
 </style>
 <!-- Vercel Web Analytics (@vercel/analytics, HTML form: the site is a Node server, not Next.js). Skipped on localhost. -->

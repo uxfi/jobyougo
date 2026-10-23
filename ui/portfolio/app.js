@@ -1194,6 +1194,12 @@ const BR_HMW_ICONS = {
   sticker: '<path d="M5 4h14v9l-6 6H5z"/><path d="M13 19v-6h6"/>',
   people: '<circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.4"/><path d="M3.5 19c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6M14.6 14.6c2.6-.4 4.8.9 5.6 3.9"/>',
   feed: '<rect x="5" y="3.5" width="14" height="7.5" rx="2"/><rect x="5" y="13" width="14" height="7.5" rx="2"/>',
+  // friction points
+  selfie: '<rect x="6" y="2.5" width="12" height="19" rx="3"/><circle cx="12" cy="10" r="2.6"/><path d="M8.5 16.5c.8-1.6 2-2.3 3.5-2.3s2.7.7 3.5 2.3"/>',
+  at: '<circle cx="12" cy="12" r="3.4"/><path d="M15.4 12v1.3a2.3 2.3 0 0 0 4.6 0V12a8 8 0 1 0-3.2 6.4"/>',
+  pin: '<path d="M12 21s-6-5.4-6-10.5a6 6 0 0 1 12 0C18 15.6 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.2"/>',
+  music: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
 };
 
 function renderNarrativeBlock(b, stepsHTML, p) {
@@ -2593,7 +2599,7 @@ function renderNarrativeBlock(b, stepsHTML, p) {
           ${(b.screens || []).map(s => `<figure class="br-tear-item"><img src="${s.src}" alt="${s.cap}" loading="lazy" decoding="async">${s.name ? `<figcaption class="br-tag">${s.name}</figcaption>` : ''}</figure>`).join('')}
         </div>
         ${b.credit ? `<div class="br-credit">${b.credit}</div>` : ''}
-        ${b.friction ? `<div class="br-friction"><div class="proj-n-label">Friction points</div><div class="br-friction-grid">${b.friction.map((f, i) => `<div class="br-friction-item"><span>${String(i + 1).padStart(2, '0')}</span><b>${f.t}</b><p>${f.d}</p></div>`).join('')}</div></div>` : ''}
+        ${b.friction ? `<div class="br-friction"><div class="proj-n-label">Friction points</div><div class="br-friction-grid">${b.friction.map((f, i) => `<div class="br-friction-item"><div class="br-fr-top">${BR_HMW_ICONS[f.icon] ? `<span class="br-fr-ic" aria-hidden="true"><svg viewBox="0 0 24 24">${BR_HMW_ICONS[f.icon]}</svg></span>` : ''}<span class="br-fr-n">${String(i + 1).padStart(2, '0')}</span></div><b>${f.t}</b><p>${f.d}</p></div>`).join('')}</div></div>` : ''}
       </div>`;
     case 'bereal-hmw':
       return `<div class="proj-n-block br-sec">
@@ -2620,23 +2626,27 @@ function renderNarrativeBlock(b, stepsHTML, p) {
         ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
         <div class="br-list">${(b.items || []).map(x => `<div class="br-list-item"><b>${x.t}</b><p>${x.d}</p></div>`).join('')}</div>
       </div>`;
-    case 'bereal-proto':
+    case 'bereal-proto': {
+      // left column: a short lead, the steps as a list (each with a one-line hint), the gestures to try, one action
+      const steps = b.steps || [[5, 'First open', ''], [0, 'Capture', ''], [1, 'Add context', ''], [2, 'Pick a circle', ''], [3, 'Post', ''], [4, 'Feed', '']];
       return `<div class="proj-n-block br-sec">
         <div class="br-proto" data-br-proto>
           <div class="br-proto-text">
             ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
             ${b.title ? `<div class="proj-n-title">${b.title}</div>` : ''}
             ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
-            <ol class="br-steps" role="tablist">
-              ${[[5, 'First open: empty feed'], [0, 'Capture'], [1, 'Add context'], [2, 'Pick a circle'], [3, 'Post'], [4, 'See it in the feed']].map(([step, s], i) => `<li><button type="button" data-br-step="${step}" class="${i === 0 ? 'is-active' : ''}"><span>${String(i + 1).padStart(2, '0')}</span>${s}</button></li>`).join('')}
+            <ol class="br-steps" aria-label="Prototype steps">
+              ${steps.map(([step, s, hint], i) => `<li><button type="button" data-br-step="${step}" class="${i === 0 ? 'is-active' : ''}"${i === 0 ? ' aria-current="step"' : ''}><span class="n">${String(i + 1).padStart(2, '0')}</span><span class="t">${s}${hint ? `<small>${hint}</small>` : ''}</span></button></li>`).join('')}
             </ol>
-            <a class="br-open" href="/demos/bereal/" target="_blank" rel="noopener">Open full screen ↗</a>
+            ${b.tries ? `<div class="br-try"><div class="br-try-h">Try on the phone</div><ul>${b.tries.map(x => `<li><b>${x.k}</b><span>${x.d}</span></li>`).join('')}</ul></div>` : ''}
+            <a class="br-open" href="/demos/bereal/" target="_blank" rel="noopener">Open full screen <span aria-hidden="true">↗</span></a>
           </div>
           <div class="br-phone"><div class="br-phone-screen">
             <iframe src="/demos/bereal/" title="BeReal. posting flow prototype" loading="lazy"></iframe>
           </div></div>
         </div>
       </div>`;
+    }
     case 'bereal-benchmark':
       return `<div class="proj-n-block br-sec">
         ${b.label ? `<div class="proj-n-label">${b.label}</div>` : ''}
@@ -4441,10 +4451,10 @@ document.addEventListener('click', (e) => {
   const frame = root && root.querySelector('iframe');
   if (!frame || !frame.contentWindow) return;
   frame.contentWindow.postMessage({ bereal: 'go', step: +t.dataset.brStep }, '*');
-  root.querySelectorAll('[data-br-step]').forEach(x => x.classList.toggle('is-active', x === t));
+  root.querySelectorAll('[data-br-step]').forEach(x => { x.classList.toggle('is-active', x === t); if (x === t) x.setAttribute('aria-current', 'step'); else x.removeAttribute('aria-current'); });
 });
 window.addEventListener('message', (e) => {
   const d = e.data;
   if (!d || d.bereal !== 'step') return;
-  document.querySelectorAll('[data-br-proto] [data-br-step]').forEach(x => x.classList.toggle('is-active', +x.dataset.brStep === d.step));
+  document.querySelectorAll('[data-br-proto] [data-br-step]').forEach(x => { const on = +x.dataset.brStep === d.step; x.classList.toggle('is-active', on); if (on) x.setAttribute('aria-current', 'step'); else x.removeAttribute('aria-current'); });
 });

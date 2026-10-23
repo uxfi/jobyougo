@@ -8,7 +8,7 @@
     '.br-tear', '.br-dec-screens', '.proj-method-track', '.oa-states-row', '.gh-activity',
     '.voices-list', '.timeline-scroller', '.iface-phones-row', '[data-hscroll]',
   ].join(',');
-  const DRAG_ONLY = '.br-steps, .br-tabs';
+  const DRAG_ONLY = '.br-tabs';
   const RM = matchMedia('(prefers-reduced-motion: reduce)');
 
   const css = `
