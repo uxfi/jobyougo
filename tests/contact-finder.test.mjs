@@ -241,14 +241,29 @@ test('a generic inbox ranks below a likely named recruiter and above a bare gues
 });
 
 test('an unknown job-board host is not taken for the company when the name does not match', async () => {
+  // The home page does not answer: nothing says the board is the employer, so it is left out.
   const fetchPage = async (url) => ({ ok: false, status: 404, html: '', text: '', url, error: 'HTTP 404' });
   const out = await findContacts({ company: 'Acme', role: 'Designer', jobUrl: 'https://www.some-job-board.io/jobs/123', jobText: 'Designer at Acme.' }, { fetchPage, webSearch: async () => [], resolveMx: async () => true });
-  assert.equal(out.company.source, 'job-url-unmatched');
-  assert.equal(out.company.domain, 'some-job-board.io');
-  assert.ok(out.notes.some(note => /ne porte pas le nom/.test(note)));
+  assert.equal(out.company.domain, '');
+  assert.equal(out.company.source, '');
+  assert.equal(out.company.confirmed, false);
+  assert.ok(out.notes.some(note => /some-job-board\.io/.test(note) && /ignoré/.test(note)));
+  assert.equal(out.best, null);
   const own = await findContacts({ company: 'Acme', role: 'Designer', jobUrl: 'https://careers.acme.io/jobs/123', jobText: '' }, { fetchPage, webSearch: async () => [], resolveMx: async () => true });
   assert.equal(own.company.source, 'job-url');
   assert.equal(own.company.domain, 'acme.io');
+  assert.equal(own.company.confirmed, true);
+});
+
+test('a posting host whose home page names the company is kept as job-url-verified', async () => {
+  const fetchPage = async (url) => (url === 'https://acme-partners.io'
+    ? { ok: true, status: 200, html: '<title>Acme | Payroll for teams</title><p>Write to jobs@acme-partners.io</p>', text: 'Acme | Payroll for teams\nWrite to jobs@acme-partners.io', url }
+    : { ok: false, status: 404, html: '', text: '', url, error: 'HTTP 404' });
+  const out = await findContacts({ company: 'Acme', role: 'Designer', jobUrl: 'https://www.acme-partners.io/jobs/123', jobText: 'Designer at Acme.' }, { fetchPage, webSearch: async () => [], resolveMx: async () => true });
+  assert.equal(out.company.source, 'job-url-verified');
+  assert.equal(out.company.domain, 'acme-partners.io');
+  assert.equal(out.company.confirmed, true);
+  assert.ok(out.contacts.some(c => c.email === 'jobs@acme-partners.io'));
 });
 
 test('ranking prefers a verified hiring inbox over a guessed founder address and never picks a guess as best', () => {
