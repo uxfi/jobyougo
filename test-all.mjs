@@ -487,6 +487,7 @@ const scripts = [
   { name: 'verify-portals.mjs --help', expectExit: 0 },
   { name: 'update-system.mjs check', expectExit: 0 },
   { name: 'seed-fixture.mjs --self-test', expectExit: 0 },
+  { name: 'import-profile-offers.mjs --self-test', expectExit: 0 },
   { name: 'archive-posting.mjs --help', expectExit: 0 },
 ];
 

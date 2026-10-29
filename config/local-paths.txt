@@ -16,6 +16,7 @@ discover-ats.test.mjs
 extension/
 followup-cadence.test.mjs
 images/
+import-profile-offers.mjs
 install-browsers.mjs
 invite-match.test.mjs
 jd-similarity.test.mjs
