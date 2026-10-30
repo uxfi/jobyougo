@@ -227,7 +227,7 @@
       ],
     },
     {
-      id: 'creads', company: 'Creads.io', logo: '/images/creads-logo.webp', hero: '/images/creads-live-hero.webp', card: '/covers/creads.webp',
+      id: 'creads', company: 'Creads.io', logo: '/images/creads-logo.webp?v=20261030', hero: '/images/creads-live-hero.webp?v=20261030', card: '/covers/creads.webp?v=20261030',
       biz: ['saas', 'ai'], year: '2024 – 2026', url: 'https://www.creads.io/', platforms: { en: 'Web app', fr: 'App web' },
       en: {
         sector: 'AI SaaS · Our own product',
@@ -262,10 +262,10 @@
         team: 'En interne',
       },
       gallery: [
-        { kind: 'full', src: '/images/creads-v2-dashboard.webp', en: 'Dashboard: a product URL is the entry point to a set of ads', fr: 'Tableau de bord : une URL produit sert d’entrée vers une série de publicités' },
+        { kind: 'full', src: '/images/creads-v2-dashboard.webp?v=20261030b', en: 'Dashboard: a product URL is the entry point to a set of ads', fr: 'Tableau de bord : une URL produit sert d’entrée vers une série de publicités' },
         { kind: 'pair', items: [
-          { src: '/images/creads-v2-studio.webp', en: 'Studio: creative production, behind a brand setup gate', fr: 'Studio : la production créative, après la configuration de la marque' },
-          { src: '/images/creads-v2-brand.webp', en: 'Brand: identity set up before analysis and creative', fr: 'Marque : l’identité posée avant l’analyse et la création' },
+          { src: '/images/creads-v2-studio.webp?v=20261030b', en: 'Studio: creative production, behind a brand setup gate', fr: 'Studio : la production créative, après la configuration de la marque' },
+          { src: '/images/creads-v2-brand.webp?v=20261030b', en: 'Brand: identity set up before analysis and creative', fr: 'Marque : l’identité posée avant l’analyse et la création' },
         ] },
         { kind: 'pair', items: [
           { src: '/images/creads-bot.png', en: 'Chat: the agent that writes the brief and runs the generation', fr: 'Chat : l’agent qui rédige le brief et lance la génération' },

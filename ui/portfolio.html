@@ -21,13 +21,13 @@
   <!-- Case-study brand fonts (separate request: failure must not break core fonts).
        Only used inside project case-study modules, never above the fold → loaded
        non-blocking so they don't delay first render. -->
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
-  <noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
   <!-- Critical path: Selected work scripts + featured logos first -->
   <link rel="preload" as="script" href="/portfolio/data.js">
   <link rel="preload" as="script" href="/portfolio/app.js">
   <link rel="preload" as="image" href="../images/oneasset-logo.png" fetchpriority="high">
-  <link rel="preload" as="image" href="../images/creads-logo.webp" fetchpriority="high">
+  <link rel="preload" as="image" href="../images/creads-logo.webp?v=20261030" fetchpriority="high">
   <link rel="preload" as="image" href="../images/lvmh.png">
   <link rel="preload" as="image" href="../images/renault.png">
   <link rel="preload" as="image" href="../images/societegenerale.png">
@@ -6212,8 +6212,8 @@
     .creads-type-row:first-of-type { padding-top: 0; }
     .creads-type-row:last-child { border-bottom: none; padding-bottom: 0; }
     .creads-type-sample { font-size: 23px; color: #f0f0f0; line-height: 1.1; letter-spacing: -.4px; }
-    .creads-type-sample.sansation { font-family: 'Sansation', var(--font-body); font-weight: 700; font-style: italic; }
-    .creads-type-sample.readex { font-family: 'Readex Pro', var(--font-body); font-weight: 600; }
+    .creads-type-sample.display { font-family: 'TikTok Sans', var(--font-body); font-weight: 700; letter-spacing: -.03em; }
+    .creads-type-sample.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 15px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
     .creads-type-sample.tiktok { font-family: 'TikTok Sans', var(--font-body); font-weight: 500; }
     .creads-type-meta { text-align: right; flex-shrink: 0; }
     .creads-type-meta b { display: block; font-size: 11px; font-weight: 700; color: #a0a0a0; }
@@ -6228,12 +6228,12 @@
       align-items: center;
       justify-content: center;
       min-height: 120px;
-      background: radial-gradient(circle at 50% 40%, rgba(168,85,247,.12), transparent 60%), #050505;
+      background: radial-gradient(circle at 50% 40%, rgba(82,29,231,.18), transparent 60%), #050505;
       border: 1px solid #1e1e1e;
       border-radius: 2px;
       padding: 20px;
     }
-    .creads-logo-tile img { max-width: 200px; width: 60%; height: auto; }
+    .creads-logo-tile img { max-width: 96px; width: 40%; height: auto; border-radius: 22%; }
 
     /* Creads — interactive console (tabs) */
     .creads-console { position: relative; z-index: 1; padding: 18px; }
@@ -8943,7 +8943,7 @@
         </div>
         <div class="hw-cases">
           <button type="button" class="hw-case" onclick="openProject('oneasset')"><img src="../images/oneasset-logo.png" alt="" width="20" height="20" loading="lazy" decoding="async">OneAsset</button>
-          <button type="button" class="hw-case" onclick="openProject('creads')"><img src="../images/creads-logo.webp" alt="" width="20" height="20" loading="lazy" decoding="async">Creads.io</button>
+          <button type="button" class="hw-case" onclick="openProject('creads')"><img src="../images/creads-logo.webp?v=20261030" alt="" width="20" height="20" loading="lazy" decoding="async">Creads.io</button>
           <button type="button" class="hw-case" onclick="openProject('jarvos')"><img src="../images/jarvos-logo.svg" alt="" width="20" height="20" loading="lazy" decoding="async">Jarvos</button>
         </div>
       </article>

@@ -1072,10 +1072,10 @@ window.addEventListener('resize', () => {
    Query ?portfolio=1 unlocks framing + auth bypass. */
 const CR_LIVE_BASE = 'http://127.0.0.1:3000';
 const CR_LIVE_VIEWS = [
-  { id: 'home',         label: 'Marketing',    path: '/?portfolio=1',                      poster: '../images/creads-live-hero.webp' },
-  { id: 'dashboard',    label: 'Dashboard',    path: '/dashboard?portfolio=1',             poster: '../images/creads-v2-dashboard.webp' },
-  { id: 'studio',       label: 'Studio',       path: '/dashboard/studio?portfolio=1',      poster: '../images/creads-v2-studio.webp' },
-  { id: 'brand',        label: 'Brand',        path: '/dashboard/brand?portfolio=1',       poster: '../images/creads-v2-brand.webp' },
+  { id: 'home',         label: 'Marketing',    path: '/?portfolio=1',                      poster: '../images/creads-live-hero.webp?v=20261030' },
+  { id: 'dashboard',    label: 'Dashboard',    path: '/dashboard?portfolio=1',             poster: '../images/creads-v2-dashboard.webp?v=20261030b' },
+  { id: 'studio',       label: 'Studio',       path: '/dashboard/studio?portfolio=1',      poster: '../images/creads-v2-studio.webp?v=20261030b' },
+  { id: 'brand',        label: 'Brand',        path: '/dashboard/brand?portfolio=1',       poster: '../images/creads-v2-brand.webp?v=20261030b' },
   { id: 'products',     label: 'Products',     path: '/dashboard/products?portfolio=1',    poster: '../images/creads-admin.png' },
   { id: 'ai',           label: 'Chat AI',      path: '/dashboard/ai?portfolio=1',          poster: '../images/creads-bot.png' },
 ];
@@ -1593,66 +1593,66 @@ function renderNarrativeBlock(b, stepsHTML, p) {
             ${b.body ? `<div class="proj-n-body">${b.body}</div>` : ''}
           </div>
           <div class="creads-section-kpis">
-            <div class="creads-mini-kpi"><span>Radius</span><strong>2px</strong><em>Sharp by design</em></div>
-            <div class="creads-mini-kpi"><span>Surfaces</span><strong>#050505</strong><em class="purple">Dark-first</em></div>
-            <div class="creads-mini-kpi"><span>Typefaces</span><strong>×3</strong><em>Sansation · Readex · TikTok</em></div>
+            <div class="creads-mini-kpi"><span>Radius</span><strong>10px</strong><em>Site · 8px in app</em></div>
+            <div class="creads-mini-kpi"><span>Surfaces</span><strong>#FFFFFF</strong><em class="purple">Light, one ink</em></div>
+            <div class="creads-mini-kpi"><span>Typefaces</span><strong>×2</strong><em>TikTok Sans · JetBrains Mono</em></div>
           </div>
         </div>
         <div class="creads-panel">
           <div class="creads-panel-top">
             <div class="creads-panel-title"><span class="creads-led"></span> Creads Design System</div>
-            <div class="creads-chip-row"><span class="creads-chip green">Agent status</span><span class="creads-chip purple">AI logic</span><span class="creads-chip">Glass blur</span></div>
+            <div class="creads-chip-row"><span class="creads-chip green">Lime action</span><span class="creads-chip purple">Violet brand</span><span class="creads-chip">Hairlines</span></div>
           </div>
           <div class="creads-brand-grid">
             <div class="creads-brand-col">
               <div class="creads-brand-card">
-                <div class="creads-brand-card-label">Color system · Deep space</div>
+                <div class="creads-brand-card-label">Color system · Le colis</div>
                 <div class="creads-swatches">
-                  <div class="creads-swatch"><i style="--c:#050505"></i><b>Void</b><small>#050505</small></div>
-                  <div class="creads-swatch"><i style="--c:#0a0a0a"></i><b>Surface</b><small>#0a0a0a</small></div>
-                  <div class="creads-swatch"><i style="--c:#141414"></i><b>Hover</b><small>#141414</small></div>
-                  <div class="creads-swatch"><i style="--c:#1e1e1e"></i><b>Border</b><small>#1e1e1e</small></div>
-                  <div class="creads-swatch"><i style="--c:#f0f0f0"></i><b>Text</b><small>#f0f0f0</small></div>
-                  <div class="creads-swatch"><i style="--c:#a0a0a0"></i><b>Muted</b><small>#a0a0a0</small></div>
-                  <div class="creads-swatch glow"><i style="--c:#34d399;--g:rgba(5,5,5,.45)"></i><b>Agent</b><small>#34d399</small></div>
-                  <div class="creads-swatch glow"><i style="--c:#a855f7;--g:rgba(5,5,5,.45)"></i><b>AI logic</b><small>#a855f7</small></div>
+                  <div class="creads-swatch"><i style="--c:#0E0E10"></i><b>Ink</b><small>#0E0E10</small></div>
+                  <div class="creads-swatch"><i style="--c:#FFFFFF"></i><b>Surface</b><small>#FFFFFF</small></div>
+                  <div class="creads-swatch"><i style="--c:#F6F5F9"></i><b>Mist</b><small>#F6F5F9</small></div>
+                  <div class="creads-swatch"><i style="--c:#E3E2EA"></i><b>Border</b><small>#E3E2EA</small></div>
+                  <div class="creads-swatch"><i style="--c:#5B5966"></i><b>Muted</b><small>#5B5966</small></div>
+                  <div class="creads-swatch"><i style="--c:#3D12C1"></i><b>Cube side</b><small>#3D12C1</small></div>
+                  <div class="creads-swatch glow"><i style="--c:#C8F445;--g:rgba(14,14,16,.18)"></i><b>Lime</b><small>#C8F445</small></div>
+                  <div class="creads-swatch glow"><i style="--c:#521DE7;--g:rgba(14,14,16,.25)"></i><b>Brand</b><small>#521DE7</small></div>
                 </div>
               </div>
               <div class="creads-brand-card">
-                <div class="creads-brand-card-label">Logo · White on void</div>
-                <div class="creads-logo-tile"><img src="../images/creads-logo.webp" alt="Creads logo" loading="lazy" decoding="async"></div>
+                <div class="creads-brand-card-label">Logo · App icon, violet</div>
+                <div class="creads-logo-tile"><img src="../images/creads-logo.webp?v=20261030" alt="Creads logo" loading="lazy" decoding="async"></div>
               </div>
             </div>
             <div class="creads-brand-col">
               <div class="creads-brand-card">
                 <div class="creads-brand-card-label">Typography</div>
                 <div class="creads-type-row">
-                  <div class="creads-type-sample sansation">Creative Director</div>
-                  <div class="creads-type-meta"><b>Sansation</b><small>Bold italic · titles</small></div>
+                  <div class="creads-type-sample display">Paste a link. Get ads.</div>
+                  <div class="creads-type-meta"><b>TikTok Sans</b><small>700 · display 84/77</small></div>
                 </div>
                 <div class="creads-type-row">
-                  <div class="creads-type-sample readex">Brand DNA, decoded</div>
-                  <div class="creads-type-meta"><b>Readex Pro</b><small>400 / 600 · display</small></div>
+                  <div class="creads-type-sample mono">Brand DNA, decoded</div>
+                  <div class="creads-type-meta"><b>JetBrains Mono</b><small>500 · 11px caps labels</small></div>
                 </div>
                 <div class="creads-type-row">
                   <div class="creads-type-sample tiktok">Generate. Score. Learn.</div>
-                  <div class="creads-type-meta"><b>TikTok Sans</b><small>Body · UI</small></div>
+                  <div class="creads-type-meta"><b>TikTok Sans</b><small>500 · UI 14/20</small></div>
                 </div>
               </div>
               <div class="creads-brand-card">
                 <div class="creads-brand-card-label">Tokens</div>
                 <div class="creads-tokens">
                   <div class="creads-token">
-                    <div class="creads-token-demo"><div style="width:34px;height:34px;border-radius:2px;border:1px solid #34d399;background:#141414"></div></div>
-                    <b>Radius</b><small>2px everywhere</small>
+                    <div class="creads-token-demo"><div style="width:34px;height:34px;border-radius:10px;border:1px solid #E3E2EA;background:#521DE7"></div></div>
+                    <b>Radius</b><small>10px site · 8px app</small>
                   </div>
                   <div class="creads-token">
-                    <div class="creads-token-demo"><div style="width:52px;height:34px;border-radius:2px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)"></div></div>
-                    <b>Glass</b><small>blur · white .08</small>
+                    <div class="creads-token-demo"><div style="width:52px;height:34px;border-radius:12px;border:1px solid #E3E2EA;background:#FBFBF8"></div></div>
+                    <b>Card</b><small>12px · 1px #E3E2EA</small>
                   </div>
                   <div class="creads-token">
-                    <div class="creads-token-demo"><div style="width:56px;height:18px;border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0));border:1px solid #1e1e1e"></div></div>
-                    <b>Glow</b><small>top gradient</small>
+                    <div class="creads-token-demo"><div style="width:56px;height:18px;border-radius:8px;background:#C8F445"></div></div>
+                    <b>Action</b><small>lime · ink text</small>
                   </div>
                 </div>
               </div>
@@ -3265,7 +3265,7 @@ ${siteProjectCta(p)}
    micro cover left of the title (hero cover by default); null = the logo stands in. */
 const WORK_SCREENS = {
   oneasset: { src: 'oneasset-v2-inv-dashboard.webp', frame: 'laptop' },
-  creads: { src: 'creads-v2-dashboard.webp', frame: 'laptop' },
+  creads: { src: 'creads-v2-dashboard.webp?v=20261030b', frame: 'laptop' },
   lvmh: { src: 'lvmh-screenshot.webp', frame: 'laptop', fit: 'contain' }, // 1600×751: shown whole, not cropped
   renault: { src: 'renault-screen.webp', frame: 'framed' },
   sg: { src: 'societe-generale-desktop.png', frame: 'framed' },

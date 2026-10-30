@@ -199,8 +199,8 @@ const PROJECTS = [
     "id": "creads",
     "num": "01",
     "group": "ai",
-    "cover": "covers/creads.webp",
-    "logo": "../images/creads-logo.webp",
+    "cover": "covers/creads.webp?v=20261030",
+    "logo": "../images/creads-logo.webp?v=20261030",
     "company": "Creads.io",
     "tagline": "AI advertising, from brand context to creative output",
     "role": "Founder & AI Product Builder",
@@ -240,7 +240,7 @@ const PROJECTS = [
     "outcome": "Founded and built independently, with no paid acquisition.",
     "outcomeStat": null,
     "url": "https://www.creads.io/",
-    "screenshot": "../images/screenshot_creads.webp",
+    "screenshot": "../images/screenshot_creads.webp?v=20261030",
     "video": "../images/creads-video-cover.mp4",
     "narrative": [
       {
@@ -279,15 +279,15 @@ const PROJECTS = [
         "borderless": true,
         "images": [
           {
-            "src": "../images/creads-live-hero.webp",
+            "src": "../images/creads-live-hero.webp?v=20261030",
             "caption": "Marketing site — landing hero and product entry"
           },
           {
-            "src": "../images/creads-v2-dashboard.webp",
+            "src": "../images/creads-v2-dashboard.webp?v=20261030b",
             "caption": "Dashboard — product URL to ads entry"
           },
           {
-            "src": "../images/creads-v2-studio.webp",
+            "src": "../images/creads-v2-studio.webp?v=20261030b",
             "caption": "Studio — creative production, brand setup gate"
           },
           {
@@ -299,7 +299,7 @@ const PROJECTS = [
             "caption": "Products — catalogue linked to generation"
           },
           {
-            "src": "../images/creads-v2-brand.webp",
+            "src": "../images/creads-v2-brand.webp?v=20261030b",
             "caption": "Brand — identity setup before analysis and creative"
           }
         ]
@@ -314,7 +314,7 @@ const PROJECTS = [
         "type": "creads-brand",
         "label": "The charte",
         "title": "Colours, typography and components",
-        "body": "I used near-black surfaces and high-contrast text for Creads. Emerald marks agent status; purple identifies AI functions. The interface uses 2px corners, with Sansation for dashboard titles, Readex Pro for display text and TikTok Sans for controls."
+        "body": "The redesigned Creads uses white surfaces, a single ink (#0E0E10) and thin hairlines. Violet #521DE7 carries the logo, links and focus; lime #C8F445 marks the one main action on each screen. One typeface, TikTok Sans, with JetBrains Mono for small labels. Corners are 10px on the site and 8px in the app."
       },
       {
         "type": "creads-console",
