@@ -16,16 +16,16 @@
   position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 16px; min-height: 0;
   padding: 14px 14px 18px; color: var(--cream); overflow: hidden;
   background:
-    radial-gradient(70% 50% at 10% 0%, rgba(165, 240, 211, .14), transparent 70%),
-    radial-gradient(60% 50% at 100% 100%, rgba(195, 168, 242, .16), transparent 70%),
+    radial-gradient(70% 50% at 10% 0%, rgba(110, 220, 184, .14), transparent 70%),
+    radial-gradient(60% 50% at 100% 100%, rgba(177, 141, 243, .16), transparent 70%),
     var(--night);
 }
 .studio-art {
   flex: 1 1 auto; min-height: 170px; margin: 0; padding: 10px; display: grid; place-items: center; border-radius: 22px;
   background:
-    radial-gradient(55% 55% at 22% 25%, rgba(165, 240, 211, .55), transparent 70%),
-    radial-gradient(50% 55% at 82% 78%, rgba(244, 169, 196, .42), transparent 70%),
-    radial-gradient(45% 45% at 86% 14%, rgba(156, 201, 242, .5), transparent 70%),
+    radial-gradient(55% 55% at 22% 25%, rgba(110, 220, 184, .55), transparent 70%),
+    radial-gradient(50% 55% at 82% 78%, rgba(242, 142, 180, .42), transparent 70%),
+    radial-gradient(45% 45% at 86% 14%, rgba(110, 180, 239, .5), transparent 70%),
     var(--paper);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .5), 0 20px 50px rgba(0, 0, 0, .35);
 }
@@ -57,8 +57,8 @@
 .studio-rail .is-current .sr-n {
   border-color: transparent; background: #fff; color: var(--accent-ink);
   box-shadow:
-    -5px -3px 12px rgba(165, 240, 211, .7), 5px -4px 12px rgba(156, 201, 242, .65),
-    5px 4px 12px rgba(244, 169, 196, .65), -4px 5px 12px rgba(195, 168, 242, .7);
+    -5px -3px 12px rgba(110, 220, 184, .7), 5px -4px 12px rgba(110, 180, 239, .65),
+    5px 4px 12px rgba(242, 142, 180, .65), -4px 5px 12px rgba(177, 141, 243, .7);
 }
 .studio-rail .is-done .sr-n { border-color: transparent; background: #1f1d2a; color: var(--holo-1); }
 .sr-txt b { display: block; font-size: 14.5px; font-weight: 600; color: var(--cream-2); }
@@ -143,7 +143,7 @@
 .sd-day { padding-top: 2px; font-size: 13px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .studio-days b { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
 .studio-days p { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
-.studio-days .is-key { margin: 0 -12px; padding: 14px 12px; border-radius: 14px; border-top-color: transparent; background: linear-gradient(100deg, rgba(195, 168, 242, .22), rgba(244, 169, 196, .12) 60%, transparent); }
+.studio-days .is-key { margin: 0 -12px; padding: 14px 12px; border-radius: 14px; border-top-color: transparent; background: linear-gradient(100deg, rgba(177, 141, 243, .22), rgba(242, 142, 180, .12) 60%, transparent); }
 .studio-days .is-key + li { border-top-color: transparent; }
 .studio-days .is-key .sd-day { color: var(--accent-deep); }
 .sd-tag {
@@ -219,3 +219,316 @@
 .studio .order-meta small,
 .studio-days p,
 .studio-bill li { font-weight: 500; }
+
+/* BEGIN modal-finish */
+/* Modal finish (2026-10-25): both modals of /agence, the contact sheet (#contact-dialog: package, then project) and the
+   "Improve my website" studio (.dlg.order.studio), brought to one finer, calmer language. Visual only: no markup, copy
+   or logic changes. One scale for everything.
+   - Radii: 8 small controls and tiles, 10 fields and buttons, 12 cards, 20 the dialogs. Hairlines are 1px.
+   - Type: titles at 500 with tight tracking; text at 14px and below keeps 450-500 (see the small-type note above).
+   - Colour: ink and paper only. The brand colours appear in small, purposeful places: the chosen package's icon,
+     the focus ring, the current step. No gradient on a button or a heading, no aurora, no coloured halo.
+   - Motion: the dialog and its backdrop fade and settle in 200-300ms; nothing moves under prefers-reduced-motion.
+   Placed last so it wins over agence-story.css, agence-extras.css and the rules above. */
+.dlg {
+  --m-line: rgba(22, 21, 29, .10); --m-line-2: rgba(22, 21, 29, .20); --m-surface: #fff; --m-err: #b3423d;
+  --m-ring: 0 0 0 3px rgba(106, 79, 181, .16);
+  --m-shadow: 0 0 0 1px rgba(243, 241, 247, .06), 0 2px 6px rgba(9, 8, 13, .12), 0 32px 80px -20px rgba(9, 8, 13, .55);
+}
+
+/* ── Dialog shell and its open / close ── */
+.dlg { border-radius: 20px; background: var(--paper-2); box-shadow: var(--m-shadow); }
+.dlg::backdrop { background: rgba(9, 8, 13, .52); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+@media (prefers-reduced-motion: no-preference) {
+  .dlg {
+    opacity: 0; transform: translateY(10px) scale(.985);
+    transition: opacity .22s ease, transform .32s var(--ease), overlay .32s allow-discrete, display .32s allow-discrete;
+  }
+  .dlg[open] { opacity: 1; transform: none; }
+  .dlg::backdrop { background-color: rgba(9, 8, 13, 0); transition: background-color .3s ease, overlay .3s allow-discrete, display .3s allow-discrete; }
+  .dlg[open]::backdrop { background-color: rgba(9, 8, 13, .52); }
+  @starting-style {
+    .dlg[open] { opacity: 0; transform: translateY(10px) scale(.985); }
+    .dlg[open]::backdrop { background-color: rgba(9, 8, 13, 0); }
+  }
+}
+.dlg-x {
+  width: 36px; height: 36px; border-radius: 10px; color: var(--ink); opacity: .55;
+}
+.dlg-x svg { width: 16px; height: 16px; stroke-width: 1.5; }
+.dlg-x:hover { opacity: 1; background: rgba(22, 21, 29, .06); }
+.dlg-x:focus-visible, .dlg .btn:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; opacity: 1; }
+@media (pointer: coarse), (max-width: 560px) { .dlg-x { width: 40px; height: 40px; } }
+
+/* Buttons inside the modals: solid ink, one weight, no gradient, no lift */
+.dlg .btn { min-height: 44px; padding: 0 20px; border-radius: 10px; font-size: 14.5px; font-weight: 520; letter-spacing: 0; }
+.dlg .btn:hover { transform: none; }
+.dlg .btn:active { transform: scale(.985); }
+.dlg .btn-primary {
+  background: var(--ink); color: var(--paper-2); border-color: var(--ink); box-shadow: none;
+  transition: background-color .18s ease, border-color .18s ease, transform .16s var(--ease), box-shadow .18s ease;
+}
+.dlg .btn-primary:hover { background: #2b2938; border-color: #2b2938; box-shadow: 0 6px 16px -6px rgba(22, 21, 29, .45); }
+.dlg .btn-line { background: transparent; border-color: var(--m-line-2); color: var(--ink); }
+.dlg .btn-line:hover { border-color: rgba(22, 21, 29, .45); background: rgba(22, 21, 29, .03); }
+@media (prefers-reduced-motion: reduce) { .dlg .btn, .dlg .btn-primary { transition: none; } }
+
+/* Fields: a quiet label, a white well, a hairline, a soft violet ring on focus, a muted red when wrong */
+.dlg .field { gap: 6px; margin-top: 20px; }
+.dlg .field label { font-size: 12.5px; font-weight: 500; letter-spacing: .005em; color: var(--ink-2); }
+.dlg .field input, .dlg .field select, .dlg .field textarea {
+  min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--m-line-2); background: var(--m-surface);
+  font-size: 15px; font-weight: 450; line-height: 1.45; color: var(--ink); box-shadow: none;
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+.dlg .field textarea { min-height: 104px; resize: vertical; }
+.dlg .field ::placeholder { color: rgba(22, 21, 29, .38); font-weight: 450; }
+.dlg .field input:hover, .dlg .field select:hover, .dlg .field textarea:hover { border-color: rgba(22, 21, 29, .34); }
+.dlg .field input:focus, .dlg .field select:focus, .dlg .field textarea:focus,
+.dlg .field input:focus-visible, .dlg .field select:focus-visible, .dlg .field textarea:focus-visible {
+  outline: none; border-color: var(--accent-deep); box-shadow: var(--m-ring);
+}
+.dlg .field input:user-invalid, .dlg .field textarea:user-invalid, .dlg .field [aria-invalid="true"] {
+  border-color: var(--m-err); box-shadow: 0 0 0 3px rgba(179, 66, 61, .12);
+}
+.dlg .field-hint { font-size: 12.5px; font-weight: 450; color: var(--ink-3); }
+@media (max-width: 900px) { .dlg .field input, .dlg .field select, .dlg .field textarea { font-size: 16px; } }
+
+/* ── Contact sheet ── */
+#contact-dialog { width: min(520px, calc(100% - 24px)); scrollbar-width: thin; scrollbar-color: rgba(22, 21, 29, .2) transparent; }
+#contact-dialog .dlg-stage {
+  position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; column-gap: 14px; align-items: start;
+  margin: 0; padding: 22px 14px 0 24px; background: var(--paper-2);
+}
+#contact-dialog .dlg-stage::before { content: none; }
+#contact-dialog .dlg-stage::after {
+  content: ''; position: static; grid-column: 1 / -1; display: block; height: 1px; margin: 18px -14px 0 -24px; background: var(--m-line);
+}
+#contact-dialog .dlg-mascot { grid-column: 1; grid-row: 1; width: 32px; height: 32px; margin: 2px 0 0; transform: none; filter: none; }
+#contact-dialog .dlg-head { grid-column: 2; grid-row: 1; display: block; min-width: 0; }
+#contact-dialog .dlg-stage h2 { margin: 0; font-size: 19px; font-weight: 520; line-height: 1.25; letter-spacing: -.02em; }
+#contact-dialog .dlg-sub { margin: 4px 0 0; font-size: 13.5px; font-weight: 450; line-height: 1.5; color: var(--ink-2); }
+#contact-dialog .dlg-x { grid-column: 3; grid-row: 1; margin: -2px 0 0; position: static; }
+
+/* Step indicator: two small numbered marks and a hairline between them */
+#contact-dialog .dlg-steps {
+  display: flex; align-items: center; gap: 10px; margin: 20px 24px 0; padding: 0; list-style: none;
+}
+#contact-dialog .dlg-step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; letter-spacing: .005em; color: var(--ink-3); }
+#contact-dialog .dlg-step + .dlg-step::before { content: ''; flex: none; width: 24px; height: 1px; margin-right: 2px; background: var(--m-line-2); }
+#contact-dialog .dlg-num {
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--m-line-2);
+  background: transparent; color: var(--ink-3); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; box-shadow: none;
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+#contact-dialog .dlg-step[aria-current] { color: var(--ink); }
+#contact-dialog .dlg-step[aria-current] .dlg-num { background: var(--ink); border-color: var(--ink); color: var(--paper-2); }
+#contact-dialog[data-step="2"] .dlg-step:first-child { color: var(--ink-2); }
+#contact-dialog[data-step="2"] .dlg-step:first-child .dlg-num { border-color: var(--ink-2); color: var(--ink-2); }
+
+#contact-dialog .dlg-pane { padding: 0 24px 24px; }
+#contact-dialog .dlg-inner { padding: 0; }
+#contact-dialog .dlg-pane[data-pane="2"] > .pkg-recap { margin-top: 20px; }
+
+/* Packages: one hairline card each. The chosen one gets an ink border and a soft ring, and its icon tile turns ink. */
+#contact-dialog .pkgs { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; border: 0; }
+#contact-dialog .pkg {
+  position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  width: 100%; margin: 0; padding: 11px 14px 11px 12px; border: 1px solid var(--m-line); border-radius: 12px;
+  background: var(--m-surface); box-shadow: none; text-align: left; cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease, transform .16s var(--ease);
+}
+#contact-dialog .pkg:first-child { border-top: 1px solid var(--m-line); }
+#contact-dialog .pkg input { position: absolute; opacity: 0; pointer-events: none; }
+@media (hover: hover) { #contact-dialog .pkg:hover { border-color: rgba(22, 21, 29, .34); } }
+#contact-dialog .pkg:active { transform: scale(.995); }
+#contact-dialog .pkg:has(input:checked) { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(22, 21, 29, .06); background: var(--m-surface); }
+#contact-dialog .pkg:has(input:focus-visible), #contact-dialog .pkg:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
+#contact-dialog .pkg-art, #contact-dialog .pkg:has(input:checked) .pkg-art, #contact-dialog .pkg-recap .pkg-art { display: block; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--ink); }
+#contact-dialog .pkg-art svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* Step scenes used as thumbnails: keep the outline at a thumbnail weight, as the package icons have */
+#contact-dialog .pkg-art .oa-thumb g[stroke="#15190f"] { stroke-width: 4.4px; }
+#contact-dialog .pkg-art .oa .oa-bob, #contact-dialog .pkg-art .oa .oa-jump { animation: none; }
+#contact-dialog .pkg-copy { display: grid; gap: 1px; min-width: 0; }
+#contact-dialog .pkg-name { font-size: 14.5px; font-weight: 520; letter-spacing: -.005em; line-height: 1.3; color: var(--ink); }
+#contact-dialog .pkg-line { font-size: 12.5px; font-weight: 450; line-height: 1.4; color: var(--ink-3); }
+#contact-dialog .pkg .pkg-price {
+  display: block; min-width: 0; height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  font-size: 13.5px; font-weight: 500; letter-spacing: 0; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink-2);
+}
+#contact-dialog .pkg:has(input:checked) .pkg-price, #contact-dialog .pkg-recap .pkg-price { background: none; color: var(--ink); }
+#contact-dialog .pkg .soon {
+  margin-left: 8px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--m-line-2); background: transparent;
+  font-size: 10.5px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); vertical-align: 1px;
+}
+/* The chosen package, recalled above the project fields; a quiet "Change" to go back */
+#contact-dialog .pkg-recap { grid-template-columns: 44px minmax(0, 1fr) auto auto; margin-top: 20px; border-color: var(--m-line-2); background: var(--paper); font: inherit; color: inherit; }
+#contact-dialog .pkg-recap:hover { border-color: rgba(22, 21, 29, .45); }
+#contact-dialog .pkg-change { font-size: 12.5px; font-weight: 500; color: var(--ink-2); text-decoration: underline; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+#contact-dialog .pkg-recap:hover .pkg-change { color: var(--ink); }
+
+#contact-dialog .dlg-actions, #contact-dialog .dlg-foot { display: flex; justify-content: flex-end; margin-top: 24px; }
+#contact-dialog .btn-primary { width: auto; min-width: 160px; }
+#contact-dialog #f-next::after { font-size: 15px; margin-left: 2px; transition: transform .25s var(--ease); }
+#contact-dialog #f-next:hover::after { transform: translateX(3px); }
+#contact-dialog .dlg-status { min-height: 0; margin: 12px 0 0; font-size: 13px; font-weight: 450; line-height: 1.5; color: var(--ink-2); text-align: left; }
+#contact-dialog .dlg-status:empty { margin: 0; }
+@media (max-width: 560px) {
+  #contact-dialog .dlg-stage { padding: 18px 8px 0 18px; column-gap: 12px; }
+  #contact-dialog .dlg-stage::after { margin: 16px -8px 0 -18px; }
+  #contact-dialog .dlg-steps { margin: 18px 18px 0; }
+  #contact-dialog .dlg-pane { padding: 0 18px 20px; }
+  #contact-dialog .btn-primary { width: 100%; }
+  #contact-dialog .dlg-status { text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) { #contact-dialog .pkg, #contact-dialog .pkg-art, #contact-dialog #f-next::after { transition: none; } }
+
+/* ── Studio ("Improve my website") ── */
+.dlg.order.studio {
+  width: calc(100vw - 48px); max-width: 1120px; height: calc(100dvh - 48px); max-height: 780px;
+  border-radius: 20px; box-shadow: var(--m-shadow);
+}
+.studio .order-inner { grid-template-columns: minmax(300px, 36%) minmax(0, 1fr); }
+.studio-side { gap: 20px; padding: 16px 16px 24px; background: var(--night); }
+.studio-art {
+  min-height: 170px; padding: 8px; border-radius: 14px; background: var(--paper);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .5);
+}
+.studio-rail { gap: 0; padding: 0 8px; }
+.studio-rail::before, .studio-rail::after { left: 19px; top: 18px; bottom: 18px; width: 1px; border-radius: 0; }
+.studio-rail::before { background: rgba(243, 241, 247, .14); }
+.studio-rail::after { background: rgba(243, 241, 247, .62); transition: transform .5s var(--ease); }
+.studio-rail li > div, .studio-rail li > button { grid-template-columns: 24px minmax(0, 1fr); gap: 14px; padding: 7px 0; border-radius: 8px; }
+.studio-rail li > button:hover .sr-txt b { text-decoration: none; color: var(--cream); }
+.studio-rail li > button:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
+.sr-n { width: 24px; height: 24px; border: 1px solid rgba(243, 241, 247, .28); background: var(--night); color: var(--cream-3); font-size: 11.5px; font-weight: 500; }
+.sr-n svg { width: 12px; height: 12px; }
+.studio-rail .is-current .sr-n { border-color: var(--cream); background: var(--cream); color: var(--night); box-shadow: none; }
+.studio-rail .is-done .sr-n { border-color: rgba(243, 241, 247, .5); background: var(--night); color: var(--cream-2); }
+.sr-txt b { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--cream-3); }
+.sr-txt small { font-size: 12.5px; font-weight: 450; color: rgba(243, 241, 247, .5); }
+.studio-rail .is-done .sr-txt b { color: var(--cream-2); }
+.studio-rail .is-current .sr-txt b { color: var(--cream); }
+
+.studio-top { padding: 20px clamp(24px, 3.6vw, 48px) 0; }
+.studio-count { font-size: 11.5px; font-weight: 500; letter-spacing: .08em; color: var(--ink-3); }
+.studio-head { max-width: 720px; padding: 8px clamp(24px, 3.6vw, 48px) 0; }
+.studio-head h2 { font-size: clamp(26px, 2.5vw, 32px); font-weight: 500; line-height: 1.15; letter-spacing: -.03em; }
+.studio-head h2 em, .studio .order-done h2 em {
+  background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--accent-deep); -webkit-text-fill-color: currentColor;
+}
+.studio-lede { margin-top: 12px; max-width: 58ch; font-size: 15px; font-weight: 450; line-height: 1.6; color: var(--ink-2); }
+.studio .order-body { max-width: 760px; padding: 4px clamp(24px, 3.6vw, 48px) 32px; }
+.studio .order-set { margin-top: 28px; }
+.studio .order-set legend, .studio .order-set > .order-lbl { margin-bottom: 12px; font-size: 12.5px; font-weight: 500; letter-spacing: .005em; color: var(--ink-2); }
+
+/* Cards (package, site type, delivery): the same hairline card as the contact sheet */
+.opts { gap: 8px; }
+.opt { padding: 14px 16px; border-radius: 12px; border: 1px solid var(--m-line); background: var(--m-surface); box-shadow: none; }
+.opts--sm .opt { padding: 11px 14px; }
+@media (hover: hover) { .opt:hover { border-color: rgba(22, 21, 29, .34); } }
+.opt.is-on, .opt:has(input:checked) { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(22, 21, 29, .06); background: var(--m-surface); }
+.opt:has(input:focus-visible) { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
+.opt-main b { font-size: 14.5px; font-weight: 520; letter-spacing: -.005em; }
+.opt-sub { font-size: 12.5px; font-weight: 450; color: var(--ink-3); }
+.opt-price { font-size: 14.5px; font-weight: 500; }
+.opt-ico { width: 36px; height: 36px; }
+.studio .opt--ico { gap: 4px 14px; }
+.order-outcome { margin-top: 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--m-line); background: rgba(22, 21, 29, .025); font-size: 13.5px; font-weight: 450; line-height: 1.55; color: var(--ink-2); }
+.order-outcome span, .order-facts dt, .studio-bill h3, .order-total span {
+  font-size: 11px; font-weight: 500; letter-spacing: .08em; color: var(--ink-3);
+}
+.add-row { padding: 12px 0; border-color: var(--m-line); }
+.add-row:last-child { border-bottom-color: var(--m-line); }
+.add-name { font-size: 14px; font-weight: 500; }
+.add-name small { font-size: 12.5px; font-weight: 450; }
+.stepper { border-color: var(--m-line-2); border-radius: 10px; background: var(--m-surface); }
+.step-btn { width: 34px; height: 34px; border-radius: 8px; font-size: 16px; }
+.stepper output { font-size: 14px; font-weight: 500; }
+.add-row.is-on .stepper { border-color: var(--ink); }
+.studio .field-opt { padding: 0; border-radius: 0; background: none; font-size: 11px; font-weight: 500; letter-spacing: .08em; color: var(--ink-3); }
+.chk { font-size: 13.5px; font-weight: 450; color: var(--ink-2); }
+.chk input { width: 16px; height: 16px; margin-top: 3px; }
+.order-lines { border-top-color: var(--m-line); }
+.order-lines li { padding: 12px 0; border-bottom-color: var(--m-line); font-size: 14.5px; font-weight: 450; }
+.order-lines b { font-weight: 500; }
+.order-facts div { font-size: 13.5px; font-weight: 450; }
+.order-nextline { border-radius: 12px; border-color: var(--m-line); background: rgba(22, 21, 29, .025); font-weight: 450; }
+.add-tip { border-radius: 10px; font-size: 12.5px; font-weight: 450; box-shadow: 0 12px 28px -8px rgba(22, 21, 29, .35); }
+
+/* How we build it, and what you pay: hairlines, one quiet highlight, no gradient */
+.studio-days { margin-top: 20px; }
+.studio-days li { padding: 16px 0; border-top-color: var(--m-line); }
+.studio-days li:last-child { border-bottom-color: var(--m-line); }
+.sd-day { font-size: 12.5px; font-weight: 500; letter-spacing: .02em; }
+.studio-days b { font-size: 15px; font-weight: 520; letter-spacing: -.005em; }
+.studio-days p { font-size: 13.5px; font-weight: 450; }
+.studio-days .is-key { margin: 0 -14px; padding: 16px 14px; border-radius: 12px; background: rgba(22, 21, 29, .035); }
+.studio-days .is-key .sd-day { color: var(--ink); }
+.sd-tag { padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--accent-deep) 30%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-deep); font-size: 11px; font-weight: 500; }
+.studio-bill { margin-top: 24px; padding: 20px; border-radius: 12px; border-color: var(--m-line); background: var(--m-surface); }
+.studio-bill ol { gap: 14px; padding-left: 24px; }
+.studio-bill ol::before { left: 5px; width: 1px; border-radius: 0; background: var(--m-line-2); }
+.studio-bill li { font-size: 13.5px; }
+.studio-bill li::before { left: -24px; top: 4px; width: 11px; height: 11px; border: 1px solid var(--ink-2); background: var(--m-surface); }
+.studio-bill b { font-size: 13px; font-weight: 520; }
+
+/* Footer: the total as plain type, buttons to the right */
+.studio .order-foot { gap: 12px 24px; padding: 16px clamp(24px, 3.6vw, 48px); background: var(--paper-2); border-top-color: var(--m-line); }
+.studio .order-total b { padding: 0; border-radius: 0; background: none; font-size: 22px; font-weight: 500; letter-spacing: -.03em; }
+.studio .order-meta span { font-size: 13px; font-weight: 500; }
+.studio .order-meta small { font-size: 12px; font-weight: 450; }
+.studio .order-status { padding: 0 clamp(24px, 3.6vw, 48px); background: var(--paper-2); }
+.studio .btn-arrow { width: 15px; height: 15px; }
+
+/* Step change: a shorter, softer slide */
+@keyframes order-in-fwd { from { opacity: 0; transform: translateX(10px); } }
+@keyframes order-in-back { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes oa-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+
+/* Phones and tablets: the side is a header, the dialog fills the screen */
+@media (max-width: 900px) {
+  .dlg.order.studio { width: 100vw; height: 100dvh; max-width: none; max-height: none; border-radius: 0; }
+  .studio .order-inner { grid-template-columns: 1fr; }
+  .studio-side { gap: 14px; padding: 12px 16px 16px; }
+  .studio-art { height: 140px; border-radius: 12px; }
+  .studio-rail { padding: 0 4px; }
+  .studio-rail::before, .studio-rail::after { left: 16px; right: 16px; top: 12px; bottom: auto; width: auto; height: 1px; }
+  .studio-rail::after { transform-origin: 0 50%; transform: scaleX(var(--p, 0)); }
+  .studio-rail li > div, .studio-rail li > button { grid-template-columns: 24px; padding: 0; }
+  .studio-top { padding: 16px 20px 0; }
+  .studio-head { padding: 8px 20px 0; }
+  .studio .order-body { padding: 4px 20px 24px; }
+  .studio .order-foot, .studio .order-status { padding-left: 20px; padding-right: 20px; }
+}
+
+/* The scenes: the same drawings, with a lighter outline and no solid extrusion, so they sit with the finer type */
+.studio-art svg [stroke-width="3"] { stroke-width: 2.2px; }
+.studio-art svg g[fill="#15190f"][stroke="#15190f"] { display: none; }
+.studio-art { box-shadow: inset 0 0 0 1px rgba(22, 21, 29, .06); }
+
+/* Small pieces from agence-extras.css: the ETA line, the brief chips, the sent state */
+.order-eta { margin: 4px 0 0; padding: 12px 14px; border-radius: 12px; border-color: var(--m-line); background: var(--m-surface); font-size: 13.5px; font-weight: 450; }
+.order-eta b { font-weight: 520; }
+.brief-chips { gap: 8px; margin-top: 12px; }
+.brief-chip { padding: 6px 12px; border-color: var(--m-line-2); font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
+.brief-chip:hover { border-color: rgba(22, 21, 29, .5); background: rgba(22, 21, 29, .03); color: var(--ink); }
+.brief-chip:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
+.brief-chip.is-used { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: color-mix(in srgb, var(--accent-deep) 35%, transparent); color: var(--accent-deep); }
+.order-trust { font-size: 12.5px; font-weight: 450; }
+.studio .order-done { gap: 16px; padding-top: 12px; }
+.studio .order-done h2 { font-size: clamp(26px, 2.5vw, 32px); font-weight: 500; line-height: 1.15; letter-spacing: -.03em; }
+.studio .order-done p { font-size: 15px; font-weight: 450; line-height: 1.6; }
+.studio .order-done ol { gap: 14px; margin: 8px 0; }
+.studio .order-done li { grid-template-columns: 24px minmax(0, 1fr); gap: 12px; font-size: 13.5px; font-weight: 450; }
+.studio .order-done li b { font-size: 14px; font-weight: 520; }
+.studio .order-done .os-n {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--m-line-2);
+  background: transparent; color: var(--ink-2); font-size: 11px; font-weight: 500; box-shadow: none;
+}
+.done-mark, .done-mark svg { width: 48px; height: 48px; }
+.done-mark circle { fill: var(--ink); }
+.done-mark path { stroke: var(--paper-2); stroke-width: 2.4; }
+.sr-txt small { color: rgba(243, 241, 247, .62); }
+.studio-rail li > button:focus-visible { outline: 1.5px solid rgba(243, 241, 247, .7); outline-offset: 1px; }
+/* END modal-finish */

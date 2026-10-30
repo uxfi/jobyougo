@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <!-- v2 studio mascot: an ink sprite on a shiny multicolour tile, its tuft a brush tip dipped in moss. Same drawing as the nav logo (ui/agence.html). -->
   <defs>
-    <linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a5f0d3"/><stop offset=".34" stop-color="#9cc9f2"/><stop offset=".6" stop-color="#c3a8f2"/><stop offset=".82" stop-color="#f4a9c4"/><stop offset="1" stop-color="#f7d58e"/></linearGradient>
+    <linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6edcb8"/><stop offset=".34" stop-color="#6eb4ef"/><stop offset=".6" stop-color="#b18df3"/><stop offset=".82" stop-color="#f28eb4"/><stop offset="1" stop-color="#f2c85e"/></linearGradient>
     <radialGradient id="ga" cx="1" cy="0" r=".7"><stop offset="0" stop-color="#8ee6f0"/><stop offset="1" stop-color="#8ee6f0" stop-opacity="0"/></radialGradient>
     <radialGradient id="gb" cx="0" cy="1" r=".7"><stop offset="0" stop-color="#f6b48f"/><stop offset="1" stop-color="#f6b48f" stop-opacity="0"/></radialGradient>
     <radialGradient id="gl" cx=".5" cy="0" r=".55"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <radialGradient id="ia" cx=".28" cy=".14" r=".62"><stop offset="0" stop-color="#9cc9f2" stop-opacity=".5"/><stop offset=".5" stop-color="#c3a8f2" stop-opacity=".16"/><stop offset="1" stop-color="#c3a8f2" stop-opacity="0"/></radialGradient>
-    <radialGradient id="ib" cx=".88" cy=".92" r=".5"><stop offset="0" stop-color="#f4a9c4" stop-opacity=".4"/><stop offset="1" stop-color="#f4a9c4" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ia" cx=".28" cy=".14" r=".62"><stop offset="0" stop-color="#6eb4ef" stop-opacity=".5"/><stop offset=".5" stop-color="#b18df3" stop-opacity=".16"/><stop offset="1" stop-color="#b18df3" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ib" cx=".88" cy=".92" r=".5"><stop offset="0" stop-color="#f28eb4" stop-opacity=".4"/><stop offset="1" stop-color="#f28eb4" stop-opacity="0"/></radialGradient>
     <clipPath id="t"><rect width="64" height="64" rx="18"/></clipPath>
     <clipPath id="c"><path d="M28.5 16C28.8 11.6 32.4 8 37.2 6.4C39.6 5.6 42.4 5.6 43 7.4C43.6 9.3 41.4 10.2 39.6 10.6C37.8 11 37 13.4 37.6 16Z"/></clipPath>
   </defs>

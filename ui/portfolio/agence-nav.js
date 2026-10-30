@@ -108,4 +108,74 @@
   });
   // The menu's own button opens the project form (agence-story.js); the menu folds away behind it.
   nav.addEventListener('click', (e) => { if (e.target.closest('.nav-menu-cta')) closeMenu(); });
+
+  /* ── Language switch (2026-10-27) ──
+     The server already picks the language (?lang=, cookie, browser, country; lib/agence-i18n.mjs). This menu lets a
+     visitor choose: every row is a plain link to the same page with ?lang=<code>, so it works without script, search
+     engines can follow it, and the server remembers the choice in a cookie. "Automatic" (?lang=auto) forgets it.
+     Arrow keys, Home/End and Esc work; a tap outside, a scroll or leaving the menu with Tab closes it. */
+  const LANGS = [
+    ['en', 'English'], ['fr', 'Français'], ['es', 'Español'], ['de', 'Deutsch'], ['it', 'Italiano'], ['pt-BR', 'Português (Brasil)'],
+    ['pt-PT', 'Português (Portugal)'], ['nl', 'Nederlands'], ['pl', 'Polski'], ['sv', 'Svenska'], ['da', 'Dansk'], ['nb', 'Norsk bokmål'],
+    ['fi', 'Suomi'], ['cs', 'Čeština'], ['sk', 'Slovenčina'], ['ro', 'Română'], ['hu', 'Magyar'], ['el', 'Ελληνικά'], ['bg', 'Български'],
+    ['hr', 'Hrvatski'], ['sl', 'Slovenščina'], ['lt', 'Lietuvių'], ['lv', 'Latviešu'], ['et', 'Eesti'], ['uk', 'Українська'],
+    ['ru', 'Русский'], ['tr', 'Türkçe'], ['ar', 'العربية'], ['he', 'עברית'], ['fa', 'فارسی'], ['hi', 'हिन्दी'], ['bn', 'বাংলা'],
+    ['id', 'Bahasa Indonesia'], ['ms', 'Bahasa Melayu'], ['th', 'ไทย'], ['vi', 'Tiếng Việt'], ['ja', '日本語'], ['ko', '한국어'],
+    ['zh-Hans', '简体中文'], ['zh-Hant', '繁體中文'], ['ca', 'Català'],
+  ];
+  const lang = nav.querySelector('.nav-lang');
+  const langBtn = lang && lang.querySelector('.nav-lang-btn');
+  if (lang && langBtn) {
+    const current = String((window.AG_I18N && window.AG_I18N.code) || d.documentElement.lang || 'en');
+    const codeEl = langBtn.querySelector('.nav-lang-code');
+    if (codeEl) codeEl.textContent = current.split('-')[0].toUpperCase();
+    const href = (code) => {
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.set('lang', code);
+        return u.pathname + u.search + u.hash;
+      } catch (e) {
+        return '?lang=' + encodeURIComponent(code);
+      }
+    };
+    const menu = d.createElement('div');
+    menu.className = 'nav-lang-menu';
+    menu.id = 'nav-lang-menu';
+    menu.hidden = true;
+    const row = (code, label, extra) => `<a href="${href(code)}" lang="${code === 'auto' ? '' : code}"${code === 'auto' ? '' : ` hreflang="${code}"`} rel="alternate nofollow"${code === current ? ' aria-current="true"' : ''}>${extra || ''}<span>${label}</span>${code === current ? '<i aria-hidden="true"></i>' : ''}</a>`;
+    menu.innerHTML = row('auto', langBtn.dataset.auto || 'Automatic', '')
+      + `<hr>` + LANGS.map(([c, n]) => row(c, n)).join('');
+    lang.appendChild(menu);
+    const items = () => Array.from(menu.querySelectorAll('a'));
+    const setOpen = (open, focusItem) => {
+      if (open === !menu.hidden) return;
+      if (open) closeMenu();   // the mobile menu and this one never stay open together
+      menu.hidden = !open;
+      lang.classList.toggle('is-open', open);
+      langBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) {
+        const on = menu.querySelector('[aria-current]') || items()[0];
+        // bring the current language into view inside the menu only (scrollIntoView could move the page)
+        if (on) menu.scrollTop = Math.max(0, on.offsetTop - menu.clientHeight / 2 + on.offsetHeight / 2);
+        if (focusItem && on) on.focus({ preventScroll: true });
+      }
+    };
+    langBtn.addEventListener('click', () => setOpen(menu.hidden, false));
+    langBtn.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true, true); }
+    });
+    menu.addEventListener('keydown', (e) => {
+      const list = items();
+      const i = list.indexOf(d.activeElement);
+      if (e.key === 'Escape') { e.preventDefault(); setOpen(false); langBtn.focus(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); list[Math.min(list.length - 1, i + 1)].focus(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); if (i <= 0) { setOpen(false); langBtn.focus(); } else list[i - 1].focus(); }
+      else if (e.key === 'Home') { e.preventDefault(); list[0].focus(); }
+      else if (e.key === 'End') { e.preventDefault(); list[list.length - 1].focus(); }
+    });
+    lang.addEventListener('focusout', (e) => { if (!menu.hidden && e.relatedTarget && !lang.contains(e.relatedTarget)) setOpen(false); });
+    d.addEventListener('pointerdown', (e) => { if (!menu.hidden && !lang.contains(e.target)) setOpen(false); });
+    window.addEventListener('scroll', () => { if (!menu.hidden) setOpen(false); }, { passive: true });
+    burger && burger.addEventListener('click', () => setOpen(false));
+  }
 })();

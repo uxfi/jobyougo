@@ -2,6 +2,8 @@
 
 Since 2026-10-18 the site has no language switch. Each visitor gets the site in their own language, chosen by the server.
 
+Since 2026-10-27 a small globe in the nav (before the burger on phones) lets a visitor override it: every language is a plain link to the same page with `?lang=<code>`, the server remembers the choice in the `v2studio-lang` cookie, and "Automatic" (`?lang=auto`) forgets it. The menu is built by `ui/portfolio/agence-nav.js` (list `LANGS`, to keep in step with `AGENCE_LANGS` in `lib/agence-i18n.mjs`); its markup is `.nav-lang` in both shells. English stays the default when there is no signal.
+
 ## How the language is chosen
 
 The server decides on every request to `/agence` and `/agence/<page>` (`lib/agence-i18n.mjs`, `pickAgenceLang`). It takes the first of these that gives an answer:

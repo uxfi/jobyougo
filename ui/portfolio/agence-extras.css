@@ -5,13 +5,13 @@
 
 /* ── Hero: the founder's brands, under the first call to action ── */
 .hero-brands { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 30px; min-height: 30px; }
-.hb-label { font-size: 12.5px; font-weight: 500; letter-spacing: .01em; color: var(--cream-3); }
+.hb-label { font-size: 12.5px; font-weight: 500; letter-spacing: .01em; color: var(--cream-2); }
 .hb-list { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
 .hb-list img, .brand-mark img, .voice-logo {
   display: block; width: auto; filter: brightness(0) invert(1);
   transition: opacity .25s ease, transform .35s var(--ease);
 }
-.hb-list img { opacity: .66; }
+.hb-list img { opacity: .88; }
 .hb-list img[data-w='word'] { height: 15px; }
 .hb-list img[data-w='mark'] { height: 26px; }
 .hb-list img[data-w='badge'] { height: 22px; }
@@ -63,7 +63,7 @@ main > .reel { z-index: 4; }
   --c: var(--p-yellow);
   padding: var(--section) 0;
   background:
-    radial-gradient(55% 45% at 85% 0%, rgba(195, 168, 242, .1), transparent 70%),
+    radial-gradient(55% 45% at 85% 0%, rgba(177, 141, 243, .1), transparent 70%),
     radial-gradient(45% 40% at 0% 100%, rgba(110, 126, 255, .1), transparent 72%),
     #0a0f0b;
   color: var(--cream);
@@ -73,7 +73,9 @@ main > .reel { z-index: 4; }
    scrolls sideways with snap points; the right edge fades to say there is more. */
 .car { position: relative; }
 .car-track {
-  position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: clamp(300px, 44vw, 640px); gap: clamp(14px, 2vw, 24px);
+  /* Tuiles réduites (2026-10-25) : ~35 % du conteneur, plafond 420px → 2,7 tuiles visibles sur desktop
+     (2 pleines + la suivante en amorce, qui garde le fondu de bord et l'envie de défiler), au lieu d'~1,5. */
+  position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: clamp(280px, 35%, 420px); gap: clamp(14px, 2vw, 24px);
   overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none;
   margin: 0 -4px; padding: 6px 4px 18px; cursor: grab;
   -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 72px), transparent);
@@ -87,7 +89,7 @@ main > .reel { z-index: 4; }
   position: relative; overflow: hidden; border-radius: 18px; background: #0d120f; border: 1px solid rgba(243, 241, 247, .12);
   box-shadow: 0 40px 90px -45px rgba(0, 0, 0, .85); transition: transform .5s var(--ease), box-shadow .5s ease;
 }
-.car-card.is-on .car-screen { box-shadow: 0 40px 90px -45px rgba(0, 0, 0, .85), 0 0 0 1px rgba(195, 168, 242, .4); }
+.car-card.is-on .car-screen { box-shadow: 0 40px 90px -45px rgba(0, 0, 0, .85), 0 0 0 1px rgba(177, 141, 243, .4); }
 @media (hover: hover) and (pointer: fine) { .car-card:hover .car-screen { transform: translateY(-4px); } }
 .car-chrome { display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 14px; background: #15141c; border-bottom: 1px solid rgba(243, 241, 247, .08); }
 .car-card[data-tone-ui='light'] .car-chrome { background: #efedf4; border-bottom-color: rgba(22, 21, 29, .08); }

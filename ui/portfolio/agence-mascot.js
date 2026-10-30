@@ -137,6 +137,6 @@
 
   try {
     console.log('%c(•ᴗ•)%c  Hello, curious one. The ink sprite in the corner likes to be petted: rub it, or tap it three times.',
-      'font: 600 14px system-ui, sans-serif; color: #9cc9f2', 'font: 13px system-ui, sans-serif');
+      'font: 600 14px system-ui, sans-serif; color: #6eb4ef', 'font: 13px system-ui, sans-serif');
   } catch (e) { /* no console */ }
 })();

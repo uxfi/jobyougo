@@ -21,7 +21,16 @@
   const tr = (s) => (typeof agTr === 'function' ? agTr(s) : s);
   const trDeep = (o) => (typeof agTrDeep === 'function' ? agTrDeep(o) : o);
 
-  const OFFERS = (typeof AGENCY_OFFERS === 'object' && AGENCY_OFFERS) ? AGENCY_OFFERS : { offers: [], addons: [] };
+  const OFFERS_ALL = (typeof AGENCY_OFFERS === 'object' && AGENCY_OFFERS) ? AGENCY_OFFERS : { offers: [], addons: [] };
+  /* The home does not show coaching (it has its own "soon" page, /agence/coaching): its offer, the add-ons that only
+     belong to it, its service row, its FAQ entry and its contact option are left out. Every other page keeps them. */
+  const HOME_PAGE = !!d.getElementById('hero-title');
+  const HOME_HIDDEN_OFFER = 'accompagnement';
+  const OFFERS = HOME_PAGE ? {
+    ...OFFERS_ALL,
+    offers: (OFFERS_ALL.offers || []).filter((o) => o.id !== HOME_HIDDEN_OFFER),
+    addons: (OFFERS_ALL.addons || []).filter((a) => !(Array.isArray(a.for) && a.for.length && a.for.every((id) => id === HOME_HIDDEN_OFFER))),
+  } : OFFERS_ALL;
   const CAL = typeof AGENCY_CALENDLY === 'string' ? AGENCY_CALENDLY : 'https://calendly.com/chilka-v/30min';
   const EMAIL = typeof AGENCY_EMAIL === 'string' ? AGENCY_EMAIL : 'chilka.v@gmail.com';
   const SERVICES = typeof AGENCY_SERVICES !== 'undefined' ? AGENCY_SERVICES : [];
@@ -29,7 +38,7 @@
   const CHECKS = typeof AGENCY_CHECK_COUNT === 'number' ? AGENCY_CHECK_COUNT : 12;
   const STEPS = typeof AGENCY_STEP_COUNT === 'number' ? AGENCY_STEP_COUNT : 5;
   const FAQ = typeof AGENCY_FAQ_SLUGS !== 'undefined' ? AGENCY_FAQ_SLUGS : [];
-  const OFFER_IDS = typeof AGENCY_OFFER_IDS !== 'undefined' ? AGENCY_OFFER_IDS : ['refonte', 'creation', 'accompagnement', 'custom', 'unsure'];
+  const OFFER_IDS = (typeof AGENCY_OFFER_IDS !== 'undefined' ? AGENCY_OFFER_IDS : ['refonte', 'creation', 'accompagnement', 'custom', 'unsure']).filter((id) => !HOME_PAGE || id !== HOME_HIDDEN_OFFER);
 
   /* Pigments live in agence-story.css (--p-*). */
   const token = (name) => getComputedStyle(root).getPropertyValue('--p-' + name).trim();
@@ -40,7 +49,8 @@
   const CHAPTERS = [
     { id: 'forest', target: 'top', key: 's_ch_forest', color: PAINT.moss },
     { id: 'proof', target: 'proof', key: 's_ch_proof', color: PAINT.yellow },
-    { id: 'services', target: 'services', key: 's_ch_services', color: PAINT.blue },
+    // The home has no services section any more (the packages are in #pricing): the sub-pages keep this chapter.
+    ...(HOME_PAGE ? [] : [{ id: 'services', target: 'services', key: 's_ch_services', color: PAINT.blue }]),
     { id: 'checks', target: 'details', key: 's_ch_checks', color: PAINT.pink },
     { id: 'pricing', target: 'pricing', key: 's_ch_pricing', color: PAINT.cyan },
     { id: 'founder', target: 'founder', key: 's_ch_founder', color: PAINT.sienna },
@@ -57,20 +67,85 @@
       s_beat2a: 'A forest of sites that all look alike.',
       s_beat2b: 'Same gradient hero. Same “Get started”. Same silence after the click.',
       s_beat3: 'Ours are still<br><em>finished by hand.</em>',
-      s_beat3_line: 'An AI design agency. Redesign, build or coaching, at fixed prices from $390.',
+      s_beat3_line: 'An AI design agency. Redesign or build, at fixed prices from $390.',
       s_same_title: 'AI is fast.<br><em>Fast to look like everyone else, too.</em>',
       s_same_lede: 'AI tools reach for the same gradient hero and the same “Get started” button. We use AI for speed, then the founder finishes every screen by hand.',
       s_same_caption: 'One of these sites went through the 12 checks.',
-      proof_headline: 'Three projects<br><em>we redesigned.</em>',
-      s_proof_note: 'Figures measured on these projects. Your results will depend on your product and your traffic.',
+      proof_headline: 'The results first.<br><em>Then what was done, and how.</em>',
+      s_proof_note: 'Figures reported by our founder from each project, before v2 studio. They were not measured by v2 studio, and they describe those projects only. Your results will depend on your product and your traffic.',
       s_all_work: 'See all projects',
+      hp_g1: 'More engagement',
+      hp_g2: 'Higher loyalty',
+      hp_g3: 'Better results',
+      hp_from: 'Starts at',
+      hp_src: 'Reported by our founder, before v2 studio.',
+      hp_d_pages: 'Scope',
+      hp_d_delivery: 'Delivery',
+      hp_d_rev: 'Revisions',
+      hp_d_scope: 'A fixed price, a written scope and a delivery date, all on the page before you pay.',
+      hp_panel_aria: 'Project detail',
+      px_rev_info: 'More about revision rounds',
+      nav_lang_aria: 'Language',
+      nav_lang_auto: 'Automatic',
+      fx_panel_aria: 'The founder, in detail',
+      fq_go_founder: 'Meet the founder',
+      fq_go_packages: 'See the packages',
+      fq_go_order: 'How ordering works',
+      fq_go_checks: 'The 12 checks',
+      fq_go_brief: 'Describe your project',
+      fq_go_call: 'Book a 30-min call',
+      fq_search: 'Search the questions',
+      fq_count: '{n} of {total}',
+      fq_empty: 'No question matches that.',
+      cs_label: 'Not sure how to start?',
+      cs_chips: ['My page gets visits, but few people sign up', 'My site looks like every other AI-made site', 'I want a second pair of eyes before launch'],
+      fx_1_lede: 'Where the founder worked, before v2 studio.',
+      fx_2: 'From 2020 to 2024 the founder ran a product design agency and managed up to 7 junior freelance designers. The 20+ projects covered enterprise, retail, finance, SaaS and mobility.',
+      fx_3_lede: 'Products the founder has built since 2022, and where each one stands today.',
+      fx_4: 'Creads.io is an AI advertising SaaS built by the founder. It is launched, with 1,200 registered users and 20 paying clients.',
+      pf_results: 'Results',
+      pf_before: 'before',
+      pf_after: 'after',
+      pf_dumb_aria: 'Before {a}, after {b}, on an index where before is 100',
+      pf_actions: 'Actions',
+      pf_actions_lede: 'What we do on your page.',
+      pf_a1_t: 'Walk your page as a first-time customer.',
+      pf_a1_d: 'On a phone and on a laptop, next to your closest competitors.',
+      pf_a2_t: 'Rank every place people get stuck.',
+      pf_a2_d: 'You get a written list, ordered by impact, before anything is redrawn.',
+      pf_a3_t: 'Redesign the key screens with your real content.',
+      pf_a3_d: 'Your longest name, your longest price. No lorem ipsum.',
+      pf_a4_t: 'Build it in code and hand it over.',
+      pf_a4_d: 'Desktop and mobile, every state designed. The source, the completed grid and the handoff notes come with it.',
+      pf_methods: 'Methods',
+      pf_methods_lede: 'How we decide what to change.',
+      pf_m1_t: 'Evidence before opinion.',
+      pf_m1_d: 'An audit and the numbers decide what changes first, not taste.',
+      pf_m1_p: 'BMW · UX/UI audit and data analysis',
+      pf_m2_t: 'Test, fix, test again.',
+      pf_m2_d: 'Prototypes go in front of real users before any development starts.',
+      pf_m2_p: 'Skiset · 16/20 desktop satisfaction in tests',
+      pf_m3_t: 'AI for speed, a human for the finish.',
+      pf_m3_d: 'Every AI-generated line is read and edited by the founder, then checked twelve ways.',
+      pf_m3_p: '12 checks on every delivery',
+      pf_a1_day: 'Day 1',
+      pf_a2_day: 'Day 1',
+      pf_a3_day: 'Day 2',
+      pf_a4_day: 'Days 3 to 5',
+      pf_a1_x: 'We go through your page on a phone and on a laptop as a first-time customer would, and compare it side by side with your closest competitors.',
+      pf_a2_x: 'You get a written list of every place people get stuck, ranked by impact.',
+      pf_a3_x: 'You see the structure, one key screen and the tone on Day 2. Approve it, or ask for changes before we build.',
+      pf_a4_x: 'The full page in code, desktop and mobile, with your real content and every state. Then the 12 checks, and delivery with the source, the completed grid and the handoff notes.',
+      pf_m1_x: 'On BMW’s public website, our founder ran a full UX/UI audit and data analysis, then redesigned the key pages: +12% user engagement.',
+      pf_m2_x: 'Our founder tested the old booking flow of a ski rental platform with real users, restructured the journey, then tested the prototypes again before handoff: 15/20 satisfaction on mobile, 16/20 on desktop.',
+      pf_m3_x: 'You get the 12-check grid with your files, completed and signed by the founder. A point that does not apply is marked N/A.',
       s_dive_a: 'A pretty hero<br>is the surface.',
       s_dive_b: 'The details live<br><em>underneath.</em>',
       s_dive_c: 'Most sites never<br><em>come down here.</em>',
       s_fox_a: 'Someone still has<br>to finish the work.',
-      s_fox_line: 'The founder checks every screen. One paint colour per chapter, from here on.',
+      s_fox_line: 'A plane can fly itself. It is still reassuring to have a human pilot.',
       details_headline: 'Every delivery passes the<br><em>same 12 checks.</em>',
-      s_checks_all: 'All 12, line by line',
+      s_checks_title: 'Every delivery is checked.<br><em>And every detail is human-made.</em>',
       s_check_close: 'Close',
       s_checks_lede: 'You get this grid with your files, completed and signed by the founder. A point that doesn’t apply is marked N/A.',
       s_ledger_sign: 'Checked by hand, founder',
@@ -123,6 +198,15 @@
       s_price_quote: 'fixed quote',
       s_pick_line: '{name}: {price}, {delivery}.',
       s_soon: 'Soon',
+      s_pricing_pay_home: 'Prices in US dollars, excluding applicable taxes. Packages are paid upfront.',
+      faq_payment_a_home: 'You order from the package card. Redesign and Build are paid in full before Day 1, and every payment gets an invoice. A custom project is paid in two parts: a deposit to book the dates, the balance at delivery. Prices are in US dollars, excluding applicable taxes.',
+      faq_unhappy_a_home: 'Say so on Day 2, when you see the direction: we change it before building. After you approve it, your revision rounds cover changes within the brief, in the 14 days after delivery.',
+      meta_desc_home: 'Fixed-price redesign, UX and AI product prototypes from $390. Led by a founder with 12 years in product and UX. Every delivery passes the same 12-point detail check.',
+      doc_title_coaching: 'Coaching, coming soon · v2 studio',
+      meta_desc_coaching: 'A coaching offer is on its way. Come back soon.',
+      s_coaching_title: 'Coaching —<br><em>coming soon.</em>',
+      s_coaching_lede: 'A coaching offer is on its way. Come back soon.',
+      s_coaching_back: 'Back to v2 studio',
       s_fig_step_1: 'A phone, for the kickoff call',
       s_fig_step_2: 'A dish aimed at your page',
       s_fig_step_3: 'A padlock: the direction locks in on Day 2',
@@ -133,20 +217,85 @@
       s_beat2a: 'Une forêt de sites qui se ressemblent tous.',
       s_beat2b: 'Même hero en dégradé. Même « Commencer ». Même silence après le clic.',
       s_beat3: 'Les nôtres sont encore<br><em>finis à la main.</em>',
-      s_beat3_line: 'Une agence de design IA. Refonte, création ou accompagnement, à prix fixes dès 390 $.',
+      s_beat3_line: 'Une agence de design IA. Refonte ou création, à prix fixes dès 390 $.',
       s_same_title: 'L’IA va vite.<br><em>Vite vers le même résultat que tout le monde.</em>',
       s_same_lede: 'Les outils d’IA proposent le même hero en dégradé et le même bouton « Commencer ». Nous utilisons l’IA pour la vitesse, puis le fondateur finit chaque écran à la main.',
       s_same_caption: 'Un seul de ces sites est passé par les 12 contrôles.',
-      proof_headline: 'Trois projets<br><em>que nous avons refaits.</em>',
-      s_proof_note: 'Chiffres mesurés sur ces projets. Vos résultats dépendront de votre produit et de votre trafic.',
+      proof_headline: 'D’abord les résultats.<br><em>Puis ce qui a été fait, et comment.</em>',
+      s_proof_note: 'Chiffres communiqués par notre fondateur pour chaque projet, avant v2 studio. Ils n’ont pas été mesurés par v2 studio et décrivent uniquement ces projets. Vos résultats dépendront de votre produit et de votre trafic.',
       s_all_work: 'Voir tous les projets',
+      hp_g1: 'Plus d’engagement',
+      hp_g2: 'Plus de fidélité',
+      hp_g3: 'De meilleurs résultats',
+      hp_from: 'À partir de',
+      hp_src: 'Communiqué par notre fondateur, avant v2 studio.',
+      hp_d_pages: 'Périmètre',
+      hp_d_delivery: 'Livraison',
+      hp_d_rev: 'Retouches',
+      hp_d_scope: 'Un prix fixe, un périmètre écrit et une date de livraison, affichés sur la page avant que vous payiez.',
+      hp_panel_aria: 'Détail du projet',
+      px_rev_info: 'En savoir plus sur les allers-retours',
+      nav_lang_aria: 'Langue',
+      nav_lang_auto: 'Automatique',
+      fx_panel_aria: 'Le fondateur, en détail',
+      fq_go_founder: 'Rencontrer le fondateur',
+      fq_go_packages: 'Voir les formules',
+      fq_go_order: 'Comment commander',
+      fq_go_checks: 'Les 12 contrôles',
+      fq_go_brief: 'Décrire votre projet',
+      fq_go_call: 'Réserver un appel de 30 min',
+      fq_search: 'Chercher dans les questions',
+      fq_count: '{n} sur {total}',
+      fq_empty: 'Aucune question ne correspond.',
+      cs_label: 'Pas sûr de la façon de commencer ?',
+      cs_chips: ['Ma page reçoit des visites, mais peu d’inscriptions', 'Mon site ressemble à tous les sites faits par IA', 'Je veux un second regard avant le lancement'],
+      fx_1_lede: 'Là où le fondateur a travaillé, avant v2 studio.',
+      fx_2: 'De 2020 à 2024, le fondateur a dirigé une agence de design produit et encadré jusqu’à 7 designers freelances juniors. Les plus de 20 projets couvraient l’entreprise, le retail, la finance, le SaaS et la mobilité.',
+      fx_3_lede: 'Les produits que le fondateur construit depuis 2022, et où en est chacun.',
+      fx_4: 'Creads.io est un SaaS de publicité par IA construit par le fondateur. Il est lancé, avec 1 200 utilisateurs inscrits et 20 clients payants.',
+      pf_results: 'Résultats',
+      pf_before: 'avant',
+      pf_after: 'après',
+      pf_dumb_aria: 'Avant {a}, après {b}, sur un indice où avant vaut 100',
+      pf_actions: 'Actions',
+      pf_actions_lede: 'Ce que nous faisons sur votre page.',
+      pf_a1_t: 'Parcourir votre page comme un premier client.',
+      pf_a1_d: 'Sur téléphone et sur ordinateur, à côté de vos concurrents directs.',
+      pf_a2_t: 'Classer chaque endroit où les gens bloquent.',
+      pf_a2_d: 'Vous recevez une liste écrite, classée par impact, avant qu’on redessine quoi que ce soit.',
+      pf_a3_t: 'Refaire les écrans clés avec vos vrais contenus.',
+      pf_a3_d: 'Votre nom le plus long, votre prix le plus long. Aucun lorem ipsum.',
+      pf_a4_t: 'La construire en code et vous la remettre.',
+      pf_a4_d: 'Desktop et mobile, tous les états dessinés. Le code source, la grille complétée et les notes de passation sont livrés avec.',
+      pf_methods: 'Méthodes',
+      pf_methods_lede: 'Comment nous décidons de ce qui change.',
+      pf_m1_t: 'Les preuves avant l’opinion.',
+      pf_m1_d: 'Un audit et les chiffres décident de ce qui change en premier, pas le goût.',
+      pf_m1_p: 'BMW · audit UX/UI et analyse de données',
+      pf_m2_t: 'Tester, corriger, retester.',
+      pf_m2_d: 'Les prototypes passent devant de vrais utilisateurs avant tout développement.',
+      pf_m2_p: 'Skiset · 16/20 de satisfaction sur desktop en test',
+      pf_m3_t: 'L’IA pour la vitesse, un humain pour la finition.',
+      pf_m3_d: 'Chaque ligne générée par l’IA est relue et corrigée par le fondateur, puis vérifiée de douze façons.',
+      pf_m3_p: '12 contrôles à chaque livraison',
+      pf_a1_day: 'J1',
+      pf_a2_day: 'J1',
+      pf_a3_day: 'J2',
+      pf_a4_day: 'J3 à J5',
+      pf_a1_x: 'Nous parcourons votre page sur téléphone et sur ordinateur comme un premier client, et la comparons côte à côte avec vos concurrents directs.',
+      pf_a2_x: 'Vous recevez la liste écrite de chaque endroit où les gens bloquent, classée par impact.',
+      pf_a3_x: 'Vous voyez la structure, un écran clé et le ton au jour 2. Vous validez, ou demandez des changements avant la construction.',
+      pf_a4_x: 'La page complète en code, desktop et mobile, avec vos vrais contenus et tous les états. Puis les 12 contrôles, et la livraison avec le code source, la grille complétée et les notes de passation.',
+      pf_m1_x: 'Sur le site public de BMW, notre fondateur a mené un audit UX/UI complet et une analyse de données, puis refait les pages clés : +12 % d’engagement utilisateur.',
+      pf_m2_x: 'Notre fondateur a testé avec de vrais utilisateurs l’ancien parcours de réservation d’une plateforme de location de ski, restructuré le parcours, puis retesté les prototypes avant la passation : 15/20 de satisfaction sur mobile, 16/20 sur desktop.',
+      pf_m3_x: 'Vous recevez la grille des 12 contrôles avec vos fichiers, complétée et signée par le fondateur. Un point qui ne s’applique pas est marqué N/A.',
       s_dive_a: 'Un beau hero,<br>c’est la surface.',
       s_dive_b: 'Les détails vivent<br><em>en dessous.</em>',
       s_dive_c: 'La plupart des sites<br><em>ne descendent jamais ici.</em>',
       s_fox_a: 'Il faut encore quelqu’un<br>pour finir le travail.',
-      s_fox_line: 'Le fondateur vérifie chaque écran. Une couleur de peinture par chapitre, à partir d’ici.',
+      s_fox_line: 'Un avion peut voler tout seul. Un pilote humain reste rassurant.',
       details_headline: 'Chaque livraison passe les<br><em>12 mêmes contrôles.</em>',
-      s_checks_all: 'Les 12, ligne par ligne',
+      s_checks_title: 'Chaque livraison est vérifiée.<br><em>Et chaque détail est fait par un humain.</em>',
       s_check_close: 'Fermer',
       s_checks_lede: 'Vous recevez cette grille avec vos fichiers, complétée et signée par le fondateur. Un point qui ne s’applique pas est marqué « sans objet ».',
       s_ledger_sign: 'Vérifié à la main, fondateur',
@@ -199,6 +348,15 @@
       s_price_quote: 'devis fixe',
       s_pick_line: '{name} : {price}, {delivery}.',
       s_soon: 'Bientôt',
+      s_pricing_pay_home: 'Prix en dollars US, hors taxes applicables. Les formules se règlent à la commande.',
+      faq_payment_a_home: 'Vous commandez depuis la carte de la formule. La Refonte et la Création se règlent en totalité avant le jour 1, et chaque paiement donne lieu à une facture. Un projet sur devis se règle en deux fois : un acompte pour réserver les dates, le solde à la livraison. Les prix sont en dollars US, hors taxes applicables.',
+      faq_unhappy_a_home: 'Dites-le au jour 2, quand vous voyez la direction : nous la changeons avant de construire. Une fois la direction validée, vos allers-retours couvrent les changements dans le cadre du brief, pendant les 14 jours suivant la livraison.',
+      meta_desc_home: 'Refonte, UX et prototypes de produits IA à prix fixe, dès 390 $. Chaque projet est mené par le fondateur, fort de 12 ans d’expérience en produit et en UX. Chaque livraison passe le même contrôle en 12 points.',
+      doc_title_coaching: 'Coaching, bientôt disponible · v2 studio',
+      meta_desc_coaching: 'Une offre de coaching arrive bientôt. Revenez vite.',
+      s_coaching_title: 'Coaching —<br><em>bientôt disponible.</em>',
+      s_coaching_lede: 'Une offre de coaching arrive bientôt. Revenez vite.',
+      s_coaching_back: 'Retour à v2 studio',
       s_fig_step_1: 'Un téléphone, pour l’appel de lancement',
       s_fig_step_2: 'Une parabole pointée sur votre page',
       s_fig_step_3: 'Un cadenas : la direction se fixe au jour 2',
@@ -369,10 +527,10 @@
     d.querySelectorAll('[data-words]').forEach(splitWords);
     d.querySelectorAll('[data-reveal]').forEach((el) => { el.classList.remove('is-in'); wrapWords(el); });
     watchReveals();
-    const pageKey = ({ showcase: 'showcase', services: 'services', pricing: 'pricing', 'secret-touch': 'secret' })[SITE.page] || '';
+    const pageKey = ({ showcase: 'showcase', services: 'services', pricing: 'pricing', 'secret-touch': 'secret', coaching: 'coaching' })[SITE.page] || '';
     const title = (pageKey && t('doc_title_' + pageKey)) || t('doc_title_home') || t('meta_title');
     if (title) d.title = title;
-    const desc = pageKey ? t('meta_desc_' + pageKey) : t('meta_desc');
+    const desc = pageKey ? t('meta_desc_' + pageKey) : ((HOME_PAGE && t('meta_desc_home')) || t('meta_desc'));
     const meta = d.querySelector('meta[name="description"]');
     if (desc && meta) meta.setAttribute('content', desc);
     markNav();
@@ -434,7 +592,7 @@
       },
     },
   };
-  /* One of them is painted into this page in miniature: the real hero poster, an island, the aurora line, the rail, the fox and the checks. */
+  /* One of them is painted into this page in miniature: the real hero poster, the aurora line, the rail, the fox and the checks. */
   function renderTiles() {
     const host = $('tiles');
     if (!host) return;
@@ -530,32 +688,226 @@
     sameOrder = sameTiles.map((_, i) => ((i * 5 + 3) % count));
   }
 
-  /* The projects as stacked panels (2026-10-18): each one pins under the nav and the next slides over it
-     (agence-story.css). Count, figure, brand, what was done and the matching package, then the screenshot. */
-  function renderCases() {
-    const host = $('cases');
+  /* One flat mark per objective, the same language as the package icons: one colour, no outline, no extrusion. */
+  const HP_MARK = {
+    bmw: '<svg viewBox="0 0 64 48" aria-hidden="true" focusable="false"><rect x="2" y="26" width="36" height="15" rx="7.5" fill="#6edcb8"/><rect x="10" y="32" width="14" height="2.6" rx="1.3" fill="#f3f1f7"/><path fill="#f3f1f7" d="M21 29.5v9.36l2.39-2.39 2.91 5.82 1.88-.93-2.92-5.83H31.4z"/></svg>',
+    shiseido: '<svg viewBox="0 0 64 48" aria-hidden="true" focusable="false"><rect x="8" y="14" width="44" height="26" rx="7" fill="#f3f1f7"/><path d="M8 21a7 7 0 0 1 7-7h30a7 7 0 0 1 7 7v3H8z" fill="#f28eb4"/><rect x="16" y="30" width="16" height="3" rx="1.5" fill="#15190f" fill-opacity=".14"/><circle cx="50" cy="12" r="8" fill="#f3f1f7"/><circle cx="50" cy="12" r="6.2" fill="#1877F2"/><path d="M46.6 12.2l2.2 2.2 4.4-4.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    sg: '<svg viewBox="0 0 64 48" aria-hidden="true" focusable="false"><rect x="8" y="30" width="12" height="10" rx="3" fill="#f2c85e" fill-opacity=".4"/><rect x="26" y="20" width="12" height="20" rx="3" fill="#f2c85e" fill-opacity=".7"/><rect x="44" y="8" width="12" height="32" rx="3" fill="#f2c85e"/></svg>',
+  };
+  /* The proof strip under the hero buttons: the client's objective on each project (PROOF), then the entry price.
+     No percentages here. Those stay on #proof, lower on the page. */
+  function renderHeroProof() {
+    const host = $('hero-proof');
     if (!host) return;
-    const link = (n, offer) => {
-      const text = String(t('proof_link') || '').replace('{offer}', t(`proof_${n}_offer`));
-      return text ? `<a class="link-arrow case-link" href="#pricing" data-pick-offer="${esc(offer || 'refonte')}"><span>${esc(text.replace(/\s*→\s*$/, ''))}</span><span aria-hidden="true">→</span></a>` : '';
-    };
-    host.innerHTML = PROOF.map((p, i) => {
+    const one = (OFFERS.offers || []).filter((o) => o.cadence !== 'month' && Number(o.price) > 0).sort((a, b) => Number(a.price) - Number(b.price))[0];
+    const low = one ? Number(one.price) : 0;
+    const total = PROOF.length + (low ? 1 : 0);
+    const items = PROOF.map((p, i) => `<li style="--i:${i}"><button type="button" class="hp-item" data-i="${i}" aria-expanded="false" aria-controls="hp-panel"><span class="hp-mark" aria-hidden="true">${HP_MARK[p.caseId] || ''}</span><strong>${esc(t(`hp_g${i + 1}`))}</strong><i class="hp-bar" aria-hidden="true"></i></button></li>`);
+    if (low) items.push(`<li class="hp-from" style="--i:${PROOF.length}"><button type="button" class="hp-item" data-i="${PROOF.length}" aria-expanded="false" aria-controls="hp-panel"><strong><small>${esc(t('hp_from'))}</small> ${esc(price(low))}</strong><i class="hp-bar" aria-hidden="true"></i></button></li>`);
+    // the second level: one block per figure, stacked in one grid cell so the panel keeps the height of the tallest
+    const blocks = PROOF.map((p) => {
       const n = p.n;
+      const pkg = String(t('proof_link') || '').replace('{offer}', t(`proof_${n}_offer`)).replace(/\s*→\s*$/, '');
+      return `<div class="hpd"><p class="hpd-kick"><b>${esc(t(`proof_${n}_name`))}</b> · ${esc(t(`proof_${n}_kicker`))}</p>
+        <p class="hpd-do">${esc(t(`proof_${n}_done`))}</p>
+        <p class="hpd-src">${esc(t('hp_src'))}</p>
+        <p class="hpd-foot"><a class="link-arrow" href="#pricing" data-pick-offer="${esc(p.offer || 'refonte')}"><span>${esc(pkg)}</span><span aria-hidden="true">→</span></a><a class="link-arrow" href="/agence/showcase"><span>${esc(t('s_all_work'))}</span><span aria-hidden="true">→</span></a></p></div>`;
+    });
+    if (low) {
+      const name = pick(one.name) || t('proof_1_offer');
+      blocks.push(`<div class="hpd"><p class="hpd-kick"><b>${esc(name)}</b> · ${esc(price(low))}</p>
+        <dl class="hpd-facts"><div><dt>${esc(t('hp_d_pages'))}</dt><dd>${esc(pick(one.pages) || '')}</dd></div><div><dt>${esc(t('hp_d_delivery'))}</dt><dd>${esc(pick(one.delivery) || '')}</dd></div><div><dt>${esc(t('hp_d_rev'))}</dt><dd>${esc(pick(one.revisions) || '')}</dd></div></dl>
+        <p class="hpd-do">${esc(t('hp_d_scope'))}</p>
+        <p class="hpd-foot"><a class="link-arrow" href="#pricing" data-pick-offer="${esc(one.id || 'refonte')}"><span>${esc(t('hero_cta_primary'))}</span><span aria-hidden="true">→</span></a></p></div>`);
+    }
+    host.innerHTML = `<div class="hp-wrap"><ul class="hp-list" role="list" style="--n:${total}">${items.join('')}</ul>
+      <div class="hp-panel" id="hp-panel" role="region" aria-label="${esc(t('hp_panel_aria'))}" inert>${blocks.join('')}</div></div>`;
+    hpOpen = -1; hpPinned = -1;
+    hpBind(host);
+  }
+
+  /* The second level of the strip: hover (mouse) or tap/Enter opens a figure's detail in a panel under the strip. The
+     panel floats over the lines below it, so the headline above never moves. Tapping the open figure closes it, as do
+     Esc, a tap elsewhere and scrolling; a click pins it so the pointer can leave. Left and Right move between figures. */
+  let hpOpen = -1;
+  let hpPinned = -1;
+  let hpTimer = 0;
+  function hpSet(i) {
+    const host = $('hero-proof');
+    if (!host) return;
+    clearTimeout(hpTimer);
+    const items = host.querySelectorAll('.hp-item');
+    const blocks = host.querySelectorAll('.hpd');
+    const wrap = host.querySelector('.hp-wrap');
+    const panel = host.querySelector('.hp-panel');
+    if (i >= items.length) i = -1;
+    hpOpen = i;
+    if (i < 0) hpPinned = -1;
+    items.forEach((b, k) => b.setAttribute('aria-expanded', k === i ? 'true' : 'false'));
+    blocks.forEach((b, k) => b.classList.toggle('is-on', k === i));
+    host.classList.toggle('is-open', i >= 0);
+    if (i >= 0 && wrap) {
+      const r = items[i].getBoundingClientRect();
+      const w = wrap.getBoundingClientRect();
+      wrap.style.setProperty('--ax', Math.round(r.left - w.left + Math.min(r.width, 90) / 2) + 'px');
+    }
+    if (panel) panel.inert = i < 0;
+  }
+  function hpBind(host) {
+    if (host.dataset.bound === '1') return;
+    host.dataset.bound = '1';
+    const idx = (el) => Number(el.dataset.i);
+    host.addEventListener('pointerover', (e) => {
+      const b = e.target.closest && e.target.closest('.hp-item');
+      if (!b || e.pointerType !== 'mouse' || hpPinned >= 0) return;
+      clearTimeout(hpTimer);
+      hpTimer = setTimeout(() => hpSet(idx(b)), hpOpen >= 0 ? 0 : 90);
+    });
+    host.addEventListener('pointerleave', (e) => {
+      if (e.pointerType !== 'mouse' || hpPinned >= 0) return;
+      clearTimeout(hpTimer);
+      hpTimer = setTimeout(() => hpSet(-1), 220);
+    });
+    host.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') clearTimeout(hpTimer); });
+    host.addEventListener('click', (e) => {
+      const b = e.target.closest && e.target.closest('.hp-item');
+      if (!b) { if (e.target.closest && e.target.closest('.hp-panel a')) hpSet(-1); return; }
+      const i = idx(b);
+      if (hpOpen === i && hpPinned === i) { hpSet(-1); return; }
+      hpSet(i);
+      hpPinned = i;
+    });
+    host.addEventListener('keydown', (e) => {
+      const items = Array.from(host.querySelectorAll('.hp-item'));
+      const cur = items.indexOf(d.activeElement);
+      if (e.key === 'Escape' && hpOpen >= 0) {
+        e.preventDefault();
+        const keep = items[hpOpen];
+        hpSet(-1);
+        if (keep) keep.focus();
+      } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && cur >= 0) {
+        e.preventDefault();
+        const next = items[(cur + (e.key === 'ArrowRight' ? 1 : items.length - 1)) % items.length];
+        next.focus();
+        if (hpOpen >= 0) { hpSet(idx(next)); hpPinned = idx(next); }
+      }
+    });
+    d.addEventListener('click', (e) => { if (hpOpen >= 0 && !host.contains(e.target)) hpSet(-1); });
+    window.addEventListener('scroll', () => { if (hpOpen >= 0 && window.scrollY > 60) hpSet(-1); }, { passive: true });
+  }
+
+  /* The proof, without screenshots (2026-10-26): what people come for is what moved, what was done and how.
+     Results: the three reported figures, one per project (PROOF, copy in proof_N_*). Actions: what we do on a
+     page, from the package process. Methods: how we decide, each with the project or rule it comes from. The
+     interfaces (#reel) and the logos (#brands) follow. Nothing here is invented: every line is already a claim of
+     the process copy, the checks or a project's own data. */
+  /* The days of the five-day process each action lives on (Day 1 call and look, Day 2 direction, Days 3 to 5 build and check),
+     and one drawn glyph per method: evidence (bars under a lens), test and test again (a loop), AI for speed and a human for the finish (a spark and a pen). */
+  const PF_DAYS = [[1, 1], [1, 1], [2, 2], [3, 5]];
+  const PF_GLYPHS = [
+    '<svg viewBox="0 0 48 48"><g class="g-stroke"><path pathLength="1" d="M8 40V28M18 40V20M28 40V31"/><circle pathLength="1" cx="33" cy="17" r="8"/><path pathLength="1" d="M39 23l6 6"/></g><circle class="g-acc" cx="33" cy="17" r="3"/></svg>',
+    '<svg viewBox="0 0 48 48"><g class="g-stroke"><path pathLength="1" d="M9 22a15 15 0 0 1 27-8"/><path pathLength="1" d="M36 6v8h-8"/><path pathLength="1" d="M39 26a15 15 0 0 1-27 8"/><path pathLength="1" d="M12 42v-8h8"/></g><circle class="g-acc" cx="24" cy="24" r="3"/></svg>',
+    '<svg viewBox="0 0 48 48"><g class="g-stroke"><path pathLength="1" d="M17 8c1.4 6 3.4 8 9.4 9.4-6 1.4-8 3.4-9.4 9.4-1.4-6-3.4-8-9.4-9.4C13.6 16 15.6 14 17 8z"/><path pathLength="1" d="M27 41l14-14 4 4-14 14-6 2z"/></g><circle class="g-acc" cx="17" cy="17.4" r="2.6"/></svg>',
+  ];
+  function renderProof() {
+    const host = $('pf');
+    if (!host) return;
+    const plus = '<i class="pf-plus" aria-hidden="true"></i>';
+    const arrow = '<span aria-hidden="true">→</span>';
+    // Results (2026-10-27, visual, second pass): a lead card (the strongest figure, AGENCY_PROOF lead) and two side cards.
+    // Each stage shows the project's own screen on a lit floor with its name in a glass tag; the card carries the reported
+    // figure and a before/after dumbbell. All three share one 100 to 125 scale (index, before = 100), so the three lengths compare.
+    // Only the two reported numbers are drawn: nothing between them is invented, which is why it is a dumbbell and not a curve.
+    const TINTS = [['rgba(110, 220, 184, .26)', 'rgba(110, 180, 239, .14)'], ['rgba(177, 141, 243, .3)', 'rgba(242, 142, 180, .16)'], ['rgba(242, 200, 94, .24)', 'rgba(242, 142, 180, .14)']];
+    const res = PROOF.map((p, i) => ({ p, i })).sort((u, v) => (v.p.lead ? 1 : 0) - (u.p.lead ? 1 : 0)).map(({ p, i }, k) => {
+      const n = p.n;
+      const pkg = String(t('proof_link') || '').replace('{offer}', t(`proof_${n}_offer`)).replace(/\s*→\s*$/, '');
       const name = t(`proof_${n}_name`);
-      const kicker = t(`proof_${n}_kicker`);
-      return `<article class="case" style="--i:${i};--in:${reduced ? 1 : 0}">
-        <div class="case-body">
-          <p class="case-count">${pad(i + 1)} / ${pad(PROOF.length)}</p>
-          <p class="case-stat"><strong>${esc(t(`proof_${n}_stat`))}</strong><span>${esc(t(`proof_${n}_label`))}</span></p>
-          <h3 class="case-name">${esc(name)}</h3>
-          <p class="case-kicker">${esc(kicker)} · ${esc(t(`proof_${n}_years`))}</p>
-          <p class="case-done">${esc(t(`proof_${n}_done`))}</p>
-          ${link(n, p.offer)}
-        </div>
-        <figure class="case-shot${p.fit === 'contain' ? ' is-contain' : ''}"><span class="case-bar" aria-hidden="true"><i></i><i></i><i></i></span><img src="/images/${esc(p.image)}" alt="${esc(name)}, ${esc(kicker)}" loading="lazy" decoding="async" style="object-position:${esc(p.focus || 'center top')}"></figure>
-      </article>`;
+      const pct = Math.max(0, parseInt(String(t(`proof_${n}_stat`)).replace(/\D/g, ''), 10) || 0);
+      const x = Math.min(100, (pct / 25) * 100);
+      const tint = TINTS[i % TINTS.length];
+      const flat = p.caseId === 'shiseido';
+      return `<li class="pf-res${k === 0 ? ' is-lead' : ''}" style="--i:${k};--in:${reduced ? 1 : 0};--x:${x.toFixed(1)}%;--tint:${tint[0]};--tint2:${tint[1]};--zoom:${p.caseId === 'bmw' ? 1.3 : 1}">
+        <figure class="pf-shot${flat ? ' is-flat' : ''}">
+          <i class="pf-spot" aria-hidden="true"></i><i class="pf-floor" aria-hidden="true"></i>
+          <img src="/images/${esc(p.image)}" alt="${esc(name)}, ${esc(t(`proof_${n}_kicker`))}" loading="lazy" decoding="async">
+          <figcaption class="pf-tag"><b>${esc(name)}</b><span class="k"> · ${esc(t(`proof_${n}_kicker`))}</span></figcaption>
+        </figure>
+        <button type="button" class="pf-rb" aria-expanded="false" aria-controls="pf-r${n}">
+          <span class="pf-fig"><strong>${esc(t(`proof_${n}_stat`))}</strong></span>
+          <span class="pf-what">${esc(t(`proof_${n}_label`))}</span>
+          <span class="pf-dumb" role="img" aria-label="${esc(fillVars(t('pf_dumb_aria'), { a: 100, b: 100 + pct }))}">
+            <i class="pd-base"></i><i class="pd-line"></i><i class="pd-a"></i><i class="pd-b"></i>
+            <em class="pd-la"><b>100</b>${esc(t('pf_before'))}</em><em class="pd-lb"><b>${100 + pct}</b>${esc(t('pf_after'))}</em><em class="pd-le">125</em>
+          </span>${plus}
+        </button>
+        <div class="pf-more" id="pf-r${n}"><div class="pf-more-in"><p>${esc(t(`proof_${n}_done`))}</p><a class="link-arrow" href="#pricing" data-pick-offer="${esc(p.offer || 'refonte')}"><span>${esc(pkg)}</span>${arrow}</a></div></div>
+      </li>`;
     }).join('');
-    if (!reduced) observeIn(host.querySelectorAll('.case'));
+    // Actions: the step, its day in the process, and the detail of what happens that day
+    const actions = [1, 2, 3, 4].map((i) => `<li class="pf-item" style="--i:${i - 1};--in:${reduced ? 1 : 0}">
+        <span class="pf-no" aria-hidden="true">${pad(i)}</span>
+        <div class="pf-body">
+          <h4><button type="button" class="pf-q" aria-expanded="false" aria-controls="pf-a${i}"><span class="pf-qt">${esc(t(`pf_a${i}_t`))}</span><span class="pf-day"><span class="sr-only">${esc(t(`pf_a${i}_day`))}</span><span class="pf-gauge" aria-hidden="true">${[1, 2, 3, 4, 5].map((dd) => `<i${dd >= PF_DAYS[i - 1][0] && dd <= PF_DAYS[i - 1][1] ? ' class="on"' : ''}>${dd}</i>`).join('')}</span></span>${plus}</button></h4>
+          <p>${esc(t(`pf_a${i}_d`))}</p>
+          <div class="pf-more" id="pf-a${i}"><div class="pf-more-in"><p>${esc(t(`pf_a${i}_x`))}</p></div></div>
+        </div>
+      </li>`).join('');
+    // Methods: the rule, where it was proven, and the detail of that proof
+    const methods = [1, 2, 3].map((i) => `<li class="pf-item pf-item--m" style="--i:${i - 1};--in:${reduced ? 1 : 0}">
+        <span class="pf-glyph" aria-hidden="true">${PF_GLYPHS[i - 1]}</span>
+        <div class="pf-body">
+          <h4><button type="button" class="pf-q" aria-expanded="false" aria-controls="pf-m${i}"><span class="pf-qt">${esc(t(`pf_m${i}_t`))}</span>${plus}</button></h4>
+          <p>${esc(t(`pf_m${i}_d`))}</p>
+          <p class="pf-from">${esc(t(`pf_m${i}_p`))}</p>
+          <div class="pf-more" id="pf-m${i}"><div class="pf-more-in"><p>${esc(t(`pf_m${i}_x`))}</p></div></div>
+        </div>
+      </li>`).join('');
+    host.innerHTML = `<section class="pf-block" aria-labelledby="pf-h-res">
+        <h3 class="pf-label" id="pf-h-res">${esc(t('pf_results'))}</h3>
+        <ol class="pf-res-list">${res}</ol>
+      </section>
+      <div class="pf-cols">
+        <section class="pf-block" aria-labelledby="pf-h-act">
+          <h3 class="pf-label" id="pf-h-act">${esc(t('pf_actions'))}</h3>
+          <p class="pf-lede">${esc(t('pf_actions_lede'))}</p>
+          <ol class="pf-list">${actions}</ol>
+        </section>
+        <section class="pf-block" aria-labelledby="pf-h-met">
+          <h3 class="pf-label" id="pf-h-met">${esc(t('pf_methods'))}</h3>
+          <p class="pf-lede">${esc(t('pf_methods_lede'))}</p>
+          <ul class="pf-list pf-list--m">${methods}</ul>
+        </section>
+      </div>`;
+    if (!reduced) observeIn(host.querySelectorAll('.pf-res, .pf-item'));
+    if (host.dataset.bound !== '1') {
+      host.dataset.bound = '1';
+      if (!reduced && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        // the screen leans a few degrees toward the pointer, and settles when it leaves
+        host.addEventListener('pointermove', (e) => {
+          const st = e.target.closest && e.target.closest('.pf-shot');
+          if (!st) return;
+          const r = st.getBoundingClientRect();
+          const px = (e.clientX - r.left) / r.width - 0.5;
+          const py = (e.clientY - r.top) / r.height - 0.5;
+          st.style.setProperty('--ry', (px * 9).toFixed(2) + 'deg');
+          st.style.setProperty('--rx', (-py * 7).toFixed(2) + 'deg');
+        });
+        host.addEventListener('pointerout', (e) => {
+          const st = e.target.closest && e.target.closest('.pf-shot');
+          if (st && !st.contains(e.relatedTarget)) { st.style.removeProperty('--ry'); st.style.removeProperty('--rx'); }
+        });
+      }
+      // one handler for the three lists (the host stays when the language redraws its content)
+      host.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('.pf-q, .pf-rb');
+        if (!b) return;
+        const box = b.closest('.pf-item, .pf-res');
+        const open = !box.classList.contains('is-open');
+        box.classList.toggle('is-open', open);
+        b.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    }
   }
 
   /* The ways to work with us (2026-10-19): a quiet list instead of four tiles. One row per offer: the drawn scene
@@ -567,7 +919,7 @@
     if (!host) return;
     const sec = host.closest('.services');
     const full = !!sec && sec.classList.contains('page-stack');
-    const rows = full ? SERVICES : SERVICES.filter((s) => s.n !== 2);
+    const rows = full ? SERVICES : SERVICES.filter((s) => s.n !== 2 && !(HOME_PAGE && s.offer === HOME_HIDDEN_OFFER));
     host.innerHTML = rows.map((s) => {
       const n = s.n;
       /* "Redesign, flow option · $390": the label is the name, the price goes beside it */
@@ -609,6 +961,23 @@
     11: '<svg viewBox="0 0 64 64"><g class="g-stroke"><rect x="8" y="12" width="48" height="40" rx="5"/><path d="M8 34h48M14 41h18M14 47h26"/></g><path class="g-acc" d="M14 29l8-9 8 7 6-5 10 7v5H14z"/></svg>',
     12: '<svg viewBox="0 0 64 64"><path class="g-acc" d="M32 10c2 11 5 14 16 16-11 2-14 5-16 16-2-11-5-14-16-16 11-2 14-5 16-16z" opacity=".6"/><g class="g-stroke"><path d="M14 50L50 14"/></g></svg>',
   };
+  /* One small interface per check (2026-10-26): what the rule looks like once it is applied. Shown on the back of the
+     cell with the rule under it (agence-story.css, "The 12 checks, shown in an interface"). Fictional product UI,
+     decorative (aria-hidden), in English like the playground interfaces; the title and the rule carry the text. */
+  const CHECK_DEMOS = {
+    1: '<span class="d d1"><span class="hd"><b>Invoices</b><span class="seg"><span>Empty</span><span>Loading</span><span>Error</span><span>Done</span></span></span><span class="bd"><span class="st st-e"><i class="ic"></i><b>No invoices yet</b><span class="sm">Create one and get paid faster.</span><span class="bt">New invoice</span></span><span class="st st-l"><span class="lr"><i class="sk"></i><span class="ls"><i class="sk"></i><i class="sk"></i></span></span><span class="lr"><i class="sk"></i><span class="ls"><i class="sk"></i><i class="sk"></i></span></span><span class="lr"><i class="sk"></i><span class="ls"><i class="sk"></i><i class="sk"></i></span></span></span><span class="st st-x"><i class="ic"></i><b>Couldn’t load invoices</b><span class="sm">Check your connection.</span><span class="bt">Try again</span></span><span class="st st-o"><span class="rw"><i class="av">AS</i><b class="nm">Acme Studio</b><b class="am">$420</b><span class="pl">Paid</span></span><span class="rw"><i class="av">SN</i><b class="nm">Studio N</b><b class="am">$1,180</b><span class="pl">Paid</span></span><span class="rw"><i class="av">OL</i><b class="nm">Orbit Labs</b><b class="am">$760</b><span class="pl due">Due</span></span></span></span></span>',
+    2: '<span class="d d2"><b class="ti">Get the brief</b><span class="fld"><span>Work email</span><span class="fl">you@company.com</span></span><span class="bt"><span class="was">Submit</span><span class="now">Send my brief</span></span><span class="nt"><i></i>We reply within one business day.</span></span>',
+    3: '<span class="d d3"><span class="r"><i class="av">AL</i><span class="nm"><b>Ana Li</b></span><span class="am">$480</span></span><span class="r hot"><i class="av">JM</i><span class="nm"><b>Jean-Baptiste de Montmorency-Laval</b></span><span class="am">$12,480.00</span></span><span class="r"><i class="av">PN</i><span class="nm"><b>Priya N.</b></span><span class="am">$96</span></span><em class="tg">Longest name · longest price</em></span>',
+    4: '<span class="d d4"><span class="ph"><i class="zone"></i><b>Cart</b><span class="it"><i></i><span class="ln"></span></span><span class="it"><i></i><span class="ln s"></span></span><span class="bt">Checkout</span></span><span class="lg"><span><i class="g"></i>Easy reach</span><span><i class="a"></i>Stretch</span><span><i class="r"></i>Hard</span></span><span class="br"><em>44 px tap target</em></span></span>',
+    5: '<span class="d d5"><span class="hd"><b>Your details</b><span class="key">Tab</span></span><span class="f i1"><i class="n">1</i>Ada Lovelace</span><span class="f i2"><i class="n">2</i>ada@analytical.io</span><span class="bt i3"><i class="n">3</i>Continue</span></span>',
+    6: '<span class="d d6"><span class="pr"><span class="sw bad"><b>Aa</b><em>2.3 : 1</em></span><span class="sw good"><b>Aa</b><em>8.6 : 1 · AA</em></span></span><span class="photo"><b>Spring sale</b><span class="bt">Shop now</span></span></span>',
+    7: '<span class="d d7"><span class="lb">Email</span><span class="in"><span>hugo@studio</span><i class="cr"></i></span><span class="msg"><i class="wn">!</i><span>Add the part after the @, like name@company.com</span></span><span class="kb"><span class="kr"><i>q</i><i>w</i><i>e</i><i>r</i><i>t</i><i>y</i><i>u</i><i>i</i><i>o</i><i>p</i></span><span class="kr k2"><i class="hl">@</i><i class="sp">space</i><i class="hl">.</i><i class="hl">.com</i></span></span></span>',
+    8: '<span class="d d8"><i class="gr"></i><span class="sp"><em>Spacing</em><span class="bars"><i style="--n:1"></i><i style="--n:2"></i><i style="--n:4"></i><i style="--n:6"></i><i style="--n:8"></i></span><em>4 8 16 24 32</em></span><span class="ty"><em>Type</em><span class="t1">Heading<em>28</em></span><span class="t2">Subhead<em>20</em></span><span class="t3">Body<em>16</em></span><span class="t4">Caption<em>12</em></span></span></span>',
+    9: '<span class="d d9"><span class="im"><i class="pic"></i><i class="sk"></i><em>16 : 9 · reserved</em></span><b>Winter collection</b><span class="ln"></span><span class="ln s"></span></span>',
+    10: '<span class="d d10"><span class="rw"><b>Reduce motion</b><span class="sw"><i class="kn"></i></span></span><span class="st"><i class="ball"></i></span><span class="nt"><i class="ok">✓</i><span>Animation stops. Actions still work.</span></span></span>',
+    11: '<span class="d d11"><span class="bub"><span class="lk">yourbrand.com/redesign</span><span class="cd"><span class="im"><i class="sh"></i></span><span class="mt"><em>yourbrand.com</em><b>Redesign in 5 days, fixed price</b><span>Prices on the page, scope on the card.</span></span></span></span><span class="chips"><span class="chip"><i></i>Title</span><span class="chip"><i></i>Description</span><span class="chip"><i></i>Image</span></span></span>',
+    12: '<span class="d d12"><span class="ly a"><span class="nv"><i></i><b>Nova</b><span>Features</span><span>Pricing</span><span class="bt">Get started</span></span><i class="orb"></i><h5>Unlock the power of AI</h5><span class="sm">Supercharge your workflow today.</span><span class="bt">Get started</span></span><span class="ly b"><span class="nv"><i></i><b>Maison Verde</b><span>Menu</span><span>Contact</span><span class="bt">Book a table</span></span><h5>Dinner, before the 6 pm rush</h5><span class="sm">Seats at 17:30 and 19:00 in Lyon.</span><span class="bt">Book a table</span><i class="plate"></i></span><i class="wp"></i></span>',
+  };
   /* The 12 checks as a contact sheet (2026-10-19): twelve square cells on one paper sheet, each with its glyph,
      number and name. The brush stamps the cells in reading order as the sheet comes up (drawChecks); hover,
      focus or a tap turns a cell over to read the rule. Home and /agence/secret-touch share this. */
@@ -625,12 +994,52 @@
           <span class="ck-n">${pad(i)}</span>
           <span class="ck-title">${esc(t(`check_${i}_title`))}</span>
         </button>
-        <p class="ck-desc" id="ckd-${i}"><span class="ck-desc-n" aria-hidden="true">${pad(i)}</span>${esc(t(`check_${i}_desc`))}</p>
+        <div class="ck-desc" id="ckd-${i}">
+          <span class="ck-demo" aria-hidden="true">${CHECK_DEMOS[i] || ''}</span>
+          <p class="ck-rule"><b class="ck-rule-t"><span class="ck-desc-n" aria-hidden="true">${pad(i)}</span>${esc(t(`check_${i}_title`))}</b><span class="ck-rule-d">${esc(t(`check_${i}_desc`))}</span></p>
+        </div>
       </li>`;
     }
     host.innerHTML = html;
     checkRows = Array.from(host.children);
     lastTally = -1;
+    // The glyphs draw themselves when the brush stamps their cell: every stroke gets a normalised length (dashed
+    // strokes keep their dashes), and the accent shapes pop in after the lines. The CSS only applies once marked.
+    if (!reduced) {
+      host.querySelectorAll('.ck-glyph').forEach((g) => {
+        g.querySelectorAll('.g-stroke > :not([stroke-dasharray])').forEach((n) => n.setAttribute('pathLength', '1'));
+        g.classList.add('is-draw');
+      });
+    }
+    if (host.dataset.bound !== '1') {
+      host.dataset.bound = '1';
+      // arrow keys walk the grid, Esc folds an open cell back, a tap elsewhere does too
+      host.addEventListener('keydown', (e) => {
+        const keys = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 0, ArrowUp: 0 };
+        if (e.key === 'Escape') {
+          const open = checkRows.find((r) => r.classList.contains('is-open'));
+          if (open) { e.preventDefault(); openCheck(open, false); const b = open.querySelector('.ck-btn'); if (b) b.focus(); }
+          return;
+        }
+        if (!(e.key in keys)) return;
+        const cur = checkRows.findIndex((r) => r.contains(d.activeElement));
+        if (cur < 0) return;
+        const cols = Math.max(1, getComputedStyle(host).gridTemplateColumns.split(' ').length);
+        const step = e.key === 'ArrowDown' ? cols : e.key === 'ArrowUp' ? -cols : keys[e.key];
+        const nxt = cur + step;
+        if (nxt < 0 || nxt >= checkRows.length) return;
+        e.preventDefault();
+        const wasOpen = checkRows[cur].classList.contains('is-open');
+        const b = checkRows[nxt].querySelector('.ck-btn');
+        if (b) b.focus();
+        if (wasOpen) openCheck(checkRows[nxt], true);
+      });
+      d.addEventListener('click', (e) => {
+        if (e.target.closest && e.target.closest('.ck')) return;
+        const open = checkRows.find((r) => r.classList.contains('is-open'));
+        if (open) openCheck(open, false);
+      });
+    }
   }
 
   /* One small stroke icon per "Included" line (offer.includes_icons, same order as includes; unknown or missing = check). */
@@ -658,9 +1067,14 @@
   };
   const inclIcon = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${INCL_ICONS[k] || INCL_ICONS.check}</svg>`;
   const CALENDLY = typeof AGENCY_CALENDLY === 'string' ? AGENCY_CALENDLY : 'https://calendly.com/chilka-v/30min';
-  /* "$390", "$90/month", "from $2,500" */
+  /* "$390", "$90/month", "from $2,500" on the pricing cards. */
   function priceLine(o) {
     if (o.cadence === 'quote') return t('s_price_from') + ' ' + price(o.price);
+    return price(o.price) + (o.cadence === 'month' ? t('price_month') : '');
+  }
+  /* The dialog tile shows the number only. A quote is "$2,500", never "from $2,500". */
+  function pkgAmount(o) {
+    if (!o || o.price == null || o.price === '') return '';
     return price(o.price) + (o.cadence === 'month' ? t('price_month') : '');
   }
 
@@ -684,7 +1098,7 @@
     // Monthly offers (coaching) are not a package: they get their own band under the grid (renderCoach).
     const packages = (OFFERS.offers || []).filter((o) => o.cadence !== 'month');
     host.style.setProperty('--cols', packages.length);
-    host.innerHTML = packages.map((o) => {
+    host.innerHTML = packages.map((o, pi) => {
       const monthly = o.cadence === 'month';
       const quote = o.cadence === 'quote';
       const icons = Array.isArray(o.includes_icons) ? o.includes_icons : [];
@@ -718,12 +1132,16 @@
       // The facts row: a value equal to the one before it ("Set in the quote" twice) is shown once.
       const delivery = pick(o.delivery);
       const revisions = monthly ? '' : pick(o.revisions);
+      // What a revision round means is the second level of the "Revisions" cell: an info button opens the written detail under the facts.
+      const revDetail = monthly ? '' : tidy(pick(o.revisions_detail) || '');
+      const revInfo = revDetail ? `<button type="button" class="price-info" aria-expanded="false" aria-controls="px-${esc(o.id)}" aria-label="${esc(t('px_rev_info'))}"><i aria-hidden="true">i</i></button>` : '';
       const facts = [
         pages ? [t('s_price_pages'), esc(pages)] : null,
         [t('price_delivery'), esc(delivery) + (deliveryDetail ? `<small>${esc(tidy(deliveryDetail))}</small>` : '')],
-        revisions && revisions !== delivery ? [t('price_revisions'), esc(revisions)] : null,
+        revisions && revisions !== delivery ? [t('price_revisions'), esc(revisions) + revInfo] : null,
       ].filter(Boolean);
-      return `<article class="price${o.highlighted ? ' is-featured' : ''}${quote ? ' is-quote' : ''}${soon ? ' is-soon' : ''}" data-card="${esc(o.id)}">
+      const hasRevInfo = !!revInfo && revisions !== delivery;
+      return `<article class="price${o.highlighted ? ' is-featured' : ''}${quote ? ' is-quote' : ''}${soon ? ' is-soon' : ''}" data-card="${esc(o.id)}" style="--i:${pi};--in:${reduced ? 1 : 0}">
         <header class="price-top">
           <h3 class="price-name">${esc(pick(o.name))}${soonTag(o.id)}</h3>
           ${o.highlighted ? `<span class="price-tag">${esc(t('price_featured_tag'))}</span>` : ''}
@@ -733,6 +1151,7 @@
         <dl class="price-meta" style="--n:${facts.length}">
           ${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('')}
         </dl>
+        ${hasRevInfo ? `<div class="px-more" id="px-${esc(o.id)}"><div class="px-more-in"><p>${esc(revDetail)}</p></div></div>` : ''}
         ${switcher}
         ${shown.length ? `<ul class="price-incl">${shown.join('')}</ul>` : ''}
         ${foldBody ? `<details class="price-more"><summary>${esc(foldLabel)}</summary>${foldBody}</details>` : ''}
@@ -741,16 +1160,30 @@
         </div>
       </article>`;
     }).join('');
+    if (!reduced) observeIn(host.querySelectorAll('.price'));
+    if (host.dataset.bound !== '1') {
+      host.dataset.bound = '1';
+      // the info button of a card opens or closes the written detail of its revision rounds
+      host.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('.price-info');
+        if (!b) return;
+        const card = b.closest('.price');
+        const open = !card.classList.contains('is-info');
+        card.classList.toggle('is-info', open);
+        b.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    }
 
     const addons = $('addons');
     if (addons) {
-      addons.innerHTML = (OFFERS.addons || []).map((a) => {
+      addons.innerHTML = (OFFERS.addons || []).map((a, ai) => {
         const coaching = Array.isArray(a.for) && a.for.length === 1 && a.for[0] === 'accompagnement';
-        return `<li><span class="ad-name">${esc(tidy(pick(a.name)))}${soonTag(a.id)}</span><span class="ad-for">${esc(t(coaching ? 's_addon_for_coaching' : 's_addon_for'))}</span><strong>${esc(price(a.price))}</strong></li>`;
+        return `<li style="--i:${ai};--in:${reduced ? 1 : 0}"><span class="ad-name">${esc(tidy(pick(a.name)))}${soonTag(a.id)}</span><span class="ad-for">${esc(t(coaching ? 's_addon_for_coaching' : 's_addon_for'))}</span><strong>${esc(price(a.price))}</strong></li>`;
       }).join('');
     }
     const note = $('addons-note');
     if (note) note.textContent = t('s_addons_hint');
+    if (addons && !reduced) observeIn(addons.querySelectorAll('li'));
     renderOrderSteps();
     renderCoach(pay);
   }
@@ -788,8 +1221,10 @@
     const keys = paid ? ['s_step_pay_1', 's_step_pay_2', 's_step_pay_3'] : ['s_step_req_1', 's_step_req_2', 's_step_req_3'];
     host.innerHTML = `<h3 class="os-title">${esc(t('s_steps_title'))}</h3><ol class="os-list">${keys.map((k, i) => {
       const [title, body] = tlist(k);
-      return `<li><span class="os-n" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span><b>${esc(title || '')}</b><span class="os-body">${esc(body || '')}</span></li>`;
+      return `<li style="--i:${i};--in:${reduced ? 1 : 0}"><span class="os-n" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span><b>${esc(title || '')}</b><span class="os-body">${esc(body || '')}</span></li>`;
     }).join('')}</ol>`;
+    // the rail draws itself step after step as the block scrolls in
+    if (!reduced) observeIn(host.querySelectorAll('.os-list li'));
   }
   function setCardTrack(offerId, trackId) {
     const o = (OFFERS.offers || []).find((x) => x.id === offerId);
@@ -803,7 +1238,13 @@
       b.tabIndex = on ? 0 : -1;
     });
     const list = card.querySelector('[data-track-list]');
-    if (list) list.innerHTML = trackLines(o, trackId);
+    if (list) {
+      list.innerHTML = trackLines(o, trackId);
+      // the four lines of the other track settle in instead of snapping (the CSS plays only without a reduced-motion request)
+      list.classList.remove('is-swap');
+      void list.offsetWidth;
+      list.classList.add('is-swap');
+    }
     const cta = card.querySelector('[data-order]');
     if (cta) cta.dataset.track = trackId;
   }
@@ -913,18 +1354,60 @@
     });
   }
 
+  /* Where an answer sends you next (its second level): the section that holds the detail, the brief form or the call.
+     On the sub-pages the anchors go through /agence. */
+  const FAQ_LINKS = {
+    new: ['fq_go_founder', '#founder'], scope: ['fq_go_packages', '#pricing'], clock: ['fq_go_order', '#pricing'],
+    revision: ['fq_go_packages', '#pricing'], generic: ['fq_go_checks', '#details'], who: ['fq_go_founder', '#founder'],
+    inputs: ['fq_go_brief', 'dialog'], payment: ['fq_go_packages', '#pricing'], unhappy: ['fq_go_call', 'call'], bigger: ['fq_go_call', 'call'],
+  };
   function renderFaq() {
     const host = $('faq-list');
     if (!host) return;
-    host.innerHTML = FAQ.map((slug) => {
+    const rows = FAQ.filter((slug) => !(HOME_PAGE && slug === 'cancel')).map((slug, i) => {
       const q = t(`faq_${slug}_q`);
       if (!q) return '';
       const id = 'faq-p-' + slug;
-      return `<div class="qa" id="faq-${esc(slug)}">
+      const a = (HOME_PAGE && t(`faq_${slug}_a_home`)) || t(`faq_${slug}_a`);
+      const go = FAQ_LINKS[slug];
+      let next = '';
+      if (go) {
+        const label = esc(t(go[0]));
+        if (go[1] === 'dialog') next = `<button type="button" class="link-arrow qa-go" data-offer=""><span>${label}</span><span aria-hidden="true">→</span></button>`;
+        else if (go[1] === 'call') next = `<a class="link-arrow qa-go" href="${esc(CALENDLY)}" target="_blank" rel="noopener noreferrer"><span>${label}</span><span aria-hidden="true">→</span></a>`;
+        else next = `<a class="link-arrow qa-go" href="${HOME_PAGE ? '' : '/agence'}${esc(go[1])}"><span>${label}</span><span aria-hidden="true">→</span></a>`;
+      }
+      return `<div class="qa" id="faq-${esc(slug)}" data-s="${esc((q + ' ' + a).toLowerCase())}" style="--i:${i};--in:${reduced ? 1 : 0}">
         <h3 class="qa-h"><button type="button" class="qa-q" aria-expanded="false" aria-controls="${id}"><span>${esc(q)}</span><i class="qa-ico" aria-hidden="true"></i></button></h3>
-        <div class="qa-panel" id="${id}" inert><div class="qa-inner"><p>${esc(t(`faq_${slug}_a`))}</p></div></div>
+        <div class="qa-panel" id="${id}" inert><div class="qa-inner"><p>${esc(a)}</p>${next ? `<p class="qa-next">${next}</p>` : ''}</div></div>
       </div>`;
     }).join('');
+    // a search box over the list: the rows that do not match fold away, and an empty result points to the form
+    host.innerHTML = `<div class="qa-search"><label class="sr-only" for="faq-search">${esc(t('fq_search'))}</label>
+        <input id="faq-search" type="search" autocomplete="off" enterkeyhint="search" placeholder="${esc(t('fq_search'))}"><span class="qa-count" id="faq-count" aria-live="polite"></span></div>${rows}
+      <p class="qa-empty" id="faq-empty" hidden>${esc(t('fq_empty'))} <button type="button" class="link-arrow qa-go" data-offer=""><span>${esc(t('fq_go_brief'))}</span><span aria-hidden="true">→</span></button></p>`;
+    if (!reduced) observeIn(host.querySelectorAll('.qa'));
+    if (host.dataset.bound !== '1') {
+      host.dataset.bound = '1';
+      const filter = (v) => {
+        const words = String(v || '').toLowerCase().split(/\s+/).filter(Boolean);
+        const all = host.querySelectorAll('.qa');
+        let shown = 0;
+        all.forEach((r) => {
+          const hit = !words.length || words.every((w) => (r.dataset.s || '').includes(w));
+          r.hidden = !hit;
+          if (hit) shown++;
+        });
+        const empty = $('faq-empty');
+        if (empty) empty.hidden = shown > 0;
+        const count = $('faq-count');
+        if (count) count.textContent = words.length ? fillVars(t('fq_count'), { n: shown, total: all.length }) : '';
+      };
+      host.addEventListener('input', (e) => { if (e.target.id === 'faq-search') filter(e.target.value); });
+      host.addEventListener('keydown', (e) => {
+        if (e.target.id === 'faq-search' && e.key === 'Escape' && e.target.value) { e.target.value = ''; filter(''); e.stopPropagation(); }
+      });
+    }
   }
 
   function renderPortraitRing() {
@@ -939,12 +1422,66 @@
     }).join('');
   }
 
+  /* One small night tile per package, the same ink drawings as the service rows, scaled to a thumbnail.
+     Decorative: the name, the price and the line say what the offer is. */
+  const PKG_ART = {
+    refonte: '<svg viewBox="0 0 48 36" fill="none" aria-hidden="true" focusable="false"><rect x="5" y="6" width="26" height="20" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M5 12h26" stroke="currentColor" stroke-width="1.4"/><path d="M10 17h11M10 21h7" stroke="rgba(243,241,247,.5)" stroke-width="1.4" stroke-linecap="round"/><path d="M28 20c5-1 8 2 11 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M36 24.5l3.2 1.4-2.2 2.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    creation: '<svg viewBox="0 0 48 36" fill="none" aria-hidden="true" focusable="false"><rect x="8" y="8" width="32" height="20" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M14 16h12M14 20h8" stroke="rgba(243,241,247,.55)" stroke-width="1.4" stroke-linecap="round"/><rect x="28" y="18" width="8" height="5" rx="2.5" fill="currentColor"/><path d="M38 6c.6 2.4 1.4 3.2 3.8 3.8-2.4.6-3.2 1.4-3.8 3.8-.6-2.4-1.4-3.2-3.8-3.8 2.4-.6 3.2-1.4 3.8-3.8z" fill="currentColor"/></svg>',
+    accompagnement: '<svg viewBox="0 0 48 36" fill="none" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="5" stroke="currentColor" stroke-width="1.6"/><circle cx="32" cy="16" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M12 28c1.2-4 3.2-6 6-6s4.8 2 6 6" stroke="rgba(243,241,247,.55)" stroke-width="1.5" stroke-linecap="round"/><path d="M26 28c1.2-4 3.2-6 6-6s4.8 2 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    custom: '<svg viewBox="0 0 48 36" fill="none" aria-hidden="true" focusable="false"><rect x="14" y="8" width="20" height="22" rx="2" stroke="rgba(243,241,247,.4)" stroke-width="1.4"/><rect x="10" y="6" width="20" height="22" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M14 12h12M14 16h9M14 20h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    unsure: '<svg viewBox="0 0 48 36" fill="none" aria-hidden="true" focusable="false"><path d="M8 26C16 26 18 10 24 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M24 10c6 0 8 16 16 16" stroke="rgba(243,241,247,.45)" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2.5 3"/><circle cx="24" cy="10" r="2.4" fill="currentColor"/><circle cx="8" cy="26" r="2" fill="currentColor"/><circle cx="40" cy="26" r="2" stroke="currentColor" stroke-width="1.4"/></svg>',
+  };
+  /* The package art is the icon set in agence-order-art.js. The line drawings above are the fallback if that script has not loaded. */
+  function pkgArt(id) {
+    const A = window.agenceOrderArt;
+    if (!A || typeof A.icon !== 'function') return PKG_ART[id] || '';
+    return A.icon(id);
+  }
+  const PKG_PIG = { refonte: 'var(--holo-1)', creation: 'var(--holo-2)', accompagnement: 'var(--holo-3)', custom: 'var(--holo-5)', unsure: 'var(--holo-4)' };
+  function offerBlurb(o) {
+    if (!o) return '';
+    const pages = pick(o.pages);
+    const delivery = pick(o.delivery);
+    return [pages, delivery].filter(Boolean).join(' · ');
+  }
+  function syncOfferPicks() {
+    const sel = $('f-offer');
+    const host = $('f-offer-picks');
+    if (!sel || !host) return;
+    host.querySelectorAll('input').forEach((inp) => { inp.checked = inp.value === sel.value; });
+  }
   function renderOfferOptions() {
     const sel = $('f-offer');
     if (!sel) return;
     const cur = sel.value;
     sel.innerHTML = OFFER_IDS.map((id) => `<option value="${esc(id)}">${esc((t(`contact_opt_${id}`) || id) + (SOON.has(id) ? ' · ' + t('s_soon') : ''))}</option>`).join('');
-    if (cur) sel.value = cur;
+    if (cur && OFFER_IDS.includes(cur)) sel.value = cur;
+    else if (!sel.value) sel.value = OFFER_IDS[0];
+    const host = $('f-offer-picks');
+    if (host) {
+      const chosen = sel.value;
+      host.innerHTML = OFFER_IDS.map((id) => {
+        const o = (OFFERS.offers || []).find((x) => x.id === id);
+        const name = o ? (pick(o.name) || t(`contact_opt_${id}`) || id) : (t(`contact_opt_${id}`) || id);
+        const line = o ? offerBlurb(o) : t('mail_price_unsure');
+        const amount = o ? pkgAmount(o) : '';
+        const soon = SOON.has(id) ? `<span class="soon">${esc(t('s_soon'))}</span>` : '';
+        return `<label class="pkg" style="--pig:${PKG_PIG[id] || 'var(--holo-3)'}">
+          <input type="radio" name="offer-pick" value="${esc(id)}"${id === chosen ? ' checked' : ''}>
+          <span class="pkg-art" aria-hidden="true">${pkgArt(id)}</span>
+          <span class="pkg-copy"><span class="pkg-name">${esc(name)}${soon}</span>${line ? `<span class="pkg-line">${esc(line)}</span>` : ''}</span>
+          ${amount ? `<span class="pkg-price">${esc(amount)}</span>` : ''}
+        </label>`;
+      }).join('');
+      if (!host.dataset.bound) {
+        host.dataset.bound = '1';
+        host.addEventListener('change', (e) => {
+          const inp = e.target.closest('input');
+          if (inp && sel) sel.value = inp.value;
+        });
+      }
+    }
+    paintContactStep();
   }
 
   function renderChatSuggestions() {
@@ -1043,19 +1580,136 @@
     }
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
-        if (!e.isIntersecting) return;
+        if (!hasEntered(e)) return;
         e.target.classList.add('is-in');
         io.unobserve(e.target);
       });
     }, { threshold: 0.22, rootMargin: '0px 0px -8% 0px' });
-    cards.forEach((c) => io.observe(c));
+    cards.forEach((c) => {
+      io.observe(c);
+      watchPassed(c, () => { c.classList.add('is-in'); io.unobserve(c); });
+    });
+  }
+
+  /* The founder's four facts, second level (2026-10-27). Each fact (#facts .fx-btn, static in agence.html so the counters
+     and their data-t keys stay as they were) opens one shared panel under the row: the career line from AGENCY_BRANDS
+     (every employer and year, before v2 studio), the agency years, the products and where each stands, the Creads.io
+     figures. One open at a time; the panel grows from 0 and tweens its height from one fact to the next. */
+  const FX_PRODUCTS = [['Creads.io', 'status_launched'], ['Flemme OS', 'status_functional'], ['UXfi', 'status_prototype'], ['Jarvos', 'status_in_progress']];
+  let fxOpen = -1;
+  let fxMarked = false;
+  function fxBlock(i) {
+    if (i === 0) {
+      const all = typeof AGENCY_BRANDS !== 'undefined' && Array.isArray(AGENCY_BRANDS) ? AGENCY_BRANDS : [];
+      const rows = all.slice().sort((a, b) => parseInt(a.years, 10) - parseInt(b.years, 10))
+        .map((b, k) => `<li style="--k:${k}"><span class="fx-y">${esc(b.years)}</span><span class="fx-c"><b>${esc(b.name)}</b><small>${esc(pick(b.role) || '')}</small></span></li>`).join('');
+      return `<p class="fx-lede">${esc(t('fx_1_lede'))}</p><ol class="fx-line">${rows}</ol>`;
+    }
+    if (i === 1) return `<p>${esc(t('fx_2'))}</p>`;
+    if (i === 2) return `<p class="fx-lede">${esc(t('fx_3_lede'))}</p><ul class="fx-prod">${FX_PRODUCTS.map(([n, k], j) => `<li style="--k:${j}"><b>${esc(n)}</b><span>${esc(t(k))}</span></li>`).join('')}</ul>`;
+    return `<p>${esc(t('fx_4'))}</p>`;
+  }
+  function fxSet(i) {
+    const box = $('fx-panel');
+    const body = $('fx-body');
+    const facts = $('facts');
+    if (!box || !body || !facts) return;
+    const next = i === fxOpen ? -1 : i;
+    facts.querySelectorAll('.fx-btn').forEach((b, k) => b.setAttribute('aria-expanded', k === next ? 'true' : 'false'));
+    if (next < 0) {
+      box.classList.remove('is-open');
+      fxOpen = -1;
+      return;
+    }
+    const inner = body.parentElement;
+    const was = fxOpen >= 0;
+    const h0 = inner.offsetHeight;
+    if (was && !reduced) inner.style.height = h0 + 'px';
+    body.innerHTML = fxBlock(next);
+    body.classList.remove('is-on');
+    void body.offsetWidth;
+    body.classList.add('is-on');
+    if (was && !reduced) {
+      const h1 = inner.scrollHeight;
+      requestAnimationFrame(() => { inner.style.height = h1 + 'px'; });
+      setTimeout(() => { inner.style.height = ''; }, 520);
+    }
+    box.classList.add('is-open');
+    fxOpen = next;
+  }
+  /* The contact block (2026-10-27): three sentences people tend to start with, as chips under the buttons. A tap opens
+     the brief form on its message step with the sentence already in, caret at the end, so the visitor only has to go on.
+     The block's lines rise one after the other as it scrolls in, and the fox slowly settles. */
+  let ctMarked = false;
+  function renderContactStarters() {
+    const host = $('contact-starters');
+    if (!host) return;
+    const chips = tlist('cs_chips');
+    host.innerHTML = chips.length ? `<span class="cs-label">${esc(t('cs_label'))}</span><div class="cs-list" role="group" aria-label="${esc(t('cs_label'))}">${chips.map((c) => `<button type="button" class="cs-chip" data-text="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
+    if (host.dataset.bound !== '1') {
+      host.dataset.bound = '1';
+      host.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('.cs-chip');
+        if (!b) return;
+        openContact('unsure');
+        const msg = $('f-msg');
+        if (!msg) return;
+        msg.value = b.dataset.text + '. ';
+        setTimeout(() => { msg.focus(); msg.setSelectionRange(msg.value.length, msg.value.length); }, 60);
+      });
+    }
+    if (!ctMarked) {
+      ctMarked = true;
+      if (!reduced) {
+        const els = d.querySelectorAll('.contact .wrap > .contact-sub, .contact .wrap > .contact-actions, .contact .wrap > .contact-starters, .contact .wrap > .contact-founder, .contact .wrap > .contact-else');
+        els.forEach((el) => el.style.setProperty('--in', 0));
+        const bg = d.querySelector('.contact-bg');
+        if (bg) { bg.style.setProperty('--in', 0); observeIn([bg]); }
+        observeIn(els);
+      }
+    }
+  }
+  function renderFounder() {
+    const facts = $('facts');
+    if (!facts) return;
+    if (fxOpen >= 0 && $('fx-body')) $('fx-body').innerHTML = fxBlock(fxOpen);   // the language changed while a fact was open
+    if (facts.dataset.bound !== '1') {
+      facts.dataset.bound = '1';
+      facts.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('.fx-btn');
+        if (b) fxSet(Number(b.dataset.i));
+      });
+      facts.addEventListener('keydown', (e) => {
+        const btns = Array.from(facts.querySelectorAll('.fx-btn'));
+        const cur = btns.indexOf(d.activeElement);
+        if (e.key === 'Escape' && fxOpen >= 0) { e.preventDefault(); const keep = btns[fxOpen]; fxSet(fxOpen); if (keep) keep.focus(); }
+        else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && cur >= 0) {
+          e.preventDefault();
+          const nb = btns[(cur + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length];
+          nb.focus();
+          if (fxOpen >= 0) fxSet(Number(nb.dataset.i));
+        }
+      });
+    }
+    // entrance, once: the paragraphs, the facts and the buttons rise one after the other as the section scrolls in
+    if (!fxMarked) {
+      fxMarked = true;
+      if (!reduced) {
+        const els = d.querySelectorAll('.founder-body > p, #facts li, .founder-actions');
+        els.forEach((el) => el.style.setProperty('--in', 0));
+        observeIn(els);
+      }
+    }
   }
 
   function renderAll() {
     moreSeq = 0;
     renderSpots();
     renderTiles();
-    renderCases();
+    renderProof();
+    renderHeroProof();
+    renderFounder();
+    renderContactStarters();
     renderServices();
     renderChecks();
     renderPricing();
@@ -1071,13 +1725,40 @@
   }
 
   /* ── Reveal on enter (cases, headings) ── */
+  /* An element counts as entered when it is on screen OR already above the viewport. A fast scroll, a rail jump or a
+     reload mid-page can skip an element between two frames: it never reports as intersecting, so it stayed at
+     opacity 0 for good (the logos, case shots and headings that "disappeared"). */
+  function hasEntered(e) {
+    if (e.isIntersecting) return true;
+    const top = e.rootBounds ? e.rootBounds.top : 0;
+    return e.boundingClientRect.bottom <= top;
+  }
+  /* An observer never reports an element that goes from "below the screen" to "above it" inside one frame (a fast
+     flick, a rail jump, Home/End): isIntersecting stays false both times. So each pending reveal is also registered
+     here, and a throttled scroll check shows anything that is already behind the reader. */
+  const passedWatch = new Map();
+  let passedQueued = false;
+  function watchPassed(el, fn) { passedWatch.set(el, fn); }
+  function sweepPassed() {
+    passedQueued = false;
+    passedWatch.forEach((fn, el) => {
+      if (!el.isConnected) { passedWatch.delete(el); return; }
+      const r = el.getBoundingClientRect();
+      if (r.height > 0 && r.bottom < 0) { passedWatch.delete(el); fn(); }
+    });
+  }
+  window.addEventListener('scroll', () => {
+    if (passedQueued || !passedWatch.size) return;
+    passedQueued = true;
+    requestAnimationFrame(sweepPassed);
+  }, { passive: true });
   let inObserver = null;
   function observeIn(els) {
     if (!('IntersectionObserver' in window)) { els.forEach((el) => el.style.setProperty('--in', 1)); return; }
     if (!inObserver) {
       inObserver = new IntersectionObserver((entries) => {
         entries.forEach((e) => {
-          if (!e.isIntersecting) return;
+          if (!hasEntered(e)) return;
           const el = e.target;
           const delay = Array.prototype.indexOf.call(el.parentNode.children, el) * 90;
           setTimeout(() => el.style.setProperty('--in', 1), delay);
@@ -1085,7 +1766,10 @@
         });
       }, { rootMargin: '0px 0px -12% 0px' });
     }
-    els.forEach((el) => inObserver.observe(el));
+    els.forEach((el) => {
+      inObserver.observe(el);
+      watchPassed(el, () => { el.style.setProperty('--in', 1); inObserver.unobserve(el); });
+    });
   }
   let revealObserver = null;
   function watchReveals() {
@@ -1094,13 +1778,17 @@
     if (!revealObserver) {
       revealObserver = new IntersectionObserver((entries) => {
         entries.forEach((e) => {
-          if (!e.isIntersecting) return;
+          if (!hasEntered(e)) return;
           e.target.classList.add('is-in');
           revealObserver.unobserve(e.target);
         });
       }, { rootMargin: '0px 0px -18% 0px' });
     }
-    els.forEach((el) => { if (!el.classList.contains('is-in')) revealObserver.observe(el); });
+    els.forEach((el) => {
+      if (el.classList.contains('is-in')) return;
+      revealObserver.observe(el);
+      watchPassed(el, () => { el.classList.add('is-in'); revealObserver.unobserve(el); });
+    });
   }
 
   function countUp(el) {
@@ -1240,23 +1928,43 @@
   /* ── Scenes ── */
   const hero = d.querySelector('[data-scene="hero"]');
   const heroScrub = hero ? makeScrub(hero.querySelector('video.scrub')) : null;
-  // The island is a module that imports Three.js from a CDN. If that never arrives (blocked CDN, old browser),
-  // a still of the same island takes its place so the surface is never empty.
-  const islandHost = d.getElementById('hero-island');
-  if (islandHost) {
-    setTimeout(() => {
-      if (window.agenceIsland || islandHost.firstChild) return;
-      const img = d.createElement('img');
-      img.className = 'hero-island-still';
-      img.src = '/images/3d/floating-island/island-still.png?v=5';
-      img.alt = '';
-      img.decoding = 'async';
-      islandHost.appendChild(img);
-      window.agenceIsland = {
-        set(p) { islandHost.style.opacity = String(1 - clamp((p - 0.159) / 0.028)); },
-        refresh() {},
-      };
-    }, 7000);
+  /* The sea at rest (2026-10-27): at the very top (no scroll) a short seamless loop of the same footage plays on its own;
+     the first scroll fades it out onto the scrubbed clip, scrolling back to the top fades it back in. No loop under
+     reduced motion (the poster stays) and none if the file does not play (the poster and the clip show as before). */
+  const heroLoop = hero && !reduced ? hero.querySelector('.hero-loop') : null;
+  const loopState = { ready: false, want: false, timer: 0, inited: false };
+  function heroLoopInit() {
+    if (!heroLoop || loopState.inited) return;
+    loopState.inited = true;   // the file loads the first time the page is at the top (a reload far down never fetches it)
+    heroLoop.src = smallMq.matches && heroLoop.dataset.srcM ? heroLoop.dataset.srcM : heroLoop.dataset.src;
+    heroLoop.preload = 'auto';
+    heroLoop.addEventListener('playing', () => { loopState.ready = true; heroLoopSync(); });
+    heroLoop.load();
+    const go = heroLoop.play();
+    if (go && go.catch) go.catch(() => { /* autoplay refused (low-power mode): the poster stays */ });
+    d.addEventListener('visibilitychange', () => {
+      if (d.hidden) heroLoop.pause();
+      else if (loopState.want) { const p = heroLoop.play(); if (p && p.catch) p.catch(() => {}); }
+    });
+  }
+  // want = the page is at the top; the loop shows and runs only then
+  function heroLoopWant(on) {
+    if (!heroLoop || loopState.want === on) return;
+    loopState.want = on;
+    if (on) heroLoopInit();
+    heroLoopSync();
+  }
+  function heroLoopSync() {
+    if (!heroLoop) return;
+    clearTimeout(loopState.timer);
+    if (loopState.want) {
+      if (heroLoop.paused && loopState.ready) { const p = heroLoop.play(); if (p && p.catch) p.catch(() => {}); }
+      heroLoop.classList.toggle('is-on', loopState.ready);
+    } else {
+      heroLoop.classList.remove('is-on');
+      // pause once it has faded out, so it costs nothing while the page scrolls
+      loopState.timer = setTimeout(() => { if (!loopState.want) heroLoop.pause(); }, 900);
+    }
   }
   const beats = hero ? Array.from(hero.querySelectorAll('.hero-beat')) : [];
   // The lookalike sites have their own pale sheet again (2026-10-17): the fox clip is never covered by them.
@@ -1327,42 +2035,42 @@
     el.style.visibility = o < 0.02 ? 'hidden' : 'visible';
   }
 
-  /* The hero: the surface with its islands (the 3D one floats over the clip), then the dive. */
+  /* The hero: the surface, then the dive. */
   function drawHero(clipP, pinP, gone) {
     if (!hero) return;
     const p = heroP;
     if (reduced) {
       beats.forEach((b) => { b.style.opacity = ''; b.style.transform = ''; b.style.visibility = ''; });
-      if (window.agenceIsland) window.agenceIsland.set(0);
       return;
     }
+    heroLoopWant(window.scrollY < 6);
 
 
 
     /* The hand drives the clip until the last beat is on screen. That beat fades in from 0.72;
        two or three wheel notches later the clip plays itself out, so it starts as soon as the step appears. */
-    const T_PIN = 16;
     const RELEASE = 0.78;
-    const dur = heroScrub && heroScrub.video.duration > 0 ? heroScrub.video.duration : 20.03;
+    // Whale clip (10 s): the hand drives the first 80% of it, the rest plays out on its own after RELEASE.
+    const dur = heroScrub && heroScrub.video.duration > 0 ? heroScrub.video.duration : 13.58;
+    const T_PIN = dur * 0.8;
     const tSec = clamp(pinP) * T_PIN;
     if (heroScrub) {
       if (pinP >= RELEASE && !gone) heroScrub.release(RELEASE * T_PIN); else heroScrub.hold();
       if (pinP < RELEASE) heroScrub.set(tSec / dur);
     }
     clipP = tSec / dur;
-    if (window.agenceIsland && clipP != null) window.agenceIsland.set(clipP);
-    hero.style.setProperty('--scrim', (0.92 - 0.3 * seg(p, 0.1, 0.4)).toFixed(3));
-    hero.style.setProperty('--deep', seg(p, 0.3, 0.8).toFixed(3));
+    hero.style.setProperty('--scrim', (0.92 - 0.3 * seg(p, 0.3, 0.55)).toFixed(3));
+    hero.style.setProperty('--deep', seg(p, 0.4, 0.85).toFixed(3));
 
     // Three beats over the pin (2026-10-15, shorter pin): the title, the dive, then the invitation while the whale swims.
     const [b1, b3, b4] = beats;
-    if (b1) { const k = seg(p, 0.05, 0.16); setBeat(b1, 1 - k, -40 * k); }
+    if (b1) { const k = seg(p, 0.3, 0.42); setBeat(b1, 1 - k, -40 * k); }
     if (b3) {
-      const kin = seg(p, 0.2, 0.3);
-      const kout = b4 ? seg(p, 0.52, 0.6) : 0;
+      const kin = seg(p, 0.5, 0.58);
+      const kout = b4 ? seg(p, 0.68, 0.74) : 0;
       setBeat(b3, kin * (1 - kout), 30 * (1 - kin) - 36 * kout);
     }
-    if (b4) { const k = seg(p, 0.64, 0.74); setBeat(b4, k, 30 * (1 - k)); }
+    if (b4) { const k = seg(p, 0.76, 0.84); setBeat(b4, k, 30 * (1 - k)); }
   }
 
   /* The painter: the fox walks out of the forest and arrives with its palette. The clip starts with the dab:
@@ -1447,8 +2155,8 @@
           x.style.webkitMaskPosition = x.style.maskPosition = `${(ox - s / 2).toFixed(1)}px ${(oy - s / 2).toFixed(1)}px`;
         };
         place(next._stage, size);
-        // The pigment rim runs just ahead of the opening, like wet paint at the edge of the stroke.
-        place(next._rim, size * 1.06 + 26 * (1 - e));
+        // The pigment rim runs just ahead of the opening: a thin line, not a band.
+        place(next._rim, size * 1.028 + 10 * (1 - e));
         return;
       }
       if (el._k === k) return;
@@ -1695,7 +2403,6 @@
     const vh = window.innerHeight;
     [hero, same, fox, day2].forEach((el) => { if (el) el._pinned = isPinned(el); });
     measureCovers();
-    if (window.agenceIsland) window.agenceIsland.refresh();
     const stage = services && services.querySelector('.pin-stage');
     horizontal = !!services && !!stage && !reduced && window.innerWidth > 900;
     if (services && track) {
@@ -1817,7 +2524,6 @@
   const dlg = $('contact-dialog');
   const form = $('contact-form');
   function contactParts() {
-    const name = $('f-name').value.trim();
     const email = $('f-email').value.trim();
     const sel = $('f-offer');
     const offer = sel.value;
@@ -1825,21 +2531,61 @@
     const link = $('f-link').value.trim();
     const message = $('f-msg').value.trim();
     const cfg = SITE.contact && typeof SITE.contact === 'object' ? SITE.contact : {};
-    const args = { name, email, offer, offerLabel, link, message, lang };
-    let subject = `v2 studio · ${name}`;
-    let body = `${name}\n${email}\n${offerLabel}\n${link ? link + '\n' : ''}\n${message}`;
+    const args = { email, offer, offerLabel, link, message, lang };
+    let subject = 'v2 studio';
+    let body = `${email}\n${offerLabel}\n${link ? link + '\n' : ''}\n${message}`;
     try { if (typeof cfg.subject === 'function') subject = cfg.subject(args) || subject; } catch (e) { /* keep default */ }
     try { if (typeof cfg.body === 'function') body = cfg.body(args) || body; } catch (e) { /* keep default */ }
     const to = (typeof cfg.email === 'string' && cfg.email) || EMAIL;
     return { to, subject, body };
   }
+  function fillRecap() {
+    const recap = $('f-back');
+    const chosen = d.querySelector('#f-offer-picks input:checked');
+    if (!recap || !chosen) return;
+    const pkg = chosen.closest('.pkg');
+    const art = pkg.querySelector('.pkg-art');
+    const copy = pkg.querySelector('.pkg-copy');
+    const price = pkg.querySelector('.pkg-price');
+    recap.style.setProperty('--pig', pkg.style.getPropertyValue('--pig'));
+    recap.innerHTML = (art ? art.outerHTML : '')
+      + `<span class="pkg-copy">${copy ? copy.innerHTML : ''}<span class="pkg-change">${esc(t('contact_step_back'))}</span></span>`
+      + (price ? price.outerHTML : '');
+  }
+  function paintContactStep() {
+    if (!dlg) return;
+    const step = dlg.dataset.step === '2' ? 2 : 1;
+    const sub = dlg.querySelector('.dlg-sub');
+    if (sub) sub.textContent = t(step === 2 ? 'contact_modal_subtitle' : 'contact_step1_sub');
+    if (step === 2) fillRecap();
+  }
+  function setContactStep(step) {
+    if (!dlg) return;
+    const n = step === 2 ? '2' : '1';
+    dlg.dataset.step = n;
+    dlg.querySelectorAll('[data-pane]').forEach((pane) => { pane.hidden = pane.dataset.pane !== n; });
+    dlg.querySelectorAll('.dlg-step').forEach((li) => {
+      if (li.dataset.stepDot === n) li.setAttribute('aria-current', 'step');
+      else li.removeAttribute('aria-current');
+    });
+    paintContactStep();
+    dlg.scrollTop = 0;
+  }
   function openContact(offer) {
     if (!dlg) return;
     const sel = $('f-offer');
-    if (sel) sel.value = OFFER_IDS.includes(offer) ? offer : (offer ? 'unsure' : sel.value || OFFER_IDS[0]);
+    const named = !!(offer && OFFER_IDS.includes(offer));
+    if (sel) sel.value = named ? offer : (offer ? 'unsure' : sel.value || OFFER_IDS[0]);
+    syncOfferPicks();
     $('f-status').textContent = '';
+    setContactStep(named ? 2 : 1);
     if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
-    setTimeout(() => { const n = $('f-name'); if (n) n.focus(); }, 30);
+    setTimeout(() => {
+      const msg = $('f-msg');
+      const picked = d.querySelector('#f-offer-picks input:checked');
+      if (named && msg) msg.focus();
+      else if (picked) picked.focus();
+    }, 30);
   }
   function closeContact() {
     if (!dlg) return;
@@ -1854,17 +2600,19 @@
       window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       setTimeout(() => { $('f-status').textContent = t('contact_btn_done'); }, 600);
     });
-    $('f-copy').addEventListener('click', async () => {
-      const { to, subject, body } = contactParts();
-      const text = `${t('ag_mail_to')} ${to}\n${t('ag_mail_subject')} ${subject}\n\n${body}`;
-      try {
-        await navigator.clipboard.writeText(text);
-        $('f-status').textContent = t('contact_copied');
-      } catch (err) {
-        $('f-status').textContent = t('ag_copy_failed');
-      }
-    });
     $('dlg-close').addEventListener('click', closeContact);
+    const next = $('f-next');
+    if (next) next.addEventListener('click', () => {
+      setContactStep(2);
+      const msg = $('f-msg');
+      if (msg) msg.focus();
+    });
+    const back = $('f-back');
+    if (back) back.addEventListener('click', () => {
+      setContactStep(1);
+      const picked = d.querySelector('#f-offer-picks input:checked');
+      if (picked) picked.focus();
+    });
     dlg.addEventListener('click', (e) => { if (e.target === dlg) closeContact(); });
   }
 
@@ -2012,7 +2760,13 @@
     const moreBtn = e.target.closest('.more-btn');
     if (moreBtn) { toggleDisclosure(moreBtn, '.more', '.more-panel'); return; }
     const qaBtn = e.target.closest('.qa-q');
-    if (qaBtn) { toggleDisclosure(qaBtn, '.qa', '.qa-panel'); return; }
+    if (qaBtn) {
+      toggleDisclosure(qaBtn, '.qa', '.qa-panel');
+      // an open question puts its own address in the URL, so the answer can be shared
+      const row = qaBtn.closest('.qa');
+      if (row && row.id && row.classList.contains('is-open')) { try { history.replaceState(null, '', '#' + row.id); } catch (err) { /* sandboxed frame */ } }
+      return;
+    }
     const trackBtn = e.target.closest('.price-track');
     if (trackBtn) { setCardTrack(trackBtn.dataset.cardTrack, trackBtn.dataset.track); return; }
     const ckBtn = e.target.closest('.ck-btn');
@@ -2059,7 +2813,8 @@
     const orderBtn = e.target.closest('[data-order]');
     if (orderBtn && !window.agenceOrder) { e.preventDefault(); openContact(orderBtn.dataset.order || ''); return; }
     const offerBtn = e.target.closest('[data-offer]');
-    if (offerBtn) { e.preventDefault(); openContact(offerBtn.dataset.offer || ''); return; }
+    // Package cards inside the dialog also sit on offer ids; they only change the radio.
+    if (offerBtn && !offerBtn.closest('#contact-dialog')) { e.preventDefault(); openContact(offerBtn.dataset.offer || ''); return; }
     const a = e.target.closest('a[href^="#"]');
     if (a) {
       const id = a.getAttribute('href').slice(1);
@@ -2158,7 +2913,7 @@
     }, { rootMargin: '100% 0px 100% 0px' });
     io.observe(fox);
   }
-  // Reduced motion: the hero keeps the surface (where the island floats); the fox shows its arrival frame.
+  // Reduced motion: the hero keeps the surface (the whale poster); the fox shows its arrival frame.
   if (reduced) {
     const fp = fox && fox.querySelector('.stage-poster');
     if (fp) { fp.dataset.srcM = '/images/agence-fox-close-m.jpg'; fp.dataset.srcD = '/images/agence-fox-close.jpg'; fp.setAttribute('src', '/images/agence-fox-close.jpg'); }
@@ -2183,5 +2938,9 @@
   window.addEventListener('load', layout);
   if (location.hash && $(location.hash.slice(1))) {
     setTimeout(() => $(location.hash.slice(1)).scrollIntoView({ block: 'start' }), 60);
+    // a link to one question opens its answer
+    const faqRow = /^#faq-[a-z0-9-]+$/.test(location.hash) ? $(location.hash.slice(1)) : null;
+    const faqBtn = faqRow && faqRow.querySelector('.qa-q');
+    if (faqBtn && !faqRow.classList.contains('is-open')) toggleDisclosure(faqBtn, '.qa', '.qa-panel');
   }
 })();

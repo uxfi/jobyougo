@@ -180,13 +180,26 @@
     const items = host.querySelectorAll(sel);
     if (reducedMq.matches || !('IntersectionObserver' in window)) { items.forEach((el) => el.classList.add('is-in')); return; }
     if (host.dataset.revealed === '1') { items.forEach((el) => el.classList.add('is-in')); return; }
+    // a fast scroll can jump from below the host to above it between two frames: the observer then never fires
+    const onScroll = () => {
+      if (host.dataset.revealed === '1') { window.removeEventListener('scroll', onScroll); return; }
+      const r = host.getBoundingClientRect();
+      if (r.height > 0 && r.bottom < 0) {
+        host.dataset.revealed = '1';
+        host.querySelectorAll(sel).forEach((el) => el.classList.add('is-in'));
+        io.disconnect();
+        window.removeEventListener('scroll', onScroll);
+      }
+    };
     const io = new IntersectionObserver((entries) => {
-      if (!entries.some((e) => e.isIntersecting)) return;
+      // on screen, or already scrolled past (a fast scroll can skip the host between two frames)
+      if (!entries.some((e) => e.isIntersecting || e.boundingClientRect.bottom <= (e.rootBounds ? e.rootBounds.top : 0))) return;
       host.dataset.revealed = '1';
       host.querySelectorAll(sel).forEach((el) => el.classList.add('is-in'));
       io.disconnect();
     }, { rootMargin: '0px 0px -12% 0px' });
     io.observe(host);
+    window.addEventListener('scroll', onScroll, { passive: true });
   }
 
   /* ── The reel as a carousel (2026-10-18): one card per interface, its recording playing in a browser frame.
@@ -259,7 +272,15 @@
     const count = $('car-count');
     if (count) count.textContent = `${pad(car.idx + 1)} / ${pad(n)}`;
     const btns = $('reel-ui') ? $('reel-ui').querySelectorAll('.car-btn') : [];
-    if (btns.length) { btns[0].disabled = car.idx <= 0; btns[1].disabled = car.idx >= n - 1; }
+    if (btns.length) {
+      /* En bout de piste, les dernières tuiles sont déjà visibles mais aucune ne peut plus s'aligner
+         au bord gauche : couper la flèche sur la position réelle du scroll, sinon elle avancerait
+         le compteur sans rien défiler (visible depuis les tuiles réduites, ~2,7 à l'écran). */
+      const track = $('car-track');
+      const atEnd = !!track && track.scrollLeft >= track.scrollWidth - track.clientWidth - 2;
+      btns[0].disabled = car.idx <= 0;
+      btns[1].disabled = car.idx >= n - 1 || atEnd;
+    }
     const toggle = $('car-toggle');
     if (toggle) {
       toggle.textContent = car.playing ? '❚❚' : '▶';

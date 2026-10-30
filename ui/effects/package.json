@@ -5,7 +5,7 @@
   "description": "Libraries.dev React islands for JobYouGo UI",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.tsx --bundle --format=iife --global-name=JobYouGoEffects --outfile=dist/effects.js --jsx=automatic --minify --target=es2020 && esbuild src/landing-figures.ts --bundle --format=esm --outfile=dist/landing-figures.js --minify --target=es2020"
+    "build": "esbuild src/index.tsx --bundle --format=iife --global-name=JobYouGoEffects --outfile=dist/effects.js --jsx=automatic --minify --target=es2020 && esbuild src/landing-figures.ts --bundle --format=esm --outfile=dist/landing-figures.js --minify --target=es2020 && esbuild src/hero-liquid.ts --bundle --splitting --format=esm --outdir=dist/hero-liquid --chunk-names=core-[hash] --jsx=automatic --loader:.css=text --minify --target=es2020"
   },
   "dependencies": {
     "@lucasmarkes/hairline": "^0.2.0",
@@ -14,6 +14,8 @@
     "metal-fx": "^2.0.11",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "simple-liquid-glass": "5.4.0",
+    "simple-liquid-text": "0.4.0",
     "thinking-orbs": "^0.3.2"
   },
   "devDependencies": {

@@ -957,9 +957,12 @@ function agOfferId(value) {
         const id = agOfferId(offer);
         const l = agLang(lang);
         const linkText = String(link || '').trim() || agT('mail_link_none', l);
-        return [
+        const who = String(name || '').trim();
+        const lines = [
           `${agT('mail_package', l)} ${offerName(id, l)} (${agT('mail_price_' + id, l)})`,
-          `${agT('mail_name', l)} ${String(name || '').trim()}`,
+        ];
+        if (who) lines.push(`${agT('mail_name', l)} ${who}`);
+        lines.push(
           `${agT('mail_email', l)} ${String(email || '').trim()}`,
           `${agT('mail_link', l)} ${linkText}`,
           '',
@@ -967,7 +970,8 @@ function agOfferId(value) {
           String(message || '').trim(),
           '',
           agT('mail_sent_from', l),
-        ].join('\n');
+        );
+        return lines.join('\n');
       },
     },
 

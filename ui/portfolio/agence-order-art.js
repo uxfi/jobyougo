@@ -11,11 +11,11 @@
   const INK = '#15190f';
   const PAPER = '#f8f2e4';
   const WHITE = '#ffffff';
-  const MINT = '#a5f0d3';
-  const SKY = '#9cc9f2';
-  const LILAC = '#c3a8f2';
-  const PINK = '#f4a9c4';
-  const GOLD = '#f7d58e';
+  const MINT = '#6edcb8';
+  const SKY = '#6eb4ef';
+  const LILAC = '#b18df3';
+  const PINK = '#f28eb4';
+  const GOLD = '#f2c85e';
 
   /* ── Marks ── */
   // Extrusion: copies of the shape in ink, one unit at a time toward the bottom right, drawn under the face.
@@ -185,22 +185,42 @@
     return svg(b);
   }
 
-  /* Package icons for the package cards, same technique in an 80 × 80 box: Redesign is a page with a brush on it,
-     Build is a stack of blocks. Any other package gets the page. */
+  /* Package marks, 80 × 80. Flat, one colour each, no sticker outline and no extrusion.
+     A hairline and an overlap do the separating. The stepper scenes above keep their own look. */
   function icon(id) {
-    let b;
+    const hair = `stroke="${INK}" stroke-opacity=".16" stroke-width="1.25"`;
+    let b = '';
     if (id === 'creation') {
-      b = block('<rect x="8" y="46" width="32" height="20" rx="5"/>', SKY, 4);
-      b += block('<rect x="42" y="46" width="28" height="20" rx="5"/>', MINT, 4);
-      b += block('<rect x="22" y="24" width="34" height="20" rx="5"/>', LILAC, 4);
-      b += block('<rect x="32" y="6" width="14" height="16" rx="4"/>', GOLD, 3);
+      b += `<rect x="8" y="50" width="28" height="16" rx="5" fill="${SKY}"/>`;
+      b += `<rect x="44" y="50" width="26" height="16" rx="5" fill="${SKY}" fill-opacity=".38"/>`;
+      b += `<rect x="24" y="28" width="32" height="16" rx="5" fill="${SKY}"/>`;
+      b += `<rect x="30" y="33.2" width="14" height="2.2" rx="1.1" fill="${WHITE}" fill-opacity=".9"/>`;
+      b += `<rect x="30" y="37.4" width="9" height="2.2" rx="1.1" fill="${WHITE}" fill-opacity=".55"/>`;
+      b += `<rect x="34" y="10" width="12" height="14" rx="4" fill="${SKY}"/>`;
+    } else if (id === 'accompagnement') {
+      b += `<path d="M10 18h30a9 9 0 0 1 9 9v10a9 9 0 0 1-9 9H26l-7 6v-6h-9a9 9 0 0 1-9-9V27a9 9 0 0 1 9-9z" fill="${LILAC}" fill-opacity=".32"/>`;
+      b += `<path d="M32 34h30a9 9 0 0 1 9 9v9a9 9 0 0 1-9 9H50l7 6v-6H32a9 9 0 0 1-9-9v-9a9 9 0 0 1 9-9z" fill="${LILAC}"/>`;
+      b += `<circle cx="44" cy="47.5" r="1.7" fill="${WHITE}"/><circle cx="51" cy="47.5" r="1.7" fill="${WHITE}" fill-opacity=".75"/><circle cx="58" cy="47.5" r="1.7" fill="${WHITE}" fill-opacity=".5"/>`;
+    } else if (id === 'custom') {
+      b += `<path d="M20 14h24l16 16v30a7 7 0 0 1-7 7H20a7 7 0 0 1-7-7V21a7 7 0 0 1 7-7z" fill="${WHITE}" ${hair}/>`;
+      b += `<path d="M44 14v12a4 4 0 0 0 4 4h12z" fill="${GOLD}"/>`;
+      b += `<rect x="22" y="42" width="24" height="3" rx="1.5" fill="${GOLD}"/>`;
+      b += `<rect x="22" y="49" width="16" height="3" rx="1.5" fill="${INK}" fill-opacity=".14"/>`;
+      b += `<rect x="22" y="56" width="20" height="3" rx="1.5" fill="${INK}" fill-opacity=".14"/>`;
+    } else if (id === 'unsure') {
+      b += `<path d="M18 54C30 54 32 26 42 26C52 26 54 54 64 54" fill="none" stroke="${PINK}" stroke-width="2.4" stroke-linecap="round"/>`;
+      b += `<circle cx="18" cy="54" r="5.5" fill="${PINK}"/>`;
+      b += `<circle cx="42" cy="26" r="5.5" fill="${PINK}" fill-opacity=".4"/>`;
+      b += `<circle cx="64" cy="54" r="5.5" fill="${WHITE}" stroke="${PINK}" stroke-width="2"/>`;
     } else {
-      b = block('<rect x="8" y="14" width="56" height="46" rx="8"/>', WHITE, 4);
-      b += face('<path d="M16 14H56A8 8 0 0 1 64 22V27H8V22A8 8 0 0 1 16 14Z"/>', SKY);
-      b += face('<rect x="16" y="35" width="26" height="6" rx="3"/>', LILAC, '', 2);
-      b += face('<rect x="16" y="47" width="18" height="6" rx="3"/>', PINK, '', 2);
-      b += tube('M72 18L54 44', GOLD, 5);
-      b += face('<rect x="45" y="40" width="12" height="18" rx="6"/>', PINK, 'rotate(34 51 49)', 2.6);
+      b += `<rect x="12" y="18" width="42" height="38" rx="8" fill="${WHITE}" ${hair}/>`;
+      b += `<path d="M12 26a8 8 0 0 1 8-8h26a8 8 0 0 1 8 8v5H12z" fill="${MINT}"/>`;
+      b += `<circle cx="20" cy="22.5" r="1.5" fill="${WHITE}"/><circle cx="25.2" cy="22.5" r="1.5" fill="${WHITE}" fill-opacity=".7"/><circle cx="30.4" cy="22.5" r="1.5" fill="${WHITE}" fill-opacity=".45"/>`;
+      b += `<rect x="20" y="34" width="16" height="3" rx="1.5" fill="${MINT}"/>`;
+      b += `<rect x="20" y="40" width="11" height="3" rx="1.5" fill="${INK}" fill-opacity=".14"/>`;
+      b += `<rect x="40" y="34" width="8" height="11" rx="2" fill="${MINT}" fill-opacity=".35"/>`;
+      b += `<path d="M64 16L49 40" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`;
+      b += `<circle cx="47" cy="43" r="3.1" fill="${MINT}"/>`;
     }
     return `<svg class="oa-ico" viewBox="0 0 80 80" aria-hidden="true" focusable="false">${b}</svg>`;
   }

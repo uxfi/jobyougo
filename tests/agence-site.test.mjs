@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -161,38 +161,45 @@ test('the /agence pages load no font from Google: JetBrains Mono is self-hosted 
   assert.match(css, /font-family:\s*'JetBrains Mono';\s*src:\s*url\('\/portfolio\/fonts\/jetbrains-mono-var\.woff2'\)/);
 });
 
-test('the home page 3D island loads three.js from the site, not from a CDN', () => {
+test('the home page has no 3D island and loads no script from a CDN or another origin', () => {
   const page = readFileSync(join(ROOT, 'ui', 'agence.html'), 'utf8');
-  const island = readFileSync(join(ROOT, 'ui', 'portfolio', 'agence-island.js'), 'utf8');
-  for (const [file, text] of [['ui/agence.html', page], ['ui/portfolio/agence-island.js', island]]) {
-    assert.doesNotMatch(text, /cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/, `${file}: the legal notices no longer list a CDN`);
-  }
+  assert.doesNotMatch(page, /cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/, 'ui/agence.html: no CDN');
   assert.doesNotMatch(page, /<script\b[^>]*\ssrc="(?:https?:)?\/\//, 'ui/agence.html: no script from another origin');
-  assert.doesNotMatch(island, /(?:from\s*|import\s*\(\s*)['"](?:https?:)?\/\//, 'agence-island.js: no import from another origin');
+  assert.doesNotMatch(page, /hero-island|agence-island\.js|<script type="importmap">/, 'ui/agence.html: the floating 3D islands were removed');
+  assert.equal(existsSync(join(ROOT, 'ui', 'portfolio', 'agence-island.js')), false, 'the orphan island script is gone');
+});
 
-  const map = JSON.parse(/<script type="importmap">([\s\S]*?)<\/script>/.exec(page)[1]).imports;
-  const onDisk = (url) => join(ROOT, 'ui', url.slice(1));
-  const resolveBare = (spec) => {
-    if (Object.hasOwn(map, spec)) return map[spec];
-    const prefix = Object.keys(map).filter((k) => k.endsWith('/') && spec.startsWith(k)).sort((a, b) => b.length - a.length)[0];
-    assert.ok(prefix, `importmap maps ${spec}`);
-    return map[prefix] + spec.slice(prefix.length);
-  };
-  for (const target of Object.values(map)) assert.ok(target.startsWith('/portfolio/vendor/'), `importmap target ${target} is self-hosted`);
-  // Every module the island pulls in, and every relative import inside those, is on disk.
-  const seen = new Set();
-  const queue = [...island.matchAll(/from\s*['"]([^'"]+)['"]/g)].map((m) => resolveBare(m[1]));
-  while (queue.length) {
-    const url = queue.shift();
-    if (seen.has(url)) continue;
-    seen.add(url);
-    const src = readFileSync(onDisk(url), 'utf8');
-    for (const [, spec] of src.matchAll(/(?:^|[;\s}])(?:import|export)\s[^'"]*?from\s*['"]([^'"]+)['"]/g)) {
-      queue.push(spec.startsWith('.') ? new URL(spec, 'https://x' + url).pathname : resolveBare(spec));
-    }
-  }
-  assert.ok(seen.has(map.three) && seen.has('/portfolio/vendor/three-0.160.0/examples/jsm/utils/BufferGeometryUtils.js'), `resolved ${[...seen].join(', ')}`);
-  assert.ok(readFileSync(join(ROOT, 'ui', 'portfolio', 'vendor', 'three-0.160.0', 'LICENSE'), 'utf8').includes('MIT'), 'three.js licence ships with it');
+test('the hero water lettering is a local module with a gradient fallback, plus a pointer-proof wave', () => {
+  const page = readFileSync(join(ROOT, 'ui', 'agence.html'), 'utf8');
+  const css = readFileSync(join(ROOT, 'ui', 'portfolio', 'agence-story.css'), 'utf8');
+  const m = page.match(/<script type="module" src="(\/effects\/dist\/hero-liquid\/hero-liquid\.js)(?:\?[^"]*)?"><\/script>/);
+  assert.ok(m, 'agence.html loads the liquid-glass lettering from the local build');
+  assert.ok(readFileSync(join(ROOT, 'ui', m[1].slice(1))).length > 500, 'the loader is built');
+  assert.match(page, /<div class="hero-wave" aria-hidden="true">/, 'the bottom wave is decorative');
+  assert.match(css, /\.hero-wave \{[^}]*pointer-events: none/, 'the wave never takes a pointer');
+  assert.match(css, /html\.has-liquid \.hero h1 em \{/, 'the aurora gradient stays unless the glass is painting');
+  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.hero-wave \.hw \{ animation: none/, 'the wave is still for reduced motion');
+  const loader = readFileSync(join(ROOT, 'ui', 'effects', 'src', 'hero-liquid.ts'), 'utf8');
+  assert.match(loader, /prefers-reduced-motion/, 'the loader keeps the gradient for reduced motion');
+  assert.doesNotMatch(loader + readFileSync(join(ROOT, 'ui', 'effects', 'src', 'hero-liquid-core.tsx'), 'utf8'), /https?:\/\//, 'no remote URL in the lettering sources');
+});
+
+test('the hero main CTA is a real link with a glass layer that falls back to the plain gradient button', () => {
+  const page = readFileSync(join(ROOT, 'ui', 'agence.html'), 'utf8');
+  const css = readFileSync(join(ROOT, 'ui', 'portfolio', 'agence-story.css'), 'utf8');
+  const beat1 = page.slice(page.indexOf('hero-beat--1'), page.indexOf('hero-beat--2'));
+  assert.match(beat1, /<a class="btn btn-primary btn-glass" href="#pricing" data-order=""><span class="btn-label" data-t="hero_cta_improve">/, 'the CTA stays an <a> whose i18n label lives in an inner span');
+  assert.doesNotMatch(beat1, /<a [^>]*btn-glass[^>]*data-t=/, 'data-t is not on the anchor (applyText would wipe the glass host)');
+  assert.equal((page.match(/btn-glass/g) || []).length, 1, 'only the hero CTA uses the glass');
+  assert.match(css, /html\.has-liquid-btn \.btn-glass::before \{/, 'the tinted gradient layer is gated on html.has-liquid-btn');
+  assert.match(css, /\.hl-btn-glass \{[^}]*pointer-events: none/, 'the glass host never takes a pointer');
+  assert.match(css, /html\.has-liquid-btn \.btn-glass \.hl-btn-glass \{ opacity: 1/, 'the glass only shows while it is live');
+  const loader = readFileSync(join(ROOT, 'ui', 'effects', 'src', 'hero-liquid.ts'), 'utf8');
+  assert.match(loader, /has-liquid-btn/, 'the loader toggles the class from the glass diagnostics');
+  assert.match(css, /html\.has-liquid-btn \.btn-glass \.btn-label \{ color: #fff; text-shadow:/, 'the label turns white (with a soft shadow) only while the glass button is live');
+  assert.match(css, /html\.has-liquid-btn \.btn-glass::before \{ filter: brightness\(/, 'the translucent gradient is deepened so the white label stays readable');
+  assert.doesNotMatch(css + readFileSync(join(ROOT, 'ui', 'effects', 'src', 'hero-liquid-core.tsx'), 'utf8'), /hl-btn-text|LabelGlass|has-liquid-btn-text/, 'the label is plain text: no glass overlay, no extra WebGL context');
+  assert.match(page, /\(a\[0\]\.querySelector\('\.btn-label'\) \|\| a\[0\]\)\.textContent/, 'the French pre-paint script rewrites the label span, not the whole anchor');
 });
 
 test('a legal page with placeholders stays noindex and out of the nav and footer', () => {
@@ -375,4 +382,52 @@ test('agencyLanguageInstruction names the page language', () => {
   assert.match(agencyLanguageInstruction('fr'), /Answer in French/);
   assert.match(agencyLanguageInstruction('en'), /Answer in English/);
   assert.match(agencyLanguageInstruction('xx'), /Answer in English/);
+});
+
+/* ── Coaching: not on the home, a "coming soon" page of its own ── */
+
+test('the home no longer mentions coaching, in any language', () => {
+  const home = readFileSync(join(ROOT, 'ui', 'agence.html'), 'utf8');
+  assert.ok(!/coach|accompagn|mentor/i.test(home), 'ui/agence.html carries no coaching copy');
+  assert.ok(!home.includes('id="coach"'), 'no coaching band on the home');
+  assert.ok(!/href="(?:https:\/\/jobyougo\.xyz)?\/agence\/coaching/.test(home), 'the home does not link the coaching page');
+  const shell = readFileSync(join(ROOT, 'ui', 'agence', 'page.html'), 'utf8');
+  assert.ok(!/href="(?:https:\/\/jobyougo\.xyz)?\/agence\/coaching/.test(shell), 'the shared header and footer do not link it either');
+  const story = readFileSync(join(ROOT, 'ui', 'portfolio', 'agence-story.js'), 'utf8');
+  for (const key of ['s_beat3_line', 's_pricing_pay_home', 'faq_payment_a_home', 'faq_unhappy_a_home', 'meta_desc_home']) {
+    const copies = [...story.matchAll(new RegExp(`^\\s*${key}: '(.*)',$`, 'gm'))].map((m) => m[1]);
+    assert.equal(copies.length, 2, `${key}: one English and one French copy`);
+    for (const copy of copies) assert.ok(!/coach|accompagn|mentor/i.test(copy), `${key}: ${copy.slice(0, 40)}`);
+  }
+});
+
+test('on the home, the script leaves the coaching offer, its add-on, its service row, its FAQ entry and its option out', () => {
+  const story = readFileSync(join(ROOT, 'ui', 'portfolio', 'agence-story.js'), 'utf8');
+  assert.match(story, /const HOME_PAGE = !!d\.getElementById\('hero-title'\);/);
+  assert.match(story, /offers: \(OFFERS_ALL\.offers \|\| \[\]\)\.filter\(\(o\) => o\.id !== HOME_HIDDEN_OFFER\)/);
+  assert.match(story, /AGENCY_OFFER_IDS[^\n]*\)\.filter\(\(id\) => !HOME_PAGE \|\| id !== HOME_HIDDEN_OFFER\)/);
+  assert.match(story, /SERVICES\.filter\(\(s\) => s\.n !== 2 && !\(HOME_PAGE && s\.offer === HOME_HIDDEN_OFFER\)\)/);
+  assert.match(story, /FAQ\.filter\(\(slug\) => !\(HOME_PAGE && slug === 'cancel'\)\)/);
+  assert.equal(HOME_HIDDEN_OFFER_IN_DATA(), true, 'the offer the home hides still exists for the other pages');
+});
+function HOME_HIDDEN_OFFER_IN_DATA() {
+  return /"id": "accompagnement"/.test(readFileSync(join(ROOT, 'ui', 'portfolio', 'agence-data.js'), 'utf8'));
+}
+
+test('/agence/coaching is a registered sub-page: noindex, a "coming soon" fragment, English and French, no form', async () => {
+  assert.equal(agenceSubpageId('/agence/coaching'), 'coaching');
+  assert.equal(agenceRedirectTarget('/agence/coaching/', '?lang=fr'), '/agence/coaching?lang=fr');
+  assert.ok(AGENCE_SUBPAGES.coaching.head.includes('<meta name="robots" content="noindex">'));
+  const html = await renderAgenceSubpage(join(ROOT, 'ui'), 'coaching');
+  assert.ok(html, 'the page renders through the shell');
+  assert.ok(html.includes('id="coaching-title"') && html.includes('href="/agence"'), 'a title and a way back to the home');
+  assert.ok(!html.includes('<!--@'), 'no marker left');
+  assert.ok(!/<form\b|<input\b|type="email"/i.test(readFileSync(join(ROOT, 'ui', 'agence', 'coaching.html'), 'utf8')), 'no form and no e-mail field');
+  const story = readFileSync(join(ROOT, 'ui', 'portfolio', 'agence-story.js'), 'utf8');
+  for (const key of ['s_coaching_title', 's_coaching_lede', 's_coaching_back', 'doc_title_coaching', 'meta_desc_coaching']) {
+    const copies = [...story.matchAll(new RegExp(`^\\s*${key}: '(.*)',$`, 'gm'))].map((m) => m[1]);
+    assert.equal(copies.length, 2, `${key}: English and French`);
+    assert.notEqual(copies[0], copies[1], `${key}: the two languages differ`);
+  }
+  assert.match(story, /coaching: 'coaching' \}\)\[SITE\.page\]/, 'the page title and description are localised');
 });
