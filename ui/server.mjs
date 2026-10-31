@@ -76,6 +76,7 @@ import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
 import { runAtsExplorer, makeApiSearch } from '../lib/ats-explorer.mjs';
 import { runPortalsEnrichment } from '../lib/portals-enrichment.mjs';
 import { createEngineBackoff, createQuerySpacer, createEngineRotation } from '../lib/scan-engine-backoff.mjs';
+import { resolveGoogleGoto } from '../lib/serp-redirects.mjs';
 import { createScanLogger } from '../lib/scan-log.mjs';
 import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
 import { CONSENT_DISMISS_SCRIPT, needsLongerWait, createSolveCooldown, createDetailBudget } from '../lib/scan-careers-wait.mjs';
@@ -4206,6 +4207,16 @@ async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = n
     let bodyText = cleanString(result?.bodyText || await page.evaluate(PAGE_BODY_TEXT_EXPR).catch(() => '') || '');
 
     if (!jobs.length && looksLikeChallengePage(bodyText) && !local.headless) {
+// Google's result links are /goto redirects (lib/serp-redirects.mjs): follow them to the
+// posting URLs. `blocked` is true when every link was refused (rate limit, "sorry" page).
+// Each link is one more request to Google, so only the titles the scan keeps are followed.
+async function resolveGoogleResults(jobs, label, name) {
+  if (!jobs.some(job => job?.gotoHref)) return { jobs, blocked: false };
+  const res = await resolveGoogleGoto(jobs, { keep: job => portalsTitleFilter.test(job.title) });
+  if (res.unresolved) console.warn(`[scan] [${label}] "${name}" → ${res.unresolved} result link(s) could not be followed${res.blocked ? ' (refused)' : ''}`);
+  return res;
+}
+
       console.log(`[scan] [Chrome/Google] "${name}" challenge wall — solve it in the Chrome window (waiting up to 45s)…`);
       const deadline = Date.now() + 45000;
       while (Date.now() < deadline && !jobs.length && !isShuttingDown) {
@@ -4246,12 +4257,18 @@ const PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT = `(() => {
     try {
       const parsed = new URL(String(href || ''), window.location.origin);
       if (parsed.pathname === '/url') {
-        return parsed.searchParams.get('q') || '';
+        return parsed.searchParams.get('q') || parsed.searchParams.get('url') || '';
       }
       return parsed.href || '';
     } catch {
       return String(href || '');
     }
+    const followed = await resolveGoogleResults(jobs, 'Chrome/Google', name);
+    jobs = followed.jobs;
+    if (!jobs.length && followed.blocked) {
+      return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'redirect links refused' };
+    }
+
   };
   const isGoogleHost = host => /(^|\\.)google\\./i.test(host || '');
   const seen = new Set();
@@ -4259,34 +4276,51 @@ const PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT = `(() => {
 
   document.querySelectorAll('a[href]').forEach(anchor => {
     const title = normalizeText(
-      (anchor.querySelector('h3') || {}).textContent ||
+      (heading || {}).textContent ||
       anchor.getAttribute('aria-label') ||
       anchor.textContent
     );
     if (!title || title.length < 4 || title.length > 220) return;
     if (navLike.test(title)) return;
 
-    const decodedHref = decodeHref(anchor.getAttribute('href') || anchor.href || '');
-    if (!/^https?:\\/\\//i.test(decodedHref)) return;
-
-    let host = '';
-    try { host = new URL(decodedHref).hostname || ''; } catch {}
-    if (!host || isGoogleHost(host)) return;
+    const rawHref = anchor.getAttribute('href') || anchor.href || '';
+    let decodedHref = decodeHref(rawHref);
+    // Only the title link carries a heading: the icon and "Read more" links of a card do not.
+    const gotoHref = heading ? gotoLink(rawHref) : '';
+    if (gotoHref) {
+      decodedHref = '';
+    } else {
+      if (!/^https?:\\/\\//i.test(decodedHref)) return;
+      let host = '';
+      try { host = new URL(decodedHref).hostname || ''; } catch {}
+      if (!host || isGoogleHost(host)) return;
+    }
 
     const card = anchor.closest('div[data-snc], div.g, div[lang], article, section, div');
     const snippet = normalizeText((card && card.innerText) || '').replace(title, '').trim();
-    const key = decodedHref + '::' + title.toLowerCase();
+    const key = (decodedHref || gotoHref) + '::' + title.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
 
     results.push({
       title,
       url: decodedHref,
+  // Since 2026-10-31 an outbound result link is google.com/goto?url=<opaque token>:
+  // it answers 302 with the posting URL, which the server follows (lib/serp-redirects.mjs).
+  const gotoLink = href => {
+    try {
+      const parsed = new URL(String(href || ''), window.location.origin);
+      return parsed.pathname === '/goto' ? parsed.href : '';
+    } catch {
+      return '';
+    }
+  };
       location: snippet,
       remoteEvidence: snippet,
     });
   });
 
+    const heading = anchor.querySelector('h3, [role="heading"]');
   return {
     url: location.href,
     title: document.title || '',
@@ -4311,6 +4345,7 @@ const PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT = `(() => {
     if (!/^https?:\\/\\//i.test(url)) return;
     let host = '';
     try { host = new URL(url).hostname || ''; } catch {}
+      gotoHref,
     if (/(^|\\.)brave\\./i.test(host)) return;
     const title = normalizeText(
       (snippet.querySelector('.title') || {}).textContent ||
@@ -4462,6 +4497,11 @@ async function fetchPinchtabSearchSection({ name, query }, { freshness = 'auto' 
 // are unwrapped in the page so the scanner sees the real posting URL.
 const PINCHTAB_BING_SEARCH_EXTRACT_SCRIPT = `(() => {
   const normalizeText = value => String(value || '').replace(/\\s+/g, ' ').trim();
+    const followed = await resolveGoogleResults(jobs, 'PinchTab/Google', name);
+    jobs = followed.jobs;
+    if (!jobs.length && followed.blocked) {
+      return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: 'redirect links refused' };
+    }
   const unwrap = href => {
     try {
       const parsed = new URL(String(href || ''), window.location.origin);

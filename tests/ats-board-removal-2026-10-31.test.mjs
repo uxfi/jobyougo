@@ -7,7 +7,9 @@ import { mkdtempSync, writeFileSync, readFileSync, readdirSync, existsSync, mkdi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { load as yamlLoad } from 'js-yaml';
-import { patchPortalsText, applyPortalsPatches, markStale, runAtsBoardResolver } from '../lib/ats-board-resolver.mjs';
+import {
+  patchPortalsText, applyPortalsPatches, markStale, runAtsBoardResolver, companyKey, findRedundantEntries, judgeBoard,
+} from '../lib/ats-board-resolver.mjs';
 
 const TEXT = `# head
 tracked_companies:
@@ -69,6 +71,31 @@ test('applyPortalsPatches writes a removal after a backup and re-reads it', () =
   assert.equal(after[0].enabled, false);
   assert.ok(readdirSync(dir).some((f) => f.startsWith('portals.yml.bak-resolver-')), 'the entry is recoverable from the backup');
   assert.ok(!existsSync(`${portalsPath}.explorer.lock`));
+});
+
+test('"The Flex" and "Flex" are two companies: a leading "the" is part of the name', () => {
+  assert.notEqual(companyKey('The Flex'), companyKey('Flex'));
+  assert.equal(companyKey('Gong.io'), companyKey('Gong'), 'legal and generic words are still dropped');
+  assert.equal(companyKey('Bank of the West'), companyKey('Bank of West'), 'a "the" inside a name still is');
+  assert.equal(companyKey('The'), 'the', 'a name that is only "the" keeps it');
+
+  // a search entry for Flex is not a duplicate of the board of The Flex...
+  const tracked = [
+    { name: 'The Flex', careers_url: 'https://jobs.ashbyhq.com/the-flex', api: 'https://api.ashbyhq.com/posting-api/job-board/the-flex' },
+    { name: 'Flex', careers_url: 'https://www.flex.com/careers', scan_method: 'websearch', scan_query: 'flex jobs' },
+  ];
+  assert.deepEqual(findRedundantEntries(tracked), []);
+  // ...while a real duplicate still is
+  const dup = findRedundantEntries([
+    { name: 'Gong', careers_url: 'https://job-boards.greenhouse.io/gong', api: 'https://boards-api.greenhouse.io/v1/boards/gong/jobs' },
+    { name: 'Gong.io', careers_url: 'https://www.gong.io/careers', scan_method: 'websearch', scan_query: 'gong jobs' },
+  ]);
+  assert.deepEqual(dup.map((d) => [d.company.name, d.keeper.name]), [['Gong.io', 'Gong']]);
+
+  // ...and a board named "The Flex" is not attached to the company "Flex"
+  const board = { status: 200, titles: ['Designer', 'Engineer', 'Manager'], name: 'The Flex' };
+  assert.equal(judgeBoard({ name: 'Flex' }, board).reason, 'name_mismatch');
+  assert.equal(judgeBoard({ name: 'The Flex' }, board).ok, true);
 });
 
 test('markStale: a dead board is confirmed over days, and starts over after a long gap', () => {
