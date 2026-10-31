@@ -33,7 +33,7 @@
   const pickName = (o) => (document.documentElement.lang === 'fr' ? o.fr : o.en).split(' · ')[0];
   B.animals.mobility = {
     id: 'mobility',
-    frame: { r: 3.1, cx: 0.4, cy: 1.65, floor: 0, shadow: 5.4, yaw: 0.82, pitch: 0.14 },
+    frame: { r: 2.9, cx: 0.45, cy: 1.55, floor: 0, shadow: 5.2, yaw: 0.82, pitch: 0.14 },
     input: { min: 0, max: 16, def: 5, d: 1, unit: 'm/s', step: 0.05, period: 26, label: { en: 'Speed', fr: 'Vitesse' }, fmt: (x, n) => `${n(x, 1)} m/s` },
     parts: [
       { id: 'legs', en: 'Four legs', fr: 'Quatre jambes' }, { id: 'body', en: 'Body & neck', fr: 'Corps et encolure' }, { id: 'heart', en: 'Heart & spine', fr: 'Cœur et colonne' },
@@ -52,63 +52,74 @@
       const legsP = rig.part('legs', [0, -0.75, 0]); const bodyP = rig.part('body', [0, 0, 0]); const heartP = rig.part('heart', [0, 1.1, 1.0]);
       const mv = [legsP, bodyP, heartP].map((p) => { const g = new T.Group(); p.group.add(g); return g; });
       const put = (g, m, x, y, z) => { g.position.set(x, y, z); mv[m].add(g); return g; };
-      const COAT = '#c6cff2'; const HIDE = { op: 0.88, map: 'dapple', bump: 'fuzz', bumpScale: 0.5 };
+      const COAT = '#f1b595'; const DARK = '#6d59bb'; const SKIN = { op: 0.94, bump: 'fuzz', bumpScale: 0.45, detached: true };
+      const HIP = 1.5; const CY = 1.98;
 
-      /* body: one lofted barrel with a dipped back, a deep chest and a round croup; dappled grey coat with short hair */
-      const bSpec = { len: 2.5, n: 60, ru: 3, rv: 3, a: () => 0.86, y: (s) => 2.0 + 0.07 * smooth(0.55, 0.85, s) + 0.06 * (1 - smooth(0, 0.3, s)), r: (s) => 0.006 + (0.5 + 0.07 * g2(s, 0.8, 0.12) + 0.08 * g2(s, 0.2, 0.14) - 0.03 * g2(s, 0.5, 0.2)) * env(s) };
-      put(K.glass(bodyP, K.loft(bSpec), COAT, { ...HIDE, detached: true }), 1, 0, 0, 0);
-
-      /* neck: a swept tube, narrower than it is deep; a mane of flowing strands along the crest (they move) */
-      const nCurve = new T.CatmullRomCurve3([V(0.95, 2.3, 0), V(1.22, 2.74, 0), V(1.55, 3.1, 0), V(1.84, 3.36, 0)]);
-      const nPts = nCurve.getPoints(14); const nR = nPts.map((_, i) => 0.46 - 0.29 * (i / 14));
-      const neck = K.tube(14, 22, 3, 3); neck.set(nPts, nR, V(0, 1, 0), nPts.map(() => 0.74));
-      put(K.glass(bodyP, neck.geo, COAT, { ...HIDE, detached: true }), 1, 0, 0, 0);
-      const NM = 26; const maneG = K.feather(1, 0.1, { curl: 0.12, tip: 0.9 });
-      const mane = K.thin(bodyP, maneG, P.lav, { op: 0.82, bump: 'feather', bumpScale: 1.6, instances: Array.from({ length: NM }, () => new T.Matrix4()), detached: true }); put(mane, 1, 0, 0, 0);
-
-      /* head: lofted, tilted down; eyes with a glint and a brow, nostrils, cheek, lips, two pointed ears with an inner ear, a forelock */
-      const hSpec = { x0: 0, len: 0.95, n: 40, ru: 2, rv: 2, a: (s) => 0.72 + 0.12 * s, r: (s) => 0.006 + (0.19 - 0.08 * smooth(0.2, 1, s)) * Math.pow(Math.sin(PI * Math.pow(s, 0.4)), 0.5) };
-      const head = new T.Group(); put(head, 1, 1.8, 3.36, 0); head.rotation.z = -0.95;
-      head.add(K.glass(bodyP, K.loft(hSpec), COAT, { op: 0.9, map: 'dapple', bump: 'fuzz', bumpScale: 0.4, detached: true }));
+      /* body: a deep barrel with a heart girth, a tucked-up flank and a round croup, plus a shoulder and a haunch on each side */
+      const bSpec = { len: 2.5, n: 60, ru: 3, rv: 3, a: () => 0.84, y: (s) => CY + 0.05 * smooth(0.55, 0.8, s) + 0.05 * (1 - smooth(0, 0.3, s)), r: (s) => 0.006 + (0.58 + 0.07 * g2(s, 0.68, 0.14) - 0.05 * g2(s, 0.32, 0.12) + 0.04 * g2(s, 0.15, 0.1)) * env(s) };
+      put(K.glass(bodyP, K.loft(bSpec), COAT, { ...SKIN }), 1, 0, 0, 0);
       [1, -1].forEach((s) => {
-        const e = K.eye(bodyP, { r: 0.05, iris: '#7a4a30' }); e.position.set(0.26, 0.1, s * 0.14); e.rotation.y = s > 0 ? 0.5 : PI - 0.5; head.add(e);
-        const brow = K.glass(bodyP, K.ball(0.07, 0.025, 0.05, 10), COAT, { op: 0.9, detached: true }); brow.position.set(0.26, 0.17, s * 0.12); head.add(brow);
-        const nos = K.glass(bodyP, K.ball(0.034, 0.024, 0.02, 8), P.ink, { op: 0.96, detached: true }); nos.position.set(0.88, 0.02, s * 0.06); head.add(nos);
-        const cheek = K.glass(bodyP, K.ball(0.2, 0.16, 0.06, 14), COAT, { op: 0.86, detached: true }); cheek.position.set(0.18, -0.07, s * 0.1); head.add(cheek);
-        const ear = K.glass(bodyP, new T.ConeGeometry(0.07, 0.3, 12), P.peri, { op: 0.88, detached: true }); ear.position.set(-0.04, 0.22, s * 0.08); ear.rotation.set(s * 0.1, 0, -0.35); head.add(ear);
-        const inner = K.glass(bodyP, new T.ConeGeometry(0.04, 0.22, 10), P.cream, { op: 0.9, detached: true }); inner.position.set(-0.03, 0.2, s * 0.09); inner.rotation.set(s * 0.1, 0, -0.35); head.add(inner);
+        put(K.glass(bodyP, K.ball(0.5, 0.62, 0.23, 26), COAT, { ...SKIN }), 1, -0.85, 1.9, s * 0.36);
+        put(K.glass(bodyP, K.ball(0.4, 0.52, 0.2, 24), COAT, { ...SKIN }), 1, 0.7, 1.92, s * 0.4);
       });
-      const lips = K.glass(bodyP, K.ball(0.1, 0.035, 0.07, 12), P.rose, { op: 0.9, detached: true }); lips.position.set(0.9, -0.02, 0); head.add(lips);
-      head.add(K.thin(bodyP, maneG, P.lav, { op: 0.84, bump: 'feather', bumpScale: 1.6, instances: K.fan([[-0.02, 0.2, 0, 0.2], [-0.02, 0.2, 0.03, 0.5], [-0.02, 0.2, -0.03, -0.1]].map(([x, y, z, a]) => ({ p: V(x, y, z), dir: V(0.5, -0.4 - a, a * 0.6), len: 0.3, nHint: V(0, 0, 1), wide: 0.5 }))) }));
+
+      /* neck: an arched swept tube, deep at the base and narrow at the poll; a mane of flowing strands (they move) */
+      const nCurve = new T.CatmullRomCurve3([V(0.9, 2.2, 0), V(1.2, 2.62, 0), V(1.52, 2.95, 0), V(1.85, 3.12, 0)]);
+      const nPts = nCurve.getPoints(14); const nR = nPts.map((_, i) => 0.52 - 0.32 * Math.pow(i / 14, 0.9));
+      const neck = K.tube(14, 22, 3, 3); neck.set(nPts, nR, V(0, 1, 0), nPts.map(() => 0.76));
+      put(K.glass(bodyP, neck.geo, COAT, { ...SKIN }), 1, 0, 0, 0);
+      const NM = 34; const maneG = K.feather(1, 0.12, { curl: 0.12, tip: 0.9 });
+      const mane = K.thin(bodyP, maneG, DARK, { op: 0.88, bump: 'feather', bumpScale: 1.4, instances: Array.from({ length: NM }, () => new T.Matrix4()), detached: true }); put(mane, 1, 0, 0, 0);
+
+      /* head: a deep jaw and cheek, a long face narrowing to a soft muzzle, a pale blaze, big eyes with lids and a glint, flared nostrils,
+         two pointed ears with an inner ear, a forelock */
+      const hSpec = { x0: 0, len: 1.0, n: 44, ru: 2, rv: 2, a: (s) => 0.74 + 0.2 * s, r: (s) => 0.006 + (0.15 + 0.07 * g2(s, 0.25, 0.2) - 0.04 * smooth(0.45, 1, s)) * Math.pow(Math.sin(PI * Math.pow(s, 0.4)), 0.5) };
+      const head = new T.Group(); put(head, 1, 1.85, 3.12, 0); head.rotation.z = -1.0;
+      head.add(K.glass(bodyP, K.loft(hSpec), COAT, { ...SKIN }));
+      const jaw = K.glass(bodyP, K.ball(0.3, 0.1, 0.13, 22), COAT, { ...SKIN }); jaw.position.set(0.3, -0.1, 0); head.add(jaw);
+      const blaze = K.glass(bodyP, K.ball(0.42, 0.028, 0.05, 16), P.cream, { op: 0.9, detached: true }); blaze.position.set(0.46, 0.145, 0); blaze.rotation.z = -0.07; head.add(blaze);
+      [1, -1].forEach((s) => {
+        const ry = s > 0 ? 0.5 : PI - 0.5;
+        const e = K.eye(bodyP, { r: 0.062, iris: '#7a4a30' }); e.position.set(0.27, 0.09, s * 0.15); e.rotation.y = ry; head.add(e);
+        const lid = K.glass(bodyP, new T.TorusGeometry(0.07, 0.015, 8, 22), '#d98e6c', { op: 0.95, detached: true }); lid.position.set(0.27, 0.09, s * 0.148); lid.rotation.y = ry; head.add(lid);
+        const brow = K.glass(bodyP, K.ball(0.09, 0.03, 0.06, 12), COAT, { op: 0.94, detached: true }); brow.position.set(0.27, 0.17, s * 0.12); head.add(brow);
+        const nos = K.glass(bodyP, K.ball(0.045, 0.032, 0.022, 10), P.ink, { op: 0.96, detached: true }); nos.position.set(0.93, 0.0, s * 0.075); nos.rotation.y = s * 0.4; head.add(nos);
+        const cheek = K.glass(bodyP, K.ball(0.16, 0.12, 0.05, 16), COAT, { op: 0.94, detached: true }); cheek.position.set(0.2, -0.04, s * 0.14); head.add(cheek);
+        const ear = K.glass(bodyP, new T.ConeGeometry(0.075, 0.3, 14), COAT, { op: 0.94, detached: true }); ear.position.set(0.0, 0.22, s * 0.09); ear.rotation.set(s * 0.12, 0, -0.2); head.add(ear);
+        const inner = K.glass(bodyP, new T.ConeGeometry(0.045, 0.22, 10), '#e58f8f', { op: 0.94, detached: true }); inner.position.set(0.012, 0.21, s * 0.095); inner.rotation.set(s * 0.12, 0, -0.2); head.add(inner);
+      });
+      const lips = K.glass(bodyP, K.ball(0.1, 0.045, 0.085, 14), '#e58f8f', { op: 0.94, detached: true }); lips.position.set(0.94, -0.03, 0); head.add(lips);
+      head.add(K.thin(bodyP, maneG, DARK, { op: 0.88, bump: 'feather', bumpScale: 1.4, instances: K.fan([[0.0, 0.2, 0, 0.2], [0.0, 0.2, 0.04, 0.5], [0.0, 0.2, -0.04, -0.1]].map(([x, y, z, a]) => ({ p: V(x, y, z), dir: V(0.5, -0.4 - a, a * 0.6), len: 0.32, nHint: V(0, 0, 1), wide: 0.5 }))) }));
 
       /* tail: a tube plus a fan of strands, re-shaped every frame */
       const tail = K.tube(12, 10, 2, 4); const tailP = Array.from({ length: 13 }, () => new T.Vector3()); const tailR = new Array(13);
-      put(K.glass(bodyP, tail.geo, P.lav, { op: 0.86, bump: 'fuzz', bumpScale: 0.8, detached: true }), 1, 0, 0, 0);
-      const NT = 30; const tailS = K.thin(bodyP, maneG, P.lav, { op: 0.8, bump: 'feather', bumpScale: 1.6, instances: Array.from({ length: NT }, () => new T.Matrix4()), detached: true }); put(tailS, 1, 0, 0, 0);
-      const tailRnd = Array.from({ length: NT }, (_, i) => { const r = K.rng(40 + i); return { i: 1 + (i % 10), a: (r() - 0.5) * 0.9, b: (r() - 0.5) * 0.7, len: 0.4 + r() * 0.3 }; });
+      put(K.glass(bodyP, tail.geo, DARK, { op: 0.9, bump: 'fuzz', bumpScale: 0.8, detached: true }), 1, 0, 0, 0);
+      const NT = 36; const tailS = K.thin(bodyP, maneG, DARK, { op: 0.86, bump: 'feather', bumpScale: 1.4, instances: Array.from({ length: NT }, () => new T.Matrix4()), detached: true }); put(tailS, 1, 0, 0, 0);
+      const tailRnd = Array.from({ length: NT }, (_, i) => { const r = K.rng(40 + i); return { i: 1 + (i % 10), a: (r() - 0.5) * 0.9, b: (r() - 0.5) * 0.7, len: 0.4 + r() * 0.35 }; });
 
-      /* legs: forearm or thigh, a knee, a cannon with its fetlock and pastern, a hoof with a coronet ring */
-      const upSpec = { x0: 0, len: 0.86, n: 18, radial: 18, ru: 2, rv: 2, a: () => 0.95, r: (s) => 0.17 - 0.075 * smooth(0, 0.9, s) + 0.012 * smooth(0.86, 1, s) };
-      const loSpec = { x0: 0, len: 0.92, n: 22, radial: 16, ru: 2, rv: 2, a: () => 0.95, r: (s) => 0.088 - 0.028 * smooth(0, 0.3, s) + 0.027 * g2(s, 0.78, 0.05) - 0.012 * smooth(0.84, 1, s) };
-      const legs = [[-0.85, 0.3, false], [0.85, 0.27, true], [-0.85, -0.3, false], [0.85, -0.27, true]].map(([x, z, fore]) => {
-        const hip = new T.Group(); put(hip, 0, x, 1.82, z);
-        const ug = new T.Group(); ug.rotation.z = -PI / 2; hip.add(ug); ug.add(K.glass(legsP, K.loft(upSpec), COAT, { ...HIDE, detached: true }));
-        const knee = new T.Group(); knee.position.y = -0.85; hip.add(knee);
-        knee.add(K.glass(legsP, K.ball(0.1, 0.1, 0.09, 14), COAT, { op: 0.9, bump: 'fuzz', detached: true }));
-        const lg = new T.Group(); lg.rotation.z = -PI / 2; knee.add(lg); lg.add(K.glass(legsP, K.loft(loSpec), COAT, { op: 0.9, map: 'dapple', bump: 'fuzz', bumpScale: 0.4, detached: true }));
-        const hoof = K.glass(legsP, new T.CylinderGeometry(0.1, 0.128, 0.12, 20).translate(0, -0.97, 0), '#3a3470', { op: 0.95, bump: 'wrinkle', bumpScale: 0.8, detached: true }); knee.add(hoof);
-        const cor = K.glass(legsP, new T.TorusGeometry(0.1, 0.014, 8, 20).rotateX(PI / 2), P.cream, { op: 0.92, detached: true }); cor.position.y = -0.915; knee.add(cor);
+      /* legs: a thick forearm or gaskin, a knee, a slim cannon with its fetlock and pastern, a hoof with a coronet ring, white socks on two */
+      const upSpec = (top) => ({ x0: 0, len: 0.72, n: 18, radial: 20, ru: 2, rv: 2, a: () => 0.96, r: (s) => top - (top - 0.082) * smooth(0, 0.9, s) + 0.012 * smooth(0.86, 1, s) });
+      const loSpec = { x0: 0, len: 0.62, n: 22, radial: 18, ru: 2, rv: 2, a: () => 0.96, r: (s) => 0.074 - 0.014 * smooth(0, 0.4, s) + 0.03 * g2(s, 0.8, 0.06) - 0.01 * smooth(0.86, 1, s) };
+      const legs = [[-0.85, 0.3, false], [0.85, 0.27, true], [-0.85, -0.3, false], [0.85, -0.27, true]].map(([x, z, fore], li) => {
+        const hip = new T.Group(); put(hip, 0, x, HIP, z);
+        const ug = new T.Group(); ug.rotation.z = -PI / 2; hip.add(ug); ug.add(K.glass(legsP, K.loft(upSpec(fore ? 0.175 : 0.22)), COAT, { ...SKIN }));
+        const knee = new T.Group(); knee.position.y = -0.72; hip.add(knee);
+        knee.add(K.glass(legsP, K.ball(0.095, 0.1, 0.085, 16), COAT, { op: 0.94, detached: true }));
+        const lg = new T.Group(); lg.rotation.z = -PI / 2; knee.add(lg); lg.add(K.glass(legsP, K.loft(loSpec), COAT, { ...SKIN }));
+        if (li === 1 || li === 2) { const sock = K.glass(legsP, new T.CylinderGeometry(0.082, 0.092, 0.26, 18).translate(0, -0.44, 0), P.cream, { op: 0.92, detached: true }); knee.add(sock); }
+        const hoof = K.glass(legsP, new T.CylinderGeometry(0.086, 0.115, 0.11, 20).translate(0, -0.675, 0), '#3d3479', { op: 0.96, bump: 'wrinkle', bumpScale: 0.8, detached: true }); knee.add(hoof);
+        const cor = K.glass(legsP, new T.TorusGeometry(0.088, 0.014, 8, 20).rotateX(PI / 2), P.cream, { op: 0.94, detached: true }); cor.position.y = -0.62; knee.add(cor);
         return { hip, knee, fore };
       });
       const tickM = Array.from({ length: 24 }, () => new T.Matrix4());
       const ticks = K.thin(legsP, new T.PlaneGeometry(0.34, 0.02).rotateX(-PI / 2), P.ink, { op: 0.28, instances: tickM, detached: true }); legsP.group.add(ticks);
 
       /* inside: heart, lungs, spine, a cage of ribs */
-      const heart = K.solid(heartP, K.ball(0.22, 0.25, 0.19, 18), P.coral, { detached: true }); put(heart, 2, 0.55, 1.92, 0);
-      [1, -1].forEach((s) => put(K.solid(heartP, K.ball(0.4, 0.32, 0.2, 16), P.rose, { detached: true }), 2, 0.3, 2.2, s * 0.22));
-      const sp = new T.CatmullRomCurve3([V(1.82, 3.32, 0), V(1.35, 2.95, 0), V(0.9, 2.62, 0), V(0.3, 2.56, 0), V(-0.4, 2.58, 0), V(-1.1, 2.44, 0)]);
+      const heart = K.solid(heartP, K.ball(0.22, 0.25, 0.19, 18), P.coral, { detached: true }); put(heart, 2, 0.55, 1.78, 0);
+      [1, -1].forEach((s) => put(K.solid(heartP, K.ball(0.4, 0.34, 0.2, 16), P.rose, { detached: true }), 2, 0.3, 2.1, s * 0.22));
+      const sp = new T.CatmullRomCurve3([V(1.85, 3.1, 0), V(1.4, 2.82, 0), V(0.95, 2.52, 0), V(0.3, 2.5, 0), V(-0.4, 2.5, 0), V(-1.1, 2.36, 0)]);
       put(K.solid(heartP, new T.TubeGeometry(sp, 44, 0.05, 8), P.cream, { detached: true }), 2, 0, 0, 0);
-      const ribM = Array.from({ length: 9 }, (_, i) => new T.Matrix4().compose(V(-0.55 + i * 0.16, 2.28, 0), new T.Quaternion(), V(0.4, 0.44 - Math.abs(i - 3.5) * 0.015, 0.4)));
+      const ribM = Array.from({ length: 9 }, (_, i) => new T.Matrix4().compose(V(-0.55 + i * 0.16, 2.14, 0), new T.Quaternion(), V(0.4, 0.5 - Math.abs(i - 3.5) * 0.015, 0.4)));
       put(K.solid(heartP, new T.TorusGeometry(1, 0.05, 6, 14, PI).rotateY(PI / 2).rotateX(PI), P.cream, { instances: ribM, detached: true }), 2, 0, 0, 0);
 
       const st = { t: 0, phi: 0, hp: 0, dist: 0 };
@@ -116,7 +127,7 @@
       const pose = (v, t) => {
         const dt = Math.min(0.1, Math.max(0, t - st.t)); st.t = t;
         st.phi = (st.phi + stride(v) * dt) % 1000; st.hp += (heartRate(v) / 60) * dt; st.dist += v * dt * 0.45;
-        const o = gaitOffsets(v); const duty = lerp(0.68, 0.28, smooth(1.5, 12, v)); const A = lerp(0.32, 0.72, smooth(1.5, 11, v)) * smooth(0, 0.7, v);
+        const o = gaitOffsets(v); const duty = lerp(0.68, 0.28, smooth(1.5, 12, v)); const A = lerp(0.3, 0.66, smooth(1.5, 11, v)) * smooth(0, 0.7, v);
         legs.forEach((l, i) => {
           const p = (((st.phi + o[i]) % 1) + 1) % 1; let al; let lift = 0;
           if (p < duty) al = A * (1 - (2 * p) / duty);
@@ -124,14 +135,14 @@
           l.hip.rotation.z = al; l.knee.rotation.z = -lift * (1.05 + 0.5 * smooth(2, 10, v)) * (l.fore ? 1 : 0.9);
         });
         const run = smooth(2, 10, v);
-        const bob = (0.015 + 0.05 * run) * Math.cos(TAU * st.phi * 2); const pitch = (0.01 + 0.025 * run) * Math.sin(TAU * st.phi * 2 + 0.5);
+        const bob = (0.015 + 0.045 * run) * Math.cos(TAU * st.phi * 2); const pitch = (0.01 + 0.022 * run) * Math.sin(TAU * st.phi * 2 + 0.5);
         mv.forEach((m) => { m.position.y = bob; m.rotation.z = pitch; });
         heart.scale.setScalar(1 + 0.2 * Math.pow(Math.max(0, Math.sin(TAU * st.hp)), 3));
         /* the tail trails further back the faster the horse goes */
         const dl = lerp(1.3, 0.25, smooth(0, 12, v));
-        let x = -1.08; let y = 2.18;
+        let x = -1.1; let y = 2.1;
         for (let j = 0; j <= 12; j++) {
-          const s = j / 12; tailP[j].set(x, y, 0); tailR[j] = 0.04 + 0.04 * Math.sin(PI * Math.min(1, s * 1.15)) + 0.01;
+          const s = j / 12; tailP[j].set(x, y, 0); tailR[j] = 0.045 + 0.04 * Math.sin(PI * Math.min(1, s * 1.15)) + 0.01;
           const dj = dl + 0.35 * s * Math.sin(TAU * (st.phi * 0.5 - s) + 0.4);
           x -= (1.15 / 12) * Math.cos(dj); y -= (1.15 / 12) * Math.sin(dj);
         }
@@ -147,7 +158,7 @@
         for (let j = 0; j < NM; j++) {
           const i = 1 + Math.round((j / (NM - 1)) * 12); const q = i * 3; const rr = nR[i] * 0.98;
           const sw = Math.sin(TAU * (st.phi * 0.5 + j * 0.07)) * (0.2 + 0.3 * run);
-          items.push({ p: V(neck.c[q] + neck.nor[q] * rr, neck.c[q + 1] + neck.nor[q + 1] * rr, neck.c[q + 2] + neck.nor[q + 2] * rr), dir: V(-0.35 - 0.5 * run + sw * 0.3, -0.55 + 0.35 * run + sw * 0.2, 0.38 + 0.15 * Math.sin(TAU * st.phi + j)), len: 0.42 + 0.12 * ((j * 7) % 5) / 5, nHint: V(0, 0, 1), wide: 0.55 });
+          items.push({ p: V(neck.c[q] + neck.nor[q] * rr, neck.c[q + 1] + neck.nor[q + 1] * rr, neck.c[q + 2] + neck.nor[q + 2] * rr), dir: V(-0.35 - 0.5 * run + sw * 0.3, -0.55 + 0.35 * run + sw * 0.2, 0.38 + 0.15 * Math.sin(TAU * st.phi + j)), len: 0.45 + 0.14 * ((j * 7) % 5) / 5, nHint: V(0, 0, 1), wide: 0.6 });
         }
         K.fan(items).forEach((m, j) => mane.setMatrixAt(j, m)); mane.instanceMatrix.needsUpdate = true;
         const tm = new T.Matrix4();
@@ -157,7 +168,7 @@
       return {
         root: rig.root, parts: rig.parts, pose,
         anchors: [
-          { part: 'legs', obj: legs[1].knee, off: [0, -0.55, 0.1], dx: 70, dy: 54, en: 'Gait', fr: 'Allure', live: (v) => pickName(gaitName(v)) },
+          { part: 'legs', obj: legs[1].knee, off: [0, -0.4, 0.1], dx: 70, dy: 54, en: 'Gait', fr: 'Allure', live: (v) => pickName(gaitName(v)) },
           { part: 'heart', obj: heart, off: [0, 0, 0.15], dx: -80, dy: -64, en: 'Heart', fr: 'Cœur', live: (v) => `${Math.round(heartRate(v))} bpm` },
           { part: 'body', obj: head, off: [0.5, 0.15, 0.1], dx: 70, dy: -40, en: 'Body & neck', fr: 'Corps et encolure' },
         ],

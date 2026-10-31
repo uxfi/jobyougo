@@ -241,7 +241,7 @@
   };
 
   /* ───────── 7. The swan · luxury · the same neck, 24 vertebrae, from a curve to a line ───────── */
-  const SW = { n: 24, seg: 0.086, cm: 29 }; /* vertebrae, length of one in model units, centimetres per model unit */
+  const SW = { n: 24, seg: 0.12, cm: 25 }; /* vertebrae, length of one in model units, centimetres per model unit */
   const swanChain = (ext) => {
     const A = 90 * (1 - ext) * DEG; const D = 40 * (1 - ext) * DEG; const th0 = (30 + 50 * ext) * DEG;
     const pts = [{ x: 0, y: 0 }]; let x = 0; let y = 0; let prev = th0; let maxBend = 0; let ang = th0;
@@ -256,8 +256,8 @@
   const SW_BASE = { x: 0.92, y: 0.52 };
   B.animals.luxury = {
     id: 'luxury',
-    frame: { r: 2.35, cx: 0.25, cy: 1.1, floor: -0.06, shadow: 4.4, yaw: 0.62, pitch: 0.2 },
-    input: { min: 0, max: 1, def: 0.35, d: 2, unit: '%', step: 0.005, period: 16, label: { en: 'How far the neck is stretched', fr: 'Étirement du cou' }, fmt: (x, n) => `${n(x * 100, 0)} %` },
+    frame: { r: 2.75, cx: 0.25, cy: 1.35, floor: -0.06, shadow: 4.6, yaw: 0.62, pitch: 0.2 },
+    input: { min: 0, max: 1, def: 0.5, d: 2, unit: '%', step: 0.005, period: 16, label: { en: 'How far the neck is stretched', fr: 'Étirement du cou' }, fmt: (x, n) => `${n(x * 100, 0)} %` },
     parts: [
       { id: 'neck', en: 'Neck, 24 vertebrae', fr: 'Cou, 24 vertèbres' }, { id: 'wings', en: 'Wings', fr: 'Ailes' }, { id: 'body', en: 'Body & water', fr: 'Corps et eau' },
     ],
@@ -270,8 +270,8 @@
       return [(SW_BASE.y + e.y) * SW.cm, e.x * SW.cm, c.maxBend / DEG];
     },
     note: {
-      en: 'A mute swan has about 24 neck vertebrae (a human has 7). The neck keeps the same length from curl to line: only the angle at each joint changes. Proportions stylised, 1 unit is about 29 cm.',
-      fr: 'Un cygne tuberculé a environ 24 vertèbres cervicales (l’humain en a 7). Le cou garde la même longueur de la courbe à la ligne : seul l’angle de chaque articulation change. Proportions stylisées, 1 unité vaut environ 29 cm.',
+      en: 'A mute swan has about 24 neck vertebrae (a human has 7). The neck keeps the same length from curl to line: only the angle at each joint changes. Proportions stylised, 1 unit is about 25 cm.',
+      fr: 'Un cygne tuberculé a environ 24 vertèbres cervicales (l’humain en a 7). Le cou garde la même longueur de la courbe à la ligne : seul l’angle de chaque articulation change. Proportions stylisées, 1 unité vaut environ 25 cm.',
     },
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig(); const UP = V(0, 1, 0);
@@ -297,7 +297,7 @@
         wg.add(K.thin(wingsP, primG, P.peri, { op: 0.8, bump: 'feather', bumpScale: 1.8, instances: K.fan(Array.from({ length: 8 }, (_, i) => ({ p: V(-1.0 + i * 0.02, (i - 3.5) * 0.04, s * 0.02), dir: V(-1, -0.05, s * (i - 3.5) * 0.04), len: 0.5 + (i % 4) * 0.04, nHint: UP }))) }));
       });
       /* legs and webbed feet, seen through the water */
-      [0.0, -0.25].forEach((x) => [1, -1].forEach((s) => {
+      [-0.1].forEach((x) => [1, -1].forEach((s) => { /* one pair of legs */
         at(K.glass(bodyP, new T.CylinderGeometry(0.03, 0.022, 0.5, 8).translate(0, -0.25, 0), '#e6a690', { op: 0.9, detached: true }), bodyP.group, x, -0.18, s * 0.28);
         at(K.thin(bodyP, K.leaf(7, 6, (u, v, o) => { o.x = u * 0.3; o.y = 0; o.z = v * 0.17 * Math.pow(u, 0.7); }), '#e6a690', { op: 0.8, bump: 'rays', bumpScale: 1.6, detached: true }), bodyP.group, x, -0.68, s * 0.28);
       }));

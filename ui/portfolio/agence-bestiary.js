@@ -227,11 +227,13 @@
       return { root: rootG, parts, part(id, ex) { const p = new Part(id, ex); parts.push(p); rootG.add(p.group); return p; } };
     };
 
+    /* bodies and feathers read as glass, not as ghosts: from 40% up, the opacity is pulled toward solid (0.88 becomes 0.93) */
+    const solidify = (op) => op + (1 - (1 - op) * 0.55 - op) * k.smooth(0.4, 0.7, op);
     const frontMat = (hex, o) => {
       const m = new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(hex), roughness: o.rough == null ? 0.2 : o.rough, metalness: 0,
         clearcoat: 1, clearcoatRoughness: 0.16, iridescence: o.iri == null ? 1 : o.iri, iridescenceIOR: 1.35, iridescenceThicknessRange: [180, 600],
-        transparent: true, opacity: o.op == null ? 0.82 : o.op, depthWrite: false, envMapIntensity: 1.35, side: o.side || THREE.FrontSide,
+        transparent: true, opacity: solidify(o.op == null ? 0.82 : o.op), depthWrite: false, envMapIntensity: 1.35, side: o.side || THREE.FrontSide,
       });
       if (o.bump) { m.bumpMap = typeof o.bump === 'string' ? k.tex(o.bump) : o.bump; m.bumpScale = o.bumpScale == null ? 2.2 : o.bumpScale; }
       if (o.map) { m.map = typeof o.map === 'string' ? k.tex(o.map) : o.map; if (o.mapCh) { m.map = m.map.clone(); m.map.channel = o.mapCh; m.map.needsUpdate = true; } }
@@ -692,7 +694,9 @@
         const f = kd === 'shell' ? 1 - 0.8 * xe : kd === 'back' ? 1 - 0.86 * xe : kd === 'thin' ? 1 - 0.5 * xe : K.smooth(0.04, 0.7, xe);
         const op = m.userData.base * f * pf * a.life;
         m.material.opacity = op; m.visible = op > 0.012;
+        /* a nearly opaque skin writes depth so what is behind it is hidden for real, not blended wrongly; a faded one does not */
         if (kd === 'inner') m.material.depthWrite = op > 0.97;
+        else if (kd === 'shell' || kd === 'thin') m.material.depthWrite = op > 0.6;
       }
       p.group.position.copy(p.base).addScaledVector(p.explode, S.ex * (isCur ? 1 : 0));
     }

@@ -12,7 +12,7 @@
   B.animals.saas = {
     id: 'saas',
     frame: { r: 1.7, cy: 0.3, floor: -0.02, shadow: 3.6, yaw: 0.5, pitch: 0.44 },
-    input: { min: 0.2, max: 3, def: 1.4, d: 1, unit: 'km', step: 0.01, period: 18, label: { en: 'Distance to the flowers', fr: 'Distance jusqu’aux fleurs' } },
+    input: { min: 0.2, max: 3, def: 1.4, d: 1, unit: 'km', step: 0.01, period: 32, label: { en: 'Distance to the flowers', fr: 'Distance jusqu’aux fleurs' } },
     parts: [
       { id: 'wings', en: 'Wings', fr: 'Ailes' }, { id: 'body', en: 'Body & legs', fr: 'Corps et pattes' },
       { id: 'engine', en: 'Flight engine', fr: 'Moteur de vol' }, { id: 'comb', en: 'The comb', fr: 'Le rayon' },
@@ -139,30 +139,31 @@
       put(K.solid(engP, new T.TubeGeometry(new T.CatmullRomCurve3([V(0.4, 0.1, 0), V(0.1, 0.17, 0), V(-0.3, 0.16, 0), V(-0.9, 0.1, 0)]), 30, 0.012, 6), P.rose, { detached: true }), 2, 0, 0, 0);
       [1, -1].forEach((s) => put(K.solid(engP, K.ball(0.09, 0.06, 0.07, 12), P.cream, { detached: true }), 2, -0.34, 0.02, s * 0.14));
 
-      const st = { f: 0, t: 0, beta: null, wg: 0 };
-      const Y = 0.78; const PHI = 0.5; const RHO = 0.32; const TL = 1.1; /* bee height, axis angle, loop width, loop seconds */
+      const st = { f: 0, t: 0, beta: null, wg: 0, lp: 0, wp: 0, gp: 0 }; /* phases are integrated, never recomputed from t, so a change of rate cannot make them jump */
+      const Y = 0.78; const PHI = 0.5; const RHO = 0.2; const TL = 2.0; /* a calmer dance: a smaller figure, a slower loop */ /* bee height, axis angle, loop width, loop seconds */
       const pose = (x, t) => {
         const dt = Math.min(0.1, Math.max(0, t - st.t)); st.t = t;
-        const Tr = Math.max(0.15, x * BEE.run); const L = 0.42 * x; const cyc = 2 * (Tr + TL);
+        const Tr = Math.max(0.15, x * BEE.run); const L = 0.3 * x; const cyc = 2 * (Tr + TL);
         st.f = (st.f + dt / cyc) % 1;
         const fr = Tr / cyc; const fl = TL / cyc; const f = st.f;
         let u; let w; let du; let dw; let waggle = 0;
-        if (f < fr) { const a = f / fr; u = -L / 2 + L * a; w = 0; du = 1; dw = 0; waggle = 1; }
+        if (f < fr) { const a = f / fr; u = -L / 2 + L * a * a * (3 - 2 * a); w = 0; du = 1; dw = 0; waggle = 1; }
         else if (f < fr + fl) { const a = (f - fr) / fl; const al = PI * (a * a * (3 - 2 * a)); u = (L / 2) * Math.cos(al); w = RHO * Math.sin(al); du = -(L / 2) * Math.sin(al); dw = RHO * Math.cos(al); }
-        else if (f < 2 * fr + fl) { const a = (f - fr - fl) / fr; u = -L / 2 + L * a; w = 0; du = 1; dw = 0; waggle = 1; }
+        else if (f < 2 * fr + fl) { const a = (f - fr - fl) / fr; u = -L / 2 + L * a * a * (3 - 2 * a); w = 0; du = 1; dw = 0; waggle = 1; }
         else { const a = (f - 2 * fr - fl) / fl; const al = PI * (a * a * (3 - 2 * a)); u = (L / 2) * Math.cos(al); w = -RHO * Math.sin(al); du = -(L / 2) * Math.sin(al); dw = -RHO * Math.cos(al); }
         const c = Math.cos(PHI); const sN = Math.sin(PHI);
         const X = u * c - w * sN; const Z = u * sN + w * c; const dX = du * c - dw * sN; const dZ = du * sN + dw * c;
         /* the bee turns into each loop instead of snapping 90 degrees, and the waggle fades in and out */
         const aim = Math.atan2(dZ, dX);
-        st.beta = st.beta == null ? aim : st.beta + Math.atan2(Math.sin(aim - st.beta), Math.cos(aim - st.beta)) * (1 - Math.exp(-dt * 8));
+        st.beta = st.beta == null ? aim : st.beta + Math.atan2(Math.sin(aim - st.beta), Math.cos(aim - st.beta)) * (1 - Math.exp(-dt * 2.2));
         const beta = st.beta;
         st.wg += (waggle - st.wg) * (1 - Math.exp(-dt * 10));
-        const wag = st.wg * 0.2 * Math.sin(TAU * 13 * t);
-        const ph = TAU * 18 * t;
-        mv.forEach((m) => { m.position.set(X, Y + 0.012 * Math.sin(ph * 0.5), Z); m.rotation.set(0, -beta + wag, 0); });
+        st.gp += dt * TAU * 8; st.wp += dt * TAU * 10; st.lp += dt * TAU * 4 * (waggle ? 0.5 : 1);
+        const wag = st.wg * 0.08 * Math.sin(st.gp);
+        const ph = st.wp; /* wings and waggle are slowed to rates the eye can follow at 60 frames a second */
+        mv.forEach((m) => { m.position.set(X, Y + 0.006 * Math.sin(ph * 0.5), Z); m.rotation.set(0, -beta + wag, 0); });
         wings.forEach((o) => { const th = 0.18 + 0.55 * Math.sin(ph); o.pv.rotation.x = -o.s * th; o.ph.rotation.x = 0.08 * Math.sin(ph - 0.7) * o.s; });
-        legs.forEach((l) => { l.up.rotation.z = 0.18 * Math.sin(TAU * 4 * t * (waggle ? 0.5 : 1) + l.ph); });
+        legs.forEach((l) => { l.up.rotation.z = 0.18 * Math.sin(st.lp + l.ph); });
         ants.forEach((a) => { a.g.rotation.z = 0.08 * Math.sin(TAU * 1.3 * t + a.s); a.g.rotation.y = a.s * 0.06 * Math.sin(TAU * 0.9 * t); });
         const k = 1 + 0.07 * Math.sin(ph * 2);
         musc.scale.set(k, 1 / k, k); honeyS.scale.setScalar(1 + 0.02 * Math.sin(ph * 0.5));

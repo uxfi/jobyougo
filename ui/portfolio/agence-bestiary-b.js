@@ -297,6 +297,15 @@
         const gr = 1 - ridge;
         cv.copy(cMint).multiplyScalar(plates[id].h).lerp(cGroove, gr * 0.7); col[i * 3] = cv.r; col[i * 3 + 1] = cv.g; col[i * 3 + 2] = cv.b;
       }
+      /* the shell has an opening at the front for the neck and a small one at the back for the tail */
+      const di = dome.index.array; const keep = [];
+      for (let i = 0; i < di.length; i += 3) {
+        const ia = di[i]; const ib = di[i + 1]; const ic = di[i + 2];
+        const cx = (pos.getX(ia) + pos.getX(ib) + pos.getX(ic)) / 3; const cy = (pos.getY(ia) + pos.getY(ib) + pos.getY(ic)) / 3; const cz = (pos.getZ(ia) + pos.getZ(ib) + pos.getZ(ic)) / 3;
+        const front = cx > 0.7 && cy < 0.66 && Math.abs(cz) < 0.3; const rear = cx < -0.8 && cy < 0.22 && Math.abs(cz) < 0.16;
+        if (!front && !rear) keep.push(ia, ib, ic);
+      }
+      dome.setIndex(keep);
       dome.setAttribute('color', new T.BufferAttribute(col, 3)); dome.scale(a, b, c); dome.computeVertexNormals(); K.uvScale(dome, 10, 5);
       mv[0].add(K.glass(shellP, dome, '#ffffff', { op: 0.92, vcol: true, bump: 'pebble', bumpScale: 1.0, side: T.DoubleSide, detached: true }));
       mv[0].add(K.glass(shellP, K.uvScale(K.ball(1.14, 0.1, 0.88, 44), 4, 2), P.lav, { op: 0.84, bump: 'pebble', bumpScale: 0.8, detached: true }));
@@ -304,17 +313,24 @@
       const outline = K.lines(shellP, new T.BufferGeometry().setFromPoints(Array.from({ length: 97 }, (_, i) => { const ang = (i / 96) * TAU; return new T.Vector3(Math.cos(ang) * 1.3, 0.004, Math.sin(ang) * 1.0); }).flatMap((p, i, arr) => (i < arr.length - 1 ? [p, arr[i + 1]] : []))), P.ink, 0.28, { kind: 'thin', detached: true });
       shellP.group.add(outline);
 
-      /* neck and head: one scaled loft, an eye with a glint, nostrils, a horny beak */
-      const hSpec = { len: 1.0, n: 36, ru: 3, rv: 2, a: () => 1.02, y: (s) => -0.06 * s, r: (s) => 0.008 + (0.2 + 0.05 * Math.sin(PI * Math.pow(s, 1.6))) * Math.pow(Math.sin(PI * Math.pow(s, 0.45)), 0.45) * (1 - 0.18 * s) };
-      const headG = new T.Group(); headG.position.set(1.0, 0.38, 0); mv[1].add(headG);
-      headG.add(K.glass(bodyP, K.loft(hSpec), P.peach, { op: 0.9, bump: 'scales', bumpScale: 1.6, detached: true }));
-      [1, -1].forEach((s) => {
-        const e = K.eye(bodyP, { r: 0.05, iris: '#c9803a' }); e.position.set(0.3, 0.07, s * 0.15); e.rotation.y = s > 0 ? 1.05 : PI - 1.05; headG.add(e);
-        const n = K.glass(bodyP, K.ball(0.014, 0.014, 0.014, 6), P.ink, { op: 0.96, detached: true }); n.position.set(0.47, 0.03, s * 0.025); headG.add(n);
-        const brow = K.glass(bodyP, K.ball(0.09, 0.03, 0.06, 12), P.peach, { op: 0.9, bump: 'scales', detached: true }); brow.position.set(0.28, 0.12, s * 0.12); headG.add(brow);
+      /* neck and head: a short neck with folds of skin that leaves by the opening in the shell, a domed skull, a snout and a jaw, a brow,
+         eyes with lids and a glint, nostrils, a horny beak */
+      const headG = new T.Group(); headG.position.set(1.28, 0.3, 0); mv[1].add(headG);
+      const skin = { op: 0.94, bump: 'scales', bumpScale: 1.4, detached: true };
+      headG.add(K.glass(bodyP, K.loft({ x0: -0.5, len: 0.65, n: 20, radial: 24, ru: 3, rv: 1, a: () => 1, r: (s) => 0.2 - 0.025 * s }), P.peach, { ...skin, bump: 'wrinkle', bumpScale: 1.6 }));
+      [0.02, -0.12, -0.26].forEach((fx) => { const fold = K.glass(bodyP, new T.TorusGeometry(0.205, 0.02, 8, 26).rotateY(PI / 2), '#eeab8c', { op: 0.94, detached: true }); fold.position.set(fx, 0, 0); headG.add(fold); });
+      const skullG = K.glass(bodyP, K.uvScale(K.ball(0.27, 0.205, 0.2, 30), 3, 2), P.peach, skin); skullG.position.set(0.27, 0.03, 0); headG.add(skullG);
+      const snout = K.glass(bodyP, K.uvScale(K.ball(0.17, 0.12, 0.125, 22), 2, 2), P.peach, skin); snout.position.set(0.5, 0.0, 0); headG.add(snout);
+      const jaw = K.glass(bodyP, K.ball(0.19, 0.055, 0.12, 18), '#eeab8c', { op: 0.94, detached: true }); jaw.position.set(0.46, -0.1, 0); headG.add(jaw);
+      [1, -1].forEach((sg) => {
+        const ry = sg > 0 ? 1.0 : PI - 1.0;
+        const e = K.eye(bodyP, { r: 0.055, iris: '#c9803a' }); e.position.set(0.38, 0.1, sg * 0.165); e.rotation.y = ry; headG.add(e);
+        const lid = K.glass(bodyP, new T.TorusGeometry(0.063, 0.014, 8, 20), '#eeab8c', { op: 0.95, detached: true }); lid.position.set(0.38, 0.1, sg * 0.163); lid.rotation.y = ry; headG.add(lid);
+        const brow = K.glass(bodyP, K.ball(0.1, 0.03, 0.07, 14), '#eeab8c', { op: 0.94, detached: true }); brow.position.set(0.34, 0.2, sg * 0.12); brow.rotation.z = -0.15; headG.add(brow);
+        const cheek = K.glass(bodyP, K.ball(0.12, 0.09, 0.06, 14), P.peach, { op: 0.9, bump: 'scales', detached: true }); cheek.position.set(0.25, -0.04, sg * 0.16); headG.add(cheek);
+        const nos = K.glass(bodyP, K.ball(0.014, 0.014, 0.014, 6), P.ink, { op: 0.96, detached: true }); nos.position.set(0.63, 0.05, sg * 0.03); headG.add(nos);
       });
-      const beak = K.glass(bodyP, new T.ConeGeometry(0.06, 0.12, 8).rotateZ(-PI / 2 - 0.25), '#e2a06b', { op: 0.94, detached: true }); beak.position.set(0.5, -0.01, 0); headG.add(beak);
-      const neckFold = K.glass(bodyP, K.uvScale(K.ball(0.5, 0.21, 0.21, 24), 2, 2), P.peach, { op: 0.84, bump: 'wrinkle', bumpScale: 1.2, detached: true }); neckFold.position.set(0.55, 0.3, 0); mv[1].add(neckFold);
+      const beak = K.glass(bodyP, new T.ConeGeometry(0.08, 0.16, 10).rotateZ(-PI / 2 - 0.3), '#e6b07a', { op: 0.96, bump: 'pebble', detached: true }); beak.position.set(0.66, -0.02, 0); headG.add(beak);
 
       /* four columnar legs: lofted, big scales, a flared foot with four toenails; and a short tail */
       const legSpec = { x0: 0, len: 0.66, n: 22, radial: 20, ru: 3, rv: 1.5, a: () => 1.08, r: (s) => (0.215 - 0.05 * s + 0.05 * sm(0.8, 0.96, s)) * (1 - sm(0.975, 1, s)) + 0.005 };
@@ -333,7 +349,7 @@
 
       /* the skeleton seen by the x-ray: a skull, a spine, eight pairs of ribs fused into the dome, a pelvis */
       mv[2].add(K.solid(bonesP, new T.CylinderGeometry(0.045, 0.045, 2.3, 10).rotateZ(PI / 2).translate(0, 0.62, 0), P.cream, { detached: true }));
-      const skull = K.solid(bonesP, K.ball(0.26, 0.17, 0.17, 18), P.cream, { detached: true }); skull.position.set(1.4, 0.4, 0); mv[2].add(skull);
+      const skull = K.solid(bonesP, K.ball(0.26, 0.17, 0.17, 18), P.cream, { detached: true }); skull.position.set(1.55, 0.33, 0); mv[2].add(skull);
       const pelvis = K.solid(bonesP, K.ball(0.18, 0.14, 0.36, 14), P.cream, { detached: true }); pelvis.position.set(-0.85, 0.5, 0); mv[2].add(pelvis);
       for (let k = 0; k < 8; k++) {
         const x = (-0.72 + k * 0.205) * a;
@@ -347,7 +363,7 @@
         const sc = TORT.len(y) / 106; const vs = 0.22 + 0.78 * sc;
         mv.forEach((m) => { m.scale.setScalar(vs); m.position.y = 0.37 * vs; });
         const kid = 1 + 0.55 * (1 - sc); /* the young have a bigger head and longer legs for their shell */
-        headG.scale.setScalar(kid); headG.position.x = 1.0 + 0.05 * Math.sin(TAU * 0.3 * t); headG.rotation.z = 0.06 * Math.sin(TAU * 0.3 * t + 1);
+        headG.scale.setScalar(kid); headG.position.x = 1.28 + 0.05 * Math.sin(TAU * 0.3 * t); headG.rotation.z = 0.06 * Math.sin(TAU * 0.3 * t + 1);
         legs.forEach((l) => { l.hip.rotation.z = 0.2 * Math.sin(TAU * 0.28 * t + l.ph * TAU); l.hip.scale.setScalar(1 + 0.25 * (1 - sc)); });
         mv[0].rotation.z = 0.012 * Math.sin(TAU * 0.28 * t);
       };
@@ -356,7 +372,7 @@
         anchors: [
           { part: 'shell', obj: mv[0], off: [-0.1, 0.9, 0.2], dx: 78, dy: -60, en: 'Shell, 13 plates', fr: 'Carapace, 13 plaques', live: (y) => `${TORT.len(y).toFixed(0)} cm` },
           { part: 'bones', obj: mv[2], off: [0.4, 0.5, 0.5], dx: -88, dy: -44, en: 'Fused ribs', fr: 'Côtes soudées' },
-          { part: 'body', obj: headG, off: [0.3, 0.1, 0.2], dx: 72, dy: 54, en: 'Head & legs', fr: 'Tête et pattes' },
+          { part: 'body', obj: headG, off: [0.45, 0.08, 0.2], dx: 72, dy: 54, en: 'Head & legs', fr: 'Tête et pattes' },
         ],
       };
     },
