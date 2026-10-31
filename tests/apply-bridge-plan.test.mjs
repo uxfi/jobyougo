@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ApplyBridge, planToUpdate, serializePrefer } from '../extension/apply-bridge-lib.mjs';
 import { AUTO_APPLY_TEXT_RE } from '../lib/apply-progression.mjs';
+import { GUEST_DISMISS_TEXT_RE, GUEST_TEXT_RE } from '../lib/form-detect.mjs';
 import { DECLINE_RE } from '../lib/apply-select.mjs';
 
 test('serializePrefer keeps RegExp source/flags', () => {
@@ -256,6 +257,95 @@ test('an Apply entry beside the form\'s own Submit does not hold the form back (
   const { run, states } = stubRun(bridge, { autoSubmit: false });
   assert.deepEqual(await bridge._fillPass(run), { submitted: false });
   assert.match(states.at(-1).message, /^Form ready/);
+});
+
+test('a Naukri result list is not paged with Next', async () => {
+  let clicks = 0;
+  const bridge = stubBridge({}, {
+    _readTab: async () => ({
+      fields: Array.from({ length: 39 }, (_, i) => ({ type: 'checkbox', label: `filter ${i}`, tag: 'input' })),
+      probe: { verdict: 'none', score: 1 },
+    }),
+    getTab: async () => ({ url: 'https://www.naukri.com/senior-ux-designer-jobs-in-remote' }),
+    clickProgression: async () => { clicks += 1; return { clicked: true, text: 'Next', href: 'https://www.naukri.com/senior-ux-designer-jobs-in-remote-2' }; },
+  });
+  const { run } = stubRun(bridge, {
+    jobUrl: 'https://www.naukri.com/job-listings-senior-ux-designer-techno-compass-consulting-remote-4-to-7-years-170826029671',
+  });
+  assert.equal(await bridge._navigateToForm(run, { maxHops: 3 }), 'human');
+  assert.equal(clicks, 0);
+  assert.match(run.steps.at(-1).text, /Page de résultats/);
+});
+
+test('Next that points at a result list is not followed', async () => {
+  let back = '';
+  const bridge = stubBridge({}, {
+    _readTab: async () => ({ fields: [], probe: { verdict: 'none' } }),
+    getTab: async () => ({ url: 'https://www.naukri.com/job-listings-senior-ux-designer-acme-170826029671' }),
+    clickProgression: async () => ({ clicked: true, text: 'Next', href: 'https://www.naukri.com/senior-ux-designer-jobs-in-remote-2' }),
+    navigateTab: async (_tabId, url) => { back = url; },
+  });
+  const { run } = stubRun(bridge, { jobUrl: 'https://www.naukri.com/job-listings-senior-ux-designer-acme-170826029671' });
+  assert.equal(await bridge._navigateToForm(run, { maxHops: 2 }), 'human');
+  assert.equal(back, 'https://www.naukri.com/job-listings-senior-ux-designer-acme-170826029671');
+});
+
+test('a signup wall is not filled as the application', async () => {
+  const bridge = stubBridge({}, {
+    _readTab: async () => ({
+      fields: [
+        { type: 'text', tag: 'input', label: 'First name' },
+        { type: 'text', tag: 'input', label: 'Last name' },
+        { type: 'email', tag: 'input', label: 'Email' },
+        { type: 'password', tag: 'input', label: 'Password' },
+      ],
+      probe: { verdict: 'auth_wall', score: 1, blockers: ['password_field'] },
+    }),
+    getTab: async () => ({ url: 'https://himalayas.app/signup/talent?redirect=%2Fcompanies%2Fdocsumo' }),
+    clickProgression: async () => ({ clicked: false }),
+    askNavAi: async () => ({ action: 'human', skipped: true, log: '' }),
+  });
+  const { run, states } = stubRun(bridge);
+  assert.equal(await bridge._navigateToForm(run, { maxHops: 1 }), 'human');
+  assert.equal(states.some((s) => /Remplissage/.test(s.message || '')), false);
+  assert.match(run.steps.map((s) => s.text).join('\n'), /accès invité|Mur d’auth/);
+});
+
+test('Apply on employer site is tried before Skip for now', async () => {
+  const tried = [];
+  const bridge = stubBridge({}, {
+    _readTab: async () => ({ fields: [], probe: { verdict: 'none' } }),
+    clickProgression: async (_tabId, re) => { tried.push(re); return { clicked: false }; },
+    askNavAi: async () => ({ action: 'human', skipped: true, log: '' }),
+  });
+  const { run } = stubRun(bridge, { autoSubmit: false });
+  assert.equal(await bridge._navigateToForm(run, { maxHops: 1 }), 'human');
+  const guestAt = tried.indexOf(GUEST_TEXT_RE);
+  const dismissAt = tried.indexOf(GUEST_DISMISS_TEXT_RE);
+  assert.ok(guestAt >= 0 && dismissAt > guestAt);
+  assert.equal(GUEST_TEXT_RE.test('Apply on employer site'), true);
+  assert.equal(GUEST_TEXT_RE.test('Skip for now'), false);
+  assert.equal(GUEST_DISMISS_TEXT_RE.test('Skip for now'), true);
+});
+
+test('filter checkboxes are not a last-chance form', () => {
+  const bridge = new ApplyBridge();
+  const filters = [
+    { type: 'checkbox', tag: 'input', label: 'Work mode — Remote' },
+    { type: 'checkbox', tag: 'input', label: 'Salary — 0-3 Lakhs' },
+    { type: 'checkbox', tag: 'input', label: 'Department — UX' },
+  ];
+  assert.equal(bridge.fieldsLookLikeForm(filters), false);
+  assert.equal(bridge.fieldsLookLikeForm([
+    { type: 'text', tag: 'input', label: 'First name' },
+    { type: 'email', tag: 'input', label: 'Email' },
+    { type: 'password', tag: 'input', label: 'Password' },
+  ]), false);
+  assert.equal(bridge.fieldsLookLikeForm([
+    { type: 'text', tag: 'input', label: 'First name' },
+    { type: 'email', tag: 'input', label: 'Email' },
+    { type: 'file', tag: 'input', label: 'Resume' },
+  ]), true);
 });
 
 test('a file slot with no file to give is not re-attempted on every pass', async () => {

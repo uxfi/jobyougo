@@ -17,6 +17,7 @@ import {
   submitChoice,
   progressionButtonVisible,
   forwardProgressVisible,
+  isJobSearchResultsUrl,
 } from '../lib/apply-progression.mjs';
 import { AUTH_AVOID_TEXT_RE } from '../lib/form-detect.mjs';
 
@@ -295,4 +296,14 @@ test('reviewStepConfidence is high only from the heading', () => {
     fieldCount: 8,
     editableCount: 6,
   }), 'none');
+});
+
+test('isJobSearchResultsUrl is a board result list, not one posting', () => {
+  assert.equal(isJobSearchResultsUrl('https://www.naukri.com/senior-ux-designer-jobs-in-remote'), true);
+  assert.equal(isJobSearchResultsUrl('https://www.naukri.com/senior-ux-designer-jobs-in-remote-2'), true);
+  assert.equal(isJobSearchResultsUrl('https://www.naukri.com/ui-ux-designer-jobs-in-remote-india-36'), true);
+  assert.equal(isJobSearchResultsUrl('https://www.naukri.com/job-listings-senior-ux-designer-techno-compass-consulting-remote-4-to-7-years-170826029671'), false);
+  assert.equal(isJobSearchResultsUrl('https://www.glassdoor.com/job-listing/ui-ux-designer-ksearch-asia-consulting-JV_IC4778930_KO0,14_KE15,38.htm?jl=1009114662466'), false);
+  assert.equal(isJobSearchResultsUrl('https://sg.indeed.com/q-ai-product-manager-l-remote-jobs.html'), true);
+  assert.equal(isJobSearchResultsUrl('https://ksearchasia.com/send/'), false);
 });

@@ -133,3 +133,16 @@ test('askNavDecision never lists buttons or spends budget once capped, and skips
   assert.equal(empty.reason, 'aucun bouton');
   assert.equal(budget.nav, 0);
 });
+
+test('filterNavButtons drops a search-results pager labelled Next', () => {
+  const out = filterNavButtons([
+    { text: 'Next', href: 'https://www.naukri.com/senior-ux-designer-jobs-in-remote-2' },
+    { text: 'Apply', href: 'https://www.naukri.com/job-listings-senior-ux-designer-acme-170826029671' },
+  ], [], { phase: 'navigate' });
+  assert.deepEqual(out.map((b) => b.text), ['Apply']);
+  assert.equal(parseNavDecision(
+    '{"action":"click","index":0,"reason":"next page"}',
+    [{ text: 'Next', href: 'https://www.naukri.com/senior-ux-designer-jobs-in-remote-3' }],
+    { phase: 'navigate' },
+  ).reason, 'pagination de recherche');
+});

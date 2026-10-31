@@ -783,8 +783,18 @@ function markAndClickInPage(reSrc, skip, avoidSrc, formStep = false) {
     const t = labelOf(el);
     if (!t || t.length > 80 || !re.test(t) || skipSet.has(t)) return;
     if (avoid.test(t)) return;
-    // Prefer bottom-of-form primary CTAs (Next / Continue) over header duplicates.
-    const score = r.bottom + (r.right / 20) + (r.width > 80 ? 30 : 0);
+    // A result-list pager labelled Next (Naukri /…-jobs-in-remote-2).
+    if (el.tagName === 'A') {
+      try {
+        const path = new URL(el.getAttribute('href') || '', location.href).pathname.replace(/\/+$/, '');
+        if (!/\/job-listings-/i.test(path) && !/\/job-listing\//i.test(path) && !/\/jobs\/view\//i.test(path)
+          && /\/[^/]*-jobs-in-[^/]+$/i.test(path) && !/\d{6,}/.test(path)) return;
+      } catch { /* keep the link */ }
+    }
+    // Prefer the control lowest on the screen, except a dismissal
+    // ("Skip for now"), which must lose to "Apply on employer site".
+    const dismissPenalty = /^(no,? thanks.*|maybe later|not now|skip( for now)?|dismiss)$/i.test(t) ? 100000 : 0;
+    const score = r.bottom + (r.right / 20) + (r.width > 80 ? 30 : 0) - dismissPenalty;
     candidates.push({ el, text: t, href: el.href || '', score, top: r.top });
   };
 
@@ -2674,7 +2684,29 @@ async function trySetFileViaChooser(session, i, path) {
         const idx = ${JSON.stringify(String(i))};
         const box = document.querySelector('[data-co-file-proxy="1"][data-co-upload="1"]')
           || document.querySelector('[data-co-file-proxy="1"][data-co-i="' + idx.replace(/"/g, '') + '"]');
-        if (!box) return false;
+        if (!box) {
+          // SmartRecruiters oneclick-ui: <spl-dropzone> builds its <input type=file>
+          // only when it is clicked, so the page has none to attach to. Click the
+          // resume drop zone (inner button first) and let the chooser interception catch it.
+          const deep = (root, sel) => {
+            const out = [];
+            const walk = (n) => {
+              if (!n?.querySelectorAll) return;
+              try { out.push(...n.querySelectorAll(sel)); } catch {}
+              for (const el of n.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+            };
+            walk(root);
+            return out;
+          };
+          const zones = deep(document, 'spl-dropzone, oc-dropzone, [class*="dropzone" i]');
+          const text = (z) => ((z.innerText || z.textContent || '') + ' ' + (z.getAttribute('aria-label') || '') + ' ' + (z.getAttribute('name') || '') + ' ' + (z.id || '')).toLowerCase();
+          const zone = zones.find((z) => /resume|cv|curriculum/.test(text(z)))
+            || zones.find((z) => !/cover|lettre|letter/.test(text(z)));
+          if (!zone) return false;
+          const inner = deep(zone, 'button, [role="button"], spl-button, oc-button')[0];
+          (inner || zone).setAttribute('data-co-chooser', '1');
+          return true;
+        }
         for (let n = box.parentElement, d = 0; n && d < 3; d++, n = n.parentElement) {
           const btn = [...n.querySelectorAll('button, [role="button"]')]
             .find((b) => /^(browse|choose( a)? file|select( a)? file|upload|parcourir|durchsuchen)\\b/i.test((b.innerText || b.getAttribute('aria-label') || '').trim()));
@@ -2987,7 +3019,9 @@ async function uploadFileInTab(tabId, { i, frameId = 0, path, fileBase64 = null,
     }).catch((err) => [{ result: { ok: false, error: String(err?.message || err) } }]);
     const hit = (injected || []).find((e) => e?.result?.ok);
     if (hit) return { ok: true, fileName: hit.result?.name || fileName || '' };
-    const err = (injected || []).map((e) => e?.result?.error).filter(Boolean)[0];
+    // Frames without an input all say "no file input": do not let that hide a real reason.
+    const errs = (injected || []).map((e) => e?.result?.error).filter(Boolean);
+    const err = errs.find((message) => message !== 'no file input') || errs[0];
     return { ok: false, error: err || 'DataTransfer assign failed' };
   };
 

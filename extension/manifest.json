@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JobYouGo Apply Bridge",
-  "version": "0.0.50",
+  "version": "0.0.51",
   "description": "Open a job-application tab in your Chrome and fill it from the JobYouGo dashboard.",
   "permissions": ["tabs", "scripting", "windows", "alarms", "debugger", "storage"],
   "host_permissions": ["<all_urls>"],

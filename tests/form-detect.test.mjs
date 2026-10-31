@@ -3,7 +3,7 @@
  * Run: node tests/form-detect.test.mjs
  */
 import { chromium } from 'playwright';
-import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY } from '../lib/form-detect.mjs';
+import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_DISMISS_TEXT_RE, GUEST_TEXT_RE, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY } from '../lib/form-detect.mjs';
 import { PROGRESS_TEXT_RE } from '../lib/apply-progression.mjs';
 import { pass, fail } from './helpers.mjs';
 
@@ -234,6 +234,11 @@ const navCases = [
   ['Apply without an account', GUEST_TEXT_RE, true, 'chemin invite'],
   ['Continuer sans compte', GUEST_TEXT_RE, true, 'chemin invite'],
   ['Apply on company website', GUEST_TEXT_RE, true, 'chemin invite'],
+  ['Apply on employer site', GUEST_TEXT_RE, true, 'chemin invite'],
+  ['Skip for now', GUEST_TEXT_RE, false, 'chemin invite'],
+  ['Skip', GUEST_DISMISS_TEXT_RE, true, 'fermeture'],
+  ['Skip for now', GUEST_DISMISS_TEXT_RE, true, 'fermeture'],
+  ['Apply on employer site', GUEST_DISMISS_TEXT_RE, false, 'fermeture'],
   ['Sign up', GUEST_TEXT_RE, false, 'chemin invite'],
 ];
 for (const [text, re, expected, label] of navCases) {
@@ -288,6 +293,11 @@ const flows = [
      <button>Start application</button>`, PROGRESS_TEXT_RE, ['Start application'], '/jobs/123-designer'],
   ['Accueil — un lien sans href ou "#" reste cliquable', `
      <a>Start</a> <a href="#">Start now</a>`, PROGRESS_TEXT_RE, ['Start', 'Start now'], '/'],
+  ['Glassdoor — Apply on employer site passe avant Skip for now', `
+     <button style="position:fixed;bottom:0">Skip for now</button>
+     <a href="https://employer.example/apply">Apply on employer site</a>`, /^(apply on employer site|skip( for now)?)$/i, ['Apply on employer site', 'Skip for now']],
+  ['Naukri — le Next de la pagination de recherche n est pas un pas', `
+     <a href="https://www.naukri.com/senior-ux-designer-jobs-in-remote-2">Next</a>`, PROGRESS_TEXT_RE, []],
 ];
 for (const [name, body, re, expected, path] of flows) {
   const html = `<html><body>${body}</body></html>`;

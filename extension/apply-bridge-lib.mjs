@@ -13,7 +13,7 @@ import { join, dirname, basename, resolve, extname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
-import { AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE } from '../lib/form-detect.mjs';
+import { AUTH_AVOID_TEXT_RE, GUEST_DISMISS_TEXT_RE, GUEST_TEXT_RE } from '../lib/form-detect.mjs';
 import { classifyField } from '../lib/apply-classify.mjs';
 import { resolveUnknownFields, polishApplicationAnswer, hasUnresolvedPlaceholder } from '../lib/apply-llm.mjs';
 import { applicationVoiceFor, cvSummaryFor } from '../lib/application-writing.mjs';
@@ -112,6 +112,7 @@ import {
   isRequiredEmptyReason,
   shouldAttemptSubmitAfterNoopNext,
   AUTO_APPLY_TEXT_RE,
+  isJobSearchResultsUrl,
 } from '../lib/apply-progression.mjs';
 import {
   askNavDecision,
@@ -149,7 +150,13 @@ const SEND_BTN = UI_BUTTONS.send;
 // Fields that read as an application: a candidate identity slot or a file
 // input. A listing page's filter selects (country, category) are not.
 function looksLikeApplicationFields(fields = []) {
-  return (fields || []).some((f) => f && (f.type === 'file' || isCoreApplicationIdentity(f)));
+  const list = fields || [];
+  // A password with no CV is an account form (Himalayas /signup/talent),
+  // not the application, even when first name and email are on it.
+  const password = list.some((f) => f && f.type === 'password');
+  const file = list.some((f) => f && f.type === 'file');
+  if (password && !file) return false;
+  return list.some((f) => f && (f.type === 'file' || isCoreApplicationIdentity(f)));
 }
 
 /** Serialize a RegExp (or string) for the extension fill payload. */
@@ -889,14 +896,17 @@ export class ApplyBridge {
         fields = (await this.detectFieldsInTab(tabId)).fields || [];
       } catch { /* keep polling */ }
       lastCount = fields.length;
+      let probe = { verdict: 'none' };
+      try { probe = (await this.probeForm(tabId)).probe || probe; } catch { /* ignore */ }
+      // Signup / login (Himalayas Apply now → /signup/talent). Stop waiting:
+      // the navigate loop hands it to the guest path instead of filling it.
+      if (probe.verdict === 'auth_wall') return { ready: false, fields, probe };
       if (this.fieldsLookLikeForm(fields)) {
         if (announced || lastCount) {
           await push(`Formulaire prêt (${fields.length} champ(s) après attente SPA)`);
         }
         return { ready: true, fields };
       }
-      let probe = { verdict: 'none' };
-      try { probe = (await this.probeForm(tabId)).probe || probe; } catch { /* ignore */ }
       if (probe.verdict === 'application_form') {
         await push(`Formulaire prêt (probe) après attente SPA`);
         return { ready: true, fields, probe };
@@ -949,6 +959,8 @@ export class ApplyBridge {
     if (!fields.length) return false;
     const usable = fields.filter((f) => f.type !== 'hidden');
     const files = usable.filter((f) => f.type === 'file');
+    const passwords = usable.filter((f) => f.type === 'password');
+    if (passwords.length && !files.length) return false;
     const identity = usable.filter((f) => {
       const s = `${f.label} ${f.name} ${f.idAttr}`.toLowerCase();
       return /first[\s_-]*name|last[\s_-]*name|full[\s_-]*name|e-?mail|phone|tel\b|pr[ée]nom|nom de famille/.test(s)
@@ -1284,7 +1296,9 @@ export class ApplyBridge {
         if (await this._recoverRunTab(run)) continue;
         return noTab();
       }
-      if (probe.verdict === 'application_form' || this.fieldsLookLikeForm(fields)) {
+      // auth_wall wins over identity fields: a signup page (name, email,
+      // password) is not the application. Himalayas "Apply now" opens one.
+      if (probe.verdict !== 'auth_wall' && (probe.verdict === 'application_form' || this.fieldsLookLikeForm(fields))) {
         await push(probe.verdict === 'application_form'
           ? `Formulaire détecté (probe score ${probe.score || '?'}: ${(probe.signals || []).join(', ') || 'ok'})`
           : `Formulaire détecté via champs (${fields.length} field(s), probe=${probe.verdict}/${probe.score || 0})`);
@@ -1314,6 +1328,16 @@ export class ApplyBridge {
 
       let url = '';
       try { url = (await this.getTab(run.tabId)).url || ''; } catch { /* read as unknown */ }
+
+      // Naukri (and the same SEO shape) landed the run on a result list.
+      // "Next" there is the pager, not the next step of this offer.
+      if (isJobSearchResultsUrl(url)) {
+        return handOff(
+          `Page de résultats (${url}) — pas le formulaire de cette offre.`,
+          `This tab is a job search, not the application. Open this offer’s form, then ${RESCAN_BTN}.`,
+          [{ label: 'navigation', reason: 'search results page' }],
+        );
+      }
 
       if (probe.verdict === 'auth_wall') {
         await push(`Mur d’auth (${(probe.blockers || []).join(', ')}) — essai invité…`);
@@ -1367,7 +1391,10 @@ export class ApplyBridge {
       // A board's auto-apply files the application through the board itself,
       // past the review and captcha gates and the tracker: only a run that
       // may send on its own tries it, and last.
-      const ctas = [GUEST_TEXT_RE, APPLY_TEXT_RE, PROGRESS_TEXT_RE];
+      // Dismiss ("Skip for now") only after a real entry. It used to share
+      // the guest regex with "Apply on employer site" and win, because the
+      // clicker prefers the control lowest on the screen.
+      const ctas = [GUEST_TEXT_RE, APPLY_TEXT_RE, PROGRESS_TEXT_RE, GUEST_DISMISS_TEXT_RE];
       if (run.spec?.autoSubmit) ctas.push(AUTO_APPLY_TEXT_RE);
       for (const re of ctas) {
         // Without scrolling first — the control may already be in view.
@@ -1376,6 +1403,17 @@ export class ApplyBridge {
           if (clicked?.clicked) break;
         }
         if (clicked?.clicked) break;
+      }
+      if (clicked?.clicked && isJobSearchResultsUrl(clicked.href || clicked.openedUrl || '')) {
+        attempted.add(`${url}::${clicked.text}`);
+        await push(`« ${clicked.text} » ouvre une page de recherche — non suivi${clicked.href ? ` (${clicked.href})` : ''}`);
+        const back = run.originUrl && !isJobSearchResultsUrl(run.originUrl) ? run.originUrl : '';
+        if (back) await this.navigateTab(run.tabId, back).catch(() => {});
+        return handOff(
+          'Le bouton mène à une liste d’offres, pas au formulaire.',
+          `This tab is a job search, not the application. Open this offer’s form, then ${RESCAN_BTN}.`,
+          [{ label: 'navigation', reason: 'search results page' }],
+        );
       }
       if (clicked?.clicked) {
         attempted.add(`${url}::${clicked.text}`);
@@ -1453,7 +1491,9 @@ export class ApplyBridge {
     // One last detect before giving up.
     try {
       const { fields } = await this.detectFieldsInTab(run.tabId);
-      if (this.fieldsLookLikeForm(fields) || (fields || []).length >= 3) {
+      // Count is not enough: a Naukri result page has ~39 filter checkboxes
+      // and no identity field. Filling them marked the run ready to review.
+      if (this.fieldsLookLikeForm(fields)) {
         await push(`Dernière chance: ${fields.length} champ(s) — fill`);
         return 'form';
       }

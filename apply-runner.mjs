@@ -50,7 +50,7 @@ import {
   pinchtabSolve,
   pinchtabSolveSucceeded,
 } from './lib/pinchtab.mjs';
-import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_TEXT_RE, LIST_VISIBLE_NAV_BUTTONS, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY, PAGE_STEP_SNAPSHOT } from './lib/form-detect.mjs';
+import { APPLICATION_FORM_PROBE, AUTH_AVOID_TEXT_RE, GUEST_DISMISS_TEXT_RE, GUEST_TEXT_RE, LIST_VISIBLE_NAV_BUTTONS, MARK_PROGRESSION_CONTROLS, PAGE_SHOWS_APPLY_ENTRY, PAGE_STEP_SNAPSHOT } from './lib/form-detect.mjs';
 import { normalizeAtsUrl } from './extension/apply-ats.mjs';
 import { autofillLogLine, snapshotIdentityFields, waitForAutofill } from './extension/apply-autofill.mjs';
 import { forceResumeSlotInPage, revealSfResumeInputInPage } from './extension/page-helper-registry.mjs';
@@ -67,6 +67,7 @@ import {
   reviewStepConfidence,
   reviewStepNeedsAi,
   shouldAttemptSubmitAfterNoopNext,
+  isJobSearchResultsUrl,
 } from './lib/apply-progression.mjs';
 import { askNavDecision, exactControlPattern, newNavAiBudget } from './lib/apply-nav-llm.mjs';
 import {
@@ -1109,6 +1110,11 @@ async function reachApplicationForm(context, page) {
 
     await dismissCookieBanner(page);
 
+    if (isJobSearchResultsUrl(state.currentUrl)) {
+      log(`Page de résultats (${state.currentUrl}) — pas le formulaire de cette offre.`);
+      return { page, frame: null, blocker: null };
+    }
+
     // SPAs (Ashby, Greenhouse new UI…) render the form well after
     // domcontentloaded — poll instead of checking once.
     let frame = null;
@@ -1158,7 +1164,8 @@ async function reachApplicationForm(context, page) {
     // page has no form). `attempted` blocks re-clicking a no-op.
     const next = await clickApplyAndFollow(context, page, GUEST_TEXT_RE, attempted)
       || await clickApplyAndFollow(context, page, APPLY_TEXT_RE, attempted)
-      || await clickApplyAndFollow(context, page, PROGRESS_TEXT_RE, attempted);
+      || await clickApplyAndFollow(context, page, PROGRESS_TEXT_RE, attempted)
+      || await clickApplyAndFollow(context, page, GUEST_DISMISS_TEXT_RE, attempted);
     if (!next) {
       const hopUrl = currentPageUrl(page);
       const navAi = await askPageNavAi(page, { phase: 'navigate', skipTexts: triedOn(attempted, hopUrl) });
