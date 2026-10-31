@@ -431,6 +431,7 @@
   const warmed = new Set();
   function warmArt(id) {
     if (!id || warmed.has(id) || !ANIMAL[id]) return;
+    if (window.AgenceBestiary && window.AgenceBestiary.animals[id] && d.getElementById('biz-art').classList.contains('bz-live')) return;
     warmed.add(id);
     const im = new Image();
     im.sizes = ART_SIZES;
@@ -441,6 +442,10 @@
     const host = d.getElementById('biz-art');
     if (!host || !ANIMAL[id] || host.dataset.cur === id) return;
     host.dataset.cur = id;
+    /* The live 3D bestiary (agence-bestiary.js) takes over the hero for the animals it has built; the painted image stays
+       behind as the fallback while it loads, without WebGL, and for animals that are not built yet. */
+    d.dispatchEvent(new CustomEvent('biz-animal', { detail: { id } }));
+    if (host.classList.contains('bz-live')) return;
     const img = d.createElement('img');
     img.className = 'biz-art-img';
     img.alt = '';
