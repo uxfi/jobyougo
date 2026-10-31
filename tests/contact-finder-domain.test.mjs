@@ -16,7 +16,7 @@ import {
   pickDomainFromSearch,
   rankDomainCandidates,
 } from '../lib/contact-finder.mjs';
-import { isNotEmployerHost, NON_EMPLOYER_HOST_RE } from '../lib/non-employer-hosts.mjs';
+import { isNotEmployerHost, isSharedHostTenant, NON_EMPLOYER_HOST_RE } from '../lib/non-employer-hosts.mjs';
 
 const page = (url, html) => ({ ok: true, status: 200, url, html, text: html.replace(/<[^>]+>/g, '\n').replace(/\n+/g, '\n').trim() });
 const missing = (url) => ({ ok: false, status: 404, html: '', text: '', url, error: 'HTTP 404' });
@@ -158,24 +158,26 @@ test('findContacts: a jobgether offer with no search answer gets no domain and n
 
 test('findContacts: the search pick is the named official site, read once, never the directory', async () => {
   const calls = [];
+  // The site answers on www only, so the guess from the name (tripleten.com,
+  // read before any search since FP3) finds nothing and the search decides.
   const fetchPage = async (url) => {
     calls.push(url);
     if (/scamdoc\.com/.test(url)) return page(url, SCAMDOC_HOME);
-    if (url === 'https://tripleten.com') return page(url, '<title>TripleTen AI Programs</title><a href="/contact">Contact</a>');
-    if (url === 'https://tripleten.com/contact') return page(url, '<p>Careers: jobs@tripleten.com</p>');
+    if (url === 'https://www.tripleten.com') return page(url, '<title>TripleTen AI Programs</title><a href="/contact">Contact</a>');
+    if (url === 'https://www.tripleten.com/contact') return page(url, '<p>Careers: jobs@tripleten.com</p>');
     return missing(url);
   };
   const webSearch = async (query) => (/official website/.test(query)
-    ? [{ title: 'tripleten.com : avis et fiabilité | ScamDoc', url: 'https://www.scamdoc.com/view/1093431' }, { title: 'TripleTen: Online Coding Bootcamp', url: 'https://tripleten.com/' }]
+    ? [{ title: 'tripleten.com : avis et fiabilité | ScamDoc', url: 'https://www.scamdoc.com/view/1093431' }, { title: 'TripleTen: Online Coding Bootcamp', url: 'https://www.tripleten.com/' }]
     : []);
   const out = await findContacts({ company: 'TripleTen', role: 'Product Designer', jobUrl: 'https://uk.indeed.com/viewjob?jk=411b', jobText: 'Sr. Product Designer\nTripleTen\nWe are looking for a designer.' }, { fetchPage, webSearch, resolveMx: async () => true });
   assert.equal(out.company.domain, 'tripleten.com');
   assert.equal(out.company.source, 'search');
   assert.equal(out.company.confirmed, true);
-  assert.equal(out.company.website, 'https://tripleten.com');
+  assert.equal(out.company.website, 'https://www.tripleten.com');
   assert.ok(!out.contacts.some(c => c.email.endsWith('@scamdoc.com')));
   assert.ok(out.contacts.some(c => c.email === 'jobs@tripleten.com'));
-  assert.equal(calls.filter(url => url === 'https://tripleten.com').length, 1, 'the accepted home page is fetched once');
+  assert.equal(calls.filter(url => url === 'https://www.tripleten.com').length, 1, 'the accepted home page is fetched once');
   assert.ok(!calls.some(url => /scamdoc/.test(url)), 'a directory is never fetched');
 });
 
@@ -230,4 +232,35 @@ test('findContacts: a posting address at a domain carrying the name beats search
   assert.equal(both.company.domain, 'acme.io');
   assert.ok(emails.includes('marie.dupont@acme-careers.com'), 'another domain carrying the name is kept');
   assert.ok(!emails.includes('bob@recruit-partner.com'), 'an unrelated domain is not');
+});
+
+test('non-employer hosts: the boards a census of the reports still kept, and shared-hosting tenants', () => {
+  for (const host of ['www.jackandjill.ai', 'www.crosstalent.io', 'cryptocurrencyjobs.co', '4dayweek.io', 'tenshoku.mynavi.jp', 'beta.jobs.nhs.uk', 'yohrconsultancy.hiresome.ai', 'designproject.io']) {
+    assert.ok(isNotEmployerHost(host), host);
+  }
+  assert.equal(companyDomainFromJobUrl('https://beta.jobs.nhs.uk/candidate/jobadvert/M9990-24-1143'), '');
+  assert.equal(companyDomainFromJobUrl('https://4dayweek.io/job/senior-product-designer-at-nexus-mods-ae641807'), '');
+  assert.ok(isSharedHostTenant('culture.gouv.fr'));
+  assert.ok(isSharedHostTenant('https://acme.github.io/jobs'));
+  assert.ok(!isSharedHostTenant('wordpress.com'), 'the platform itself is not a tenant');
+  assert.ok(!isSharedHostTenant('www.wordpress.com'));
+  assert.ok(!isSharedHostTenant('jobgether.com'));
+  assert.ok(!isSharedHostTenant(''));
+});
+
+test('findContacts: a board page that prints its own inboxes never gives them as contacts', async () => {
+  const jobHtml = '<h1>Product Designer</h1><p>Synthlane</p><footer>Questions? <a href="mailto:careers@jobgether.com">careers@jobgether.com</a> · support@jobgether.com</footer>';
+  const out = await findContacts({ company: 'Synthlane', role: 'Product Designer', jobUrl: 'https://jobgether.com/offer/68f1-product-designer', jobText: 'Product Designer\nSynthlane\nRemote\nsupport@jobgether.com', jobHtml }, { fetchPage: async url => missing(url), webSearch: async () => [], resolveMx: async () => true });
+  assert.ok(!out.contacts.some(c => c.email.endsWith('@jobgether.com')));
+  assert.equal(out.best, null);
+
+  // A tenant of shared hosting writes from its own subdomain: kept.
+  const gouv = await findContacts({ company: 'Ministère de la Culture', role: 'Designer UX', jobUrl: 'https://choisirleservicepublic.gouv.fr/offre-emploi/123', jobText: 'Designer UX\nMinistère de la Culture\nCandidature : recrutement.design@culture.gouv.fr' }, { fetchPage: async url => missing(url), webSearch: async () => [], resolveMx: async () => true });
+  assert.equal(gouv.company.domain, '');
+  assert.ok(gouv.contacts.some(c => c.email === 'recrutement.design@culture.gouv.fr'));
+
+  // The board hiring for itself keeps its own inbox.
+  const self = await findContacts({ company: 'Jobgether', role: 'Product Designer', jobUrl: 'https://jobgether.com/offer/1', jobText: 'Product Designer at Jobgether. Apply: careers@jobgether.com' }, { fetchPage: async url => missing(url), webSearch: async () => [], resolveMx: async () => true });
+  assert.equal(self.company.domain, 'jobgether.com');
+  assert.ok(self.contacts.some(c => c.email === 'careers@jobgether.com'));
 });
