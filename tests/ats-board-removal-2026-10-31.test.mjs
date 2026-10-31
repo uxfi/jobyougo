@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { load as yamlLoad } from 'js-yaml';
 import {
-  patchPortalsText, applyPortalsPatches, markStale, runAtsBoardResolver, companyKey, findRedundantEntries, judgeBoard,
+  patchPortalsText, applyPortalsPatches, markStale, runAtsBoardResolver, companyKey, findRedundantEntries, judgeBoard, isDeadBoardError,
 } from '../lib/ats-board-resolver.mjs';
 
 const TEXT = `# head
@@ -96,6 +96,17 @@ test('"The Flex" and "Flex" are two companies: a leading "the" is part of the na
   const board = { status: 200, titles: ['Designer', 'Engineer', 'Manager'], name: 'The Flex' };
   assert.equal(judgeBoard({ name: 'Flex' }, board).reason, 'name_mismatch');
   assert.equal(judgeBoard({ name: 'The Flex' }, board).ok, true);
+});
+
+test('isDeadBoardError: a gone board (404/410) from any provider, not a bad moment', () => {
+  assert.equal(isDeadBoardError('HTTP 404 Not Found'), true, 'the Teamtailor message of MT3 Technology');
+  assert.equal(isDeadBoardError('HTTP 410'), true);
+  assert.equal(isDeadBoardError(new Error('Greenhouse returned HTTP 404')), true);
+  assert.equal(isDeadBoardError('HTTP 500 Internal Server Error'), false);
+  assert.equal(isDeadBoardError('HTTP 429 Too Many Requests'), false);
+  assert.equal(isDeadBoardError('The operation was aborted due to timeout'), false);
+  assert.equal(isDeadBoardError('HTTP 4041'), false);
+  assert.equal(isDeadBoardError(undefined), false);
 });
 
 test('markStale: a dead board is confirmed over days, and starts over after a long gap', () => {

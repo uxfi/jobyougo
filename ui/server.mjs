@@ -68,6 +68,7 @@ import { evalModelForTier } from '../lib/spend-tier.mjs';
 import { writeFormAnswer } from '../lib/form-answer.mjs';
 import { createFunnel, countBy } from '../lib/scan-funnel.mjs';
 import { cleanFetchUrl, retryPolicy, backoffDelayMs } from '../lib/fetch-politeness.mjs';
+import { assertPublicHttpUrl, fetchPublicUrl, isBlockedUrlError, isPublicHttpUrl } from '../lib/public-url-guard.mjs';
 import { cleanJobDescriptionText } from '../lib/jd-clean.mjs';
 import { isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mjs';
 import { careersFeedFor, hasCareersFeed } from '../lib/careers-feeds.mjs';
@@ -75,8 +76,8 @@ import { detectAtsProvider } from '../lib/ats-autodetect.mjs';
 import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
 import { runAtsExplorer, makeApiSearch } from '../lib/ats-explorer.mjs';
 import { runPortalsEnrichment } from '../lib/portals-enrichment.mjs';
-import { createEngineBackoff, createQuerySpacer, createEngineRotation } from '../lib/scan-engine-backoff.mjs';
 import { resolveGoogleGoto } from '../lib/serp-redirects.mjs';
+import { createEngineBackoff, createQuerySpacer, createEngineRotation } from '../lib/scan-engine-backoff.mjs';
 import { createScanLogger } from '../lib/scan-log.mjs';
 import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
 import { CONSENT_DISMISS_SCRIPT, needsLongerWait, createSolveCooldown, createDetailBudget } from '../lib/scan-careers-wait.mjs';
@@ -133,7 +134,7 @@ import {
 } from '../lib/scan-decision.mjs';
 import { portalsForProfile, scanTermsFrom } from '../lib/scan-targeting.mjs';
 import { loadQueryYield, orderWebSearchSources, recordQueryYield, saveQueryYield, shouldSkipQuery } from '../lib/web-search-yield.mjs';
-import { runAtsBoardResolver } from '../lib/ats-board-resolver.mjs';
+import { runAtsBoardResolver, isDeadBoardError } from '../lib/ats-board-resolver.mjs';
 import { recordPlatformCandidates } from '../lib/platform-candidates.mjs';
 import { SCAN_HISTORY_RETENTION_DAYS, ensureScanMemoryDir, pruneScanHistoryLines, scanHistoryCutoff, scanMemoryPaths } from '../lib/scan-memory.mjs';
 import { appendGateDrop, readGateDrops } from '../lib/gate-drops.mjs';
@@ -3447,6 +3448,11 @@ async function browseJobDescription(url, { maxChars = 15000, logLabel = 'pipelin
     let html = '', text = '', blocked = true, challenge = false, announced = false;
     do {
       await page.waitForTimeout(2500);
+      // A redirect may have taken the page to a private or internal address.
+      const landedOn = page.url();
+      if (/^https?:/i.test(landedOn) && !(await isPublicHttpUrl(landedOn))) {
+        return { ok: false, status: 0, html: '', text: '', blocked: true, challenge: false, refused: true, error: 'the page redirected to a private or internal address' };
+      }
       html = await page.content().catch(() => '');
       text = textFromFetchedHtml(html, url, { maxChars: 15000 });
       challenge = detectChallenge({ status: 200, html, text }).blocked;
@@ -3487,6 +3493,8 @@ async function fetchJobDescriptionViaBrowser(url, { maxChars = 15000, logLabel =
     stopOnChallenge: true,
   });
   if (probe.ok && !probe.blocked && probe.text && !isUnusableJobDescriptionText(probe.text)) return probe;
+  // Redirected to a private address: no second window on the same link.
+  if (probe.refused) return probe;
   if (mode === '1') {
     if (probe.challenge) {
       console.warn(`[${logLabel}] [browser] challenge en mode headless — SCAN_BROWSER_HEADLESS=0 pour ouvrir une fenêtre`);
@@ -3505,6 +3513,21 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
   if (snapshotText && !isUnusableJobDescriptionText(snapshotText)) {
     console.log(`[${logLabel}] [extension-tab] using ${snapshotText.length} chars from the open tab for ${url}`);
     return { ok: true, text: snapshotText.slice(0, maxChars), mode: 'extension-tab', html: '' };
+  }
+  // The link comes from a user (query string, request body, tracker row): no
+  // reader below, HTTP or browser, is pointed at localhost, the LAN or a cloud
+  // metadata address. The HTTP reader also vets every redirect hop; the
+  // browsers' landing page is checked after they navigate.
+  try {
+    await assertPublicHttpUrl(url);
+  } catch (err) {
+    console.warn(`[${logLabel}] refused ${url}: ${err.message}`);
+    return {
+      ok: false,
+      text: '',
+      mode: 'blocked',
+      error: isBlockedUrlError(err) ? 'The offer link points to a private or internal address.' : `The offer link could not be checked: ${err.message}`,
+    };
   }
   const noteParts = extractPipelineNoteParts(note || '');
   const remoteFirstParts = parseRemoteFirstPath(url);
@@ -3540,7 +3563,7 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
     const policy = retryPolicy(fetchUrl);
     for (let attempt = 1; attempt <= policy.attempts; attempt++) {
       try {
-        const response = await fetch(fetchUrl, {
+        const response = await fetchPublicUrl(fetchUrl, {
           signal: AbortSignal.timeout(10000),
           headers: {
             'User-Agent': 'Mozilla/5.0 (compatible; jobyougo/1.0)',
@@ -3562,6 +3585,8 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
         await sleep(waitMs);
       } catch (err) {
         lastError = err;
+        // A redirect to a private address is a verdict, not a flaky network.
+        if (isBlockedUrlError(err)) throw err;
         if (attempt < policy.attempts) {
           const waitMs = backoffDelayMs(attempt, { baseMs: policy.baseMs });
           console.warn(`[${logLabel}] [fetch] ${err.message} for ${fetchUrl} - retry in ${(waitMs / 1000).toFixed(1)}s`);
@@ -3582,6 +3607,10 @@ async function fetchJobDescriptionText(jobUrl, { maxChars = 15000, logLabel = 'p
     try {
       tabId = await pinchtabNavigate(url, { timeout: 25000 });
       await new Promise(resolve => setTimeout(resolve, 1500));
+      // The page the tab landed on after its own redirects must be public too.
+      // (about:blank and the browser's error pages hold nothing from a host.)
+      const landedOn = String(await pinchtabEvaluate(tabId, 'location.href', { timeout: 10000 }) || '');
+      if (/^https?:/i.test(landedOn) && !(await isPublicHttpUrl(landedOn))) throw new Error('the page redirected to a private or internal address');
       let html = await pinchtabEvaluate(tabId, 'document.documentElement.outerHTML', { timeout: 10000 });
       let text = textFromFetchedHtml(String(html || ''), url, { maxChars, hints });
       let blocked = isBlockedJobDescriptionResponse({ url, status: 200, html, text });
@@ -3723,8 +3752,10 @@ const SCAN_DIRECT_DEADLINE_MS = 60_000;
 const SCAN_PROVIDER_CONCURRENCY = 4;
 const SCAN_PROVIDER_DEADLINE_MS = 120_000;
 
-// Greenhouse/Ashby/Lever boards that answered 404/410 in this scan, by company
-// name: the board resolver (lib/ats-board-resolver.mjs) repoints them at the end of the run.
+// Boards that answered 404/410 in this scan, by company name (Greenhouse/Ashby/Lever
+// APIs and provider boards such as Teamtailor): the board resolver
+// (lib/ats-board-resolver.mjs) repoints them at the end of the run, or removes them once
+// they stay dead.
 const staleAtsBoards = new Map();
 
 async function fetchSourceSection(source = {}) {
@@ -4178,6 +4209,16 @@ async function launchLocalBrowserContext({ profilePrefix = 'jobyougo-browser-pro
   throw new Error(lastErr?.message || 'browser launch failed');
 }
 
+// Google's result links are /goto redirects (lib/serp-redirects.mjs): follow them to the
+// posting URLs. `blocked` is true when every link was refused (rate limit, "sorry" page).
+// Each link is one more request to Google, so only the titles the scan keeps are followed.
+async function resolveGoogleResults(jobs, label, name) {
+  if (!jobs.some(job => job?.gotoHref)) return { jobs, blocked: false };
+  const res = await resolveGoogleGoto(jobs, { keep: job => portalsTitleFilter.test(job.title) });
+  if (res.unresolved) console.warn(`[scan] [${label}] "${name}" → ${res.unresolved} result link(s) could not be followed${res.blocked ? ' (refused)' : ''}`);
+  return res;
+}
+
 async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = null) {
   if (!query) return { ok: false, section: null, jobs: [], engine: 'local-browser-google' };
   if (IS_VERCEL) return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'local browser unavailable on Vercel' };
@@ -4207,16 +4248,6 @@ async function fetchLocalBrowserGoogleSection({ name, query }, sharedBrowser = n
     let bodyText = cleanString(result?.bodyText || await page.evaluate(PAGE_BODY_TEXT_EXPR).catch(() => '') || '');
 
     if (!jobs.length && looksLikeChallengePage(bodyText) && !local.headless) {
-// Google's result links are /goto redirects (lib/serp-redirects.mjs): follow them to the
-// posting URLs. `blocked` is true when every link was refused (rate limit, "sorry" page).
-// Each link is one more request to Google, so only the titles the scan keeps are followed.
-async function resolveGoogleResults(jobs, label, name) {
-  if (!jobs.some(job => job?.gotoHref)) return { jobs, blocked: false };
-  const res = await resolveGoogleGoto(jobs, { keep: job => portalsTitleFilter.test(job.title) });
-  if (res.unresolved) console.warn(`[scan] [${label}] "${name}" → ${res.unresolved} result link(s) could not be followed${res.blocked ? ' (refused)' : ''}`);
-  return res;
-}
-
       console.log(`[scan] [Chrome/Google] "${name}" challenge wall — solve it in the Chrome window (waiting up to 45s)…`);
       const deadline = Date.now() + 45000;
       while (Date.now() < deadline && !jobs.length && !isShuttingDown) {
@@ -4232,6 +4263,12 @@ async function resolveGoogleResults(jobs, label, name) {
       console.warn(`[scan] [Chrome/Google] Challenge page detected for "${name}"`);
       tripLocalGoogleCircuit('challenge / captcha');
       return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'challenge page' };
+    }
+
+    const followed = await resolveGoogleResults(jobs, 'Chrome/Google', name);
+    jobs = followed.jobs;
+    if (!jobs.length && followed.blocked) {
+      return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'redirect links refused' };
     }
 
     jobs = await enrichLocalJobsWithDetails(local.ctx, jobs, name);
@@ -4263,18 +4300,23 @@ const PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT = `(() => {
     } catch {
       return String(href || '');
     }
-    const followed = await resolveGoogleResults(jobs, 'Chrome/Google', name);
-    jobs = followed.jobs;
-    if (!jobs.length && followed.blocked) {
-      return { ok: false, section: null, jobs: [], engine: 'local-browser-google', error: 'redirect links refused' };
+  };
+  // Since 2026-10-31 an outbound result link is google.com/goto?url=<opaque token>:
+  // it answers 302 with the posting URL, which the server follows (lib/serp-redirects.mjs).
+  const gotoLink = href => {
+    try {
+      const parsed = new URL(String(href || ''), window.location.origin);
+      return parsed.pathname === '/goto' ? parsed.href : '';
+    } catch {
+      return '';
     }
-
   };
   const isGoogleHost = host => /(^|\\.)google\\./i.test(host || '');
   const seen = new Set();
   const results = [];
 
   document.querySelectorAll('a[href]').forEach(anchor => {
+    const heading = anchor.querySelector('h3, [role="heading"]');
     const title = normalizeText(
       (heading || {}).textContent ||
       anchor.getAttribute('aria-label') ||
@@ -4305,22 +4347,12 @@ const PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT = `(() => {
     results.push({
       title,
       url: decodedHref,
-  // Since 2026-10-31 an outbound result link is google.com/goto?url=<opaque token>:
-  // it answers 302 with the posting URL, which the server follows (lib/serp-redirects.mjs).
-  const gotoLink = href => {
-    try {
-      const parsed = new URL(String(href || ''), window.location.origin);
-      return parsed.pathname === '/goto' ? parsed.href : '';
-    } catch {
-      return '';
-    }
-  };
+      gotoHref,
       location: snippet,
       remoteEvidence: snippet,
     });
   });
 
-    const heading = anchor.querySelector('h3, [role="heading"]');
   return {
     url: location.href,
     title: document.title || '',
@@ -4345,7 +4377,6 @@ const PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT = `(() => {
     if (!/^https?:\\/\\//i.test(url)) return;
     let host = '';
     try { host = new URL(url).hostname || ''; } catch {}
-      gotoHref,
     if (/(^|\\.)brave\\./i.test(host)) return;
     const title = normalizeText(
       (snippet.querySelector('.title') || {}).textContent ||
@@ -4468,6 +4499,11 @@ async function fetchPinchtabSearchSection({ name, query }, { freshness = 'auto' 
       bodyText = cleanString(again.bodyText || '');
     }
     jobs = await smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript: PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT, label: 'PinchTab/Google' });
+    const followed = await resolveGoogleResults(jobs, 'PinchTab/Google', name);
+    jobs = followed.jobs;
+    if (!jobs.length && followed.blocked) {
+      return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: 'redirect links refused' };
+    }
 
     if (!jobs.length && looksLikeChallengePage(bodyText)) {
       console.warn(`[scan] [PinchTab/Google] Challenge page detected for "${name}" (solve unsuccessful)`);
@@ -4497,11 +4533,6 @@ async function fetchPinchtabSearchSection({ name, query }, { freshness = 'auto' 
 // are unwrapped in the page so the scanner sees the real posting URL.
 const PINCHTAB_BING_SEARCH_EXTRACT_SCRIPT = `(() => {
   const normalizeText = value => String(value || '').replace(/\\s+/g, ' ').trim();
-    const followed = await resolveGoogleResults(jobs, 'PinchTab/Google', name);
-    jobs = followed.jobs;
-    if (!jobs.length && followed.blocked) {
-      return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: 'redirect links refused' };
-    }
   const unwrap = href => {
     try {
       const parsed = new URL(String(href || ''), window.location.origin);
@@ -5232,6 +5263,8 @@ async function fetchAggregatorSection(aggregator = {}, portalsConfig = {}) {
         section: buildJobSection(aggregator.name, jobs, { includeCompany: true }) };
     } catch (error) {
       console.warn(`[scan] [${aggregator.provider}] ${aggregator.name}: ${error.message}`);
+      // A tracked company whose provider board is gone (2026-10-31: teamtailor MT3 Technology, HTTP 404).
+      if (isDeadBoardError(error.message)) staleAtsBoards.set(aggregator.name, { provider: aggregator.provider, reason: String(error.message) });
       return { ok: false, jobs: [], section: null, engine: aggregator.provider, error: error.message };
     }
   }

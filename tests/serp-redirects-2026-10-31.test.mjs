@@ -171,6 +171,26 @@ test('extractor: the older direct and /url forms still work', () => {
   ]);
 });
 
+// The page scripts are template literals: node --check never looks inside them, so a line that
+// lands in the wrong one (a staging slip put server code inside the Google, Brave and Bing
+// scripts, 2026-10-31) is only a syntax error once a browser runs it. Compile every one.
+test('every in-page extractor script of ui/server.mjs compiles, and holds no server-side code', () => {
+  const names = [];
+  const re = /const (\w+_EXTRACT_SCRIPT) = `/g;
+  let match;
+  while ((match = re.exec(source))) {
+    const start = match.index + match[0].length;
+    const body = source.slice(start, source.indexOf('`;', start));
+    if (body.includes('${')) continue; // built from values at run time
+    const script = new Function(`return \`${body}\``)();
+    assert.doesNotThrow(() => new vm.Script(script), `${match[1]} must be valid JavaScript`);
+    assert.ok(!/resolveGoogleResults|await /.test(script), `${match[1]} must not hold server code`);
+    if (!/GOOGLE/.test(match[1])) assert.ok(!/gotoHref/.test(script), `${match[1]} is not Google's`);
+    names.push(match[1]);
+  }
+  assert.ok(names.includes('PINCHTAB_GOOGLE_SEARCH_EXTRACT_SCRIPT') && names.includes('PINCHTAB_BRAVE_SEARCH_EXTRACT_SCRIPT'), `read ${names.join(', ')}`);
+});
+
 test('extractor: an opaque /url token without a heading is not a result', () => {
   assert.equal(extract([anchor({ href: '/url?sa=t&url=CAESopaque', text: 'Some link text here' })]).jobs.length, 0);
 });
