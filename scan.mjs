@@ -77,10 +77,11 @@ import { localToday } from './lib/local-today.mjs';
 import { printScanSummaryHeader } from './lib/scan-summary-marker.mjs';
 import { appendDecisionLog, decisionLogRecord, evaluateCandidate, summarizeDecisions } from './lib/scan-decision.mjs';
 import { runAtsExplorer, makeApiSearch } from './lib/ats-explorer.mjs';
+import { recordPlatformCandidates } from './lib/platform-candidates.mjs';
 import { loadPortalsForProfile } from './lib/scan-targeting.mjs';
 import { resolveLocationProfile } from './lib/candidate-location.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
-import { promoteKnownFragmentIdentity } from './url-key.mjs';
+import { dedupUrlKey } from './url-key.mjs';
 
 try {
   const { config } = await import('dotenv');
@@ -1467,62 +1468,25 @@ export function resolveDedupIncludeLocation(config = {}) {
   return config.scan_history?.dedup_include_location === true;
 }
 
-// Query params that carry no identity information for a job posting — safe to
-// strip when computing the dedup key. Deliberately an allowlist rather than
-// "strip everything": several ATSes key the posting off a query param (e.g.
-// Greenhouse's `gh_jid`), so a blanket strip would collapse distinct roles.
-const DEDUP_STRIP_PARAMS = new Set([
-  'language', 'lang', 'locale',
-  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-  'ref', 'src', 'source', 'gh_src', 'lever-origin', 'lever-source',
-  'rltr', // StepStone: regenerated per request, so one posting returns as new every scan
-]);
-
 /**
  * Normalize a job posting URL into a stable dedup key.
  *
- * Strips cosmetic query params (locale/tracking), promotes recognized
- * hash-route job IDs before dropping other fragments, drops a trailing slash,
- * and lowercases scheme, host, and path. Only used to compute the *comparison*
- * key — callers keep writing/displaying the original URL so links stay
- * clickable and scan-history/pipeline.md stay faithful to what the provider
- * returned.
+ * The definition lives in url-key.mjs (`dedupUrlKey`) and is shared with the
+ * dashboard's scan: until 2026-10-31 each had its own list of params to strip,
+ * so one posting seen by both could be known to one and new to the other. It
+ * strips cosmetic and tracking params (an allowlist: several ATSes key the
+ * posting off a param such as Greenhouse's `gh_jid`), promotes recognized
+ * hash-route job IDs, drops a trailing slash and lowercases the path (scan.mjs
+ * and scan-ats-full.mjs can reach one Workday posting with different casing).
+ * Only a *comparison* key: callers keep writing the original URL.
  *
- * The path is lowercased because scan.mjs and scan-ats-full.mjs run as
- * separate processes and can independently produce different casing for the
- * identical posting — a Workday tenant/site path segment reached via the
- * curated portals.yml entry vs. the reverse-ATS dataset, for instance. A
- * case-sensitive key silently treats those as two distinct URLs, so the same
- * role lands in pipeline.md twice. Path casing is not meaningfully distinct
- * for any provider these scanners target.
- *
- * Query *values* keep their original casing — those can be identity-bearing
- * (Greenhouse's `gh_jid`), which is also why DEDUP_STRIP_PARAMS is an
- * allowlist rather than a blanket strip.
- *
- * Falls back to the raw string when the URL is malformed, preserving the
- * old byte-for-byte behavior for unparsable history rows.
+ * Empty and unparsable input comes back unchanged.
  *
  * @param {string} url
  * @returns {string}
  */
 export function normalizeUrlForDedup(url) {
-  if (typeof url !== 'string' || !url) return url;
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return url;
-  }
-  for (const param of Array.from(parsed.searchParams.keys())) {
-    if (DEDUP_STRIP_PARAMS.has(param.toLowerCase())) {
-      parsed.searchParams.delete(param);
-    }
-  }
-  promoteKnownFragmentIdentity(parsed);
-  parsed.hash = '';
-  parsed.pathname = parsed.pathname.replace(/\/+$/, '').toLowerCase() || '/';
-  return parsed.toString();
+  return dedupUrlKey(url);
 }
 
 /**
@@ -3925,6 +3889,11 @@ async function main() {
       });
     } catch (err) {
       console.warn(`[scan] [explorer] skipped: ${err.message}`);
+    }
+    try {
+      await recordPlatformCandidates({ dataDir: path.join(DATA_ROOT, 'data'), portalsPath: PORTALS_PATH });
+    } catch (err) {
+      console.warn(`[scan] [platforms] skipped: ${err.message}`);
     }
   }
 

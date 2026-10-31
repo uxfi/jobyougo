@@ -122,4 +122,61 @@ export function normalizeUrl(raw) {
   return u.toString();
 }
 
+// Query params that change with each visit or locale and never pick the posting.
+// Unlike TRACKING_PARAMS (stripped from the merge key), these include generic
+// names (ref, src, source) that a few boards do use as a posting id: that is why
+// they stay out of `normalizeUrl`, whose mistake merges two tracker rows. Here a
+// mistake costs one hidden offer, and a scan that shows the same posting again
+// every run (StepStone's `rltr`, WTTJ's `igbTracker`) costs far more.
+const COSMETIC_PARAMS = new Set([
+  'language', 'lang', 'locale',
+  'ref', 'src', 'source', 'lever-origin', 'lever-source',
+  'rltr', // StepStone: regenerated per request, so one posting returns as new every scan
+  'fromapply', 'igbtracker', 'referrer', // Welcome to the Jungle
+]);
+
+/**
+ * Key for "is this posting already known?", the one comparison the UI scan and
+ * `node scan.mjs` share. The merge key (`normalizeUrl`) minus COSMETIC_PARAMS,
+ * with http read as https and the path lower-cased. The path is lower-cased
+ * because two scanners can reach one Workday posting with different casing;
+ * query values keep theirs (gh_jid can be identity-bearing).
+ *
+ * Only compared, never stored: callers keep the original URL so links stay
+ * clickable. Input that is empty or not a parseable URL comes back unchanged
+ * (a `local:jds/…` pipeline reference, a blank history cell).
+ *
+ * @param {string} url
+ * @returns {string}
+ */
+export function dedupUrlKey(url) {
+  if (typeof url !== 'string' || !url) return url;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.protocol === 'http:') parsed.protocol = 'https:';
+  promoteKnownFragmentIdentity(parsed);
+  parsed.hash = '';
+
+  const keep = [];
+  for (const [name, value] of parsed.searchParams.entries()) {
+    const lower = name.toLowerCase();
+    if (COSMETIC_PARAMS.has(lower) || TRACKING_PARAMS.some((re) => re.test(name))) continue;
+    keep.push([name, value]);
+  }
+  // By name only, and stable: repeated names keep their order.
+  keep.sort((x, y) => (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
+  parsed.search = '';
+  for (const [name, value] of keep) parsed.searchParams.append(name, value);
+
+  let path = parsed.pathname.replace(/\/+$/, '').toLowerCase();
+  if (/(^|\.)ashbyhq\.com$/.test(parsed.hostname)) path = path.replace(/\/application$/, '');
+  if (/(^|\.)lever\.co$/.test(parsed.hostname)) path = path.replace(/\/apply$/, '');
+  parsed.pathname = path || '/';
+  return parsed.toString();
+}
+
 export default normalizeUrl;

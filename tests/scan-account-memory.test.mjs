@@ -67,6 +67,7 @@ function scanServer(root, { portals = {}, extra = {} } = {}) {
     ownsLocalData: async (userId) => !userId || userId === OWNER,
     readPortalsYaml: async () => ({ parsed: portals }),
     normalizeUrlKey: url => String(url || '').trim().replace(/\/+$/, '').toLowerCase(),
+    knownUrlKey: url => String(url || '').trim().replace(/\/+$/, '').toLowerCase(),
     normalizeCompany: name => String(name || '').trim().toLowerCase(),
     tsvSafe: value => String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim(),
     appendPipelineRecords: async (records) => { calls.appendPipelineRecords.push(plain(records)); },
