@@ -12,25 +12,7 @@
   B.animals.ai = {
     id: 'ai',
     frame: { r: 1.85, cy: 1.18, floor: -0.02, shadow: 2.8, yaw: 0.3, pitch: 0.1 },
-    input: {
-      min: -135, max: 135, def: 0, d: 0, unit: '°', step: 1, period: 15, label: { en: 'Head turn', fr: 'Rotation de la tête' },
-      fmt: (x) => `${x > 0.5 ? '+' : ''}${Math.round(x)}°`,
-    },
-    parts: [
-      { id: 'head', en: 'Head & eyes', fr: 'Tête et yeux' }, { id: 'neck', en: 'Neck, 14 vertebrae', fr: 'Cou, 14 vertèbres' }, { id: 'body', en: 'Body & wings', fr: 'Corps et ailes' },
-    ],
-    ro: [
-      { en: 'Head turn', fr: 'Rotation', unit: '°', d: 0 }, { en: 'Per vertebra', fr: 'Par vertèbre', unit: '°', d: 1 }, { en: 'Looking', fr: 'Regard', unit: '' },
-    ],
-    plot: 0,
-    model(x) {
-      const a = Math.abs(x);
-      return [a, a / 14, a < 35 ? { en: 'Ahead', fr: 'Devant' } : a < 95 ? { en: 'Sideways', fr: 'De côté' } : { en: 'Over the shoulder', fr: 'Par-dessus l’épaule' }];
-    },
-    note: {
-      en: 'An owl has 14 neck vertebrae (a human has 7) and turns its head about 270° in all: 135° each way. Its eyes are fixed in the skull, so the head does the looking.',
-      fr: 'Une chouette a 14 vertèbres cervicales (l’humain en a 7) et tourne la tête d’environ 270° en tout : 135° de chaque côté. Ses yeux sont fixes dans le crâne, c’est la tête qui regarde.',
-    },
+    x: (t) => 105 * Math.tanh(2.2 * Math.sin(t * 0.4)) /* the head turns to one side, holds, comes back, turns to the other */,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
       const headP = rig.part('head', [0, 0.62, 0.4]); const neckP = rig.part('neck', [0, 0.38, 1.0]); const bodyP = rig.part('body', [0, -0.5, 0]);
@@ -42,7 +24,7 @@
       const twig = at(K.glass(bodyP, new T.CylinderGeometry(0.016, 0.01, 0.55, 8).translate(0, 0.27, 0), '#e8b07a', { op: 0.92, detached: true }), bodyP.group, 1.15, 0, 0); twig.rotation.z = -0.8;
       const leafG = K.leaf(7, 4, (u, v, o) => { const w = 0.085 * Math.sin(PI * Math.pow(u, 0.7)); o.x = u * 0.3; o.y = v * w; o.z = 0.04 * u * u; });
       bodyP.group.add(K.thin(bodyP, leafG, P.mint, {
-        op: 0.8, bump: 'feather', bumpScale: 1.4,
+        op: 0.92, bump: 'veins', bumpScale: 1.2,
         instances: K.fan([[1.3, 0.28, 0.02, 0.6], [1.45, 0.46, -0.02, 0.2], [1.22, 0.4, 0.03, 1.2], [1.38, 0.2, 0.0, -0.2], [1.5, 0.35, 0.02, 0.9]].map(([x, y, z, a]) => ({ p: V(x, y, z), dir: V(Math.cos(a), Math.sin(a) * 0.5 + 0.2, 0.15), len: 1, nHint: UP }))),
       }));
 
@@ -50,29 +32,29 @@
       const bodyG = at(new T.Group(), bodyP.group, 0, 0.96, -0.03); bodyG.rotation.z = PI / 2;
       const bSpec = { len: 1.7, n: 48, ru: 2, rv: 2, a: () => 0.86, r: (s) => 0.01 + 0.66 * Math.pow(Math.sin(PI * Math.pow(s, 0.7)), 0.62) * (1 - 0.1 * s) };
       bodyG.add(K.glass(bodyP, K.loft(bSpec), P.peri, { op: 0.88, bump: 'plumage', bumpScale: 1.5, map: 'barring', detached: true }));
-      const bSurf = K.surf(bSpec); const feather = K.feather(0.22, 0.075, { curl: 0.08 });
-      bodyG.add(K.coat(bodyP, { surf: bSurf, geo: feather, hex: P.cream, rows: 9, cols: 9, s0: 0.1, s1: 0.86, th0: PI / 2 - 1.15, th1: PI / 2 + 1.15, size: [0.9, 1.15], lift: [0.18, 0.4], seed: 3, op: 0.84 }));
-      bodyG.add(K.coat(bodyP, { surf: bSurf, geo: feather, hex: P.lav, rows: 7, cols: 9, s0: 0.18, s1: 0.9, th0: 1.5 * PI - 1.2, th1: 1.5 * PI + 1.2, size: [0.95, 1.2], lift: [0.2, 0.4], seed: 9, op: 0.82 }));
+      const bSurf = K.surf(bSpec); const feather = K.feather(0.115, 0.042, { curl: 0.1 });
+      bodyG.add(K.coat(bodyP, { surf: bSurf, geo: feather, hex: P.cream, rows: 34, cols: 34, s0: 0.1, s1: 0.86, th0: PI / 2 - 1.55, th1: PI / 2 + 1.55, size: [0.9, 1.15], lift: [0.1, 0.28], seed: 3, vary: 0.22 }));
+      bodyG.add(K.coat(bodyP, { surf: bSurf, geo: feather, hex: P.lav, rows: 30, cols: 34, s0: 0.18, s1: 0.9, th0: 1.5 * PI - 1.6, th1: 1.5 * PI + 1.6, size: [0.95, 1.2], lift: [0.1, 0.28], seed: 9, vary: 0.22 }));
 
       /* wings folded at the sides: a lofted wing, rows of coverts, a fan of long primaries */
       const wSpec = { x0: 0, len: 1.2, n: 30, ru: 1, rv: 2, a: () => 3.4, r: (s) => 0.012 + 0.06 * Math.pow(Math.sin(PI * Math.pow(s, 0.6)), 0.7) };
-      const wSurf = K.surf(wSpec); const covG = K.feather(0.2, 0.07, { curl: 0.06 }); const primG = K.feather(1, 0.17, { curl: 0.04, tip: 0.6 });
+      const wSurf = K.surf(wSpec); const covG = K.feather(0.1, 0.036, { curl: 0.08 }); const primG = K.feather(1, 0.15, { curl: 0.04, tip: 0.75 });
       const wings = [1, -1].map((side) => {
         const wg = at(new T.Group(), bodyP.group, side * 0.6, 1.52, -0.08);
         if (side > 0) wg.rotation.z = -PI / 2; else wg.rotation.set(0, PI, -PI / 2);
         wg.add(K.glass(bodyP, K.loft(wSpec), P.lav, { op: 0.86, bump: 'plumage', bumpScale: 1.4, map: 'barring', detached: true }));
-        wg.add(K.coat(bodyP, { surf: wSurf, geo: covG, hex: P.cream, rows: 4, cols: 6, s0: 0.12, s1: 0.7, th0: -1.0, th1: 1.0, size: [0.85, 1.1], lift: [0.2, 0.35], seed: 21 + side, op: 0.82, dirFn: (dir, out) => dir.copy(out.t).multiplyScalar(0.92).addScaledVector(out.n, 0.22) }));
-        const lens = [0.5, 0.6, 0.68, 0.72, 0.7, 0.64, 0.58, 0.5];
+        wg.add(K.coat(bodyP, { surf: wSurf, geo: covG, hex: P.cream, rows: 16, cols: 22, s0: 0.12, s1: 0.7, th0: -1.0, th1: 1.0, size: [0.85, 1.1], lift: [0.1, 0.25], seed: 21 + side, dirFn: (dir, out) => dir.copy(out.t).multiplyScalar(0.92).addScaledVector(out.n, 0.22) }));
+        const lens = [0.5, 0.56, 0.62, 0.67, 0.71, 0.73, 0.72, 0.69, 0.65, 0.6, 0.56, 0.52, 0.48, 0.44];
         wg.add(K.thin(bodyP, primG, P.lav, {
           op: 0.84, bump: 'feather', bumpScale: 1.8,
-          instances: K.fan(lens.map((len, i) => { const f = (i - 3.5) * 0.1; return { p: V(0.52, 0.04, (i - 3.5) * 0.045), dir: V(Math.cos(f), 0, Math.sin(f)), len, nHint: UP }; })),
+          instances: K.fan(lens.map((len, i) => { const f = (i - 6.5) * 0.055; return { p: V(0.52, 0.04, (i - 6.5) * 0.026), dir: V(Math.cos(f), 0, Math.sin(f)), len, nHint: UP }; })),
         }));
         return wg;
       });
       /* the tail: seven long feathers fanned down and back */
-      bodyP.group.add(K.thin(bodyP, K.feather(1, 0.15, { curl: 0.03, tip: 0.6 }), P.lav, {
+      bodyP.group.add(K.thin(bodyP, K.feather(1, 0.1, { curl: 0.03, tip: 0.6 }), P.lav, {
         op: 0.84, bump: 'feather', bumpScale: 1.8,
-        instances: K.fan(Array.from({ length: 7 }, (_, i) => { const f = (i - 3) * 0.14; return { p: V(0, 0.4, -0.5), dir: V(Math.sin(f) * 0.5, -0.88, -0.42), len: 0.72 - Math.abs(i - 3) * 0.02, nHint: V(0, 0, 1) }; })),
+        instances: K.fan(Array.from({ length: 11 }, (_, i) => { const f = (i - 5) * 0.095; return { p: V(0, 0.4, -0.5), dir: V(Math.sin(f) * 0.5, -0.88, -0.42), len: 0.72 - Math.abs(i - 5) * 0.016, nHint: V(0, 0, 1) }; })),
       }));
 
       /* feathered legs and four toes with claws on each foot */
@@ -89,10 +71,19 @@
       /* the head: a barred oval, two facial discs with a ruff of feathers, amber eyes with lids, a hooked beak, ear tufts */
       const headPiv = at(new T.Group(), headP.group, 0, 1.95, 0);
       headPiv.add(K.glass(headP, K.uvScale(K.ball(0.56, 0.44, 0.48, 44), 3, 2), P.peri, { op: 0.88, bump: 'plumage', bumpScale: 1.3, map: 'barring', detached: true }));
-      const ruff = []; const ruffG = K.feather(1, 0.2, { curl: 0.1, tip: 0.7 });
+      /* a coat of small feathers over the crown, nape and sides of the head; the face stays bare for the discs and the eyes */
+      const hdSurf = (s, th, out) => {
+        const ph = PI * (1 - s); const sp = Math.sin(ph); const cp = Math.cos(ph); const rx = 0.56; const ry = 0.44; const rz = 0.48;
+        out.p.set(rx * sp * Math.cos(th), ry * sp * Math.sin(th), rz * cp);
+        out.n.set(out.p.x / (rx * rx), out.p.y / (ry * ry), out.p.z / (rz * rz)).normalize();
+        out.t.set(-rx * cp * Math.cos(th), -ry * cp * Math.sin(th), rz * sp).normalize();
+        return out;
+      };
+      headPiv.add(K.coat(headP, { surf: hdSurf, geo: K.feather(0.1, 0.038, { curl: 0.1 }), hex: P.peri, rows: 22, cols: 42, s0: 0.0, s1: 0.6, th0: 0, th1: TAU, size: [0.85, 1.1], lift: [0.1, 0.26], seed: 14, vary: 0.2 }));
+      const ruff = []; const ruffG = K.feather(1, 0.15, { curl: 0.1, tip: 0.7 });
       [1, -1].forEach((s) => {
         const disc = K.glass(headP, K.uvScale(K.ball(0.25, 0.28, 0.07, 28), 2, 2), P.cream, { op: 0.84, bump: 'plumage', bumpScale: 1, detached: true }); at(disc, headPiv, s * 0.22, -0.02, 0.4); disc.rotation.y = -s * 0.36;
-        for (let i = 0; i < 16; i++) { const an = (i / 16) * TAU; ruff.push({ p: V(s * (0.22 + Math.cos(an) * 0.27 * 0.95), -0.02 + Math.sin(an) * 0.3, 0.38 + Math.cos(an) * s * 0.05), dir: V(Math.cos(an) * s * 0.9, Math.sin(an), 0.18), len: 0.1, nHint: V(0, 0, 1), wide: 0.5 }); }
+        for (let i = 0; i < 38; i++) { const an = (i / 38) * TAU; ruff.push({ p: V(s * (0.22 + Math.cos(an) * 0.27 * 0.95), -0.02 + Math.sin(an) * 0.3, 0.38 + Math.cos(an) * s * 0.05), dir: V(Math.cos(an) * s * 0.9, Math.sin(an), 0.18), len: 0.082, nHint: V(0, 0, 1), wide: 0.5 }); }
         const eye = K.eye(headP, { r: 0.115, iris: '#f4a64a' }); at(eye, headPiv, s * 0.21, 0.03, 0.452); eye.rotation.y = s * 0.12;
         const lid = K.glass(headP, new T.TorusGeometry(0.128, 0.02, 8, 28), P.cream, { op: 0.9, detached: true }); at(lid, headPiv, s * 0.21, 0.03, 0.455);
         [-0.1, 0, 0.1].forEach((dz) => ruff.push({ p: V(s * 0.3, 0.38, -0.02 + dz * 0.4), dir: V(s * 0.45, 1, dz), len: 0.36 + (dz === 0 ? 0.04 : 0), nHint: V(0, 0, 1), wide: 0.4 }));
@@ -125,11 +116,6 @@
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'head', obj: headPiv, off: [0.5, 0.28, 0.2], dx: 76, dy: -44, en: 'Head', fr: 'Tête', live: (x) => `${x > 0.5 ? '+' : ''}${Math.round(x)}°` },
-          { part: 'neck', obj: discs[7], off: [-0.17, 0, 0], dx: -84, dy: 14, en: '14 vertebrae', fr: '14 vertèbres' },
-          { part: 'body', obj: wings[1], off: [0.45, 0.05, 0], dx: -82, dy: 70, en: 'Wings folded', fr: 'Ailes repliées' },
-        ],
       };
     },
   };
@@ -139,22 +125,7 @@
   B.animals.fintech = {
     id: 'fintech',
     frame: { r: 1.75, cy: 0, floor: -0.62, shadow: 3.6, yaw: 0.25, pitch: 0.7 },
-    input: { min: 0, max: 2, def: 0.8, d: 1, unit: 'BL/s', step: 0.01, period: 16, label: { en: 'Swimming speed', fr: 'Vitesse de nage' }, fmt: (x, n) => `${n(x, 1)} BL/s` },
-    parts: [
-      { id: 'body', en: 'Body wave', fr: 'Onde du corps' }, { id: 'fins', en: 'Fins', fr: 'Nageoires' }, { id: 'spine', en: 'Spine & bladder', fr: 'Colonne et vessie' },
-    ],
-    ro: [
-      { en: 'Speed (a 70 cm koi)', fr: 'Vitesse (koï de 70 cm)', unit: 'km/h', d: 1 }, { en: 'Tail beats', fr: 'Battements de queue', unit: 'Hz', d: 1 }, { en: 'Propulsive efficiency', fr: 'Rendement de propulsion', unit: '%', d: 0 },
-    ],
-    plot: 2,
-    model(v) {
-      const f = KOI.f(v);
-      return [v * KOI.len * 3.6, f, 50 * (1 + v / f)];
-    },
-    note: {
-      en: 'Speed is in body lengths a second (BL/s). The wave runs head to tail at one body length per cycle; efficiency is Lighthill’s slender-body estimate, (1 + U/c) / 2. Rounded, stylised.',
-      fr: 'La vitesse est en longueurs de corps par seconde (BL/s). L’onde court de la tête à la queue, une longueur par cycle ; le rendement est l’estimation de Lighthill pour un corps élancé, (1 + U/c) / 2. Arrondi, stylisé.',
-    },
+    x: 0.8,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
       const bodyP = rig.part('body', [0, 0, 0]); const finsP = rig.part('fins', [0, 0.85, 0]); const spineP = rig.part('spine', [0, -0.7, 0]);
@@ -244,11 +215,6 @@
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'fins', obj: tailFin, off: [0.62, 0.12, 0], dx: -76, dy: -48, en: 'Tail fin', fr: 'Nageoire caudale', live: (v) => `${KOI.f(v).toFixed(1)} Hz` },
-          { part: 'spine', obj: heart, off: [0.05, -0.12, 0], dx: 70, dy: 50, en: 'Spine & swim bladder', fr: 'Colonne et vessie natatoire' },
-          { part: 'body', obj: eyes, off: [0, 0.1, 0.12], dx: 66, dy: -52, en: 'Body wave', fr: 'Onde du corps' },
-        ],
       };
     },
   };
@@ -258,19 +224,7 @@
   B.animals.proptech = {
     id: 'proptech',
     frame: { r: 2.0, cy: 0.5, floor: 0, shadow: 3.4, yaw: 0.6, pitch: 0.36 },
-    input: { min: 0, max: 120, def: 40, d: 0, unit: 'years', step: 1, period: 22, label: { en: 'Age of the tortoise', fr: 'Âge de la tortue' }, fmt: (x, n) => `${n(x, 0)} ${x < 1.5 ? 'year' : 'years'}` },
-    parts: [
-      { id: 'shell', en: 'Shell, 13 plates', fr: 'Carapace, 13 plaques' }, { id: 'body', en: 'Head & legs', fr: 'Tête et pattes' }, { id: 'bones', en: 'Ribs fused to the shell', fr: 'Côtes soudées à la carapace' },
-    ],
-    ro: [
-      { en: 'Shell length', fr: 'Longueur de carapace', unit: 'cm', d: 0 }, { en: 'Weight', fr: 'Poids', unit: 'kg', d: 0 }, { en: 'Growth this year', fr: 'Croissance cette année', unit: 'cm', d: 1 },
-    ],
-    plot: 0,
-    model(y) { const l = TORT.len(y); return [l, TORT.kg(l), TORT.grow(y)]; },
-    note: {
-      en: 'A stylised growth curve for a Galápagos tortoise (about 6 cm at hatching, over a metre as an adult), rounded. The shell keeps the same design: 5 central plates and 4 side plates a side. Drawn from 22% to 100% of life size so the hatchling stays visible.',
-      fr: 'Une courbe de croissance stylisée pour une tortue des Galápagos (environ 6 cm à l’éclosion, plus d’un mètre adulte), arrondie. La carapace garde le même dessin : 5 plaques centrales et 4 plaques latérales de chaque côté. Dessinée de 22 % à 100 % de la taille réelle pour que le nouveau-né reste visible.',
-    },
+    x: 40,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
       const shellP = rig.part('shell', [0, 0.9, 0]); const bodyP = rig.part('body', [0, -0.5, 0]); const bonesP = rig.part('bones', [0, 0.35, 0.9]);
@@ -369,11 +323,6 @@
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'shell', obj: mv[0], off: [-0.1, 0.9, 0.2], dx: 78, dy: -60, en: 'Shell, 13 plates', fr: 'Carapace, 13 plaques', live: (y) => `${TORT.len(y).toFixed(0)} cm` },
-          { part: 'bones', obj: mv[2], off: [0.4, 0.5, 0.5], dx: -88, dy: -44, en: 'Fused ribs', fr: 'Côtes soudées' },
-          { part: 'body', obj: headG, off: [0.45, 0.08, 0.2], dx: 72, dy: 54, en: 'Head & legs', fr: 'Tête et pattes' },
-        ],
       };
     },
   };

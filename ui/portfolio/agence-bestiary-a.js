@@ -12,25 +12,7 @@
   B.animals.saas = {
     id: 'saas',
     frame: { r: 1.7, cy: 0.3, floor: -0.02, shadow: 3.6, yaw: 0.5, pitch: 0.44 },
-    input: { min: 0.2, max: 3, def: 1.4, d: 1, unit: 'km', step: 0.01, period: 32, label: { en: 'Distance to the flowers', fr: 'Distance jusqu’aux fleurs' } },
-    parts: [
-      { id: 'wings', en: 'Wings', fr: 'Ailes' }, { id: 'body', en: 'Body & legs', fr: 'Corps et pattes' },
-      { id: 'engine', en: 'Flight engine', fr: 'Moteur de vol' }, { id: 'comb', en: 'The comb', fr: 'Le rayon' },
-    ],
-    ro: [
-      { en: 'Waggle run', fr: 'Course frétillante', unit: 's', d: 1 },
-      { en: 'Round trip', fr: 'Aller-retour', unit: 'min', d: 1 },
-      { en: 'Wing strokes on the way', fr: 'Battements d’ailes', unit: 'thousand', d: 0 },
-    ],
-    plot: 0,
-    model(x) {
-      const flight = (2 * x * 1000) / BEE.speed; /* s */
-      return [x * BEE.run, flight / 60, (flight * BEE.beat) / 1000];
-    },
-    note: {
-      en: 'Rounded textbook figures: about 1 s of waggle per km, flight at 6.7 m/s, 230 wingbeats a second. The wings are shown slowed down; the dance is real time.',
-      fr: 'Chiffres de manuel arrondis : environ 1 s de frétillement par km, vol à 6,7 m/s, 230 battements d’ailes par seconde. Les ailes sont ralenties à l’image ; la danse est en temps réel.',
-    },
+    x: 1.4,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V;
       const rig = K.rig();
@@ -56,7 +38,7 @@
         if (dice < 0.34) honey.push(new T.Matrix4().makeTranslation(x, -0.01 + rnd() * 0.05, z));
         else if (dice < 0.5) caps.push(new T.Matrix4().makeTranslation(x, 0.062, z));
       }
-      K.thin(combP, ringGeo, P.apricot, { op: 0.66, instances: cells });
+      K.thin(combP, ringGeo, P.apricot, { op: 0.92, instances: cells });
       K.thin(combP, new T.CylinderGeometry(rc * 0.8, rc * 0.8, 0.06, 6), P.gold, { op: 0.9, instances: honey, bump: 'pebble', bumpScale: 0.4 });
       K.thin(combP, new T.CylinderGeometry(rc * 0.82, rc * 0.82, 0.03, 6), P.cream, { op: 0.9, instances: caps, bump: 'wrinkle', bumpScale: 0.6 });
       const floor = K.thin(combP, new T.CircleGeometry(1.5, 56), P.gold, { op: 0.3, detached: true });
@@ -64,19 +46,16 @@
 
       /* ── the body: three lofted segments, hair on the thorax, a striped and ridged abdomen ── */
       const thSpec = { len: 0.58, r: (s) => 0.006 + 0.23 * Math.pow(Math.sin(PI * Math.pow(s, 0.85)), 0.55), ru: 2, rv: 2 };
-      put(K.glass(bodyP, K.loft(thSpec), P.peach, { op: 0.88, bump: 'fuzz', bumpScale: 1.4, detached: true }), 1, 0, 0, 0);
-      put(K.fuzz(bodyP, { surf: K.surf(thSpec), count: 280, s0: 0.05, s1: 0.95, th0: -2.3, th1: 2.3, hex: P.cream, len: 0.052, r: 0.009, lean: 0.75, op: 0.8, detached: true }), 1, 0, 0, 0);
+      put(K.glass(bodyP, K.loft(thSpec), '#e2b266', { op: 1, rough: 0.6, clear: 0.15, iri: 0.1, bump: 'fuzz', bumpScale: 0.5, detached: true }), 1, 0, 0, 0);
 
       const headSpec = { len: 0.3, r: (s) => 0.006 + 0.15 * Math.pow(Math.sin(PI * Math.pow(s, 0.9)), 0.5), a: () => 1.16, ru: 2, rv: 1 };
-      const head = K.glass(bodyP, K.loft(headSpec), P.apricot, { op: 0.9, bump: 'fuzz', bumpScale: 1, detached: true }); put(head, 1, 0.45, -0.005, 0);
-      put(K.fuzz(bodyP, { surf: K.surf(headSpec), count: 46, s0: 0.1, s1: 0.8, th0: -2, th1: 2, hex: P.cream, len: 0.05, r: 0.008, lean: 0.3, op: 0.75, detached: true }), 1, 0.45, -0.005, 0);
+      const head = K.glass(bodyP, K.loft(headSpec), '#d9a65a', { op: 1, rough: 0.6, clear: 0.15, iri: 0.1, bump: 'fuzz', bumpScale: 0.5, detached: true }); put(head, 1, 0.45, -0.005, 0);
 
       const abSpec = {
         len: 0.76, n: 60, ru: 1, rv: 1, a: () => 1.04,
         r: (s) => (0.006 + (s < 0.62 ? 0.21 * Math.pow(Math.sin(((PI / 2) * s) / 0.62), 0.85) : 0.21 - 0.135 * sm(0, 1, (s - 0.62) / 0.38))) * (1 + 0.045 * Math.cos(TAU * 5.4 * s - TAU * 0.98)),
       };
       const abdomen = K.glass(bodyP, K.loft(abSpec), '#fff3da', { op: 0.9, map: 'bands', bump: 'fuzz', bumpScale: 0.7, detached: true }); put(abdomen, 1, -0.64, -0.02, 0); abdomen.rotation.z = -0.08;
-      abdomen.add(K.fuzz(bodyP, { surf: K.surf(abSpec), count: 70, s0: 0.5, s1: 0.97, th0: -2.2, th1: 2.2, hex: P.cream, len: 0.045, r: 0.007, lean: 0.8, op: 0.7, detached: true }));
       const sting = K.glass(bodyP, new T.ConeGeometry(0.02, 0.16, 8).rotateZ(PI / 2), '#2b2a55', { op: 0.95, detached: true }); sting.position.set(-0.4, 0, 0); abdomen.add(sting);
 
       /* compound eyes with their lens facets and a glint, three simple eyes, mandibles, a proboscis */
@@ -171,11 +150,6 @@
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'wings', obj: wings[0].pv, off: [-0.1, 0.05, 0.72], dx: 64, dy: -52, en: 'Wings', fr: 'Ailes', live: () => `${BEE.beat} Hz` },
-          { part: 'engine', obj: musc, off: [0, 0.05, 0], dx: -86, dy: -62, en: 'Flight muscles', fr: 'Muscles de vol' },
-          { part: 'body', obj: abdomen, off: [0.1, -0.18, 0.1], dx: -70, dy: 52, en: 'Waggle run', fr: 'Course frétillante', live: (x) => `${(x * BEE.run).toFixed(1)} s` },
-        ],
       };
     },
   };

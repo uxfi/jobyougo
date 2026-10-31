@@ -1,39 +1,25 @@
 /* v2 studio, the live bestiary (/agence/services).
    Each type of business has its spirit animal (the painted bestiary in /images/bestiary). Here the same animal is built
-   in code, in real units, as a small teardown simulator: ONE input (a slider), a model that is a pure function of that
-   input (and of time for the idle motion), and everything on screen reads that model: the pose, the three live numbers,
-   the curve under the slider, the callouts. Nothing is animated by hand and no number on screen is typed in.
+   in code, in real units, as a slow clean loop: lofted bodies, plumage and hair laid down in thousands of fine instances.
+   Nothing to operate and nothing written on it; drag to turn it.
 
-   This file is the engine: Three.js (self-hosted r160, imported on demand), a glass-and-iridescence kit, drag to turn,
-   three views (shell, x-ray, exploded), isolate a subsystem, callouts with leader lines, the console.
-   The animals live in agence-bestiary-*.js and register themselves in window.AgenceBestiary.animals[id]:
-     { id, tint, frame:{r, cy, floor, shadow, yaw, pitch}, input:{min, max, def, d, unit, label:{en,fr}, period},
-       parts:[{id, en, fr}], ro:[{en, fr, unit, d}], plot: <index of the numeric readout drawn under the slider>,
-       model(x) -> [three values], note:{en, fr}, build(K) -> { root, parts, anchors, pose(x, t) } }
-   Markup comes from ui/agence/services.html (#bz-stage and #bz-console); agence-work.js announces the chosen animal with
-   the "biz-animal" event. Language follows <html lang>. */
+   This file is the engine: Three.js (self-hosted r160, imported on demand), the kit (skins, feathers, hair, swept tubes),
+   drag to turn. The animals live in agence-bestiary-*.js and register themselves in
+   window.AgenceBestiary.animals[id]:
+     { id, frame:{r, cx, cy, floor, shadow, yaw, pitch}, x: the one number its pose is given,
+       build(K) -> { root, parts, pose(x, t) } }
+   Markup comes from ui/agence/services.html (#bz-stage); agence-work.js announces the chosen animal with the
+   "biz-animal" event. Language follows <html lang>. */
 (function () {
   'use strict';
   const B = (window.AgenceBestiary = window.AgenceBestiary || { animals: {} });
   const d = document;
   const root = d.documentElement;
   const stageEl = d.getElementById('bz-stage');
-  const consoleEl = d.getElementById('bz-console');
-  if (!stageEl || !consoleEl) return;
+  if (!stageEl) return;
 
   const REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const THREE_URL = '/portfolio/vendor/three-0.160.0/build/three.module.min.js';
-  const lang = () => (root.lang === 'fr' ? 'fr' : 'en');
-  const tx = (v) => (typeof agTrDeep === 'function' ? agTrDeep(v) : v);
-  const esc = (v) => String(v == null ? '' : v)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  const pick = (o) => tx(o ? (o[lang()] || o.en || '') : '');
-
-  const UI = {
-    en: { shell: 'Shell', xray: 'X-ray', exploded: 'Exploded', view: 'View', parts: 'Isolate a subsystem', play: 'Play the sweep', pause: 'Pause the sweep', scene: 'Live 3D model of', drag: 'Drag to turn' },
-    fr: { shell: 'Coque', xray: 'Rayons X', exploded: 'Éclaté', view: 'Vue', parts: 'Isoler un sous-système', play: 'Lancer le balayage', pause: 'Mettre le balayage en pause', scene: 'Modèle 3D en direct :', drag: 'Glisser pour tourner' },
-  };
-  const ui = (k) => tx((UI[lang()] || UI.en)[k] || UI.en[k] || '');
 
   let T = null;
   let K = null;
@@ -43,10 +29,9 @@
   let shadowMesh = null;
   const cache = {};
   const S = {
-    ready: false, want: '', cur: null, fading: [], view: 'shell', iso: null, x: 0,
-    auto: !REDUCED, resume: !REDUCED, idleAt: 0, autoT: 0, autoPhase: 0,
+    ready: false, want: '', cur: null, swapT: 0,
     yaw: 0.55, pitch: 0.16, tYaw: 0.55, tPitch: 0.16, dragging: false, lastX: 0, lastY: 0,
-    xr: 0, ex: 0, t: 0, visible: false, w: 0, h: 0, activeUntil: 0, tags: [], pr: 0, ft: 16, nf: 0,
+    t: 0, visible: false, w: 0, h: 0, activeUntil: 0, pr: 0, ft: 16, nf: 0,
   };
   const kick = () => { S.activeUntil = performance.now() + 1600; };
 
@@ -154,6 +139,41 @@
         for (let i = 0; i < 44; i++) { const x0 = (i / 44) * W; g.beginPath(); g.moveTo(x0, H / 2); g.lineTo(x0 + W * 0.16, 0); g.moveTo(x0, H / 2); g.lineTo(x0 + W * 0.16, H); g.stroke(); }
         g.strokeStyle = '#ffffff'; g.lineWidth = 3.4; g.beginPath(); g.moveTo(0, H / 2); g.lineTo(W, H / 2); g.stroke();
       } },
+      plume: { w: 256, h: 128, color: true, draw(g, W, H, r) { /* one feather: a shaft, barbs that fan out and sweep to the tip, split at the edge. Alpha cuts the outline. */
+        g.clearRect(0, 0, W, H); g.lineCap = 'round';
+        const mid = H / 2; const N = 128;
+        for (let side = -1; side <= 1; side += 2) {
+          for (let i = 0; i < N; i++) {
+            const f = i / N; const x0 = f * W * 0.97 + (r() - 0.5) * 1.6;
+            const reach = (H / 2) * (0.97 + r() * 0.08); const sweep = W * (0.1 + r() * 0.05);
+            const v = Math.round(214 + 41 * r() - 26 * (1 - f) * r());
+            g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 1.8 + r() * 0.9;
+            g.beginPath(); g.moveTo(x0, mid); g.quadraticCurveTo(x0 + sweep * 0.3, mid + side * reach * 0.6, x0 + sweep, mid + side * reach); g.stroke();
+          }
+        }
+        g.strokeStyle = '#ffffff'; g.lineWidth = 3.4; g.beginPath(); g.moveTo(0, mid); g.lineTo(W, mid); g.stroke();
+        g.globalCompositeOperation = 'destination-out'; /* the splits a real vane has, where the barbs let go of each other */
+        for (let q = 0; q < 26; q++) {
+          const side = r() < 0.5 ? -1 : 1; const x = W * (0.08 + r() * 0.88); const len = 6 + r() * 16;
+          g.lineWidth = 1 + r() * 1.6; g.beginPath(); g.moveTo(x, mid + side * (H / 2 + 2)); g.lineTo(x - len * 0.35, mid + side * (H / 2 - len)); g.stroke();
+        }
+        g.globalCompositeOperation = 'source-atop'; /* darker toward the base and along the shaft, lighter at the tip */
+        let gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, 'rgba(36,30,70,.42)'); gr.addColorStop(0.5, 'rgba(36,30,70,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+        gr = g.createLinearGradient(0, mid - H * 0.12, 0, mid + H * 0.12); gr.addColorStop(0, 'rgba(36,30,70,0)'); gr.addColorStop(0.5, 'rgba(36,30,70,.22)'); gr.addColorStop(1, 'rgba(36,30,70,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+        g.globalCompositeOperation = 'source-over';
+      } },
+      hair: { w: 256, h: 64, color: true, draw(g, W, H, r) { /* a lock of hair: fibres that part toward the tip. Alpha cuts the outline. */
+        g.clearRect(0, 0, W, H); g.lineCap = 'round';
+        const n = 24;
+        for (let i = 0; i < n; i++) {
+          const s = ((i + 0.5) / n) * 2 - 1; const v = Math.round(186 + 69 * r()); const end = W * (0.88 + 0.12 * r());
+          g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 1.3 + r() * 1.2;
+          g.beginPath(); g.moveTo(0, H / 2 + s * H * 0.16); g.bezierCurveTo(W * 0.3, H / 2 + s * H * 0.3, W * 0.65, H / 2 + s * H * 0.46 + (r() - 0.5) * 3, end, H / 2 + s * H * 0.5); g.stroke();
+        }
+        g.globalCompositeOperation = 'source-atop';
+        const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, 'rgba(30,24,60,.5)'); gr.addColorStop(0.6, 'rgba(30,24,60,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+        g.globalCompositeOperation = 'source-over';
+      } },
       iri: { w: 128, h: 128, draw(g, W, H, r) { /* where the film is thick or thin: the painterly colour shifts */
         g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
         for (let i = 0; i < 44; i++) {
@@ -210,65 +230,80 @@
     };
     k.uvScale = (geo, ru, rv) => { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * ru, uv.getY(i) * rv); uv.needsUpdate = true; return geo; };
 
-    /* One piece of a subsystem: groups its meshes so the engine can fade, isolate and explode them. */
+    /* One piece of an animal (wings, body, legs...): groups its meshes. */
     class Part {
-      constructor(id, ex) {
-        this.id = id; this.group = new THREE.Group(); this.group.name = id; this.items = [];
-        this.explode = new THREE.Vector3(); if (ex) this.explode.set(ex[0], ex[1], ex[2]);
-        this.base = new THREE.Vector3();
-      }
+      constructor(id) { this.id = id; this.group = new THREE.Group(); this.group.name = id; this.items = []; }
       reg(mesh, kind, order) {
-        mesh.userData.kind = kind; mesh.userData.base = mesh.material.opacity; mesh.renderOrder = order; mesh.frustumCulled = false;
+        mesh.userData.kind = kind; mesh.renderOrder = order; mesh.frustumCulled = false;
+        if (kind === 'inner') mesh.visible = false; /* bones and organs stay in the rig but are never drawn */
         this.items.push(mesh); return mesh;
       }
     }
     k.rig = () => {
       const rootG = new THREE.Group(); const parts = [];
-      return { root: rootG, parts, part(id, ex) { const p = new Part(id, ex); parts.push(p); rootG.add(p.group); return p; } };
+      return { root: rootG, parts, part(id) { const p = new Part(id); parts.push(p); rootG.add(p.group); return p; } };
     };
 
-    /* bodies and feathers read as glass, not as ghosts: from 40% up, the opacity is pulled toward solid (0.88 becomes 0.93) */
-    const solidify = (op) => op + (1 - (1 - op) * 0.55 - op) * k.smooth(0.4, 0.7, op);
+    /* A skin of 75% or more is painted solid; below that it stays a membrane (insect wings, fins, the web between arms, water). */
+    const SOLID_FROM = 0.75;
     const frontMat = (hex, o) => {
+      const op = o.op == null ? 1 : o.op; const solid = op >= SOLID_FROM;
       const m = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(hex), roughness: o.rough == null ? 0.2 : o.rough, metalness: 0,
-        clearcoat: 1, clearcoatRoughness: 0.16, iridescence: o.iri == null ? 1 : o.iri, iridescenceIOR: 1.35, iridescenceThicknessRange: [180, 600],
-        transparent: true, opacity: solidify(o.op == null ? 0.82 : o.op), depthWrite: false, envMapIntensity: 1.35, side: o.side || THREE.FrontSide,
+        color: new THREE.Color(hex), roughness: o.rough == null ? 0.5 : o.rough, metalness: 0,
+        clearcoat: o.clear == null ? 0.35 : o.clear, clearcoatRoughness: 0.34,
+        iridescence: o.iri == null ? (solid ? 0.22 : 0.85) : o.iri, iridescenceIOR: 1.3, iridescenceThicknessRange: [160, 480],
+        transparent: !solid, opacity: solid ? 1 : op, depthWrite: solid, envMapIntensity: 1.05, side: o.side || THREE.FrontSide,
       });
       if (o.bump) { m.bumpMap = typeof o.bump === 'string' ? k.tex(o.bump) : o.bump; m.bumpScale = o.bumpScale == null ? 2.2 : o.bumpScale; }
       if (o.map) { m.map = typeof o.map === 'string' ? k.tex(o.map) : o.map; if (o.mapCh) { m.map = m.map.clone(); m.map.channel = o.mapCh; m.map.needsUpdate = true; } }
       if (o.vcol) m.vertexColors = true;
-      if (o.iriMap !== false) m.iridescenceThicknessMap = k.tex('iri');
+      if (m.iridescence > 0 && o.iriMap !== false) m.iridescenceThicknessMap = k.tex('iri');
       return m;
     };
-    const make = (geom, mat, inst) => {
+    /* Plumage and hair: an opaque sheet whose outline is cut by the alpha of a drawn texture (barbs, fibres), so a thousand of
+       them sort by depth, not by order, and the edge stays fine. */
+    const plumeMat = (hex, o, name) => {
+      const t = k.tex(name);
+      return new THREE.MeshStandardMaterial({
+        color: new THREE.Color(hex), map: t, bumpMap: t, bumpScale: Math.min(o.bumpScale == null ? 1 : o.bumpScale, 1.1),
+        roughness: o.rough == null ? 0.6 : o.rough, metalness: 0, alphaTest: 0.42, alphaToCoverage: true, side: THREE.DoubleSide, envMapIntensity: 0.95,
+      });
+    };
+    const make = (geom, mat, inst, vary) => {
       if (!inst) return new THREE.Mesh(geom, mat);
       const m = new THREE.InstancedMesh(geom, mat, inst.length);
-      inst.forEach((mx, i) => m.setMatrixAt(i, mx)); m.instanceMatrix.needsUpdate = true; return m;
+      inst.forEach((mx, i) => m.setMatrixAt(i, mx)); m.instanceMatrix.needsUpdate = true;
+      if (vary) { /* each feather or hair a little lighter or darker, a little warmer or cooler than its neighbours */
+        const r = rng(inst.length * 31 + 7); const c = new THREE.Color();
+        inst.forEach((_, i) => { const v = 1 - vary * r(); c.setRGB(v * (1 - 0.08 * vary * r()), v, v * (1 - 0.1 * vary * r())); m.setColorAt(i, c); });
+        m.instanceColor.needsUpdate = true;
+      }
+      return m;
     };
-    /* Volume glass: a dark-tinted back face drawn first, then the iridescent front face over it. */
+    /* A solid body. A translucent one (op under 0.75) gets a dark back face drawn first, like a bubble. */
     k.glass = (part, geom, hex, o = {}) => {
       const g = new THREE.Group();
-      const back = make(geom, new THREE.MeshBasicMaterial({
-        color: new THREE.Color(hex).lerp(new THREE.Color(k.PAL.ink), 0.5), transparent: true, opacity: o.backOp == null ? 0.34 : o.backOp, side: THREE.BackSide, depthWrite: false,
-      }), o.instances);
-      const front = make(geom, frontMat(hex, o), o.instances);
-      part.reg(back, 'back', 2); part.reg(front, 'shell', 3);
-      g.add(back, front); if (!o.detached) part.group.add(g);
+      const front = make(geom, frontMat(hex, o), o.instances, o.vary);
+      if (front.material.transparent) {
+        const back = make(geom, new THREE.MeshBasicMaterial({
+          color: new THREE.Color(hex).lerp(new THREE.Color(k.PAL.ink), 0.5), transparent: true, opacity: o.backOp == null ? 0.34 : o.backOp, side: THREE.BackSide, depthWrite: false,
+        }), o.instances);
+        part.reg(back, 'back', 2); g.add(back);
+      }
+      part.reg(front, 'shell', 3); g.add(front); if (!o.detached) part.group.add(g);
       return g;
     };
-    /* Thin glass: feathers, wings, fins. One double-sided sheet (or many copies of one shape in one draw call). */
+    /* A sheet: wings, fins, petals, feathers (bump 'feather'), locks of hair (bump 'hair'). Many copies of one shape go in one draw call. */
     k.thin = (part, geom, hex, o = {}) => {
-      const m = make(geom, frontMat(hex, { op: o.op == null ? 0.6 : o.op, side: THREE.DoubleSide, rough: 0.28, iri: 1, bump: o.bump, bumpScale: o.bumpScale, map: o.map, mapCh: o.mapCh, vcol: o.vcol }), o.instances);
+      const tex = o.bump === 'feather' ? 'plume' : o.bump === 'hair' ? 'hair' : null;
+      const mat = tex ? plumeMat(hex, o, tex) : frontMat(hex, { op: o.op, side: THREE.DoubleSide, rough: o.rough == null ? 0.45 : o.rough, iri: o.iri, clear: o.clear, bump: o.bump, bumpScale: o.bumpScale, map: o.map, mapCh: o.mapCh, vcol: o.vcol });
+      const m = make(geom, mat, o.instances, o.vary == null ? (tex ? 0.16 : 0) : o.vary);
       part.reg(m, 'thin', 3); if (!o.detached) part.group.add(m);
       return m;
     };
-    /* Inside parts (bones, organs): opaque pastel, shown by the x-ray. */
+    /* Inside parts (bones, organs): kept in the rig, never drawn. */
     k.solid = (part, geom, hex, o = {}) => {
-      const m = make(geom, new THREE.MeshStandardMaterial({
-        color: new THREE.Color(hex), roughness: o.rough == null ? 0.5 : o.rough, metalness: 0.02,
-        emissive: new THREE.Color(hex), emissiveIntensity: 0.1, transparent: true, opacity: 1, side: o.side || THREE.FrontSide,
-      }), o.instances);
+      const m = make(geom, new THREE.MeshBasicMaterial({ color: new THREE.Color(hex) }), o.instances);
       part.reg(m, 'inner', 1); if (!o.detached) part.group.add(m);
       return m;
     };
@@ -289,11 +324,11 @@
     /* An eye: dark glass ball, a coloured iris and a pupil that are caps of the ball, and a glint. Looks along +z. */
     k.eye = (part, o = {}) => {
       const r = o.r || 0.1; const g = new THREE.Group();
-      g.add(k.glass(part, k.ball(r, r, r, 22), o.base || k.PAL.ink, { op: 0.98, backOp: 0.12, detached: true }));
+      g.add(k.glass(part, k.ball(r, r, r, 22), o.base || k.PAL.ink, { op: 1, rough: 0.05, clear: 1, iri: 0, detached: true }));
       const cap = (rad, th) => new THREE.SphereGeometry(rad, 24, 8, 0, TAU2, 0, th).rotateX(Math.PI / 2);
-      g.add(k.thin(part, cap(r * 1.008, 0.72), o.iris || '#f4a64a', { op: 0.97, detached: true }));
+      g.add(k.thin(part, cap(r * 1.008, 0.72), o.iris || '#f4a64a', { op: 1, rough: 0.1, clear: 1, iri: 0, detached: true }));
       const pg = cap(r * 1.016, o.slit ? 0.5 : 0.34); if (o.slit) pg.scale(1.6, 0.28, 1);
-      g.add(k.thin(part, pg, '#150f2e', { op: 1, detached: true }));
+      g.add(k.thin(part, pg, '#150f2e', { op: 1, rough: 0.08, clear: 1, iri: 0, detached: true }));
       const sp = k.spark(part, r * 0.17); sp.position.set(r * 0.3, r * 0.34, r * 0.94); g.add(sp);
       return g;
     };
@@ -420,13 +455,20 @@
       if (fn) geo.userData.set(fn);
       return geo;
     };
-    /* A feather: pointed oval along +x, width along y, curled out of the plane along z. */
-    k.feather = (len, w, o = {}) => k.leaf(9, 4, (u, v, out) => {
-      const wd = w * Math.pow(Math.sin(Math.PI * Math.pow(u, o.tip == null ? 0.72 : o.tip)), 0.8) + 0.004;
-      out.x = u * len; out.y = v * wd + (o.sweep || 0) * u * len * 0.3; out.z = (o.curl == null ? 0.07 : o.curl) * len * u * u;
+    /* A feather: a pointed oval along +x, width along y, a ridge along the shaft and a camber out of the plane along z.
+       The barbs themselves are in the texture (plume). */
+    k.feather = (len, w, o = {}) => k.leaf(12, 2, (u, v, out) => {
+      const wd = w * Math.pow(Math.sin(Math.PI * Math.pow(u, o.tip == null ? 0.72 : o.tip)), 0.8) + 0.003;
+      out.x = u * len; out.y = v * wd * (v > 0 ? 1.06 : 0.94) + (o.sweep || 0) * u * len * 0.3;
+      out.z = (o.curl == null ? 0.07 : o.curl) * len * u * u + wd * 0.16 * (1 - Math.abs(v));
+    });
+    /* A lock or a strand of hair: from the root (+x) it narrows to a point, waves a little and droops out of the plane. */
+    k.hair = (len, w, o = {}) => k.leaf(o.nu || 14, o.nv || 2, (u, v, out) => {
+      const wd = w * (0.3 + 0.7 * Math.sin(Math.PI * Math.pow(u, 0.6))) * (1 - Math.pow(u, 4)) + 0.0015;
+      out.x = u * len; out.y = v * wd + (o.wave == null ? 0.04 : o.wave) * len * u * Math.sin(u * 5.2); out.z = (o.curl == null ? 0.1 : o.curl) * len * u * u;
     });
     /* Rows of feathers laid over a lofted skin, in ONE draw call. o: surf, geo, hex, rows, cols, s0, s1, th0, th1, size [min,max],
-       lift [min,max] (radians off the skin), seed, jitter, op, bump. They point back toward the tail, like plumage. */
+       lift [min,max] (radians off the skin), seed, jitter, bump, vary. They point back toward the tail, like plumage. */
     k.coat = (part, o) => {
       const rnd = rng(o.seed || 3); const out = { p: V3(0, 0, 0), n: V3(0, 0, 0), t: V3(0, 0, 0) };
       const mats = []; const rot = new THREE.Matrix4(); const q = new THREE.Quaternion(); const sc = V3(1, 1, 1);
@@ -445,7 +487,7 @@
           mats.push(new THREE.Matrix4().compose(out.p.clone(), q.clone(), sc.clone()));
         }
       }
-      return k.thin(part, o.geo, o.hex, { op: o.op == null ? 0.74 : o.op, instances: mats, bump: o.bump || 'feather', bumpScale: o.bumpScale == null ? 1.8 : o.bumpScale, map: o.map });
+      return k.thin(part, o.geo, o.hex, { instances: mats, bump: o.bump || 'feather', bumpScale: o.bumpScale, rough: o.rough, vary: o.vary });
     };
     /* Matrices for a fan of feathers: each {p: origin, dir: where the length points, len, nHint: roughly the face normal, wide}. */
     k.fan = (items) => items.map((it) => {
@@ -453,17 +495,26 @@
       const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, side, zz));
       return new THREE.Matrix4().compose(it.p, q, V3(it.len, it.len * (it.wide || 1), it.len));
     });
-    /* Short hairs standing on a lofted skin (the bee's thorax): thin cones, one draw call. */
+    /* Fine hair standing on a lofted skin (a bee's thorax, bristles on a back): thousands of tapered curved strands, one draw call.
+       o: surf, count, s0, s1, th0, th1, hex, len, r (about the root half-width), lean, seed, vary, detached. */
     k.fuzz = (part, o) => {
       const rnd = rng(o.seed || 5); const out = { p: V3(0, 0, 0), n: V3(0, 0, 0), t: V3(0, 0, 0) };
-      const mats = []; const up = V3(0, 1, 0); const q = new THREE.Quaternion(); const len = o.len || 0.09;
+      const mats = []; const up = V3(0, 1, 0); const q = new THREE.Quaternion(); const sp = new THREE.Quaternion();
       for (let i = 0; i < o.count; i++) {
         o.surf(k.lerp(o.s0, o.s1, rnd()), k.lerp(o.th0, o.th1, rnd()), out);
         const dir = out.n.clone().addScaledVector(out.t, -(o.lean == null ? 0.6 : o.lean)).normalize(); q.setFromUnitVectors(up, dir);
-        const z = k.lerp(0.7, 1.3, rnd());
+        sp.setFromAxisAngle(dir, rnd() * Math.PI); q.premultiply(sp); /* turn each strand about its own axis so they do not all face one way */
+        const z = k.lerp(0.65, 1.3, rnd());
         mats.push(new THREE.Matrix4().compose(out.p.clone(), q.clone(), V3(z, z * (0.8 + rnd() * 0.5), z)));
       }
-      return k.thin(part, new THREE.ConeGeometry(o.r || 0.012, len, 4).translate(0, len / 2, 0), o.hex, { op: o.op == null ? 0.8 : o.op, instances: mats });
+      const nu = 4; const geo = k.hair(o.len || 0.09, (o.r || 0.01) * 0.8, { curl: 0.3, wave: 0.1, nu, nv: 1 }).rotateZ(Math.PI / 2);
+      const col = new Float32Array(geo.attributes.position.count * 3); /* each strand is dark at the root and light at the tip */
+      for (let i = 0; i < geo.attributes.position.count; i++) { const v = 0.5 + 0.5 * (Math.floor(i / 2) / nu); col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = v; }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(o.hex), vertexColors: true, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.6 });
+      const m = make(geo, mat, mats, o.vary == null ? 0.3 : o.vary);
+      part.reg(m, 'thin', 3); if (!o.detached) part.group.add(m);
+      return m;
     };
     return k;
   }
@@ -515,17 +566,16 @@
   /* ───────────────────────── animals ───────────────────────── */
   function makeAnimal(id, def) {
     const inst = def.build(K);
-    inst.parts.forEach((p) => p.base.copy(p.group.position));
-    return { id, def, inst, life: 0, target: 1, x: def.input.def };
+    return { id, def, inst, x: def.x };
   }
 
   function setLive(on) {
     const art = d.getElementById('biz-art');
     if (art) art.classList.toggle('bz-live', on);
-    consoleEl.dataset.state = on ? 'ready' : 'off';
     stageEl.dataset.state = on ? 'ready' : 'off';
   }
 
+  /* Changing animal: the stage fades out, the new animal is swapped in behind it, the stage fades back in. */
   function show(id) {
     if (!id) return;
     S.want = id;
@@ -533,27 +583,26 @@
     const def = B.animals[id];
     if (!def) { setLive(false); return; }
     if (S.cur && S.cur.id === id) return;
-    if (S.cur) { S.cur.target = 0; S.fading.push(S.cur); }
-    let a = cache[id];
-    if (!a) {
-      a = cache[id] = makeAnimal(id, def); scene.add(a.inst.root);
-      try { renderer.compile(scene, cam); } catch (e) { /* the first frame compiles instead */ } /* warm the shaders before the first frame */
-    }
-    S.fading = S.fading.filter((o) => o !== a);
-    a.target = 1; a.x = S.cur && S.cur.id === id ? a.x : def.input.def;
-    S.cur = a; S.iso = null; S.x = a.x; S.autoT = 0; S.autoPhase = phaseFor(def, S.x);
-    S.tYaw = (def.frame.yaw == null ? 0.55 : def.frame.yaw); S.tPitch = (def.frame.pitch == null ? 0.16 : def.frame.pitch);
-    setLive(true);
-    const cap = d.getElementById('biz-caption'); /* the chapter colours of the chosen type, set by agence-work.js */
-    if (cap) [consoleEl, stageEl].forEach((el) => { el.style.setProperty('--bc', cap.style.getPropertyValue('--bc')); el.style.setProperty('--bc2', cap.style.getPropertyValue('--bc2')); });
-    buildConsole(a); buildTags(a); fit(); kick();
+    const swap = () => {
+      if (S.want !== id) return;
+      let a = cache[id];
+      if (!a) {
+        a = cache[id] = makeAnimal(id, def); scene.add(a.inst.root);
+        try { renderer.compile(scene, cam); } catch (e) { /* the first frame compiles instead */ } /* warm the shaders before the first frame */
+      }
+      if (S.cur) S.cur.inst.root.visible = false;
+      a.inst.root.visible = true; S.cur = a;
+      S.tYaw = (def.frame.yaw == null ? 0.55 : def.frame.yaw); S.tPitch = (def.frame.pitch == null ? 0.16 : def.frame.pitch);
+      if (!S.dragging) { S.yaw = S.tYaw; S.pitch = S.tPitch; }
+      setLive(true);
+      const cap = d.getElementById('biz-caption'); /* the chapter colours of the chosen type, set by agence-work.js */
+      if (cap) { stageEl.style.setProperty('--bc', cap.style.getPropertyValue('--bc')); stageEl.style.setProperty('--bc2', cap.style.getPropertyValue('--bc2')); }
+      fit(); kick();
+      stageEl.classList.remove('is-swap');
+    };
+    clearTimeout(S.swapT);
+    if (S.cur) { stageEl.classList.add('is-swap'); S.swapT = setTimeout(swap, 230); } else swap();
   }
-
-  function phaseFor(def, x) {
-    const f = k01((x - def.input.min) / (def.input.max - def.input.min));
-    return Math.acos(1 - 2 * f);
-  }
-  const k01 = (v) => Math.max(0, Math.min(1, v));
 
   /* ───────────────────────── camera ───────────────────────── */
   function resize() {
@@ -577,131 +626,7 @@
     cam.updateProjectionMatrix();
   }
 
-  /* ───────────────────────── console ───────────────────────── */
-  const ref = { views: [], chips: [], range: null, out: null, ros: [], dot: null, play: null };
-  function buildConsole(a) {
-    const def = a.def; const inp = def.input;
-    const views = ['shell', 'xray', 'exploded'];
-    consoleEl.innerHTML = `
-      <div class="bz-top">
-        <div class="bz-views" role="group" aria-label="${esc(ui('view'))}">${views.map((v) => `<button type="button" data-view="${v}" aria-pressed="${S.view === v}">${esc(ui(v))}</button>`).join('')}</div>
-        <span class="bz-hint" aria-hidden="true">${esc(ui('drag'))}</span>
-      </div>
-      <div class="bz-in">
-        <label class="bz-in-l" for="bz-range">${esc(pick(inp.label))}</label>
-        <div class="bz-in-row">
-          <button type="button" class="bz-play" aria-label="${esc(ui(S.auto ? 'pause' : 'play'))}" aria-pressed="${S.auto}"><i aria-hidden="true"></i></button>
-          <div class="bz-track">
-            <svg class="bz-plot" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path class="bz-plot-line"/><line class="bz-plot-drop" x1="0" x2="0" y1="0" y2="30"/></svg>
-            <i class="bz-dot" aria-hidden="true"></i>
-            <input id="bz-range" type="range" min="${inp.min}" max="${inp.max}" step="${inp.step || (inp.max - inp.min) / 200}" value="${S.x}">
-          </div>
-          <output class="bz-out" for="bz-range"></output>
-        </div>
-      </div>
-      <div class="bz-ros">${def.ro.map((r, i) => `<div class="bz-ro" data-i="${i}"><b></b><span class="bz-u">${esc(r.unit || '')}</span><small>${esc(pick(r))}</small></div>`).join('')}</div>
-      <div class="bz-chips" role="group" aria-label="${esc(ui('parts'))}">${def.parts.map((p) => `<button type="button" class="bz-chip" data-part="${p.id}" aria-pressed="${S.iso === p.id}">${esc(pick(p))}</button>`).join('')}</div>
-      <p class="bz-note">${esc(pick(def.note))}</p>`;
-    ref.views = Array.from(consoleEl.querySelectorAll('[data-view]'));
-    ref.chips = Array.from(consoleEl.querySelectorAll('.bz-chip'));
-    ref.range = consoleEl.querySelector('#bz-range');
-    ref.out = consoleEl.querySelector('.bz-out');
-    ref.play = consoleEl.querySelector('.bz-play');
-    ref.dot = consoleEl.querySelector('.bz-dot');
-    ref.ros = Array.from(consoleEl.querySelectorAll('.bz-ro')).map((el) => ({ el, b: el.querySelector('b'), last: '' }));
-    ref.line = consoleEl.querySelector('.bz-plot-line');
-    ref.drop = consoleEl.querySelector('.bz-plot-drop');
-    ref.outLast = '';
-    /* The curve under the slider: the first numeric readout over the whole range of the input, from the model itself. */
-    const pi = def.plot || 0; const N = 56; const ys = [];
-    for (let i = 0; i <= N; i++) ys.push(def.model(inp.min + ((inp.max - inp.min) * i) / N)[pi]);
-    const lo = Math.min(...ys); const hi = Math.max(...ys); const span = hi - lo || 1;
-    ref.line.setAttribute('d', ys.map((y, i) => `${i ? 'L' : 'M'}${((i / N) * 100).toFixed(2)} ${(27 - ((y - lo) / span) * 24).toFixed(2)}`).join(' '));
-    ref.plot = { lo, span };
-    updateConsole(true);
-  }
-  function fmtNum(v, dp) { return Number(v).toLocaleString(root.lang || 'en', { minimumFractionDigits: dp || 0, maximumFractionDigits: dp || 0 }); }
-  function updateConsole(force) {
-    const a = S.cur; if (!a || !ref.range) return;
-    const def = a.def; const inp = def.input;
-    if (S.auto || force) ref.range.value = S.x;
-    const frac = k01((S.x - inp.min) / (inp.max - inp.min));
-    const out = inp.fmt ? inp.fmt(S.x, fmtNum) : `${fmtNum(S.x, inp.d || 0)} ${inp.unit || ''}`;
-    if (out !== ref.outLast) { ref.out.textContent = out; ref.outLast = out; }
-    const vals = def.model(S.x);
-    def.ro.forEach((r, i) => {
-      const v = vals[i]; const slot = ref.ros[i]; if (!slot) return;
-      const txt = typeof v === 'number' ? fmtNum(v, r.d) : pick(v);
-      if (txt !== slot.last) { slot.b.textContent = txt; slot.last = txt; }
-    });
-    const pv = vals[def.plot || 0];
-    const px = frac * 100;
-    ref.dot.style.left = `calc(8px + (100% - 16px) * ${frac.toFixed(4)})`;
-    ref.dot.style.top = `${((27 - ((pv - ref.plot.lo) / ref.plot.span) * 24) / 30) * 100}%`;
-    ref.drop.setAttribute('x1', px.toFixed(2)); ref.drop.setAttribute('x2', px.toFixed(2));
-    const lf = ref.range.style; lf.setProperty('--f', `${(frac * 100).toFixed(2)}%`);
-  }
-
-  /* ───────────────────────── callouts ───────────────────────── */
-  const NS = 'http://www.w3.org/2000/svg';
-  function buildTags(a) {
-    const box = stageEl.querySelector('.bz-tags'); const svg = stageEl.querySelector('.bz-leaders');
-    box.innerHTML = ''; svg.innerHTML = ''; S.tags = [];
-    (a.inst.anchors || []).forEach((an) => {
-      const el = d.createElement('button'); el.type = 'button'; el.className = 'bz-tag'; el.dataset.part = an.part; el.tabIndex = -1; /* the chips below do the same job for the keyboard */
-      const live = an.live ? '<i></i>' : '';
-      el.innerHTML = `<span>${esc(pick(an))}</span>${live}`;
-      box.appendChild(el);
-      const line = d.createElementNS(NS, 'line'); const dot = d.createElementNS(NS, 'circle'); dot.setAttribute('r', '2.6');
-      svg.appendChild(line); svg.appendChild(dot);
-      S.tags.push({ an, el, line, dot, live: el.querySelector('i'), last: '' });
-    });
-  }
-  const _v = () => new T.Vector3();
-  function placeTags(a) {
-    if (!S.tags.length) return;
-    const v = S.v || (S.v = _v());
-    const iso = S.iso;
-    for (const tg of S.tags) {
-      const an = tg.an;
-      an.obj.updateWorldMatrix(true, false);
-      v.set(an.off[0], an.off[1], an.off[2]); an.obj.localToWorld(v); v.project(cam);
-      const x = (v.x * 0.5 + 0.5) * S.w; const y = (-v.y * 0.5 + 0.5) * S.h;
-      const lx = x + an.dx; const ly = y + an.dy;
-      const pf = iso ? (iso === an.part ? 1 : 0.1) : 1;
-      const o = pf * a.life;
-      tg.el.style.transform = `translate(${lx.toFixed(1)}px, ${ly.toFixed(1)}px) translate(${an.dx < 0 ? '-100%' : '0'}, -50%)`;
-      tg.el.style.opacity = o.toFixed(2);
-      tg.el.style.visibility = o < 0.03 ? 'hidden' : 'visible';
-      tg.line.setAttribute('x1', x.toFixed(1)); tg.line.setAttribute('y1', y.toFixed(1)); tg.line.setAttribute('x2', lx.toFixed(1)); tg.line.setAttribute('y2', ly.toFixed(1));
-      tg.dot.setAttribute('cx', x.toFixed(1)); tg.dot.setAttribute('cy', y.toFixed(1));
-      tg.line.style.opacity = tg.dot.style.opacity = o.toFixed(2);
-      if (tg.live) {
-        const txt = an.live(S.x);
-        if (txt !== tg.last) { tg.live.textContent = txt; tg.last = txt; }
-      }
-    }
-  }
-
   /* ───────────────────────── frame ───────────────────────── */
-  function applyVis(a, isCur) {
-    const iso = isCur ? S.iso : null;
-    for (const p of a.inst.parts) {
-      const pf = iso ? (iso === p.id ? 1 : 0.06) : 1;
-      const xe = iso === p.id ? Math.max(S.xr, 0.92) : S.xr;
-      for (const m of p.items) {
-        const kd = m.userData.kind;
-        const f = kd === 'shell' ? 1 - 0.8 * xe : kd === 'back' ? 1 - 0.86 * xe : kd === 'thin' ? 1 - 0.5 * xe : K.smooth(0.04, 0.7, xe);
-        const op = m.userData.base * f * pf * a.life;
-        m.material.opacity = op; m.visible = op > 0.012;
-        /* a nearly opaque skin writes depth so what is behind it is hidden for real, not blended wrongly; a faded one does not */
-        if (kd === 'inner') m.material.depthWrite = op > 0.97;
-        else if (kd === 'shell' || kd === 'thin') m.material.depthWrite = op > 0.6;
-      }
-      p.group.position.copy(p.base).addScaledVector(p.explode, S.ex * (isCur ? 1 : 0));
-    }
-  }
-
   let last = 0;
   function frame(now) {
     requestAnimationFrame(frame);
@@ -714,72 +639,23 @@
     if (++S.nf % 90 === 0 && S.ft > 25 && S.pr > 1) { S.pr = Math.max(1, S.pr - 0.25); renderer.setPixelRatio(S.pr); renderer.setSize(S.w, S.h, false); S.ft = 16; }
     if (!REDUCED) S.t += dt;
     const a = S.cur;
-    if (a) {
-      const def = a.def; const inp = def.input;
-      if (!S.auto && S.resume && !S.dragging && now - S.idleAt > 25000) { S.auto = true; S.autoPhase = phaseFor(def, S.x); S.autoT = 0; syncPlay(); }
-      if (S.auto) {
-        S.autoT += dt;
-        const f = 0.5 - 0.5 * Math.cos(S.autoPhase + (S.autoT * Math.PI * 2) / (inp.period || 16));
-        S.x = inp.min + f * (inp.max - inp.min);
-      }
-      a.x = S.x;
-      const tgt = S.view === 'shell' ? 0 : 1; const tex = S.view === 'exploded' ? 1 : 0;
-      const kk = 1 - Math.exp(-dt * 6);
-      S.xr += (tgt * (S.view === 'exploded' ? 0.8 : 1) - S.xr) * kk; S.ex += (tex - S.ex) * kk;
-      if (!S.dragging && !REDUCED) S.tYaw += Math.sin(S.t * 0.22) * dt * 0.05;
-      const ky = 1 - Math.exp(-dt * 7);
-      S.yaw += (S.tYaw - S.yaw) * ky; S.pitch += (S.tPitch - S.pitch) * ky;
-      const f = def.frame;
-      const cx = f.cx || 0; /* the animal's own centre, when it is not at the origin (a long trunk, a flower) */
-      cam.position.set(cx + Math.sin(S.yaw) * Math.cos(S.pitch) * S.dist, f.cy + Math.sin(S.pitch) * S.dist, Math.cos(S.yaw) * Math.cos(S.pitch) * S.dist);
-      cam.lookAt(cx, f.cy, 0);
-      shadowMesh.position.set(cx, f.floor, 0); shadowMesh.scale.setScalar(f.shadow * (1 + 0.25 * S.ex)); shadowMesh.material.opacity = a.life;
-    }
-    const all = a ? [a].concat(S.fading) : S.fading;
-    for (const o of all) {
-      o.life += (o.target - o.life) * (1 - Math.exp(-dt * 5.5));
-      o.inst.root.visible = o.life > 0.01;
-      o.inst.root.scale.setScalar(0.94 + 0.06 * o.life);
-      if (o.inst.root.visible) { o.inst.pose(o.x, S.t); applyVis(o, o === a); }
-    }
-    S.fading = S.fading.filter((o) => o.target > 0 || o.life > 0.01);
+    if (!a) return;
+    if (!S.dragging && !REDUCED) S.tYaw += Math.sin(S.t * 0.22) * dt * 0.05;
+    const ky = 1 - Math.exp(-dt * 7);
+    S.yaw += (S.tYaw - S.yaw) * ky; S.pitch += (S.tPitch - S.pitch) * ky;
+    const f = a.def.frame;
+    const cx = f.cx || 0; /* the animal's own centre, when it is not at the origin (a long trunk, a flower) */
+    cam.position.set(cx + Math.sin(S.yaw) * Math.cos(S.pitch) * S.dist, f.cy + Math.sin(S.pitch) * S.dist, Math.cos(S.yaw) * Math.cos(S.pitch) * S.dist);
+    cam.lookAt(cx, f.cy, 0);
+    shadowMesh.position.set(cx, f.floor, 0); shadowMesh.scale.setScalar(f.shadow);
+    a.inst.pose(typeof a.x === 'function' ? a.x(S.t) : a.x, S.t);
     renderer.render(scene, cam);
-    if (a) { placeTags(a); updateConsole(false); }
   }
 
-  /* ───────────────────────── input ───────────────────────── */
-  function syncPlay() {
-    if (!ref.play) return;
-    ref.play.setAttribute('aria-pressed', String(S.auto));
-    ref.play.setAttribute('aria-label', ui(S.auto ? 'pause' : 'play'));
-  }
-  function touchIdle() { if (S.auto) { S.auto = false; syncPlay(); } S.idleAt = performance.now(); kick(); }
-  function setView(v) {
-    S.view = v; ref.views.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
-    kick();
-  }
-  function setIso(id) {
-    S.iso = S.iso === id ? null : id;
-    ref.chips.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.part === S.iso)));
-    kick();
-  }
-  consoleEl.addEventListener('click', (e) => {
-    const v = e.target.closest('[data-view]'); if (v) { setView(v.dataset.view); return; }
-    const c = e.target.closest('.bz-chip'); if (c) { setIso(c.dataset.part); return; }
-    if (e.target.closest('.bz-play')) {
-      S.auto = !S.auto; S.resume = S.auto; S.idleAt = performance.now();
-      if (S.auto && S.cur) { S.autoPhase = phaseFor(S.cur.def, S.x); S.autoT = 0; }
-      syncPlay(); kick();
-    }
-  });
-  consoleEl.addEventListener('input', (e) => {
-    if (e.target.id !== 'bz-range') return;
-    touchIdle(); S.resume = true; S.x = parseFloat(e.target.value);
-  });
-  stageEl.addEventListener('click', (e) => { const t = e.target.closest('.bz-tag'); if (t) { setIso(t.dataset.part); } });
+  /* ───────────────────────── input: drag to turn ───────────────────────── */
   const canvasEl = stageEl.querySelector('canvas');
   canvasEl.addEventListener('pointerdown', (e) => {
-    S.dragging = true; S.lastX = e.clientX; S.lastY = e.clientY; touchIdle(); S.resume = true;
+    S.dragging = true; S.lastX = e.clientX; S.lastY = e.clientY; kick();
     try { canvasEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
     stageEl.classList.add('is-drag');
   });
@@ -788,13 +664,12 @@
     S.tYaw -= (e.clientX - S.lastX) * 0.008; S.tPitch = Math.max(-0.2, Math.min(0.85, S.tPitch + (e.clientY - S.lastY) * 0.005));
     S.lastX = e.clientX; S.lastY = e.clientY; kick();
   });
-  const endDrag = () => { S.dragging = false; S.idleAt = performance.now(); stageEl.classList.remove('is-drag'); };
+  const endDrag = () => { S.dragging = false; stageEl.classList.remove('is-drag'); };
   canvasEl.addEventListener('pointerup', endDrag);
   canvasEl.addEventListener('pointercancel', endDrag);
 
   /* ───────────────────────── wiring ───────────────────────── */
   d.addEventListener('biz-animal', (e) => { if (e.detail && e.detail.id) show(e.detail.id); });
-  new MutationObserver(() => { if (S.cur) { buildConsole(S.cur); buildTags(S.cur); } }).observe(root, { attributes: true, attributeFilter: ['lang'] });
   if ('ResizeObserver' in window) new ResizeObserver(resize).observe(stageEl); else window.addEventListener('resize', resize);
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((en) => { S.visible = en.some((x) => x.isIntersecting); if (S.visible) kick(); }, { threshold: 0 }).observe(stageEl);

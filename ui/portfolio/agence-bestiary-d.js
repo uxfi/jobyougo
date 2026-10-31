@@ -33,34 +33,23 @@
   const pickName = (o) => (document.documentElement.lang === 'fr' ? o.fr : o.en).split(' · ')[0];
   B.animals.mobility = {
     id: 'mobility',
-    frame: { r: 2.9, cx: 0.45, cy: 1.55, floor: 0, shadow: 5.2, yaw: 0.82, pitch: 0.14 },
-    input: { min: 0, max: 16, def: 5, d: 1, unit: 'm/s', step: 0.05, period: 26, label: { en: 'Speed', fr: 'Vitesse' }, fmt: (x, n) => `${n(x, 1)} m/s` },
-    parts: [
-      { id: 'legs', en: 'Four legs', fr: 'Quatre jambes' }, { id: 'body', en: 'Body & neck', fr: 'Corps et encolure' }, { id: 'heart', en: 'Heart & spine', fr: 'Cœur et colonne' },
-    ],
-    ro: [
-      { en: 'Speed', fr: 'Vitesse', unit: 'km/h', d: 0 }, { en: 'Strides a second', fr: 'Foulées par seconde', unit: 'Hz', d: 1 }, { en: 'Gait', fr: 'Allure', unit: '' },
-    ],
-    plot: 1,
-    model(v) { return [v * 3.6, stride(v), gaitName(v)]; },
-    note: {
-      en: 'Rounded figures: walk up to about 2 m/s, trot to 5, canter to 9, gallop beyond (a racehorse passes 16). The heart goes from about 36 beats a minute at rest towards 220 flat out.',
-      fr: 'Chiffres arrondis : pas jusqu’à 2 m/s environ, trot jusqu’à 5, canter jusqu’à 9, galop au-delà (un cheval de course dépasse 16). Le cœur passe d’environ 36 battements par minute au repos à près de 220 à fond.',
-    },
+    frame: { r: 2.85, cx: 0.45, cy: 1.42, floor: 0, shadow: 5.2, yaw: 0.82, pitch: 0.14 },
+    x: 5,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig(); const UP = V(0, 1, 0);
       const legsP = rig.part('legs', [0, -0.75, 0]); const bodyP = rig.part('body', [0, 0, 0]); const heartP = rig.part('heart', [0, 1.1, 1.0]);
       const mv = [legsP, bodyP, heartP].map((p) => { const g = new T.Group(); p.group.add(g); return g; });
-      const put = (g, m, x, y, z) => { g.position.set(x, y, z); mv[m].add(g); return g; };
-      const COAT = '#f1b595'; const DARK = '#6d59bb'; const SKIN = { op: 0.94, bump: 'fuzz', bumpScale: 0.45, detached: true };
+      const DROP = 0.24; /* the body sits lower on the legs, so each leg starts inside the shoulder or the haunch */
+      const put = (g, m, x, y, z) => { g.position.set(x, y - (m === 1 ? DROP : 0), z); mv[m].add(g); return g; };
+      const COAT = '#f1b595'; const DARK = '#6d59bb'; const SKIN = { op: 1, rough: 0.64, clear: 0.1, iri: 0.06, bump: 'fuzz', bumpScale: 0.7, detached: true };
       const HIP = 1.5; const CY = 1.98;
 
       /* body: a deep barrel with a heart girth, a tucked-up flank and a round croup, plus a shoulder and a haunch on each side */
       const bSpec = { len: 2.5, n: 60, ru: 3, rv: 3, a: () => 0.84, y: (s) => CY + 0.05 * smooth(0.55, 0.8, s) + 0.05 * (1 - smooth(0, 0.3, s)), r: (s) => 0.006 + (0.58 + 0.07 * g2(s, 0.68, 0.14) - 0.05 * g2(s, 0.32, 0.12) + 0.04 * g2(s, 0.15, 0.1)) * env(s) };
       put(K.glass(bodyP, K.loft(bSpec), COAT, { ...SKIN }), 1, 0, 0, 0);
       [1, -1].forEach((s) => {
-        put(K.glass(bodyP, K.ball(0.5, 0.62, 0.23, 26), COAT, { ...SKIN }), 1, -0.85, 1.9, s * 0.36);
-        put(K.glass(bodyP, K.ball(0.4, 0.52, 0.2, 24), COAT, { ...SKIN }), 1, 0.7, 1.92, s * 0.4);
+        put(K.glass(bodyP, K.ball(0.5, 0.62, 0.22, 26), COAT, { ...SKIN }), 1, -0.85, 1.9, s * 0.3);
+        put(K.glass(bodyP, K.ball(0.4, 0.52, 0.2, 24), COAT, { ...SKIN }), 1, 0.7, 1.92, s * 0.32);
       });
 
       /* neck: an arched swept tube, deep at the base and narrow at the poll; a mane of flowing strands (they move) */
@@ -68,8 +57,8 @@
       const nPts = nCurve.getPoints(14); const nR = nPts.map((_, i) => 0.52 - 0.32 * Math.pow(i / 14, 0.9));
       const neck = K.tube(14, 22, 3, 3); neck.set(nPts, nR, V(0, 1, 0), nPts.map(() => 0.76));
       put(K.glass(bodyP, neck.geo, COAT, { ...SKIN }), 1, 0, 0, 0);
-      const NM = 34; const maneG = K.feather(1, 0.12, { curl: 0.12, tip: 0.9 });
-      const mane = K.thin(bodyP, maneG, DARK, { op: 0.88, bump: 'feather', bumpScale: 1.4, instances: Array.from({ length: NM }, () => new T.Matrix4()), detached: true }); put(mane, 1, 0, 0, 0);
+      const NM = 150; const maneG = K.hair(1, 0.05, { curl: 0.14, wave: 0.05 }); const maneR = Array.from({ length: NM }, (_, j) => K.rng(900 + j * 13)());
+      const mane = K.thin(bodyP, maneG, DARK, { op: 1, bump: 'hair', instances: Array.from({ length: NM }, () => new T.Matrix4()), detached: true }); put(mane, 1, 0, 0, 0);
 
       /* head: a deep jaw and cheek, a long face narrowing to a soft muzzle, a pale blaze, big eyes with lids and a glint, flared nostrils,
          two pointed ears with an inner ear, a forelock */
@@ -80,22 +69,21 @@
       const blaze = K.glass(bodyP, K.ball(0.42, 0.028, 0.05, 16), P.cream, { op: 0.9, detached: true }); blaze.position.set(0.46, 0.145, 0); blaze.rotation.z = -0.07; head.add(blaze);
       [1, -1].forEach((s) => {
         const ry = s > 0 ? 0.5 : PI - 0.5;
-        const e = K.eye(bodyP, { r: 0.062, iris: '#7a4a30' }); e.position.set(0.27, 0.09, s * 0.15); e.rotation.y = ry; head.add(e);
-        const lid = K.glass(bodyP, new T.TorusGeometry(0.07, 0.015, 8, 22), '#d98e6c', { op: 0.95, detached: true }); lid.position.set(0.27, 0.09, s * 0.148); lid.rotation.y = ry; head.add(lid);
-        const brow = K.glass(bodyP, K.ball(0.09, 0.03, 0.06, 12), COAT, { op: 0.94, detached: true }); brow.position.set(0.27, 0.17, s * 0.12); head.add(brow);
-        const nos = K.glass(bodyP, K.ball(0.045, 0.032, 0.022, 10), P.ink, { op: 0.96, detached: true }); nos.position.set(0.93, 0.0, s * 0.075); nos.rotation.y = s * 0.4; head.add(nos);
+        const e = K.eye(bodyP, { r: 0.072, iris: '#7a4a30' }); e.position.set(0.27, 0.09, s * 0.15); e.rotation.y = ry; head.add(e);
+        const lid = K.glass(bodyP, new T.TorusGeometry(0.078, 0.009, 8, 22), '#d6967a', { op: 0.95, detached: true }); lid.position.set(0.27, 0.09, s * 0.148); lid.rotation.y = ry; head.add(lid);
+        const nos = K.glass(bodyP, K.ball(0.034, 0.025, 0.018, 10), P.ink, { op: 0.96, detached: true }); nos.position.set(0.93, 0.0, s * 0.075); nos.rotation.y = s * 0.4; head.add(nos);
         const cheek = K.glass(bodyP, K.ball(0.16, 0.12, 0.05, 16), COAT, { op: 0.94, detached: true }); cheek.position.set(0.2, -0.04, s * 0.14); head.add(cheek);
         const ear = K.glass(bodyP, new T.ConeGeometry(0.075, 0.3, 14), COAT, { op: 0.94, detached: true }); ear.position.set(0.0, 0.22, s * 0.09); ear.rotation.set(s * 0.12, 0, -0.2); head.add(ear);
         const inner = K.glass(bodyP, new T.ConeGeometry(0.045, 0.22, 10), '#e58f8f', { op: 0.94, detached: true }); inner.position.set(0.012, 0.21, s * 0.095); inner.rotation.set(s * 0.12, 0, -0.2); head.add(inner);
       });
-      const lips = K.glass(bodyP, K.ball(0.1, 0.045, 0.085, 14), '#e58f8f', { op: 0.94, detached: true }); lips.position.set(0.94, -0.03, 0); head.add(lips);
-      head.add(K.thin(bodyP, maneG, DARK, { op: 0.88, bump: 'feather', bumpScale: 1.4, instances: K.fan([[0.0, 0.2, 0, 0.2], [0.0, 0.2, 0.04, 0.5], [0.0, 0.2, -0.04, -0.1]].map(([x, y, z, a]) => ({ p: V(x, y, z), dir: V(0.5, -0.4 - a, a * 0.6), len: 0.32, nHint: V(0, 0, 1), wide: 0.5 }))) }));
+      const lips = K.glass(bodyP, K.ball(0.1, 0.045, 0.085, 14), '#eab08f', { op: 0.94, detached: true }); lips.position.set(0.94, -0.03, 0); head.add(lips);
+      head.add(K.thin(bodyP, maneG, DARK, { op: 1, bump: 'hair', instances: K.fan(Array.from({ length: 11 }, (_, i) => [0.0, 0.2, (i - 5) * 0.012, (i - 5) * 0.1]).map(([x, y, z, a]) => ({ p: V(x, y, z), dir: V(0.5, -0.4 - a, a * 0.6), len: 0.3, nHint: V(0, 0, 1), wide: 1.1 }))) }));
 
       /* tail: a tube plus a fan of strands, re-shaped every frame */
       const tail = K.tube(12, 10, 2, 4); const tailP = Array.from({ length: 13 }, () => new T.Vector3()); const tailR = new Array(13);
       put(K.glass(bodyP, tail.geo, DARK, { op: 0.9, bump: 'fuzz', bumpScale: 0.8, detached: true }), 1, 0, 0, 0);
-      const NT = 36; const tailS = K.thin(bodyP, maneG, DARK, { op: 0.86, bump: 'feather', bumpScale: 1.4, instances: Array.from({ length: NT }, () => new T.Matrix4()), detached: true }); put(tailS, 1, 0, 0, 0);
-      const tailRnd = Array.from({ length: NT }, (_, i) => { const r = K.rng(40 + i); return { i: 1 + (i % 10), a: (r() - 0.5) * 0.9, b: (r() - 0.5) * 0.7, len: 0.4 + r() * 0.35 }; });
+      const NT = 150; const tailS = K.thin(bodyP, maneG, DARK, { op: 1, bump: 'hair', instances: Array.from({ length: NT }, () => new T.Matrix4()), detached: true }); put(tailS, 1, 0, 0, 0);
+      const tailRnd = Array.from({ length: NT }, (_, i) => { const r = K.rng(40 + i); return { i: 1 + (i % 10), a: (r() - 0.5) * 0.9, b: (r() - 0.5) * 0.7, len: 0.5 + r() * 0.45 }; });
 
       /* legs: a thick forearm or gaskin, a knee, a slim cannon with its fetlock and pastern, a hoof with a coronet ring, white socks on two */
       const upSpec = (top) => ({ x0: 0, len: 0.72, n: 18, radial: 20, ru: 2, rv: 2, a: () => 0.96, r: (s) => top - (top - 0.082) * smooth(0, 0.9, s) + 0.012 * smooth(0.86, 1, s) });
@@ -115,7 +103,7 @@
       const ticks = K.thin(legsP, new T.PlaneGeometry(0.34, 0.02).rotateX(-PI / 2), P.ink, { op: 0.28, instances: tickM, detached: true }); legsP.group.add(ticks);
 
       /* inside: heart, lungs, spine, a cage of ribs */
-      const heart = K.solid(heartP, K.ball(0.22, 0.25, 0.19, 18), P.coral, { detached: true }); put(heart, 2, 0.55, 1.78, 0);
+      const heart = K.solid(heartP, K.ball(0.22, 0.25, 0.19, 18), P.coral, { detached: true }); put(heart, 2, 0.55, 1.54, 0);
       [1, -1].forEach((s) => put(K.solid(heartP, K.ball(0.4, 0.34, 0.2, 16), P.rose, { detached: true }), 2, 0.3, 2.1, s * 0.22));
       const sp = new T.CatmullRomCurve3([V(1.85, 3.1, 0), V(1.4, 2.82, 0), V(0.95, 2.52, 0), V(0.3, 2.5, 0), V(-0.4, 2.5, 0), V(-1.1, 2.36, 0)]);
       put(K.solid(heartP, new T.TubeGeometry(sp, 44, 0.05, 8), P.cream, { detached: true }), 2, 0, 0, 0);
@@ -149,16 +137,17 @@
         tail.set(tailP, tailR, new T.Vector3(0, 0, 1));
         tailRnd.forEach((r, j) => {
           tail.place(tmp, r.i); tmp.updateMatrix();
-          qy.setFromEuler(new T.Euler(r.b * 0.5, r.b, r.a)); lm.compose(V(0, (r.a * 0.05), r.b * 0.05), qy, V(r.len, r.len * 0.35, r.len));
+          qy.setFromEuler(new T.Euler(r.b * 0.5, r.b, r.a)); lm.compose(V(0, (r.a * 0.05), r.b * 0.05), qy, V(r.len, r.len * 0.9, r.len));
           tailS.setMatrixAt(j, new T.Matrix4().multiplyMatrices(tmp.matrix, lm));
         });
         tailS.instanceMatrix.needsUpdate = true;
         /* the mane lifts and streams with the stride */
         const items = [];
         for (let j = 0; j < NM; j++) {
-          const i = 1 + Math.round((j / (NM - 1)) * 12); const q = i * 3; const rr = nR[i] * 0.98;
-          const sw = Math.sin(TAU * (st.phi * 0.5 + j * 0.07)) * (0.2 + 0.3 * run);
-          items.push({ p: V(neck.c[q] + neck.nor[q] * rr, neck.c[q + 1] + neck.nor[q + 1] * rr, neck.c[q + 2] + neck.nor[q + 2] * rr), dir: V(-0.35 - 0.5 * run + sw * 0.3, -0.55 + 0.35 * run + sw * 0.2, 0.38 + 0.15 * Math.sin(TAU * st.phi + j)), len: 0.45 + 0.14 * ((j * 7) % 5) / 5, nHint: V(0, 0, 1), wide: 0.6 });
+          const fi = 1 + (j / (NM - 1)) * 12; const i = Math.floor(fi); const f = fi - i; const i2 = Math.min(14, i + 1); const q = i * 3; const q2 = i2 * 3; const rr = lerp(nR[i], nR[i2], f) * 0.98;
+          const cx = lerp(neck.c[q], neck.c[q2], f) + lerp(neck.nor[q], neck.nor[q2], f) * rr; const cy = lerp(neck.c[q + 1], neck.c[q2 + 1], f) + lerp(neck.nor[q + 1], neck.nor[q2 + 1], f) * rr; const cz = lerp(neck.c[q + 2], neck.c[q2 + 2], f) + lerp(neck.nor[q + 2], neck.nor[q2 + 2], f) * rr;
+          const sw = Math.sin(TAU * (st.phi * 0.5 + j * 0.012)) * (0.2 + 0.3 * run);
+          items.push({ p: V(cx, cy, cz + (maneR[j] - 0.5) * 0.05), dir: V(-0.35 - 0.5 * run + sw * 0.3 + (maneR[j] - 0.5) * 0.12, -0.55 + 0.35 * run + sw * 0.2 + (maneR[(j * 7) % NM] - 0.5) * 0.1, 0.38 + 0.15 * Math.sin(TAU * st.phi * 0.5 + j * 0.05)), len: 0.42 + 0.22 * maneR[(j * 5) % NM], nHint: V(0, 0, 1), wide: 1.2 });
         }
         K.fan(items).forEach((m, j) => mane.setMatrixAt(j, m)); mane.instanceMatrix.needsUpdate = true;
         const tm = new T.Matrix4();
@@ -167,11 +156,6 @@
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'legs', obj: legs[1].knee, off: [0, -0.4, 0.1], dx: 70, dy: 54, en: 'Gait', fr: 'Allure', live: (v) => pickName(gaitName(v)) },
-          { part: 'heart', obj: heart, off: [0, 0, 0.15], dx: -80, dy: -64, en: 'Heart', fr: 'Cœur', live: (v) => `${Math.round(heartRate(v))} bpm` },
-          { part: 'body', obj: head, off: [0.5, 0.15, 0.1], dx: 70, dy: -40, en: 'Body & neck', fr: 'Corps et encolure' },
-        ],
       };
     },
   };
@@ -192,19 +176,7 @@
   B.animals.enterprise = {
     id: 'enterprise',
     frame: { r: 3.3, cx: 0.95, cy: 1.8, floor: 0, shadow: 6.6, yaw: 0.42, pitch: 0.16 },
-    input: { min: 0, max: 1, def: 0.5, d: 2, unit: '%', step: 0.005, period: 18, label: { en: 'How far the trunk reaches', fr: 'Portée de la trompe' }, fmt: (x, n) => `${n(x * 100, 0)} %` },
-    parts: [
-      { id: 'trunk', en: 'Trunk, no bone', fr: 'Trompe, sans os' }, { id: 'body', en: 'Body & legs', fr: 'Corps et pattes' }, { id: 'ears', en: 'Ears & tusks', fr: 'Oreilles et défenses' },
-    ],
-    ro: [
-      { en: 'Tip above the ground', fr: 'Bout au-dessus du sol', unit: 'm', d: 1 }, { en: 'Reach ahead of the head', fr: 'Portée devant la tête', unit: 'm', d: 1 }, { en: 'Turn along the trunk', fr: 'Courbure le long de la trompe', unit: '°', d: 0 },
-    ],
-    plot: 0,
-    model(x) { const c = trunkChain(x); const e = c.pts[EL.n]; return [(EL.by + e.y) * EL.m, e.x * EL.m, c.turn / DEG]; },
-    note: {
-      en: 'There is no bone in an elephant’s trunk: it is muscle and skin, about 2 m long, and the herd moves on the memory of its matriarch. Same length from hang to reach; only the bend changes. Proportions stylised.',
-      fr: 'La trompe d’un éléphant n’a aucun os : c’est du muscle et de la peau, environ 2 m de long, et le troupeau avance sur la mémoire de sa matriarche. Même longueur de l’arrêt à la portée ; seule la courbure change. Proportions stylisées.',
-    },
+    x: 0.5,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig(); const UP = V(0, 1, 0);
       const trunkP = rig.part('trunk', [0.9, 0.5, 0]); const bodyP = rig.part('body', [0, -0.2, 0]); const earsP = rig.part('ears', [0, 0.6, 1.0]);
@@ -215,7 +187,7 @@
       const bG = at(new T.Group(), bodyP.group, -0.1, 0, 0);
       const bSpec = { len: 3.3, n: 60, ru: 3, rv: 4, a: () => 0.93, y: (s) => 2.35 + 0.09 * g2(s, 0.78, 0.15), r: (s) => 0.006 + (1.02 + 0.06 * g2(s, 0.78, 0.15) - 0.05 * g2(s, 0.4, 0.2)) * env(s) };
       const barrel = K.glass(bodyP, K.loft(bSpec), SKIN, { op: 0.9, backOp: 0.5, bump: 'wrinkle', bumpScale: 1.8, detached: true }); bG.add(barrel);
-      bG.add(K.fuzz(bodyP, { surf: K.surf(bSpec), count: 90, s0: 0.1, s1: 0.9, th0: -0.5, th1: 0.5, hex: P.ink, len: 0.08, r: 0.01, lean: 0.4, op: 0.7 }));
+      bG.add(K.fuzz(bodyP, { surf: K.surf(bSpec), count: 800, s0: 0.1, s1: 0.9, th0: -0.5, th1: 0.5, hex: P.ink, len: 0.09, r: 0.011, lean: 0.4 }));
       const hSpec = { x0: 0, len: 1.55, n: 44, ru: 2, rv: 3, a: () => 0.82, y: (s) => 2.72 - 0.32 * smooth(0.35, 1, s), r: (s) => 0.006 + (0.9 - 0.5 * smooth(0.5, 1, s)) * Math.pow(Math.sin(PI * Math.pow(s, 0.5)), 0.5) * (1 + 0.1 * g2(s, 0.3, 0.15)) };
       const headG = at(new T.Group(), bodyP.group, 0.72, 0, 0);
       headG.add(K.glass(bodyP, K.loft(hSpec), SKIN, { op: 0.86, bump: 'wrinkle', bumpScale: 1.4, detached: true }));
@@ -239,26 +211,26 @@
       const tailG = at(new T.Group(), bodyP.group, -1.82, 2.4, 0);
       const tt = K.tube(10, 10); const tpts = new T.CatmullRomCurve3([V(0, 0, 0), V(-0.06, -0.35, 0), V(-0.1, -0.75, 0), V(-0.12, -1.1, 0), V(-0.12, -1.4, 0)]).getPoints(10);
       tt.set(tpts, tpts.map((_, i) => 0.06 - 0.03 * (i / 10)), V(0, 0, 1)); tailG.add(K.glass(bodyP, tt.geo, SKIN, { op: 0.88, bump: 'wrinkle', detached: true }));
-      tailG.add(K.thin(bodyP, new T.ConeGeometry(0.01, 0.22, 4).rotateX(PI), P.ink, { op: 0.9, instances: Array.from({ length: 16 }, (_, i) => new T.Matrix4().compose(V(-0.12 + Math.cos(i) * 0.025, -1.42 - (i % 3) * 0.03, Math.sin(i * 1.7) * 0.03), new T.Quaternion().setFromEuler(new T.Euler(Math.sin(i * 2.1) * 0.25, 0, Math.cos(i * 1.3) * 0.25)), V(1, 1 + (i % 4) * 0.2, 1))) }));
+      tailG.add(K.thin(bodyP, K.hair(0.22, 0.014, { curl: 0.25, wave: 0.1 }).rotateZ(-PI / 2), P.ink, { op: 1, instances: Array.from({ length: 80 }, (_, i) => new T.Matrix4().compose(V(-0.12 + Math.cos(i) * 0.025, -1.42 - (i % 3) * 0.03, Math.sin(i * 1.7) * 0.03), new T.Quaternion().setFromEuler(new T.Euler(Math.sin(i * 2.1) * 0.25, 0, Math.cos(i * 1.3) * 0.25)), V(1, 1 + (i % 4) * 0.2, 1))) }));
 
       /* the trunk: a tube re-bent every frame with rings of skin, a fingered tip with nostrils, and muscle fibres winding round it */
-      const trunk = K.tube(EL.n, 22, 3, 14); K.glass(trunkP, trunk.geo, P.peach, { op: 0.88, bump: 'wrinkle', bumpScale: 2.2 });
+      const trunk = K.tube(EL.n, 22, 3, 14); K.glass(trunkP, trunk.geo, SKIN, { op: 1, bump: 'wrinkle', bumpScale: 2.2 });
       const tipG = new T.Group(); trunkP.group.add(tipG);
-      const fingerU = K.glass(trunkP, new T.ConeGeometry(0.04, 0.13, 8).rotateZ(-PI / 2 - 0.25), P.peach, { op: 0.92, detached: true }); fingerU.position.set(0.04, 0.03, 0); tipG.add(fingerU);
-      const fingerL = K.glass(trunkP, new T.ConeGeometry(0.03, 0.09, 8).rotateZ(-PI / 2 + 0.3), P.peach, { op: 0.92, detached: true }); fingerL.position.set(0.03, -0.035, 0); tipG.add(fingerL);
+      const fingerU = K.glass(trunkP, new T.ConeGeometry(0.04, 0.13, 8).rotateZ(-PI / 2 - 0.25), SKIN, { op: 1, detached: true }); fingerU.position.set(0.04, 0.03, 0); tipG.add(fingerU);
+      const fingerL = K.glass(trunkP, new T.ConeGeometry(0.03, 0.09, 8).rotateZ(-PI / 2 + 0.3), SKIN, { op: 1, detached: true }); fingerL.position.set(0.03, -0.035, 0); tipG.add(fingerL);
       [1, -1].forEach((s) => { const n = K.glass(trunkP, K.ball(0.012, 0.016, 0.012, 6), P.ink, { op: 0.96, detached: true }); n.position.set(0.06, -0.0, s * 0.028); tipG.add(n); });
       const NF = 8; const fpos = new Float32Array(NF * EL.n * 2 * 3);
       const fgeo = new T.BufferGeometry(); fgeo.setAttribute('position', new T.BufferAttribute(fpos, 3));
       K.lines(trunkP, fgeo, P.cream, 0.85);
       const twig = K.thin(trunkP, new T.CylinderGeometry(0.03, 0.02, 1.2, 8).rotateZ(1.0), P.apricot, { op: 0.88, bump: 'wrinkle', detached: true }); at(twig, trunkP.group, 3.7, 3.55, 0);
       const leafG = K.leaf(8, 5, (u, v, o) => { const w = 0.13 * Math.sin(PI * Math.pow(u, 0.7)); o.x = u * 0.44; o.y = v * w; o.z = 0.04 * u * u; });
-      trunkP.group.add(K.thin(trunkP, leafG, P.mint, { op: 0.8, bump: 'feather', bumpScale: 1.8, instances: K.fan(Array.from({ length: 9 }, (_, i) => ({ p: V(3.15 + 0.14 * i, 3.1 + 0.1 * ((i * 7) % 4), (i % 2 ? 1 : -1) * 0.05), dir: V(Math.cos(-0.9 + i * 0.35), Math.sin(-0.9 + i * 0.35) + 0.2, (i - 4) * 0.12), len: 1, nHint: V(0, 0, 1) }))) }));
+      trunkP.group.add(K.thin(trunkP, leafG, P.mint, { op: 0.92, bump: 'veins', bumpScale: 1.2, instances: K.fan(Array.from({ length: 9 }, (_, i) => ({ p: V(3.15 + 0.14 * i, 3.1 + 0.1 * ((i * 7) % 4), (i % 2 ? 1 : -1) * 0.05), dir: V(Math.cos(-0.9 + i * 0.35), Math.sin(-0.9 + i * 0.35) + 0.2, (i - 4) * 0.12), len: 1, nHint: V(0, 0, 1) }))) }));
 
       /* ears (they flap) with their veins, and tusks that taper from a thick root to a point */
       const earG = K.leaf(14, 14, (u, v, o) => { const h = 0.8 * Math.sqrt(Math.max(0, 1 - (2 * u - 1) * (2 * u - 1))) + 0.06; o.x = -u * 1.15; o.y = v * h - 0.15 * u + 0.025 * Math.sin(v * 22) * u; o.z = 0.1 * Math.sin(PI * u) + 0.03 * Math.sin(v * 9) * u; });
       const ears = [1, -1].map((s) => {
         const hinge = new T.Group(); at(hinge, earsP.group, 1.12, 2.95, s * 0.72);
-        hinge.add(K.thin(earsP, earG, P.peri, { op: 0.72, bump: 'veins', bumpScale: 2.2, detached: true }));
+        hinge.add(K.thin(earsP, earG, P.peri, { op: 0.94, bump: 'veins', bumpScale: 2.2, detached: true }));
         const tk = K.tube(18, 12); const tc = new T.CatmullRomCurve3([V(1.95, 2.05, s * 0.4), V(2.4, 1.72, s * 0.5), V(2.85, 1.8, s * 0.46), V(3.12, 2.15, s * 0.34)]).getPoints(18);
         tk.set(tc, tc.map((_, i) => 0.1 * Math.pow(1 - i / 18, 0.9) + 0.01), V(0, 1, 0)); earsP.group.add(K.glass(earsP, tk.geo, P.cream, { op: 0.95, bump: 'wrinkle', bumpScale: 0.6, detached: true }));
         return { hinge, s };
@@ -296,11 +268,6 @@
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'trunk', obj: tip, off: [0, 0, 0], dx: 74, dy: 52, en: 'Trunk tip', fr: 'Bout de la trompe', live: (x) => `${((EL.by + trunkChain(x).pts[EL.n].y) * EL.m).toFixed(1)} m` },
-          { part: 'ears', obj: ears[0].hinge, off: [-0.6, 0.35, 0], dx: -80, dy: -52, en: 'Ears & tusks', fr: 'Oreilles et défenses' },
-          { part: 'body', obj: barrel, off: [-0.5, 0.3, 0.7], dx: -84, dy: 54, en: 'Body & legs', fr: 'Corps et pattes' },
-        ],
       };
     },
   };

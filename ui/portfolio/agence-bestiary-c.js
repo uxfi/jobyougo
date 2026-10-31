@@ -15,19 +15,7 @@
   B.animals.ecommerce = {
     id: 'ecommerce',
     frame: { r: 1.5, cx: 0.6, cy: 0.42, floor: -1.05, shadow: 2.8, yaw: 0.55, pitch: 0.16 },
-    input: { min: 20, max: 80, def: 55, d: 0, unit: 'Hz', step: 1, period: 16, label: { en: 'Wingbeats a second', fr: 'Battements d’ailes par seconde' }, fmt: (x, n) => `${n(x, 0)} Hz` },
-    parts: [
-      { id: 'wings', en: 'Wings, figure of eight', fr: 'Ailes, en huit' }, { id: 'body', en: 'Body & tail', fr: 'Corps et queue' }, { id: 'bill', en: 'Bill & tongue', fr: 'Bec et langue' },
-    ],
-    ro: [
-      { en: 'Strokes a minute', fr: 'Battements par minute', unit: 'thousand', d: 1 }, { en: 'One stroke lasts', fr: 'Un battement dure', unit: 'ms', d: 1 }, { en: 'Lift ÷ weight', fr: 'Portance ÷ poids', unit: '×', d: 2 },
-    ],
-    plot: 2,
-    model(f) { return [(f * 60) / 1000, 1000 / f, Math.pow(f / HUM.hover, 2)]; },
-    note: {
-      en: 'About 55 wingbeats a second to hover (it varies by species). Lift grows with the square of the beat rate, so below that it sinks and above it climbs. The wings are shown ten times slower.',
-      fr: 'Environ 55 battements par seconde pour faire du sur-place (selon l’espèce). La portance croît avec le carré de la fréquence : en dessous l’oiseau descend, au-dessus il monte. Les ailes sont dix fois ralenties.',
-    },
+    x: 55,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig(); const UP = V(0, 1, 0);
       const wingsP = rig.part('wings', [0, 0.9, 0]); const bodyP = rig.part('body', [0, 0, 0]); const billP = rig.part('bill', [0.7, 0.25, 0.9]);
@@ -38,10 +26,10 @@
       /* body: one lofted spindle, rows of small feathers over back, belly and a rose throat patch (the gorget) */
       const bSpec = { len: 1.05, n: 40, ru: 2, rv: 2, a: () => 0.95, r: (s) => 0.006 + 0.17 * Math.pow(Math.sin(PI * Math.pow(s, 0.85)), 0.6) * (1 - 0.25 * s) };
       const body = K.glass(bodyP, K.loft(bSpec), GREEN, { op: 0.88, bump: 'plumage', bumpScale: 1.2, detached: true }); put(body, 1, 0, 0, 0);
-      const bSurf = K.surf(bSpec); const fe = K.feather(0.16, 0.055, { curl: 0.08 });
-      put(K.coat(bodyP, { surf: bSurf, geo: fe, hex: GREEN, rows: 9, cols: 7, s0: 0.06, s1: 0.92, th0: -1.25, th1: 1.25, size: [0.85, 1.1], lift: [0.2, 0.4], seed: 4, op: 0.8 }), 1, 0, 0, 0);
-      put(K.coat(bodyP, { surf: bSurf, geo: fe, hex: P.cream, rows: 7, cols: 6, s0: 0.15, s1: 0.7, th0: PI - 1.0, th1: PI + 1.0, size: [0.8, 1], lift: [0.2, 0.4], seed: 6, op: 0.82 }), 1, 0, 0, 0);
-      put(K.coat(bodyP, { surf: bSurf, geo: fe, hex: '#f06aa6', rows: 4, cols: 6, s0: 0.7, s1: 0.94, th0: PI - 0.95, th1: PI + 0.95, size: [0.6, 0.8], lift: [0.25, 0.45], seed: 8, op: 0.9 }), 1, 0, 0, 0);
+      const bSurf = K.surf(bSpec); const fe = K.feather(0.075, 0.03, { curl: 0.1 });
+      put(K.coat(bodyP, { surf: bSurf, geo: fe, hex: GREEN, rows: 46, cols: 18, s0: 0.06, s1: 0.92, th0: -1.5, th1: 1.5, size: [0.85, 1.1], lift: [0.12, 0.3], seed: 4, vary: 0.2 }), 1, 0, 0, 0);
+      put(K.coat(bodyP, { surf: bSurf, geo: fe, hex: P.cream, rows: 32, cols: 12, s0: 0.15, s1: 0.7, th0: PI - 1.1, th1: PI + 1.1, size: [0.8, 1], lift: [0.12, 0.3], seed: 6, vary: 0.14 }), 1, 0, 0, 0);
+      put(K.coat(bodyP, { surf: bSurf, geo: fe, hex: '#f06aa6', rows: 16, cols: 12, s0: 0.7, s1: 0.94, th0: PI - 0.95, th1: PI + 0.95, size: [0.6, 0.8], lift: [0.12, 0.3], seed: 8, vary: 0.12 }), 1, 0, 0, 0);
       const head = K.glass(bodyP, K.uvScale(K.ball(0.21, 0.18, 0.18, 28), 2, 2), GREEN, { op: 0.9, bump: 'plumage', bumpScale: 1.1, detached: true }); put(head, 1, 0.64, 0.1, 0);
       [1, -1].forEach((s) => {
         const ry = s > 0 ? 0.9 : PI - 0.9;
@@ -49,7 +37,7 @@
         const ring = K.glass(bodyP, new T.TorusGeometry(0.06, 0.009, 6, 18), P.cream, { op: 0.9, detached: true }); put(ring, 1, 0.73, 0.15, s * 0.123); ring.rotation.y = ry;
       });
       /* tail: six pointed feathers fanned flat; two tiny feet */
-      put(K.thin(bodyP, K.feather(1, 0.16, { curl: 0.02, tip: 0.6 }), P.lav, { op: 0.82, bump: 'feather', bumpScale: 1.8, detached: true, instances: K.fan(Array.from({ length: 6 }, (_, i) => { const f = (i - 2.5) * 0.18; return { p: V(-0.5, -0.02, 0), dir: V(-1, -0.12, f * 0.8), len: 0.62 - Math.abs(i - 2.5) * 0.03, nHint: UP }; })) }), 1, 0, 0, 0);
+      put(K.thin(bodyP, K.feather(1, 0.11, { curl: 0.02, tip: 0.6 }), P.lav, { op: 0.82, bump: 'feather', bumpScale: 1.8, detached: true, instances: K.fan(Array.from({ length: 9 }, (_, i) => { const f = (i - 4) * 0.13; return { p: V(-0.5, -0.02, 0), dir: V(-1, -0.12, f * 0.8), len: 0.62 - Math.abs(i - 4) * 0.025, nHint: UP }; })) }), 1, 0, 0, 0);
       [1, -1].forEach((s) => {
         put(K.glass(bodyP, new T.CylinderGeometry(0.012, 0.009, 0.12, 6).translate(0, -0.06, 0), P.ink, { op: 0.95, detached: true }), 1, 0.05, -0.15, s * 0.07);
         put(K.glass(bodyP, K.ball(0.025, 0.012, 0.03, 8), P.ink, { op: 0.95, detached: true }), 1, 0.06, -0.28, s * 0.07);
@@ -69,11 +57,11 @@
       const FX = 1.52; const FY = 0.45;
       const stem = K.thin(billP, new T.CylinderGeometry(0.024, 0.03, 1.5, 10), P.mint, { op: 0.82, bump: 'wrinkle', bumpScale: 0.8, detached: true }); stem.position.set(FX, FY - 0.78, 0); billP.group.add(stem);
       const lf = K.leaf(8, 5, (u, v, o) => { const w = 0.11 * Math.sin(PI * Math.pow(u, 0.65)); o.x = u * 0.42; o.y = v * w + 0.05 * u * u; o.z = 0; });
-      billP.group.add(K.thin(billP, lf, P.mint, { op: 0.8, bump: 'feather', bumpScale: 1.8, instances: K.fan([{ p: V(FX, -0.45, 0), dir: V(0.8, 0.5, 0.2), len: 1, nHint: V(0, 0, 1) }, { p: V(FX, -0.15, 0), dir: V(-0.8, 0.45, -0.2), len: 0.9, nHint: V(0, 0, 1) }]) }));
+      billP.group.add(K.thin(billP, lf, P.mint, { op: 0.92, bump: 'veins', bumpScale: 1.2, instances: K.fan([{ p: V(FX, -0.45, 0), dir: V(0.8, 0.5, 0.2), len: 1, nHint: V(0, 0, 1) }, { p: V(FX, -0.15, 0), dir: V(-0.8, 0.45, -0.2), len: 0.9, nHint: V(0, 0, 1) }]) }));
       const calyx = K.glass(billP, new T.ConeGeometry(0.1, 0.18, 10, 1, true), P.mint, { op: 0.9, detached: true }); calyx.position.set(FX, FY - 0.04, 0); calyx.rotation.x = PI; billP.group.add(calyx);
       const petalG = K.leaf(9, 6, (u, v, o) => { const w = (0.09 + 0.12 * Math.sin(PI * Math.pow(u, 0.55))) * (1 - 0.15 * u); o.x = 0.05 + u * 0.22 + 0.16 * u * u; o.y = u * 0.52; o.z = v * w; });
       const petalM = Array.from({ length: 5 }, (_, i) => new T.Matrix4().compose(V(FX, FY, 0), new T.Quaternion().setFromAxisAngle(UP, (i / 5) * TAU), V(1, 1, 1)));
-      billP.group.add(K.thin(billP, petalG, '#f4a0c4', { op: 0.74, bump: 'feather', bumpScale: 1.6, instances: petalM }));
+      billP.group.add(K.thin(billP, petalG, '#f4a0c4', { op: 0.94, bump: 'wrinkle', bumpScale: 0.5, iri: 0.4, instances: petalM }));
       const stam = []; const pol = [];
       for (let i = 0; i < 5; i++) { const an = (i / 5) * TAU + 0.3; const x = Math.cos(an) * 0.05; const z = Math.sin(an) * 0.05; stam.push(new T.Matrix4().makeTranslation(FX + x, FY + 0.14, z)); pol.push(new T.Matrix4().makeTranslation(FX + x * 1.8, FY + 0.28, z * 1.8)); }
       billP.group.add(K.thin(billP, new T.CylinderGeometry(0.005, 0.005, 0.28, 5), P.gold, { op: 0.9, instances: stam }));
@@ -82,10 +70,10 @@
 
       /* wings: an arm bone and three tiers of feathers (primaries, secondaries, coverts), all rigid with the wing */
       const armC = new T.CatmullRomCurve3([V(0, 0, 0), V(-0.04, 0.02, 0.45), V(-0.14, 0.03, 1.0), V(-0.3, 0.02, 1.2)]);
-      const primG = K.feather(1, 0.16, { curl: 0.05, tip: 0.6 }); const covG = K.feather(1, 0.2, { curl: 0.07 });
-      const prim = Array.from({ length: 10 }, (_, i) => { const th = 0.12 + i * 0.075; return { p: V(-0.04 - i * 0.012, 0.012, 0.4 + i * 0.075), dir: V(-Math.cos(th), 0, Math.sin(th)), len: 0.52 + i * 0.022, nHint: UP }; });
-      const sec = Array.from({ length: 6 }, (_, i) => ({ p: V(-0.01, 0.01, 0.06 + i * 0.058), dir: V(-Math.cos(0.05), 0, Math.sin(0.05)), len: 0.42 + i * 0.012, nHint: UP }));
-      const cov = Array.from({ length: 16 }, (_, i) => { const r2 = i < 8 ? 0 : 1; const j = i % 8; const th = 0.12 + j * 0.07; return { p: V(-0.02 - r2 * 0.12, 0.024 + r2 * 0.008, 0.2 + j * 0.1), dir: V(-Math.cos(th), 0, Math.sin(th)), len: 0.22, nHint: UP }; });
+      const primG = K.feather(1, 0.16, { curl: 0.05, tip: 0.8 }); const covG = K.feather(1, 0.17, { curl: 0.07 });
+      const prim = Array.from({ length: 15 }, (_, i) => { const th = 0.1 + i * 0.052; return { p: V(-0.04 - i * 0.0085, 0.012, 0.4 + i * 0.052), dir: V(-Math.cos(th), 0, Math.sin(th)), len: 0.52 + i * 0.016, nHint: UP }; });
+      const sec = Array.from({ length: 10 }, (_, i) => ({ p: V(-0.01, 0.01, 0.06 + i * 0.034), dir: V(-Math.cos(0.05), 0, Math.sin(0.05)), len: 0.42 + i * 0.008, nHint: UP }));
+      const cov = Array.from({ length: 42 }, (_, i) => { const r2 = Math.floor(i / 14); const j = i % 14; const th = 0.1 + j * 0.05; return { p: V(-0.02 - r2 * 0.08, 0.024 + r2 * 0.007, 0.2 + j * 0.066), dir: V(-Math.cos(th), 0, Math.sin(th)), len: 0.2 - r2 * 0.025, nHint: UP }; });
       const wings = [1, -1].map((s) => {
         const outer = new T.Group(); put(outer, 0, 0.14, 0.14, s * 0.1); outer.scale.z = s;
         const inner = new T.Group(); outer.add(inner);
@@ -113,11 +101,6 @@
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'wings', obj: wings[0].outer, off: [-0.1, 0.05, 0.95], dx: 70, dy: -50, en: 'Wings', fr: 'Ailes', live: (f) => `${Math.round(f)} Hz` },
-          { part: 'body', obj: body, off: [-0.2, -0.1, 0.18], dx: -86, dy: 52, en: 'Lift ÷ weight', fr: 'Portance ÷ poids', live: (f) => `${Math.pow(f / HUM.hover, 2).toFixed(2)}×` },
-          { part: 'bill', obj: tongue, off: [0.9, 0, 0], dx: 66, dy: 46, en: 'Tongue', fr: 'Langue' },
-        ],
       };
     },
   };
@@ -126,20 +109,8 @@
   const OCT = { neurons: 41.7, suckers: 240 }; /* million neurons per arm (about two thirds of 500 million, over eight), suckers per arm (about) */
   B.animals.marketplace = {
     id: 'marketplace',
-    frame: { r: 3.05, cy: 0.62, floor: -0.04, shadow: 6.2, yaw: 0.5, pitch: 0.52 },
-    input: { min: 0, max: 8, def: 3, d: 1, unit: 'arms', step: 0.01, period: 22, label: { en: 'Arms reaching a side of the market', fr: 'Bras qui rejoignent un côté du marché' }, fmt: (x, n) => `${n(x, 1)} / 8` },
-    parts: [
-      { id: 'arms', en: 'Eight arms', fr: 'Huit bras' }, { id: 'body', en: 'Mantle & eyes', fr: 'Manteau et yeux' }, { id: 'heart', en: '3 hearts & brain', fr: '3 cœurs et cerveau' },
-    ],
-    ro: [
-      { en: 'Arms out', fr: 'Bras déployés', unit: 'of 8', d: 0 }, { en: 'Neurons in those arms', fr: 'Neurones dans ces bras', unit: 'million ≈', d: 0 }, { en: 'Suckers in play', fr: 'Ventouses en jeu', unit: '≈', d: 0 },
-    ],
-    plot: 1,
-    model(x) { const n = clamp(x, 0, 8); return [Math.floor(n + 1e-6), n * OCT.neurons, Math.round((n * OCT.suckers) / 10) * 10]; },
-    note: {
-      en: 'About two thirds of an octopus’s roughly 500 million neurons sit in its arms, so each arm decides for itself. About 240 suckers an arm. Common octopus, rounded.',
-      fr: 'Environ les deux tiers des quelque 500 millions de neurones d’une pieuvre sont dans ses bras : chaque bras décide pour lui-même. Environ 240 ventouses par bras. Pieuvre commune, arrondi.',
-    },
+    frame: { r: 2.5, cy: 0.62, floor: -0.04, shadow: 5.2, yaw: 0.5, pitch: 0.52 },
+    x: 3,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
       const armsP = rig.part('arms', [0, -0.3, 0]); const bodyP = rig.part('body', [0, 0.9, 0]); const heartP = rig.part('heart', [0, 0.45, 1.0]);
@@ -161,19 +132,13 @@
       [1, -1].forEach((s) => at(K.solid(heartP, K.ball(0.16, 0.2, 0.05, 12), P.cream, { detached: true }), heartP.group, -0.1, 1.0, s * 0.3));
 
       /* eight arms: tubes re-shaped every frame, two rows of suckers on the underside (one draw call), webbing at the base,
-         and eight stalls of the market on the ground */
-      const NA = 28; const arms = []; const nodes = []; const webs = [];
+         */
+      const NA = 28; const arms = []; const webs = [];
       for (let i = 0; i < 8; i++) {
         const tube = K.tube(NA, 14, 5, 6); K.glass(armsP, tube.geo, i % 2 ? P.rose : P.lav, { op: 0.86, map: 'mottle', bump: 'pebble', bumpScale: 1.2 });
         const al = (i + 0.5) * (TAU / 8);
         const pts = Array.from({ length: NA + 1 }, () => new T.Vector3()); const rad = new Array(NA + 1);
         arms.push({ tube, al, pts, rad, i });
-        const node = new T.Group(); at(node, armsP.group, Math.cos(al) * 2.55, 0.03, Math.sin(al) * 2.55);
-        node.add(K.thin(armsP, new T.TorusGeometry(0.18, 0.035, 10, 30).rotateX(PI / 2), P.mint, { op: 0.78, detached: true }));
-        const gem = K.glass(armsP, K.ball(0.07, 0.07, 0.07, 12), P.gold, { op: 0.94, detached: true }); gem.position.y = 0.06; node.add(gem);
-        const roof = K.thin(armsP, new T.ConeGeometry(0.2, 0.13, 12), i % 2 ? P.coral : P.apricot, { op: 0.86, bump: 'wrinkle', bumpScale: 0.8, detached: true }); roof.position.y = 0.34; node.add(roof);
-        [1, -1].forEach((sg) => { const post = K.thin(armsP, new T.CylinderGeometry(0.01, 0.01, 0.3, 6), P.cream, { op: 0.9, detached: true }); post.position.set(sg * 0.12, 0.17, 0); node.add(post); });
-        nodes.push(node);
       }
       for (let i = 0; i < 8; i++) {
         const g = K.leaf(6, 4, () => {}); webs.push({ g, A0: arms[i], A1: arms[(i + 1) % 8] });
@@ -200,7 +165,6 @@
             a.rad[j] = 0.155 * Math.pow(1 - s, 0.9) + 0.016;
           }
           a.tube.set(a.pts, a.rad, hint);
-          nodes[a.i].scale.setScalar(1 + 0.5 * k);
           if (a.i === 2) tip.position.copy(a.pts[16]);
           /* suckers: two rows along the underside of the arm, smaller toward the tip */
           const tn = a.tube.tan; const nr = a.tube.nor; const cc = a.tube.c;
@@ -231,11 +195,6 @@
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'arms', obj: tip, off: [0, 0, 0], dx: 70, dy: 52, en: 'Arms out', fr: 'Bras déployés', live: (x) => `${Math.floor(clamp(x, 0, 8) + 1e-6)} / 8` },
-          { part: 'body', obj: mG, off: [0.6, 0.25, 0.1], dx: -84, dy: -38, en: 'Mantle', fr: 'Manteau' },
-          { part: 'heart', obj: brain, off: [0.1, 0.1, 0.1], dx: 80, dy: -46, en: 'Brain & 3 hearts', fr: 'Cerveau et 3 cœurs' },
-        ],
       };
     },
   };
@@ -257,44 +216,29 @@
   B.animals.luxury = {
     id: 'luxury',
     frame: { r: 2.75, cx: 0.25, cy: 1.35, floor: -0.06, shadow: 4.6, yaw: 0.62, pitch: 0.2 },
-    input: { min: 0, max: 1, def: 0.5, d: 2, unit: '%', step: 0.005, period: 16, label: { en: 'How far the neck is stretched', fr: 'Étirement du cou' }, fmt: (x, n) => `${n(x * 100, 0)} %` },
-    parts: [
-      { id: 'neck', en: 'Neck, 24 vertebrae', fr: 'Cou, 24 vertèbres' }, { id: 'wings', en: 'Wings', fr: 'Ailes' }, { id: 'body', en: 'Body & water', fr: 'Corps et eau' },
-    ],
-    ro: [
-      { en: 'Head above the water', fr: 'Tête au-dessus de l’eau', unit: 'cm', d: 0 }, { en: 'Reach ahead of the chest', fr: 'Portée devant la poitrine', unit: 'cm', d: 0 }, { en: 'Biggest bend, one joint', fr: 'Plus grand pli, une vertèbre', unit: '°', d: 1 },
-    ],
-    plot: 0,
-    model(x) {
-      const c = swanChain(x); const e = c.pts[SW.n];
-      return [(SW_BASE.y + e.y) * SW.cm, e.x * SW.cm, c.maxBend / DEG];
-    },
-    note: {
-      en: 'A mute swan has about 24 neck vertebrae (a human has 7). The neck keeps the same length from curl to line: only the angle at each joint changes. Proportions stylised, 1 unit is about 25 cm.',
-      fr: 'Un cygne tuberculé a environ 24 vertèbres cervicales (l’humain en a 7). Le cou garde la même longueur de la courbe à la ligne : seul l’angle de chaque articulation change. Proportions stylisées, 1 unité vaut environ 25 cm.',
-    },
+    x: 0.5,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig(); const UP = V(0, 1, 0);
       const neckP = rig.part('neck', [0, 1.0, 0.2]); const wingsP = rig.part('wings', [0, 0.8, 0.9]); const bodyP = rig.part('body', [0, -0.15, 0]);
       const at = (g, parent, x, y, z) => { g.position.set(x, y, z); parent.add(g); return g; };
-      const SWB = '#dcd1fb'; /* a white swan on a pale page: a light lavender with dark back faces so the edges read */
+      const SWB = '#f3eefc'; /* a white swan on a pale page: a light lavender with dark back faces so the edges read */
 
       /* body: a lofted hull with an upswept tail and a deep chest, rows of feathers along the flanks and back */
       const bSpec = { len: 2.5, n: 52, ru: 3, rv: 3, a: () => 1.15, y: (s) => 0.3 + 0.32 * Math.pow(1 - s, 3), r: (s) => 0.008 + 0.5 * Math.pow(Math.sin(PI * Math.pow(s, 0.8)), 0.62) * (1 + 0.12 * smooth(0.6, 0.9, s)) };
       at(K.glass(bodyP, K.loft(bSpec), SWB, { op: 0.88, backOp: 0.55, bump: 'plumage', bumpScale: 1.0, detached: true }), bodyP.group, 0, 0, 0);
-      const bSurf = K.surf(bSpec); const fe = K.feather(0.3, 0.1, { curl: 0.07 });
-      [PI / 2, 1.5 * PI].forEach((c0, k) => bodyP.group.add(K.coat(bodyP, { surf: bSurf, geo: fe, hex: SWB, rows: 9, cols: 6, s0: 0.12, s1: 0.9, th0: c0 - 0.95, th1: c0 + 0.95, size: [0.85, 1.1], lift: [0.15, 0.32], seed: 31 + k, op: 0.8 })));
-      bodyP.group.add(K.coat(bodyP, { surf: bSurf, geo: fe, hex: SWB, rows: 8, cols: 7, s0: 0.1, s1: 0.85, th0: -1.0, th1: 1.0, size: [0.85, 1.1], lift: [0.15, 0.3], seed: 37, op: 0.8 }));
-      bodyP.group.add(K.thin(bodyP, K.feather(1, 0.14, { curl: 0.02, tip: 0.6 }), SWB, { op: 0.82, bump: 'feather', bumpScale: 1.8, instances: K.fan(Array.from({ length: 7 }, (_, i) => { const f = (i - 3) * 0.12; return { p: V(-1.15, 0.66, 0), dir: V(-1, 0.3, f), len: 0.52 - Math.abs(i - 3) * 0.02, nHint: UP }; })) }));
+      const bSurf = K.surf(bSpec); const fe = K.feather(0.16, 0.055, { curl: 0.09 });
+      [PI / 2, 1.5 * PI].forEach((c0, k) => bodyP.group.add(K.coat(bodyP, { surf: bSurf, geo: fe, hex: SWB, rows: 36, cols: 20, s0: 0.12, s1: 0.9, th0: c0 - 1.05, th1: c0 + 1.05, size: [0.85, 1.1], lift: [0.1, 0.25], seed: 31 + k, vary: 0.1 })));
+      bodyP.group.add(K.coat(bodyP, { surf: bSurf, geo: fe, hex: SWB, rows: 32, cols: 20, s0: 0.1, s1: 0.85, th0: -1.0, th1: 1.0, size: [0.85, 1.1], lift: [0.1, 0.25], seed: 37, vary: 0.1 }));
+      bodyP.group.add(K.thin(bodyP, K.feather(1, 0.1, { curl: 0.02, tip: 0.6 }), SWB, { op: 0.82, bump: 'feather', bumpScale: 1.8, instances: K.fan(Array.from({ length: 12 }, (_, i) => { const f = (i - 5.5) * 0.07; return { p: V(-1.15, 0.66, 0), dir: V(-1, 0.3, f), len: 0.52 - Math.abs(i - 5.5) * 0.012, nHint: UP }; })) }));
 
       /* wings: a lofted wing on each flank, rows of layered coverts, long primaries lying over the tail */
       const wSpec = { x0: -1.0, len: 1.7, n: 30, ru: 1, rv: 2, a: () => 0.2, r: (s) => 0.01 + 0.3 * Math.pow(Math.sin(PI * Math.pow(s, 0.7)), 0.7) };
-      const wSurf = K.surf(wSpec); const covG = K.feather(0.34, 0.11, { curl: 0.06 }); const primG = K.feather(1, 0.12, { curl: 0.03, tip: 0.6 });
+      const wSurf = K.surf(wSpec); const covG = K.feather(0.17, 0.058, { curl: 0.08 }); const primG = K.feather(1, 0.12, { curl: 0.03, tip: 0.7 });
       [1, -1].forEach((s) => {
         const wg = at(new T.Group(), wingsP.group, -0.2, 0.6, s * 0.55); wg.rotation.set(0, -s * 0.12, 0.1);
-        wg.add(K.glass(wingsP, K.loft(wSpec), P.peri, { op: 0.86, backOp: 0.5, bump: 'plumage', bumpScale: 1.2, detached: true }));
-        wg.add(K.coat(wingsP, { surf: wSurf, geo: covG, hex: '#c9b9f6', rows: 5, cols: 7, s0: 0.1, s1: 0.88, th0: (PI / 2) * s - 0.9, th1: (PI / 2) * s + 0.9, size: [0.85, 1.1], lift: [0.15, 0.3], seed: 51 + s, op: 0.82 }));
-        wg.add(K.thin(wingsP, primG, P.peri, { op: 0.8, bump: 'feather', bumpScale: 1.8, instances: K.fan(Array.from({ length: 8 }, (_, i) => ({ p: V(-1.0 + i * 0.02, (i - 3.5) * 0.04, s * 0.02), dir: V(-1, -0.05, s * (i - 3.5) * 0.04), len: 0.5 + (i % 4) * 0.04, nHint: UP }))) }));
+        wg.add(K.glass(wingsP, K.loft(wSpec), '#e6defa', { op: 1, bump: 'plumage', bumpScale: 1.2, detached: true }));
+        wg.add(K.coat(wingsP, { surf: wSurf, geo: covG, hex: '#f0eafc', rows: 24, cols: 18, s0: 0.1, s1: 0.88, th0: (PI / 2) * s - 0.9, th1: (PI / 2) * s + 0.9, size: [0.85, 1.1], lift: [0.1, 0.25], seed: 51 + s, vary: 0.08 }));
+        wg.add(K.thin(wingsP, primG, '#e9e2fb', { op: 1, bump: 'feather', bumpScale: 1.8, instances: K.fan(Array.from({ length: 14 }, (_, i) => ({ p: V(-1.0 + i * 0.012, (i - 6.5) * 0.022, s * 0.02), dir: V(-1, -0.05, s * (i - 6.5) * 0.022), len: 0.46 + 0.12 * Math.sin((PI * i) / 13), nHint: UP }))) }));
       });
       /* legs and webbed feet, seen through the water */
       [-0.1].forEach((x) => [1, -1].forEach((s) => { /* one pair of legs */
@@ -306,8 +250,8 @@
 
       /* neck: a feathered tube with a ruff of feathers at its base, a head with a black eye patch, an orange bill with a black knob */
       const neck = K.tube(SW.n, 18, 3, 7); K.glass(neckP, neck.geo, SWB, { op: 0.9, backOp: 0.55, bump: 'plumage', bumpScale: 0.6 });
-      const ruff = Array.from({ length: 16 }, (_, i) => { const a = (i / 16) * TAU; return { p: V(SW_BASE.x + Math.cos(a) * 0.04, SW_BASE.y + 0.05, Math.sin(a) * 0.17), dir: V(-0.5, -0.25, Math.sin(a) * 0.8), len: 0.18, nHint: UP, wide: 0.8 }; });
-      neckP.group.add(K.thin(neckP, K.feather(1, 0.2, { curl: 0.1 }), SWB, { op: 0.84, bump: 'feather', bumpScale: 1.6, instances: K.fan(ruff) }));
+      const ruff = Array.from({ length: 32 }, (_, i) => { const a = (i / 32) * TAU; return { p: V(SW_BASE.x + Math.cos(a) * 0.04, SW_BASE.y + 0.05, Math.sin(a) * 0.17), dir: V(-0.5, -0.25, Math.sin(a) * 0.8), len: 0.14, nHint: UP, wide: 0.8 }; });
+      neckP.group.add(K.thin(neckP, K.feather(1, 0.14, { curl: 0.1 }), SWB, { op: 0.84, bump: 'feather', bumpScale: 1.6, instances: K.fan(ruff) }));
       const head = new T.Group(); neckP.group.add(head);
       head.add(K.glass(neckP, K.uvScale(K.ball(0.18, 0.085, 0.085, 26), 2, 2), SWB, { op: 0.92, backOp: 0.5, bump: 'plumage', bumpScale: 0.7, detached: true }));
       const bill = K.glass(neckP, K.loft({ len: 0.34, x0: 0, n: 18, radial: 16, ru: 2, rv: 1, a: () => 1.5, r: (s) => 0.006 + 0.05 * Math.pow(Math.sin(PI * Math.pow(s, 0.8)), 0.5) * (1 - 0.35 * s) }), '#f2784a', { op: 0.95, bump: 'pebble', bumpScale: 0.8, detached: true }); bill.position.set(0.14, -0.02, 0); head.add(bill);
@@ -327,15 +271,10 @@
         neck.set(Pn, Rn, hint, An);
         for (let i = 0; i < SW.n; i++) verts[i].position.set((Pn[i].x + Pn[i + 1].x) / 2, (Pn[i].y + Pn[i + 1].y) / 2, 0);
         head.position.copy(Pn[SW.n]); head.rotation.z = c.endAng - 0.45 * (1 - x) - 0.05 * Math.sin(TAU * 0.3 * t);
-        ripples.forEach((r, i) => { const ph = (t * 0.1 + i / 3) % 1; r.scale.setScalar(1.3 + 1.5 * ph); r.userData.base = 0.5 * (1 - ph); });
+        ripples.forEach((r, i) => { const ph = (t * 0.1 + i / 3) % 1; r.scale.setScalar(1.3 + 1.5 * ph); r.material.opacity = 0.5 * (1 - ph); });
       };
       return {
         root: rig.root, parts: rig.parts, pose,
-        anchors: [
-          { part: 'neck', obj: head, off: [0.1, 0.1, 0.05], dx: -92, dy: 34, en: 'Head above the water', fr: 'Tête au-dessus de l’eau', live: (x) => `${Math.round((SW_BASE.y + swanChain(x).pts[SW.n].y) * SW.cm)} cm` },
-          { part: 'wings', obj: wingsP.group, off: [-0.4, 0.62, 0.62], dx: -90, dy: -50, en: 'Wings', fr: 'Ailes' },
-          { part: 'body', obj: bodyP.group, off: [-1.0, 0.2, 0.3], dx: -84, dy: 56, en: 'Body & water', fr: 'Corps et eau' },
-        ],
       };
     },
   };
