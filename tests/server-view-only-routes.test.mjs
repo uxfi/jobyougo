@@ -111,7 +111,7 @@ test('the view-only row routes read through viewOnlyScope, never req.userId', ()
   }
   const pipeline = routeBlock("if (path === '/api/pipeline') {");
   assert.ok(pipeline.includes("if (method === 'GET') return json(res, await getPipeline(viewOnlyScope(req)));"));
-  assert.ok(pipeline.includes("addToPipeline(url, note || '', req.userId)") && pipeline.includes('removeManyFromPipeline(validUrls, req.userId)'), 'writes stay on the account');
+  assert.ok(pipeline.includes("addToPipeline(url, note || '', req.userId, { force: force === true })") && pipeline.includes('removeManyFromPipeline(validUrls, req.userId)'), 'writes stay on the account');
 });
 
 test("output/ PDFs are the owner's: a scoped account lists none and opens none", () => {

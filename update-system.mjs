@@ -278,6 +278,7 @@ const SYSTEM_PATHS = [
   'lib/ats-board-resolver.mjs',
   'lib/email-target-guard.mjs',
   'lib/non-employer-hosts.mjs',
+  'lib/employer-site-sources.mjs',
   'resolve-boards.mjs',
   'lib/candidate-location.mjs',
   'lib/contact-finder.mjs',

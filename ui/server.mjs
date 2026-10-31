@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { createServer } from 'http';
 import { applyRelaunchBlock } from '../lib/apply-send-proof.mjs';
+import { applyTrackerBlock, manualAddBlock } from '../lib/posting-known.mjs';
 import { readFile, writeFile, appendFile, readdir, stat, mkdir, mkdtemp, rm, access, copyFile } from 'fs/promises';
 import { createReadStream, watch } from 'fs';
 import { join, dirname, resolve, sep, basename } from 'path';
@@ -72,19 +73,20 @@ import { isManatalUrl, identityFromManatalHtml } from '../lib/manatal-careers.mj
 import { careersFeedFor, hasCareersFeed } from '../lib/careers-feeds.mjs';
 import { detectAtsProvider } from '../lib/ats-autodetect.mjs';
 import { isNonJobTitle, withNonJobTitles } from '../lib/scan-title-junk.mjs';
-import { runAtsExplorer } from '../lib/ats-explorer.mjs';
+import { runAtsExplorer, makeApiSearch } from '../lib/ats-explorer.mjs';
+import { runPortalsEnrichment } from '../lib/portals-enrichment.mjs';
 import { createEngineBackoff, createQuerySpacer, createEngineRotation } from '../lib/scan-engine-backoff.mjs';
 import { createScanLogger } from '../lib/scan-log.mjs';
 import { getJobYouGoRoot as scanLogRoot } from '../path-resolver.mjs';
 import { CONSENT_DISMISS_SCRIPT, needsLongerWait, createSolveCooldown, createDetailBudget } from '../lib/scan-careers-wait.mjs';
 import { applyContactFallback, buildMailtoUrl, generateApplicationEmail, parseRecipient, profileWithPortfolio } from '../lib/application-email.mjs';
-import { createPageFetcher, findContacts, providersFromEnv, ownCompanyNames, targetCompany } from '../lib/contact-finder.mjs';
-import { safeCompanyHint, stripUnsourcedCompanyBlurb } from '../lib/email-target-guard.mjs';
+import { companyBrief, createPageFetcher, findContacts, peopleForPage, pickForwardTarget, providersFromEnv, ownCompanyNames, targetCompany } from '../lib/contact-finder.mjs';
+import { cleanOfferIdentity, safeCompanyHint } from '../lib/email-target-guard.mjs';
 import { applyFactGuards, buildEvalRepairPrompt, draftNeedsRepair, normalizeEvalHeadings } from '../lib/eval-draft.mjs';
 import { postingDateFromPage, postingStatusFromApi } from '../lib/posting-date.mjs';
 import { OWN_EMPLOYER_CODE, REPETITION_LOOP_CODE, extractEvaluationScore, ownEmployerConfusion, resolveEvaluationScore, validateReportContent } from '../lib/report-validation.mjs';
 import { normalizeCompany, roleMatch, tsvSafe } from '../lib/scan-filters.mjs';
-import { normalizeUrl } from '../url-key.mjs';
+import { dedupUrlKey, normalizeUrl } from '../url-key.mjs';
 import { classifyLiveness } from '../liveness-core.mjs';
 import {
   parsePipeline,
@@ -131,6 +133,7 @@ import {
 import { portalsForProfile, scanTermsFrom } from '../lib/scan-targeting.mjs';
 import { loadQueryYield, orderWebSearchSources, recordQueryYield, saveQueryYield, shouldSkipQuery } from '../lib/web-search-yield.mjs';
 import { runAtsBoardResolver } from '../lib/ats-board-resolver.mjs';
+import { recordPlatformCandidates } from '../lib/platform-candidates.mjs';
 import { SCAN_HISTORY_RETENTION_DAYS, ensureScanMemoryDir, pruneScanHistoryLines, scanHistoryCutoff, scanMemoryPaths } from '../lib/scan-memory.mjs';
 import { appendGateDrop, readGateDrops } from '../lib/gate-drops.mjs';
 import { settleWithLimit } from '../lib/scan-concurrency.mjs';
@@ -991,6 +994,16 @@ function normalizeUrlKey(rawUrl = '') {
   return normalizeUrl(trimmed) || trimmed;
 }
 
+// Key for "is this posting already known?" in a scan: normalizeUrlKey minus the
+// params and path case that change with each visit (lang, locale, ref, source,
+// rltr…). The function `node scan.mjs` uses, so both agree on what is known.
+// Both sides of a comparison go through it; stored URLs and the keys of
+// pipeline rows stay on normalizeUrlKey.
+function knownUrlKey(rawUrl = '') {
+  const trimmed = String(rawUrl || '').trim();
+  return trimmed ? dedupUrlKey(trimmed) : '';
+}
+
 function applicationIdentityNum(app) {
   const n = parseInt(app?.num ?? app?.['#'] ?? '', 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -1275,6 +1288,20 @@ async function getApplications(userId) {
     }
   }
   return enrichApplicationsWithJobUrl(markdownApps, userId);
+}
+
+function canonicalStateOf(status) {
+  return resolveCanonicalState(status, canonicalApplicationStates());
+}
+
+// An apply run on a posting the tracker already shows as sent, under this row
+// or another one carrying the same URL. A run that already clicked Send is
+// applyRelaunchBlock's; this one reads the tracker.
+async function applyTrackerBlockFor({ report, num, userId }) {
+  const apps = await getApplications(userId).catch(() => []);
+  if (!apps.length) return null;
+  const content = await getReport(report, userId).catch(() => '');
+  return applyTrackerBlock({ apps, num, report, jobUrl: extractJobUrlFromReport(content), canonical: canonicalStateOf });
 }
 
 async function trackerHasEvaluation({ num, filename, url, userId } = {}) {
@@ -1628,18 +1655,34 @@ async function lookupPostingIdentity(url, { note = '', logLabel = 'manual-add', 
   return identity;
 }
 
-async function addToPipeline(url, note, userId) {
+// A paste or a re-add button for an offer the tracker already holds (evaluated,
+// or the same employer and role under another URL) is refused unless `force`:
+// it would buy a second evaluation and, on a name variant, a second tracker row
+// (Secfix #222 was evaluated six times from manual adds, 2026-10-31).
+async function addToPipeline(url, note, userId, { force = false } = {}) {
   const key = normalizeUrlKey(url);
   const pipe = await getPipeline(userId).catch(() => []);
   if (key && pipe.some(item => normalizeUrlKey(item.url) === key)) {
-    return { added: false, duplicate: true };
+    return { added: false, duplicate: true, reason: 'pipeline' };
   }
+  const apps = force ? [] : await getApplications(userId).catch(() => []);
+  const refused = (block) => ({ added: false, duplicate: true, known: true, ...block });
+  const knownUrl = manualAddBlock({ url, apps, canonical: canonicalStateOf });
+  if (knownUrl) return refused(knownUrl);
   const entry = { url, note };
   const given = extractPipelineNoteParts(note);
   if (!(given.company && given.title)) {
     const identity = await lookupPostingIdentity(url, { note });
     Object.assign(entry, identity, { title: given.title || identity.title, note: noteWithIdentity(note, identity) });
   }
+  const knownRole = manualAddBlock({
+    url,
+    company: entry.company || given.company,
+    title: entry.title || given.title,
+    apps,
+    canonical: canonicalStateOf,
+  });
+  if (knownRole) return refused(knownRole);
   await addManyToPipeline([entry], userId, { prepend: true });
   return { added: true, duplicate: false };
 }
@@ -3981,7 +4024,9 @@ async function fetchSerpApiSection({ name, query }) {
   return { ok: true, section: buildJobSection(name, jobs, { includeCompany: true }), jobs, engine: `${apiLabel.toLowerCase()}-jobs` };
 }
 
-async function fetchDuckDuckGoSection({ name, query }) {
+// `freshness: 'none'` (the contact finder) sends no recency window; the
+// default keeps the scan's own df value.
+async function fetchDuckDuckGoSection({ name, query }, { freshness = 'auto' } = {}) {
   if (!query) return { ok: false, section: null };
 
   // Serialize + throttle: DDG challenge pages are triggered by parallel bursts
@@ -3989,7 +4034,7 @@ async function fetchDuckDuckGoSection({ name, query }) {
 
   console.log(`[scan] [DuckDuckGo] "${name}" → q: ${query.slice(0, 80)}...`);
   // POST is less flagged than GET on the HTML endpoint
-  const body = new URLSearchParams({ q: query, kl: 'wt-wt', b: '', df: webSearchFreshnessWindow().charAt(0) });
+  const body = new URLSearchParams({ q: query, kl: 'wt-wt', b: '', df: freshness === 'none' ? '' : webSearchFreshnessWindow().charAt(0) });
   const ua = nextDdgUserAgent();
   let r;
   try {
@@ -4032,9 +4077,19 @@ async function fetchDuckDuckGoSection({ name, query }) {
     ...html.matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi),
     ...html.matchAll(/<a[^>]*class="[^"]*result-link[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi),
   ];
-  const jobs = resultAnchors.map(([, href, title]) => ({
-    title: normalizeSearchResultTitle(title),
-    url: decodeDuckDuckGoResultUrl(href),
+  // A result's snippet sits between its link and the next result's. Kept in
+  // its own field for the contact finder: the scan reads what it always did.
+  const starts = resultAnchors.map(match => match.index).sort((a, b) => a - b);
+  const snippetAfter = index => {
+    const next = starts.find(start => start > index);
+    const block = html.slice(index, next ?? index + 4000);
+    const found = block.match(/class="[^"]*result(?:__|-)snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:a|td|div|span)>/i);
+    return found ? normalizeSearchResultTitle(found[1]) : '';
+  };
+  const jobs = resultAnchors.map(match => ({
+    title: normalizeSearchResultTitle(match[2]),
+    url: decodeDuckDuckGoResultUrl(match[1]),
+    searchSnippet: snippetAfter(match.index),
   })).filter(job => /^https?:\/\//i.test(job.url));
 
   console.log(`[scan] [DuckDuckGo] "${name}" → ${jobs.length} results, ${jobs.filter(j => portalsTitleFilter.test(j.title)).length} after filter`);
@@ -4307,7 +4362,9 @@ async function smartSolveAndReExtract({ tabId, jobs, bodyText, extractScript, la
   return Array.isArray(retry.jobs) ? retry.jobs : jobs;
 }
 
-async function fetchPinchtabBraveSection({ name, query }) {
+// Each PinchTab engine takes `{ freshness }`: 'none' (the contact finder)
+// adds no recency parameter, the default keeps the scan's.
+async function fetchPinchtabBraveSection({ name, query }, { freshness = 'auto' } = {}) {
   if (!query) return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave' };
   if (!(await pinchtabIsUp())) {
     return { ok: false, section: null, jobs: [], engine: 'pinchtab-brave', error: 'pinchtab daemon not reachable' };
@@ -4317,7 +4374,7 @@ async function fetchPinchtabBraveSection({ name, query }) {
 
   let tabId;
   try {
-    const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}${webSearchFreshnessParam('brave')}`;
+    const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}${freshness === 'none' ? '' : webSearchFreshnessParam('brave')}`;
     console.log(`[scan] [PinchTab/Brave] "${name}" → q: ${query.slice(0, 80)}...`);
     tabId = await pinchtabNavigate(searchUrl, { timeout: 25000 });
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -4341,7 +4398,7 @@ async function fetchPinchtabBraveSection({ name, query }) {
   }
 }
 
-async function fetchPinchtabSearchSection({ name, query }) {
+async function fetchPinchtabSearchSection({ name, query }, { freshness = 'auto' } = {}) {
   if (!query) return { ok: false, section: null, jobs: [], engine: 'pinchtab-google' };
   if (!(await pinchtabIsUp())) {
     return { ok: false, section: null, jobs: [], engine: 'pinchtab-google', error: 'pinchtab daemon not reachable' };
@@ -4351,7 +4408,7 @@ async function fetchPinchtabSearchSection({ name, query }) {
 
   let tabId;
   try {
-    const searchUrl = `https://www.google.com/search?hl=en&num=10&q=${encodeURIComponent(query)}${webSearchFreshnessParam('google')}`;
+    const searchUrl = `https://www.google.com/search?hl=en&num=10&q=${encodeURIComponent(query)}${freshness === 'none' ? '' : webSearchFreshnessParam('google')}`;
     console.log(`[scan] [PinchTab/Google] "${name}" → q: ${query.slice(0, 80)}...`);
     tabId = await pinchtabNavigate(searchUrl, { timeout: 25000 });
     await new Promise(resolve => setTimeout(resolve, 1800));
@@ -4534,12 +4591,12 @@ async function fetchPinchtabEngineSection({ name, query }, { engine, label, sear
   }
 }
 
-async function fetchPinchtabBingSection(source) {
+async function fetchPinchtabBingSection(source, { freshness = 'auto' } = {}) {
   const query = source?.query || '';
   return fetchPinchtabEngineSection(source, {
     engine: 'pinchtab-bing',
     label: 'PinchTab/Bing',
-    searchUrl: `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=30&setlang=en${webSearchFreshnessParam('bing')}`,
+    searchUrl: `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=30&setlang=en${freshness === 'none' ? '' : webSearchFreshnessParam('bing')}`,
     extractScript: PINCHTAB_BING_SEARCH_EXTRACT_SCRIPT,
   });
 }
@@ -6206,7 +6263,7 @@ async function getBlockingScanHistoryUrlSet(memory = OWNER_SCAN_MEMORY) {
     const url = cells[0]?.trim();
     if (!url || url === 'url') return;
     const status = cells[5]?.trim() || '';
-    latestStatusByUrl.set(normalizeUrlKey(url), status);
+    latestStatusByUrl.set(knownUrlKey(url), status);
   });
   return new Set(
     [...latestStatusByUrl.entries()]
@@ -7716,6 +7773,77 @@ function runScript(scriptKey, extraArgs = []) {
   });
 }
 
+// ─── Find companies (Companies tab button) ───────────────────────────────────
+// One on-demand pass of what a scan ends with: the ATS explorer and the board
+// resolver (lib/portals-enrichment.mjs), on a wider budget and with the scan
+// files as extra input. It edits the shared portals.yml, so it is the owner's;
+// one run at a time, and not while a scan streams (a scan ends with the same
+// two passes and owns the search engines while it runs).
+const exploreJob = { running: false, phase: '', startedAt: null, finishedAt: null, result: null, error: null };
+const activeScanStreams = new Set();
+
+async function exploreAvailableTo(req) {
+  if (IS_VERCEL) return false;
+  return !useSupabase || isAdminUser(req.userId, req.userEmail);
+}
+
+function exploreJobState() {
+  const { running, phase, startedAt, finishedAt, result, error } = exploreJob;
+  return { running, phase, startedAt, finishedAt, result, error };
+}
+
+/** Search input for the explorer: the scan's engine when PinchTab is up and not paused, else a sanctioned API key, else none (passive only). */
+async function exploreSearchFn(log) {
+  if (!webSearchCircuitOpen()) {
+    const pinchtab = await ensurePinchtabRunning({ waitMs: 15000, log: message => log(`[explore] ${message}`) }).catch(() => ({ up: false }));
+    if (pinchtab.up) {
+      return async (query) => {
+        const res = await fetchWebSearchSection({ name: `[explorer] ${query}`, query }, null, { patient: true });
+        if (!res || res.skipped || isWebSearchEngineBlocked(res)) return { blocked: true };
+        return { urls: (res.jobs || []).map(j => j?.url).filter(Boolean), text: typeof res.section === 'string' ? res.section : '' };
+      };
+    }
+  }
+  return makeApiSearch(process.env);
+}
+
+async function runExploreJob(req) {
+  Object.assign(exploreJob, { running: true, phase: 'start', startedAt: new Date().toISOString(), finishedAt: null, result: null, error: null });
+  try {
+    // The scan's own view of portals.yml: the platforms from the file, the roles
+    // and the geography from the profile. Read directly: readPortalsYaml also
+    // swaps the title filter a running scan uses.
+    await ensurePortalsFile();
+    const sharedPortals = yamlLoad(await readFile(PORTALS_FILE, 'utf-8')) || {};
+    const profileConfig = useSupabase && req.userId
+      ? await getAccountProfile(req.userId, true)
+      : await readFile(join(ROOT, 'config/profile.yml'), 'utf-8').catch(() => '');
+    const profileStruct = !profileConfig ? {} : typeof profileConfig === 'object' ? profileConfig : (yamlLoad(profileConfig) || {});
+    const rules = inferProfileMatchingRules(profileStruct, await getProfileContext(req.userId));
+    const geoPolicy = geoPolicyFrom(rules.location.loc);
+    const config = scanTermsFrom(rules.targeting).length ? portalsForProfile(sharedPortals, { targeting: rules.targeting, geoPolicy }) : sharedPortals;
+
+    exploreJob.phase = 'search';
+    const search = await exploreSearchFn(line => console.log(line));
+    exploreJob.result = await runPortalsEnrichment({
+      portalsPath: PORTALS_FILE,
+      dataDir: join(ROOT, 'data'),
+      config,
+      geoPolicy,
+      search,
+      accessOf: getCompanyScanAccess,
+      onPhase: phase => { exploreJob.phase = phase; },
+    });
+  } catch (err) {
+    console.error(`[explore] ${err.stack || err.message}`);
+    exploreJob.error = err.message || 'Could not look for companies';
+  } finally {
+    exploreJob.running = false;
+    exploreJob.phase = '';
+    exploreJob.finishedAt = new Date().toISOString();
+  }
+}
+
 /** Parse applications.md into Supabase-shaped rows. */
 function parseApplicationsMarkdown(content = '') {
   const lines = String(content).split('\n').filter(l => l.trim().startsWith('|'));
@@ -8501,13 +8629,38 @@ const authUserPending = new Map();
 
 // Finder results per offer (job text, company page, contacts) so "write to
 // this contact" does not refetch the posting. Small, in memory, per process.
+// The finder's own result is kept per account (foundByUser), so reopening
+// the modal replays that user's contacts instead of searching again; the
+// other fields are what the draft reads (jobText, companyText…).
 const contactFinderCache = new Map();
 const CONTACT_FINDER_CACHE_MAX = 40;
-function rememberContactFinderResult(jobUrl, value) {
+const CONTACT_FINDER_REPLAY_MS = 6 * 60 * 60 * 1000;
+// The company and role a run searched with: a result is replayed only for
+// the same pair, so correcting the tracker row's company searches again.
+function contactFinderAskedKey(company, role) {
+  const norm = value => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return `${norm(company)}\n${norm(role)}`;
+}
+function rememberContactFinderResult(jobUrl, value, { userKey = 'owner', found = null, asked = '' } = {}) {
   const key = normalizeUrl(jobUrl);
   if (!key) return;
+  const at = Date.now();
+  const prev = contactFinderCache.get(key);
+  const foundByUser = { ...(prev?.foundByUser || {}) };
+  // The company page of a site the user typed or picked (site=, source
+  // 'hint') is that account's alone (its own draft gets it as companyText):
+  // the fields every account's draft reads keep the last run that found the
+  // site itself, so no account decides what another's email says.
+  if (found?.company?.source === 'hint') value = { ...value, companyText: prev?.companyText || '', companyDomain: prev?.companyDomain || '' };
+  // A run cut by the deadline, or one that found no address, is not replayed
+  // for 6 h: the next opening searches again (and an older result goes too).
+  if (found && (found.stopped || (Array.isArray(found.contacts) && !found.contacts.length))) {
+    delete foundByUser[userKey];
+    found = null;
+  }
+  if (found) foundByUser[userKey] = { found, at, asked };
   contactFinderCache.delete(key);
-  contactFinderCache.set(key, { ...value, at: Date.now() });
+  contactFinderCache.set(key, { ...value, foundByUser, at });
   while (contactFinderCache.size > CONTACT_FINDER_CACHE_MAX) contactFinderCache.delete(contactFinderCache.keys().next().value);
 }
 
@@ -8528,37 +8681,66 @@ function publicContact(contact) {
     mx: contact.mx ?? null,
     linkedinUrl: contact.linkedinUrl || '',
     alternatives: contact.alternatives || [],
-    sources: (contact.sources || []).map(source => ({ type: source.type, url: source.url || '', detail: String(source.detail || '').slice(0, 200) })),
+    // 'domaine sans MX', 'MX non vérifiable', 'page confidentialité ou presse'.
+    tags: contact.tags || [],
+    sources: (contact.sources || []).map(source => ({ type: source.type, url: source.url || '', detail: String(source.detail || '').slice(0, 200), ...(source.flag ? { flag: source.flag } : {}) })),
   };
 }
 
 const contactFinderPageFetcher = createPageFetcher({ timeoutMs: 10000 });
 
+// Engines that answered the finder with a challenge or an error rest for
+// its next queries. The scan's own rests (engineBackoff) are read, never
+// written: a finder query does not change how the scan picks its engines.
+const contactFinderEngineRest = createEngineBackoff({ baseMs: 60000 });
+
 /**
  * One web search for the contact finder, through the engines the scan
- * already uses: PinchTab Brave, PinchTab Google, DuckDuckGo, then SearchAPI
- * for site: queries. First engine with a result wins.
+ * already uses: PinchTab Brave, Bing and Google, DuckDuckGo, then SearchAPI
+ * for site: queries, all without the scan's recency window (a LinkedIn
+ * profile or a company home page is rarely re-dated within a week). An
+ * engine resting after a challenge is skipped while another one can answer.
+ * The first engine whose results pass `usable` wins (a list of directories
+ * does not end the search for an official site); when none does, the first
+ * non-empty answer is returned as is.
  */
-async function contactFinderWebSearch(query, { num = 10 } = {}) {
+async function contactFinderWebSearch(query, { num = 10, usable = results => results.length > 0, signal = null, stopAt = 0 } = {}) {
   const name = 'contact-finder';
-  const toResults = section => (section?.jobs || []).map(item => ({ title: item.title || '', url: item.url || '', snippet: item.location || item.remoteEvidence || '' })).filter(item => item.url).slice(0, num);
+  const opts = { freshness: 'none' };
+  const toResults = section => (section?.jobs || []).map(item => ({ title: item.title || '', url: item.url || '', snippet: item.searchSnippet || item.location || item.remoteEvidence || '' })).filter(item => item.url).slice(0, num);
   const engines = [];
   if (!IS_VERCEL) {
-    engines.push(() => fetchPinchtabBraveSection({ name, query }));
-    engines.push(() => fetchPinchtabSearchSection({ name, query }));
+    engines.push({ id: 'brave', pinchtab: true, run: () => fetchPinchtabBraveSection({ name, query }, opts) });
+    engines.push({ id: 'bing', pinchtab: true, run: () => fetchPinchtabBingSection({ name, query }, opts) });
+    engines.push({ id: 'google', pinchtab: true, run: () => fetchPinchtabSearchSection({ name, query }, opts) });
   }
-  if (!localDdgCircuitOpen()) engines.push(() => fetchDuckDuckGoSection({ name, query }));
-  if (/\bsite:/.test(query) && (process.env.SEARCHAPI_KEY || SERPAPI_KEY) && !serpApiCircuitOpen()) engines.push(() => fetchSerpApiSection({ name, query }));
+  if (!localDdgCircuitOpen()) engines.push({ id: 'duckduckgo-html', run: () => fetchDuckDuckGoSection({ name, query }, opts) });
+  if (/\bsite:/.test(query) && (process.env.SEARCHAPI_KEY || SERPAPI_KEY) && !serpApiCircuitOpen()) engines.push({ id: 'searchapi', run: () => fetchSerpApiSection({ name, query }) });
+  const resting = engine => contactFinderEngineRest.cooling(engine.id) || (engine.pinchtab && engineBackoff.cooling(engine.id));
+  const tried = [];
+  let fallback = null;
   for (const engine of engines) {
+    // The modal closed or the finder's deadline passed: no next engine.
+    if (signal?.aborted || (stopAt && Date.now() >= stopAt)) { tried.push(`${engine.id}:stopped`); break; }
+    if (resting(engine) && engines.some(other => other !== engine && !resting(other))) { tried.push(`${engine.id}:resting`); continue; }
     try {
-      const section = await engine();
+      const section = await engine.run();
+      if (engine.id !== 'searchapi' && isWebSearchEngineBlocked(section)) contactFinderEngineRest.fail(engine.id);
       const results = toResults(section);
-      if (results.length) return results;
+      if (results.length) contactFinderEngineRest.ok(engine.id);
+      if (results.length && usable(results)) {
+        console.log(`[contact-finder] "${query.slice(0, 80)}" → ${engine.id}: ${results.length} result(s)`);
+        return results;
+      }
+      tried.push(`${engine.id}:${results.length}${results.length ? ' unusable' : ''}`);
+      if (results.length && !fallback) fallback = { id: engine.id, results };
     } catch (err) {
-      console.warn(`[contact-finder] search engine failed: ${err.message}`);
+      tried.push(`${engine.id}:failed`);
+      console.warn(`[contact-finder] search engine ${engine.id} failed: ${err.message}`);
     }
   }
-  return [];
+  console.log(`[contact-finder] "${query.slice(0, 80)}" → no usable answer (${tried.join(', ') || 'no engine'})${fallback ? `, keeping ${fallback.id}'s ${fallback.results.length}` : ''}`);
+  return fallback ? fallback.results : [];
 }
 
 /**
@@ -8609,7 +8791,8 @@ async function contactFinderJudgePeople(candidates, { company = '', companyText 
     `Which lines are people who work at ${company} as described above, and not at a company with a similar name (for example a games studio when the company sells cybersecurity software)? When the line gives no way to tell, drop it.`,
     'Return JSON only: {"keep":[0,2]}',
   ].join('\n');
-  const raw = await chat({ model: CONTACT_FINDER_MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0, max_tokens: 120 });
+  // 400 tokens: a keep list of 60 indices cut off at 120 failed to parse and kept everyone.
+  const raw = await chat({ model: CONTACT_FINDER_MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0, max_tokens: 400 });
   const match = String(raw || '').match(/\{[\s\S]*\}/);
   if (!match) return candidates.map((_, i) => i);
   try {
@@ -8640,6 +8823,15 @@ async function draftApplicationEmailRequest(body = {}, userId) {
       company: cleanString(body.contact.company).slice(0, 80),
     }
     : null;
+  // The person the employer names (the posting's hiring manager), sent with an
+  // address that has no first name: the closing asks to pass the email on.
+  const forwardTo = body.forwardTo && typeof body.forwardTo === 'object' && cleanString(body.forwardTo.firstName)
+    ? {
+      firstName: cleanString(body.forwardTo.firstName).slice(0, 60),
+      lastName: cleanString(body.forwardTo.lastName).slice(0, 60),
+      title: cleanString(body.forwardTo.title).slice(0, 80),
+    }
+    : null;
   if (recipient && !recipient.valid) return { status: 400, payload: { error: 'Invalid email address' } };
   if (jobUrl && !/^https?:\/\//i.test(jobUrl)) return { status: 400, payload: { error: 'The offer link must start with http(s)://' } };
   if (!recipient && !jobUrl && !pastedJob) return { status: 400, payload: { error: 'Enter an email, an offer link, or both' } };
@@ -8653,12 +8845,19 @@ async function draftApplicationEmailRequest(body = {}, userId) {
   const roleHint = cleanString(body.roleHint).slice(0, 120);
   const companyHint = cleanString(body.companyHint).slice(0, 80);
 
+  // The company's own words as the finder reads them (companyBrief): the meta
+  // description, then the lines of the home page and of /about that are not
+  // navigation. The home page's text alone was menus, phone numbers, and on
+  // alan.com 2900 characters of CSS.
   const fetchCompanyPage = async () => {
     if (givenCompanyText) return givenCompanyText;
     if (!recipient?.websiteUrl) return '';
     try {
-      const page = await contactFinderPageFetcher(recipient.websiteUrl);
-      return page.ok ? textFromFetchedHtml(page.html, recipient.websiteUrl, { maxChars: 3000 }) : '';
+      const [home, about] = await Promise.all([
+        contactFinderPageFetcher(recipient.websiteUrl),
+        contactFinderPageFetcher(`${recipient.websiteUrl}/about`).catch(() => null),
+      ]);
+      return home?.ok ? companyBrief({ home, pages: about?.ok ? [about] : [] }).slice(0, 3000) : '';
     } catch (err) {
       console.warn(`[application-email] company page ${recipient.websiteUrl}: ${err.message}`);
       return '';
@@ -8684,7 +8883,7 @@ async function draftApplicationEmailRequest(body = {}, userId) {
   // account's rules come from its own profile (outreach_rules), and its
   // contact block is never completed with the owner's phone.
   const owner = await ownsLocalData(userId);
-  const [cv, profileData, profileContext, ownerCustom, companyText, job, localProfileRaw] = await Promise.all([
+  const [cv, profileData, profileContext, ownerCustom, companyText, job, localProfileRaw, accountCv] = await Promise.all([
     getCvMarkdown(userId),
     getProfile(userId).catch(() => ({})),
     getProfileContext(userId).catch(() => ''),
@@ -8692,10 +8891,18 @@ async function draftApplicationEmailRequest(body = {}, userId) {
     fetchCompanyPage(),
     fetchJob(),
     owner ? readFile(PROFILE_FILE, 'utf-8').catch(() => '') : '',
+    // The account's apply PDF, as GET /api/profile/apply-cv reads it.
+    readAccountCv(WRITE_ROOT, applyAccountOf(userId)).catch(() => null),
   ]);
   const ownRules = String(profileData?.outreach_rules || '').trim();
   const custom = owner ? ownerCustom : (ownRules ? `### Brand names in outreach\n${ownRules}\n` : '');
   if (!String(cv).trim()) return { status: 400, payload: { error: 'No CV in your profile yet. Import your CV first.' } };
+  // The tracker row's company and role, cleaned: never one of the candidate's
+  // own companies (7 applied rows say "OneAsset"), the role without the
+  // board's page title ("Chess.com hiring … Job in Remote", "- Indeed.com").
+  // contact.company feeds the Reader block when the hint is empty.
+  const offer = cleanOfferIdentity({ company: companyHint, role: roleHint, jobUrl, cv });
+  if (contact) contact.company = safeCompanyHint(cleanOfferIdentity({ company: contact.company, role: roleHint, jobUrl, cv }).company, cv);
   let localProfile = {};
   try { localProfile = localProfileRaw ? yamlLoad(localProfileRaw) || {} : {}; } catch { localProfile = {}; }
   const emailProfile = applyContactFallback(profileWithPortfolio(profileData || {}, cv), localProfile);
@@ -8726,9 +8933,12 @@ async function draftApplicationEmailRequest(body = {}, userId) {
       companyText,
       notes: cleanString(body.notes),
       language: emailLanguage,
-      roleHint,
+      // "Auto" with nothing in French or English to read: the profile's language.
+      profileLanguage: configuredOutputLanguage(profileData),
+      roleHint: offer.role,
       // Never one of the candidate's own companies (a tracker row once said "OneAsset" for a Vertech offer).
-      companyHint: safeCompanyHint(companyHint, cv),
+      companyHint: safeCompanyHint(offer.company, cv),
+      forwardTo,
       log: message => console.log(`[application-email] ${message}`),
     });
   } catch (err) {
@@ -8736,16 +8946,20 @@ async function draftApplicationEmailRequest(body = {}, userId) {
     return { status: 502, payload: { error: `Generation failed: ${err.message}` } };
   }
   if (!draft) return { status: 502, payload: { error: 'The model returned no usable email. Try again.' } };
-  // Nothing read about the company: a sentence describing it is invented.
-  {
-    const blurb = stripUnsourcedCompanyBlurb(draft.body, { company: draft.company || safeCompanyHint(companyHint, cv), sourceText: [job.text, companyText].filter(Boolean).join('\n') });
-    if (blurb.removed.length) { draft.body = blurb.body; draft.removed = [...(draft.removed || []), ...blurb.removed]; }
-  }
+  // The company blurb with no source is cut inside generateApplicationEmail now.
 
+  // The body says the CV is attached, and mailto and Gmail links cannot
+  // attach a file: the page reminds the user and offers the account's PDF.
+  // The owner without an upload applies with the profile's apply_cv.
+  const attachment = { available: Boolean(accountCv), fileName: accountCv?.fileName || '', ownerFallback: !accountCv && owner };
   const warnings = [
+    ...(draft.warnings || []),
     ...draft.removed.map(sentence => `Phrase retirée (fait absent de ton CV) : « ${sentence.slice(0, 140)} »`),
+    ...(draft.cut || []).map(item => `Passage retiré (absent de ton CV) : « ${String(item.clause || '').slice(0, 140)} »`),
+    ...(draft.broken || []).map(sentence => `Phrase retirée (incomplète après les corrections) : « ${sentence.slice(0, 140)} »`),
     ...draft.issues.map(issue => `À vérifier : ${issue}`),
   ];
+  if (!attachment.available && !attachment.ownerFallback) warnings.push('Aucun CV PDF sur votre compte : l\'email dit qu\'il est joint. Générez-le dans Profil.');
   if (jobUrl && !pastedJob && !job.fetched) warnings.push('Could not read the offer page (blocked or empty). Paste the offer text for a more precise email.');
   if (recipient?.websiteUrl && !companyText) warnings.push(`Could not read ${recipient.domain}. The email relies on the offer and your CV only.`);
   if (recipient?.isWebmail) warnings.push('Personal mailbox: the company is not inferred from the domain.');
@@ -8767,6 +8981,7 @@ async function draftApplicationEmailRequest(body = {}, userId) {
         job: job.text ? (pastedJob ? 'pasted' : jobUrl) : '',
         company: companyText ? (recipient?.websiteUrl || 'company page') : '',
       },
+      attachment,
       warnings,
     },
   };
@@ -9328,9 +9543,9 @@ const server = createServer(async (req, res) => {
     if (path === '/api/pipeline') {
       if (method === 'GET') return json(res, await getPipeline(viewOnlyScope(req)));
       if (method === 'POST') {
-        const { url, note } = await readBody(req);
+        const { url, note, force } = await readBody(req);
         if (!url?.startsWith('http')) return json(res, { error: 'Invalid URL' }, 400);
-        const result = await addToPipeline(url, note || '', req.userId);
+        const result = await addToPipeline(url, note || '', req.userId, { force: force === true });
         return json(res, { ok: true, ...result });
       }
       if (method === 'DELETE') {
@@ -9465,6 +9680,22 @@ const server = createServer(async (req, res) => {
         const sel = await readBody(req);
         await saveScanSelection(sel, await scanMemoryOf(req.userId));
         return json(res, { ok: true });
+      }
+    }
+
+    // Find companies: explorer + board resolver on demand (Companies tab button).
+    // GET doubles as the capability probe: `available` is false for accounts that
+    // may not edit the shared portals list, and the button stays hidden for them.
+    if (path === '/api/explore-portals') {
+      const available = await exploreAvailableTo(req);
+      if (method === 'GET') return json(res, { available, ...exploreJobState() });
+      if (method === 'POST') {
+        if (IS_VERCEL) return json(res, { error: 'Finding companies needs the local server.' }, 400);
+        if (!available) return json(res, { error: 'Finding companies is only available on the owner account: it edits the shared portals list.' }, 403);
+        if (exploreJob.running) return json(res, { error: 'Already looking for companies.', ...exploreJobState() }, 409);
+        if (activeScanStreams.size) return json(res, { error: 'A scan is running. It ends with the same search; try again once it is done.', ...exploreJobState() }, 409);
+        runExploreJob(req);
+        return json(res, { ok: true, ...exploreJobState() }, 202);
       }
     }
 
@@ -9793,13 +10024,6 @@ const server = createServer(async (req, res) => {
       if (!report || report.includes('/') || report.includes('..')) {
         return json(res, { error: 'report filename is required' }, 400);
       }
-      // Double-send guard: a run of this offer already clicked Send (confirmed
-      // or not). A queue must never send it again; the user can force it.
-      if (body.force !== true) {
-        const prior = (await latestApplyRunsByReport(req.userId).catch(() => ({})))[report];
-        const block = applyRelaunchBlock(prior);
-        if (block) return json(res, block, 409);
-      }
       try {
         const spec = await buildApplySpec({
           root: ROOT,
@@ -9824,6 +10048,17 @@ const server = createServer(async (req, res) => {
       const report = cleanString(body.report);
       if (!report || report.includes('/') || report.includes('..')) {
         return json(res, { error: 'report filename is required' }, 400);
+      }
+      // Double-send guard: a run of this offer already clicked Send (confirmed or
+      // not), or the tracker shows the posting as sent under this row or another
+      // one with the same URL. A queue must never send it again; a single launch
+      // can force it. (Until 2026-10-31 this sat in /api/apply/preview, where
+      // `body` does not exist, and /start had no guard at all.)
+      if (body.force !== true) {
+        const prior = (await latestApplyRunsByReport(req.userId).catch(() => ({})))[report];
+        const block = applyRelaunchBlock(prior)
+          || await applyTrackerBlockFor({ report, num: body.num, userId: req.userId }).catch(() => null);
+        if (block) return json(res, block, 409);
       }
       try {
         const spec = await buildApplySpec({
@@ -10096,6 +10331,11 @@ const server = createServer(async (req, res) => {
       const wantDraft = urlObj.searchParams.get('draft') !== '0';
       const language = ['fr', 'en'].includes(urlObj.searchParams.get('language')) ? urlObj.searchParams.get('language') : 'auto';
       const notes = cleanString(urlObj.searchParams.get('notes') || '').slice(0, 800);
+      // The company's site as the user typed or picked it (URL or bare
+      // domain), and "Search again" (fresh=1): both skip the cached result.
+      const site = cleanString(urlObj.searchParams.get('site') || '').slice(0, 300);
+      const fresh = urlObj.searchParams.get('fresh') === '1' || Boolean(site);
+      const userKey = req.userId || 'owner';
 
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -10104,8 +10344,30 @@ const server = createServer(async (req, res) => {
       const send = (evt, data) => { try { res.write(`event: ${evt}\ndata: ${JSON.stringify(data)}\n\n`); } catch { /* client gone */ } };
       const heartbeat = setInterval(() => { try { res.write(': ping\n\n'); } catch { /* client gone */ } }, 15000);
       let closed = false;
-      req.on('close', () => { closed = true; clearInterval(heartbeat); });
+      // Closing the modal stops the search: no more pages, searches or model calls.
+      const controller = new AbortController();
+      req.on('close', () => { closed = true; clearInterval(heartbeat); controller.abort(); });
       const finish = () => { clearInterval(heartbeat); if (!closed) res.end(); };
+      // The whole result for the page: contacts, the people found (with or
+      // without an address), the person a shared inbox can forward to, and
+      // the candidate sites when none could be picked.
+      const contactsEvent = (found, extra = {}) => ({
+        company: found.company,
+        contacts: found.contacts.map(publicContact),
+        best: found.best ? publicContact(found.best) : null,
+        people: peopleForPage(found, { max: 30 }),
+        // mention: for the automatic draft to best (null when best is a
+        // named person); forwardTarget: for any shared inbox the user writes
+        // to from the list, whoever best is.
+        mention: pickForwardTarget(found),
+        forwardTarget: pickForwardTarget({ ...found, best: null }),
+        domainChoices: found.domainChoices || [],
+        notes: found.notes,
+        searches: found.searches.length,
+        pagesRead: found.pagesRead,
+        providersUsed: found.providersUsed,
+        ...extra,
+      });
 
       try {
         if (num) {
@@ -10118,6 +10380,21 @@ const server = createServer(async (req, res) => {
         }
         if (jobUrl && !/^https?:\/\//i.test(jobUrl)) jobUrl = '';
         if (!company && !jobUrl) { send('error', { text: 'Il faut au moins le nom de l\'entreprise ou le lien de l\'offre.' }); return finish(); }
+
+        // This user's result for the offer, under 6 h old and searched with
+        // the same company and role: replayed as is, no search and no
+        // automatic draft ("Search again" sends fresh=1).
+        const asked = contactFinderAskedKey(company, role);
+        if (jobUrl && !fresh) {
+          const entry = contactFinderCache.get(normalizeUrl(jobUrl));
+          const mine = entry?.foundByUser?.[userKey];
+          if (mine?.found && Date.now() - mine.at < CONTACT_FINDER_REPLAY_MS && mine.asked === asked) {
+            console.log(`[contact-finder] replaying the result of ${Math.round((Date.now() - mine.at) / 60000)} min ago for ${jobUrl}`);
+            send('contacts', contactsEvent(mine.found, { jobRead: Boolean(entry.jobText), cached: true, at: mine.at }));
+            send('done', { ok: true, cached: true });
+            return finish();
+          }
+        }
 
         send('status', { text: 'Lecture de l\'annonce' });
         let jobText = '';
@@ -10160,37 +10437,44 @@ const server = createServer(async (req, res) => {
           if (!company && !jobUrl) { send('error', { text: 'Entreprise de l\'offre introuvable.' }); return finish(); }
         }
 
+        if (closed) return finish();
         if (!IS_VERCEL && !(await pinchtabIsUp())) {
           const pinchtab = await ensurePinchtabRunning({ waitMs: 15000, log: message => console.log(`[contact-finder] ${message}`), onStart: () => send('status', { text: 'PinchTab éteint, démarrage…' }) });
           if (pinchtab.up) resetPinchtabHealthCache();
         }
 
-        const found = await findContacts({ company, role, jobUrl, jobText, jobHtml, ownEmails }, {
+        const found = await findContacts({ company, role, jobUrl, jobText, jobHtml, ownEmails, companyUrlHint: site }, {
           fetchPage: contactFinderPageFetcher,
           webSearch: contactFinderWebSearch,
           providers: providersFromEnv(),
           extractPeople: contactFinderExtractPeople,
           judgePeople: contactFinderJudgePeople,
+          // 60 s for the searches and pages; past it the run ends with what it has.
+          signal: controller.signal,
+          deadlineMs: 60000,
           log: message => console.log(`[contact-finder] ${message}`),
           onStatus: text => send('status', { text }),
         });
-        if (jobUrl) rememberContactFinderResult(jobUrl, { jobText, jobHtml, jobUnreadable: !jobText, companyText: found.companyText, companyDomain: found.company.domain, found });
-        send('contacts', {
-          company: found.company,
-          contacts: found.contacts.map(publicContact),
-          best: found.best ? publicContact(found.best) : null,
-          notes: found.notes,
-          searches: found.searches.length,
-          pagesRead: found.pagesRead,
-          providersUsed: found.providersUsed,
-          jobRead: Boolean(jobText),
-        });
+        // The page closed mid-run: nothing to send, and a partial result is not kept.
+        if (found.stopped === 'aborted') return finish();
+        if (jobUrl) rememberContactFinderResult(jobUrl, { jobText, jobHtml, jobUnreadable: !jobText, companyText: found.companyText, companyDomain: found.company.domain }, { userKey, found, asked });
+        {
+          const byStatus = {};
+          for (const contact of found.contacts) byStatus[contact.status || 'unknown'] = (byStatus[contact.status || 'unknown'] || 0) + 1;
+          console.log(`[contact-finder] summary ${JSON.stringify({ company: found.company.name, source: found.company.source, confirmed: found.company.confirmed, contacts: byStatus, best: Boolean(found.best), stopped: found.stopped || '', diagnostics: found.diagnostics })}`);
+        }
+        const event = contactsEvent(found, { jobRead: Boolean(jobText) });
+        send('contacts', event);
 
         if (wantDraft && found.best && !closed) {
           send('status', { text: `Rédaction de l'email pour ${found.best.firstName ? `${found.best.firstName}${found.best.lastName ? ` ${found.best.lastName}` : ''}` : found.best.email}` });
+          const mention = event.mention;
           const { status, payload } = await draftApplicationEmailRequest({
             email: found.best.email,
             contact: { ...publicContact(found.best), company: found.company.name || company },
+            // A shared inbox (jobs@) can be asked to pass the email on to the
+            // person the employer names; null when best is a named person.
+            forwardTo: mention ? { firstName: mention.firstName, lastName: mention.lastName, title: mention.title } : null,
             jobUrl,
             // The posting text comes from the cache (just stored), so the
             // draft reports it as fetched, not pasted.
@@ -10225,6 +10509,11 @@ const server = createServer(async (req, res) => {
       const send = (evt, data) => res.write(`event: ${evt}\ndata: ${JSON.stringify(data)}\n\n`);
       const heartbeat = setInterval(() => res.write(': ping\n\n'), 20000);
       req.on('close', () => clearInterval(heartbeat));
+      if (mode === 'scan') {
+        // "Find companies" waits while a scan streams (it shares the search engines).
+        activeScanStreams.add(res);
+        res.on('close', () => activeScanStreams.delete(res));
+      }
 
       try {
         // ── Load context ──────────────────────────────────────────────────
@@ -10455,6 +10744,7 @@ const server = createServer(async (req, res) => {
                 dataDir: join(ROOT, 'data'),
                 config: portalsConfig,
                 offerUrls: seenJobUrls,
+                geoPolicy: geoPolicyFrom(scanLoc),
                 search: async (query) => {
                   const res = await fetchWebSearchSection({ name: `[explorer] ${query}`, query }, null, { patient: true });
                   if (!res || res.skipped || isWebSearchEngineBlocked(res)) return { blocked: true };
@@ -10478,6 +10768,13 @@ const server = createServer(async (req, res) => {
               });
             } catch (err) {
               console.warn(`[scan] [resolver] skipped: ${err.message}`);
+            }
+            // Hosts the scan keeps meeting that nothing reads yet: refresh the shortlist
+            // in data/platform-candidates.json (read-only, PLATFORM_CANDIDATES=0 turns it off).
+            try {
+              await recordPlatformCandidates({ dataDir: join(ROOT, 'data'), portalsPath: PORTALS_FILE });
+            } catch (err) {
+              console.warn(`[scan] [platforms] skipped: ${err.message}`);
             }
           }
           scanUrlPublishedAt = new Map();
@@ -10624,14 +10921,14 @@ const server = createServer(async (req, res) => {
               getProcessedPipelineUrlKeys(dedupScope).catch(() => new Set()),
             ]);
             const knownNormalized = new Set([
-              ...existingPipeline.map(e => normalizeUrlKey(String(e?.url || ''))).filter(Boolean),
-              ...[...existingHistory].map(u => normalizeUrlKey(u)).filter(Boolean),
-              ...[...existingReports].map(u => normalizeUrlKey(u)).filter(Boolean),
-              ...processedKeys,
+              ...existingPipeline.map(e => knownUrlKey(e?.url)).filter(Boolean),
+              ...[...existingHistory].map(u => knownUrlKey(u)).filter(Boolean),
+              ...[...existingReports].map(u => knownUrlKey(u)).filter(Boolean),
+              ...[...processedKeys].map(u => knownUrlKey(u)).filter(Boolean),
             ]);
             const beforeCount = survivors.length;
             const freshCandidates = survivors.filter(c => {
-              const key = c.normalizedUrl || normalizeUrlKey(c.url);
+              const key = knownUrlKey(c.url);
               if (!key || knownNormalized.has(key)) return false;
               if (isCompanyRoleExcluded(c.company || '', c.title || '', companyRoleExclusions)) return false;
               return true;
@@ -11436,19 +11733,19 @@ Règles:
           const currentPipeline = await getPipeline(req.userId).catch(() => []);
           const existingPipelineUrls = new Set(
             currentPipeline
-              .map(entry => normalizeUrlKey(String(entry?.url || '').trim()))
+              .map(entry => knownUrlKey(entry?.url))
               .filter(Boolean)
           );
           const existingHistoryUrls = await getBlockingScanHistoryUrlSet(scanMemory).catch(() => new Set());
-          const processedPipelineKeys = await getProcessedPipelineUrlKeys(req.userId).catch(() => new Set());
+          const processedPipelineKeys = new Set([...await getProcessedPipelineUrlKeys(req.userId).catch(() => new Set())].map(url => knownUrlKey(url)).filter(Boolean));
           const existingReportUrls = await getEvaluatedUrlSet(req.userId, scanMemory).catch(() => new Set());
           const companyRoleExclusions = await getCompanyRoleExclusions(req.userId).catch(() => new Map());
-          const normalizedReportUrls = new Set([...existingReportUrls].map(url => normalizeUrlKey(url)).filter(Boolean));
+          const normalizedReportUrls = new Set([...existingReportUrls].map(url => knownUrlKey(url)).filter(Boolean));
           const isKnown = (url, note = '') => {
-            const key = normalizeUrlKey(url);
+            const key = knownUrlKey(url);
             if (existingPipelineUrls.has(key) || existingHistoryUrls.has(key) || normalizedReportUrls.has(key) || processedPipelineKeys.has(key)) return true;
             const parts = extractPipelineNoteParts(note);
-            const candidate = candidateUrlIndex.get(url) || candidateUrlIndex.get(key);
+            const candidate = candidateUrlIndex.get(url) || candidateUrlIndex.get(normalizeUrlKey(url));
             return isCompanyRoleExcluded(
               parts.company || candidate?.company || '',
               parts.title || candidate?.title || '',

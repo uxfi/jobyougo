@@ -1545,6 +1545,16 @@
   .cf-section-title { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-4); margin: 4px 0 0; }
   .cf-manual { display: flex; gap: 8px; align-items: flex-end; }
   .cf-manual .add-form-field { flex: 1; }
+  .cf-alts { grid-column: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 11.5px; color: var(--text-4); }
+  .cf-alts .btn { font-family: var(--font-mono); font-size: 11.5px; }
+  .cf-forward { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-3); overflow-wrap: anywhere; }
+  .cf-people { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .cf-people li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: 12px; color: var(--text-4); overflow-wrap: anywhere; }
+  .cf-people .cf-name { font-size: 13px; }
+  .cf-people a { color: var(--text-3); }
+  .cf-site { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .cf-site-hint { font-weight: 400; color: var(--text-4); }
+  .cf-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12px; color: var(--text-3); }
   .cf-footer-options { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-right: auto; }
   .cf-footer-options select { height: 32px; }
   #contact-modal .email-result { border-top: none; padding-top: 0; }
@@ -1617,6 +1627,14 @@
     margin-bottom: 12px;
   }
   .portals-toolbar .filter-bar { flex: 1; width: auto; }
+  /* "Find companies": the label turns into a spinner while the server searches */
+  .btn[hidden], .explore-status[hidden] { display: none; }
+  .explore-status { margin: -2px 2px 12px; max-width: 90ch; font-size: 12.5px; line-height: 1.5; color: var(--text-3); }
+  .explore-status.is-error { color: var(--danger-ink-2); }
+  .explore-spin { display: none; }
+  #explore-portals-btn.is-running svg { display: none; }
+  #explore-portals-btn.is-running .explore-spin { display: inline-block; animation: spin 0.8s linear infinite; }
+  @media (prefers-reduced-motion: reduce) { #explore-portals-btn.is-running .explore-spin { animation: none; } }
   .row-actions { display: inline-flex; gap: 4px; }
   .row-actions .btn-icon.is-danger:hover { color: var(--bad); border-color: rgba(var(--danger-rgb),0.3); background: rgba(var(--danger-rgb),0.08); }
   .scan-state {
@@ -4747,11 +4765,17 @@
       <div id="tab-companies">
         <div class="portals-toolbar">
           <div class="filter-bar" id="portals-filters"></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="explore-portals-btn" hidden title="Look for new companies hiring in your field on public job boards, and add them to this list">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.4" stroke="currentColor" stroke-width="1.6"/><path d="M10 10l3.2 3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span class="explore-spin" aria-hidden="true">↻</span>
+            <span id="explore-portals-label">Find companies</span>
+          </button>
           <button class="btn btn-primary btn-sm" id="add-portal-btn">
             <svg width="12" height="12" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             Add
           </button>
         </div>
+        <p class="explore-status" id="explore-status" role="status" aria-live="polite" hidden></p>
         <div class="list-bar" id="portals-list-bar"></div>
         <div class="portal-groups" id="portals-groups"></div>
       </div>
@@ -5623,12 +5647,24 @@
       <div id="cf-results" hidden>
         <p class="cf-section-title">Contacts</p>
         <div class="cf-list" id="cf-list"></div>
+        <p class="cf-forward" id="cf-forward" hidden></p>
         <div class="cf-manual">
           <div class="add-form-field">
             <label class="add-form-label" for="cf-manual-email">Or write to another address</label>
             <input type="email" id="cf-manual-email" placeholder="prenom.nom@entreprise.com" autocomplete="off" spellcheck="false" inputmode="email">
           </div>
           <button class="btn btn-ghost" id="cf-manual-btn">Write</button>
+        </div>
+        <div id="cf-people" hidden>
+          <p class="cf-section-title">People without a confirmed address</p>
+          <ul class="cf-people" id="cf-people-list"></ul>
+        </div>
+        <div class="cf-site">
+          <div class="add-form-field">
+            <label class="add-form-label" for="cf-site-input">Company site <span class="cf-site-hint">wrong or missing? Type it, then Search again</span></label>
+            <input type="text" id="cf-site-input" placeholder="entreprise.com" autocomplete="off" spellcheck="false" inputmode="url">
+          </div>
+          <div class="cf-choices" id="cf-site-choices" hidden></div>
         </div>
       </div>
       <div id="cf-draft" class="email-result" hidden>
@@ -6321,6 +6357,29 @@ async function api(path, opts = {}) {
   return payload;
 }
 
+// Adds a URL to the pipeline. The server refuses an offer the tracker already
+// holds (evaluated, or the same employer and role under another URL); the user
+// may add it anyway, which buys a new evaluation. { declined: true } when they
+// say no.
+async function postPipelineUrl(url, note) {
+  const send = (force) => api('/api/pipeline', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(force ? { url, note, force: true } : { url, note }),
+  });
+  const result = await send(false);
+  if (!result?.known) return result;
+  const row = result.existing || {};
+  const label = [row.num ? `#${row.num}` : '', displayStatus(row.status)].filter(Boolean).join(' · ');
+  const what = result.reason === 'tracked'
+    ? `${[row.company, row.role].filter(Boolean).join(' · ') || 'Cette offre'} est déjà suivie`
+    : 'Cette offre est déjà évaluée';
+  if (!confirm(`${what}${label ? ` (${label})` : ''}.\n\nL'ajouter quand même ? Elle sera évaluée une nouvelle fois.`)) {
+    return { ...result, declined: true };
+  }
+  return send(true);
+}
+
 // ─── Paid placements (config/monetization.yml) ────────────────────────────────
 // Sponsor cards, sponsored jobs and affiliate links render as plain labelled
 // links. Sponsored jobs never enter the pipeline: their links pay per real
@@ -6512,6 +6571,7 @@ window.loadAll = async function loadAll() {
   renderAll();
   loadSponsoredJobs();
   void refreshLastApplyRuns();
+  void pollExplore();
   const sync = document.getElementById('topbar-sync');
   if (sync) {
     sync.textContent = `Synced ${new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date())}`;
@@ -8196,9 +8256,9 @@ function openAutoApplyModal(app) {
       try {
         r = await api('/api/apply/start', { method: 'POST', body: JSON.stringify(startBody) });
       } catch (err) {
-        // An earlier run of this offer already clicked Send: never send twice
-        // on a queue; a single launch asks first.
-        if (chain || !/already sent/i.test(String(err?.message || ''))
+        // An earlier run of this offer already clicked Send, or the tracker shows
+        // it as applied: never send twice on a queue; a single launch asks first.
+        if (chain || !/already (sent|applied)/i.test(String(err?.message || ''))
           || !confirm(`${err.message}\n\nLaunch a new application anyway?`)) throw err;
         r = await api('/api/apply/start', { method: 'POST', body: JSON.stringify({ ...startBody, force: true }) });
       }
@@ -8824,7 +8884,8 @@ document.addEventListener('click', async (event) => {
   try {
     // "company | title" keeps the offer's identity (lib/pipeline-record.mjs).
     const note = drop.title ? `${drop.company || '?'} | ${drop.title}` : '';
-    await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
+    const readded = await postPipelineUrl(url, note);
+    if (readded?.declined) { button.disabled = false; return; }
     state.pipeline = await api('/api/pipeline').catch(() => state.pipeline);
     renderPipeline();
     renderPipelineDrops();
@@ -9287,7 +9348,8 @@ document.getElementById('quick-add-btn').addEventListener('click', async () => {
   const note = document.getElementById('quick-note').value.trim();
   if (!url.startsWith('http')) { toast('Please enter a valid URL', true); return; }
   try {
-    const result = await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
+    const result = await postPipelineUrl(url, note);
+    if (result?.declined) { toast('Ajout annulé'); return; }
     toast(result?.duplicate ? 'Cette URL est déjà dans le pipeline' : 'Ajoutée en haut du pipeline');
     if (!result?.duplicate) {
       document.getElementById('quick-url').value = '';
@@ -9302,14 +9364,66 @@ document.getElementById('quick-add-btn').addEventListener('click', async () => {
 });
 
 // ─── Application email (standalone: recipient and/or offer link) ─────────────
-function emailComposeLinks() {
-  const to = document.getElementById('email-to').value.trim().replace(/^.*<([^>]+)>.*$/, '$1');
-  const subject = document.getElementById('email-subject').value;
-  const body = document.getElementById('email-body').value;
-  const q = [subject && `subject=${encodeURIComponent(subject)}`, body && `body=${encodeURIComponent(body)}`].filter(Boolean).join('&');
-  document.getElementById('email-mailto-btn').href = `mailto:${encodeURIComponent(to).replace(/%40/g, '@')}${q ? `?${q}` : ''}`;
+// The send links of both email modals. In the mailto link, line breaks are
+// %0D%0A (RFC 6068). Past 1900 characters a mail app may cut the body (a
+// French draft often passes 2000: each accent is 6 characters), so the link
+// opens with the subject only and the click copies the body to paste.
+const MAILTO_MAX = 1900;
+function setComposeLinks({ to, subject, body, mailtoBtn, gmailBtn }) {
+  const address = encodeURIComponent(to).replace(/%40/g, '@');
+  const subjectPart = subject ? `subject=${encodeURIComponent(subject)}` : '';
+  const q = [subjectPart, body && `body=${encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))}`].filter(Boolean).join('&');
+  const href = `mailto:${address}${q ? `?${q}` : ''}`;
+  const long = href.length > MAILTO_MAX;
+  mailtoBtn.href = long ? `mailto:${address}${subjectPart ? `?${subjectPart}` : ''}` : href;
+  mailtoBtn.title = long ? 'Long email: the body is copied, paste it into the message' : '';
+  mailtoBtn.onclick = long
+    ? () => { navigator.clipboard.writeText(body).then(() => toast('Body copied: paste it into the message'), () => toast('Could not copy the body: use Copy, then paste it', true)); }
+    : null;
   const gmail = new URLSearchParams({ view: 'cm', fs: '1', to, su: subject, body });
-  document.getElementById('email-gmail-btn').href = `https://mail.google.com/mail/?${gmail}`;
+  gmailBtn.href = `https://mail.google.com/mail/?${gmail}`;
+}
+
+// "Attach before sending": the body says the CV is attached, and neither
+// link can carry a file. The account's PDF downloads with the auth header.
+function renderEmailAttachment(resultEl, attachment) {
+  let row = resultEl.querySelector('.email-attach');
+  if (!row) {
+    row = document.createElement('p');
+    row.className = 'cf-forward email-attach';
+    resultEl.querySelector('.email-actions').before(row);
+  }
+  row.hidden = !attachment;
+  if (!attachment) return;
+  row.innerHTML = attachment.available
+    ? `Attach before sending: <strong>${escapeHtml(attachment.fileName)}</strong> <button type="button" class="btn btn-ghost btn-xs">Download</button>`
+    : 'Attach your CV PDF before sending.';
+  row.querySelector('button')?.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/profile/apply-cv/file', { headers: window.__authToken ? { Authorization: `Bearer ${window.__authToken}` } : {} });
+      if (!res.ok) throw new Error('Could not download the PDF');
+      const url = URL.createObjectURL(await res.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.fileName || 'CV.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast(err?.message || 'Could not download the PDF', true);
+    }
+  });
+}
+
+function emailComposeLinks() {
+  setComposeLinks({
+    to: document.getElementById('email-to').value.trim().replace(/^.*<([^>]+)>.*$/, '$1'),
+    subject: document.getElementById('email-subject').value,
+    body: document.getElementById('email-body').value,
+    mailtoBtn: document.getElementById('email-mailto-btn'),
+    gmailBtn: document.getElementById('email-gmail-btn'),
+  });
 }
 
 function openEmailModal({ email = '', jobUrl = '' } = {}) {
@@ -9369,6 +9483,7 @@ document.getElementById('email-generate-btn').addEventListener('click', async ()
       target && `Adapted for ${target}`,
       used.length ? `from ${used.join(' + ')}` : 'from your CV only',
     ].filter(Boolean).join(' ');
+    renderEmailAttachment(document.getElementById('email-result'), draft.attachment);
     document.getElementById('email-result').hidden = false;
     emailComposeLinks();
     document.getElementById('email-body').focus();
@@ -9430,13 +9545,13 @@ function cfRenderSteps(active, { done = false } = {}) {
 }
 
 function cfComposeLinks() {
-  const to = cfContext?.to || '';
-  const subject = document.getElementById('cf-subject').value;
-  const body = document.getElementById('cf-body').value;
-  const q = [subject && `subject=${encodeURIComponent(subject)}`, body && `body=${encodeURIComponent(body)}`].filter(Boolean).join('&');
-  document.getElementById('cf-mailto-btn').href = `mailto:${encodeURIComponent(to).replace(/%40/g, '@')}${q ? `?${q}` : ''}`;
-  const gmail = new URLSearchParams({ view: 'cm', fs: '1', to, su: subject, body });
-  document.getElementById('cf-gmail-btn').href = `https://mail.google.com/mail/?${gmail}`;
+  setComposeLinks({
+    to: cfContext?.to || '',
+    subject: document.getElementById('cf-subject').value,
+    body: document.getElementById('cf-body').value,
+    mailtoBtn: document.getElementById('cf-mailto-btn'),
+    gmailBtn: document.getElementById('cf-gmail-btn'),
+  });
 }
 
 function cfContactName(contact) {
@@ -9445,21 +9560,51 @@ function cfContactName(contact) {
   return contact.kind === 'hiring' ? 'Hiring inbox' : contact.kind === 'generic' ? 'Company inbox' : contact.email;
 }
 
+const CF_SOURCE_LABEL = { posting: 'in the posting', site: 'on the company site', search: 'LinkedIn (web search)', theorg: 'TheOrg org chart' };
+// The finder's tags on an address (French on the server), in the page's words.
+const CF_TAG_LABEL = { 'domaine sans MX': 'domain receives no mail', 'MX non vérifiable': 'mail server not checked', 'page confidentialité ou presse': 'only on a privacy or press page' };
+
 function cfSourceLine(contact) {
   const parts = [];
   for (const source of contact.sources || []) {
-    const label = source.type === 'posting' ? 'in the posting'
-      : source.type === 'site' ? 'on the company site'
-        : source.type === 'search' ? 'LinkedIn (web search)'
-          : source.type === 'provider' ? `via ${escapeHtml(source.url)}`
-            : source.type === 'pattern' ? escapeHtml(source.detail || 'pattern')
-              : escapeHtml(source.type);
+    const label = CF_SOURCE_LABEL[source.type]
+      || (source.type === 'provider' ? `via ${escapeHtml(source.url)}`
+        : source.type === 'pattern' ? escapeHtml(source.detail || 'pattern')
+          : escapeHtml(source.type));
     const href = /^https?:\/\//.test(source.url || '') ? source.url : '';
     parts.push(href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${label}</a>` : label);
   }
-  if (contact.mx === false) parts.push('domain receives no mail');
-  if (contact.alternatives?.length) parts.push(`also try ${contact.alternatives.map(escapeHtml).join(', ')}`);
+  const tags = contact.tags?.length ? contact.tags : contact.mx === false ? ['domaine sans MX'] : [];
+  for (const tag of tags) parts.push(escapeHtml(CF_TAG_LABEL[tag] || tag));
   return parts.join(' · ');
+}
+
+// "found 25 min ago" / "found 3 h ago" for a replayed result.
+function cfFoundAgo(at) {
+  const minutes = Math.max(0, Math.round((Date.now() - Number(at)) / 60000));
+  return minutes < 60 ? `found ${minutes} min ago` : `found ${Math.round(minutes / 60)} h ago`;
+}
+
+// One person found without an address: name, title, role, where they were
+// found, LinkedIn. A role only a search query suggested ends with "?".
+function cfPersonLine(person) {
+  const name = [person.firstName, person.lastName].filter(Boolean).join(' ');
+  const confirmed = person.persona && person.persona !== 'unknown';
+  const role = confirmed ? CF_PERSONA_LABEL[person.persona] || person.persona
+    : person.queryPersona ? `${CF_PERSONA_LABEL[person.queryPersona] || person.queryPersona}?` : '';
+  const roleTip = !confirmed && person.queryPersona ? ' title="Found by a search for this role; nothing confirms it."' : '';
+  const where = (person.sources || []).filter(type => type !== 'search').map((type, index) => {
+    const label = escapeHtml(CF_SOURCE_LABEL[type] || type);
+    return index === 0 && /^https?:\/\//.test(person.sourceUrl || '') ? `<a href="${escapeHtml(person.sourceUrl)}" target="_blank" rel="noopener">${label}</a>` : label;
+  });
+  if (/^https?:\/\//.test(person.linkedinUrl || '')) where.push(`<a href="${escapeHtml(person.linkedinUrl)}" target="_blank" rel="noopener">LinkedIn</a>`);
+  else if ((person.sources || []).includes('search')) where.push('web search');
+  return `<li>
+    <span class="cf-name">${escapeHtml(name)}</span>
+    ${person.title ? `<span class="cf-title">${escapeHtml(person.title)}</span>` : ''}
+    ${role ? `<span class="cf-tag is-persona"${roleTip}>${escapeHtml(role)}</span>` : ''}
+    ${where.length ? `<span>${where.join(' · ')}</span>` : ''}
+  </li>`;
 }
 
 function cfRenderContacts(data) {
@@ -9467,11 +9612,13 @@ function cfRenderContacts(data) {
   const company = data.company || {};
   const site = company.website || (company.domain ? `https://${company.domain}` : '');
   document.getElementById('cf-company').innerHTML = [
-    company.name ? `<strong>${escapeHtml(company.name)}</strong>` : '',
-    site ? `<a href="${escapeHtml(site)}" target="_blank" rel="noopener">${escapeHtml(site.replace(/^https?:\/\//, ''))}</a>` : 'site not found',
+    // The offer's ATS account named another employer than the tracker row.
+    company.name ? `<strong>${escapeHtml(company.name)}</strong>${company.overridden ? ` instead of “${escapeHtml(company.overridden)}” (named by the offer's ATS account)` : ''}` : '',
+    site ? `<a href="${escapeHtml(site)}" target="_blank" rel="noopener">${escapeHtml(site.replace(/^https?:\/\//, ''))}</a>${company.confirmed === false ? ' (not confirmed)' : ''}` : 'site not found',
     data.pagesRead?.length ? `${data.pagesRead.length} page${data.pagesRead.length > 1 ? 's' : ''} read` : '',
     data.searches ? `${data.searches} web search${data.searches > 1 ? 'es' : ''}` : '',
     data.providersUsed?.length ? `enrichment: ${data.providersUsed.map(escapeHtml).join(', ')}` : '',
+    data.cached && data.at ? cfFoundAgo(data.at) : '',
   ].filter(Boolean).join(' · ');
   // Keep the warnings streamed earlier (unreadable posting…), add the finder's notes.
   document.getElementById('cf-notes').innerHTML += (data.notes || []).map(note => `<p>${escapeHtml(note)}</p>`).join('');
@@ -9492,12 +9639,33 @@ function cfRenderContacts(data) {
         </div>
         <div class="cf-email">${escapeHtml(contact.email)}</div>
         <div class="cf-meta">${cfSourceLine(contact)}</div>
+        ${contact.alternatives?.length ? `<div class="cf-alts">Also try ${contact.alternatives.map((alt, altIndex) => `<button type="button" class="btn btn-ghost btn-xs" data-cf-alt="${index}:${altIndex}" title="Write to this address">${escapeHtml(alt)}</button>`).join('')}</div>` : ''}
         <div class="cf-actions">
           <button type="button" class="btn btn-ghost btn-sm" data-cf-write="${index}">${best && cfContext?.draftRequested ? 'Rewrite' : 'Write to'}</button>
         </div>
       </div>`;
     }).join('');
   }
+  // The person an email to a shared inbox can ask to pass it on to, even
+  // when the best contact is a named person (forwardTarget ignores best).
+  const forward = document.getElementById('cf-forward');
+  const mention = data.forwardTarget || data.mention;
+  forward.hidden = !mention;
+  forward.innerHTML = mention
+    ? `For a shared inbox, the email can ask to pass it on to <strong>${escapeHtml([mention.firstName, mention.lastName].filter(Boolean).join(' '))}</strong>${mention.title ? `, ${escapeHtml(mention.title)}` : ''} (${mention.source === 'posting' ? 'named in the posting' : 'named on the company site'}).`
+    : '';
+  // People found with no address of their own (a guessed one already has a card).
+  const people = (data.people || []).filter(person => !person.hasAddress);
+  document.getElementById('cf-people').hidden = !people.length;
+  document.getElementById('cf-people-list').innerHTML = people.map(cfPersonLine).join('');
+  // Several sites carry the company's name: one click searches that one.
+  const choices = data.domainChoices || [];
+  const choiceBox = document.getElementById('cf-site-choices');
+  choiceBox.hidden = !choices.length;
+  choiceBox.innerHTML = choices.length
+    ? `<span>Several sites carry this name:</span>${choices.map(choice => `<button type="button" class="btn btn-ghost btn-xs" data-cf-site="${escapeHtml(choice.domain)}"${choice.title ? ` title="${escapeHtml(choice.title)}"` : ''}>${escapeHtml(choice.domain)}</button>`).join('')}`
+    : '';
+  document.getElementById('cf-site-input').placeholder = company.domain || 'entreprise.com';
   document.getElementById('cf-results').hidden = false;
 }
 
@@ -9513,6 +9681,7 @@ function cfRenderDraft(draft, contact) {
     draft.sources?.company && 'company site',
   ].filter(Boolean);
   document.getElementById('cf-sources').textContent = [target && `Adapted for ${target}`, used.length ? `from ${used.join(' + ')}` : 'from your CV only'].filter(Boolean).join(' ');
+  renderEmailAttachment(document.getElementById('cf-draft'), draft.attachment);
   document.getElementById('cf-draft').hidden = false;
   cfComposeLinks();
   document.getElementById('cf-draft').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -9524,10 +9693,19 @@ function cfStop() {
   document.getElementById('cf-search-btn').textContent = 'Search again';
 }
 
-function cfRun({ draft = true } = {}) {
+// fresh: "Search again" (the server's cached result is skipped). Each run has
+// its id: events of an older run, and an automatic draft older than a draft
+// the user asked for during this run, are dropped.
+let cfRunSeq = 0;
+function cfRun({ draft = true, fresh = false } = {}) {
   if (!cfContext) return;
   cfStop();
+  const runId = ++cfRunSeq;
+  const runAt = Date.now();
+  cfContext.runId = runId;
+  cfContext.manualDraftAt = 0;
   cfContext.draftRequested = draft;
+  const current = () => Boolean(cfContext) && cfContext.runId === runId;
   const btn = document.getElementById('cf-search-btn');
   btn.disabled = true;
   btn.textContent = 'Searching…';
@@ -9546,6 +9724,9 @@ function cfRun({ draft = true } = {}) {
     draft: draft ? '1' : '0',
     language: document.getElementById('cf-language').value,
     notes: document.getElementById('cf-notes-input').value.trim(),
+    // The company's site as the user typed or picked it (URL or bare domain).
+    site: document.getElementById('cf-site-input').value.trim(),
+    fresh: fresh ? '1' : '',
   }).forEach(([key, value]) => { if (value) url.searchParams.set(key, value); });
   if (window.__authToken) url.searchParams.set('_token', window.__authToken);
 
@@ -9565,14 +9746,24 @@ function cfRun({ draft = true } = {}) {
     notes.innerHTML += `<p>${escapeHtml(text)}</p>`;
   });
   es.addEventListener('contacts', e => {
+    if (!current()) return;
     const data = JSON.parse(e.data);
     cfContext.best = data.best;
+    // The employer the finder settled on (a tracker row can name the
+    // candidate's own company) and the person a shared inbox can forward
+    // to: both go with every "Write to".
+    cfContext.resolvedCompany = data.company?.name || '';
+    cfContext.mention = data.forwardTarget || data.mention || null;
+    // A replayed result comes without an automatic draft.
+    if (data.cached) cfContext.draftRequested = false;
     cfRenderContacts(data);
-    cfRenderSteps(draft && data.best ? 'draft' : 'verify', { done: !(draft && data.best) });
+    const drafting = Boolean(cfContext.draftRequested && data.best);
+    cfRenderSteps(drafting ? 'draft' : 'verify', { done: !drafting });
   });
   es.addEventListener('draft', e => {
-    // The user already asked for another contact's draft: keep theirs.
-    if (cfContext?.manualDraftAt) return;
+    // Another run's draft, or the user already asked for another contact's
+    // draft during this run: keep theirs.
+    if (!current() || cfContext.manualDraftAt > runAt) return;
     cfRenderDraft(JSON.parse(e.data), cfContext.best);
   });
   es.addEventListener('done', () => {
@@ -9589,44 +9780,58 @@ function cfRun({ draft = true } = {}) {
   });
 }
 
-async function cfWriteTo(contact, { manual = false } = {}) {
+// button: the control that asked (an alternative address has its own).
+async function cfWriteTo(contact, { manual = false, button = null } = {}) {
   if (!cfContext) return;
-  // The draft belongs to the offer open now: if another offer's modal is
-  // opened before it comes back, it is dropped instead of rendered there.
+  // The draft belongs to the offer and the search open now: if another
+  // offer's modal is opened, or a new search started, before it comes back,
+  // it is dropped instead of rendered there.
   const ctx = cfContext;
+  const runId = ctx.runId;
   ctx.manualDraftAt = Date.now();
-  const btn = manual ? document.getElementById('cf-manual-btn') : document.querySelector(`[data-cf-write="${cfContacts.indexOf(contact)}"]`);
+  const btn = button || (manual ? document.getElementById('cf-manual-btn') : document.querySelector(`[data-cf-write="${cfContacts.indexOf(contact)}"]`));
+  const label = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Writing…'; }
+  // The employer the finder resolved, never the tracker's raw name when it has one.
+  const company = ctx.resolvedCompany || ctx.company;
+  // An address with no first name (jobs@, contact@, a typed one) can be
+  // asked to pass the email on to the person the employer names.
+  const forwardTo = !contact.firstName && ctx.mention
+    ? { firstName: ctx.mention.firstName, lastName: ctx.mention.lastName, title: ctx.mention.title }
+    : null;
   try {
     const draft = await api('/api/application-email', {
       method: 'POST',
       body: JSON.stringify({
         email: contact.email,
-        contact: manual ? null : { firstName: contact.firstName, lastName: contact.lastName, title: contact.title, persona: contact.persona, company: ctx.company },
+        contact: manual ? null : { firstName: contact.firstName, lastName: contact.lastName, title: contact.title, persona: contact.persona, company },
+        ...(forwardTo ? { forwardTo } : {}),
         jobUrl: ctx.jobUrl,
         roleHint: ctx.role,
-        companyHint: ctx.company,
+        companyHint: company,
         language: document.getElementById('cf-language').value,
         notes: document.getElementById('cf-notes-input').value.trim(),
       }),
     });
-    if (cfContext !== ctx) return;
+    if (cfContext !== ctx || ctx.runId !== runId) return;
     cfRenderDraft(draft, contact);
   } catch (err) {
     if (cfContext === ctx) toast(err.message || 'Email generation failed', true);
   } finally {
-    if (btn && document.contains(btn)) { btn.disabled = false; btn.textContent = manual ? 'Write' : 'Write to'; }
+    if (btn && document.contains(btn)) { btn.disabled = false; btn.textContent = label || (manual ? 'Write' : 'Write to'); }
   }
 }
 
 function openContactModal({ num = '', company = '', role = '', jobUrl = '' } = {}) {
-  cfContext = { num, company, role, jobUrl, best: null, to: '' };
+  cfContext = { num, company, role, jobUrl, best: null, to: '', runId: 0, manualDraftAt: 0, resolvedCompany: '', mention: null };
   cfContacts = [];
   document.getElementById('contact-modal-title').textContent = 'Find a contact & write';
   document.getElementById('contact-modal-sub').textContent = [company, role].filter(Boolean).join(' — ');
   document.getElementById('cf-manual-email').value = '';
   document.getElementById('cf-notes-input').value = '';
+  document.getElementById('cf-site-input').value = '';
   document.getElementById('contact-modal').classList.add('open');
+  // A result found for this offer in the last 6 h is replayed by the server.
   cfRun({ draft: true });
 }
 
@@ -9637,12 +9842,31 @@ document.getElementById('contact-modal-close').addEventListener('click', () => {
 document.getElementById('contact-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) { cfStop(); e.currentTarget.classList.remove('open'); }
 });
-document.getElementById('cf-search-btn').addEventListener('click', () => cfRun({ draft: true }));
+document.getElementById('cf-search-btn').addEventListener('click', () => cfRun({ draft: true, fresh: true }));
 document.getElementById('cf-list').addEventListener('click', e => {
+  // Another spelling of the same person's address: name, title and persona stay.
+  const alt = e.target.closest('[data-cf-alt]');
+  if (alt) {
+    const [index, altIndex] = alt.dataset.cfAlt.split(':').map(Number);
+    const contact = cfContacts[index];
+    const email = contact?.alternatives?.[altIndex];
+    if (email) cfWriteTo({ ...contact, email }, { button: alt });
+    return;
+  }
   const button = e.target.closest('[data-cf-write]');
   if (!button) return;
   const contact = cfContacts[Number(button.dataset.cfWrite)];
   if (contact) cfWriteTo(contact);
+});
+// A site among several that carry the company's name, or one typed: search again on it.
+document.getElementById('cf-site-choices').addEventListener('click', e => {
+  const choice = e.target.closest('[data-cf-site]');
+  if (!choice) return;
+  document.getElementById('cf-site-input').value = choice.dataset.cfSite;
+  cfRun({ draft: true, fresh: true });
+});
+document.getElementById('cf-site-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('cf-search-btn').disabled) cfRun({ draft: true, fresh: true });
 });
 document.getElementById('cf-manual-btn').addEventListener('click', () => {
   const email = document.getElementById('cf-manual-email').value.trim();
@@ -9913,6 +10137,104 @@ function openPortalModal(existing = null) {
 }
 
 document.getElementById('add-portal-btn').addEventListener('click', () => openPortalModal());
+
+// ─── Find companies (Companies tab) ───────────────────────────────────────────
+// Runs the ATS explorer and the board resolver on the server (POST
+// /api/explore-portals), polls its state, then reloads the list. The server
+// says whether this account may use it (it edits the shared portals list).
+const EXPLORE_PHASE_LABEL = {
+  start: 'Starting…',
+  history: 'Reading your scan history…',
+  search: 'Waking the search engine…',
+  explore: 'Checking public job boards…',
+  resolve: 'Matching tracked companies to their public boards…',
+};
+const EXPLORE_REASON_LABEL = {
+  no_matching_role: 'no role that matches your profile',
+  no_tech_product_role: 'no role that matches your profile',
+  empty_board: 'no open role',
+  http_404: 'no public board at that address',
+  no_reachable_location: 'no location you can work from',
+  agency_or_job_board: 'a recruiter or a job board',
+  ambiguous_slug: 'a name too generic to trust',
+};
+let explorePollTimer = null;
+let exploreWasRunning = false;
+
+function exploreNames(names) {
+  const list = (names || []).filter(Boolean);
+  return list.slice(0, 5).join(', ') + (list.length > 5 ? ` and ${formatNumber(list.length - 5)} more` : '');
+}
+
+function exploreSummary(r) {
+  if (r.disabled) return 'Exploration is switched off (ats_explorer.enabled in portals.yml, or ATS_EXPLORER=0).';
+  const company = n => (n === 1 ? 'company' : 'companies');
+  const parts = [
+    r.added ? `${formatNumber(r.added)} ${company(r.added)} added` : 'No new company added',
+    ...(r.resolved ? [`${formatNumber(r.resolved)} ${company(r.resolved)} moved to their public board`] : []),
+    ...(r.removed ? [`${formatNumber(r.removed)} dead ${r.removed === 1 ? 'board' : 'boards'} removed`] : []),
+    `${formatNumber(r.checked)} ${r.checked === 1 ? 'board' : 'boards'} checked`,
+  ];
+  let text = parts.join(' · ');
+  const names = [...(r.addedNames || []), ...(r.resolvedNames || [])];
+  if (names.length) text += `: ${exploreNames(names)}`;
+  if (!r.added && r.checked) {
+    const top = Object.entries(r.rejected || {}).sort((a, b) => b[1] - a[1])[0];
+    if (top && EXPLORE_REASON_LABEL[top[0]]) text += `. Most boards had ${EXPLORE_REASON_LABEL[top[0]]}`;
+  }
+  if (!r.searched) text += '. Web search was unavailable, so only your scan history was read';
+  else if (r.blocked) text += '. The search engine paused part-way';
+  return `${text}.`;
+}
+
+function renderExplore(s) {
+  const btn = document.getElementById('explore-portals-btn');
+  const note = document.getElementById('explore-status');
+  btn.hidden = !s.available;
+  btn.disabled = Boolean(s.running);
+  btn.classList.toggle('is-running', Boolean(s.running));
+  document.getElementById('explore-portals-label').textContent = s.running ? 'Searching…' : 'Find companies';
+  let text = '';
+  if (s.running) text = EXPLORE_PHASE_LABEL[s.phase] || 'Working…';
+  else if (s.error) text = s.error;
+  else if (s.result && s.finishedAt) {
+    const when = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(s.finishedAt));
+    text = `Last run ${when} · ${exploreSummary(s.result)}`;
+  }
+  note.textContent = text;
+  note.classList.toggle('is-error', Boolean(s.error) && !s.running);
+  note.hidden = !s.available || !text;
+}
+
+async function pollExplore() {
+  clearTimeout(explorePollTimer);
+  let s;
+  try { s = await api('/api/explore-portals'); } catch { return; } // no server answer: leave the button as it is
+  const justFinished = exploreWasRunning && !s.running;
+  exploreWasRunning = Boolean(s.running);
+  renderExplore(s);
+  if (s.running) { explorePollTimer = setTimeout(pollExplore, 2500); return; }
+  if (!justFinished) return;
+  try { state.portals = await api('/api/portals'); } catch { /* the next refresh reloads it */ }
+  renderPortals();
+  renderDashboard(); // its "ready to scan" line counts enabled sources
+  toast(s.error ? `Error: ${s.error}` : (s.result ? exploreSummary(s.result).split(':')[0] : 'Search finished'), Boolean(s.error));
+}
+
+document.getElementById('explore-portals-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('explore-portals-btn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    const s = await api('/api/explore-portals', { method: 'POST' });
+    exploreWasRunning = true;
+    renderExplore({ available: true, ...s });
+    explorePollTimer = setTimeout(pollExplore, 1500);
+  } catch (e) {
+    toast(`Error: ${e.message}`, true);
+    pollExplore(); // sync with what the server is doing (a run may already be going)
+  }
+});
 document.getElementById('portal-modal-close').addEventListener('click', () => {
   document.getElementById('portal-modal').classList.remove('open');
 });
@@ -11372,7 +11694,8 @@ document.getElementById('add-pipeline-btn').addEventListener('click', async () =
   const note = document.getElementById('pipeline-note').value.trim();
   if (!url.startsWith('http')) { toast('Please enter a valid URL', true); return; }
   try {
-    const result = await api('/api/pipeline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, note }) });
+    const result = await postPipelineUrl(url, note);
+    if (result?.declined) { toast('Ajout annulé'); return; }
     toast(result?.duplicate ? 'Cette URL est déjà dans le pipeline' : 'Ajoutée en haut du pipeline');
     if (!result?.duplicate) {
       document.getElementById('pipeline-url').value = '';

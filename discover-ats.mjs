@@ -51,6 +51,7 @@ import pinpoint from './providers/pinpoint.mjs';
 import rippling from './providers/rippling.mjs';
 import joinProvider from './providers/join.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
+import { PROVIDER_BOARD_URLS } from './lib/ats-provider-board.mjs';
 import { getJobYouGoRoot } from './path-resolver.mjs';
 
 const JOBYOUGO = dirname(fileURLToPath(import.meta.url));
@@ -67,7 +68,9 @@ export const SLUG_RE = /^[A-Za-z0-9._-]+$/;
 // because Ashby's provider holds a ~30s connection per board.
 const DEFAULT_CONCURRENCY = 8;
 
-// Vendor probe registry. buildUrl(slug) produces a careers_url in the exact
+// Vendor probe registry. The careers_url of BambooHR, Breezy, Pinpoint, Rippling and JOIN comes from
+// lib/ats-provider-board.mjs, the same table the explorer and board resolver verify those boards with.
+// buildUrl(slug) produces a careers_url in the exact
 // shape each provider's detect() recognizes, so the probe reuses the real scan
 // path — a board we confirm here is exactly one scan.mjs can later read.
 //
@@ -96,12 +99,12 @@ const VENDORS = {
   // Long tail, probed only after the three above miss (see VENDOR_ORDER).
   workable:        { id: 'workable',        provider: workable,        host: 'apply.workable.com',          buildUrl: (s) => `https://apply.workable.com/${s}` },
   smartrecruiters: { id: 'smartrecruiters', provider: smartrecruiters, host: 'careers.smartrecruiters.com', buildUrl: (s) => `https://careers.smartrecruiters.com/${s}` },
-  rippling:        { id: 'rippling',        provider: rippling,        host: 'ats.rippling.com',            buildUrl: (s) => `https://ats.rippling.com/${s}/jobs` },
-  join:            { id: 'join',            provider: joinProvider,            host: 'join.com',                    buildUrl: (s) => `https://join.com/companies/${s}` },
+  rippling:        { id: 'rippling',        provider: rippling,        host: 'ats.rippling.com',            buildUrl: PROVIDER_BOARD_URLS.rippling },
+  join:            { id: 'join',            provider: joinProvider,            host: 'join.com',                    buildUrl: PROVIDER_BOARD_URLS.join },
   recruitee:       { id: 'recruitee',       provider: recruitee,       hostFor: (s) => `${lower(s)}.recruitee.com`,  buildUrl: (s) => `https://${lower(s)}.recruitee.com` },
-  breezy:          { id: 'breezy',          provider: breezy,          hostFor: (s) => `${lower(s)}.breezy.hr`,      buildUrl: (s) => `https://${lower(s)}.breezy.hr` },
-  bamboohr:        { id: 'bamboohr',        provider: bamboohr,        hostFor: (s) => `${lower(s)}.bamboohr.com`,   buildUrl: (s) => `https://${lower(s)}.bamboohr.com` },
-  pinpoint:        { id: 'pinpoint',        provider: pinpoint,        hostFor: (s) => `${lower(s)}.pinpointhq.com`, buildUrl: (s) => `https://${lower(s)}.pinpointhq.com` },
+  breezy:          { id: 'breezy',          provider: breezy,          hostFor: (s) => `${lower(s)}.breezy.hr`,      buildUrl: PROVIDER_BOARD_URLS.breezy },
+  bamboohr:        { id: 'bamboohr',        provider: bamboohr,        hostFor: (s) => `${lower(s)}.bamboohr.com`,   buildUrl: PROVIDER_BOARD_URLS.bamboohr },
+  pinpoint:        { id: 'pinpoint',        provider: pinpoint,        hostFor: (s) => `${lower(s)}.pinpointhq.com`, buildUrl: PROVIDER_BOARD_URLS.pinpoint },
 };
 // Slug-resolvable vendors, probed in order for each company (first match wins).
 // Probe order is also a cost decision. resolveCompany probes candidates in this
