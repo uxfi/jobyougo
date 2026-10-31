@@ -1097,10 +1097,10 @@ function renderCrLive() {
       </div>
     </div>
     <div class="cr-live-screen" data-cr-screen>
-      <img class="cr-live-poster" src="${v.poster}" alt="${v.label} — Creads live" loading="lazy" decoding="async" data-cr-poster>
+      <img class="cr-live-poster" src="${v.poster}" alt="${v.label}: Creads live" loading="lazy" decoding="async" data-cr-poster>
       <button type="button" class="cr-live-launch" data-cr-launch>
         <span class="cr-live-launch-dot"></span>Launch the live product
-        <small>Loads only when you ask — needs Creads on :3000 with portfolio demo.</small>
+        <small>Loads only when you ask. Needs Creads on :3000 with portfolio demo.</small>
       </button>
     </div>
   </div>`;
@@ -1129,7 +1129,7 @@ function crLiveSync(root) {
   const open = root.querySelector('[data-cr-open-tab]');
   if (open) open.href = next;
   const poster = root.querySelector('[data-cr-poster]');
-  if (poster) { poster.src = v.poster; poster.alt = `${v.label} — Creads live`; }
+  if (poster) { poster.src = v.poster; poster.alt = `${v.label}: Creads live`; }
   const frame = root.querySelector('iframe');
   if (frame && frame.dataset.crSrc !== next) {
     frame.dataset.crSrc = next;
@@ -1540,7 +1540,6 @@ function renderNarrativeBlock(b, stepsHTML, p) {
           <div class="xsec-kpis">
             <div class="x-kpi"><span>Surfaces</span><strong>6</strong><em>Marketing · app</em></div>
             <div class="x-kpi"><span>Stack</span><strong>Next 15</strong><em>Local embed</em></div>
-            <div class="x-kpi"><span>Auth</span><strong>Bypass</strong><em>?portfolio=1</em></div>
           </div>
         </div>
         ${renderCrLive()}

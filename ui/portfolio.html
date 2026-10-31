@@ -24,8 +24,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Readex+Pro:wght@400;600&family=Sansation:ital,wght@0,400;0,700;1,700&family=TikTok+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
   <!-- Critical path: Selected work scripts + featured logos first -->
-  <link rel="preload" as="script" href="/portfolio/data.js">
-  <link rel="preload" as="script" href="/portfolio/app.js">
+  <link rel="preload" as="script" href="/portfolio/data.js?v=20261031d">
+  <link rel="preload" as="script" href="/portfolio/app.js?v=20261031b">
   <link rel="preload" as="image" href="../images/oneasset-logo.png" fetchpriority="high">
   <link rel="preload" as="image" href="../images/creads-logo.webp?v=20261030" fetchpriority="high">
   <link rel="preload" as="image" href="../images/lvmh.png">
@@ -5144,6 +5144,7 @@
       margin-bottom: 32px;
     }
     .xsec-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .xsec--cr .xsec-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .x-kpi {
       border: 1px solid var(--xcard-line);
       background: var(--xcard);
@@ -9225,8 +9226,8 @@
 </div>
 
 <!-- Critical path: data + work list first. 3D / marquee / story load after. -->
-<script src="/portfolio/data.js" defer></script>
-<script src="/portfolio/app.js" defer></script>
+<script src="/portfolio/data.js?v=20261031d" defer></script>
+<script src="/portfolio/app.js?v=20261031b" defer></script>
 <script src="/portfolio/i18n.js" defer></script>
 <script src="/portfolio/lazy-media.js" defer></script>
 <script src="/portfolio/hscroll.js?v=20261021" defer></script>

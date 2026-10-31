@@ -265,7 +265,7 @@ const PROJECTS = [
         "type": "creads-live",
         "label": "Live product",
         "title": "Open Creads, not a recreation of it.",
-        "body": "This embeds the local Creads app (creads-main on :3000 with portfolio demo). A static poster stays until you launch it — the live app only loads on demand, then unloads when you scroll away. Switch surface and click through."
+        "body": "This embeds the local Creads app (creads-main on :3000 with portfolio demo). A static poster stays until you launch it. The live app only loads on demand, then unloads when you scroll away. Switch surface and click through."
       },
       {
         "type": "text",
@@ -280,27 +280,27 @@ const PROJECTS = [
         "images": [
           {
             "src": "../images/creads-live-hero.webp?v=20261030",
-            "caption": "Marketing site — landing hero and product entry"
+            "caption": "Marketing site: landing hero and product entry"
           },
           {
             "src": "../images/creads-v2-dashboard.webp?v=20261030b",
-            "caption": "Dashboard — product URL to ads entry"
+            "caption": "Dashboard: product URL to ads entry"
           },
           {
             "src": "../images/creads-v2-studio.webp?v=20261030b",
-            "caption": "Studio — creative production, brand setup gate"
+            "caption": "Studio: creative production, brand setup gate"
           },
           {
             "src": "../images/creads-bot.png",
-            "caption": "Chat AI — Brandon Agent for brief and generation"
+            "caption": "Chat AI: Brandon Agent for brief and generation"
           },
           {
             "src": "../images/creads-admin.png",
-            "caption": "Products — catalogue linked to generation"
+            "caption": "Products: catalogue linked to generation"
           },
           {
             "src": "../images/creads-v2-brand.webp?v=20261030b",
-            "caption": "Brand — identity setup before analysis and creative"
+            "caption": "Brand: identity setup before analysis and creative"
           }
         ]
       },
@@ -317,10 +317,10 @@ const PROJECTS = [
         "body": "The redesigned Creads uses white surfaces, a single ink (#0E0E10) and thin hairlines. Violet #521DE7 carries the logo, links and focus; lime #C8F445 marks the one main action on each screen. One typeface, TikTok Sans, with JetBrains Mono for small labels. Corners are 10px on the site and 8px in the app."
       },
       {
-        "type": "creads-console",
-        "label": "Interactive module",
-        "title": "Inside the product: DNA, scoring, generation.",
-        "body": "Use the tabs to try the brand crawler, review the Smart Match scores and inspect a generation output. These are interactive recreations of the product screens."
+        "type": "browser-window",
+        "src": "../images/creads-v2-dashboard.webp?v=20261030b",
+        "url": "creads.io/dashboard",
+        "caption": "The dashboard home: latest ads for the brand, with products and credits beside them."
       },
       {
         "type": "process",
@@ -519,7 +519,7 @@ const PROJECTS = [
         "type": "oneasset-live",
         "label": "Live prototype",
         "title": "Open the product, not a picture of it.",
-        "body": "This is the prototype the team works from, embedded as is. A password is required to open it. A static poster stays until you launch it — the live app only loads on demand, then unloads when you scroll away. Switch portal or theme, then click through; fixture data only, nothing is saved."
+        "body": "This is the prototype the team works from, embedded as is. A password is required to open it. A static poster stays until you launch it. The live app only loads on demand, then unloads when you scroll away. Switch portal or theme, then click through; fixture data only, nothing is saved."
       },
       {
         "type": "oneasset-own",
