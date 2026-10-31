@@ -2,12 +2,13 @@
    Engine: agence-bestiary.js. The painted bestiary (agence-work.css .biz-art) stays underneath as the fallback. */
 
 /* the painted art steps back once the live animal is up */
-.biz-art.bz-live { opacity: 0; transition: opacity .9s ease; }
+/* the painted art leaves quickly and the live animal arrives a beat later, so the two never show as a ghost double */
+.biz-art.bz-live { opacity: 0; transition: opacity .45s ease; }
 
 .bz-stage {
   position: absolute; z-index: 0; top: 0; right: 0; left: 40%; height: var(--art-h);
   -webkit-mask-image: linear-gradient(180deg, #000 74%, transparent 100%); mask-image: linear-gradient(180deg, #000 74%, transparent 100%);
-  opacity: 0; transition: opacity .9s ease;
+  opacity: 0; transition: opacity .7s ease .2s;
 }
 .bz-stage[data-state='ready'] { opacity: 1; }
 .bz-stage[data-state='off'], .bz-stage[data-state='loading'] { pointer-events: none; }

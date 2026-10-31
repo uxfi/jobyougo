@@ -53,6 +53,8 @@
   /* ───────────────────────── the kit (needs THREE, built after the import) ───────────────────────── */
   function makeKit(THREE) {
     const k = { T: THREE };
+    const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+    k.V = V3;
     k.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
     k.lerp = (a, b, t) => a + (b - a) * t;
     k.smooth = (a, b, x) => { const t = k.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -62,6 +64,151 @@
       lav: '#b7a6f2', peri: '#8ea4f0', sky: '#9cc9f2', peach: '#f5b69a', apricot: '#f6c389', rose: '#f0a0c0', mint: '#98e0c4',
       cream: '#fbf4e6', ink: '#2b2a55', gold: '#f5d58a', coral: '#f08a7e',
     };
+    const TAU2 = Math.PI * 2;
+    const rng = (seed) => {
+      let a = seed >>> 0;
+      return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    };
+    k.rng = rng;
+    const hexRgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const mixHex = (a, b, t) => { const A = hexRgb(a); const B = hexRgb(b); return `rgb(${Math.round(A[0] + (B[0] - A[0]) * t)},${Math.round(A[1] + (B[1] - A[1]) * t)},${Math.round(A[2] + (B[2] - A[2]) * t)})`; };
+    const wrap9 = (W, H, fn) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) fn(dx * W, dy * H); };
+
+    /* Micro detail lives in maps (see 3d-high-poly-models: silhouette and form in geometry, pores and barbs in material).
+       Grey textures are bump maps, coloured ones multiply the glass tint. All are drawn once, tile cleanly, 128 to 512 px. */
+    const TEX = {
+      scales: { w: 256, h: 256, draw(g, W, H) { /* fish scales, overlapping rows */
+        g.fillStyle = '#767676'; g.fillRect(0, 0, W, H);
+        const nx = 8; const ny = 14; const sx = W / nx; const sy = H / ny;
+        for (let row = -2; row <= ny + 1; row++) for (let col = -2; col <= nx + 1; col++) {
+          const cx = (col + (row & 1 ? 0.5 : 0)) * sx; const cy = row * sy;
+          const gr = g.createLinearGradient(0, cy - sy, 0, cy + sy * 1.1); gr.addColorStop(0, '#5e5e5e'); gr.addColorStop(0.55, '#b0b0b0'); gr.addColorStop(1, '#ececec');
+          g.fillStyle = gr; g.beginPath(); g.ellipse(cx, cy, sx * 0.62, sy * 1.6, 0, 0, TAU2); g.fill();
+          g.strokeStyle = 'rgba(30,30,30,.6)'; g.lineWidth = 1.8; g.beginPath(); g.ellipse(cx, cy, sx * 0.62, sy * 1.6, 0, 0.2, Math.PI - 0.2); g.stroke();
+        }
+      } },
+      plumage: { w: 256, h: 256, draw(g, W, H) { /* rows of overlapping body feathers */
+        g.fillStyle = '#767676'; g.fillRect(0, 0, W, H);
+        const nx = 6; const ny = 9; const sx = W / nx; const sy = H / ny;
+        for (let row = -2; row <= ny + 1; row++) for (let col = -2; col <= nx + 1; col++) {
+          const cx = (col + (row & 1 ? 0.5 : 0)) * sx; const cy = row * sy;
+          const gr = g.createLinearGradient(0, cy, 0, cy + sy * 1.5); gr.addColorStop(0, '#585858'); gr.addColorStop(0.5, '#a4a4a4'); gr.addColorStop(1, '#f0f0f0');
+          g.fillStyle = gr; g.beginPath(); g.moveTo(cx - sx * 0.53, cy - sy * 0.3); g.quadraticCurveTo(cx - sx * 0.58, cy + sy * 1.3, cx, cy + sy * 1.52); g.quadraticCurveTo(cx + sx * 0.58, cy + sy * 1.3, cx + sx * 0.53, cy - sy * 0.3); g.closePath(); g.fill();
+          g.strokeStyle = 'rgba(30,30,30,.55)'; g.lineWidth = 1.6; g.stroke();
+          g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy + sy * 1.25); g.stroke();
+        }
+      } },
+      wrinkle: { w: 256, h: 256, draw(g, W, H, r) { /* folds of thick skin */
+        g.fillStyle = '#7c7c7c'; g.fillRect(0, 0, W, H);
+        const rows = 20;
+        for (let q = 0; q < rows; q++) {
+          const y0 = (q + 0.5) * (H / rows); const ph = r() * TAU2; const amp = 2 + r() * 3.5;
+          [['#464646', 3.4, 0], ['#bcbcbc', 2.2, 3.4]].forEach(([col, lw, off]) => {
+            g.strokeStyle = col; g.lineWidth = lw; g.beginPath();
+            for (let x = 0; x <= W; x += 4) { const y = y0 + off + Math.sin((x / W) * TAU2 * 2 + ph) * amp + Math.sin((x / W) * TAU2 * 6 + ph * 2) * 1.2; if (x) g.lineTo(x, y); else g.moveTo(x, y); }
+            g.stroke();
+          });
+        }
+        for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(40,40,40,${0.1 + r() * 0.15})`; g.beginPath(); g.arc(r() * W, r() * H, 1 + r() * 2, 0, TAU2); g.fill(); }
+      } },
+      pebble: { w: 256, h: 256, draw(g, W, H, r) { /* skin bumps */
+        g.fillStyle = '#7c7c7c'; g.fillRect(0, 0, W, H);
+        for (let i = 0; i < 360; i++) {
+          const x = r() * W; const y = r() * H; const rad = 3 + r() * 7;
+          wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, 'rgba(232,232,232,.9)'); gr.addColorStop(1, 'rgba(124,124,124,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); });
+        }
+      } },
+      fuzz: { w: 256, h: 256, draw(g, W, H, r) { /* short fur, a thorax of hair */
+        g.fillStyle = '#808080'; g.fillRect(0, 0, W, H); g.lineCap = 'round'; g.lineWidth = 1.2;
+        for (let i = 0; i < 800; i++) {
+          const x = r() * W; const y = r() * H; const a = r() * TAU2; const l = 5 + r() * 7; g.strokeStyle = r() < 0.55 ? 'rgba(238,238,238,.38)' : 'rgba(46,46,46,.3)';
+          wrap9(W, H, (ox, oy) => { g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l); g.stroke(); });
+        }
+      } },
+      facets: { w: 256, h: 256, draw(g, W, H) { /* the lens facets of a compound eye */
+        g.fillStyle = '#5c5c5c'; g.fillRect(0, 0, W, H);
+        const nx = 10; const ny = 12; const sx = W / nx; const sy = H / ny;
+        for (let row = -1; row <= ny + 1; row++) for (let col = -1; col <= nx + 1; col++) {
+          const cx = (col + (row & 1 ? 0.5 : 0)) * sx; const cy = row * sy;
+          const gr = g.createRadialGradient(cx, cy, 0, cx, cy, sx * 0.62); gr.addColorStop(0, '#f4f4f4'); gr.addColorStop(1, '#585858'); g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, sx * 0.6, 0, TAU2); g.fill();
+        }
+      } },
+      veins: { w: 256, h: 128, draw(g, W, H, r) { /* an insect wing: leading vein, long veins, cross veins */
+        g.fillStyle = '#6c6c6c'; g.fillRect(0, 0, W, H); g.lineCap = 'round';
+        [[0.1, 0.1], [0.3, 0.27], [0.52, 0.47], [0.74, 0.66]].forEach(([y0, y1], i) => {
+          g.strokeStyle = i === 0 ? '#fafafa' : '#dcdcdc'; g.lineWidth = i === 0 ? 5 : 2.6; g.beginPath(); g.moveTo(0, y0 * H); g.quadraticCurveTo(W * 0.55, (y0 + (y1 - y0) * 0.4) * H, W * 0.98, y1 * H); g.stroke();
+        });
+        g.strokeStyle = '#c4c4c4'; g.lineWidth = 1.6;
+        for (let i = 0; i < 16; i++) { const x = W * (0.1 + r() * 0.8); const y = H * (0.08 + r() * 0.5); g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 10, y + H * (0.1 + r() * 0.12)); g.stroke(); }
+      } },
+      rays: { w: 256, h: 128, draw(g, W, H) { /* fin rays fanning from the base */
+        g.fillStyle = '#767676'; g.fillRect(0, 0, W, H); g.lineCap = 'round';
+        const N = 17;
+        for (let i = 0; i < N; i++) { g.strokeStyle = '#f0f0f0'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, H * 0.5); g.lineTo(W, H * (i / (N - 1))); g.stroke(); }
+        g.strokeStyle = 'rgba(40,40,40,.4)'; g.lineWidth = 1.4;
+        for (let a = 0; a < 4; a++) { g.beginPath(); g.ellipse(0, H * 0.5, W * (0.4 + a * 0.2), H * 0.62, 0, -1.2, 1.2); g.stroke(); }
+      } },
+      feather: { w: 128, h: 128, draw(g, W, H) { /* one feather: a rachis and barbs sweeping to the tip */
+        g.fillStyle = '#8a8a8a'; g.fillRect(0, 0, W, H); g.lineCap = 'round';
+        g.strokeStyle = '#b8b8b8'; g.lineWidth = 1.2;
+        for (let i = 0; i < 44; i++) { const x0 = (i / 44) * W; g.beginPath(); g.moveTo(x0, H / 2); g.lineTo(x0 + W * 0.16, 0); g.moveTo(x0, H / 2); g.lineTo(x0 + W * 0.16, H); g.stroke(); }
+        g.strokeStyle = '#ffffff'; g.lineWidth = 3.4; g.beginPath(); g.moveTo(0, H / 2); g.lineTo(W, H / 2); g.stroke();
+      } },
+      iri: { w: 128, h: 128, draw(g, W, H, r) { /* where the film is thick or thin: the painterly colour shifts */
+        g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
+        for (let i = 0; i < 44; i++) {
+          const x = r() * W; const y = r() * H; const rad = 18 + r() * 38; const v = Math.round(55 + r() * 150);
+          wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, `rgba(${v},${v},${v},.8)`); gr.addColorStop(1, `rgba(${v},${v},${v},0)`); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); });
+        }
+      } },
+      bands: { w: 64, h: 256, color: true, draw(g, W, H) { /* the striped abdomen, gold and dark violet, along the body */
+        for (let y = 0; y < H; y++) {
+          const t = ((y / H) * 5.4) % 1; const m = k.smooth(0.5, 0.64, t) * (1 - k.smooth(0.92, 1, t));
+          g.fillStyle = mixHex('#ffe6b4', '#5a4fa6', m); g.fillRect(0, y, W, 1);
+        }
+      } },
+      koi: { w: 512, h: 256, color: true, draw(g, W, H) { /* kohaku: orange on white, a few dark flecks */
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+        [[0.12, 0.22, 0.2, 0.16, '#f27a4a'], [0.62, 0.3, 0.18, 0.2, '#f27a4a'], [0.88, 0.55, 0.16, 0.26, '#f7a24f'], [0.35, 0.62, 0.2, 0.22, '#f27a4a'], [0.7, 0.82, 0.18, 0.14, '#f58b52'], [0.05, 0.7, 0.12, 0.12, '#f7a24f']].forEach(([bx, by, rx, ry, col]) => {
+          [-W, 0, W].forEach((ox) => {
+            g.save(); g.translate(bx * W + ox, by * H); g.scale(rx * W, ry * H);
+            const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, col); gr.addColorStop(0.7, `${col}cc`); gr.addColorStop(1, `${col}00`);
+            g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU2); g.fill(); g.restore();
+          });
+        });
+        [[0.2, 0.4], [0.55, 0.15], [0.8, 0.7], [0.42, 0.88]].forEach(([bx, by]) => { g.fillStyle = 'rgba(43,42,85,.55)'; g.beginPath(); g.ellipse(bx * W, by * H, 9, 7, 0, 0, TAU2); g.fill(); });
+      } },
+      dapple: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* a dappled grey coat */
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+        for (let i = 0; i < 70; i++) {
+          const x = r() * W; const y = r() * H; const rad = 9 + r() * 10;
+          wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, 'rgba(112,122,178,.5)'); gr.addColorStop(0.7, 'rgba(112,122,178,.22)'); gr.addColorStop(1, 'rgba(112,122,178,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); });
+        }
+      } },
+      mottle: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* an octopus's chromatophores */
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+        const blob = (n, r0, r1, col) => { for (let i = 0; i < n; i++) { const x = r() * W; const y = r() * H; const rad = r0 + r() * (r1 - r0); wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); }); } };
+        blob(16, 26, 46, 'rgba(236,150,186,.42)'); blob(230, 2.5, 7, 'rgba(200,100,156,.6)');
+      } },
+      barring: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* a barred plumage */
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+        for (let q = 0; q < 14; q++) {
+          const y0 = (q + 0.5) * (H / 14); const ph = r() * TAU2; g.strokeStyle = 'rgba(112,102,186,.34)'; g.lineWidth = 4 + r() * 3; g.beginPath();
+          for (let x = 0; x <= W; x += 4) { const y = y0 + Math.sin((x / W) * TAU2 * 3 + ph) * 3.5; if (x) g.lineTo(x, y); else g.moveTo(x, y); }
+          g.stroke();
+        }
+      } },
+    };
+    const texCache = {};
+    k.tex = (name) => {
+      if (texCache[name]) return texCache[name];
+      const def = TEX[name]; const c = d.createElement('canvas'); c.width = def.w; c.height = def.h;
+      def.draw(c.getContext('2d'), def.w, def.h, rng(name.length * 7919 + def.w));
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+      if (def.color) t.colorSpace = THREE.SRGBColorSpace;
+      texCache[name] = t; return t;
+    };
+    k.uvScale = (geo, ru, rv) => { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * ru, uv.getY(i) * rv); uv.needsUpdate = true; return geo; };
 
     /* One piece of a subsystem: groups its meshes so the engine can fade, isolate and explode them. */
     class Part {
@@ -80,39 +227,46 @@
       return { root: rootG, parts, part(id, ex) { const p = new Part(id, ex); parts.push(p); rootG.add(p.group); return p; } };
     };
 
-    const frontMat = (hex, o) => new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(hex), roughness: o.rough == null ? 0.2 : o.rough, metalness: 0,
-      clearcoat: 1, clearcoatRoughness: 0.16, iridescence: o.iri == null ? 1 : o.iri, iridescenceIOR: 1.35, iridescenceThicknessRange: [140, 540],
-      transparent: true, opacity: o.op == null ? 0.82 : o.op, depthWrite: false, envMapIntensity: 1.35, side: o.side || THREE.FrontSide,
-    });
+    const frontMat = (hex, o) => {
+      const m = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(hex), roughness: o.rough == null ? 0.2 : o.rough, metalness: 0,
+        clearcoat: 1, clearcoatRoughness: 0.16, iridescence: o.iri == null ? 1 : o.iri, iridescenceIOR: 1.35, iridescenceThicknessRange: [180, 600],
+        transparent: true, opacity: o.op == null ? 0.82 : o.op, depthWrite: false, envMapIntensity: 1.35, side: o.side || THREE.FrontSide,
+      });
+      if (o.bump) { m.bumpMap = typeof o.bump === 'string' ? k.tex(o.bump) : o.bump; m.bumpScale = o.bumpScale == null ? 2.2 : o.bumpScale; }
+      if (o.map) { m.map = typeof o.map === 'string' ? k.tex(o.map) : o.map; if (o.mapCh) { m.map = m.map.clone(); m.map.channel = o.mapCh; m.map.needsUpdate = true; } }
+      if (o.vcol) m.vertexColors = true;
+      if (o.iriMap !== false) m.iridescenceThicknessMap = k.tex('iri');
+      return m;
+    };
+    const make = (geom, mat, inst) => {
+      if (!inst) return new THREE.Mesh(geom, mat);
+      const m = new THREE.InstancedMesh(geom, mat, inst.length);
+      inst.forEach((mx, i) => m.setMatrixAt(i, mx)); m.instanceMatrix.needsUpdate = true; return m;
+    };
     /* Volume glass: a dark-tinted back face drawn first, then the iridescent front face over it. */
     k.glass = (part, geom, hex, o = {}) => {
       const g = new THREE.Group();
-      const back = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({
+      const back = make(geom, new THREE.MeshBasicMaterial({
         color: new THREE.Color(hex).lerp(new THREE.Color(k.PAL.ink), 0.5), transparent: true, opacity: o.backOp == null ? 0.34 : o.backOp, side: THREE.BackSide, depthWrite: false,
-      }));
-      const front = new THREE.Mesh(geom, frontMat(hex, o));
+      }), o.instances);
+      const front = make(geom, frontMat(hex, o), o.instances);
       part.reg(back, 'back', 2); part.reg(front, 'shell', 3);
       g.add(back, front); if (!o.detached) part.group.add(g);
       return g;
     };
-    /* Thin glass: feathers, wings, fins. One double-sided sheet. */
+    /* Thin glass: feathers, wings, fins. One double-sided sheet (or many copies of one shape in one draw call). */
     k.thin = (part, geom, hex, o = {}) => {
-      const mat = frontMat(hex, { op: o.op == null ? 0.6 : o.op, side: THREE.DoubleSide, rough: 0.28, iri: 1 });
-      let m;
-      if (o.instances) { /* many copies of one shape (the cells of a comb): one draw call */
-        m = new THREE.InstancedMesh(geom, mat, o.instances.length);
-        o.instances.forEach((mx, i) => m.setMatrixAt(i, mx)); m.instanceMatrix.needsUpdate = true;
-      } else m = new THREE.Mesh(geom, mat);
+      const m = make(geom, frontMat(hex, { op: o.op == null ? 0.6 : o.op, side: THREE.DoubleSide, rough: 0.28, iri: 1, bump: o.bump, bumpScale: o.bumpScale, map: o.map, mapCh: o.mapCh, vcol: o.vcol }), o.instances);
       part.reg(m, 'thin', 3); if (!o.detached) part.group.add(m);
       return m;
     };
     /* Inside parts (bones, organs): opaque pastel, shown by the x-ray. */
     k.solid = (part, geom, hex, o = {}) => {
-      const m = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+      const m = make(geom, new THREE.MeshStandardMaterial({
         color: new THREE.Color(hex), roughness: o.rough == null ? 0.5 : o.rough, metalness: 0.02,
         emissive: new THREE.Color(hex), emissiveIntensity: 0.1, transparent: true, opacity: 1, side: o.side || THREE.FrontSide,
-      }));
+      }), o.instances);
       part.reg(m, 'inner', 1); if (!o.detached) part.group.add(m);
       return m;
     };
@@ -125,10 +279,26 @@
       const g = new THREE.SphereGeometry(1, seg, Math.max(12, Math.round(seg * 0.72)));
       g.scale(rx, ry == null ? rx : ry, rz == null ? rx : rz); return g;
     };
+    /* A white glint: what makes an eye look alive. */
+    k.spark = (part, r) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthWrite: false }));
+      part.reg(m, 'thin', 6); return m;
+    };
+    /* An eye: dark glass ball, a coloured iris and a pupil that are caps of the ball, and a glint. Looks along +z. */
+    k.eye = (part, o = {}) => {
+      const r = o.r || 0.1; const g = new THREE.Group();
+      g.add(k.glass(part, k.ball(r, r, r, 22), o.base || k.PAL.ink, { op: 0.98, backOp: 0.12, detached: true }));
+      const cap = (rad, th) => new THREE.SphereGeometry(rad, 24, 8, 0, TAU2, 0, th).rotateX(Math.PI / 2);
+      g.add(k.thin(part, cap(r * 1.008, 0.72), o.iris || '#f4a64a', { op: 0.97, detached: true }));
+      const pg = cap(r * 1.016, o.slit ? 0.5 : 0.34); if (o.slit) pg.scale(1.6, 0.28, 1);
+      g.add(k.thin(part, pg, '#150f2e', { op: 1, detached: true }));
+      const sp = k.spark(part, r * 0.17); sp.position.set(r * 0.3, r * 0.34, r * 0.94); g.add(sp);
+      return g;
+    };
 
-    /* A swept tube whose centre line and radius change every frame (necks, trunks, arms, fish bodies, tails). */
+    /* A swept tube whose centre line, radius and flatness change every frame (necks, trunks, arms, fish, torsos). */
     class Tube {
-      constructor(n, radial) {
+      constructor(n, radial, ru = 1, rv = 1) {
         this.n = n; this.radial = radial;
         const ring = radial + 1;
         const vc = (n + 1) * ring + 2;
@@ -136,6 +306,8 @@
         this.tan = new Float32Array((n + 1) * 3); this.nor = new Float32Array((n + 1) * 3); this.c = new Float32Array((n + 1) * 3);
         this.cs = new Float32Array(ring); this.sn = new Float32Array(ring);
         for (let j = 0; j <= radial; j++) { const a = (j / radial) * Math.PI * 2; this.cs[j] = Math.cos(a); this.sn[j] = Math.sin(a); }
+        const uv = new Float32Array(vc * 2); const uv1 = new Float32Array(vc * 2);
+        for (let i = 0; i <= n; i++) for (let j = 0; j <= radial; j++) { const q = (i * ring + j) * 2; uv[q] = (j / radial) * ru; uv[q + 1] = (i / n) * rv; uv1[q] = j / radial; uv1[q + 1] = i / n; }
         const idx = [];
         for (let i = 0; i < n; i++) {
           for (let j = 0; j < radial; j++) {
@@ -150,10 +322,12 @@
         }
         this.geo = new THREE.BufferGeometry();
         this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+        this.geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); this.geo.setAttribute('uv1', new THREE.BufferAttribute(uv1, 2));
         this.geo.setIndex(idx);
       }
-      /* P: n+1 Vector3 along the axis; R: n+1 radii; hint: a Vector3 for the first "up" of the section. */
-      set(P, R, hint) {
+      /* P: n+1 Vector3 along the axis; R: n+1 radii (the half height); hint: first "up" of the section;
+         A: optional n+1 ratios, the half width over the half height (0.6 = flattened sideways). */
+      set(P, R, hint, A) {
         const n = this.n; const rad = this.radial; const pos = this.pos; const ring = rad + 1;
         for (let i = 0; i <= n; i++) {
           const a = P[Math.max(0, i - 1)]; const b = P[Math.min(n, i + 1)];
@@ -172,9 +346,9 @@
           this.tan[i * 3] = tx; this.tan[i * 3 + 1] = ty; this.tan[i * 3 + 2] = tz;
           this.nor[i * 3] = nx; this.nor[i * 3 + 1] = ny; this.nor[i * 3 + 2] = nz;
           this.c[i * 3] = P[i].x; this.c[i * 3 + 1] = P[i].y; this.c[i * 3 + 2] = P[i].z;
-          const r = R[i];
+          const r = R[i]; const asp = A ? A[i] : 1;
           for (let j = 0; j <= rad; j++) {
-            const cs = this.cs[j] * r; const sn = this.sn[j] * r; const q = (i * ring + j) * 3;
+            const cs = this.cs[j] * r; const sn = this.sn[j] * r * asp; const q = (i * ring + j) * 3;
             pos[q] = P[i].x + cs * nx + sn * bx; pos[q + 1] = P[i].y + cs * ny + sn * by; pos[q + 2] = P[i].z + cs * nz + sn * bz;
           }
         }
@@ -201,14 +375,40 @@
         if (scale != null) obj.scale.setScalar(scale);
       }
     }
-    k.tube = (n, radial = 14) => new Tube(n, radial);
+    k.tube = (n, radial = 14, ru = 1, rv = 1) => new Tube(n, radial, ru, rv);
+
+    /* A static body lofted along +x from sections: r(s) half height, a(s) half width over half height, y(s) and z(s) the axis.
+       s runs from the rear (0) to the front (1). k.surf(spec) walks the same skin (s along, th around) for feathers and hair. */
+    k.loft = (spec) => {
+      const n = spec.n || 44; const t = new Tube(n, spec.radial || 30, spec.ru || 1, spec.rv || 1);
+      const start = spec.x0 == null ? -spec.len / 2 : spec.x0; const P = []; const R = []; const A = [];
+      for (let i = 0; i <= n; i++) {
+        const s = i / n;
+        P.push(V3(start + s * spec.len, spec.y ? spec.y(s) : 0, spec.z ? spec.z(s) : 0)); R.push(Math.max(0.004, spec.r(s))); A.push(spec.a ? spec.a(s) : 1);
+      }
+      t.set(P, R, V3(0, 1, 0), A);
+      return t.geo;
+    };
+    k.surf = (spec) => {
+      const start = spec.x0 == null ? -spec.len / 2 : spec.x0;
+      const pt = (s, th, o) => { const r = spec.r(s); const a = spec.a ? spec.a(s) : 1; return o.set(start + s * spec.len, (spec.y ? spec.y(s) : 0) + r * Math.cos(th), (spec.z ? spec.z(s) : 0) + r * a * Math.sin(th)); };
+      const p0 = V3(0, 0, 0); const p1 = V3(0, 0, 0); const p2 = V3(0, 0, 0); const p3 = V3(0, 0, 0);
+      return (s, th, out) => {
+        pt(s, th, out.p);
+        pt(Math.min(1, s + 0.004), th, p0); pt(Math.max(0, s - 0.004), th, p1); out.t.subVectors(p0, p1).normalize();
+        pt(s, th + 0.02, p2); pt(s, th - 0.02, p3); p2.sub(p3).normalize();
+        out.n.crossVectors(p2, out.t).normalize();
+        return out;
+      };
+    };
 
     /* A sheet from a function: fn(u, v, out) with u along 0..1 and v across -1..1. Static or re-set every frame. */
     k.leaf = (nu, nv, fn) => {
       const geo = new THREE.BufferGeometry();
-      const pos = new Float32Array((nu + 1) * (nv + 1) * 3); const idx = [];
+      const pos = new Float32Array((nu + 1) * (nv + 1) * 3); const uvs = new Float32Array((nu + 1) * (nv + 1) * 2); const idx = [];
+      for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) { const q = (i * (nv + 1) + j) * 2; uvs[q] = i / nu; uvs[q + 1] = j / nv; }
       for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { const a = i * (nv + 1) + j; const b = a + nv + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
-      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2)); geo.setIndex(idx);
       const out = { x: 0, y: 0, z: 0 };
       geo.userData.set = (f) => {
         let q = 0;
@@ -218,7 +418,51 @@
       if (fn) geo.userData.set(fn);
       return geo;
     };
-    k.V = (x, y, z) => new THREE.Vector3(x, y, z);
+    /* A feather: pointed oval along +x, width along y, curled out of the plane along z. */
+    k.feather = (len, w, o = {}) => k.leaf(9, 4, (u, v, out) => {
+      const wd = w * Math.pow(Math.sin(Math.PI * Math.pow(u, o.tip == null ? 0.72 : o.tip)), 0.8) + 0.004;
+      out.x = u * len; out.y = v * wd + (o.sweep || 0) * u * len * 0.3; out.z = (o.curl == null ? 0.07 : o.curl) * len * u * u;
+    });
+    /* Rows of feathers laid over a lofted skin, in ONE draw call. o: surf, geo, hex, rows, cols, s0, s1, th0, th1, size [min,max],
+       lift [min,max] (radians off the skin), seed, jitter, op, bump. They point back toward the tail, like plumage. */
+    k.coat = (part, o) => {
+      const rnd = rng(o.seed || 3); const out = { p: V3(0, 0, 0), n: V3(0, 0, 0), t: V3(0, 0, 0) };
+      const mats = []; const rot = new THREE.Matrix4(); const q = new THREE.Quaternion(); const sc = V3(1, 1, 1);
+      for (let r = 0; r < o.rows; r++) {
+        const s = k.lerp(o.s0, o.s1, (r + 0.5) / o.rows);
+        for (let c = 0; c < o.cols; c++) {
+          const th = k.lerp(o.th0, o.th1, (c + (r & 1 ? 0.5 : 0) + 0.5 + (rnd() - 0.5) * (o.jitter == null ? 0.3 : o.jitter)) / o.cols);
+          o.surf(k.clamp(s + (rnd() - 0.5) * 0.012, 0, 1), th, out);
+          const lift = k.lerp(o.lift[0], o.lift[1], rnd());
+          const dir = out.t.clone().multiplyScalar(-Math.cos(lift)).addScaledVector(out.n, Math.sin(lift));
+          if (o.dirFn) o.dirFn(dir, out, s, th);
+          dir.normalize();
+          const side = V3(0, 0, 0).crossVectors(out.n, dir).normalize(); const zz = V3(0, 0, 0).crossVectors(dir, side);
+          rot.makeBasis(dir, side, zz); q.setFromRotationMatrix(rot);
+          const z = k.lerp(o.size[0], o.size[1], rnd()); sc.set(z, z * (o.wide || 1), z);
+          mats.push(new THREE.Matrix4().compose(out.p.clone(), q.clone(), sc.clone()));
+        }
+      }
+      return k.thin(part, o.geo, o.hex, { op: o.op == null ? 0.74 : o.op, instances: mats, bump: o.bump || 'feather', bumpScale: o.bumpScale == null ? 1.8 : o.bumpScale, map: o.map });
+    };
+    /* Matrices for a fan of feathers: each {p: origin, dir: where the length points, len, nHint: roughly the face normal, wide}. */
+    k.fan = (items) => items.map((it) => {
+      const d = it.dir.clone().normalize(); const side = V3(0, 0, 0).crossVectors(it.nHint, d).normalize(); const zz = V3(0, 0, 0).crossVectors(d, side);
+      const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, side, zz));
+      return new THREE.Matrix4().compose(it.p, q, V3(it.len, it.len * (it.wide || 1), it.len));
+    });
+    /* Short hairs standing on a lofted skin (the bee's thorax): thin cones, one draw call. */
+    k.fuzz = (part, o) => {
+      const rnd = rng(o.seed || 5); const out = { p: V3(0, 0, 0), n: V3(0, 0, 0), t: V3(0, 0, 0) };
+      const mats = []; const up = V3(0, 1, 0); const q = new THREE.Quaternion(); const len = o.len || 0.09;
+      for (let i = 0; i < o.count; i++) {
+        o.surf(k.lerp(o.s0, o.s1, rnd()), k.lerp(o.th0, o.th1, rnd()), out);
+        const dir = out.n.clone().addScaledVector(out.t, -(o.lean == null ? 0.6 : o.lean)).normalize(); q.setFromUnitVectors(up, dir);
+        const z = k.lerp(0.7, 1.3, rnd());
+        mats.push(new THREE.Matrix4().compose(out.p.clone(), q.clone(), V3(z, z * (0.8 + rnd() * 0.5), z)));
+      }
+      return k.thin(part, new THREE.ConeGeometry(o.r || 0.012, len, 4).translate(0, len / 2, 0), o.hex, { op: o.op == null ? 0.8 : o.op, instances: mats });
+    };
     return k;
   }
 
@@ -289,7 +533,10 @@
     if (S.cur && S.cur.id === id) return;
     if (S.cur) { S.cur.target = 0; S.fading.push(S.cur); }
     let a = cache[id];
-    if (!a) { a = cache[id] = makeAnimal(id, def); scene.add(a.inst.root); }
+    if (!a) {
+      a = cache[id] = makeAnimal(id, def); scene.add(a.inst.root);
+      try { renderer.compile(scene, cam); } catch (e) { /* the first frame compiles instead */ } /* warm the shaders before the first frame */
+    }
     S.fading = S.fading.filter((o) => o !== a);
     a.target = 1; a.x = S.cur && S.cur.id === id ? a.x : def.input.def;
     S.cur = a; S.iso = null; S.x = a.x; S.autoT = 0; S.autoPhase = phaseFor(def, S.x);
@@ -552,9 +799,12 @@
   function start() {
     const art = d.getElementById('biz-art');
     S.want = (art && art.dataset.cur) || 'saas';
-    const go = () => { boot(); };
-    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 400));
-    if (d.readyState === 'complete') idle(go); else window.addEventListener('load', () => idle(go), { once: true });
+    /* Fetch Three.js at once, in parallel with the page; build the scene when the page has settled (2.5 s at most),
+       in an idle moment (700 ms at most), so the painted hero is never kept waiting and the swap is not late. */
+    import(THREE_URL).catch(() => {});
+    const idle = (fn) => (window.requestIdleCallback ? window.requestIdleCallback(fn, { timeout: 700 }) : setTimeout(fn, 200));
+    const settled = new Promise((res) => { if (d.readyState === 'complete') res(); else { window.addEventListener('load', res, { once: true }); setTimeout(res, 2500); } });
+    settled.then(() => idle(boot));
   }
   start();
 })();

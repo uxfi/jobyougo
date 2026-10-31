@@ -1,10 +1,12 @@
 /* v2 studio, live bestiary, animals 2 to 4: the owl (AI products), the koi (fintech), the tortoise (real estate).
-   See agence-bestiary.js for the contract. */
+   Silhouette in lofted geometry, form in relief and instanced feathers, micro detail in maps. See agence-bestiary.js. */
 (function () {
   'use strict';
   const B = (window.AgenceBestiary = window.AgenceBestiary || { animals: {} });
   const TAU = Math.PI * 2;
-  const DEG = Math.PI / 180;
+  const PI = Math.PI;
+  const DEG = PI / 180;
+  const sm = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
   /* ───────── 2. The owl · AI products · it sees clearly because the whole head turns ───────── */
   B.animals.ai = {
@@ -30,55 +32,103 @@
       fr: 'Une chouette a 14 vertèbres cervicales (l’humain en a 7) et tourne la tête d’environ 270° en tout : 135° de chaque côté. Ses yeux sont fixes dans le crâne, c’est la tête qui regarde.',
     },
     build(K) {
-      const T = K.T; const P = K.PAL; const rig = K.rig();
-      const headP = rig.part('head', [0, 1.0, 0.35]); const neckP = rig.part('neck', [0, 0.38, 1.0]); const bodyP = rig.part('body', [0, -0.5, 0]);
+      const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
+      const headP = rig.part('head', [0, 0.62, 0.4]); const neckP = rig.part('neck', [0, 0.38, 1.0]); const bodyP = rig.part('body', [0, -0.5, 0]);
       const at = (g, parent, x, y, z) => { g.position.set(x, y, z); parent.add(g); return g; };
+      const UP = V(0, 1, 0);
 
-      const perch = K.glass(bodyP, new T.CylinderGeometry(0.07, 0.07, 2.7, 14).rotateZ(Math.PI / 2), P.apricot, { op: 0.88, detached: true }); at(perch, bodyP.group, 0, -0.01, 0);
-      const body = K.glass(bodyP, K.ball(0.64, 0.86, 0.56, 36), P.peri, { op: 0.86, detached: true }); at(body, bodyP.group, 0, 0.92, -0.04);
-      [1, -1].forEach((s) => {
-        const wing = K.glass(bodyP, K.ball(0.13, 0.72, 0.4, 24), P.lav, { op: 0.82, detached: true }); at(wing, bodyP.group, s * 0.6, 0.9, -0.12); wing.rotation.z = -s * 0.08;
-        const foot = K.glass(bodyP, K.ball(0.1, 0.055, 0.18, 14), P.apricot, { op: 0.9, detached: true }); at(foot, bodyP.group, s * 0.2, 0.07, 0.2);
+      /* perch: bark, a twig, a few leaves with veins */
+      at(K.glass(bodyP, K.uvScale(new T.CylinderGeometry(0.075, 0.062, 2.9, 18).rotateZ(PI / 2), 2, 5), '#e8b07a', { op: 0.92, bump: 'pebble', bumpScale: 1.6, detached: true }), bodyP.group, 0, -0.02, 0);
+      const twig = at(K.glass(bodyP, new T.CylinderGeometry(0.016, 0.01, 0.55, 8).translate(0, 0.27, 0), '#e8b07a', { op: 0.92, detached: true }), bodyP.group, 1.15, 0, 0); twig.rotation.z = -0.8;
+      const leafG = K.leaf(7, 4, (u, v, o) => { const w = 0.085 * Math.sin(PI * Math.pow(u, 0.7)); o.x = u * 0.3; o.y = v * w; o.z = 0.04 * u * u; });
+      bodyP.group.add(K.thin(bodyP, leafG, P.mint, {
+        op: 0.8, bump: 'feather', bumpScale: 1.4,
+        instances: K.fan([[1.3, 0.28, 0.02, 0.6], [1.45, 0.46, -0.02, 0.2], [1.22, 0.4, 0.03, 1.2], [1.38, 0.2, 0.0, -0.2], [1.5, 0.35, 0.02, 0.9]].map(([x, y, z, a]) => ({ p: V(x, y, z), dir: V(Math.cos(a), Math.sin(a) * 0.5 + 0.2, 0.15), len: 1, nHint: UP }))),
+      }));
+
+      /* the body: one lofted pear, barred plumage, rows of feathers over the chest and the back */
+      const bodyG = at(new T.Group(), bodyP.group, 0, 0.96, -0.03); bodyG.rotation.z = PI / 2;
+      const bSpec = { len: 1.7, n: 48, ru: 2, rv: 2, a: () => 0.86, r: (s) => 0.01 + 0.66 * Math.pow(Math.sin(PI * Math.pow(s, 0.7)), 0.62) * (1 - 0.1 * s) };
+      bodyG.add(K.glass(bodyP, K.loft(bSpec), P.peri, { op: 0.88, bump: 'plumage', bumpScale: 1.5, map: 'barring', detached: true }));
+      const bSurf = K.surf(bSpec); const feather = K.feather(0.22, 0.075, { curl: 0.08 });
+      bodyG.add(K.coat(bodyP, { surf: bSurf, geo: feather, hex: P.cream, rows: 9, cols: 9, s0: 0.1, s1: 0.86, th0: PI / 2 - 1.15, th1: PI / 2 + 1.15, size: [0.9, 1.15], lift: [0.18, 0.4], seed: 3, op: 0.84 }));
+      bodyG.add(K.coat(bodyP, { surf: bSurf, geo: feather, hex: P.lav, rows: 7, cols: 9, s0: 0.18, s1: 0.9, th0: 1.5 * PI - 1.2, th1: 1.5 * PI + 1.2, size: [0.95, 1.2], lift: [0.2, 0.4], seed: 9, op: 0.82 }));
+
+      /* wings folded at the sides: a lofted wing, rows of coverts, a fan of long primaries */
+      const wSpec = { x0: 0, len: 1.2, n: 30, ru: 1, rv: 2, a: () => 3.4, r: (s) => 0.012 + 0.06 * Math.pow(Math.sin(PI * Math.pow(s, 0.6)), 0.7) };
+      const wSurf = K.surf(wSpec); const covG = K.feather(0.2, 0.07, { curl: 0.06 }); const primG = K.feather(1, 0.17, { curl: 0.04, tip: 0.6 });
+      const wings = [1, -1].map((side) => {
+        const wg = at(new T.Group(), bodyP.group, side * 0.6, 1.52, -0.08);
+        if (side > 0) wg.rotation.z = -PI / 2; else wg.rotation.set(0, PI, -PI / 2);
+        wg.add(K.glass(bodyP, K.loft(wSpec), P.lav, { op: 0.86, bump: 'plumage', bumpScale: 1.4, map: 'barring', detached: true }));
+        wg.add(K.coat(bodyP, { surf: wSurf, geo: covG, hex: P.cream, rows: 4, cols: 6, s0: 0.12, s1: 0.7, th0: -1.0, th1: 1.0, size: [0.85, 1.1], lift: [0.2, 0.35], seed: 21 + side, op: 0.82, dirFn: (dir, out) => dir.copy(out.t).multiplyScalar(0.92).addScaledVector(out.n, 0.22) }));
+        const lens = [0.5, 0.6, 0.68, 0.72, 0.7, 0.64, 0.58, 0.5];
+        wg.add(K.thin(bodyP, primG, P.lav, {
+          op: 0.84, bump: 'feather', bumpScale: 1.8,
+          instances: K.fan(lens.map((len, i) => { const f = (i - 3.5) * 0.1; return { p: V(0.52, 0.04, (i - 3.5) * 0.045), dir: V(Math.cos(f), 0, Math.sin(f)), len, nHint: UP }; })),
+        }));
+        return wg;
       });
-      const tail = K.glass(bodyP, K.ball(0.28, 0.55, 0.07, 20), P.lav, { op: 0.8, detached: true }); at(tail, bodyP.group, 0, 0.28, -0.52); tail.rotation.x = -0.42;
-      const belly = K.glass(bodyP, K.ball(0.36, 0.5, 0.2, 20), P.cream, { op: 0.55, detached: true }); at(belly, bodyP.group, 0, 0.85, 0.34);
+      /* the tail: seven long feathers fanned down and back */
+      bodyP.group.add(K.thin(bodyP, K.feather(1, 0.15, { curl: 0.03, tip: 0.6 }), P.lav, {
+        op: 0.84, bump: 'feather', bumpScale: 1.8,
+        instances: K.fan(Array.from({ length: 7 }, (_, i) => { const f = (i - 3) * 0.14; return { p: V(0, 0.4, -0.5), dir: V(Math.sin(f) * 0.5, -0.88, -0.42), len: 0.72 - Math.abs(i - 3) * 0.02, nHint: V(0, 0, 1) }; })),
+      }));
 
+      /* feathered legs and four toes with claws on each foot */
+      [1, -1].forEach((s) => { at(K.glass(bodyP, K.uvScale(K.ball(0.15, 0.22, 0.14, 22), 3, 3), P.cream, { op: 0.84, bump: 'plumage', bumpScale: 1.2, detached: true }), bodyP.group, s * 0.22, 0.3, 0.2); });
+      const toes = []; const claws = []; const q = new T.Quaternion();
+      [1, -1].forEach((s) => [-0.5, -0.17, 0.17, 0.5, 3.1].forEach((a) => {
+        const dir = V(Math.sin(a) * (a > 2 ? 0.8 : 1), -0.22, Math.cos(a) * (a > 2 ? 0.8 : 1)).normalize(); const o0 = V(s * 0.22, 0.08, 0.2); const len = a > 2 ? 0.14 : 0.2;
+        q.setFromUnitVectors(UP, dir); toes.push(new T.Matrix4().compose(o0.clone().addScaledVector(dir, len / 2), q.clone(), V(1, len / 0.2, 1)));
+        q.setFromUnitVectors(UP, dir.clone().add(V(0, -0.7, 0)).normalize()); claws.push(new T.Matrix4().compose(o0.clone().addScaledVector(dir, len + 0.02), q.clone(), V(1, 1, 1)));
+      }));
+      bodyP.group.add(K.thin(bodyP, new T.CylinderGeometry(0.028, 0.022, 0.2, 8), P.apricot, { op: 0.92, instances: toes }));
+      bodyP.group.add(K.thin(bodyP, new T.ConeGeometry(0.018, 0.075, 6), '#2b2a55', { op: 0.95, instances: claws }));
+
+      /* the head: a barred oval, two facial discs with a ruff of feathers, amber eyes with lids, a hooked beak, ear tufts */
       const headPiv = at(new T.Group(), headP.group, 0, 1.95, 0);
-      at(K.glass(headP, K.ball(0.54, 0.43, 0.47, 32), P.peri, { op: 0.86, detached: true }), headPiv, 0, 0, 0);
+      headPiv.add(K.glass(headP, K.uvScale(K.ball(0.56, 0.44, 0.48, 44), 3, 2), P.peri, { op: 0.88, bump: 'plumage', bumpScale: 1.3, map: 'barring', detached: true }));
+      const ruff = []; const ruffG = K.feather(1, 0.2, { curl: 0.1, tip: 0.7 });
       [1, -1].forEach((s) => {
-        const disc = K.glass(headP, K.ball(0.23, 0.26, 0.07, 22), P.cream, { op: 0.8, detached: true }); at(disc, headPiv, s * 0.22, -0.02, 0.4); disc.rotation.y = -s * 0.36;
-        at(K.glass(headP, K.ball(0.13, 0.13, 0.1, 18), '#f4a64a', { op: 0.95, detached: true }), headPiv, s * 0.21, 0.02, 0.45);
-        at(K.glass(headP, K.ball(0.06, 0.06, 0.05, 12), P.ink, { op: 0.98, detached: true }), headPiv, s * 0.21, 0.02, 0.52);
-        const tuft = K.glass(headP, new T.ConeGeometry(0.09, 0.34, 10), P.lav, { op: 0.85, detached: true }); at(tuft, headPiv, s * 0.31, 0.43, 0); tuft.rotation.z = -s * 0.36;
+        const disc = K.glass(headP, K.uvScale(K.ball(0.25, 0.28, 0.07, 28), 2, 2), P.cream, { op: 0.84, bump: 'plumage', bumpScale: 1, detached: true }); at(disc, headPiv, s * 0.22, -0.02, 0.4); disc.rotation.y = -s * 0.36;
+        for (let i = 0; i < 16; i++) { const an = (i / 16) * TAU; ruff.push({ p: V(s * (0.22 + Math.cos(an) * 0.27 * 0.95), -0.02 + Math.sin(an) * 0.3, 0.38 + Math.cos(an) * s * 0.05), dir: V(Math.cos(an) * s * 0.9, Math.sin(an), 0.18), len: 0.1, nHint: V(0, 0, 1), wide: 0.5 }); }
+        const eye = K.eye(headP, { r: 0.115, iris: '#f4a64a' }); at(eye, headPiv, s * 0.21, 0.03, 0.452); eye.rotation.y = s * 0.12;
+        const lid = K.glass(headP, new T.TorusGeometry(0.128, 0.02, 8, 28), P.cream, { op: 0.9, detached: true }); at(lid, headPiv, s * 0.21, 0.03, 0.455);
+        [-0.1, 0, 0.1].forEach((dz) => ruff.push({ p: V(s * 0.3, 0.38, -0.02 + dz * 0.4), dir: V(s * 0.45, 1, dz), len: 0.36 + (dz === 0 ? 0.04 : 0), nHint: V(0, 0, 1), wide: 0.4 }));
       });
-      const beak = K.glass(headP, new T.ConeGeometry(0.075, 0.22, 10).rotateX(Math.PI / 2), P.apricot, { op: 0.95, detached: true }); at(beak, headPiv, 0, -0.1, 0.52);
+      headPiv.add(K.thin(headP, ruffG, P.cream, { op: 0.84, bump: 'feather', bumpScale: 1.6, instances: K.fan(ruff) }));
+      const beak = K.tube(10, 12); const bp = [V(0, -0.03, 0.48), V(0, -0.04, 0.55), V(0, -0.09, 0.61), V(0, -0.16, 0.63), V(0, -0.22, 0.6)];
+      const bpts = new T.CatmullRomCurve3(bp).getPoints(10); beak.set(bpts, bpts.map((_, i) => 0.055 * (1 - i / 10) + 0.006), V(1, 0, 0), bpts.map(() => 0.85));
+      headPiv.add(K.glass(headP, beak.geo, P.apricot, { op: 0.96, bump: 'pebble', bumpScale: 0.6, detached: true }));
+      headPiv.add(K.solid(headP, K.ball(0.4, 0.31, 0.35, 22), P.cream, { detached: true }));
+      [1, -1].forEach((s) => { const sock = K.solid(headP, K.ball(0.1, 0.1, 0.07, 12), P.ink, { detached: true }); sock.position.set(s * 0.21, 0.03, 0.34); headPiv.add(sock); });
 
-      /* the neck: 14 discs with a small spur at the front so the twist can be read, one per vertebra */
+      /* the neck: 14 discs with a spur at the front so the twist can be read, one per vertebra, and the cord inside */
       const discs = [];
       for (let i = 0; i < 14; i++) {
         const g = at(new T.Group(), neckP.group, 0, 1.4 + i * (0.5 / 13), 0);
-        const r = 0.17 - 0.012 * Math.sin((i / 13) * Math.PI);
-        g.add(K.solid(neckP, new T.CylinderGeometry(r, r, 0.034, 18), P.cream, { detached: true }));
+        const r = 0.17 - 0.012 * Math.sin((i / 13) * PI);
+        g.add(K.solid(neckP, new T.CylinderGeometry(r, r * 0.94, 0.034, 20), P.cream, { detached: true }));
         const nub = K.solid(neckP, new T.BoxGeometry(0.06, 0.03, 0.1), P.coral, { detached: true }); nub.position.z = r + 0.02; g.add(nub);
+        const wing = K.solid(neckP, new T.BoxGeometry(0.16, 0.014, 0.05), P.cream, { detached: true }); wing.position.set(0, 0, -0.01); g.add(wing);
         discs.push(g);
       }
       at(K.solid(neckP, new T.CylinderGeometry(0.02, 0.02, 0.6, 8), P.lav, { detached: true }), neckP.group, 0, 1.72, 0);
 
-      const st = { t: 0 };
       const pose = (x, t) => {
         const th = x * DEG;
         headPiv.rotation.y = th;
         discs.forEach((g, i) => { g.rotation.y = th * (i / 13); });
-        body.scale.y = 1 + 0.012 * Math.sin(TAU * 0.35 * t);
+        const br = 1 + 0.012 * Math.sin(TAU * 0.35 * t); bodyG.scale.set(1, br, br);
         headPiv.rotation.x = 0.03 * Math.sin(TAU * 0.2 * t);
-        st.t = t;
       };
       return {
         root: rig.root, parts: rig.parts, pose,
         anchors: [
           { part: 'head', obj: headPiv, off: [0.5, 0.28, 0.2], dx: 76, dy: -44, en: 'Head', fr: 'Tête', live: (x) => `${x > 0.5 ? '+' : ''}${Math.round(x)}°` },
           { part: 'neck', obj: discs[7], off: [-0.17, 0, 0], dx: -84, dy: 14, en: '14 vertebrae', fr: '14 vertèbres' },
-          { part: 'body', obj: body, off: [-0.6, 0.2, 0.15], dx: -82, dy: 70, en: 'Wings folded', fr: 'Ailes repliées' },
+          { part: 'body', obj: wings[1], off: [0.45, 0.05, 0], dx: -82, dy: 70, en: 'Wings folded', fr: 'Ailes repliées' },
         ],
       };
     },
@@ -106,38 +156,59 @@
       fr: 'La vitesse est en longueurs de corps par seconde (BL/s). L’onde court de la tête à la queue, une longueur par cycle ; le rendement est l’estimation de Lighthill pour un corps élancé, (1 + U/c) / 2. Arrondi, stylisé.',
     },
     build(K) {
-      const T = K.T; const P = K.PAL; const rig = K.rig();
+      const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
       const bodyP = rig.part('body', [0, 0, 0]); const finsP = rig.part('fins', [0, 0.85, 0]); const spineP = rig.part('spine', [0, -0.7, 0]);
       const N = 40; const L = 2.4; const ds = L / N;
-      const body = K.tube(N, 18); const spine = K.tube(N, 6); const bladder = K.tube(12, 12);
-      K.glass(bodyP, body.geo, P.peach, { op: 0.84 });
+      /* scales are a bump map that tiles, the kohaku patches a colour map drawn once (second UV set) */
+      const body = K.tube(N, 28, 2.2, 1.7); const spine = K.tube(N, 6); const bladder = K.tube(12, 12);
+      K.glass(bodyP, body.geo, '#fff2e4', { op: 0.9, bump: 'scales', bumpScale: 2.8, map: 'koi', mapCh: 1 });
       K.solid(spineP, spine.geo, P.cream); K.solid(spineP, bladder.geo, P.mint);
-      const radius = (s) => Math.max(0.014, 0.3 * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.62)), 0.9) * (1 - 0.32 * s));
+      const radius = (s) => Math.max(0.014, 0.3 * Math.pow(Math.sin(PI * Math.pow(s, 0.62)), 0.9) * (1 - 0.32 * s));
+      const asp = (s) => 0.76 + 0.14 * (1 - s) * (1 - s);
 
-      /* head: eyes and a heart, all placed on the moving axis */
+      /* head: eyes with a glint, gill covers, lips, two pairs of barbels */
       const eyes = new T.Group(); bodyP.group.add(eyes);
+      [1, -1].forEach((s) => { const e = K.eye(bodyP, { r: 0.062, iris: '#f2b23c' }); e.position.set(0.01, 0.075, s * 0.12); if (s < 0) e.rotation.y = PI; eyes.add(e); });
+      const gillG = new T.Group(); bodyP.group.add(gillG);
       [1, -1].forEach((s) => {
-        const e = K.glass(bodyP, K.ball(0.05, 0.05, 0.05, 12), P.ink, { op: 0.96, detached: true }); e.position.set(0.0, 0.08, s * 0.125); eyes.add(e);
+        const pts = []; for (let i = 0; i <= 12; i++) { const a = -1.1 + (2.2 * i) / 12; const y = 0.17 * Math.sin(a); pts.push(V(0.06 + 0.07 * Math.cos(a), y, s * 0.205 * Math.sqrt(Math.max(0.15, 1 - (y / 0.28) * (y / 0.28))))); }
+        gillG.add(K.glass(bodyP, new T.TubeGeometry(new T.CatmullRomCurve3(pts), 24, 0.008, 6), '#d0699b', { op: 0.95, detached: true }));
       });
-      const heart = new T.Group(); spineP.group.add(heart);
-      const hm = K.solid(spineP, K.ball(0.09, 0.08, 0.08, 14), P.coral, { detached: true }); hm.position.set(0.05, -0.12, 0); heart.add(hm);
+      const mouth = new T.Group(); bodyP.group.add(mouth);
+      [[0.05, 1], [0.05, -1]].forEach(([dy, s]) => { const lip = K.glass(bodyP, new T.TorusGeometry(0.05, 0.015, 8, 18).rotateY(PI / 2), P.coral, { op: 0.94, detached: true }); lip.position.set(0.02, -0.02 * s, 0); lip.scale.set(1, 0.7, 1); mouth.add(lip); });
+      const barbels = new T.Group(); bodyP.group.add(barbels);
+      [1, -1].forEach((s) => [[0.0, 0.18, 0.12], [0.04, 0.12, 0.08]].forEach(([x0, dz, len], k2) => {
+        const c = new T.CatmullRomCurve3([V(x0, -0.05, s * 0.05), V(x0 + 0.04, -0.1 - k2 * 0.02, s * dz), V(x0 + 0.12, -0.15 - k2 * 0.03, s * (dz + 0.02))]);
+        barbels.add(K.glass(bodyP, new T.TubeGeometry(c, 10, 0.007, 5), P.rose, { op: 0.94, detached: true }));
+      }));
 
-      /* fins: tail (re-shaped every frame), dorsal, two pectorals */
-      const tailGeo = K.leaf(10, 6, () => {});
+      /* fins: tail (re-shaped every frame), dorsal, two pectorals, two pelvics, an anal fin; all with fin rays */
+      const tailGeo = K.leaf(12, 10, () => {});
       const tailFin = new T.Group(); finsP.group.add(tailFin);
-      tailFin.add(K.thin(finsP, tailGeo, P.rose, { op: 0.62, detached: true }));
-      const dorsal = new T.Group(); finsP.group.add(dorsal);
-      dorsal.add(K.thin(finsP, K.leaf(8, 5, (u, v, o) => { const vv = (v + 1) / 2; const h = 0.3 * Math.sin(Math.PI * Math.pow(u, 0.8)); o.x = u * 0.8 - vv * 0.2; o.y = 0.26 + vv * h; o.z = 0; }), P.lav, { op: 0.6, detached: true }));
+      tailFin.add(K.thin(finsP, tailGeo, P.rose, { op: 0.64, bump: 'rays', bumpScale: 2.4, detached: true }));
+      const dorsalG = K.leaf(8, 12, (u, v, o) => { const vv = (v + 1) / 2; const h = 0.32 * Math.sin(PI * Math.pow(vv, 0.8)); o.x = vv * 0.95 - u * 0.2; o.y = 0.25 + u * h; o.z = 0; });
+      const dorsal = new T.Group(); finsP.group.add(dorsal); dorsal.add(K.thin(finsP, dorsalG, P.lav, { op: 0.62, bump: 'rays', bumpScale: 2.4, detached: true }));
+      const pecG = K.leaf(10, 8, (u, vv0, o) => { const v = (vv0 + 1) / 2; const ch = 0.26 * (1 - 0.55 * u); o.x = v * ch + u * 0.34; o.y = -0.1 - 0.05 * u; o.z = 0.18 + u * 0.4; });
       const pec = [1, -1].map((s) => {
-        const place = new T.Group(); finsP.group.add(place);
-        const flap = new T.Group(); place.add(flap);
-        const f = K.thin(finsP, K.leaf(7, 5, (u, vv0, o) => { const v = (vv0 + 1) / 2; o.x = u * 0.24 * (1 - 0.6 * v) + v * 0.34; o.y = -0.1 - 0.06 * v; o.z = 0.2 + v * 0.38; }), P.mint, { op: 0.62, detached: true });
-        if (s < 0) f.scale.z = -1; flap.add(f);
+        const place = new T.Group(); finsP.group.add(place); const flap = new T.Group(); place.add(flap);
+        const f = K.thin(finsP, pecG, P.mint, { op: 0.64, bump: 'rays', bumpScale: 2.2, detached: true }); if (s < 0) f.scale.z = -1; flap.add(f);
         return { place, flap, s };
       });
+      const pelv = [1, -1].map((s) => { const g = new T.Group(); finsP.group.add(g); const f = K.thin(finsP, pecG, P.peach, { op: 0.62, bump: 'rays', bumpScale: 2.2, detached: true }); f.scale.set(0.7, 0.7, 0.7 * s); f.rotation.x = s * 0.55; f.position.set(0, -0.14, s * 0.02); g.add(f); return g; });
+      const analG = K.leaf(8, 10, (u, v, o) => { const vv = (v + 1) / 2; const h = 0.2 * Math.sin(PI * Math.pow(vv, 0.8)); o.x = vv * 0.5 - u * 0.12; o.y = -0.22 - u * h; o.z = 0; });
+      const anal = new T.Group(); finsP.group.add(anal); anal.add(K.thin(finsP, analG, P.peach, { op: 0.62, bump: 'rays', bumpScale: 2.2, detached: true }));
 
-      const P3 = Array.from({ length: N + 1 }, () => new T.Vector3()); const R = new Array(N + 1);
-      const PB = Array.from({ length: 13 }, () => new T.Vector3()); const RB = new Array(13);
+      /* the skeleton seen through the x-ray: vertebrae and ribs follow the body */
+      const NV = N - 4; const vMats = Array.from({ length: NV }, () => new T.Matrix4());
+      const verts = K.solid(spineP, new T.CylinderGeometry(0.04, 0.04, 0.03, 10).rotateZ(PI / 2), P.cream, { instances: vMats, detached: true }); spineP.group.add(verts);
+      const NR = 13; const rMats = Array.from({ length: NR }, () => new T.Matrix4());
+      const ribs = K.solid(spineP, new T.TorusGeometry(1, 0.05, 6, 12, PI).rotateY(PI / 2).rotateX(PI), P.cream, { instances: rMats, detached: true }); spineP.group.add(ribs);
+      const heart = new T.Group(); spineP.group.add(heart);
+      const hm = K.solid(spineP, K.ball(0.09, 0.08, 0.08, 14), P.coral, { detached: true }); hm.position.set(0.05, -0.12, 0); heart.add(hm);
+      const dummy = new T.Object3D();
+
+      const P3 = Array.from({ length: N + 1 }, () => new T.Vector3()); const R = new Array(N + 1); const Ra = new Array(N + 1); const Rs = new Array(N + 1);
+      const PB = Array.from({ length: 13 }, () => new T.Vector3()); const RB = new Array(13); const AB = new Array(13).fill(0.8);
       const hint = new T.Vector3(0, 1, 0);
       const st = { ph: 0, t: 0 };
       const pose = (v, t) => {
@@ -149,23 +220,27 @@
           const s = i / N;
           const z = tip * (0.08 + 0.92 * s * s) * Math.sin(TAU * (st.ph - s));
           if (i > 0) x -= Math.sqrt(Math.max(ds * ds - (z - zPrev) * (z - zPrev), ds * ds * 0.03));
-          P3[i].set(x, 0, z); zPrev = z; R[i] = radius(s);
+          P3[i].set(x, 0, z); zPrev = z; R[i] = radius(s); Ra[i] = asp(s); Rs[i] = Math.max(0.012, R[i] * 0.14);
         }
         const shift = -P3[N].x / 2;
         for (let i = 0; i <= N; i++) P3[i].x += shift;
-        body.set(P3, R, hint);
-        spine.set(P3, R.map((r) => Math.max(0.012, r * 0.14)), hint);
-        for (let i = 0; i <= 12; i++) { const k = Math.round(10 + i * (12 / 12) * 1.1); PB[i].copy(P3[Math.min(N, k)]); RB[i] = 0.13 * Math.sin(Math.PI * (i / 12)) + 0.01; }
-        bladder.set(PB, RB, hint);
-        body.place(eyes, 2); body.place(heart, 7);
+        body.set(P3, R, hint, Ra); spine.set(P3, Rs, hint);
+        for (let i = 0; i <= 12; i++) { const k = Math.min(N, Math.round(10 + i * 1.1)); PB[i].copy(P3[k]); RB[i] = 0.13 * Math.sin(PI * (i / 12)) + 0.01; }
+        bladder.set(PB, RB, hint, AB);
+        for (let i = 0; i < NV; i++) { const k = i + 2; spine.place(dummy, k); dummy.scale.setScalar(Math.max(0.3, (R[k] * 0.9) / 0.04 * 0.16)); dummy.updateMatrix(); verts.setMatrixAt(i, dummy.matrix); }
+        verts.instanceMatrix.needsUpdate = true;
+        for (let i = 0; i < NR; i++) { const k = 9 + i; spine.place(dummy, k); const sc = R[k] * 0.62; dummy.scale.set(sc * 0.5, sc, sc * Ra[k]); dummy.updateMatrix(); ribs.setMatrixAt(i, dummy.matrix); }
+        ribs.instanceMatrix.needsUpdate = true;
+        body.place(eyes, 3); body.place(gillG, 7); body.place(mouth, 0); body.place(barbels, 1); body.place(heart, 7);
         body.place(tailFin, N);
         tailGeo.userData.set((u, vv, o) => {
           const h = 0.05 + 0.46 * Math.pow(u, 1.1) * (1 - 0.22 * u);
           o.x = u * 0.8 * (1 + 0.2 * Math.abs(vv) * u); o.y = vv * h;
-          o.z = 0.1 * Math.sin(TAU * (st.ph * 1.0 - 0.9 * u)) * u * u * (0.5 + 0.5 * Math.abs(vv));
+          o.z = 0.1 * Math.sin(TAU * (st.ph - 0.9 * u)) * u * u * (0.5 + 0.5 * Math.abs(vv)) + 0.012 * Math.sin(vv * 18 + st.ph * 6) * u;
         });
-        body.place(dorsal, 14);
+        body.place(dorsal, 14); body.place(anal, 28);
         pec.forEach((p) => { body.place(p.place, 8); p.flap.rotation.x = p.s * (0.2 + 0.25 * Math.sin(TAU * st.ph * 0.5)); });
+        pelv.forEach((g) => body.place(g, 16));
       };
       return {
         root: rig.root, parts: rig.parts, pose,
@@ -197,57 +272,73 @@
       fr: 'Une courbe de croissance stylisée pour une tortue des Galápagos (environ 6 cm à l’éclosion, plus d’un mètre adulte), arrondie. La carapace garde le même dessin : 5 plaques centrales et 4 plaques latérales de chaque côté. Dessinée de 22 % à 100 % de la taille réelle pour que le nouveau-né reste visible.',
     },
     build(K) {
-      const T = K.T; const P = K.PAL; const rig = K.rig();
+      const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
       const shellP = rig.part('shell', [0, 0.9, 0]); const bodyP = rig.part('body', [0, -0.5, 0]); const bonesP = rig.part('bones', [0, 0.35, 0.9]);
       const mv = [shellP, bodyP, bonesP].map((p) => { const g = new T.Group(); p.group.add(g); return g; });
-      const a = 1.25; const b = 0.85; const c = 0.95;
-      const onDome = (x, z) => b * Math.sqrt(Math.max(0, 1 - (x / a) * (x / a) - (z / c) * (z / c))) * 1.006;
+      const a = 1.25; const b = 0.88; const c = 0.95; const rnd = K.rng(5);
 
-      const dome = new T.SphereGeometry(1, 56, 28, 0, TAU, 0, Math.PI / 2); dome.scale(a, b, c);
-      mv[0].add(K.glass(shellP, dome, P.mint, { op: 0.86, detached: true, side: T.DoubleSide }));
-      const plast = K.glass(shellP, K.ball(1.14, 0.1, 0.88, 30), P.lav, { op: 0.8, detached: true }); mv[0].add(plast);
-
-      /* the plates: 5 along the spine, 4 a side, and the ring of marginals */
-      const seg = [];
-      const poly = (pts) => { for (let i = 0; i < pts.length - 1; i++) seg.push(pts[i], pts[i + 1]); };
-      const strip = 0.27 * c; const xs = [-0.6, -0.2, 0.2, 0.6].map((k) => k * a);
-      [1, -1].forEach((s) => { const line = []; for (let i = 0; i <= 16; i++) { const x = (-0.86 + (1.72 * i) / 16) * a; line.push(new T.Vector3(x, onDome(x, s * strip), s * strip)); } poly(line); });
-      xs.forEach((x) => {
-        const cross = []; for (let i = 0; i <= 8; i++) { const z = -strip + (2 * strip * i) / 8; cross.push(new T.Vector3(x, onDome(x, z), z)); } poly(cross);
-        [1, -1].forEach((s) => {
-          const out = []; for (let i = 0; i <= 10; i++) {
-            const k = i / 10; let xx = x * (1 + 0.28 * k); let zz = s * (strip + (0.9 * c - strip) * k);
-            const r = Math.hypot(xx / a, zz / c); if (r > 0.93) { xx *= 0.93 / r; zz *= 0.93 / r; }
-            out.push(new T.Vector3(xx, onDome(xx, zz), zz));
-          } poly(out);
-        });
-      });
-      const ring = []; for (let i = 0; i <= 64; i++) { const ang = (i / 64) * TAU; const xx = Math.cos(ang) * a * 0.93; const zz = Math.sin(ang) * c * 0.93; ring.push(new T.Vector3(xx, onDome(xx, zz), zz)); } poly(ring);
-      mv[0].add(K.lines(shellP, new T.BufferGeometry().setFromPoints(seg), '#4a3f8f', 0.5, { kind: 'thin', detached: true }));
-
+      /* the shell: a dome whose plates stand proud of their seams (cells of a Voronoi diagram laid out like the real scutes:
+         5 along the spine, 4 a side, a ring of marginals), growth rings on each plate, a tint per plate */
+      const plates = [];
+      for (let i = 0; i < 5; i++) plates.push({ u: -0.72 + 0.36 * i, w: 0, r: 0.2 });
+      [1, -1].forEach((s) => [-0.54, -0.18, 0.18, 0.54].forEach((u) => plates.push({ u, w: s * 0.54, r: 0.21 })));
+      for (let i = 0; i < 24; i++) { const an = (i / 24) * TAU; plates.push({ u: 0.935 * Math.cos(an), w: 0.935 * Math.sin(an), r: 0.12 }); }
+      plates.forEach((p) => { p.h = 0.9 + 0.2 * rnd(); });
+      const dome = new T.SphereGeometry(1, 150, 64, 0, TAU, 0, PI / 2);
+      const pos = dome.attributes.position; const col = new Float32Array(pos.count * 3);
+      const cMint = new T.Color('#7fd6b4'); const cGroove = new T.Color('#3d3478'); const cv = new T.Color(); /* vertex colours are linear: build them from Color */
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i); const y = pos.getY(i); const z = pos.getZ(i);
+        let d1 = 9; let d2 = 9; let id = 0; let dr = 0;
+        for (let k = 0; k < plates.length; k++) { const p = plates[k]; const dd = Math.hypot(x - p.u, z - p.w); const dn = dd / p.r; if (dn < d1) { d2 = d1; d1 = dn; id = k; dr = dd; } else if (dn < d2) d2 = dn; }
+        const ridge = sm(0, 0.2, d2 - d1);
+        const disp = 0.055 * ridge + 0.007 * ridge * (0.5 + 0.5 * Math.sin(dr * 90));
+        pos.setXYZ(i, x * (1 + disp), y * (1 + disp * 1.1), z * (1 + disp));
+        const gr = 1 - ridge;
+        cv.copy(cMint).multiplyScalar(plates[id].h).lerp(cGroove, gr * 0.7); col[i * 3] = cv.r; col[i * 3 + 1] = cv.g; col[i * 3 + 2] = cv.b;
+      }
+      dome.setAttribute('color', new T.BufferAttribute(col, 3)); dome.scale(a, b, c); dome.computeVertexNormals(); K.uvScale(dome, 10, 5);
+      mv[0].add(K.glass(shellP, dome, '#ffffff', { op: 0.92, vcol: true, bump: 'pebble', bumpScale: 1.0, side: T.DoubleSide, detached: true }));
+      mv[0].add(K.glass(shellP, K.uvScale(K.ball(1.14, 0.1, 0.88, 44), 4, 2), P.lav, { op: 0.84, bump: 'pebble', bumpScale: 0.8, detached: true }));
       /* the adult outline on the ground: how far the shell still has to grow */
       const outline = K.lines(shellP, new T.BufferGeometry().setFromPoints(Array.from({ length: 97 }, (_, i) => { const ang = (i / 96) * TAU; return new T.Vector3(Math.cos(ang) * 1.3, 0.004, Math.sin(ang) * 1.0); }).flatMap((p, i, arr) => (i < arr.length - 1 ? [p, arr[i + 1]] : []))), P.ink, 0.28, { kind: 'thin', detached: true });
       shellP.group.add(outline);
 
-      /* head, neck, four legs, tail */
-      const head = new T.Group(); head.position.set(1.42, 0.38, 0); mv[1].add(head);
-      head.add(K.glass(bodyP, K.ball(0.3, 0.2, 0.2, 24), P.peach, { op: 0.88, detached: true }));
-      [1, -1].forEach((s) => { const e = K.glass(bodyP, K.ball(0.045, 0.045, 0.045, 10), P.ink, { op: 0.98, detached: true }); e.position.set(0.14, 0.07, s * 0.15); head.add(e); });
-      const neck = K.glass(bodyP, K.ball(0.5, 0.21, 0.21, 24), P.peach, { op: 0.86, detached: true }); neck.position.set(1.06, 0.3, 0); mv[1].add(neck);
+      /* neck and head: one scaled loft, an eye with a glint, nostrils, a horny beak */
+      const hSpec = { len: 1.0, n: 36, ru: 3, rv: 2, a: () => 1.02, y: (s) => -0.06 * s, r: (s) => 0.008 + (0.2 + 0.05 * Math.sin(PI * Math.pow(s, 1.6))) * Math.pow(Math.sin(PI * Math.pow(s, 0.45)), 0.45) * (1 - 0.18 * s) };
+      const headG = new T.Group(); headG.position.set(1.0, 0.38, 0); mv[1].add(headG);
+      headG.add(K.glass(bodyP, K.loft(hSpec), P.peach, { op: 0.9, bump: 'scales', bumpScale: 1.6, detached: true }));
+      [1, -1].forEach((s) => {
+        const e = K.eye(bodyP, { r: 0.05, iris: '#c9803a' }); e.position.set(0.3, 0.07, s * 0.15); e.rotation.y = s > 0 ? 1.05 : PI - 1.05; headG.add(e);
+        const n = K.glass(bodyP, K.ball(0.014, 0.014, 0.014, 6), P.ink, { op: 0.96, detached: true }); n.position.set(0.47, 0.03, s * 0.025); headG.add(n);
+        const brow = K.glass(bodyP, K.ball(0.09, 0.03, 0.06, 12), P.peach, { op: 0.9, bump: 'scales', detached: true }); brow.position.set(0.28, 0.12, s * 0.12); headG.add(brow);
+      });
+      const beak = K.glass(bodyP, new T.ConeGeometry(0.06, 0.12, 8).rotateZ(-PI / 2 - 0.25), '#e2a06b', { op: 0.94, detached: true }); beak.position.set(0.5, -0.01, 0); headG.add(beak);
+      const neckFold = K.glass(bodyP, K.uvScale(K.ball(0.5, 0.21, 0.21, 24), 2, 2), P.peach, { op: 0.84, bump: 'wrinkle', bumpScale: 1.2, detached: true }); neckFold.position.set(0.55, 0.3, 0); mv[1].add(neckFold);
+
+      /* four columnar legs: lofted, big scales, a flared foot with four toenails; and a short tail */
+      const legSpec = { x0: 0, len: 0.66, n: 22, radial: 20, ru: 3, rv: 1.5, a: () => 1.08, r: (s) => (0.215 - 0.05 * s + 0.05 * sm(0.8, 0.96, s)) * (1 - sm(0.975, 1, s)) + 0.005 };
       const legs = [];
+      const nailG = new T.ConeGeometry(0.03, 0.085, 6).rotateZ(-PI / 2);
       [[0.7, 0.62, 0], [0.7, -0.62, 0.5], [-0.72, 0.6, 0.5], [-0.72, -0.6, 0]].forEach(([x, z, ph]) => {
         const hip = new T.Group(); hip.position.set(x, 0.22, z); mv[1].add(hip);
-        const leg = K.glass(bodyP, new T.CapsuleGeometry(0.19, 0.28, 6, 14).translate(0, -0.26, 0), P.peach, { op: 0.88, detached: true }); hip.add(leg);
+        const lg = new T.Group(); lg.rotation.z = -PI / 2; hip.add(lg);
+        lg.add(K.glass(bodyP, K.loft(legSpec), P.peach, { op: 0.9, bump: 'scales', bumpScale: 2.2, detached: true }));
+        const foot = K.glass(bodyP, K.ball(0.25, 0.07, 0.24, 18), P.peach, { op: 0.9, bump: 'pebble', bumpScale: 1, detached: true }); foot.position.set(0.05, -0.64, 0); hip.add(foot);
+        const nails = [-0.15, -0.05, 0.05, 0.15].map((dz) => new T.Matrix4().compose(V(0.26, -0.67, dz * 1.1), new T.Quaternion().setFromEuler(new T.Euler(0, dz * 1.2, 0)), V(1, 1, 1)));
+        hip.add(K.thin(bodyP, nailG, '#fff3dd', { op: 0.96, instances: nails }));
         legs.push({ hip, ph });
       });
-      const tailG = K.glass(bodyP, new T.ConeGeometry(0.1, 0.34, 10).rotateZ(Math.PI / 2), P.peach, { op: 0.88, detached: true }); tailG.position.set(-1.28, 0.2, 0); mv[1].add(tailG);
+      const tailG = K.glass(bodyP, new T.ConeGeometry(0.11, 0.38, 12).rotateZ(PI / 2), P.peach, { op: 0.9, bump: 'scales', detached: true }); tailG.position.set(-1.3, 0.2, 0); mv[1].add(tailG);
 
-      /* the skeleton seen by the x-ray: a spine and eight pairs of ribs fused into the dome */
-      mv[2].add(K.solid(bonesP, new T.CylinderGeometry(0.045, 0.045, 2.3, 10).rotateZ(Math.PI / 2).translate(0, 0.62, 0), P.cream, { detached: true }));
+      /* the skeleton seen by the x-ray: a skull, a spine, eight pairs of ribs fused into the dome, a pelvis */
+      mv[2].add(K.solid(bonesP, new T.CylinderGeometry(0.045, 0.045, 2.3, 10).rotateZ(PI / 2).translate(0, 0.62, 0), P.cream, { detached: true }));
+      const skull = K.solid(bonesP, K.ball(0.26, 0.17, 0.17, 18), P.cream, { detached: true }); skull.position.set(1.4, 0.4, 0); mv[2].add(skull);
+      const pelvis = K.solid(bonesP, K.ball(0.18, 0.14, 0.36, 14), P.cream, { detached: true }); pelvis.position.set(-0.85, 0.5, 0); mv[2].add(pelvis);
       for (let k = 0; k < 8; k++) {
         const x = (-0.72 + k * 0.205) * a;
         [1, -1].forEach((s) => {
-          const pts = []; for (let i = 0; i <= 10; i++) { const z = s * c * 0.86 * (i / 10); const rr = 1 - (x / a) * (x / a) - (z / (c * 0.86)) * (z / (c * 0.86)); pts.push(new T.Vector3(x, 0.05 + 0.58 * Math.sqrt(Math.max(0, rr)) * 1.0, z)); }
+          const pts = []; for (let i = 0; i <= 10; i++) { const z = s * c * 0.86 * (i / 10); const rr = 1 - (x / a) * (x / a) - (z / (c * 0.86)) * (z / (c * 0.86)); pts.push(new T.Vector3(x, 0.05 + 0.58 * Math.sqrt(Math.max(0, rr)), z)); }
           mv[2].add(K.solid(bonesP, new T.TubeGeometry(new T.CatmullRomCurve3(pts), 14, 0.03, 6), P.cream, { detached: true }));
         });
       }
@@ -256,17 +347,16 @@
         const sc = TORT.len(y) / 106; const vs = 0.22 + 0.78 * sc;
         mv.forEach((m) => { m.scale.setScalar(vs); m.position.y = 0.37 * vs; });
         const kid = 1 + 0.55 * (1 - sc); /* the young have a bigger head and longer legs for their shell */
-        head.scale.setScalar(kid); head.position.x = 1.42 + 0.05 * Math.sin(TAU * 0.3 * t); head.rotation.z = 0.06 * Math.sin(TAU * 0.3 * t + 1);
+        headG.scale.setScalar(kid); headG.position.x = 1.0 + 0.05 * Math.sin(TAU * 0.3 * t); headG.rotation.z = 0.06 * Math.sin(TAU * 0.3 * t + 1);
         legs.forEach((l) => { l.hip.rotation.z = 0.2 * Math.sin(TAU * 0.28 * t + l.ph * TAU); l.hip.scale.setScalar(1 + 0.25 * (1 - sc)); });
         mv[0].rotation.z = 0.012 * Math.sin(TAU * 0.28 * t);
-        outline.visible = true;
       };
       return {
         root: rig.root, parts: rig.parts, pose,
         anchors: [
-          { part: 'shell', obj: mv[0], off: [-0.1, 0.8, 0.2], dx: 78, dy: -60, en: 'Shell, 13 plates', fr: 'Carapace, 13 plaques', live: (y) => `${TORT.len(y).toFixed(0)} cm` },
+          { part: 'shell', obj: mv[0], off: [-0.1, 0.9, 0.2], dx: 78, dy: -60, en: 'Shell, 13 plates', fr: 'Carapace, 13 plaques', live: (y) => `${TORT.len(y).toFixed(0)} cm` },
           { part: 'bones', obj: mv[2], off: [0.4, 0.5, 0.5], dx: -88, dy: -44, en: 'Fused ribs', fr: 'Côtes soudées' },
-          { part: 'body', obj: head, off: [0.2, 0.1, 0.2], dx: 72, dy: 54, en: 'Head & legs', fr: 'Tête et pattes' },
+          { part: 'body', obj: headG, off: [0.3, 0.1, 0.2], dx: 72, dy: 54, en: 'Head & legs', fr: 'Tête et pattes' },
         ],
       };
     },
