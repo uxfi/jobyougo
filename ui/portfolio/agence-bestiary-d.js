@@ -187,7 +187,7 @@
       const bG = at(new T.Group(), bodyP.group, -0.1, 0, 0);
       const bSpec = { len: 3.3, n: 60, ru: 3, rv: 4, a: () => 0.93, y: (s) => 2.35 + 0.09 * g2(s, 0.78, 0.15), r: (s) => 0.006 + (1.02 + 0.06 * g2(s, 0.78, 0.15) - 0.05 * g2(s, 0.4, 0.2)) * env(s) };
       const barrel = K.glass(bodyP, K.loft(bSpec), SKIN, { op: 0.9, backOp: 0.5, bump: 'wrinkle', bumpScale: 1.8, detached: true }); bG.add(barrel);
-      bG.add(K.fuzz(bodyP, { surf: K.surf(bSpec), count: 800, s0: 0.1, s1: 0.9, th0: -0.5, th1: 0.5, hex: P.ink, len: 0.09, r: 0.011, lean: 0.4 }));
+      bG.add(K.fuzz(bodyP, { surf: K.surf(bSpec), count: 300, s0: 0.1, s1: 0.9, th0: -0.5, th1: 0.5, hex: '#8576c4', len: 0.055, r: 0.007, lean: 0.9 }));
       const hSpec = { x0: 0, len: 1.55, n: 44, ru: 2, rv: 3, a: () => 0.82, y: (s) => 2.72 - 0.32 * smooth(0.35, 1, s), r: (s) => 0.006 + (0.9 - 0.5 * smooth(0.5, 1, s)) * Math.pow(Math.sin(PI * Math.pow(s, 0.5)), 0.5) * (1 + 0.1 * g2(s, 0.3, 0.15)) };
       const headG = at(new T.Group(), bodyP.group, 0.72, 0, 0);
       headG.add(K.glass(bodyP, K.loft(hSpec), SKIN, { op: 0.86, bump: 'wrinkle', bumpScale: 1.4, detached: true }));
@@ -200,10 +200,12 @@
       headG.add(K.thin(bodyP, new T.ConeGeometry(0.008, 1, 4).rotateZ(-PI / 2).translate(0.5, 0, 0), P.ink, { op: 0.9, instances: K.fan(lashes) }));
 
       /* four columnar legs: folds of skin, a flared foot and four toenails each; a tail with a tuft of hair */
-      const legSpec = { x0: 0, len: 1.5, n: 24, radial: 22, ru: 2, rv: 5, a: () => 1.0, r: (s) => (0.4 - 0.07 * s + 0.06 * smooth(0.88, 0.98, s)) * (1 - smooth(0.985, 1, s)) + 0.006 };
+      /* each leg starts inside the flank with a rounded thigh (no flat top showing), is thick at the top, plain below, and flares into the foot */
+      const legR = (s) => 0.38 + 0.12 * (1 - smooth(0, 0.5, s)) + 0.05 * smooth(0.88, 0.98, s);
+      const legSpec = { x0: 0, len: 2.0, n: 30, radial: 22, ru: 2, rv: 5, a: () => 1.0, r: (s) => legR(s) * Math.sqrt(Math.max(0, 1 - Math.pow(1 - Math.min(1, s / 0.16), 2))) * (1 - smooth(0.985, 1, s)) + 0.006 };
       const nailG = new T.ConeGeometry(0.045, 0.12, 6).rotateZ(-PI / 2);
-      [[0.9, 0.6], [0.9, -0.6], [-1.0, 0.62], [-1.0, -0.62]].forEach(([x, z]) => {
-        const lg = at(new T.Group(), bodyP.group, x, 1.5, z); lg.rotation.z = -PI / 2;
+      [[0.5, 0.5], [0.5, -0.5], [-1.0, 0.55], [-1.0, -0.55]].forEach(([x, z]) => {
+        const lg = at(new T.Group(), bodyP.group, x, 2.05, z); lg.rotation.z = -PI / 2;
         lg.add(K.glass(bodyP, K.loft(legSpec), SKIN, { op: 0.86, bump: 'wrinkle', bumpScale: 1.8, detached: true }));
         at(K.glass(bodyP, K.ball(0.44, 0.1, 0.42, 20), SKIN, { op: 0.88, bump: 'wrinkle', detached: true }), bodyP.group, x + 0.04, 0.1, z);
         bodyP.group.add(K.thin(bodyP, nailG, '#fff3dd', { op: 0.96, instances: [-0.24, -0.08, 0.08, 0.24].map((dz) => new T.Matrix4().compose(V(x + 0.43, 0.12, z + dz), new T.Quaternion().setFromEuler(new T.Euler(0, dz * 1.4, 0)), V(1, 1, 1))) }));
@@ -230,7 +232,7 @@
       const earG = K.leaf(14, 14, (u, v, o) => { const h = 0.8 * Math.sqrt(Math.max(0, 1 - (2 * u - 1) * (2 * u - 1))) + 0.06; o.x = -u * 1.15; o.y = v * h - 0.15 * u + 0.025 * Math.sin(v * 22) * u; o.z = 0.1 * Math.sin(PI * u) + 0.03 * Math.sin(v * 9) * u; });
       const ears = [1, -1].map((s) => {
         const hinge = new T.Group(); at(hinge, earsP.group, 1.12, 2.95, s * 0.72);
-        hinge.add(K.thin(earsP, earG, P.peri, { op: 0.94, bump: 'veins', bumpScale: 2.2, detached: true }));
+        hinge.add(K.thin(earsP, earG, '#a99be3', { op: 0.94, bump: 'veins', bumpScale: 2.2, detached: true }));
         const tk = K.tube(18, 12); const tc = new T.CatmullRomCurve3([V(1.95, 2.05, s * 0.4), V(2.4, 1.72, s * 0.5), V(2.85, 1.8, s * 0.46), V(3.12, 2.15, s * 0.34)]).getPoints(18);
         tk.set(tc, tc.map((_, i) => 0.1 * Math.pow(1 - i / 18, 0.9) + 0.01), V(0, 1, 0)); earsP.group.add(K.glass(earsP, tk.geo, P.cream, { op: 0.95, bump: 'wrinkle', bumpScale: 0.6, detached: true }));
         return { hinge, s };
