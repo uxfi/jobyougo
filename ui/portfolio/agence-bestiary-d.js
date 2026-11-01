@@ -33,7 +33,7 @@
   const pickName = (o) => (document.documentElement.lang === 'fr' ? o.fr : o.en).split(' · ')[0];
   B.animals.mobility = {
     id: 'mobility',
-    frame: { r: 2.85, cx: 0.45, cy: 1.42, floor: 0, shadow: 5.2, yaw: 0.82, pitch: 0.14 },
+    frame: { r: 2.85, cx: 0.45, cy: 1.75, floor: 0, shadow: 5.2, yaw: 0.82, pitch: 0.14 },
     x: 5,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig(); const UP = V(0, 1, 0);
@@ -41,11 +41,11 @@
       const mv = [legsP, bodyP, heartP].map((p) => { const g = new T.Group(); p.group.add(g); return g; });
       const DROP = 0.24; /* the body sits lower on the legs, so each leg starts inside the shoulder or the haunch */
       const put = (g, m, x, y, z) => { g.position.set(x, y - (m === 1 ? DROP : 0), z); mv[m].add(g); return g; };
-      const COAT = '#f1b595'; const DARK = '#6d59bb'; const SKIN = { op: 1, rough: 0.64, clear: 0.1, iri: 0.06, bump: 'fuzz', bumpScale: 0.7, detached: true };
+      const COAT = '#f1b595'; const DARK = '#6d59bb'; const SKIN = { op: 1, rough: 0.64, clear: 0.1, iri: 0.06, bump: 'fuzz', bumpScale: 0.7, map: 'dapple', detached: true };
       const HIP = 1.5; const CY = 1.98;
 
       /* body: a deep barrel with a heart girth, a tucked-up flank and a round croup, plus a shoulder and a haunch on each side */
-      const bSpec = { len: 2.5, n: 60, ru: 3, rv: 3, a: () => 0.84, y: (s) => CY + 0.05 * smooth(0.55, 0.8, s) + 0.05 * (1 - smooth(0, 0.3, s)), r: (s) => 0.006 + (0.58 + 0.07 * g2(s, 0.68, 0.14) - 0.05 * g2(s, 0.32, 0.12) + 0.04 * g2(s, 0.15, 0.1)) * env(s) };
+      const bSpec = { len: 2.5, n: 60, ru: 3, rv: 3, a: () => 0.84, y: (s) => CY + 0.05 * smooth(0.55, 0.8, s) + 0.05 * (1 - smooth(0, 0.3, s)) + 0.06 * g2(s, 0.8, 0.07), r: (s) => 0.006 + (0.58 + 0.07 * g2(s, 0.68, 0.14) - 0.06 * g2(s, 0.32, 0.12) + 0.09 * g2(s, 0.14, 0.12) + 0.04 * g2(s, 0.86, 0.1)) * env(s) };
       put(K.glass(bodyP, K.loft(bSpec), COAT, { ...SKIN }), 1, 0, 0, 0);
       [1, -1].forEach((s) => {
         put(K.glass(bodyP, K.ball(0.5, 0.62, 0.22, 26), COAT, { ...SKIN }), 1, -0.85, 1.9, s * 0.3);
@@ -72,7 +72,7 @@
         const e = K.eye(bodyP, { r: 0.072, iris: '#7a4a30' }); e.position.set(0.27, 0.09, s * 0.15); e.rotation.y = ry; head.add(e);
         const lid = K.glass(bodyP, new T.TorusGeometry(0.078, 0.009, 8, 22), '#d6967a', { op: 0.95, detached: true }); lid.position.set(0.27, 0.09, s * 0.148); lid.rotation.y = ry; head.add(lid);
         const nos = K.glass(bodyP, K.ball(0.034, 0.025, 0.018, 10), P.ink, { op: 0.96, detached: true }); nos.position.set(0.93, 0.0, s * 0.075); nos.rotation.y = s * 0.4; head.add(nos);
-        const cheek = K.glass(bodyP, K.ball(0.16, 0.12, 0.05, 16), COAT, { op: 0.94, detached: true }); cheek.position.set(0.2, -0.04, s * 0.14); head.add(cheek);
+        const cheek = K.glass(bodyP, K.ball(0.2, 0.14, 0.06, 18), COAT, { op: 0.94, detached: true }); cheek.position.set(0.2, -0.04, s * 0.14); head.add(cheek);
         const ear = K.glass(bodyP, new T.ConeGeometry(0.075, 0.3, 14), COAT, { op: 0.94, detached: true }); ear.position.set(0.0, 0.22, s * 0.09); ear.rotation.set(s * 0.12, 0, -0.2); head.add(ear);
         const inner = K.glass(bodyP, new T.ConeGeometry(0.045, 0.22, 10), '#e58f8f', { op: 0.94, detached: true }); inner.position.set(0.012, 0.21, s * 0.095); inner.rotation.set(s * 0.12, 0, -0.2); head.add(inner);
       });
@@ -86,7 +86,7 @@
       const tailRnd = Array.from({ length: NT }, (_, i) => { const r = K.rng(40 + i); return { i: 1 + (i % 10), a: (r() - 0.5) * 0.9, b: (r() - 0.5) * 0.7, len: 0.5 + r() * 0.45 }; });
 
       /* legs: a thick forearm or gaskin, a knee, a slim cannon with its fetlock and pastern, a hoof with a coronet ring, white socks on two */
-      const upSpec = (top) => ({ x0: 0, len: 0.72, n: 18, radial: 20, ru: 2, rv: 2, a: () => 0.96, r: (s) => top - (top - 0.082) * smooth(0, 0.9, s) + 0.012 * smooth(0.86, 1, s) });
+      const upSpec = (top) => ({ x0: 0, len: 0.72, n: 18, radial: 20, ru: 2, rv: 2, a: () => 0.96, r: (s) => top - (top - 0.082) * smooth(0, 0.9, s) + 0.012 * smooth(0.86, 1, s) + 0.035 * g2(s, 0.16, 0.16) });
       const loSpec = { x0: 0, len: 0.62, n: 22, radial: 18, ru: 2, rv: 2, a: () => 0.96, r: (s) => 0.074 - 0.014 * smooth(0, 0.4, s) + 0.03 * g2(s, 0.8, 0.06) - 0.01 * smooth(0.86, 1, s) };
       const legs = [[-0.85, 0.3, false], [0.85, 0.27, true], [-0.85, -0.3, false], [0.85, -0.27, true]].map(([x, z, fore], li) => {
         const hip = new T.Group(); put(hip, 0, x, HIP, z);
@@ -95,7 +95,7 @@
         knee.add(K.glass(legsP, K.ball(0.095, 0.1, 0.085, 16), COAT, { op: 0.94, detached: true }));
         const lg = new T.Group(); lg.rotation.z = -PI / 2; knee.add(lg); lg.add(K.glass(legsP, K.loft(loSpec), COAT, { ...SKIN }));
         if (li === 1 || li === 2) { const sock = K.glass(legsP, new T.CylinderGeometry(0.082, 0.092, 0.26, 18).translate(0, -0.44, 0), P.cream, { op: 0.92, detached: true }); knee.add(sock); }
-        const hoof = K.glass(legsP, new T.CylinderGeometry(0.086, 0.115, 0.11, 20).translate(0, -0.675, 0), '#3d3479', { op: 0.96, bump: 'wrinkle', bumpScale: 0.8, detached: true }); knee.add(hoof);
+        const hoof = K.glass(legsP, new T.CylinderGeometry(0.084, 0.124, 0.12, 26).translate(0, -0.675, 0), '#3d3479', { op: 0.96, bump: 'wrinkle', bumpScale: 0.8, detached: true }); knee.add(hoof);
         const cor = K.glass(legsP, new T.TorusGeometry(0.088, 0.014, 8, 20).rotateX(PI / 2), P.cream, { op: 0.94, detached: true }); cor.position.y = -0.62; knee.add(cor);
         return { hip, knee, fore };
       });
@@ -175,7 +175,7 @@
   };
   B.animals.enterprise = {
     id: 'enterprise',
-    frame: { r: 3.3, cx: 0.95, cy: 1.8, floor: 0, shadow: 6.6, yaw: 0.42, pitch: 0.16 },
+    frame: { r: 3.3, cx: 0.95, cy: 2.2, floor: 0, shadow: 6.6, yaw: 0.42, pitch: 0.16 },
     x: 0.5,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig(); const UP = V(0, 1, 0);
@@ -188,7 +188,7 @@
       const bSpec = { len: 3.3, n: 60, ru: 3, rv: 4, a: () => 0.93, y: (s) => 2.35 + 0.09 * g2(s, 0.78, 0.15), r: (s) => 0.006 + (1.02 + 0.06 * g2(s, 0.78, 0.15) - 0.05 * g2(s, 0.4, 0.2)) * env(s) };
       const barrel = K.glass(bodyP, K.loft(bSpec), SKIN, { op: 0.9, backOp: 0.5, bump: 'wrinkle', bumpScale: 1.8, detached: true }); bG.add(barrel);
       bG.add(K.fuzz(bodyP, { surf: K.surf(bSpec), count: 300, s0: 0.1, s1: 0.9, th0: -0.5, th1: 0.5, hex: '#8576c4', len: 0.055, r: 0.007, lean: 0.9 }));
-      const hSpec = { x0: 0, len: 1.55, n: 44, ru: 2, rv: 3, a: () => 0.82, y: (s) => 2.72 - 0.32 * smooth(0.35, 1, s), r: (s) => 0.006 + (0.9 - 0.5 * smooth(0.5, 1, s)) * Math.pow(Math.sin(PI * Math.pow(s, 0.5)), 0.5) * (1 + 0.1 * g2(s, 0.3, 0.15)) };
+      const hSpec = { x0: 0, len: 1.55, n: 44, ru: 2, rv: 3, a: () => 0.82, y: (s) => 2.72 - 0.32 * smooth(0.35, 1, s), r: (s) => 0.006 + (0.9 - 0.5 * smooth(0.5, 1, s)) * Math.pow(Math.sin(PI * Math.pow(s, 0.5)), 0.5) * (1 + 0.1 * g2(s, 0.3, 0.15) + 0.14 * g2(s, 0.42, 0.14)) };
       const headG = at(new T.Group(), bodyP.group, 0.72, 0, 0);
       headG.add(K.glass(bodyP, K.loft(hSpec), SKIN, { op: 0.86, bump: 'wrinkle', bumpScale: 1.4, detached: true }));
       const lashes = [];
@@ -201,7 +201,7 @@
 
       /* four columnar legs: folds of skin, a flared foot and four toenails each; a tail with a tuft of hair */
       /* each leg starts inside the flank with a rounded thigh (no flat top showing), is thick at the top, plain below, and flares into the foot */
-      const legR = (s) => 0.38 + 0.12 * (1 - smooth(0, 0.5, s)) + 0.05 * smooth(0.88, 0.98, s);
+      const legR = (s) => 0.37 + 0.12 * (1 - smooth(0, 0.5, s)) + 0.03 * g2(s, 0.55, 0.08) - 0.025 * smooth(0.68, 0.84, s) * (1 - smooth(0.88, 0.98, s)) + 0.06 * smooth(0.88, 0.98, s);
       const legSpec = { x0: 0, len: 2.0, n: 30, radial: 22, ru: 2, rv: 5, a: () => 1.0, r: (s) => legR(s) * Math.sqrt(Math.max(0, 1 - Math.pow(1 - Math.min(1, s / 0.16), 2))) * (1 - smooth(0.985, 1, s)) + 0.006 };
       const nailG = new T.ConeGeometry(0.045, 0.12, 6).rotateZ(-PI / 2);
       [[0.5, 0.5], [0.5, -0.5], [-1.0, 0.55], [-1.0, -0.55]].forEach(([x, z]) => {
@@ -229,7 +229,7 @@
       trunkP.group.add(K.thin(trunkP, leafG, P.mint, { op: 0.92, bump: 'veins', bumpScale: 1.2, instances: K.fan(Array.from({ length: 9 }, (_, i) => ({ p: V(3.15 + 0.14 * i, 3.1 + 0.1 * ((i * 7) % 4), (i % 2 ? 1 : -1) * 0.05), dir: V(Math.cos(-0.9 + i * 0.35), Math.sin(-0.9 + i * 0.35) + 0.2, (i - 4) * 0.12), len: 1, nHint: V(0, 0, 1) }))) }));
 
       /* ears (they flap) with their veins, and tusks that taper from a thick root to a point */
-      const earG = K.leaf(14, 14, (u, v, o) => { const h = 0.8 * Math.sqrt(Math.max(0, 1 - (2 * u - 1) * (2 * u - 1))) + 0.06; o.x = -u * 1.15; o.y = v * h - 0.15 * u + 0.025 * Math.sin(v * 22) * u; o.z = 0.1 * Math.sin(PI * u) + 0.03 * Math.sin(v * 9) * u; });
+      const earG = K.leaf(14, 14, (u, v, o) => { const h = 0.8 * Math.sqrt(Math.max(0, 1 - (2 * u - 1) * (2 * u - 1))) + 0.06; o.x = -u * 1.3; o.y = v * h - 0.15 * u + 0.025 * Math.sin(v * 22) * u; o.z = 0.1 * Math.sin(PI * u) + 0.03 * Math.sin(v * 9) * u; });
       const ears = [1, -1].map((s) => {
         const hinge = new T.Group(); at(hinge, earsP.group, 1.12, 2.95, s * 0.72);
         hinge.add(K.thin(earsP, earG, '#a99be3', { op: 0.94, bump: 'veins', bumpScale: 2.2, detached: true }));
@@ -245,7 +245,7 @@
         for (let i = 0; i <= EL.n; i++) {
           const s = i / EL.n; const sway = 0.05 * (1 - 0.6 * x) * Math.sin(TAU * 0.3 * t + s * 3) * s;
           Pn[i].set(EL.bx + c.pts[i].x, EL.by + c.pts[i].y + sway, 0);
-          Rn[i] = (0.1 + 0.15 * Math.pow(1 - s, 0.85)) * (1 + 0.06 * Math.sin(i * 2.4) * (1 - 0.5 * s));
+          Rn[i] = (0.1 + 0.19 * Math.pow(1 - s, 0.85)) * (1 + 0.06 * Math.sin(i * 2.4) * (1 - 0.5 * s));
         }
         trunk.set(Pn, Rn, hint);
         trunk.place(tipG, EL.n);

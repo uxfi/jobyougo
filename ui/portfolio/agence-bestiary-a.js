@@ -11,7 +11,7 @@
   const BEE = { run: 1.0, speed: 6.7, beat: 230 }; /* s of waggle per km (about), flight m/s, wingbeats per s */
   B.animals.saas = {
     id: 'saas',
-    frame: { r: 1.7, cy: 0.3, floor: -0.02, shadow: 3.6, yaw: 0.5, pitch: 0.44 },
+    frame: { r: 1.7, cy: 0.58, floor: -0.02, shadow: 3.6, yaw: 0.5, pitch: 0.44 },
     x: 1.4,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V;

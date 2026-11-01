@@ -156,9 +156,9 @@
           const ca = Math.cos(a.al); const sa = Math.sin(a.al);
           for (let j = 0; j <= NA; j++) {
             const s = j / NA;
-            const om = (PI - 0.2) - s * TAU * 1.6; const rho = 0.62 * (1 - 0.82 * s);
-            const rr = 0.95 + rho * Math.cos(om); const ry = 0.3 + rho * Math.sin(om);
-            const gr = 0.35 + s * 2.2; const gy = 0.45 - 0.35 * s + 0.55 * Math.sin(PI * s) * (1 - 0.3 * s);
+            const om = (PI - 0.2) - s * TAU * 1.6; const rho = 0.44 * (1 - 0.82 * s);
+            const rr = 0.95 + rho * Math.cos(om); const ry = 0.26 + rho * Math.sin(om);
+            const gr = 0.35 + s * 2.2; const gy = 0.3 - 0.24 * s + 0.2 * Math.sin(PI * s) * (1 - 0.3 * s);
             const r = lerp(rr, gr, k); const y = lerp(ry, gy, k);
             const lat = (lerp(0.1, 0.022, k)) * Math.sin(TAU * (0.4 * t + a.i * 0.13) + s * 5) * Math.sin(PI * s);
             a.pts[j].set(r * ca - lat * sa, y, r * sa + lat * ca);
@@ -215,7 +215,7 @@
   const SW_BASE = { x: 0.92, y: 0.52 };
   B.animals.luxury = {
     id: 'luxury',
-    frame: { r: 2.75, cx: 0.25, cy: 1.35, floor: -0.06, shadow: 4.6, yaw: 0.62, pitch: 0.2 },
+    frame: { r: 2.75, cx: 0.25, cy: 1.35, floor: -0.3, shadow: 4.6, yaw: 0.62, pitch: 0.2 },
     x: 0.5,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig(); const UP = V(0, 1, 0);
@@ -242,11 +242,11 @@
       });
       /* legs and webbed feet, seen through the water */
       [-0.1].forEach((x) => [1, -1].forEach((s) => { /* one pair of legs */
-        at(K.glass(bodyP, new T.CylinderGeometry(0.03, 0.022, 0.5, 8).translate(0, -0.25, 0), '#e6a690', { op: 0.9, detached: true }), bodyP.group, x, -0.18, s * 0.28);
-        at(K.thin(bodyP, K.leaf(7, 6, (u, v, o) => { o.x = u * 0.3; o.y = 0; o.z = v * 0.17 * Math.pow(u, 0.7); }), '#e6a690', { op: 0.8, bump: 'rays', bumpScale: 1.6, detached: true }), bodyP.group, x, -0.68, s * 0.28);
+        at(K.glass(bodyP, new T.CylinderGeometry(0.03, 0.022, 0.15, 8).translate(0, -0.075, 0), '#e6a690', { op: 0.9, detached: true }), bodyP.group, x, -0.18, s * 0.28);
+        at(K.thin(bodyP, K.leaf(7, 6, (u, v, o) => { o.x = u * 0.3; o.y = 0; o.z = v * 0.17 * Math.pow(u, 0.7); }), '#e6a690', { op: 0.8, bump: 'rays', bumpScale: 1.6, detached: true }), bodyP.group, x, -0.33, s * 0.28);
       }));
-      const water = K.thin(bodyP, new T.CircleGeometry(2.9, 64), P.sky, { op: 0.2, detached: true }); water.rotation.x = -PI / 2; bodyP.group.add(water);
-      const ripples = [0, 1, 2].map(() => { const r = K.thin(bodyP, new T.RingGeometry(0.985, 1, 72), P.peri, { op: 0.5, detached: true }); r.rotation.x = -PI / 2; r.position.y = 0.005; bodyP.group.add(r); return r; });
+      const water = K.thin(bodyP, new T.CircleGeometry(2.9, 64), P.sky, { op: 0.2, detached: true }); water.rotation.x = -PI / 2; water.position.y = -0.3; bodyP.group.add(water);
+      const ripples = [0, 1, 2].map(() => { const r = K.thin(bodyP, new T.RingGeometry(0.985, 1, 72), P.peri, { op: 0.5, detached: true }); r.rotation.x = -PI / 2; r.position.y = -0.295; bodyP.group.add(r); return r; });
 
       /* neck: a feathered tube with a ruff of feathers at its base, a head with a black eye patch, an orange bill with a black knob */
       const neck = K.tube(SW.n, 18, 3, 7); K.glass(neckP, neck.geo, SWB, { op: 0.9, backOp: 0.55, bump: 'plumage', bumpScale: 0.6 });

@@ -11,7 +11,7 @@
   /* ───────── 2. The owl · AI products · it sees clearly because the whole head turns ───────── */
   B.animals.ai = {
     id: 'ai',
-    frame: { r: 1.85, cy: 1.18, floor: -0.02, shadow: 2.8, yaw: 0.3, pitch: 0.1 },
+    frame: { r: 1.85, cy: 1.5, floor: -0.02, shadow: 2.8, yaw: 0.3, pitch: 0.1 },
     x: (t) => 105 * Math.tanh(2.2 * Math.sin(t * 0.4)) /* the head turns to one side, holds, comes back, turns to the other */,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
@@ -20,12 +20,12 @@
       const UP = V(0, 1, 0);
 
       /* perch: bark, a twig, a few leaves with veins */
-      at(K.glass(bodyP, K.uvScale(new T.CylinderGeometry(0.075, 0.062, 2.9, 18).rotateZ(PI / 2), 2, 5), '#e8b07a', { op: 0.92, bump: 'pebble', bumpScale: 1.6, detached: true }), bodyP.group, 0, -0.02, 0);
-      const twig = at(K.glass(bodyP, new T.CylinderGeometry(0.016, 0.01, 0.55, 8).translate(0, 0.27, 0), '#e8b07a', { op: 0.92, detached: true }), bodyP.group, 1.15, 0, 0); twig.rotation.z = -0.8;
+      at(K.glass(bodyP, K.uvScale(new T.CylinderGeometry(0.075, 0.062, 2.9, 18).rotateZ(PI / 2), 2, 5), '#e8b07a', { op: 0.92, bump: 'pebble', bumpScale: 1.6, detached: true }), bodyP.group, 0, -0.02, 0.27);
+      const twig = at(K.glass(bodyP, new T.CylinderGeometry(0.016, 0.01, 0.55, 8).translate(0, 0.27, 0), '#e8b07a', { op: 0.92, detached: true }), bodyP.group, 1.15, 0, 0.27); twig.rotation.z = -0.8;
       const leafG = K.leaf(7, 4, (u, v, o) => { const w = 0.085 * Math.sin(PI * Math.pow(u, 0.7)); o.x = u * 0.3; o.y = v * w; o.z = 0.04 * u * u; });
       bodyP.group.add(K.thin(bodyP, leafG, P.mint, {
         op: 0.92, bump: 'veins', bumpScale: 1.2,
-        instances: K.fan([[1.3, 0.28, 0.02, 0.6], [1.45, 0.46, -0.02, 0.2], [1.22, 0.4, 0.03, 1.2], [1.38, 0.2, 0.0, -0.2], [1.5, 0.35, 0.02, 0.9]].map(([x, y, z, a]) => ({ p: V(x, y, z), dir: V(Math.cos(a), Math.sin(a) * 0.5 + 0.2, 0.15), len: 1, nHint: UP }))),
+        instances: K.fan([[1.3, 0.28, 0.29, 0.6], [1.45, 0.46, 0.25, 0.2], [1.22, 0.4, 0.3, 1.2], [1.38, 0.2, 0.27, -0.2], [1.5, 0.35, 0.29, 0.9]].map(([x, y, z, a]) => ({ p: V(x, y, z), dir: V(Math.cos(a), Math.sin(a) * 0.5 + 0.2, 0.15), len: 1, nHint: UP }))),
       }));
 
       /* the body: one lofted pear, barred plumage, rows of feathers over the chest and the back */
@@ -40,8 +40,8 @@
       const wSpec = { x0: 0, len: 1.2, n: 30, ru: 1, rv: 2, a: () => 3.4, r: (s) => 0.012 + 0.06 * Math.pow(Math.sin(PI * Math.pow(s, 0.6)), 0.7) };
       const wSurf = K.surf(wSpec); const covG = K.feather(0.1, 0.036, { curl: 0.08 }); const primG = K.feather(1, 0.15, { curl: 0.04, tip: 0.75 });
       const wings = [1, -1].map((side) => {
-        const wg = at(new T.Group(), bodyP.group, side * 0.6, 1.52, -0.08);
-        if (side > 0) wg.rotation.z = -PI / 2; else wg.rotation.set(0, PI, -PI / 2);
+        const wg = at(new T.Group(), bodyP.group, side * 0.66, 1.44, -0.04);
+        if (side > 0) wg.rotation.z = -PI / 2 + 0.05; else wg.rotation.set(0, PI, -PI / 2 + 0.05);
         wg.add(K.glass(bodyP, K.loft(wSpec), P.lav, { op: 0.86, bump: 'plumage', bumpScale: 1.4, map: 'barring', detached: true }));
         wg.add(K.coat(bodyP, { surf: wSurf, geo: covG, hex: P.cream, rows: 16, cols: 22, s0: 0.12, s1: 0.7, th0: -1.0, th1: 1.0, size: [0.85, 1.1], lift: [0.1, 0.25], seed: 21 + side, dirFn: (dir, out) => dir.copy(out.t).multiplyScalar(0.92).addScaledVector(out.n, 0.22) }));
         const lens = [0.5, 0.56, 0.62, 0.67, 0.71, 0.73, 0.72, 0.69, 0.65, 0.6, 0.56, 0.52, 0.48, 0.44];
@@ -157,16 +157,16 @@
       const tailGeo = K.leaf(12, 10, () => {});
       const tailFin = new T.Group(); finsP.group.add(tailFin);
       tailFin.add(K.thin(finsP, tailGeo, P.rose, { op: 0.64, bump: 'rays', bumpScale: 2.4, detached: true }));
-      const dorsalG = K.leaf(8, 12, (u, v, o) => { const vv = (v + 1) / 2; const h = 0.32 * Math.sin(PI * Math.pow(vv, 0.8)); o.x = vv * 0.95 - u * 0.2; o.y = 0.25 + u * h; o.z = 0; });
+      const dorsalG = K.leaf(8, 12, (u, v, o) => { const vv = (v + 1) / 2; const h = 0.32 * Math.sin(PI * Math.pow(vv, 0.8)); o.x = vv * 0.95 - u * 0.2; o.y = 0.7 * radius(Math.min(1, (14 + o.x / ds) / N)) + u * h; o.z = 0; });
       const dorsal = new T.Group(); finsP.group.add(dorsal); dorsal.add(K.thin(finsP, dorsalG, P.lav, { op: 0.62, bump: 'rays', bumpScale: 2.4, detached: true }));
-      const pecG = K.leaf(10, 8, (u, vv0, o) => { const v = (vv0 + 1) / 2; const ch = 0.26 * (1 - 0.55 * u); o.x = v * ch + u * 0.34; o.y = -0.1 - 0.05 * u; o.z = 0.18 + u * 0.4; });
+      const pecG = K.leaf(10, 8, (u, vv0, o) => { const v = (vv0 + 1) / 2; const ch = 0.26 * (1 - 0.55 * u); o.x = v * ch + u * 0.34; o.y = -0.03 - 0.07 * u; o.z = 0.06 + u * 0.36; });
       const pec = [1, -1].map((s) => {
         const place = new T.Group(); finsP.group.add(place); const flap = new T.Group(); place.add(flap);
         const f = K.thin(finsP, pecG, P.mint, { op: 0.64, bump: 'rays', bumpScale: 2.2, detached: true }); if (s < 0) f.scale.z = -1; flap.add(f);
         return { place, flap, s };
       });
-      const pelv = [1, -1].map((s) => { const g = new T.Group(); finsP.group.add(g); const f = K.thin(finsP, pecG, P.peach, { op: 0.62, bump: 'rays', bumpScale: 2.2, detached: true }); f.scale.set(0.7, 0.7, 0.7 * s); f.rotation.x = s * 0.55; f.position.set(0, -0.14, s * 0.02); g.add(f); return g; });
-      const analG = K.leaf(8, 10, (u, v, o) => { const vv = (v + 1) / 2; const h = 0.2 * Math.sin(PI * Math.pow(vv, 0.8)); o.x = vv * 0.5 - u * 0.12; o.y = -0.22 - u * h; o.z = 0; });
+      const pelv = [1, -1].map((s) => { const g = new T.Group(); finsP.group.add(g); const f = K.thin(finsP, pecG, P.peach, { op: 0.62, bump: 'rays', bumpScale: 2.2, detached: true }); f.scale.set(0.7, 0.7, 0.7 * s); f.rotation.x = s * 0.55; f.position.set(0, -0.05, s * 0.02); g.add(f); return g; });
+      const analG = K.leaf(8, 10, (u, v, o) => { const vv = (v + 1) / 2; const h = 0.2 * Math.sin(PI * Math.pow(vv, 0.8)); o.x = vv * 0.5 - u * 0.12; o.y = -0.7 * radius(Math.min(1, (28 + o.x / ds) / N)) - u * h; o.z = 0; });
       const anal = new T.Group(); finsP.group.add(anal); anal.add(K.thin(finsP, analG, P.peach, { op: 0.62, bump: 'rays', bumpScale: 2.2, detached: true }));
 
       /* the skeleton seen through the x-ray: vertebrae and ribs follow the body */
@@ -223,13 +223,13 @@
   const TORT = { len: (y) => 6 + 100 * (1 - Math.exp(-y / 25)), grow: (y) => 4 * Math.exp(-y / 25), kg: (cm) => 170 * Math.pow(cm / 100, 3) };
   B.animals.proptech = {
     id: 'proptech',
-    frame: { r: 2.0, cy: 0.5, floor: 0, shadow: 3.4, yaw: 0.6, pitch: 0.36 },
+    frame: { r: 2.0, cy: 0.85, floor: 0, shadow: 3.4, yaw: 0.6, pitch: 0.36 },
     x: 40,
     build(K) {
       const T = K.T; const P = K.PAL; const V = K.V; const rig = K.rig();
       const shellP = rig.part('shell', [0, 0.9, 0]); const bodyP = rig.part('body', [0, -0.5, 0]); const bonesP = rig.part('bones', [0, 0.35, 0.9]);
       const mv = [shellP, bodyP, bonesP].map((p) => { const g = new T.Group(); p.group.add(g); return g; });
-      const a = 1.25; const b = 0.88; const c = 0.95; const rnd = K.rng(5);
+      const a = 1.25; const b = 0.7; const c = 0.95; const rnd = K.rng(5);
 
       /* the shell: a dome whose plates stand proud of their seams (cells of a Voronoi diagram laid out like the real scutes:
          5 along the spine, 4 a side, a ring of marginals), growth rings on each plate, a tint per plate */
@@ -269,10 +269,10 @@
 
       /* neck and head: a short neck with folds of skin that leaves by the opening in the shell, a domed skull, a snout and a jaw, a brow,
          eyes with lids and a glint, nostrils, a horny beak */
-      const headG = new T.Group(); headG.position.set(1.28, 0.3, 0); mv[1].add(headG);
+      const headG = new T.Group(); headG.position.set(1.2, 0.26, 0); headG.rotation.z = 0.2; mv[1].add(headG);
       const skin = { op: 0.94, bump: 'scales', bumpScale: 1.4, detached: true };
-      headG.add(K.glass(bodyP, K.loft({ x0: -0.5, len: 0.65, n: 20, radial: 24, ru: 3, rv: 1, a: () => 1, r: (s) => 0.2 - 0.025 * s }), P.peach, { ...skin, bump: 'wrinkle', bumpScale: 1.6 }));
-      [0.02, -0.12, -0.26].forEach((fx) => { const fold = K.glass(bodyP, new T.TorusGeometry(0.205, 0.02, 8, 26).rotateY(PI / 2), '#eeab8c', { op: 0.94, detached: true }); fold.position.set(fx, 0, 0); headG.add(fold); });
+      headG.add(K.glass(bodyP, K.loft({ x0: -0.5, len: 0.65, n: 20, radial: 24, ru: 3, rv: 1, a: () => 1, r: (s) => 0.225 - 0.07 * Math.pow(s, 0.8) }), P.peach, { ...skin, bump: 'wrinkle', bumpScale: 0.7 }));
+      [].forEach((fx) => { const fold = K.glass(bodyP, new T.TorusGeometry(0.205, 0.02, 8, 26).rotateY(PI / 2), '#eeab8c', { op: 0.94, detached: true }); fold.position.set(fx, 0, 0); headG.add(fold); });
       const skullG = K.glass(bodyP, K.uvScale(K.ball(0.27, 0.205, 0.2, 30), 3, 2), P.peach, skin); skullG.position.set(0.27, 0.03, 0); headG.add(skullG);
       const snout = K.glass(bodyP, K.uvScale(K.ball(0.17, 0.12, 0.125, 22), 2, 2), P.peach, skin); snout.position.set(0.5, 0.0, 0); headG.add(snout);
       const jaw = K.glass(bodyP, K.ball(0.19, 0.055, 0.12, 18), '#eeab8c', { op: 0.94, detached: true }); jaw.position.set(0.46, -0.1, 0); headG.add(jaw);
@@ -287,11 +287,11 @@
       const beak = K.glass(bodyP, new T.ConeGeometry(0.08, 0.16, 10).rotateZ(-PI / 2 - 0.3), '#e6b07a', { op: 0.96, bump: 'pebble', detached: true }); beak.position.set(0.66, -0.02, 0); headG.add(beak);
 
       /* four columnar legs: lofted, big scales, a flared foot with four toenails; and a short tail */
-      const legSpec = { x0: 0, len: 0.66, n: 22, radial: 20, ru: 3, rv: 1.5, a: () => 1.08, r: (s) => (0.215 - 0.05 * s + 0.05 * sm(0.8, 0.96, s)) * (1 - sm(0.975, 1, s)) + 0.005 };
+      const legSpec = { x0: 0, len: 0.66, n: 22, radial: 20, ru: 3, rv: 1.5, a: () => 1.08, r: (s) => (0.19 - 0.045 * s + 0.05 * sm(0.8, 0.96, s)) * (1 - sm(0.975, 1, s)) + 0.005 };
       const legs = [];
       const nailG = new T.ConeGeometry(0.03, 0.085, 6).rotateZ(-PI / 2);
-      [[0.7, 0.62, 0], [0.7, -0.62, 0.5], [-0.72, 0.6, 0.5], [-0.72, -0.6, 0]].forEach(([x, z, ph]) => {
-        const hip = new T.Group(); hip.position.set(x, 0.22, z); mv[1].add(hip);
+      [[0.62, 0.48, 0], [0.62, -0.48, 0.5], [-0.68, 0.46, 0.5], [-0.68, -0.46, 0]].forEach(([x, z, ph]) => {
+        const hip = new T.Group(); hip.position.set(x, 0.3, z); mv[1].add(hip);
         const lg = new T.Group(); lg.rotation.z = -PI / 2; hip.add(lg);
         lg.add(K.glass(bodyP, K.loft(legSpec), P.peach, { op: 0.9, bump: 'scales', bumpScale: 2.2, detached: true }));
         const foot = K.glass(bodyP, K.ball(0.25, 0.07, 0.24, 18), P.peach, { op: 0.9, bump: 'pebble', bumpScale: 1, detached: true }); foot.position.set(0.05, -0.64, 0); hip.add(foot);

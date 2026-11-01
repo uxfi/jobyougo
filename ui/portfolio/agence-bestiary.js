@@ -59,56 +59,86 @@
     const mixHex = (a, b, t) => { const A = hexRgb(a); const B = hexRgb(b); return `rgb(${Math.round(A[0] + (B[0] - A[0]) * t)},${Math.round(A[1] + (B[1] - A[1]) * t)},${Math.round(A[2] + (B[2] - A[2]) * t)})`; };
     const wrap9 = (W, H, fn) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) fn(dx * W, dy * H); };
 
+    /* Tileable value noise added to a drawn canvas, so no surface is ever perfectly clean. mode 'down' only darkens (colour maps). */
+    const grain = (g, W, H, r, amt, down) => {
+      const img = g.getImageData(0, 0, W, H); const px = img.data;
+      const oct = [[8, 0.55], [20, 0.3], [48, 0.15]].map(([n, w]) => ({ n, w, v: Float32Array.from({ length: n * n }, () => r() * 2 - 1) }));
+      const sm3 = (t) => t * t * (3 - 2 * t);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        let s = 0;
+        for (let o = 0; o < 3; o++) {
+          const { n, w, v } = oct[o]; const fx = (x / W) * n; const fy = (y / H) * n; const x0 = Math.floor(fx); const y0 = Math.floor(fy); const tx = sm3(fx - x0); const ty = sm3(fy - y0);
+          const a = v[(y0 % n) * n + (x0 % n)]; const b = v[(y0 % n) * n + ((x0 + 1) % n)]; const c = v[((y0 + 1) % n) * n + (x0 % n)]; const e = v[((y0 + 1) % n) * n + ((x0 + 1) % n)];
+          s += w * ((a + (b - a) * tx) * (1 - ty) + (c + (e - c) * tx) * ty);
+        }
+        const dv = (down ? (s - 1) * 0.5 : s) * amt * 255; const i = (y * W + x) * 4;
+        px[i] = Math.max(0, Math.min(255, px[i] + dv)); px[i + 1] = Math.max(0, Math.min(255, px[i + 1] + dv)); px[i + 2] = Math.max(0, Math.min(255, px[i + 2] + dv));
+      }
+      g.putImageData(img, 0, 0);
+    };
+
     /* Micro detail lives in maps (see 3d-high-poly-models: silhouette and form in geometry, pores and barbs in material).
        Grey textures are bump maps, coloured ones multiply the glass tint. All are drawn once, tile cleanly, 128 to 512 px. */
     const TEX = {
-      scales: { w: 256, h: 256, draw(g, W, H) { /* fish scales, overlapping rows */
-        g.fillStyle = '#767676'; g.fillRect(0, 0, W, H);
-        const nx = 8; const ny = 14; const sx = W / nx; const sy = H / ny;
+      scales: { w: 256, h: 256, draw(g, W, H, r) { /* fish scales: each one lit differently, a free edge, fine growth arcs */
+        g.fillStyle = '#5c5c5c'; g.fillRect(0, 0, W, H);
+        const nx = 10; const ny = 16; const sx = W / nx; const sy = H / ny;
         for (let row = -2; row <= ny + 1; row++) for (let col = -2; col <= nx + 1; col++) {
-          const cx = (col + (row & 1 ? 0.5 : 0)) * sx; const cy = row * sy;
-          const gr = g.createLinearGradient(0, cy - sy, 0, cy + sy * 1.1); gr.addColorStop(0, '#5e5e5e'); gr.addColorStop(0.55, '#b0b0b0'); gr.addColorStop(1, '#ececec');
-          g.fillStyle = gr; g.beginPath(); g.ellipse(cx, cy, sx * 0.62, sy * 1.6, 0, 0, TAU2); g.fill();
-          g.strokeStyle = 'rgba(30,30,30,.6)'; g.lineWidth = 1.8; g.beginPath(); g.ellipse(cx, cy, sx * 0.62, sy * 1.6, 0, 0.2, Math.PI - 0.2); g.stroke();
+          const cx = (col + (row & 1 ? 0.5 : 0)) * sx + (r() - 0.5) * 2; const cy = row * sy; const k0 = 0.9 + r() * 0.2;
+          const gr = g.createLinearGradient(0, cy - sy * 0.9, 0, cy + sy * 1.15); gr.addColorStop(0, '#4c4c4c'); gr.addColorStop(0.5, `rgb(${Math.round(150 * k0)},${Math.round(150 * k0)},${Math.round(150 * k0)})`); gr.addColorStop(0.9, '#f2f2f2'); gr.addColorStop(1, '#bcbcbc');
+          g.fillStyle = gr; g.beginPath(); g.ellipse(cx, cy, sx * 0.6, sy * 1.55, 0, 0, TAU2); g.fill();
+          g.strokeStyle = 'rgba(24,24,24,.5)'; g.lineWidth = 1.3; g.beginPath(); g.ellipse(cx, cy, sx * 0.6, sy * 1.55, 0, 0.25, Math.PI - 0.25); g.stroke();
+          g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 0.8;
+          for (let q = 1; q <= 3; q++) { g.beginPath(); g.ellipse(cx, cy, sx * (0.6 - q * 0.13), sy * (1.55 - q * 0.36), 0, 0.5, Math.PI - 0.5); g.stroke(); }
         }
+        grain(g, W, H, r, 0.07);
       } },
-      plumage: { w: 256, h: 256, draw(g, W, H) { /* rows of overlapping body feathers */
-        g.fillStyle = '#767676'; g.fillRect(0, 0, W, H);
-        const nx = 6; const ny = 9; const sx = W / nx; const sy = H / ny;
+      plumage: { w: 256, h: 256, draw(g, W, H, r) { /* downy body feathers: rounded vanes, a shaft, fine barbs, soft overlap */
+        g.fillStyle = '#6a6a6a'; g.fillRect(0, 0, W, H); g.lineCap = 'round';
+        const nx = 7; const ny = 11; const sx = W / nx; const sy = H / ny;
         for (let row = -2; row <= ny + 1; row++) for (let col = -2; col <= nx + 1; col++) {
-          const cx = (col + (row & 1 ? 0.5 : 0)) * sx; const cy = row * sy;
-          const gr = g.createLinearGradient(0, cy, 0, cy + sy * 1.5); gr.addColorStop(0, '#585858'); gr.addColorStop(0.5, '#a4a4a4'); gr.addColorStop(1, '#f0f0f0');
-          g.fillStyle = gr; g.beginPath(); g.moveTo(cx - sx * 0.53, cy - sy * 0.3); g.quadraticCurveTo(cx - sx * 0.58, cy + sy * 1.3, cx, cy + sy * 1.52); g.quadraticCurveTo(cx + sx * 0.58, cy + sy * 1.3, cx + sx * 0.53, cy - sy * 0.3); g.closePath(); g.fill();
-          g.strokeStyle = 'rgba(30,30,30,.55)'; g.lineWidth = 1.6; g.stroke();
-          g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy + sy * 1.25); g.stroke();
+          const cx = (col + (row & 1 ? 0.5 : 0)) * sx + (r() - 0.5) * 3; const cy = row * sy; const k0 = 0.9 + r() * 0.2;
+          const gr = g.createLinearGradient(0, cy, 0, cy + sy * 1.5); gr.addColorStop(0, '#4a4a4a'); gr.addColorStop(0.45, `rgb(${Math.round(150 * k0)},${Math.round(150 * k0)},${Math.round(150 * k0)})`); gr.addColorStop(1, '#ececec');
+          g.fillStyle = gr; g.beginPath(); g.moveTo(cx - sx * 0.52, cy - sy * 0.3); g.quadraticCurveTo(cx - sx * 0.6, cy + sy * 1.25, cx, cy + sy * 1.55); g.quadraticCurveTo(cx + sx * 0.6, cy + sy * 1.25, cx + sx * 0.52, cy - sy * 0.3); g.closePath(); g.fill();
+          g.strokeStyle = 'rgba(22,22,22,.45)'; g.lineWidth = 1.1; g.stroke();
+          g.lineWidth = 0.7;
+          for (let b = 0; b < 12; b++) { const t = 0.12 + b * 0.075; const y = cy + sy * (0.1 + t * 1.2); g.strokeStyle = b & 1 ? 'rgba(255,255,255,.2)' : 'rgba(30,30,30,.18)'; g.beginPath(); g.moveTo(cx, y); g.lineTo(cx - sx * 0.46, y - sy * 0.3); g.moveTo(cx, y); g.lineTo(cx + sx * 0.46, y - sy * 0.3); g.stroke(); }
+          g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy + sy * 1.3); g.stroke();
         }
+        grain(g, W, H, r, 0.06);
       } },
-      wrinkle: { w: 256, h: 256, draw(g, W, H, r) { /* folds of thick skin */
-        g.fillStyle = '#7c7c7c'; g.fillRect(0, 0, W, H);
-        const rows = 20;
+      wrinkle: { w: 256, h: 256, draw(g, W, H, r) { /* thick skin: long creases with short branches, a fine pore grain */
+        g.fillStyle = '#767676'; g.fillRect(0, 0, W, H); g.lineCap = 'round';
+        const rows = 30;
         for (let q = 0; q < rows; q++) {
-          const y0 = (q + 0.5) * (H / rows); const ph = r() * TAU2; const amp = 2 + r() * 3.5;
-          [['#464646', 3.4, 0], ['#bcbcbc', 2.2, 3.4]].forEach(([col, lw, off]) => {
+          const y0 = (q + 0.5) * (H / rows) + (r() - 0.5) * 3; const ph = r() * TAU2; const amp = 1.5 + r() * 3; const f1 = 2 + Math.floor(r() * 2);
+          const yy = (x) => y0 + Math.sin((x / W) * TAU2 * f1 + ph) * amp + Math.sin((x / W) * TAU2 * 7 + ph * 2) * 0.9;
+          [['rgba(36,36,36,.75)', 2.2, 0], ['rgba(224,224,224,.55)', 1.5, 2.4]].forEach(([col, lw, off]) => {
             g.strokeStyle = col; g.lineWidth = lw; g.beginPath();
-            for (let x = 0; x <= W; x += 4) { const y = y0 + off + Math.sin((x / W) * TAU2 * 2 + ph) * amp + Math.sin((x / W) * TAU2 * 6 + ph * 2) * 1.2; if (x) g.lineTo(x, y); else g.moveTo(x, y); }
+            for (let x = 0; x <= W; x += 3) { const y = yy(x) + off; if (x) g.lineTo(x, y); else g.moveTo(x, y); }
             g.stroke();
           });
+          for (let b = 0; b < 4; b++) { const x = r() * W; const dir = r() < 0.5 ? -1 : 1; g.strokeStyle = 'rgba(40,40,40,.4)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, yy(x)); g.lineTo(x + 8 + r() * 10, yy(x) + dir * (5 + r() * 5)); g.stroke(); }
         }
-        for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(40,40,40,${0.1 + r() * 0.15})`; g.beginPath(); g.arc(r() * W, r() * H, 1 + r() * 2, 0, TAU2); g.fill(); }
+        for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(30,30,30,${0.06 + r() * 0.12})`; g.beginPath(); g.arc(r() * W, r() * H, 0.6 + r() * 1.1, 0, TAU2); g.fill(); }
+        grain(g, W, H, r, 0.08);
       } },
-      pebble: { w: 256, h: 256, draw(g, W, H, r) { /* skin bumps */
-        g.fillStyle = '#7c7c7c'; g.fillRect(0, 0, W, H);
-        for (let i = 0; i < 360; i++) {
-          const x = r() * W; const y = r() * H; const rad = 3 + r() * 7;
-          wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, 'rgba(232,232,232,.9)'); gr.addColorStop(1, 'rgba(124,124,124,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); });
+      pebble: { w: 256, h: 256, draw(g, W, H, r) { /* fine skin bumps of every size, soft */
+        g.fillStyle = '#767676'; g.fillRect(0, 0, W, H);
+        for (let i = 0; i < 1100; i++) {
+          const x = r() * W; const y = r() * H; const rad = 1.6 + r() * r() * 7; const v = 0.35 + r() * 0.6;
+          wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox - rad * 0.2, y + oy - rad * 0.2, 0, x + ox, y + oy, rad); gr.addColorStop(0, `rgba(236,236,236,${v})`); gr.addColorStop(0.65, `rgba(150,150,150,${v * 0.4})`); gr.addColorStop(1, 'rgba(118,118,118,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); });
         }
+        grain(g, W, H, r, 0.06);
       } },
-      fuzz: { w: 256, h: 256, draw(g, W, H, r) { /* short fur, a thorax of hair */
-        g.fillStyle = '#808080'; g.fillRect(0, 0, W, H); g.lineCap = 'round'; g.lineWidth = 1.2;
-        for (let i = 0; i < 800; i++) {
-          const x = r() * W; const y = r() * H; const a = r() * TAU2; const l = 5 + r() * 7; g.strokeStyle = r() < 0.55 ? 'rgba(238,238,238,.38)' : 'rgba(46,46,46,.3)';
-          wrap9(W, H, (ox, oy) => { g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l); g.stroke(); });
+      fuzz: { w: 256, h: 256, draw(g, W, H, r) { /* short dense fur: fine strands lying one way, with a soft waviness */
+        g.fillStyle = '#7a7a7a'; g.fillRect(0, 0, W, H); g.lineCap = 'round';
+        for (let i = 0; i < 3200; i++) {
+          const x = r() * W; const y = r() * H; const a = 1.2 + (r() - 0.5) * 0.7 + Math.sin(x / W * TAU2 * 2) * 0.15; const l = 3 + r() * 6; const m = (r() - 0.5) * 2;
+          g.lineWidth = 0.6 + r() * 0.5; g.strokeStyle = r() < 0.5 ? `rgba(240,240,240,${0.2 + r() * 0.2})` : `rgba(40,40,40,${0.18 + r() * 0.2})`;
+          wrap9(W, H, (ox, oy) => { g.beginPath(); g.moveTo(x + ox, y + oy); g.quadraticCurveTo(x + ox + Math.cos(a) * l * 0.5 + m, y + oy + Math.sin(a) * l * 0.5, x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l); g.stroke(); });
         }
+        grain(g, W, H, r, 0.07);
       } },
       facets: { w: 256, h: 256, draw(g, W, H) { /* the lens facets of a compound eye */
         g.fillStyle = '#5c5c5c'; g.fillRect(0, 0, W, H);
@@ -187,36 +217,47 @@
           g.fillStyle = mixHex('#ffe6b4', '#5a4fa6', m); g.fillRect(0, y, W, 1);
         }
       } },
-      koi: { w: 512, h: 256, color: true, draw(g, W, H) { /* kohaku: orange on white, a few dark flecks */
-        g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
-        [[0.12, 0.22, 0.2, 0.16, '#f27a4a'], [0.62, 0.3, 0.18, 0.2, '#f27a4a'], [0.88, 0.55, 0.16, 0.26, '#f7a24f'], [0.35, 0.62, 0.2, 0.22, '#f27a4a'], [0.7, 0.82, 0.18, 0.14, '#f58b52'], [0.05, 0.7, 0.12, 0.12, '#f7a24f']].forEach(([bx, by, rx, ry, col]) => {
-          [-W, 0, W].forEach((ox) => {
-            g.save(); g.translate(bx * W + ox, by * H); g.scale(rx * W, ry * H);
-            const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, col); gr.addColorStop(0.7, `${col}cc`); gr.addColorStop(1, `${col}00`);
-            g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU2); g.fill(); g.restore();
-          });
+      koi: { w: 512, h: 256, color: true, draw(g, W, H, r) { /* kohaku: crisp-edged orange patches on pearl white, a hint of scale sheen, a few sumi flecks */
+        g.fillStyle = '#fffaf3'; g.fillRect(0, 0, W, H);
+        const patch = (bx, by, rx, ry, col) => [-W, 0, W].forEach((ox) => {
+          g.fillStyle = col; g.filter = 'blur(3px)'; g.beginPath();
+          for (let j = 0; j <= 28; j++) { const a = (j / 28) * TAU2; const rr = 1 + 0.16 * Math.sin(a * 3 + bx * 9) + 0.1 * Math.sin(a * 5 + by * 7); const x = bx * W + ox + Math.cos(a) * rx * W * rr; const y = by * H + Math.sin(a) * ry * H * rr; if (j) g.lineTo(x, y); else g.moveTo(x, y); }
+          g.closePath(); g.fill(); g.filter = 'none';
         });
-        [[0.2, 0.4], [0.55, 0.15], [0.8, 0.7], [0.42, 0.88]].forEach(([bx, by]) => { g.fillStyle = 'rgba(43,42,85,.55)'; g.beginPath(); g.ellipse(bx * W, by * H, 9, 7, 0, 0, TAU2); g.fill(); });
+        [[0.12, 0.24, 0.17, 0.16, '#f06a3c'], [0.36, 0.5, 0.13, 0.2, '#f27a45'], [0.62, 0.3, 0.16, 0.2, '#ef6236'], [0.86, 0.58, 0.15, 0.24, '#f58f48'], [0.7, 0.84, 0.15, 0.13, '#f27a45'], [0.04, 0.72, 0.1, 0.14, '#f58f48']].forEach((p) => patch(...p));
+        g.globalAlpha = 0.18; g.fillStyle = '#ffd9a8'; /* the lighter flush where the colour is thin */
+        for (let i = 0; i < 40; i++) { g.beginPath(); g.arc(r() * W, r() * H, 5 + r() * 12, 0, TAU2); g.fill(); }
+        g.globalAlpha = 1;
+        [[0.2, 0.42, 7, 5], [0.55, 0.16, 9, 6], [0.8, 0.72, 6, 5], [0.45, 0.88, 8, 5]].forEach(([bx, by, rx, ry]) => { g.filter = 'blur(1.5px)'; g.fillStyle = 'rgba(40,40,80,.5)'; g.beginPath(); g.ellipse(bx * W, by * H, rx, ry, r(), 0, TAU2); g.fill(); g.filter = 'none'; });
+        grain(g, W, H, r, 0.07, true);
       } },
-      dapple: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* a dappled grey coat */
+      dapple: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* a dappled grey coat: soft rings of darker and lighter hair */
         g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
-        for (let i = 0; i < 70; i++) {
-          const x = r() * W; const y = r() * H; const rad = 9 + r() * 10;
-          wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, 'rgba(112,122,178,.5)'); gr.addColorStop(0.7, 'rgba(112,122,178,.22)'); gr.addColorStop(1, 'rgba(112,122,178,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); });
+        for (let i = 0; i < 120; i++) {
+          const x = r() * W; const y = r() * H; const rad = 5 + r() * 12; const dark = r() < 0.6;
+          wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, rad * 0.35, x + ox, y + oy, rad); gr.addColorStop(0, dark ? 'rgba(104,112,168,.05)' : 'rgba(255,255,255,0)'); gr.addColorStop(0.6, dark ? 'rgba(104,112,168,.4)' : 'rgba(255,255,255,.4)'); gr.addColorStop(1, 'rgba(104,112,168,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); });
         }
+        for (let i = 0; i < 6; i++) { const x = r() * W; const y = r() * H; const rad = 40 + r() * 40; wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, 'rgba(120,128,180,.16)'); gr.addColorStop(1, 'rgba(120,128,180,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); }); }
+        grain(g, W, H, r, 0.09, true);
       } },
-      mottle: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* an octopus's chromatophores */
+      mottle: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* an octopus's skin: clouds of pigment, chromatophores of every size, fine speckle */
         g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
-        const blob = (n, r0, r1, col) => { for (let i = 0; i < n; i++) { const x = r() * W; const y = r() * H; const rad = r0 + r() * (r1 - r0); wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); }); } };
-        blob(16, 26, 46, 'rgba(236,150,186,.42)'); blob(230, 2.5, 7, 'rgba(200,100,156,.6)');
+        const blob = (n, r0, r1, col, edge) => { for (let i = 0; i < n; i++) { const x = r() * W; const y = r() * H; const rad = r0 + r() * (r1 - r0); wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, col); gr.addColorStop(edge, col); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); }); } };
+        blob(22, 24, 50, 'rgba(238,160,196,.26)', 0); blob(120, 6, 14, 'rgba(206,108,160,.32)', 0.5); blob(420, 1.4, 4.6, 'rgba(170,76,130,.55)', 0.6); blob(900, 0.6, 1.6, 'rgba(120,50,100,.45)', 0.6);
+        grain(g, W, H, r, 0.06, true);
       } },
-      barring: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* a barred plumage */
-        g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
-        for (let q = 0; q < 14; q++) {
-          const y0 = (q + 0.5) * (H / 14); const ph = r() * TAU2; g.strokeStyle = 'rgba(112,102,186,.34)'; g.lineWidth = 4 + r() * 3; g.beginPath();
-          for (let x = 0; x <= W; x += 4) { const y = y0 + Math.sin((x / W) * TAU2 * 3 + ph) * 3.5; if (x) g.lineTo(x, y); else g.moveTo(x, y); }
-          g.stroke();
+      barring: { w: 256, h: 256, color: true, draw(g, W, H, r) { /* a barred, mottled plumage: wavy cross bars of two tones, irregular */
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H); g.lineCap = 'round';
+        for (let q = 0; q < 22; q++) {
+          const y0 = (q + 0.5) * (H / 22); const ph = r() * TAU2; const w = 2.2 + r() * 3.2; const a = 0.16 + r() * 0.2;
+          for (const [col, dy, ww] of [[`rgba(92,82,168,${a})`, 0, w], [`rgba(150,140,214,${a * 0.6})`, w * 0.9, w * 0.7]]) {
+            g.strokeStyle = col; g.lineWidth = ww; g.beginPath();
+            for (let x = 0; x <= W; x += 3) { const y = y0 + dy + Math.sin((x / W) * TAU2 * 4 + ph) * 2.6 + Math.sin((x / W) * TAU2 * 11 + ph) * 0.9; if (x) g.lineTo(x, y); else g.moveTo(x, y); }
+            g.stroke();
+          }
         }
+        for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(80,72,150,${0.05 + r() * 0.1})`; g.beginPath(); g.ellipse(r() * W, r() * H, 1 + r() * 2.4, 0.6 + r() * 1.2, 0, 0, TAU2); g.fill(); }
+        grain(g, W, H, r, 0.07, true);
       } },
     };
     const texCache = {};
