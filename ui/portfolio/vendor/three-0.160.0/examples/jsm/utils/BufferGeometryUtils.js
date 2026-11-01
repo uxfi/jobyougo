@@ -1,3 +1,4 @@
+/* vendored: the bare 'three' import is replaced by the self-hosted build URL (no import map on the page) */
 import {
 	BufferAttribute,
 	BufferGeometry,
@@ -9,7 +10,7 @@ import {
 	TriangleStripDrawMode,
 	TrianglesDrawMode,
 	Vector3,
-} from 'three';
+} from '/portfolio/vendor/three-0.160.0/build/three.module.min.js';
 
 function computeMikkTSpaceTangents( geometry, MikkTSpace, negateSign = true ) {
 

@@ -109,6 +109,27 @@
     },
   };
 
+  /* The jaguar as a modelled file (models/jaguar.glb, 2 MB: 32k triangles-vertices, three 1024 px maps). The mesh is still, so the whole animal
+     breathes and sways; the coded jaguar above stands in if the file does not load. It is laid along +x like the other animals. */
+  B.animals.mobility.glb = '/portfolio/models/jaguar.glb';
+  B.animals.mobility.frameGlb = { r: 1.9, cx: 0, cy: 0.75, floor: 0, shadow: 3.4, yaw: 0.8, pitch: 0.12 };
+  B.animals.mobility.buildGlb = (K, gltf) => {
+    const T = K.T; const root = new T.Group(); const turn = new T.Group(); const body = gltf.scene;
+    const box = new T.Box3().setFromObject(body); const size = box.getSize(new T.Vector3()); const mid = box.getCenter(new T.Vector3());
+    const sc = 2.5 / Math.max(size.x, size.z);
+    body.position.set(-mid.x, -box.min.y, -mid.z); const fit = new T.Group(); fit.add(body); fit.scale.setScalar(sc);
+    if (size.z >= size.x) fit.rotation.y = Math.PI / 2;
+    body.traverse((o) => { if (o.isMesh) { o.material.side = T.FrontSide; o.material.envMapIntensity = 0.7; o.material.metalness = Math.min(o.material.metalness, 0.15); o.frustumCulled = false; } });
+    turn.add(fit); root.add(turn);
+    const pose = (x, t) => {
+      turn.position.y = 0.012 * Math.sin(t * 1.9);
+      turn.rotation.z = 0.012 * Math.sin(t * 0.95 + 0.6);
+      turn.rotation.y = 0.05 * Math.sin(t * 0.31);
+      turn.scale.set(1, 1 + 0.006 * Math.sin(t * 1.9), 1);
+    };
+    return { root, parts: {}, pose };
+  };
+
   /* ───────── 9. The elephant · large groups · a trunk with no bone, from a hang to a reach ───────── */
   const EL = { n: 30, seg: 0.0635, bx: 2.15, by: 2.25, m: 1.05 }; /* trunk joints, length of one, base of the trunk, metres per model unit */
   const trunkChain = (x) => {

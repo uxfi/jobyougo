@@ -1,3 +1,4 @@
+/* vendored: the bare 'three' import is replaced by the self-hosted build URL (no import map on the page) */
 import {
 	AnimationClip,
 	Bone,
@@ -64,7 +65,7 @@ import {
 	VectorKeyframeTrack,
 	SRGBColorSpace,
 	InstancedBufferAttribute
-} from 'three';
+} from '/portfolio/vendor/three-0.160.0/build/three.module.min.js';
 import { toTrianglesDrawMode } from '../utils/BufferGeometryUtils.js';
 
 class GLTFLoader extends Loader {

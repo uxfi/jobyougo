@@ -20,6 +20,7 @@
 
   const REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const THREE_URL = '/portfolio/vendor/three-0.160.0/build/three.module.min.js';
+  const GLTF_URL = '/portfolio/vendor/three-0.160.0/examples/jsm/loaders/GLTFLoader.js';
 
   let T = null;
   let K = null;
@@ -640,9 +641,16 @@
   }
 
   /* ───────────────────────── animals ───────────────────────── */
-  function makeAnimal(id, def) {
-    const inst = def.build(K);
-    return { id, def, inst, x: def.x };
+  /* An animal may come from a modelled file: def.glb is its URL, def.buildGlb(K, gltf) wraps it, def.frameGlb frames it.
+     If the file does not load, the coded build() stands in. */
+  function makeAnimal(id, def, gltf) {
+    const own = !!(gltf && def.buildGlb);
+    const inst = own ? def.buildGlb(K, gltf) : def.build(K);
+    return { id, def, inst, x: def.x, frame: own && def.frameGlb ? def.frameGlb : def.frame };
+  }
+  const loading = {};
+  function loadGlb(def) {
+    return import(GLTF_URL).then((m) => new Promise((res, rej) => new m.GLTFLoader().load(def.glb, res, undefined, rej)));
   }
 
   function setLive(on) {
@@ -662,13 +670,21 @@
     const swap = () => {
       if (S.want !== id) return;
       let a = cache[id];
+      if (!a && def.glb && !loading[id]) {
+        loading[id] = loadGlb(def).catch(() => null).then((gltf) => {
+          cache[id] = makeAnimal(id, def, gltf); scene.add(cache[id].inst.root); cache[id].inst.root.visible = false;
+          try { renderer.compile(scene, cam); } catch (e) { /* the first frame compiles instead */ }
+          delete loading[id]; if (S.want === id) swap();
+        });
+        return;
+      }
       if (!a) {
         a = cache[id] = makeAnimal(id, def); scene.add(a.inst.root);
         try { renderer.compile(scene, cam); } catch (e) { /* the first frame compiles instead */ } /* warm the shaders before the first frame */
       }
       if (S.cur) S.cur.inst.root.visible = false;
       a.inst.root.visible = true; S.cur = a;
-      S.tYaw = (def.frame.yaw == null ? 0.55 : def.frame.yaw); S.tPitch = (def.frame.pitch == null ? 0.16 : def.frame.pitch);
+      S.tYaw = (a.frame.yaw == null ? 0.55 : a.frame.yaw); S.tPitch = (a.frame.pitch == null ? 0.16 : a.frame.pitch);
       if (!S.dragging) { S.yaw = S.tYaw; S.pitch = S.tPitch; }
       setLive(true);
       const cap = d.getElementById('biz-caption'); /* the chapter colours of the chosen type, set by agence-work.js */
@@ -693,7 +709,7 @@
   }
   function fit() {
     if (!S.ready || !S.cur) return;
-    const f = S.cur.def.frame;
+    const f = S.cur.frame;
     const vfov = (cam.fov * Math.PI) / 180;
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * cam.aspect);
     S.dist = (f.r * 1.08) / Math.sin(Math.min(vfov, hfov) / 2);
@@ -719,7 +735,7 @@
     if (!S.dragging && !REDUCED) S.tYaw += Math.sin(S.t * 0.22) * dt * 0.05;
     const ky = 1 - Math.exp(-dt * 7);
     S.yaw += (S.tYaw - S.yaw) * ky; S.pitch += (S.tPitch - S.pitch) * ky;
-    const f = a.def.frame;
+    const f = a.frame;
     const cx = f.cx || 0; /* the animal's own centre, when it is not at the origin (a long trunk, a flower) */
     cam.position.set(cx + Math.sin(S.yaw) * Math.cos(S.pitch) * S.dist, f.cy + Math.sin(S.pitch) * S.dist, Math.cos(S.yaw) * Math.cos(S.pitch) * S.dist);
     cam.lookAt(cx, f.cy, 0);
