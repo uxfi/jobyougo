@@ -79,6 +79,39 @@
 
     /* Micro detail lives in maps (see 3d-high-poly-models: silhouette and form in geometry, pores and barbs in material).
        Grey textures are bump maps, coloured ones multiply the glass tint. All are drawn once, tile cleanly, 128 to 512 px. */
+    /* A jaguar's coat: warm gold with soft light and dark patches, rosettes (a ring of black blots round a darker tan centre), solid spots
+       in between, and, for the body, a pale belly down the middle of the tile (u = 0.5 is under the animal). Tiles in both directions. */
+    const jagDraw = (g, W, H, r, belly, cells) => {
+      g.fillStyle = '#d99a42'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 46; i++) {
+        const x = r() * W; const y = r() * H; const rad = 30 + r() * 70; const lt = r() < 0.5;
+        wrap9(W, H, (ox, oy) => { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad); gr.addColorStop(0, lt ? 'rgba(240,190,100,.34)' : 'rgba(170,100,40,.3)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + ox, y + oy, rad, 0, TAU2); g.fill(); });
+      }
+      if (belly) {
+        const gr = g.createLinearGradient(W * 0.28, 0, W * 0.72, 0);
+        gr.addColorStop(0, 'rgba(246,234,208,0)'); gr.addColorStop(0.3, 'rgba(246,234,208,.95)'); gr.addColorStop(0.7, 'rgba(246,234,208,.95)'); gr.addColorStop(1, 'rgba(246,234,208,0)');
+        g.fillStyle = gr; g.fillRect(W * 0.28, 0, W * 0.44, H);
+      }
+      const cw = W / cells; const ch = H / cells;
+      for (let cy0 = 0; cy0 < cells; cy0++) for (let cx0 = 0; cx0 < cells; cx0++) {
+        const cx = (cx0 + (cy0 & 1 ? 0.5 : 0) + 0.5 + (r() - 0.5) * 0.3) * cw; const cy = (cy0 + 0.5 + (r() - 0.5) * 0.3) * ch;
+        const nearBelly = belly && Math.abs(cx - W / 2) < W * 0.1;
+        const rad = cw * (0.3 + r() * 0.08) * (nearBelly ? 0.7 : 1);
+        wrap9(W, H, (ox, oy) => {
+          g.fillStyle = 'rgba(176,108,40,.85)'; g.beginPath(); g.ellipse(cx + ox, cy + oy, rad * 0.82, rad * 0.78, 0, 0, TAU2); g.fill();
+          const n = 7 + Math.floor(r() * 3);
+          for (let b = 0; b < n; b++) {
+            const a = (b / n) * TAU2 + r() * 0.3; const rr = rad * (0.95 + r() * 0.2);
+            g.fillStyle = 'rgba(28,20,14,.94)'; g.beginPath(); g.ellipse(cx + ox + Math.cos(a) * rr, cy + oy + Math.sin(a) * rr, rad * (0.26 + r() * 0.14), rad * (0.17 + r() * 0.1), a + 1.57, 0, TAU2); g.fill();
+          }
+          if (r() < 0.45) { g.fillStyle = 'rgba(28,20,14,.9)'; g.beginPath(); g.arc(cx + ox, cy + oy, rad * 0.14, 0, TAU2); g.fill(); }
+        });
+      }
+      for (let i = 0; i < cells * cells * 3; i++) {
+        const x = r() * W; const y = r() * H; const rad = 2 + r() * 5; wrap9(W, H, (ox, oy) => { g.fillStyle = 'rgba(28,20,14,.88)'; g.beginPath(); g.ellipse(x + ox, y + oy, rad, rad * (0.7 + r() * 0.3), r() * 3, 0, TAU2); g.fill(); });
+      }
+      grain(g, W, H, r, 0.06, true);
+    };
     const TEX = {
       scales: { w: 256, h: 256, draw(g, W, H, r) { /* fish scales: each one lit differently, a free edge, fine growth arcs */
         g.fillStyle = '#5c5c5c'; g.fillRect(0, 0, W, H);
@@ -259,6 +292,8 @@
         for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(80,72,150,${0.05 + r() * 0.1})`; g.beginPath(); g.ellipse(r() * W, r() * H, 1 + r() * 2.4, 0.6 + r() * 1.2, 0, 0, TAU2); g.fill(); }
         grain(g, W, H, r, 0.07, true);
       } },
+      jagBody: { w: 512, h: 512, color: true, draw(g, W, H, r) { jagDraw(g, W, H, r, true, 8); } },
+      jagSkin: { w: 512, h: 512, color: true, draw(g, W, H, r) { jagDraw(g, W, H, r, false, 4); } },
     };
     const texCache = {};
     k.tex = (name) => {

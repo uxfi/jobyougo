@@ -423,7 +423,7 @@
     ecommerce: { en: ['The hummingbird', 'Quick and precise, from one flower to the next.'], fr: ['Le colibri', 'Rapide et précis, d’une fleur à l’autre.'] },
     marketplace: { en: ['The octopus', 'Arms reaching every side of the market.'], fr: ['La pieuvre', 'Des bras qui touchent chaque côté du marché.'] },
     luxury: { en: ['The swan', 'Grace that has to look effortless.'], fr: ['Le cygne', 'Une grâce qui doit paraître naturelle.'] },
-    mobility: { en: ['The horse', 'Speed you can steer.'], fr: ['Le cheval', 'De la vitesse, mais qu’on dirige.'] },
+    mobility: { en: ['The jaguar', 'Speed you can steer.'], fr: ['Le jaguar', 'De la vitesse, mais qu’on dirige.'] },
     enterprise: { en: ['The elephant', 'A whole herd that moves together, and remembers.'], fr: ['L’éléphant', 'Tout un troupeau qui avance ensemble, et qui se souvient.'] },
   };
   const artSet = (id) => `/images/bestiary/${id}-m.webp${ART_V} 900w, /images/bestiary/${id}.webp${ART_V} 1600w`;
