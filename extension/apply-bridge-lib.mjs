@@ -2598,6 +2598,8 @@ export class ApplyBridge {
         language: 'mauvaise langue',
         'side-project': 'elle prenait un projet perso comme preuve',
         junk: "ce n'était pas une réponse",
+        'no-source': 'matériel absent du profil (screening.custom_answers)',
+        personal: 'consentement à donner toi-même',
         slop: 'formules toutes faites',
       };
       const updateFor = (f, ans, refusedCodes) => {

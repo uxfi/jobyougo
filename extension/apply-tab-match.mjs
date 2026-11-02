@@ -64,6 +64,29 @@ function companyHits(title, company) {
   return String(title || '').toLowerCase().includes(name);
 }
 
+const LEGAL_WORDS = /\b(?:the|gmbh|llc|ltd|limited|inc|corp|sas|sarl|srl|bv|ag|sa|sp z o o|group)\b/g;
+const foldName = (text) => String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const compactName = (text) => foldName(text).replace(/[^a-z0-9]/g, '');
+
+/**
+ * Whether the tab's title, host or path names the company: whole ("hilobyaktiia"
+ * for Hilo by Aktiia) or by its first word. Query strings are left out: a login
+ * redirect carries the origin URL there. null when the offer names no company.
+ */
+export function tabNamesCompany(candidate, company) {
+  const name = foldName(company).replace(/[^a-z0-9 ]/g, ' ').replace(LEGAL_WORDS, ' ').trim();
+  if (compactName(name).length < 3) return null;
+  let place = '';
+  try {
+    const u = new URL(String(candidate?.url || ''));
+    place = decodeURIComponent(`${u.hostname}${u.pathname}`);
+  } catch { /* no URL: the title alone */ }
+  const hay = compactName(`${candidate?.title || ''} ${place}`);
+  if (hay.includes(compactName(name))) return true;
+  const first = name.split(/\s+/)[0];
+  return first.length >= 4 && hay.includes(first);
+}
+
 /**
  * @returns {{ score: number, hardReject: string|null, reasons: string[] }}
  */
@@ -133,7 +156,12 @@ export function scoreAdoptCandidate(candidate, ctx = {}) {
   if (companyHits(candidate.title, ctx.company)) { score += 10; reasons.push('entreprise'); }
   if (candidate.active) { score += 2; reasons.push('actif'); }
 
-  return { score, hardReject: null, reasons };
+  // What ties this tab to the offer. An ATS with a form and a word of the title
+  // ties nothing: an open BoondManager form took an application meant for
+  // another offer (2026-11-02). Another company's page on the board the run
+  // came from is no tie either.
+  const offerTie = tokenHit || sameHostAsExpect || (sameHostAsOrigin && !isAggregatorAts(raw));
+  return { score, hardReject: null, reasons, offerTie };
 }
 
 /**
@@ -146,6 +174,11 @@ export function acceptAdoptCandidate(candidate, ctx = {}, { trustedChild = false
   if (scored.hardReject) return { ok: false, ...scored };
   if (trustedChild) return { ok: true, via: 'enfant', ...scored };
   if (!candidate?.url) return { ok: false, ...scored, hardReject: 'url-vide' };
+  // A tab the click did not open: sending the CV to the wrong employer costs
+  // more than a run that stops and asks.
+  if (!scored.offerTie && tabNamesCompany(candidate, ctx.company) === false) {
+    return { ok: false, ...scored, hardReject: 'autre-entreprise', reasons: [...scored.reasons, 'entreprise-absente'] };
+  }
   if (scored.score >= 40) return { ok: true, via: 'score', ...scored };
   return { ok: false, ...scored };
 }
