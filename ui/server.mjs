@@ -11711,7 +11711,7 @@ Règles:
           const evaluating = mode === 'oferta' || mode === 'pipeline';
           const generationModel = evaluating ? evalModel.model : MODELS.QWEN;
           const generationReasoning = evaluating ? evalModel.reasoning : undefined;
-          console.log(`[${mode}] sending prompt to ${generationModel}${evaluating ? ` (spend_tier ${evalModel.tier})` : ''} — ${promptLength} chars, systemPrompt=${systemPrompt?.length || 0} chars`);
+          console.log(`[${mode}] sending prompt to free models, paid fallback ${generationModel}${evaluating ? ` (spend_tier ${evalModel.tier})` : ''} — ${promptLength} chars, systemPrompt=${systemPrompt?.length || 0} chars`);
           const generationTemperature = mode === 'question' ? 0.1 : 0.3;
           const generationMaxTokens = ({
             question: 700,

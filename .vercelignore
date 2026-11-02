@@ -45,6 +45,29 @@ docs
 .DS_Store
 .claude
 
+# Build tooling of ui/effects (esbuild, 25 MB): the site loads ui/effects/dist only.
+ui/effects/node_modules
+
+# 2026-11-02: the bestiary GLBs took the function to 298 MB. Nothing references
+# these any more: the old island and dive hero, images with a lighter copy in
+# use, and local logs (on Vercel the server writes to /tmp).
+images/3d/floating-island
+images/agence-dive.mp4
+images/agence-dive-m.mp4
+images/agence-dive-poster.jpg
+images/curseur.png
+images/creads-v2-home-full.webp
+images/eden-red-iphone.png
+images/eden-red-iphone-2.png
+ui/assets/visual-rings-lyoninc.png
+ui/captures/challenge-webinar-hero-dark.png
+ui/captures/challenge-webinar-hero-dark-mobile.png
+ui/covers/iface-maritana-hero.png
+ui/covers/iface-linkedin-jobs-playground.png
+ui/covers/iface-munsit-voice-flow.png
+data/scan-logs
+data/ai-usage-ledger.jsonl
+
 # Unreferenced heavy images (2026-10-21): the function was 252 MB for a 250 MB cap.
 # lvmh.webp is the cover in use; the three PNGs are leftovers of old interface covers.
 ui/covers/lvmh.jpg
