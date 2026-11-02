@@ -460,7 +460,7 @@ test('case A: a hiring inbox printed on the site is no first.last evidence', asy
   assert.equal(out.best.email, 'people.ops@acme.io');
 });
 
-test('case B: nicolas@ printed beside "Nicolas Bégin" is his address and makes first@ likely for the team', async () => {
+test('case B: nicolas@ printed beside "Nicolas Bégin" is his address; one pair orders the team\'s guesses, never makes them likely', async () => {
   const out = await findContacts({ company: 'Cureety', role: 'Product Designer', companyUrlHint: 'https://cureety.com' }, {
     fetchPage: siteFetcher({
       'https://cureety.com': '<a href="/mentions-legales">Mentions légales</a><a href="/equipe">Équipe</a><p>Cureety accompagne les patients atteints de cancer entre deux consultations.</p>',
@@ -476,8 +476,8 @@ test('case B: nicolas@ printed beside "Nicolas Bégin" is his address and makes 
   assert.equal(nicolas.confidence, 'verified');
   assert.equal(`${nicolas.firstName} ${nicolas.lastName}`, 'Nicolas Bégin');
   assert.ok(!out.contacts.some(c => c.email.startsWith('nicolas.') || c.email === 'nbegin@cureety.com'));
-  assert.equal(byEmail['julie@cureety.com'].confidence, 'likely');
-  assert.ok(byEmail['julie@cureety.com'].sources.some(s => s.detail === 'schéma du site : nicolas@ = Nicolas Bégin'));
+  assert.equal(byEmail['julie@cureety.com'].confidence, 'guess');
+  assert.ok(byEmail['julie@cureety.com'].sources.some(s => s.detail === 'schéma probable (un seul exemple) : nicolas@ = Nicolas Bégin'));
   assert.deepEqual({ pattern: out.patternEvidence.pattern, basis: out.patternEvidence.basis, support: out.patternEvidence.support }, { pattern: 'first', basis: 'paired', support: 1 });
   assert.equal(out.best.email, 'nicolas@cureety.com');
   // Two people sharing the first name: no pair.
@@ -495,8 +495,8 @@ test('a posting address beside its owner\'s name counts like a site address', as
   const byEmail = Object.fromEntries(out.contacts.map(c => [c.email, c]));
   assert.equal(byEmail['paul.martin@acme.io'].persona, 'recruiter');
   assert.equal(byEmail['paul.martin@acme.io'].title, 'Head of Talent');
-  assert.equal(byEmail['claire.martin@acme.io'].confidence, 'likely');
-  assert.ok(byEmail['claire.martin@acme.io'].sources.some(s => s.detail === 'schéma du site : paul.martin@ = Paul Martin'));
+  assert.equal(byEmail['claire.martin@acme.io'].confidence, 'guess');
+  assert.ok(byEmail['claire.martin@acme.io'].sources.some(s => s.detail === 'schéma probable (un seul exemple) : paul.martin@ = Paul Martin'));
 });
 
 test('Secfix: the posting\'s "I\'m Grigory, co-founder and CTO" and the site\'s Grigory Emelianov are one person', async () => {
@@ -535,7 +535,7 @@ test('compound surnames: the particle joins the name, the last word is the alter
   const out = await findContacts({ company: 'Acme', role: 'Product Designer', companyUrlHint: 'https://acme.io' }, {
     fetchPage: siteFetcher({
       'https://acme.io': '<a href="/team">Team</a><p>Acme builds payroll software for small teams in Europe.</p>',
-      'https://acme.io/team': '<p>Paul Martin, CTO: paul.martin@acme.io</p><p>Élodie Le Roux, Head of Design</p><p>Marc Petit, Head of Product</p>',
+      'https://acme.io/team': '<p>Paul Martin, CTO: paul.martin@acme.io</p><p>Anne Dubois, COO: anne.dubois@acme.io</p><p>Élodie Le Roux, Head of Design</p><p>Marc Petit, Head of Product</p>',
     }),
     resolveMx: async () => true,
   });

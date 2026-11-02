@@ -21,6 +21,7 @@ import {
   homepageNamesCompany,
   labelSaysAvoid,
   pageText,
+  patternEvidence,
   pickForwardTarget,
   preDecodeHtml,
   rankContacts,
@@ -371,4 +372,43 @@ test('FLV-2: an accented and an unaccented spelling are one person, asked of the
   assert.equal(helene[0].firstName, 'Hélène', 'the site\'s spelling is kept');
   assert.deepEqual([...new Set(helene[0].sources.map(s => s.type))].sort(), ['site', 'theorg']);
   assert.equal(asked.filter(name => /durand/i.test(name)).length, 1);
+});
+
+// ── Review 2026-11-02: provider statuses, single-pair patterns, judge failure ──
+
+test('2026-11-02: an address Hunter finds bouncing is never a contact, nor the best', async () => {
+  const pages = { 'https://acme.io': '<p>Acme builds payroll software for small teams in Europe.</p>' };
+  const fetchPage = async (url) => { const html = pages[url.replace(/\/$/, '')]; return html ? { ok: true, status: 200, url, html, text: html.replace(/<[^>]+>/g, '') } : { ok: false, status: 404, url, html: '', text: '' }; };
+  const hunter = {
+    name: 'hunter',
+    domainSearch: async () => ({ pattern: '', emails: [{ email: 'jane.doe@acme.io', firstName: 'Jane', lastName: 'Doe', title: 'Talent Acquisition Manager', status: 'invalid' }] }),
+  };
+  const out = await findContacts({ company: 'Acme', role: 'Product Designer', companyUrlHint: 'https://acme.io' }, { fetchPage, providers: [hunter], resolveMx: async () => true, providerOutages: new Map() });
+  assert.ok(!out.contacts.some(c => c.email === 'jane.doe@acme.io'));
+  assert.equal(out.best, null);
+});
+
+test('2026-11-02: two printed pairs make the pattern likely', () => {
+  const one = patternEvidence([{ pattern: 'first', email: 'nicolas@x.fr', url: '', name: 'Nicolas Bégin' }]);
+  assert.equal(one.confidence, 'guess');
+  const two = patternEvidence([{ pattern: 'first', email: 'nicolas@x.fr', url: '', name: 'Nicolas Bégin' }, { pattern: 'first', email: 'julie@x.fr', url: '', name: 'Julie Martin' }]);
+  assert.equal(two.confidence, 'likely');
+});
+
+test('2026-11-02: when the namesake judge gives no verdict, search people are listed but never drafted for', async () => {
+  const pages = { 'https://riot.co': '<p>Riot trains employees against phishing with simulated attacks.</p>' };
+  const fetchPage = async (url) => { const html = pages[url.replace(/\/$/, '')]; return html ? { ok: true, status: 200, url, html, text: html.replace(/<[^>]+>/g, '') } : { ok: false, status: 404, url, html: '', text: '' }; };
+  const webSearch = async () => [{ title: 'Jane Doe - Talent Acquisition Manager - Riot | LinkedIn', url: 'https://fr.linkedin.com/in/jane-doe', snippet: 'Talent Acquisition Manager at Riot' }];
+  const run = judgePeople => findContacts({ company: 'Riot', role: 'Product Designer', companyUrlHint: 'https://riot.co' }, {
+    fetchPage, webSearch, judgePeople, resolveMx: async () => true, providerOutages: new Map(),
+    providers: [{ name: 'fake', findEmail: async () => ({ email: 'jane.doe@riot.co', status: 'likely' }) }],
+  });
+  const judged = await run(async () => [0]);
+  assert.equal(judged.best?.email, 'jane.doe@riot.co');
+  for (const judge of [async () => null, async () => { throw new Error('No model answered'); }]) {
+    const out = await run(judge);
+    assert.ok(out.contacts.some(c => c.email === 'jane.doe@riot.co'));
+    assert.equal(out.best, null);
+    assert.ok(out.notes.some(note => note.includes('homonymes')));
+  }
 });

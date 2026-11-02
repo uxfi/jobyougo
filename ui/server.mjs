@@ -8866,13 +8866,15 @@ async function contactFinderJudgePeople(candidates, { company = '', companyText 
   ].join('\n');
   // 400 tokens: a keep list of 60 indices cut off at 120 failed to parse and kept everyone.
   const raw = await chat({ model: CONTACT_FINDER_MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0, max_tokens: 400 });
+  // No usable verdict is null, not "keep everyone": the finder then lists
+  // these people without drafting for any of them.
   const match = String(raw || '').match(/\{[\s\S]*\}/);
-  if (!match) return candidates.map((_, i) => i);
+  if (!match) return null;
   try {
     const parsed = JSON.parse(match[0]);
-    return Array.isArray(parsed.keep) ? parsed.keep.map(Number).filter(i => Number.isInteger(i) && i >= 0 && i < candidates.length) : candidates.map((_, i) => i);
+    return Array.isArray(parsed.keep) ? parsed.keep.map(Number).filter(i => Number.isInteger(i) && i >= 0 && i < candidates.length) : null;
   } catch {
-    return candidates.map((_, i) => i);
+    return null;
   }
 }
 

@@ -32,13 +32,16 @@ draft opens in Gmail or the mail app, or is copied.
 
 | Tag | Meaning |
 |---|---|
-| **verified** | Printed on the company's own site or in the posting, or confirmed by a provider. |
-| **likely** | Built from the pattern the company uses for other people, or a provider said "catch-all / risky". |
+| **verified** | Printed on the company's own site or in the posting, or confirmed by a provider's verification. |
+| **likely** | Built from the pattern at least two printed addresses of named people share, or found by a provider without a verification (or "catch-all / risky"). An address a provider reports invalid is dropped. |
 | **guess** | A common pattern with nothing confirming it. Check it before sending. |
 
 Only a verified or likely address is picked as **best** and drafted for without
 asking. A guess is listed with its alternatives (`marie@`, `mdupont@`) and the
-user chooses. Addresses on a domain with no MX record are dropped; `dpo@`,
+user chooses. A single printed pair (`nicolas@` beside "Nicolas Bégin") only
+orders the guesses: it may be one founder's own address. When the namesake
+pass gives no verdict (the model fails or answers nothing usable), the people
+found by search are listed but none is drafted for without asking. Addresses on a domain with no MX record are dropped; `dpo@`,
 `press@`, `noreply@` and the like are never proposed; `support@` / `contact@`
 are kept as a last resort because a person may forward them.
 
@@ -58,7 +61,9 @@ search; people found by search then get pattern-based addresses.
 
 - `CONTACT_FINDER_MODEL` (default Qwen 30B): one short call per team/about
   page and per posting to list named people, one call per search round to
-  drop namesakes. A few tenths of a cent per offer.
+  drop namesakes. A few tenths of a cent per offer. Since 2026-11-02 these
+  calls go to the free providers first (`lib/free-llm.mjs`); this model is
+  the paid fallback, and `AI_FREE_FIRST=0` makes it the only one.
 - `APPLICATION_EMAIL_MODEL` (default Qwen 30B): the email itself, including
   the repair pass. A 2026-10-07 bench (7 real postings, 3 blind judges)
   scored Haiku 4.5 at 4.5/5, Sonnet 4.6 at 3.9 and Qwen 30B at 3.3-3.6;
