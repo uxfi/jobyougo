@@ -12474,7 +12474,7 @@ Règles:
       }
     }
 
-    if (path.match(/\.(jpg|jpeg|png|svg|webp|css|js|mjs|map|woff2|woff|ttf|otf|mp4|webm)$/)) {
+    if (path.match(/\.(jpg|jpeg|png|svg|webp|css|js|mjs|map|woff2|woff|ttf|otf|mp4|webm|glb)$/)) {
       try {
         // Strip leading slash to join correctly within ROOT
         const decodedPath = decodeURIComponent(path);
@@ -12495,7 +12495,7 @@ Règles:
           mjs: 'application/javascript; charset=utf-8',
           map: 'application/json; charset=utf-8',
           woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf',
-          mp4: 'video/mp4', webm: 'video/webm'
+          mp4: 'video/mp4', webm: 'video/webm', glb: 'model/gltf-binary'
         };
         res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
         res.setHeader('Cache-Control', (ext === 'css' || ext === 'js' || ext === 'mjs') ? 'no-cache' : 'public, max-age=31536000, immutable');

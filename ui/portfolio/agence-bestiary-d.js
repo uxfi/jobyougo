@@ -109,26 +109,111 @@
     },
   };
 
-  /* The jaguar as a modelled file (models/jaguar.glb, 2 MB: 32k triangles-vertices, three 1024 px maps). The mesh is still, so the whole animal
-     breathes and sways; the coded jaguar above stands in if the file does not load. It is laid along +x like the other animals. */
-  B.animals.mobility.glb = '/portfolio/models/jaguar.glb';
-  B.animals.mobility.frameGlb = { r: 1.9, cx: 0, cy: 0.75, floor: 0, shadow: 3.4, yaw: 0.8, pitch: 0.12 };
-  B.animals.mobility.buildGlb = (K, gltf) => {
+  /* ───────── Modelled animals (models/*.glb) · a still skin walked by code ─────────
+     A generated model has no skeleton, so it is rigged here. The vertices are welded by position and grouped by connectivity below a cut height,
+     which separates what hangs free (the tail, the trunk) from the body and the legs; legs are the vertices under a hip, by side and by where they stand.
+     Each leg swings about its hip, bends at the knee and carries its normals; hanging parts sway about their root, more the lower they hang.
+     Four-beat walk. The coded animal of the same slot stands in if a file does not load. Models face +z and are laid along +x. */
+  const glbWalker = (cfg) => (K, gltf) => {
     const T = K.T; const root = new T.Group(); const turn = new T.Group(); const body = gltf.scene;
     const box = new T.Box3().setFromObject(body); const size = box.getSize(new T.Vector3()); const mid = box.getCenter(new T.Vector3());
-    const sc = 2.5 / Math.max(size.x, size.z);
+    const sc = cfg.len / Math.max(size.x, size.z);
     body.position.set(-mid.x, -box.min.y, -mid.z); const fit = new T.Group(); fit.add(body); fit.scale.setScalar(sc);
     if (size.z >= size.x) fit.rotation.y = Math.PI / 2;
     body.traverse((o) => { if (o.isMesh) { o.material.side = T.FrontSide; o.material.envMapIntensity = 0.7; o.material.metalness = Math.min(o.material.metalness, 0.15); o.frustumCulled = false; } });
     turn.add(fit); root.add(turn);
+    let mesh = null; body.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
+    const geo = mesh.geometry; const pos = geo.attributes.position; const nor = geo.attributes.normal; const idx = geo.index.array;
+    const p0 = pos.array.slice(); const n0 = nor.array.slice(); const N = pos.count;
+    const sm = (a0, a1, v) => { const u = Math.min(1, Math.max(0, (v - a0) / (a1 - a0))); return u * u * (3 - 2 * u); };
+
+    /* weld by position, then group the triangles that lie under the cut height */
+    const key = new Map(); const Wd = new Int32Array(N);
+    for (let i = 0; i < N; i++) { const k = Math.round(p0[i * 3] * 2000) + ',' + Math.round(p0[i * 3 + 1] * 2000) + ',' + Math.round(p0[i * 3 + 2] * 2000); if (!key.has(k)) key.set(k, i); Wd[i] = key.get(k); }
+    const par = new Int32Array(N); for (let i = 0; i < N; i++) par[i] = i;
+    const find = (a) => { while (par[a] !== a) { par[a] = par[par[a]]; a = par[a]; } return a; };
+    const cut = cfg.cut;
+    for (let t = 0; t < idx.length; t += 3) {
+      const a = Wd[idx[t]]; const b = Wd[idx[t + 1]]; const c = Wd[idx[t + 2]];
+      if (p0[a * 3 + 1] > cut || p0[b * 3 + 1] > cut || p0[c * 3 + 1] > cut) continue;
+      par[find(a)] = find(b); par[find(b)] = find(c);
+    }
+    const stat = new Map();
+    for (let i = 0; i < N; i++) { if (p0[i * 3 + 1] > cut) continue; const r = find(Wd[i]); let s = stat.get(r); if (!s) { s = { n: 0, x: 0, y: 0, z: 0 }; stat.set(r, s); } s.n++; s.x += p0[i * 3]; s.y += p0[i * 3 + 1]; s.z += p0[i * 3 + 2]; }
+
+    const taken = new Uint8Array(N);
+    const sets = cfg.sets.map((d) => {
+      const list = [];
+      for (let i = 0; i < N; i++) {
+        const x = p0[i * 3]; const y = p0[i * 3 + 1]; const z = p0[i * 3 + 2]; let m = false;
+        if (y <= cut) { const s = stat.get(find(Wd[i])); m = !!s && s.n > 300 && d.pick(s.x / s.n, s.y / s.n, s.z / s.n); } else m = d.extra(x, y, z);
+        if (!m) continue;
+        taken[i] = 1; const w = sm(d.hang[0], d.hang[1], y); if (w > 0) list.push([i, w]);
+      }
+      return { d, list };
+    });
+
+    const legs = cfg.legs.map((d) => {
+      const ix = []; const w1 = []; const w2 = [];
+      for (let i = 0; i < N; i++) {
+        const x = p0[i * 3]; const y = p0[i * 3 + 1]; const z = p0[i * 3 + 2];
+        if (taken[i] || (x < 0 ? -1 : 1) !== d.side || z < d.z0 || z > d.z1 || y > d.hy) continue;
+        const a1 = sm(d.hy, d.hy - cfg.ramp, y); if (a1 <= 0) continue;
+        ix.push(i); w1.push(a1); w2.push(sm(d.ky + 0.03, d.ky - 0.1, y));
+      }
+      return { d, ix: Uint32Array.from(ix), w1: Float32Array.from(w1), w2: Float32Array.from(w2) };
+    });
+    const head = []; const H = cfg.head;
+    if (H) for (let i = 0; i < N; i++) { if (taken[i]) continue; const w = sm(H.z0, H.z1, p0[i * 3 + 2]) * sm(H.y0, H.y1, p0[i * 3 + 1]); if (w > 0) head.push([i, w]); }
+
+    const st = { t: 0, phi: 0 };
     const pose = (x, t) => {
-      turn.position.y = 0.012 * Math.sin(t * 1.9);
-      turn.rotation.z = 0.012 * Math.sin(t * 0.95 + 0.6);
-      turn.rotation.y = 0.05 * Math.sin(t * 0.31);
-      turn.scale.set(1, 1 + 0.006 * Math.sin(t * 1.9), 1);
+      const dt = Math.min(0.1, Math.max(0, t - st.t)); st.t = t; st.phi = (st.phi + cfg.speed * x * dt) % 1000;
+      const P = pos.array; const Nn = nor.array; const A = cfg.A; const duty = cfg.duty;
+      legs.forEach((L) => {
+        const p = (((st.phi + L.d.ph) % 1) + 1) % 1; let al; let lift = 0;
+        if (p < duty) al = A * (1 - (2 * p) / duty); else { const u = (p - duty) / (1 - duty); al = -A + 2 * A * sm(0, 1, u); lift = Math.sin(Math.PI * u); }
+        const kf = lift * cfg.knee; const pz = L.d.pz; const hy = L.d.hy; const ky = L.d.ky;
+        for (let k = 0; k < L.ix.length; k++) {
+          const i = L.ix[k] * 3; let y = p0[i + 1]; let z = p0[i + 2]; let ny = n0[i + 1]; let nz = n0[i + 2];
+          const ak = kf * L.w2[k]; if (ak) { const c = Math.cos(ak); const s = Math.sin(ak); const dy = y - ky; const dz = z - pz; y = ky + dy * c - dz * s; z = pz + dy * s + dz * c; const t1 = ny * c - nz * s; nz = ny * s + nz * c; ny = t1; }
+          const aa = -al * L.w1[k]; const c = Math.cos(aa); const s = Math.sin(aa); const dy = y - hy; const dz = z - pz;
+          P[i] = p0[i]; P[i + 1] = hy + dy * c - dz * s; P[i + 2] = pz + dy * s + dz * c;
+          Nn[i] = n0[i]; Nn[i + 1] = ny * c - nz * s; Nn[i + 2] = ny * s + nz * c;
+        }
+      });
+      sets.forEach(({ d, list }) => {
+        const sb = d.side * Math.sin(Math.PI * 2 * st.phi * d.f + d.ph) + d.idle * Math.sin(t * 0.7); const sf = d.fore * Math.sin(Math.PI * 4 * st.phi + 0.2);
+        const px = d.pivot[0]; const py = d.pivot[1]; const pz = d.pivot[2];
+        for (let k = 0; k < list.length; k++) {
+          const i = list[k][0] * 3; const w = list[k][1]; const b2 = sb * w; const c = Math.cos(b2); const s = Math.sin(b2);
+          const dx = p0[i] - px; const dy = p0[i + 1] - py; const x1 = dx * c - dy * s; const y1 = dx * s + dy * c; const e = sf * w; const ce = Math.cos(e); const se = Math.sin(e); const dz = p0[i + 2] - pz;
+          P[i] = px + x1; P[i + 1] = py + y1 * ce - dz * se; P[i + 2] = pz + y1 * se + dz * ce;
+          const nx = n0[i]; const ny = n0[i + 1]; Nn[i] = nx * c - ny * s; Nn[i + 1] = nx * s + ny * c; Nn[i + 2] = n0[i + 2];
+        }
+      });
+      if (H) {
+        const nod = H.nod * Math.sin(Math.PI * 4 * st.phi + 1.2) + H.nod * Math.sin(t * 0.4);
+        head.forEach(([k, w]) => { const i = k * 3; const dy = p0[i + 1] - H.py; const dz = p0[i + 2] - H.pz; const a2 = nod * w; const c = Math.cos(a2); const s = Math.sin(a2); P[i + 1] = H.py + dy * c - dz * s; P[i + 2] = H.pz + dy * s + dz * c; });
+      }
+      pos.needsUpdate = true; nor.needsUpdate = true;
+      const ph2 = Math.PI * 4 * st.phi;
+      turn.position.y = cfg.bob * Math.cos(ph2); turn.rotation.z = cfg.bob * Math.sin(ph2 + 0.5); turn.rotation.y = 0.04 * Math.sin(t * 0.31);
     };
     return { root, parts: {}, pose };
   };
+  B.glbWalker = glbWalker;
+  const tailSet = (py, hang, extra) => ({ pick: (cx, cy, cz) => Math.abs(cx) < 0.08 && cz < -0.8, extra, pivot: [0, py, -0.8], hang, side: 0.3, f: 1, ph: 0.8, idle: 0.06, fore: 0.08 });
+
+  B.animals.mobility.glb = '/portfolio/models/jaguar.glb?v=2';
+  B.animals.mobility.frameGlb = { r: 1.9, cx: 0, cy: 0.75, floor: 0, shadow: 3.4, yaw: 0.8, pitch: 0.12 };
+  B.animals.mobility.buildGlb = glbWalker({
+    len: 2.5, cut: 0.0, ramp: 0.3, A: 0.3, duty: 0.66, speed: 0.5, knee: 0.85, bob: 0.012,
+    legs: [{ z0: -1.1, z1: -0.5, pz: -0.72, hy: 0.06, ky: -0.34, side: -1, ph: 0 }, { z0: 0.08, z1: 0.52, pz: 0.3, hy: 0.06, ky: -0.3, side: -1, ph: 0.25 },
+      { z0: -1.1, z1: -0.5, pz: -0.72, hy: 0.06, ky: -0.34, side: 1, ph: 0.5 }, { z0: 0.08, z1: 0.52, pz: 0.3, hy: 0.06, ky: -0.3, side: 1, ph: 0.75 }],
+    sets: [{ ...tailSet(0.33, [0.34, -0.45], (x, y, z) => Math.abs(x) < 0.055 && z < -0.78 && y < 0.36), pivot: [0, 0.33, -0.8] }],
+    head: { z0: 0.3, z1: 0.55, y0: -0.02, y1: 0.12, py: 0.2, pz: 0.3, nod: 0.05 },
+  });
 
   /* ───────── 9. The elephant · large groups · a trunk with no bone, from a hang to a reach ───────── */
   const EL = { n: 30, seg: 0.0635, bx: 2.15, by: 2.25, m: 1.05 }; /* trunk joints, length of one, base of the trunk, metres per model unit */
@@ -243,4 +328,17 @@
       };
     },
   };
+  /* The elephant as a modelled file (models/elephant.glb): four heavy legs, a swaying trunk and tail, a slow walk. */
+  B.animals.enterprise.glb = '/portfolio/models/elephant.glb?v=1';
+  B.animals.enterprise.frameGlb = { r: 1.95, cx: 0, cy: 0.95, floor: 0, shadow: 4.0, yaw: 0.8, pitch: 0.12 };
+  B.animals.enterprise.buildGlb = glbWalker({
+    len: 2.6, cut: -0.05, ramp: 0.35, A: 0.2, duty: 0.7, speed: 0.34, knee: 0.3, bob: 0.008,
+    legs: [{ z0: -0.9, z1: -0.42, pz: -0.65, hy: -0.05, ky: -0.4, side: -1, ph: 0 }, { z0: -0.12, z1: 0.34, pz: 0.15, hy: -0.05, ky: -0.38, side: -1, ph: 0.25 },
+      { z0: -0.9, z1: -0.42, pz: -0.65, hy: -0.05, ky: -0.4, side: 1, ph: 0.5 }, { z0: -0.12, z1: 0.34, pz: 0.15, hy: -0.05, ky: -0.38, side: 1, ph: 0.75 }],
+    sets: [
+      { ...tailSet(0.1, [0.1, -0.4], (x, y, z) => Math.abs(x) < 0.05 && z < -0.82 && y < 0.12), pivot: [0, 0.1, -0.85], side: 0.35 },
+      { pick: (cx, cy, cz) => Math.abs(cx) < 0.1 && cz > 0.6, extra: (x, y, z) => Math.abs(x) < 0.07 && z > 0.7 && y < 0.22, pivot: [0, 0.2, 0.74], hang: [0.2, -0.5], side: 0.12, f: 0.5, ph: 0, idle: 0.1, fore: 0.1 },
+    ],
+    head: { z0: 0.4, z1: 0.6, y0: 0.0, y1: 0.15, py: 0.1, pz: 0.4, nod: 0.025 },
+  });
 })();

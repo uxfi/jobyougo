@@ -17,6 +17,7 @@
 
   /* ── Types of business ── */
   const BIZ = [
+    { id: 'mobility', en: 'Mobility & travel', fr: 'Mobilité & voyage', c: 'color-mix(in srgb, var(--p-cyan) 42%, var(--ink))', c2: 'var(--p-cyan)' },
     { id: 'saas', en: 'SaaS & B2B', fr: 'SaaS & B2B', c: 'color-mix(in srgb, var(--p-blue) 42%, var(--ink))', c2: 'var(--p-blue)' },
     { id: 'ai', en: 'AI products', fr: 'Produits IA', c: 'color-mix(in srgb, var(--p-purple) 42%, var(--ink))', c2: 'var(--p-purple)' },
     { id: 'fintech', en: 'Fintech & banking', fr: 'Fintech & banque', c: 'color-mix(in srgb, var(--p-moss) 42%, var(--ink))', c2: 'var(--p-moss)' },
@@ -24,7 +25,6 @@
     { id: 'ecommerce', en: 'E-commerce & retail', fr: 'E-commerce & retail', c: 'color-mix(in srgb, var(--p-orange) 42%, var(--ink))', c2: 'var(--p-orange)' },
     { id: 'marketplace', en: 'Marketplaces', fr: 'Marketplaces', c: 'color-mix(in srgb, var(--p-yellow) 42%, var(--ink))', c2: 'var(--p-yellow)' },
     { id: 'luxury', en: 'Luxury & beauty', fr: 'Luxe & beauté', c: 'color-mix(in srgb, var(--p-pink) 42%, var(--ink))', c2: 'var(--p-pink)' },
-    { id: 'mobility', en: 'Mobility & travel', fr: 'Mobilité & voyage', c: 'color-mix(in srgb, var(--p-cyan) 42%, var(--ink))', c2: 'var(--p-cyan)' },
     { id: 'enterprise', en: 'Large groups', fr: 'Grands groupes', c: 'color-mix(in srgb, var(--p-lime) 42%, var(--ink))', c2: 'var(--p-lime)' },
   ];
 
@@ -426,49 +426,13 @@
     mobility: { en: ['The jaguar', 'Speed you can steer.'], fr: ['Le jaguar', 'De la vitesse, mais qu’on dirige.'] },
     enterprise: { en: ['The elephant', 'A whole herd that moves together, and remembers.'], fr: ['L’éléphant', 'Tout un troupeau qui avance ensemble, et qui se souvient.'] },
   };
-  const artSet = (id) => `/images/bestiary/${id}-m.webp${ART_V} 900w, /images/bestiary/${id}.webp${ART_V} 1600w`;
-  const ART_SIZES = '(max-width: 900px) 100vw, 82vw';
-  const warmed = new Set();
-  function warmArt(id) {
-    if (!id || warmed.has(id) || !ANIMAL[id]) return;
-    if (window.AgenceBestiary && window.AgenceBestiary.animals[id] && d.getElementById('biz-art').classList.contains('bz-live')) return;
-    warmed.add(id);
-    const im = new Image();
-    im.sizes = ART_SIZES;
-    im.srcset = artSet(id);
-  }
-  /* Cross-fade the hero art to the selected animal. The newest choice wins if several are loading. */
+  /* The hero is the live 3D animal (agence-bestiary.js) and nothing else: no painted image shows while it loads. The painted
+     files in /images/bestiary stay on disk. */
   function showArt(id) {
     const host = d.getElementById('biz-art');
     if (!host || !ANIMAL[id] || host.dataset.cur === id) return;
     host.dataset.cur = id;
-    /* The live 3D bestiary (agence-bestiary.js) takes over the hero for the animals it has built; the painted image stays
-       behind as the fallback while it loads, without WebGL, and for animals that are not built yet. */
     d.dispatchEvent(new CustomEvent('biz-animal', { detail: { id } }));
-    if (host.classList.contains('bz-live')) return;
-    const img = d.createElement('img');
-    img.className = 'biz-art-img';
-    img.alt = '';
-    img.decoding = 'async';
-    img.width = 1600; img.height = 900;
-    img.sizes = ART_SIZES;
-    img.srcset = artSet(id);
-    img.src = `/images/bestiary/${id}.webp${ART_V}`;
-    host.appendChild(img);
-    const reveal = () => {
-      if (host.dataset.cur !== id) { img.remove(); return; }
-      requestAnimationFrame(() => {
-        host.querySelectorAll('.biz-art-img.is-on').forEach((old) => {
-          if (old === img) return;
-          old.classList.remove('is-on');
-          old.classList.add('is-off');
-          setTimeout(() => old.remove(), 1100);
-        });
-        img.classList.add('is-on');
-      });
-    };
-    if (img.complete && img.naturalWidth) reveal();
-    else { img.addEventListener('load', reveal, { once: true }); img.addEventListener('error', reveal, { once: true }); }
   }
 
   /* ── Services by type of business ── */
@@ -724,7 +688,26 @@
       </nav>`;
   }
 
-  let bizTab = 'saas';
+
+  /* A line icon per type of business, in the list where the numbers were. */
+  /* the line that slides in on the right of a row when it is open or hovered */
+  const TAG = {
+    mobility: 'Keep up the pace', saas: 'Ship, then iterate', ai: 'Make it feel obvious', fintech: 'Earn trust at first glance',
+    proptech: 'Open the door', ecommerce: 'Turn browsers into buyers', marketplace: 'Both sides, one story', luxury: 'Less, but unforgettable', enterprise: 'Clear at any scale',
+  };
+  const ICO = {
+    mobility: '<path d="M12 21s-6-5.4-6-10a6 6 0 1 1 12 0c0 4.6-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/>',
+    saas: '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>',
+    ai: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/><path d="M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7L19 16z"/>',
+    fintech: '<circle cx="12" cy="12" r="8"/><path d="M14.6 9.3c-.5-.8-1.5-1.3-2.6-1.3-1.4 0-2.4.7-2.4 1.7 0 2.4 5 1.1 5 3.6 0 1-1.1 1.8-2.6 1.8-1.2 0-2.1-.5-2.7-1.3M12 6.5V8m0 8v1.5"/>',
+    proptech: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-5h4v5"/>',
+    ecommerce: '<path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',
+    marketplace: '<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9"/><path d="M5.5 12v8h13v-8"/><path d="M10 20v-4h4v4"/>',
+    luxury: '<path d="M6.5 4h11L22 10l-10 11L2 10l4.5-6z"/><path d="M2 10h20M9 4l-2 6 5 11 5-11-2-6"/>',
+    enterprise: '<rect x="5" y="3" width="10" height="18" rx="1"/><path d="M15 9h4v12h-4M8.5 7.5h3M8.5 11h3M8.5 14.5h3"/>',
+  };
+  const icon = (id) => `<span class="biz-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICO[id] || ''}</svg></span>`;
+  let bizTab = 'mobility';
   const projCount = (n) => (n === 1 ? s('proj_1') : s('proj_n').replace('{n}', n));
   function renderBiz() {
     const host = d.getElementById('biz');
@@ -743,8 +726,16 @@
         const n = WORK.filter((p) => p.biz.includes(x.id)).length;
         const on = bizTab === x.id;
         return `<button type="button" role="tab" class="biz-item" id="biz-tab-${x.id}" aria-controls="biz-panel" aria-selected="${on}" tabindex="${on ? 0 : -1}" data-biz="${x.id}" style="--bc:${x.c};--bc2:${x.c2}">
-          <span class="biz-num">${String(i + 1).padStart(2, '0')}</span><span class="biz-name">${esc(tx(x[lang()] || x.en))}</span><span class="biz-n">${esc(projCount(n))}</span><i aria-hidden="true">→</i></button>`;
+          ${icon(x.id)}<span class="biz-name">${esc(tx(x[lang()] || x.en))}</span><span class="biz-tag" aria-hidden="true">${esc(TAG[x.id] || '')}</span></button>`;
       }).join('');
+      /* a soft light under the pointer: each row follows the mouse along its width */
+      if (!index.dataset.glow) {
+        index.dataset.glow = '1';
+        index.addEventListener('pointermove', (e) => {
+          const it = e.target.closest && e.target.closest('.biz-item'); if (!it) return;
+          const r = it.getBoundingClientRect(); it.style.setProperty('--mx', Math.round(e.clientX - r.left) + 'px'); it.style.setProperty('--my', Math.round(e.clientY - r.top) + 'px');
+        });
+      }
     }
 
     const cap = d.getElementById('biz-caption');
@@ -752,8 +743,7 @@
     if (cap && an) {
       cap.style.setProperty('--bc', b.c);
       cap.style.setProperty('--bc2', b.c2);
-      cap.innerHTML = `<span class="biz-cap-n">${String(pos + 1).padStart(2, '0')} / ${String(BIZ.length).padStart(2, '0')} · ${esc(tx(b[lang()] || b.en))}</span>
-        <b>${esc(an[0])}</b><span class="biz-cap-line">${esc(an[1])}</span>
+      cap.innerHTML = `<b>${esc(an[0])}</b><span class="biz-cap-line">${esc(an[1])}</span>
         <a class="biz-cap-go" href="#biz-panel">${esc(s('biz_see'))}<span aria-hidden="true">↓</span></a>`;
       cap.classList.remove('is-in'); void cap.offsetWidth; cap.classList.add('is-in');
     }
@@ -828,17 +818,6 @@
     const n = d.getElementById('biz-tab-' + bizTab); if (n) n.focus();
     e.preventDefault();
   });
-  d.addEventListener('pointerover', (e) => { const it = e.target.closest && e.target.closest('.biz-item'); if (it) warmArt(it.dataset.biz); });
-  d.addEventListener('focusin', (e) => { const it = e.target.closest && e.target.closest('.biz-item'); if (it) warmArt(it.dataset.biz); });
-  if (d.getElementById('biz-art')) {
-    warmed.add('saas');
-    window.addEventListener('load', () => {
-      if (window.innerWidth <= 900) return;
-      const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
-      idle(() => BIZ.forEach((x) => warmArt(x.id)));
-    }, { once: true });
-  }
-  window.addEventListener('hashchange', () => route(true));
   new MutationObserver(() => renderAll()).observe(root, { attributes: true, attributeFilter: ['lang'] });
   if (d.readyState === 'loading') d.addEventListener('DOMContentLoaded', renderAll); else renderAll();
 })();

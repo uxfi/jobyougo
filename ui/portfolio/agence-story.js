@@ -818,7 +818,7 @@
     // Each stage shows the project's own screen on a lit floor with its name in a glass tag; the card carries the reported
     // figure and a before/after dumbbell. All three share one 100 to 125 scale (index, before = 100), so the three lengths compare.
     // Only the two reported numbers are drawn: nothing between them is invented, which is why it is a dumbbell and not a curve.
-    const TINTS = [['rgba(110, 220, 184, .26)', 'rgba(110, 180, 239, .14)'], ['rgba(177, 141, 243, .3)', 'rgba(242, 142, 180, .16)'], ['rgba(242, 200, 94, .24)', 'rgba(242, 142, 180, .14)']];
+    const TINTS = [['rgba(107, 120, 240, .3)', 'rgba(228, 123, 189, .14)'], ['rgba(150, 119, 242, .32)', 'rgba(245, 133, 115, .16)'], ['rgba(249, 160, 92, .26)', 'rgba(228, 123, 189, .14)']];
     const res = PROOF.map((p, i) => ({ p, i })).sort((u, v) => (v.p.lead ? 1 : 0) - (u.p.lead ? 1 : 0)).map(({ p, i }, k) => {
       const n = p.n;
       const pkg = String(t('proof_link') || '').replace('{offer}', t(`proof_${n}_offer`)).replace(/\s*→\s*$/, '');
@@ -2317,6 +2317,7 @@
     }
     if (rail) {
       rail.classList.toggle('on-light', railLight);
+      rail.classList.toggle('is-in', (window.scrollY || window.pageYOffset) > 120); // slides in from the side once the page starts to scroll
       const idx = Math.max(0, CHAPTERS.findIndex((c) => c.id === cur));
       // The line fills to the current dab, then through it as the chapter's last section is read.
       let within = 0;

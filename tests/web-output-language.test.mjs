@@ -101,7 +101,7 @@ test('a French-output profile gets French report prompts', () => {
   // The markers the report parsers read stay as they are.
   assert.match(evalPrompt.systemPrompt, /"# Evaluation:"/);
   assert.match(evalPrompt.systemPrompt, /"\*\*Score:\*\* X\.X\/5"/);
-  assert.match(evalPrompt.systemPrompt, /## A\) Résumé du rôle/);
+  assert.match(evalPrompt.systemPrompt, /## A\) Vérifications/);
   assert.deepEqual(evalPrompt.parts, assemble('pipeline').parts, 'only the contract changes, not the context');
   assert.match(assemble('oferta', { outputLanguage: 'fr' }).systemPrompt, /in French \(fr\)/);
 
@@ -111,8 +111,8 @@ test('a French-output profile gets French report prompts', () => {
 
   const repair = buildEvalRepairPrompt('draft', 'facts', { outputLanguage: 'en' });
   assert.match(repair, /Write all human-facing output in English \(en\)/);
-  assert.match(repair, /préfixes exacts : ## A\), ## B\), ## C\), ## D\), ## G\)/);
-  assert.doesNotMatch(repair, /## A\) Résumé du rôle, ## B\) Match CV/);
+  assert.match(repair, /préfixes exacts : ## A\), ## B\), puis ## Notation/);
+  assert.doesNotMatch(repair, /## A\) Vérifications, ## B\) Match CV/);
 });
 
 test('a French-output profile gets French letter prompts', () => {
@@ -208,9 +208,9 @@ test('ui/server.mjs wires language.output and spend_tier through getProfile', ()
 
 // Reports 734-736 (2026-10-15) tiered real Greenhouse postings "Suspicious"
 // because the job was on-site outside the candidate's zone.
-test('Block G judges the posting only, never the location fit', () => {
-  const g = EVAL_SYSTEM.split('\n').find(line => line.startsWith('- G:'));
-  assert.match(g, /Tier: High, Caution ou Suspicious/);
-  assert.match(g, /seulement si l'annonce est réelle et active/);
-  assert.match(g, /La localisation, le remote, la résidence, l'autorisation de travail et l'écart avec le profil ne changent jamais le tier/);
+test('the Annonce line judges the posting only, never the location fit', () => {
+  const line = EVAL_SYSTEM.split('\n').find(item => item.includes('**Annonce**'));
+  assert.match(line, /High, Caution ou Suspicious/);
+  assert.match(line, /seulement si l'annonce est réelle et active/);
+  assert.match(line, /La localisation, le remote, la résidence, l'autorisation de travail et l'écart avec le profil ne changent jamais le tier/);
 });

@@ -249,6 +249,7 @@ test('chat() passes response_format through, fills meta, and estimates image cal
   const dir = mkdtempSync(join(tmpdir(), 'jobyougo-openrouter-'));
   process.env.AI_USAGE_LOG_PATH = join(dir, 'ledger.jsonl');
   process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-key';
+  process.env.AI_FREE_FIRST = '0';
   const realFetch = globalThis.fetch;
   const sent = [];
   globalThis.fetch = async (url, opts) => {

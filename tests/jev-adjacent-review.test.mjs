@@ -11,6 +11,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 process.env.OPENROUTER_API_KEY = 'test-key';
+process.env.AI_FREE_FIRST = '0';
 // The stubbed answers must not land in the real AI usage ledger.
 process.env.AI_USAGE_LOG_PATH = join(tmpdir(), `jev-adjacent-${process.pid}.jsonl`);
 const realFetch = globalThis.fetch;

@@ -8,6 +8,7 @@ console.log('\nJev — account errors stop the roster');
 // Set before the import: jev.mjs reads the key at load, and dotenv never
 // overrides a variable that is already set. fetch is stubbed, nothing leaves.
 process.env.OPENROUTER_API_KEY = 'test-key';
+process.env.AI_FREE_FIRST = '0';
 let calls = 0;
 const realFetch = globalThis.fetch;
 globalThis.fetch = async () => {

@@ -326,4 +326,50 @@
       };
     },
   };
+  /* The owl as a modelled file (models/owl.glb): perched, it breathes and turns its head about the neck, to one side, holds, and back.
+     The head is the part of the skin above the neck, twisted about a vertical axis with a weight that grows up the neck. */
+  B.animals.ai.glb = '/portfolio/models/owl.glb?v=1';
+  B.animals.ai.frameGlb = { r: 1.7, cx: 0, cy: 1.15, floor: 0.2, shadow: 2.6, yaw: 0.3, pitch: 0.1 };
+  B.animals.ai.buildGlb = (K, gltf) => {
+    const T = K.T; const root = new T.Group(); const turn = new T.Group(); const body = gltf.scene;
+    const box = new T.Box3().setFromObject(body); const size = box.getSize(new T.Vector3()); const mid = box.getCenter(new T.Vector3());
+    const sc = 2.4 / size.y; body.position.set(-mid.x, -box.min.y, -mid.z); const fit = new T.Group(); fit.add(body); fit.scale.setScalar(sc);
+    body.traverse((o) => { if (o.isMesh) { o.material.side = T.FrontSide; o.material.envMapIntensity = 0.7; o.material.metalness = Math.min(o.material.metalness, 0.1); o.frustumCulled = false; } });
+    turn.add(fit); root.add(turn);
+    /* a bare branch under the talons (the toes end 0.47 above the foot of the model, about 0.15 forward) */
+    const bark = new T.MeshStandardMaterial({ color: 0x6f5340, roughness: 0.92, metalness: 0, envMapIntensity: 0.5 });
+    const br = new T.Mesh(new T.CylinderGeometry(0.075, 0.095, 1.7, 18).rotateZ(Math.PI / 2), bark); br.position.set(0, 0.385, 0.14); br.rotation.z = 0; root.add(br);
+    const tw = new T.Mesh(new T.CylinderGeometry(0.02, 0.045, 0.55, 12), bark); tw.position.set(0.55, 0.6, 0.14); tw.rotation.z = -0.7; root.add(tw);
+    let mesh = null; body.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
+    const pos = mesh.geometry.attributes.position; const nor = mesh.geometry.attributes.normal; const p0 = pos.array.slice(); const n0 = nor.array.slice(); const N = pos.count;
+    const sm = (a0, a1, v) => { const u = Math.min(1, Math.max(0, (v - a0) / (a1 - a0))); return u * u * (3 - 2 * u); };
+    const head = []; for (let i = 0; i < N; i++) { const w = sm(0.3, 0.52, p0[i * 3 + 1]); if (w > 0) head.push([i, w]); }
+    const pivZ = 0.08; let lastA = 1e9;
+    const pose = (x, t) => {
+      const a = (x * Math.PI) / 180 * 0.85;
+      if (Math.abs(a - lastA) > 0.0005) {
+        lastA = a; const P = pos.array; const Nn = nor.array;
+        for (let k = 0; k < head.length; k++) {
+          const i = head[k][0] * 3; const aa = a * head[k][1]; const c = Math.cos(aa); const s = Math.sin(aa); const dz = p0[i + 2] - pivZ;
+          P[i] = p0[i] * c + dz * s; P[i + 2] = pivZ - p0[i] * s + dz * c;
+          Nn[i] = n0[i] * c + n0[i + 2] * s; Nn[i + 2] = -n0[i] * s + n0[i + 2] * c;
+        }
+        pos.needsUpdate = true; nor.needsUpdate = true;
+      }
+      turn.scale.set(1 + 0.006 * Math.sin(t * 1.7), 1 + 0.012 * Math.sin(t * 1.7), 1 + 0.006 * Math.sin(t * 1.7));
+      turn.rotation.z = 0.01 * Math.sin(t * 0.5);
+    };
+    return { root, parts: {}, pose };
+  };
+  /* The tortoise as a modelled file (models/tortoise.glb): a slow, heavy walk with the shared glbWalker rig (agence-bestiary-d.js). */
+  B.animals.proptech.xGlb = 1; /* the coded tortoise reads x as a speed of 40; the modelled one walks at its own pace */
+  B.animals.proptech.glb = '/portfolio/models/tortoise.glb?v=1';
+  B.animals.proptech.frameGlb = { r: 1.9, cx: 0, cy: 0.5, floor: 0, shadow: 3.6, yaw: 0.8, pitch: 0.15 };
+  B.animals.proptech.buildGlb = (K, gltf) => B.glbWalker({
+    len: 2.3, cut: -0.2, ramp: 0.26, A: 0.4, duty: 0.75, speed: 0.12, knee: 0.25, bob: 0.004,
+    legs: [{ z0: -1.0, z1: -0.5, pz: -0.78, hy: -0.2, ky: -0.33, side: -1, ph: 0 }, { z0: 0.2, z1: 0.56, pz: 0.39, hy: -0.2, ky: -0.33, side: -1, ph: 0.25 },
+      { z0: -1.0, z1: -0.5, pz: -0.78, hy: -0.2, ky: -0.33, side: 1, ph: 0.5 }, { z0: 0.2, z1: 0.56, pz: 0.39, hy: -0.2, ky: -0.33, side: 1, ph: 0.75 }],
+    sets: [],
+    head: { z0: 0.5, z1: 0.75, y0: -0.1, y1: 0.0, py: 0.1, pz: 0.5, nod: 0.09 },
+  })(K, gltf);
 })();

@@ -278,4 +278,120 @@
       };
     },
   };
+  /* The hummingbird as a modelled file (models/hummingbird.glb): it hovers (see glbFlyer below). */
+  B.animals.ecommerce.glb = '/portfolio/models/hummingbird.glb?v=1';
+  B.animals.ecommerce.frameGlb = { r: 1.75, cx: 0, cy: 1.1, floor: 0.1, shadow: 2.4, yaw: 0.8, pitch: 0.14 };
+  /* Modelled fliers and floaters (models/*.glb): a still skin whose wings, the skin beyond the body's width, beat about the body axis (left and right
+     opposite) while the animal hovers. Laid along +x like the others. */
+  const glbFlyer = (cfg) => (K, gltf) => {
+    const T = K.T; const root = new T.Group(); const turn = new T.Group(); const body = gltf.scene;
+    const box = new T.Box3().setFromObject(body); const size = box.getSize(new T.Vector3()); const mid = box.getCenter(new T.Vector3());
+    const sc = cfg.len / Math.max(size.x, size.z); body.position.set(-mid.x, -mid.y, -mid.z); const fit = new T.Group(); fit.add(body); fit.scale.setScalar(sc); fit.rotation.y = Math.PI / 2;
+    body.traverse((o) => { if (o.isMesh) { o.material.side = T.DoubleSide; o.material.envMapIntensity = 0.9; o.material.metalness = Math.min(o.material.metalness, 0.25); o.frustumCulled = false; } });
+    turn.add(fit); turn.position.y = cfg.y; root.add(turn);
+    let mesh = null; body.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
+    const pos = mesh.geometry.attributes.position; const nor = mesh.geometry.attributes.normal; const p0 = pos.array.slice(); const n0 = nor.array.slice(); const N = pos.count;
+    const sm = (a0, a1, v) => { const u = Math.min(1, Math.max(0, (v - a0) / (a1 - a0))); return u * u * (3 - 2 * u); };
+    /* with cfg.pick, the wings are told from the legs by connectivity: weld the vertices, group the triangles outside the body (|x| over cfg.xcut), and keep
+       the groups cfg.pick(cx, cy, cz, n) accepts, plus the wing roots above cfg.rootY inside the body's width */
+    let inWing = null;
+    if (cfg.pick) {
+      const idx = mesh.geometry.index.array; const key = new Map(); const Wd = new Int32Array(N); const par = new Int32Array(N);
+      for (let i = 0; i < N; i++) { par[i] = i; const k = Math.round(p0[i * 3] * 2000) + ',' + Math.round(p0[i * 3 + 1] * 2000) + ',' + Math.round(p0[i * 3 + 2] * 2000); if (!key.has(k)) key.set(k, i); Wd[i] = key.get(k); }
+      const find = (a) => { while (par[a] !== a) { par[a] = par[par[a]]; a = par[a]; } return a; };
+      const out = (v) => Math.abs(p0[v * 3]) >= cfg.xcut;
+      for (let t = 0; t < idx.length; t += 3) { const a = Wd[idx[t]]; const b = Wd[idx[t + 1]]; const d = Wd[idx[t + 2]]; if (!out(a) || !out(b) || !out(d)) continue; par[find(a)] = find(b); par[find(b)] = find(d); }
+      const stat = new Map();
+      for (let i = 0; i < N; i++) { if (!out(i)) continue; const r0 = find(Wd[i]); let s = stat.get(r0); if (!s) { s = { n: 0, x: 0, y: 0, z: 0 }; stat.set(r0, s); } s.n++; s.x += p0[i * 3]; s.y += p0[i * 3 + 1]; s.z += p0[i * 3 + 2]; }
+      inWing = new Uint8Array(N);
+      for (let i = 0; i < N; i++) { if (out(i)) { const s = stat.get(find(Wd[i])); inWing[i] = s && cfg.pick(s.x / s.n, s.y / s.n, s.z / s.n, s.n) ? 1 : 0; } else inWing[i] = p0[i * 3 + 1] > cfg.rootY ? 1 : 0; }
+    }
+    const wing = []; for (let i = 0; i < N; i++) { if (inWing && !inWing[i]) continue; const w = sm(cfg.x0, cfg.x1, Math.abs(p0[i * 3])); if (w > 0) wing.push([i, w]); }
+    const PY = cfg.py;
+    const pose = (x, t) => {
+      const th = cfg.amp * Math.sin(t * cfg.freq) + cfg.bias;
+      const P = pos.array; const Nn = nor.array;
+      for (let k = 0; k < wing.length; k++) {
+        const i = wing[k][0] * 3; const w = wing[k][1]; const sg = p0[i] < 0 ? -1 : 1; const a = th * sg * w; const ca = Math.cos(a); const sa = Math.sin(a);
+        const dx = p0[i]; const dy = p0[i + 1] - PY;
+        P[i] = dx * ca - dy * sa; P[i + 1] = PY + dx * sa + dy * ca; P[i + 2] = p0[i + 2];
+        Nn[i] = n0[i] * ca - n0[i + 1] * sa; Nn[i + 1] = n0[i] * sa + n0[i + 1] * ca; Nn[i + 2] = n0[i + 2];
+      }
+      pos.needsUpdate = true; nor.needsUpdate = true;
+      turn.position.y = cfg.y + cfg.bob * Math.sin(t * 1.3) + 0.012 * Math.sin(t * cfg.freq);
+      turn.rotation.z = 0.04 * Math.sin(t * 0.9); turn.rotation.x = 0.03 * Math.sin(t * 0.7 + 1);
+    };
+    return { root, parts: {}, pose };
+  };
+  B.animals.ecommerce.buildGlb = glbFlyer({ len: 2.0, y: 1.0, py: 0.12, x0: 0.2, x1: 0.5, amp: 0.21, bias: 0.1, freq: 30, bob: 0.035 });
+
+  /* The honeybee as a modelled file (models/bee.glb): it hovers with a fast beat. */
+  B.animals.saas.glb = '/portfolio/models/bee.glb?v=1';
+  B.animals.saas.frameGlb = { r: 1.7, cx: 0, cy: 1.0, floor: 0.1, shadow: 2.4, yaw: 0.8, pitch: 0.18 };
+  B.animals.saas.buildGlb = glbFlyer({ len: 2.0, y: 0.9, py: 0.1, x0: 0.2, x1: 0.5, amp: 0.4, bias: 0.15, freq: 40, bob: 0.03, xcut: 0.28, rootY: 0.14, pick: (cx, cy, cz, n) => cy > 0.15 && n > 8000 }); /* the two wing sheets are the big flat groups on top; the legs are separate groups below */
+
+  /* The swan as a modelled file (models/swan.glb): it floats, breathing, the neck swaying a little to one side and nodding, the whole bird gliding
+     by a hair. The neck is the skin above the shoulders and in front, twisted about a vertical axis and nodded about a horizontal one. */
+  B.animals.luxury.glb = '/portfolio/models/swan.glb?v=1';
+  B.animals.luxury.frameGlb = { r: 2.0, cx: 0, cy: 1.0, floor: 0, shadow: 3.4, yaw: 0.8, pitch: 0.12 };
+  B.animals.luxury.buildGlb = (K, gltf) => {
+    const T = K.T; const root = new T.Group(); const turn = new T.Group(); const body = gltf.scene;
+    const box = new T.Box3().setFromObject(body); const size = box.getSize(new T.Vector3()); const mid = box.getCenter(new T.Vector3());
+    const sc = 2.2 / Math.max(size.x, size.z); body.position.set(-mid.x, -box.min.y, -mid.z); const fit = new T.Group(); fit.add(body); fit.scale.setScalar(sc); fit.rotation.y = Math.PI / 2;
+    body.traverse((o) => { if (o.isMesh) { o.material.side = T.FrontSide; o.material.envMapIntensity = 0.8; o.material.metalness = Math.min(o.material.metalness, 0.1); o.frustumCulled = false; } });
+    turn.add(fit); root.add(turn);
+    let mesh = null; body.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
+    const pos = mesh.geometry.attributes.position; const nor = mesh.geometry.attributes.normal; const p0 = pos.array.slice(); const n0 = nor.array.slice(); const N = pos.count;
+    const sm = (a0, a1, v) => { const u = Math.min(1, Math.max(0, (v - a0) / (a1 - a0))); return u * u * (3 - 2 * u); };
+    const neck = []; for (let i = 0; i < N; i++) { const w = sm(0.1, 0.65, p0[i * 3 + 1]) * sm(0.1, 0.4, p0[i * 3 + 2]); if (w > 0) neck.push([i, w]); }
+    const pose = (x, t) => {
+      const yaw = 0.16 * Math.sin(t * 0.5) + 0.05 * Math.sin(t * 1.3); const nod = 0.05 * Math.sin(t * 0.8 + 1);
+      const P = pos.array; const Nn = nor.array;
+      for (let k = 0; k < neck.length; k++) {
+        const i = neck[k][0] * 3; const w = neck[k][1]; const a = yaw * w; const c = Math.cos(a); const s = Math.sin(a);
+        let px = p0[i] * c + (p0[i + 2] - 0.3) * s; let pz = 0.3 - p0[i] * s + (p0[i + 2] - 0.3) * c; let py = p0[i + 1];
+        const b = nod * w; const cb = Math.cos(b); const sb = Math.sin(b); const dy = py - 0.1; const dz = pz - 0.3; py = 0.1 + dy * cb - dz * sb; pz = 0.3 + dy * sb + dz * cb;
+        P[i] = px; P[i + 1] = py; P[i + 2] = pz;
+        Nn[i] = n0[i] * c + n0[i + 2] * s; Nn[i + 1] = n0[i + 1]; Nn[i + 2] = -n0[i] * s + n0[i + 2] * c;
+      }
+      pos.needsUpdate = true; nor.needsUpdate = true;
+      turn.position.y = 0.02 * Math.sin(t * 0.9); turn.rotation.z = 0.012 * Math.sin(t * 0.6); turn.rotation.x = 0.01 * Math.sin(t * 0.8 + 0.5);
+      turn.scale.set(1 + 0.004 * Math.sin(t * 1.6), 1 + 0.008 * Math.sin(t * 1.6), 1 + 0.004 * Math.sin(t * 1.6));
+    };
+    return { root, parts: {}, pose };
+  };
+  /* The octopus as a modelled file (models/octopus.glb): spread flat, its mantle and head stay still while its arms undulate, a wave running out from the centre
+     that lifts the arms and bends them sideways, each arm a little out of step with its neighbour (by angle round the centre). */
+  B.animals.marketplace.glb = '/portfolio/models/octopus.glb?v=1';
+  B.animals.marketplace.frameGlb = { r: 1.75, cx: 0, cy: 0.45, floor: 0, shadow: 3.8, yaw: 0.5, pitch: 0.5 };
+  B.animals.marketplace.buildGlb = (K, gltf) => {
+    const T = K.T; const root = new T.Group(); const turn = new T.Group(); const body = gltf.scene;
+    const box = new T.Box3().setFromObject(body); const size = box.getSize(new T.Vector3()); const mid = box.getCenter(new T.Vector3());
+    const sc = 2.5 / Math.max(size.x, size.z); body.position.set(-mid.x, -box.min.y, -mid.z); const fit = new T.Group(); fit.add(body); fit.scale.setScalar(sc);
+    body.traverse((o) => { if (o.isMesh) { o.material.side = T.FrontSide; o.material.envMapIntensity = 0.9; o.material.metalness = Math.min(o.material.metalness, 0.15); o.frustumCulled = false; } });
+    turn.add(fit); turn.position.y = 0.25; root.add(turn);
+    let mesh = null; body.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
+    const pos = mesh.geometry.attributes.position; const p0 = pos.array.slice(); const N = pos.count;
+    const sm = (a0, a1, v) => { const u = Math.min(1, Math.max(0, (v - a0) / (a1 - a0))); return u * u * (3 - 2 * u); };
+    const arm = new Float32Array(N * 3); /* per vertex: weight, radius, angle */
+    for (let i = 0; i < N; i++) { const x = p0[i * 3]; const z = p0[i * 3 + 2]; const r = Math.sqrt(x * x + z * z); const m = sm(0.3, 0.22, Math.abs(x)) * sm(0.2, 0.1, z) * sm(-0.05, 0.03, p0[i * 3 + 1]); /* the mantle and head stay still */
+      arm[i * 3] = sm(0.22, 0.65, r) * (1 - m); arm[i * 3 + 1] = r; arm[i * 3 + 2] = Math.atan2(z, x); }
+    const list = []; for (let i = 0; i < N; i++) if (arm[i * 3] > 0) list.push(i);
+    const pose = (x, t) => {
+      const P = pos.array;
+      for (let i = 0; i < N; i++) { const k = i * 3; if (arm[k] > 0) continue; P[k] = p0[k]; P[k + 1] = p0[k + 1]; P[k + 2] = p0[k + 2]; }
+      /* only a few arms move at a time: two slow pointers turn round the body and the arms they point at stir, the others rest */
+      const pa = t * 0.4; const pb = 2.4 - t * 0.27;
+      for (let q = 0; q < list.length; q++) {
+        const i = list[q]; const k = i * 3; const r = arm[k + 1]; const an = arm[k + 2];
+        const w = arm[k] * Math.max(sm(0.25, 0.85, 0.5 + 0.5 * Math.cos(an - pa)), 0.85 * sm(0.25, 0.85, 0.5 + 0.5 * Math.cos(an - pb)));
+        const ph = 5.5 * r - 1.7 * t + 2.0 * an; const lat = 0.12 * w * Math.sin(3.8 * r - 1.2 * t + an);
+        const c = Math.cos(lat); const s = Math.sin(lat); const dx = p0[k]; const dz = p0[k + 2];
+        P[k] = dx * c - dz * s; P[k + 2] = dx * s + dz * c; P[k + 1] = p0[k + 1] + 0.05 * w * Math.sin(ph) + 0.03 * w * w * Math.sin(2.2 * ph);
+      }
+      pos.needsUpdate = true;
+      /* the body does not move: only the arms do */
+    };
+    return { root, parts: {}, pose };
+  };
 })();

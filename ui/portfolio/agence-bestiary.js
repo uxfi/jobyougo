@@ -646,7 +646,7 @@
   function makeAnimal(id, def, gltf) {
     const own = !!(gltf && def.buildGlb);
     const inst = own ? def.buildGlb(K, gltf) : def.build(K);
-    return { id, def, inst, x: def.x, frame: own && def.frameGlb ? def.frameGlb : def.frame };
+    return { id, def, inst, x: own && def.xGlb != null ? def.xGlb : def.x, frame: own && def.frameGlb ? def.frameGlb : def.frame };
   }
   const loading = {};
   function loadGlb(def) {
@@ -713,7 +713,7 @@
     const vfov = (cam.fov * Math.PI) / 180;
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * cam.aspect);
     S.dist = (f.r * 1.08) / Math.sin(Math.min(vfov, hfov) / 2);
-    const shift = S.w > 900 ? 0.1 : S.w > 560 ? 0.04 : 0;
+    const shift = S.w > 900 ? -0.05 : S.w > 560 ? -0.1 : -0.1; /* negative: the animal sits lower in the frame */
     cam.setViewOffset(S.w, S.h, 0, Math.round(S.h * shift), S.w, S.h);
     cam.updateProjectionMatrix();
   }
@@ -769,7 +769,7 @@
 
   function start() {
     const art = d.getElementById('biz-art');
-    S.want = (art && art.dataset.cur) || 'saas';
+    S.want = (art && art.dataset.cur) || 'mobility';
     /* Fetch Three.js at once, in parallel with the page; build the scene when the page has settled (2.5 s at most),
        in an idle moment (700 ms at most), so the painted hero is never kept waiting and the swap is not late. */
     import(THREE_URL).catch(() => {});

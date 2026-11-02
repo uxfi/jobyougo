@@ -10,6 +10,7 @@ import { pass, fail } from './helpers.mjs';
 console.log('\nJev — missing identity is not a reject');
 
 process.env.OPENROUTER_API_KEY = 'test-key';
+process.env.AI_FREE_FIRST = '0';
 process.env.AI_USAGE_LOG_PATH = join(tmpdir(), `jev-identity-${process.pid}.jsonl`);
 const realFetch = globalThis.fetch;
 const states = [];
