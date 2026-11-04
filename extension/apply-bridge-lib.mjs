@@ -1461,6 +1461,13 @@ export class ApplyBridge {
           }
         }
         if (!clicked) {
+          // Say what was on screen: two JobsDB runs (2026-11-04) stopped here
+          // with "Quick apply" visible and the log could not show it.
+          try {
+            const seen = await this._pageHelper(run.tabId, 'LIST_VISIBLE_NAV_BUTTONS', [{ avoidSrc: '(?!)', skip: [] }]);
+            const labels = (Array.isArray(seen) ? seen : []).map((b) => `« ${String(b.text).slice(0, 40)} »`).slice(0, 12);
+            await push(`Contrôles visibles (${url || 'URL inconnue'}) : ${labels.join(' · ') || 'aucun'}`);
+          } catch { /* the hand-off below still says what to do */ }
           return handOff(
             'Aucun bouton Apply/Next et pas assez de champs.',
             `Is the form on screen? If it is, click ${RESCAN_BTN}.`,

@@ -205,6 +205,26 @@ function collectFields() {
       }
     }
     if (!nonempty() && el.placeholder) parts.push(el.placeholder);
+    if (!nonempty()) {
+      // The label sits beside one of the box's wrappers, not beside the box:
+      // Gem draws <span>First name *</span> next to div.textField with the
+      // input three levels down, no id, name, placeholder or aria. All six
+      // boxes came out as "text", merged into one optional field, and the
+      // form was never sent (2026-11-04). Climb while the wrapper holds this
+      // box alone, and take the nearest field-free text before it.
+      let node = el.parentElement;
+      for (let d = 0; d < 4 && node && !nonempty(); d++, node = node.parentElement) {
+        const crowded = [...node.querySelectorAll(fieldSelector)]
+          .some((f) => f !== el && f.type !== 'hidden' && !(el.name && f.name === el.name));
+        if (crowded) break;
+        let sib = node.previousElementSibling;
+        for (let k = 0; k < 2 && sib; k++, sib = sib.previousElementSibling) {
+          if (sib.querySelector(fieldSelector)) break;
+          const t = (sib.innerText || '').replace(/\s+/g, ' ').trim();
+          if (t && t.length < 160) { parts.push(t); break; }
+        }
+      }
+    }
     let out = [...new Set(parts.filter(Boolean).map(p => p.replace(/\s+/g, ' ').trim()))].join(' ').slice(0, 300);
     // A fake placeholder drawn next to the box and hidden from screen readers
     // (Google Forms "Your answer", in the page's language) is not the question.
