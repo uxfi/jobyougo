@@ -1,8 +1,6 @@
 /* Story modal + interfaces */
 const STORY_CONTENT = {"en": {"lines": ["I have spent <strong>12 years in UX</strong>, starting in digital design and working at <strong>Marcel/Publicis</strong>.", "I then went <strong>freelance</strong>, working with startups and larger companies.", "In <strong>2015</strong>, I founded <strong>Newflux.fr</strong>, a French UX/UI publication. I published 300+ articles and organized events and workshops.", "In <strong>2017</strong>, I co-founded <strong>Vloggy</strong>, a video social network with a mobile editing studio.", "We raised <strong>€100K</strong> and reached delivery stage. We later stopped operations when funding ran out.", "In <strong>2020</strong>, I founded <strong>Agence V0</strong>, a product design agency.", "I managed up to <strong>7 junior freelance designers</strong>. The agency generated around <strong>€400K over three years</strong>.", "My client work included <strong>LVMH</strong>, <strong>Société Générale</strong>, Renault and Shiseido.", "I have worked with <strong>AI for 4 years</strong>, and rebuilt my UX and design workflow around it.", "Independent products include <strong>UXfi</strong>, <strong>Flemme OS</strong> and <strong>Creads.io</strong>.", "Today I work on product strategy and design at <strong>OneAsset</strong>, alongside my independent projects."]}, "fr": {"lines": ["Je travaille dans <strong>l’UX depuis 12 ans</strong>. J’ai commencé dans le design digital, puis travaillé chez <strong>Marcel/Publicis</strong>.", "Je suis ensuite devenu <strong>freelance</strong>, auprès de startups et de grands groupes.", "En <strong>2015</strong>, j’ai fondé <strong>Newflux.fr</strong>, un média UX/UI français. J’y ai publié 300+ articles et organisé des événements et des ateliers.", "En <strong>2017</strong>, j’ai cofondé <strong>Vloggy</strong>, un réseau social vidéo avec un studio de montage mobile.", "Nous avons levé <strong>100K EUR</strong> et atteint le stade de livraison. Nous avons ensuite arrêté l’activité faute de financement.", "En <strong>2020</strong>, j’ai fondé <strong>Agence V0</strong>, une agence de product design.", "J’y ai encadré jusqu’à <strong>7 designers freelances juniors</strong>. L’agence a réalisé environ <strong>400K EUR sur trois ans</strong>.", "J’ai notamment travaillé pour <strong>LVMH</strong>, <strong>Société Générale</strong>, Renault et Shiseido.", "Je travaille avec l’<strong>IA depuis 4 ans</strong>, et j’ai adapté mon workflow UX et design autour d’elle.", "Parmi les produits indépendants : <strong>UXfi</strong>, <strong>Flemme OS</strong> et <strong>Creads.io</strong>.", "Aujourd’hui, je travaille sur la stratégie produit et le design chez <strong>OneAsset</strong>, en parallèle de mes projets indépendants."]}};
 
-let storyScrollRaf = 0;
-
 const STORY_CHAPTERS = {
   en: [
     {
@@ -140,120 +138,439 @@ const STORY_CHAPTERS = {
   ]
 };
 
+/* ═══════════════════════════════════════════
+   STORY MODAL (2026-11-04 immersive pass, CSS in /portfolio/story.css)
+   - Opening: a curtain splits on an emerald hairline while the parallax scene settles and the title rises.
+   - Pre-scroll: the hero is pinned. Scrolling it moves the layers apart, dims the scene, lights the intro
+     line word by word, then the chapter index, and the scene dissolves into chapter 01.
+   - Chapters: iso dioramas built from grouped SVG pieces. They drop into place on first view, the current
+     step lifts and lights, small loops run while the figure is on screen, and the steps advance on their
+     own (the timer bar under the step) until the reader hovers, focuses or clicks.
+   Reduced motion: no curtain, no pin, no loops, no auto-advance; everything is shown at rest.
+═══════════════════════════════════════════ */
+const storyClamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const storySmooth = t => t * t * (3 - 2 * t);
+const storySeg = (p, a, b) => storyClamp((p - a) / (b - a));
+const storyReduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ── Iso kit. Plan units: x runs right-down, y left-down, z up. Light from the upper left, so the top face is
+   the lightest, the +y face (front, lower left) mid and the +x face (side, lower right) the darkest. ── */
 function storyIso(x, y, z) {
   return [(x - y) * 0.8660254, (x + y) * 0.5 - z];
 }
-
-function storyPoly(points, fill, stroke) {
-  const pts = points.map(([x, y, z]) => {
-    const [sx, sy] = storyIso(x, y, z);
-    return `${sx.toFixed(2)},${sy.toFixed(2)}`;
-  }).join(' ');
-  return `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="1.15" stroke-linejoin="round"/>`;
+function sfP(x, y, z) {
+  const [a, b] = storyIso(x, y, z);
+  return `${a.toFixed(1)},${b.toFixed(1)}`;
 }
-
-function storyBox(x, y, z, w, d, h, active) {
-  const line = active ? 'rgba(77,184,138,.9)' : 'rgba(255,255,255,.3)';
-  const front = [[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]];
-  const side = [[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]];
-  const top = [[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]];
-  return storyPoly(front, active ? '#12261e' : '#151515', line)
-    + storyPoly(side, '#101010', line)
-    + storyPoly(top, active ? '#1c3d30' : '#1c1c1c', line);
+function sfPoly(points, cls) {
+  return `<polygon class="${cls}" points="${points.map(p => sfP(p[0], p[1], p[2])).join(' ')}"/>`;
 }
-
-function storyLine(a, b, stroke) {
-  const [x1, y1] = storyIso(a[0], a[1], a[2]);
-  const [x2, y2] = storyIso(b[0], b[1], b[2]);
-  return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${stroke}" stroke-width="1.2"/>`;
+function sfBox(x, y, z, w, d, h) {
+  return sfPoly([[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]], 'sf-f sf-l')
+    + sfPoly([[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]], 'sf-f sf-r')
+    + sfPoly([[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]], 'sf-f sf-t');
 }
-
-function drawStoryFigure(kind, step) {
-  if (kind === 'desk') {
-    let svg = storyBox(-78, -46, 0, 156, 92, 10, false);
-    svg += storyBox(-8, -4, 10, 16, 14, 4, false);
-    svg += storyBox(-4, 0, 14, 8, 8, 16, false);
-    svg += storyBox(-46, -34, 28, 92, 8, 56, false);
-    const padX = 8;
-    const padZ = 6;
-    const gap = 4;
-    const ph = (56 - padZ * 2 - gap * 2) / 3;
-    for (let i = 0; i < 3; i += 1) {
-      const active = i === step;
-      const pz = 28 + padZ + i * (ph + gap);
-      const py = -34 + 8 + 0.8;
-      svg += storyPoly(
-        [[-46 + padX, py, pz], [46 - padX, py, pz], [46 - padX, py, pz + ph], [-46 + padX, py, pz + ph]],
-        active ? 'rgba(77,184,138,.5)' : 'rgba(255,255,255,.05)',
-        active ? '#4db88a' : 'rgba(255,255,255,.22)'
-      );
-    }
-    svg += storyBox(-30, 10, 10, 60, 20, 3, false);
-    return svg;
+// Face mappers: (u, w) on a face to a plan point.
+const sfFront = y => (u, w) => [u, y, w]; // +y face: u = x, w = z
+const sfSide = x => (u, w) => [x, u, w];  // +x face: u = y, w = z
+const sfTop = z => (u, w) => [u, w, z];   // top: u = x, w = y
+function sfD(map, pts, close) {
+  return pts.map(([u, w], i) => `${i ? 'L' : 'M'}${sfP(...map(u, w))}`).join('') + (close ? 'Z' : '');
+}
+function sfPath(map, segs, cls, attrs = '') {
+  return `<path class="${cls}"${attrs} d="${segs.map(s => sfD(map, s)).join('')}"/>`;
+}
+function sfRect(map, u0, w0, u1, w1, cls, attrs = '') {
+  return `<path class="${cls}"${attrs} d="${sfD(map, [[u0, w0], [u1, w0], [u1, w1], [u0, w1]], true)}"/>`;
+}
+// A circle drawn on a face, starting at its top and going clockwise (so a dash fills it like a gauge).
+function sfCircle(map, uc, wc, r, cls, attrs = '') {
+  const pts = [];
+  for (let i = 0; i < 36; i += 1) {
+    const a = Math.PI / 2 - (i / 36) * Math.PI * 2;
+    pts.push([uc + r * Math.cos(a), wc + r * Math.sin(a)]);
   }
-  if (kind === 'products') {
-    let svg = '';
-    for (let i = 0; i < 3; i += 1) {
-      const active = i === step;
-      svg += storyBox(-84 + i * 56, active ? -10 : 0, active ? 8 : 0, 42, 12, active ? 72 : 62, active);
-    }
-    return svg;
-  }
-  if (kind === 'workflow') {
-    const xs = [-72, -10, 52];
-    let svg = '';
-    for (let i = 0; i < 2; i += 1) {
-      svg += storyLine(
-        [xs[i] + 28, 14, 18],
-        [xs[i + 1], 14, 18],
-        i < step ? '#4db88a' : 'rgba(255,255,255,.32)'
-      );
-    }
+  return `<path class="${cls}"${attrs} d="${sfD(map, pts, true)}"/>`;
+}
+// Plan lines, for cables and routes that turn between faces.
+function sfPlan(points) {
+  return points.map((p, i) => `${i ? 'L' : 'M'}${sfP(p[0], p[1], p[2])}`).join('');
+}
+function sfCable(points, steps) {
+  const d = sfPlan(points);
+  return `<path class="sf-cable-o" d="${d}"/><path class="sf-cable" d="${d}"/>`
+    + `<path class="sf-flow" data-steps="${steps}" d="${d}"/>`;
+}
+function sfEllipse(x, y, z, r, cls, attrs = '') {
+  const [sx, sy] = storyIso(x, y, z);
+  return `<ellipse class="${cls}"${attrs} cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" rx="${(r * 1.2247).toFixed(1)}" ry="${(r * 0.7071).toFixed(1)}"/>`;
+}
+// Light pooled on the floor. steps = 'static' keeps it on.
+function sfPool(x, y, z, r, steps) {
+  const cls = steps === 'static' ? 'sf-pool is-static' : 'sf-pool';
+  const data = steps === 'static' ? '' : ` data-steps="${steps}"`;
+  return sfEllipse(x, y, z, r, cls, ` fill="url(#sfg-__U__)"${data}`);
+}
+function sfShadow(x, y, w, d, h) {
+  const L = Math.min(h * 0.5, 26);
+  return sfPoly([[x + 1, y, 0], [x + w + L, y, 0], [x + w + L, y + d, 0], [x + 1, y + d, 0]], 'sf-shadow');
+}
+function sfCyl(cx, cy, z, r, h) {
+  const [sx, sy] = storyIso(cx, cy, z);
+  const rx = r * 1.2247;
+  const ry = r * 0.7071;
+  const ty = sy - h;
+  const f = n => n.toFixed(1);
+  return `<path class="sf-f sf-l" d="M${f(sx - rx)},${f(ty)}L${f(sx - rx)},${f(sy)}A${f(rx)},${f(ry)} 0 0 0 ${f(sx + rx)},${f(sy)}L${f(sx + rx)},${f(ty)}Z"/>`
+    + `<path class="sf-f sf-r sf-seam" d="M${f(sx)},${f(ty + ry)}L${f(sx)},${f(sy + ry)}A${f(rx)},${f(ry)} 0 0 0 ${f(sx + rx)},${f(sy)}L${f(sx + rx)},${f(ty)}Z"/>`
+    + `<ellipse class="sf-f sf-t" cx="${f(sx)}" cy="${f(ty)}" rx="${f(rx)}" ry="${f(ry)}"/>`;
+}
+/** One piece of a scene. o = build-in order, steps = the step(s) that light it, lift = px it rises when lit. */
+function sfPiece(inner, o, steps = null, lift = null, cls = '') {
+  const data = steps == null ? '' : ` data-steps="${steps}"`;
+  const style = `--o:${o}${lift == null ? '' : `;--lift:${-lift}px`}`;
+  return `<g class="sf-p${cls ? ` ${cls}` : ''}" style="${style}"${data}><g class="sf-lift">${inner}</g></g>`;
+}
+function sfSlab(x, y, w, d) {
+  const T = sfTop(0);
+  const segs = [];
+  for (let u = x + 12; u < x + w - 4; u += 12) segs.push([[u, y + 3], [u, y + d - 3]]);
+  for (let v = y + 12; v < y + d - 4; v += 12) segs.push([[x + 3, v], [x + w - 3, v]]);
+  const rim = sfD(T, [[x + 4, y + 4], [x + w - 4, y + 4], [x + w - 4, y + d - 4], [x + 4, y + d - 4]], true);
+  return sfPiece(sfBox(x, y, -7, w, d, 7) + sfPath(T, segs, 'sf-grid') + `<path class="sf-rim" d="${rim}"/>`, 0, null, null, 'sf-slab');
+}
+
+/* ── Scenes. Each returns its slab (x, y, w, d), the floor (shadows, pools) and the pieces back to front. ── */
+const STORY_SCENES = {
+  // Now: one desk where the brief, the screens and the agent sit together.
+  desk() {
+    const pieces = [];
+    // notebook: the brief
+    pieces.push(sfPiece(
+      sfBox(-78, -6, 0, 30, 22, 2.5)
+        + sfPath(sfTop(2.5), [[[-74, -1], [-58, -1]], [[-74, 4], [-54, 4]], [[-74, 9], [-62, 9]], [[-74, 14], [-57, 14]]], 'sf-d sf-type', ' pathLength="1"'),
+      1, 0, 4
+    ));
+    // monitor: three panels, one per step
+    const F = sfFront(-36);
+    const panel = (i, w0, w1, detail) => `<g class="sf-panel" data-steps="${i}">${sfRect(F, -45, w0, 45, w1, 'sf-scr')}${detail}</g>`;
+    const brief = panel(0, 54.6, 68,
+      sfPath(F, [[[-40, 64.5], [-6, 64.5]], [[-40, 61], [14, 61]], [[-40, 57.5], [-16, 57.5]]], 'sf-d sf-type', ' pathLength="1"'));
+    const screens = panel(1, 38.3, 51.6,
+      sfRect(F, -40, 41, -16, 49, 'sf-d-fill sf-seq', ' style="--k:0"')
+        + sfRect(F, -12, 41, 12, 49, 'sf-d-fill sf-seq', ' style="--k:1"')
+        + sfRect(F, 16, 41, 40, 49, 'sf-d-fill sf-seq', ' style="--k:2"'));
+    const agent = panel(2, 22, 35.3,
+      sfPath(F, [[[-40, 31.4], [-36, 28.6], [-40, 25.8]]], 'sf-d')
+        + sfPath(F, [[[-33, 25.8], [-28, 25.8]]], 'sf-d sf-blink')
+        + sfPath(F, [[[-22, 28.6], [24, 28.6]]], 'sf-d sf-type', ' pathLength="1"'));
+    pieces.push(sfPiece(
+      sfBox(-16, -50, 0, 32, 18, 3) + sfBox(-3, -46, 3, 6, 4, 16) + sfBox(-52, -42, 16, 104, 6, 58)
+        + sfRect(F, -48, 19.5, 48, 70.5, 'sf-bezel') + brief + screens + agent,
+      2
+    ));
+    // mug with steam
+    const [mx, my] = storyIso(-66, 32, 13);
+    pieces.push(sfPiece(
+      sfCyl(-66, 32, 0, 7, 13)
+        + `<path class="sf-steam" style="--k:0" d="M${(mx - 2).toFixed(1)},${(my - 3).toFixed(1)}c-3,-4 3,-7 0,-12"/>`
+        + `<path class="sf-steam" style="--k:1" d="M${(mx + 3).toFixed(1)},${(my - 2).toFixed(1)}c-3,-4 3,-7 0,-11"/>`,
+      3
+    ));
+    // keyboard
+    const keys = [];
+    [0, 4, 8].forEach((v) => { for (let u = -30; u < 27; u += 4.6) keys.push([[u, v], [u + 2.6, v]]); });
+    keys.push([[-14, 12.4], [10, 12.4]]);
+    pieces.push(sfPiece(sfBox(-34, -4, 0, 66, 20, 3) + sfPath(sfTop(3), keys, 'sf-keys'), 4));
+    // agent unit, its halo and the cable that feeds it
+    pieces.push(sfPiece(
+      sfBox(56, -34, 0, 20, 20, 20)
+        + sfCircle(sfFront(-14), 66, 10, 4.6, 'sf-d')
+        + sfRect(sfFront(-14), 59, 16, 61.5, 17.6, 'sf-led')
+        + sfPath(sfSide(76), [[[-31, 6], [-17, 6]], [[-31, 9], [-17, 9]], [[-31, 12], [-17, 12]]], 'sf-vent')
+        + sfEllipse(66, -24, 27, 9, 'sf-halo'),
+      5, 2, 7
+    ));
+    pieces.push(sfPiece(sfCable([[50, -37, 16], [50, -37, 1], [50, -8, 1], [62, -8, 1], [62, -14, 1], [62, -14, 5]], 2), 6));
+    // phone: the screens leave the desk
+    pieces.push(sfPiece(
+      sfBox(4, 26, 0, 16, 26, 2.5)
+        + sfRect(sfTop(2.5), 6, 28, 18, 50, 'sf-scr')
+        + sfPath(sfTop(2.6), [[[8, 32], [16, 32]], [[8, 37], [16, 37]], [[8, 42], [13, 42]]], 'sf-d'),
+      7, 1, 5
+    ));
+    // trackpad
+    pieces.push(sfPiece(sfBox(40, -2, 0, 14, 18, 2) + sfRect(sfTop(2), 42, 0, 52, 14, 'sf-d'), 8));
+    return {
+      view: '-145 -128 290 216',
+      slab: [-88, -58, 176, 116],
+      shadows: sfShadow(-78, -6, 30, 22, 3) + sfShadow(-52, -42, 104, 6, 74) + sfShadow(-16, -50, 32, 18, 3)
+        + sfShadow(-34, -4, 66, 20, 3) + sfShadow(56, -34, 20, 20, 20) + sfShadow(4, 26, 16, 26, 3)
+        + sfShadow(40, -2, 14, 18, 2) + sfShadow(-73, 25, 14, 14, 13),
+      pools: sfPool(0, -20, 0, 40, 'static') + sfPool(-63, 5, 0, 18, 0) + sfPool(12, 39, 0, 18, 1) + sfPool(66, -16, 0, 20, 2),
+      pieces: pieces.join(''),
+    };
+  },
+
+  // Products: three monoliths, one per product, each with what it hands back on a card in front of it.
+  products() {
+    const xs = [-74, -18, 38];
+    const F = sfFront(-8);
+    const glyph = [
+      x => sfCircle(F, x + 18, 42, 9, 'sf-d sf-dim')
+        + sfCircle(F, x + 18, 42, 9, 'sf-d sf-arc', ' pathLength="100"')
+        + sfRect(F, x + 8, 12, x + 13, 20, 'sf-d-fill sf-bar', ' style="--k:0"')
+        + sfRect(F, x + 15.5, 12, x + 20.5, 25, 'sf-d-fill sf-bar', ' style="--k:1"')
+        + sfRect(F, x + 23, 12, x + 28, 30, 'sf-d-fill sf-bar', ' style="--k:2"'),
+      x => [[44, 53], [32, 41], [20, 29]].map(([w0, w1], r) => sfRect(F, x + 7, w0, x + 16, w1, 'sf-d-fill sf-seq', ` style="--k:${r * 2}"`)
+        + sfRect(F, x + 20, w0, x + 29, w1, 'sf-d-fill sf-seq', ` style="--k:${r * 2 + 1}"`)).join('')
+        + sfPath(F, [[[x + 7, 13], [x + 29, 13]]], 'sf-d'),
+      x => sfRect(F, x + 6, 24, x + 30, 52, 'sf-d')
+        + sfPath(F, [[[x + 15, 31], [x + 15, 45], [x + 25, 38]]], 'sf-d-fill sf-play', '').replace('"/>', 'Z"/>')
+        + sfPath(F, [[[x + 6, 17], [x + 24, 17]], [[x + 6, 13], [x + 18, 13]]], 'sf-d'),
+    ];
+    const pieces = [];
+    let shadows = '';
+    let pools = '';
     xs.forEach((x, i) => {
-      svg += storyBox(x, 0, 0, 28, 28, 28, i === step);
+      const vents = [];
+      for (let w = 10; w <= 56; w += 4) vents.push([[-19, w], [-10, w]]);
+      pieces.push(sfPiece(
+        sfBox(x - 4, -24, 0, 44, 20, 3) + sfBox(x, -20, 3, 36, 12, 60) + glyph[i](x) + sfPath(sfSide(x + 36), vents, 'sf-vent'),
+        1 + i * 2, i, 10
+      ));
+      pieces.push(sfPiece(
+        sfBox(x + 2, 6, 0, 32, 18, 2)
+          + sfPath(sfTop(2), [[[x + 6, 10], [x + 26, 10]], [[x + 6, 14], [x + 20, 14]], [[x + 6, 18], [x + 28, 18]]], 'sf-d sf-type', ' pathLength="1"'),
+        2 + i * 2, i, 3
+      ));
+      shadows += sfShadow(x - 4, -24, 44, 20, 63) + sfShadow(x + 2, 6, 32, 18, 2);
+      pools += sfPool(x + 18, 0, 0, 24, i);
     });
-    return svg;
-  }
-  if (kind === 'studio') {
-    let svg = storyBox(-74, -40, 0, 148, 78, 8, false);
-    [[-56, -30], [-8, -30], [36, -30], [-32, 22]].forEach(([x, y], i) => {
-      svg += storyBox(x, y, 8, 24, 18, 14, i === step);
+    return { view: '-145 -126 290 214', slab: [-88, -54, 176, 108], shadows, pools, pieces: pieces.join('') };
+  },
+
+  // AI: prompt, screen, check, with the work flowing along the pipes up to the current step.
+  workflow() {
+    const cubes = [[-76, -22], [-14, -14], [48, -6]];
+    const glyph = [
+      (x, F) => sfPath(F, [[[x + 7, 20], [x + 12, 16], [x + 7, 12]]], 'sf-d') + sfPath(F, [[[x + 15, 12], [x + 21, 12]]], 'sf-d sf-blink'),
+      (x, F) => sfRect(F, x + 6, 9, x + 22, 23, 'sf-d')
+        + sfPath(F, [[[x + 9, 19], [x + 19, 19]], [[x + 9, 15], [x + 16, 15]]], 'sf-d sf-type', ' pathLength="1"'),
+      (x, F) => sfCircle(F, x + 14, 16, 8, 'sf-d sf-dim') + sfPath(F, [[[x + 9, 16], [x + 12.5, 12], [x + 20, 20.5]]], 'sf-d sf-tick', ' pathLength="1"'),
+    ];
+    const cube = (i, o) => {
+      const [x, y] = cubes[i];
+      const F = sfFront(y + 28);
+      const vents = [];
+      for (let w = 7; w <= 27; w += 3.4) vents.push([[y + 4, w], [y + 11, w]]);
+      const dots = [];
+      [-7, 0, 7].forEach(a => [-7, 0, 7].forEach(b => dots.push([[x + 14 + a, y + 14 + b], [x + 14.8 + a, y + 14 + b]])));
+      return sfPiece(
+        sfBox(x - 3, y - 3, 0, 34, 34, 2) + sfBox(x, y, 2, 28, 28, 28) + glyph[i](x, F)
+          + sfPath(sfSide(x + 28), vents, 'sf-vent') + sfPath(sfTop(30), dots, 'sf-dots'),
+        o, i, 7
+      );
+    };
+    const pieces = [
+      cube(0, 1),
+      sfPiece(sfBox(-33, -6, 0, 4, 4, 13) + sfCable([[-48, -8, 14], [-31, -8, 14], [-31, 0, 14], [-14, 0, 14]], '1 2'), 2),
+      cube(1, 3),
+      sfPiece(sfBox(29, 2, 0, 4, 4, 13) + sfCable([[14, 0, 14], [31, 0, 14], [31, 8, 14], [48, 8, 14]], 2), 4),
+      cube(2, 5),
+    ];
+    return {
+      view: '-145 -98 290 184',
+      slab: [-88, -46, 176, 92],
+      shadows: cubes.map(([x, y]) => sfShadow(x - 3, y - 3, 34, 34, 30)).join(''),
+      pools: cubes.map(([x, y], i) => sfPool(x + 14, y + 36, 0, 16, i)).join(''),
+      pieces: pieces.join(''),
+    };
+  },
+
+  // Agency: the studio table, four seats, and the lead's line out to whoever is on the work.
+  studio() {
+    const seats = [[-62, -38], [-18, -38], [26, -38], [-62, 0]];
+    const seat = (i, o) => {
+      const [x, y] = seats[i];
+      const F = sfFront(y + 4);
+      return sfPiece(
+        sfBox(x, y, 6, 28, 18, 3) + sfBox(x + 5, y + 1, 9, 18, 3, 14)
+          + sfRect(F, x + 7, 11.5, x + 21, 21, 'sf-scr')
+          + sfPath(F, [[[x + 9, 18], [x + 19, 18]], [[x + 9, 14.5], [x + 15, 14.5]]], 'sf-d sf-type', ' pathLength="1"')
+          + sfPath(sfTop(9), [[[x + 7, y + 11], [x + 21, y + 11]], [[x + 7, y + 14], [x + 17, y + 14]]], 'sf-keys'),
+        o, i, 6
+      );
+    };
+    const links = seats.map(([x, y], i) => sfCable([[22, 11, 6.2], [x + 14, y + 18, 6.2]], i)).join('');
+    const tablePools = seats.map(([x, y], i) => sfPool(x + 14, y + 22, 6.1, 13, i)).join('');
+    const pieces = [
+      sfPiece(sfBox(-70, -44, 0, 140, 80, 6) + tablePools, 1),
+      sfPiece(links, 2),
+      seat(0, 3), seat(3, 4), seat(1, 5), seat(2, 6),
+      sfPiece(
+        sfBox(22, -2, 6, 26, 26, 22)
+          + sfCircle(sfFront(24), 35, 17, 5.5, 'sf-d')
+          + sfPath(sfFront(24), [[[35, 13.5], [35, 20.5]], [[31.5, 17], [38.5, 17]]], 'sf-d')
+          + sfPath(sfSide(48), [[[2, 12], [20, 12]], [[2, 16], [20, 16]], [[2, 20], [20, 20]]], 'sf-vent')
+          + sfEllipse(35, 11, 30, 8, 'sf-halo is-static'),
+        7, null, null, 'sf-lead'
+      ),
+    ];
+    return {
+      view: '-145 -90 290 180',
+      slab: [-88, -54, 176, 108],
+      shadows: sfShadow(-70, -44, 140, 80, 6),
+      pools: sfPool(0, 40, 0, 30, 'static'),
+      pieces: pieces.join(''),
+    };
+  },
+
+  // Team / from scratch: the plan, the modules built on it, and the version that ships.
+  archive() {
+    const T = sfTop(3);
+    const grid = [];
+    for (let u = -68; u < 22; u += 10) grid.push([[u, -44], [u, 36]]);
+    for (let v = -36; v < 38; v += 10) grid.push([[-76, v], [20, v]]);
+    const outlines = [[-68, -36, -40, -14], [-34, -36, -6, -14], [-68, -8, -40, 14]]
+      .map(([u0, w0, u1, w1]) => sfRect(sfTop(3.1), u0, w0, u1, w1, 'sf-plan')).join('');
+    const module = (x, y, o, k) => sfPiece(
+      sfBox(x, y, 3, 28, 22, 16)
+        + sfPath(sfFront(y + 22), [[[x + 5, 14], [x + 20, 14]], [[x + 5, 10], [x + 14, 10]]], 'sf-d sf-type', ' pathLength="1"')
+        + sfRect(sfFront(y + 22), x + 21, 8, x + 24, 11, 'sf-led', ` style="--k:${k}"`),
+      o, 1, 8
+    );
+    const towerSide = [];
+    for (let w = 8; w <= 40; w += 5.4) towerSide.push([[-22, w], [-4, w]]);
+    const pieces = [
+      sfPiece(
+        sfBox(-78, -46, 0, 100, 84, 3) + sfPath(T, grid, 'sf-grid sf-plan-grid') + outlines
+          + sfBox(-30, 18, 3, 30, 4, 3) + sfPoly([[0, 18, 3], [6, 20, 4.5], [0, 22, 3]], 'sf-f sf-t'),
+        1, 0, 3
+      ),
+      sfPool(-37, -11, 3.2, 30, 1),
+      module(-68, -36, 2, 0), module(-68, -8, 3, 1), module(-34, -36, 4, 2),
+      sfPiece(
+        sfBox(40, -26, 0, 26, 26, 46)
+          + sfPath(sfFront(0), [[[53, 12], [53, 34]], [[47, 28], [53, 34], [59, 28]]], 'sf-d sf-arrow')
+          + sfPath(sfSide(66), towerSide, 'sf-vent')
+          + `<path class="sf-pole" d="${sfPlan([[53, -13, 46], [53, -13, 66]])}"/>`
+          + sfPoly([[53, -13, 66], [53, -13, 57], [66, -13, 61.5]], 'sf-flag'),
+        5, 2, 8
+      ),
+      sfPiece(`<path class="sf-route" d="${sfPlan([[22, 26, 0.5], [40, 26, 0.5], [53, 8, 0.5]])}"/>`
+        + `<path class="sf-flow" data-steps="2" d="${sfPlan([[22, 26, 0.5], [40, 26, 0.5], [53, 8, 0.5]])}"/>`, 6),
+    ];
+    return {
+      view: '-145 -90 290 180',
+      slab: [-88, -54, 176, 108],
+      shadows: sfShadow(-78, -46, 100, 84, 3) + sfShadow(40, -26, 26, 26, 46) + sfShadow(-68, -36, 62, 44, 16),
+      pools: sfPool(-28, 44, 0, 24, 0) + sfPool(53, 10, 0, 20, 2),
+      pieces: pieces.join(''),
+    };
+  },
+};
+
+function drawStoryFigure(kind, uid) {
+  const scene = (STORY_SCENES[kind] || STORY_SCENES.archive)();
+  const [x, y, w, d] = scene.slab;
+  const top = [[x, y, 0], [x + w, y, 0], [x + w, y + d, 0], [x, y + d, 0]].map(p => sfP(...p)).join(' ');
+  return `<svg viewBox="${scene.view || '-150 -130 300 250'}" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <clipPath id="sfc-${uid}"><polygon points="${top}"/></clipPath>
+      <filter id="sfb-${uid}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.6"/></filter>
+      <radialGradient id="sfg-${uid}"><stop offset="0" stop-color="#4db88a" stop-opacity=".62"/><stop offset=".55" stop-color="#4db88a" stop-opacity=".18"/><stop offset="1" stop-color="#4db88a" stop-opacity="0"/></radialGradient>
+    </defs>
+    ${sfSlab(x, y, w, d)}
+    <g class="sf-floor" clip-path="url(#sfc-${uid})">
+      <g filter="url(#sfb-${uid})">${scene.shadows}</g>
+      ${scene.pools}
+    </g>
+    ${scene.pieces}
+  </svg>`.replaceAll('__U__', uid);
+}
+
+/** Wraps every word of an HTML string in span.sw (mask: span.sw > span.sw-i for a masked rise). Tags stay. */
+function storySplitWords(html, mask = false) {
+  const box = document.createElement('div');
+  box.innerHTML = html;
+  let i = 0;
+  const walk = (node) => {
+    [...node.childNodes].forEach((child) => {
+      if (child.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        child.textContent.split(/(\s+)/).forEach((part) => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+          const word = document.createElement('span');
+          word.className = 'sw';
+          word.style.setProperty('--i', String(i));
+          i += 1;
+          if (mask) {
+            const inner = document.createElement('span');
+            inner.className = 'sw-i';
+            inner.textContent = part;
+            word.appendChild(inner);
+          } else {
+            word.textContent = part;
+          }
+          frag.appendChild(word);
+        });
+        child.replaceWith(frag);
+      } else if (child.nodeType === 1 && !child.matches('img, svg, .story-inline-logos, .story-inline-logo')) {
+        walk(child);
+      }
     });
-    return svg;
-  }
-  const pieces = [
-    [-62, -24, 0, 96, 68, 8],
-    [-36, -6, 14, 68, 46, 6],
-    [28, 16, 24, 22, 10, 42]
-  ];
-  return pieces.map((piece, i) => {
-    const lift = i === step ? 16 : 0;
-    return storyBox(piece[0], piece[1], piece[2] + lift, piece[3], piece[4], piece[5], i === step);
-  }).join('');
+  };
+  walk(box);
+  return box.innerHTML;
 }
 
 function mountStoryFigures(root) {
+  const canHover = window.matchMedia('(hover: hover)').matches;
   root.querySelectorAll('[data-story-fig]').forEach((figure) => {
-    const kind = figure.dataset.storyFig;
-    const status = figure.querySelector('[data-story-fig-status]');
-    const svg = figure.querySelector('svg');
-    const labels = (figure.dataset.storyStatus || '').split('|').filter(Boolean);
+    const steps = [...figure.querySelectorAll('.story-fig-step')];
+    const lit = [...figure.querySelectorAll('[data-steps]')];
+    const count = Math.max(1, steps.length);
     const paint = (step) => {
-      const index = ((step % labels.length) + labels.length) % labels.length;
-      figure.dataset.storyStep = String(index);
-      if (svg) svg.innerHTML = drawStoryFigure(kind, index);
-      if (status) status.textContent = labels[index] || '';
+      const index = ((step % count) + count) % count;
+      const key = String(index);
+      figure.dataset.storyStep = key;
+      lit.forEach(el => el.classList.toggle('is-on', el.dataset.steps.split(' ').includes(key)));
+      steps.forEach((button, k) => {
+        const on = k === index;
+        button.classList.toggle('is-on', on);
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      // same step clicked again: restart its timer bar
+      const bar = steps[index] && steps[index].querySelector('.story-fig-step-bar');
+      if (bar) {
+        bar.style.animation = 'none';
+        void bar.offsetWidth;
+        bar.style.animation = '';
+      }
     };
     const next = () => paint(Number(figure.dataset.storyStep || 0) + 1);
     paint(0);
-    figure.addEventListener('click', (event) => {
+    steps.forEach((button, k) => button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      paint(k);
+    }));
+    figure.querySelector('.story-fig-art')?.addEventListener('click', (event) => {
       event.stopPropagation();
       next();
     });
-    figure.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      next();
+    // The timer bar under the current step is the clock: when it fills, the figure moves on.
+    figure.addEventListener('animationend', (event) => {
+      if (event.animationName === 'sf-timer' && event.target.closest('.story-fig-step.is-on')) next();
+    });
+    if (canHover) {
+      figure.addEventListener('pointerenter', () => figure.classList.add('is-held'));
+      figure.addEventListener('pointerleave', () => figure.classList.remove('is-held'));
+    }
+    figure.addEventListener('focusin', () => figure.classList.add('is-held'));
+    figure.addEventListener('focusout', (event) => {
+      if (!figure.contains(event.relatedTarget)) figure.classList.remove('is-held');
     });
   });
 }
@@ -289,6 +606,55 @@ function storyContactEmail() {
   return typeof email === 'string' && email ? email : 'chilka.v@gmail.com';
 }
 
+/** Intro line lit during the pre-scroll: SITE.storyIntro[lang] on a host page, else the first story line. */
+function storyIntroLine() {
+  const site = storySiteCfg();
+  if (site) {
+    const intro = site.storyIntro;
+    const text = intro && typeof intro === 'object' ? (intro[currentLang] || intro.en) : '';
+    return typeof text === 'string' ? text : '';
+  }
+  const pack = STORY_CONTENT[currentLang] || STORY_CONTENT.en;
+  return (pack && pack.lines && pack.lines[0]) || '';
+}
+
+/* Panel chrome that the markup of older host pages does not have: the opening curtain, the reading
+   progress line and the ambient glow behind the chapters. Created once, kept across re-renders. */
+function ensureStoryChrome(modal) {
+  const panel = modal.querySelector('.story-modal-panel');
+  const stage = modal.querySelector('.story-modal-stage');
+  if (!panel || !stage) return;
+  if (!panel.querySelector('.story-curtain')) {
+    panel.insertAdjacentHTML('beforeend', `
+      <div class="story-curtain" aria-hidden="true">
+        <span class="story-curtain-half is-top"></span>
+        <span class="story-curtain-half is-bottom"></span>
+        <span class="story-curtain-line"></span>
+      </div>
+      <div class="story-progress" aria-hidden="true"></div>`);
+  }
+  if (!stage.querySelector('.story-ambient')) {
+    stage.insertAdjacentHTML('afterbegin', '<div class="story-ambient" aria-hidden="true"></div>');
+  }
+}
+
+let storyObserver = null;
+function observeStory(scroller) {
+  storyObserver?.disconnect();
+  const targets = scroller.querySelectorAll('.story-fig, .story-chapter-copy, .story-contact-wrap');
+  if (!('IntersectionObserver' in window)) {
+    targets.forEach(el => el.classList.add('is-in', 'is-live'));
+    return;
+  }
+  storyObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) entry.target.classList.add('is-in');
+      entry.target.classList.toggle('is-live', entry.isIntersecting);
+    });
+  }, { root: scroller, threshold: 0.28 });
+  targets.forEach(el => storyObserver.observe(el));
+}
+
 function renderStoryModalContent() {
   let chapters = STORY_CHAPTERS[currentLang] || STORY_CHAPTERS.en;
   // Host page: SITE.storyChapters gets a copy (it may edit it freely) and returns the chapters to draw.
@@ -296,6 +662,7 @@ function renderStoryModalContent() {
     const custom = storySiteHook('storyChapters', JSON.parse(JSON.stringify(chapters)), currentLang);
     if (isStoryChapterList(custom)) chapters = custom;
   }
+  const modal = document.getElementById('story-modal');
   const scroller = document.getElementById('story-modal-scroller');
   const track = document.getElementById('story-modal-track');
   if (!track || !chapters) return;
@@ -305,50 +672,78 @@ function renderStoryModalContent() {
     const t = siteStoryTitle[currentLang] || siteStoryTitle.en;
     if (typeof t === 'string' && t) heroTitle = t;
   }
-  const scrollLabel = currentLang === 'fr' ? 'Défiler' : 'Scroll';
-  const chaptersLabel = currentLang === 'fr' ? 'Chapitres' : 'Chapters';
+  const fr = currentLang === 'fr';
+  const scrollLabel = fr ? 'Défiler' : 'Scroll';
+  const chaptersLabel = fr ? 'Chapitres' : 'Chapters';
+  const num = i => String(i + 1).padStart(2, '0');
+  const introLine = storyIntroLine();
 
-  const parallaxHtml = `
-    <div class="story-parallax-hero" id="story-parallax-hero">
-      <div class="story-parallax-layers" data-parallax-layers>
-        <div class="story-parallax-layer" data-parallax-layer="1">
-          <video class="story-parallax-layer-img" muted loop playsinline webkit-playsinline preload="none" data-src="../images/video-background.mp4" aria-hidden="true"></video>
+  const heroHtml = `
+    <section class="story-intro${introLine ? '' : ' is-short'}" id="story-parallax-hero" aria-label="${escapeHTML(heroTitle)}">
+      <div class="story-intro-stage">
+        <div class="story-intro-scene">
+          <div class="story-parallax-layers">
+            <div class="story-parallax-layer" data-parallax-layer="1">
+              <video class="story-parallax-layer-img" muted loop playsinline webkit-playsinline preload="none" data-src="../images/video-background.mp4" aria-hidden="true"></video>
+            </div>
+            <div class="story-parallax-layer" data-parallax-layer="2">
+              <img src="https://cdn.prod.website-files.com/671752cd4027f01b1b8f1c7f/6717795b4d5ac529e7d3a562_osmo-parallax-layer-2.webp" loading="eager" alt="" class="story-parallax-layer-img" />
+            </div>
+            <div class="story-parallax-title-wrap" data-parallax-layer="3">
+              <h2 class="story-parallax-title">${storySplitWords(`${escapeHTML(heroTitle)}<em>.</em>`, true)}</h2>
+            </div>
+            <div class="story-parallax-layer" data-parallax-layer="4">
+              <img src="https://cdn.prod.website-files.com/671752cd4027f01b1b8f1c7f/6717795bb5aceca85011ad83_osmo-parallax-layer-1.webp" loading="eager" alt="" class="story-parallax-layer-img" />
+            </div>
+          </div>
+          <div class="story-intro-veil"></div>
+          <div class="story-parallax-fade"></div>
+          <button type="button" class="story-parallax-cue" id="story-scroll-cue">
+            <span class="story-parallax-cue-label">${scrollLabel}</span>
+            <span class="story-parallax-cue-dot" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3.5 6.5L8 11l4.5-4.5"></path>
+              </svg>
+            </span>
+          </button>
         </div>
-        <div class="story-parallax-layer" data-parallax-layer="2">
-          <img src="https://cdn.prod.website-files.com/671752cd4027f01b1b8f1c7f/6717795b4d5ac529e7d3a562_osmo-parallax-layer-2.webp" loading="eager" alt="" class="story-parallax-layer-img" />
-        </div>
-        <div class="story-parallax-title-wrap" data-parallax-layer="3">
-          <h2 class="story-parallax-title">${heroTitle}<em>.</em></h2>
-        </div>
-        <div class="story-parallax-layer" data-parallax-layer="4">
-          <img src="https://cdn.prod.website-files.com/671752cd4027f01b1b8f1c7f/6717795bb5aceca85011ad83_osmo-parallax-layer-1.webp" loading="eager" alt="" class="story-parallax-layer-img" />
+        <div class="story-intro-copy">
+          ${introLine ? `<p class="story-intro-line">${storySplitWords(introLine)}</p>` : ''}
+          <ol class="story-intro-index" aria-label="${chaptersLabel}">
+            ${chapters.map((chapter, index) => `
+              <li style="--k:${index}">
+                <button type="button" class="story-intro-link" data-story-target="${chapter.id}"><span>${num(index)}</span>${chapter.label}</button>
+              </li>`).join('')}
+          </ol>
         </div>
       </div>
-      <div class="story-parallax-fade"></div>
-      <button type="button" class="story-parallax-cue" id="story-scroll-cue">
-        <span class="story-parallax-cue-label">${scrollLabel}</span>
-        <span class="story-parallax-cue-dot" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3.5 6.5L8 11l4.5-4.5"></path>
-          </svg>
-        </span>
-      </button>
-    </div>
+    </section>
   `;
 
   const chaptersHtml = chapters.map((chapter, index) => `
     <section class="story-chapter" id="${chapter.id}">
-      <figure class="story-fig" data-story-fig="${chapter.fig}" data-story-status="${chapter.figStatus.join('|')}" tabindex="0" role="button" aria-label="${chapter.figTitle}. ${chapter.figHint}">
-        <span class="story-fig-lbl tl">Fig ${index + 1}</span>
-        <span class="story-fig-lbl tr">${chapter.figTitle}</span>
-        <svg viewBox="-150 -130 300 250" role="img" aria-hidden="true"></svg>
-        <span class="story-fig-lbl bl">${chapter.figHint}</span>
-        <span class="story-fig-lbl br" data-story-fig-status></span>
+      <figure class="story-fig" data-story-fig="${chapter.fig}">
+        <figcaption class="story-fig-hud">
+          <span class="story-fig-lbl">Fig ${num(index)}</span>
+          <span class="story-fig-lbl is-title">${chapter.figTitle}</span>
+          <span class="story-fig-lbl is-hint">${chapter.figHint}</span>
+        </figcaption>
+        <div class="story-fig-art" aria-hidden="true">
+          ${drawStoryFigure(chapter.fig, `s${index}`)}
+        </div>
+        <div class="story-fig-steps" role="group" aria-label="${chapter.figTitle}">
+          ${chapter.figStatus.map((status, k) => `
+            <button type="button" class="story-fig-step" data-step="${k}" aria-pressed="false">
+              <span class="story-fig-step-t">${status}</span>
+              <span class="story-fig-step-bar" aria-hidden="true"></span>
+            </button>`).join('')}
+        </div>
       </figure>
       <div class="story-chapter-copy">
-        <p class="story-chapter-label">${String(index + 1).padStart(2, '0')} ${chapter.label}</p>
-        <h3 class="story-chapter-title">${chapter.title}</h3>
-        ${chapter.paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join('')}
+        <span class="story-chapter-num" aria-hidden="true">${num(index)}</span>
+        <p class="story-chapter-label"><span class="n">${num(index)}</span><span class="bar" aria-hidden="true"></span><span>${chapter.label}</span></p>
+        <h3 class="story-chapter-title">${storySplitWords(chapter.title, true)}</h3>
+        ${chapter.paragraphs.map((paragraph, k) => `<p class="story-chapter-p" style="--i:${k}">${paragraph}</p>`).join('')}
       </div>
     </section>
   `).join('');
@@ -357,7 +752,7 @@ function renderStoryModalContent() {
     <nav class="story-chapters" aria-label="${chaptersLabel}">
       ${chapters.map((chapter, index) => `
         <button type="button" class="story-chapter-link" data-story-target="${chapter.id}">
-          <span>${String(index + 1).padStart(2, '0')}</span>
+          <span>${num(index)}</span>
           ${chapter.label}
         </button>
       `).join('')}
@@ -369,23 +764,19 @@ function renderStoryModalContent() {
   const contactHtml = typeof siteContactHtml === 'string' && siteContactHtml ? siteContactHtml : `
     <div class="story-contact-wrap">
       <div class="story-contact-stack">
-        <a class="story-contact-email" href="mailto:${contactEmail}">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="2" y="3.5" width="12" height="9" rx="1.8"></rect>
-            <path d="M3.5 5l4.5 3.8L12.5 5"></path>
-          </svg>
-          <span>${contactEmail}</span>
-        </a>
-        <a class="story-contact-btn" href="mailto:${contactEmail}">
-          <span>Contact me</span>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 12L12 4"></path>
-            <path d="M6 4h6v6"></path>
-          </svg>
-        </a>
-        <a class="story-contact-btn story-contact-btn--ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer">
-          <span>${currentLang === 'fr' ? 'Réserver un appel' : 'Book a call'}</span>
-        </a>
+        <a class="story-contact-email" href="mailto:${contactEmail}">${contactEmail}</a>
+        <div class="story-contact-actions">
+          <a class="story-contact-btn" href="mailto:${contactEmail}">
+            <span>${fr ? 'Me contacter' : 'Contact me'}</span>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 12L12 4"></path>
+              <path d="M6 4h6v6"></path>
+            </svg>
+          </a>
+          <a class="story-contact-btn story-contact-btn--ghost" href="https://calendly.com/chilka-v/30min" target="_blank" rel="noopener noreferrer">
+            <span>${fr ? 'Réserver un appel' : 'Book a call'}</span>
+          </a>
+        </div>
       </div>
     </div>
   `;
@@ -393,7 +784,7 @@ function renderStoryModalContent() {
   if (scroller) {
     const existingParallax = scroller.querySelector('#story-parallax-hero');
     if (existingParallax) existingParallax.remove();
-    track.insertAdjacentHTML('beforebegin', parallaxHtml);
+    track.insertAdjacentHTML('beforebegin', heroHtml);
   }
 
   track.innerHTML = `
@@ -403,94 +794,171 @@ function renderStoryModalContent() {
     </div>
   `;
 
+  if (modal) ensureStoryChrome(modal);
   mountStoryFigures(track);
-  refreshStoryPrompter();
-  refreshStoryParallax();
+  if (scroller) observeStory(scroller);
+  // a language switch while the story is open rebuilds the hero: restart its video
+  if (modal && modal.classList.contains('open')) startStoryVideo(modal);
+  refreshStoryScroll();
 }
 
-function refreshStoryPrompter() {
+/* ── Scroll: one rAF-coalesced pass paints the pinned intro, the per-chapter parallax value (--cp), the
+   chapter rail, the reading progress (--sp) and the ambient glow. ── */
+function paintStoryIntro(hero, p) {
+  if (!hero.__parts) {
+    const q = s => hero.querySelector(s);
+    hero.__parts = {
+      l1: q('[data-parallax-layer="1"]'),
+      l2: q('[data-parallax-layer="2"]'),
+      l3: q('[data-parallax-layer="3"]'),
+      l4: q('[data-parallax-layer="4"]'),
+      veil: q('.story-intro-veil'),
+      copy: q('.story-intro-copy'),
+      cue: q('#story-scroll-cue'),
+      words: [...hero.querySelectorAll('.story-intro-line .sw')],
+      items: [...hero.querySelectorAll('.story-intro-index li')],
+    };
+  }
+  const P = hero.__parts;
+  // not .hidden: the page's .hidden utility is display:none !important and would cut the fade
+  P.cue?.classList.toggle('is-hidden', p > 0.02);
+  if (storyReduceMotion()) return; // static layout from story.css
+  const short = hero.classList.contains('is-short');
+  if (P.l1) P.l1.style.transform = `translate3d(0, ${(p * 16).toFixed(2)}%, 0) scale(${(1.04 + p * 0.1).toFixed(4)})`;
+  if (P.l2) P.l2.style.transform = `translate3d(0, ${(p * 9).toFixed(2)}%, 0) scale(${(1 + p * 0.14).toFixed(4)})`;
+  if (P.l3) {
+    P.l3.style.transform = `translate3d(0, ${(p * 24).toFixed(2)}%, 0) scale(${(1 - 0.14 * storySmooth(storySeg(p, 0, 0.5))).toFixed(4)})`;
+    P.l3.style.opacity = (1 - storySmooth(storySeg(p, short ? 0.14 : 0.2, short ? 0.34 : 0.42))).toFixed(3);
+  }
+  if (P.l4) P.l4.style.transform = `translate3d(0, ${(-p * 6).toFixed(2)}%, 0) scale(${(1 + p * 0.32).toFixed(4)})`;
+  if (P.veil) P.veil.style.opacity = (0.84 * storySmooth(storySeg(p, 0.12, 0.46)) + 0.16 * storySmooth(storySeg(p, 0.86, 1))).toFixed(3);
+  if (P.copy) {
+    const o = storySmooth(storySeg(p, short ? 0.18 : 0.24, short ? 0.3 : 0.34));
+    P.copy.style.opacity = o.toFixed(3);
+    P.copy.classList.toggle('is-active', o > 0.5);
+  }
+  const wn = P.words.length;
+  if (wn) {
+    const wp = storySeg(p, 0.3, 0.7) * wn;
+    P.words.forEach((word, i) => {
+      const v = storyClamp(wp - i).toFixed(3);
+      if (word.__v !== v) { word.__v = v; word.style.setProperty('--v', v); }
+    });
+  }
+  const n = P.items.length;
+  if (n) {
+    const ip = (short ? storySeg(p, 0.32, 0.62) : storySeg(p, 0.66, 0.88)) * n;
+    P.items.forEach((item, k) => {
+      const v = storyClamp(ip - k).toFixed(3);
+      if (item.__v !== v) { item.__v = v; item.style.setProperty('--v', v); }
+    });
+  }
+}
+
+function startStoryVideo(modal) {
+  const video = modal.querySelector('video[data-src]');
+  if (!video) return;
+  if (!video.getAttribute('src')) video.src = video.dataset.src;
+  video.play().catch(() => {});
+}
+
+function refreshStoryScroll() {
   const scroller = document.getElementById('story-modal-scroller');
-  if (!scroller) return;
+  const modal = document.getElementById('story-modal');
+  if (!scroller || !modal) return;
+  const panel = modal.querySelector('.story-modal-panel');
+  const base = scroller.getBoundingClientRect().top;
+  const vh = scroller.clientHeight || window.innerHeight || 1;
+  const open = modal.classList.contains('open');
 
-  const chapters = Array.from(scroller.querySelectorAll('.story-chapter'));
-  const links = Array.from(scroller.querySelectorAll('.story-chapter-link'));
-  if (!chapters.length) return;
+  // 1. pinned intro
+  const hero = scroller.querySelector('#story-parallax-hero');
+  let heroBottom = 0;
+  if (hero) {
+    const rect = hero.getBoundingClientRect();
+    const top = rect.top - base;
+    heroBottom = top + rect.height;
+    const travel = Math.max(1, rect.height - vh);
+    if (heroBottom > 0) paintStoryIntro(hero, storyClamp(-top / travel));
+    // the background video only plays while the scene is on screen
+    const video = hero.querySelector('video');
+    if (video && video.getAttribute('src')) {
+      if (open && heroBottom > 0) { if (video.paused) video.play().catch(() => {}); }
+      else if (!video.paused) video.pause();
+    }
+  }
 
-  const mark = scroller.getBoundingClientRect().top + Math.min(160, scroller.clientHeight * 0.28);
-  let current = chapters[0].id;
-  chapters.forEach((chapter) => {
-    if (chapter.getBoundingClientRect().top <= mark) current = chapter.id;
+  // 2. chapters: parallax value and the current one
+  const chapters = [...scroller.querySelectorAll('.story-chapter')];
+  const mark = vh * 0.45;
+  let current = -1;
+  chapters.forEach((chapter, i) => {
+    const rect = chapter.getBoundingClientRect();
+    const top = rect.top - base;
+    if (top < vh && top + rect.height > 0) {
+      chapter.style.setProperty('--cp', storyClamp((vh - top) / (vh + rect.height)).toFixed(3));
+    }
+    if (top <= mark) current = i;
   });
-  links.forEach((link) => {
-    const on = link.dataset.storyTarget === current;
+  const currentId = current >= 0 ? chapters[current].id : '';
+  scroller.querySelectorAll('.story-chapter-link').forEach((link) => {
+    const on = link.dataset.storyTarget === currentId;
     link.classList.toggle('is-current', on);
     if (on) link.setAttribute('aria-current', 'true');
     else link.removeAttribute('aria-current');
   });
+  const past = !hero || heroBottom < vh * 0.55;
+  scroller.querySelector('.story-chapters')?.classList.toggle('is-shown', past);
+
+  // 3. panel: reading progress and the ambient glow that follows the figure side
+  if (panel) {
+    const max = Math.max(1, scroller.scrollHeight - scroller.clientHeight);
+    panel.style.setProperty('--sp', storyClamp(scroller.scrollTop / max).toFixed(4));
+    panel.classList.toggle('is-past-intro', past);
+    panel.style.setProperty('--amb-x', current % 2 === 1 ? '72%' : '28%');
+  }
 }
 
-function scheduleStoryPrompterRefresh() {
-  window.cancelAnimationFrame(storyScrollRaf);
+let storyScrollRaf = 0;
+function scheduleStoryScrollRefresh() {
+  if (storyScrollRaf) return;
   storyScrollRaf = window.requestAnimationFrame(() => {
-    refreshStoryPrompter();
-    refreshStoryParallax();
+    storyScrollRaf = 0;
+    refreshStoryScroll();
   });
 }
+// Names kept for other callers.
+const refreshStoryPrompter = refreshStoryScroll;
+const refreshStoryParallax = refreshStoryScroll;
+const updateStoryScrollCue = refreshStoryScroll;
 
-const STORY_PARALLAX_LAYERS = [
-  { selector: '[data-parallax-layer="1"]', max: 70 },
-  { selector: '[data-parallax-layer="2"]', max: 55 },
-  { selector: '[data-parallax-layer="3"]', max: 40 },
-  { selector: '[data-parallax-layer="4"]', max: 10 }
-];
-
-function refreshStoryParallax() {
+function storyScrollTo(top) {
   const scroller = document.getElementById('story-modal-scroller');
-  const hero = document.getElementById('story-parallax-hero');
-  if (!scroller || !hero) return;
-
-  const heroHeight = hero.offsetHeight || 1;
-  const progress = Math.max(0, Math.min(1, scroller.scrollTop / heroHeight));
-
-  STORY_PARALLAX_LAYERS.forEach(({ selector, max }) => {
-    const els = hero.querySelectorAll(selector);
-    els.forEach((el) => {
-      el.style.transform = `translate3d(0, ${(progress * max).toFixed(2)}%, 0)`;
-    });
-  });
+  if (!scroller) return;
+  scroller.scrollTo({ top: Math.max(0, top), behavior: storyReduceMotion() ? 'auto' : 'smooth' });
 }
 
-function alignStoryStartToFocus() {
+function storyScrollToChapter(id) {
   const scroller = document.getElementById('story-modal-scroller');
-  const firstLine = scroller?.querySelector('.story-line');
-  if (!scroller || !firstLine) return;
-
-  const focusY = scroller.clientHeight * 0.46;
-  const targetScrollTop = Math.max(
-    0,
-    firstLine.offsetTop + (firstLine.offsetHeight / 2) - focusY
-  );
-
-  scroller.scrollTop = targetScrollTop;
-}
-
-function updateStoryScrollCue() {
-  const scroller = document.getElementById('story-modal-scroller');
-  const cue = document.getElementById('story-scroll-cue');
-  if (!scroller || !cue) return;
-
-  cue.classList.toggle('hidden', scroller.scrollTop > 24);
-}
-
-function scrollStoryDown() {
-  const scroller = document.getElementById('story-modal-scroller');
-  const target = scroller?.querySelector('.story-chapter');
+  const target = id && document.getElementById(id);
   if (!scroller || !target) return;
   const nav = scroller.querySelector('.story-chapters');
   const bar = nav && getComputedStyle(nav).flexDirection === 'row';
-  const offset = bar ? nav.getBoundingClientRect().height + 16 : 24;
-  const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - offset;
-  scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  const offset = bar ? nav.getBoundingClientRect().height + 16 : 0;
+  storyScrollTo(target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - offset);
+}
+
+// "Scroll" cue: play the pinned intro to the chapter index (the reader then picks a chapter or keeps going).
+function scrollStoryDown() {
+  const scroller = document.getElementById('story-modal-scroller');
+  const hero = scroller?.querySelector('#story-parallax-hero');
+  if (!scroller || !hero || storyReduceMotion()) {
+    const first = scroller?.querySelector('.story-chapter');
+    if (first) storyScrollToChapter(first.id);
+    return;
+  }
+  const travel = Math.max(1, hero.offsetHeight - scroller.clientHeight);
+  storyScrollTo(hero.offsetTop + travel * 0.92);
 }
 
 // Focus for the two full-screen dialogs: move it in on open, keep Tab inside,
@@ -532,37 +1000,39 @@ const modalFocus = (() => {
   };
 })();
 
+let storyOpeningTimer = 0;
+function playStoryOpening(modal) {
+  window.clearTimeout(storyOpeningTimer);
+  modal.classList.remove('is-opening');
+  if (storyReduceMotion()) return;
+  void modal.offsetWidth; // restart the keyframes on a second open
+  modal.classList.add('is-opening');
+  storyOpeningTimer = window.setTimeout(() => modal.classList.remove('is-opening'), 2300);
+}
+
 function openStoryModal() {
   const modal = document.getElementById('story-modal');
   const scroller = document.getElementById('story-modal-scroller');
   if (!modal || !scroller) return;
 
   renderStoryModalContent();
+  playStoryOpening(modal);
   modal.classList.add('open');
-  // Lazy-start the background video only when the modal actually opens
-  const storyVideo = modal.querySelector('video[data-src]');
-  if (storyVideo && !storyVideo.src) {
-    storyVideo.src = storyVideo.dataset.src;
-    storyVideo.play().catch(() => {});
-  } else if (storyVideo) {
-    storyVideo.play().catch(() => {});
-  }
+  // the background video starts only when the story actually opens
+  startStoryVideo(modal);
   scroller.scrollTop = 0;
   syncPageLock();
   modalFocus.open(modal, modal.querySelector('.story-modal-close'));
-  updateStoryScrollCue();
-  refreshStoryParallax();
-  window.setTimeout(() => {
-    refreshStoryPrompter();
-    refreshStoryParallax();
-  }, 40);
+  refreshStoryScroll();
+  window.setTimeout(refreshStoryScroll, 40);
 }
 
 function closeStoryModal() {
   const modal = document.getElementById('story-modal');
   if (!modal) return;
 
-  modal.classList.remove('open');
+  modal.classList.remove('open', 'is-opening');
+  window.clearTimeout(storyOpeningTimer);
   const storyVideo = modal.querySelector('video[data-src]');
   if (storyVideo) {
     try { storyVideo.pause(); } catch {}
@@ -573,9 +1043,9 @@ function closeStoryModal() {
   modalFocus.close(modal);
 }
 
-document.getElementById('story-modal-scroller')?.addEventListener('scroll', () => {
-  scheduleStoryPrompterRefresh();
-  updateStoryScrollCue();
+document.getElementById('story-modal-scroller')?.addEventListener('scroll', scheduleStoryScrollRefresh, { passive: true });
+window.addEventListener('resize', () => {
+  if (document.getElementById('story-modal')?.classList.contains('open')) scheduleStoryScrollRefresh();
 }, { passive: true });
 document.getElementById('story-modal-scroller')?.addEventListener('click', (event) => {
   if (event.target.closest('#story-scroll-cue')) {
@@ -583,18 +1053,11 @@ document.getElementById('story-modal-scroller')?.addEventListener('click', (even
     scrollStoryDown();
     return;
   }
-  const link = event.target.closest('.story-chapter-link');
+  const link = event.target.closest('[data-story-target]');
   if (!link) return;
   event.preventDefault();
   event.stopPropagation();
-  const scroller = document.getElementById('story-modal-scroller');
-  const target = document.getElementById(link.dataset.storyTarget || '');
-  if (!scroller || !target) return;
-  const nav = scroller.querySelector('.story-chapters');
-  const bar = nav && getComputedStyle(nav).flexDirection === 'row';
-  const offset = bar ? nav.getBoundingClientRect().height + 16 : 24;
-  const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - offset;
-  scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  storyScrollToChapter(link.dataset.storyTarget || '');
 });
 document.getElementById('story-modal')?.addEventListener('click', (event) => {
   if (event.target === event.currentTarget) closeStoryModal();

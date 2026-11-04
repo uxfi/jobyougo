@@ -36,6 +36,69 @@
     return sharedDracoLoader;
   }
 
+  const APPEAR_MS = 1150;
+
+  /* Loader overlay of a stage (the hero's .h3l). It shows the real share of the GLB downloaded, eased so the
+     number climbs instead of jumping, and falls back to an indeterminate comet when the size is unknown.
+     Every method is a no-op without an element, so stages without a loader are unchanged. */
+  function createStageLoaderUi(stage, el) {
+    const pctEl = el ? el.querySelector('.h3l-pct') : null;
+    const nameEl = el ? el.querySelector('.h3l-name') : null;
+    let shown = 0;
+    let target = 0;
+    let raf = 0;
+    const paint = () => {
+      raf = 0;
+      shown += (target - shown) * 0.18;
+      if (Math.abs(target - shown) < 0.002) shown = target;
+      el.style.setProperty('--p', shown.toFixed(3));
+      if (pctEl) pctEl.textContent = String(Math.round(shown * 100));
+      if (shown !== target) raf = requestAnimationFrame(paint);
+    };
+    const setTarget = (value) => {
+      target = Math.max(target, Math.min(1, value));
+      if (!raf) raf = requestAnimationFrame(paint);
+    };
+    return {
+      start(variant) {
+        stage.classList.add('is-loading');
+        if (!el) return;
+        cancelAnimationFrame(raf);
+        raf = 0;
+        shown = 0;
+        target = 0;
+        el.style.setProperty('--p', '0');
+        if (pctEl) pctEl.textContent = '0';
+        el.dataset.variant = variant.id;
+        if (nameEl) nameEl.textContent = variant.label;
+        el.classList.remove('is-indeterminate');
+        el.dataset.state = 'loading';
+      },
+      progress(ratio) {
+        if (!el) return;
+        if (ratio < 0) { el.classList.add('is-indeterminate'); return; }
+        el.classList.remove('is-indeterminate');
+        setTarget(ratio * 0.96); // the last 4% is parsing and the first frame
+      },
+      done() {
+        stage.classList.remove('is-loading');
+        if (!el) return;
+        el.classList.remove('is-indeterminate');
+        setTarget(1);
+        el.dataset.state = 'done';
+      },
+      fail(keepPrevious) {
+        stage.classList.remove('is-loading');
+        if (!el) return;
+        el.dataset.state = keepPrevious ? 'done' : 'error';
+      },
+      dispose() {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      },
+    };
+  }
+
   function createStage3D(THREE, ArcballControls, GLTFLoader, DRACOLoader, options) {
     const {
       stage,
@@ -49,7 +112,10 @@
       targetSize = 2.1,
       rimColor = 0x9fffd1,
       fillColor = 0xbcd4ff,
+      loaderEl = null,
     } = options;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const loaderUi = createStageLoaderUi(stage, loaderEl);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
@@ -135,6 +201,9 @@
       const maxDim = Math.max(size.x, size.y, size.z);
       nextModel.scale.setScalar(targetSize / maxDim);
       nextModel.userData.baseY = nextModel.position.y;
+      nextModel.userData.baseScale = targetSize / maxDim;
+      // materialise: animate() grows it from 78% with a short spin over APPEAR_MS
+      nextModel.userData.appearAt = reduceMotion ? 0 : performance.now();
     }
 
     function applyVariantLighting(variant) {
@@ -150,6 +219,7 @@
       const src = String(variant.src || '').replace(/^\.\.\/images\//, '/images/');
       applyVariantLighting(variant);
       updateObjectSwitch(variant, true);
+      loaderUi.start(variant);
       loader.load(
         src,
         (gltf) => {
@@ -157,6 +227,7 @@
             disposeObject(gltf.scene);
             return;
           }
+          loaderUi.done();
           if (model) {
             scene.remove(model);
             disposeObject(model);
@@ -168,9 +239,13 @@
           try { localStorage.setItem(storageKey, variant.id); } catch {}
           updateObjectSwitch(variant, false);
         },
-        undefined,
+        (xhr) => {
+          if (token !== loadToken) return;
+          loaderUi.progress(xhr && xhr.lengthComputable && xhr.total ? xhr.loaded / xhr.total : -1);
+        },
         (err) => {
           console.error(`Stage 3D: failed to load ${variant.id}`, err);
+          if (token === loadToken) loaderUi.fail(Boolean(model));
           updateObjectSwitch(currentVariant, false);
         }
       );
@@ -231,8 +306,18 @@
       lastFrame = time;
       const t = clock.getElapsedTime();
       if (model) {
-        model.position.y = model.userData.baseY + Math.sin(t * 1.6) * 0.08;
-        model.rotation.y = t * 0.18;
+        let grow = 1;
+        const appearAt = model.userData.appearAt;
+        if (appearAt) {
+          const k = Math.min(1, (performance.now() - appearAt) / APPEAR_MS);
+          grow = 1 - Math.pow(1 - k, 4); // ease-out quart
+          if (k >= 1) model.userData.appearAt = 0;
+          // run at full rate while it materialises, the idle 30 fps cap would make it stutter
+          lastFrame = 0;
+        }
+        model.scale.setScalar(model.userData.baseScale * (0.78 + 0.22 * grow));
+        model.position.y = model.userData.baseY + Math.sin(t * 1.6) * 0.08 - (1 - grow) * 0.35;
+        model.rotation.y = t * 0.18 - (1 - grow) * 1.6;
       }
       controls.update();
       renderer.render(scene, camera);
@@ -284,6 +369,7 @@
         window.removeEventListener('pointercancel', onPointerUp);
         objectSwitch?.removeEventListener('click', onSwitchClick);
         toggle?.removeEventListener('change', onToggleChange);
+        loaderUi.dispose();
         if (model) {
           scene.remove(model);
           disposeObject(model);
@@ -1165,11 +1251,29 @@
 
   // Hero 3D waits until Selected work has painted — work list is the critical path.
   const heroStage = document.getElementById('hero-3d-stage');
-  if (heroStage && !isHeroHidden3D()) {
+  const heroLoader = document.getElementById('hero-3d-loader');
+  if (heroStage && isHeroHidden3D()) {
+    // no 3D on tablets and phones: the loader has nothing to wait for
+    heroStage.classList.remove('is-loading');
+    if (heroLoader) heroLoader.dataset.state = 'error';
+  } else if (heroStage) {
+    // Paint the loader in the colour of the shape that will load, before three.js arrives.
+    try {
+      const saved = localStorage.getItem('hero3dObjectV2');
+      if (heroLoader && saved === 'emerald') {
+        heroLoader.dataset.variant = 'emerald';
+        const name = heroLoader.querySelector('.h3l-name');
+        if (name) name.textContent = 'Emerald';
+      }
+    } catch {}
+    let heroStarted = false;
     const startHero = () => {
+      if (heroStarted) return;
+      heroStarted = true;
       scheduleStage3DInit(() => {
         window.mountStage3D({
           stage: heroStage,
+          loaderEl: heroLoader,
           toggle: document.getElementById('hero-shape-toggle-check'),
           toggleWrap: document.getElementById('hero-shape-toggle'),
           storageKey: 'hero3dObjectV2',
@@ -1178,6 +1282,11 @@
             { id: 'emerald', label: 'Emerald', src: '/images/hero-emerald.v4.glb', exposure: 5.4, ambient: 6.2, key: 8.6, rim: 6.8, fill: 4.4 },
             { id: 'sunstone', label: 'Sunstone', src: '/images/hero-sunstone.v4.glb', exposure: 2.2, ambient: 1.2, key: 3.4, rim: 2.1, fill: 1.2 },
           ],
+        }).catch((err) => {
+          // three.js could not load (offline CDN, no WebGL): drop the loader instead of spinning forever
+          console.error('Stage 3D: hero did not start', err);
+          heroStage.classList.remove('is-loading');
+          if (heroLoader) heroLoader.dataset.state = 'error';
         });
       });
     };

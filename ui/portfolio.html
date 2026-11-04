@@ -754,6 +754,119 @@
       display: block;
       width: 100% !important;
       height: 100% !important;
+      transition: opacity 700ms cubic-bezier(.22,1,.36,1), filter 700ms cubic-bezier(.22,1,.36,1);
+    }
+    /* While a GLB loads (first paint or a shape switch) the previous shape steps back behind the loader */
+    .hero-3d-stage.is-loading canvas { opacity: .16; filter: blur(8px) saturate(.6); }
+
+    /* ── HERO 3D LOADER (2026-11-04): a cut gem drawn in hairlines, a light sweep across its facets and a
+       ring filled by the real download progress of the GLB. Colour follows the shape being loaded. ── */
+    .hero-3d-stage { position: relative; }
+    .h3l {
+      --c: #ffce86;
+      --c-glow: rgba(255, 156, 86, .45);
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      color: var(--c);
+      pointer-events: none;
+      transition: opacity 620ms cubic-bezier(.22,1,.36,1), transform 820ms cubic-bezier(.22,1,.36,1), filter 620ms ease;
+    }
+    .h3l[data-variant="emerald"] { --c: #7af2c4; --c-glow: rgba(87, 242, 189, .45); }
+    .h3l[data-state="done"], .h3l[data-state="error"] {
+      opacity: 0;
+      transform: scale(1.18);
+      filter: blur(6px);
+    }
+    .h3l-svg {
+      --h3l-size: clamp(150px, 13vw, 200px);
+      display: block;
+      width: var(--h3l-size);
+      height: var(--h3l-size);
+      overflow: visible;
+      filter: drop-shadow(0 0 18px var(--c-glow));
+    }
+    /* SVG transform-origin: "center" alone resolves against the viewBox placed at (0,0), i.e. (70,70) here, so
+       the rings rotated around a point off the gem. fill-box makes "center" the circle's own centre. */
+    .h3l-ticks, .h3l-arc { transform-box: fill-box; transform-origin: 50% 50%; }
+    .h3l-ticks {
+      stroke: currentColor;
+      stroke-opacity: .28;
+      stroke-width: 1;
+      stroke-dasharray: 1 5.07;
+      animation: h3l-spin 22s linear infinite;
+    }
+    .h3l-track { stroke: rgba(255,255,255,.08); stroke-width: 1; }
+    .h3l-arc {
+      stroke: currentColor;
+      stroke-width: 1.4;
+      stroke-linecap: round;
+      stroke-dasharray: 100;
+      stroke-dashoffset: calc(100 - var(--p) * 100);
+      transform: rotate(-90deg);
+      transition: stroke-dashoffset 260ms linear;
+    }
+    /* no byte count (gzip, no Content-Length): the arc becomes a short comet going round */
+    .h3l.is-indeterminate .h3l-arc {
+      stroke-dasharray: 18 82;
+      stroke-dashoffset: 0;
+      animation: h3l-comet 1.6s cubic-bezier(.45,.05,.55,.95) infinite;
+    }
+    .h3l-float { animation: h3l-float 3.2s ease-in-out infinite; }
+    .h3l-edge {
+      stroke: currentColor;
+      stroke-width: 1.1;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      stroke-dasharray: 1;
+      stroke-dashoffset: 1;
+      animation: h3l-draw 1.1s cubic-bezier(.65,0,.35,1) calc(var(--i) * 140ms) forwards;
+    }
+    .h3l-facet {
+      fill: currentColor;
+      opacity: 0;
+      animation: h3l-facet 2.4s ease-in-out calc(1s + var(--i) * 260ms) infinite;
+    }
+    .h3l-sweep { animation: h3l-sweep 2.4s cubic-bezier(.45,0,.2,1) 1s infinite; opacity: 0; }
+    /* out of the grid flow so the gem and its ring sit exactly on the stage centre, where the model appears;
+       the label hangs under the ring (r 58 of the 70 half viewBox) */
+    .h3l-meta {
+      position: absolute;
+      left: 50%;
+      top: calc(50% + clamp(150px, 13vw, 200px) * .42 + 14px);
+      transform: translateX(-50%);
+      white-space: nowrap;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-family: 'JetBrains Mono', ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.62);
+    }
+    .h3l-name { color: var(--c); }
+    .h3l-pct { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
+    .h3l-pct::after { content: '%'; opacity: .5; margin-left: 1px; }
+    .h3l.is-indeterminate .h3l-pct { visibility: hidden; }
+    @keyframes h3l-spin { to { transform: rotate(360deg); } }
+    @keyframes h3l-comet { to { stroke-dashoffset: -100; } }
+    @keyframes h3l-draw { to { stroke-dashoffset: 0; } }
+    @keyframes h3l-float { 0%, 100% { transform: translateY(2px); } 50% { transform: translateY(-3px); } }
+    @keyframes h3l-facet { 0%, 100% { opacity: 0; } 35% { opacity: .22; } 60% { opacity: .06; } }
+    @keyframes h3l-sweep {
+      0% { opacity: 0; transform: translateX(0); }
+      15% { opacity: 1; }
+      70%, 100% { opacity: 0; transform: translateX(120px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .h3l-ticks, .h3l-float, .h3l-facet, .h3l-sweep, .h3l.is-indeterminate .h3l-arc { animation: none; }
+      .h3l-edge { animation: none; stroke-dashoffset: 0; }
+      .h3l-facet { opacity: .1; }
+      .h3l, .hero-3d-stage canvas { transition-duration: 1ms; }
     }
     /* ── HERO SHAPE TOGGLE (sits just below the floating 3D shape) ── */
     .hero-shape-switch {
@@ -2455,437 +2568,8 @@
     .story-modal-scroller::-webkit-scrollbar {
       display: none;
     }
-    .story-modal-track {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 56px 48px 18vh;
-    }
-    .story-line {
-      --story-visibility: .12;
-      margin: 0;
-      padding: 18px 0;
-      font-family: var(--font-display);
-      font-size: clamp(34px, 4.4vw, 72px);
-      font-weight: 700;
-      line-height: .98;
-      letter-spacing: -.05em;
-      color: rgba(255,255,255,.86);
-      text-align: center;
-      text-wrap: balance;
-      opacity: calc(.12 + (var(--story-visibility) * .88));
-      transform: translateY(calc((1 - var(--story-visibility)) * 18px)) scale(calc(.94 + (var(--story-visibility) * .06)));
-      transition: opacity 120ms linear, transform 120ms linear, color 120ms linear;
-    }
-    .story-line.is-focus {
-      color: #fff;
-    }
-    .story-line strong,
-    .story-line em {
-      color: #4db88a;
-      font-style: normal;
-      font-weight: 700;
-    }
-    .story-sheet {
-      display: block;
-    }
-    .story-chapter {
-      display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
-      gap: 36px;
-      align-items: center;
-      padding: 64px 0 28px;
-      border-top: 1px solid rgba(255,255,255,.12);
-    }
-    .story-chapter:nth-child(even) .story-fig { order: 2; }
-    .story-fig {
-      position: relative;
-      aspect-ratio: 1 / .92;
-      margin: 0;
-      background: #111;
-      border: 1px solid rgba(255,255,255,.11);
-      border-radius: 18px;
-      overflow: hidden;
-      cursor: pointer;
-    }
-    .story-fig:focus-visible {
-      outline: 1.5px solid #4db88a;
-      outline-offset: 3px;
-    }
-    .story-fig svg {
-      position: absolute;
-      inset: 44px 8px;
-      width: calc(100% - 16px);
-      height: calc(100% - 88px);
-    }
-    .story-fig svg * { vector-effect: non-scaling-stroke; }
-    .story-fig-lbl {
-      position: absolute;
-      font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: 11px;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,.42);
-    }
-    .story-fig-lbl.tl { top: 16px; left: 18px; text-transform: none; }
-    .story-fig-lbl.tr { top: 16px; right: 18px; }
-    .story-fig-lbl.bl { bottom: 14px; left: 18px; }
-    .story-fig-lbl.br { bottom: 14px; right: 18px; text-transform: none; color: #4db88a; }
-    .story-chapter-copy .story-chapter-label {
-      margin: 0 0 18px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,.42);
-    }
-    .story-chapter-title {
-      margin: 0 0 22px;
-      max-width: 18ch;
-      font-family: var(--font-display);
-      font-size: clamp(32px, 3.2vw, 48px);
-      font-weight: 600;
-      line-height: 1.02;
-      letter-spacing: -.045em;
-      color: #fff;
-    }
-    .story-chapter-copy p {
-      margin: 0 0 14px;
-      max-width: 58ch;
-      font-size: 16px;
-      line-height: 1.65;
-      color: rgba(255,255,255,.68);
-    }
-    .story-chapter-copy p strong {
-      color: #fff;
-      font-weight: 600;
-    }
-    .story-chapters {
-      position: fixed;
-      right: 28px;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 5;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 2px;
-      padding-top: 0;
-    }
-    .story-chapter-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 10px;
-      padding: 8px 0;
-      border: 0;
-      background: transparent;
-      color: rgba(255,255,255,.34);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-    .story-chapter-link span {
-      font-variant-numeric: tabular-nums;
-      letter-spacing: .04em;
-    }
-    .story-chapter-link.is-current {
-      color: #fff;
-    }
-    .story-chapter-link.is-current::after {
-      content: '';
-      width: 28px;
-      height: 1px;
-      background: #4db88a;
-    }
-    @media (max-width: 1400px) and (min-width: 901px) {
-      .story-modal-track { padding-right: 168px; }
-    }
-    .story-inline-logos {
-      display: inline-flex;
-      align-items: center;
-      gap: 14px;
-      vertical-align: middle;
-      margin: 0 6px;
-    }
-    .story-inline-logo {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: .08em .34em;
-      border-radius: 999px;
-      background: rgba(255,255,255,.96);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
-      line-height: 0;
-    }
-    .story-inline-logo img {
-      display: block;
-      height: 1.08em;
-      width: auto;
-      max-width: 5.6em;
-      object-fit: contain;
-    }
-    .story-inline-emoji-img {
-      display: inline-flex;
-      align-items: center;
-      vertical-align: -0.08em;
-    }
-    .story-inline-emoji-img img {
-      display: block;
-      width: 1em;
-      height: 1em;
-      object-fit: contain;
-      border-radius: 999px;
-    }
-    .story-contact-wrap {
-      padding-top: 30px;
-      display: flex;
-      justify-content: center;
-    }
-    .story-contact-stack {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: min(420px, 100%);
-    }
-    .story-contact-email {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 14px;
-      font-size: 15px;
-      letter-spacing: .02em;
-      color: rgba(255,255,255,.68);
-      text-decoration: none;
-      width: auto;
-      max-width: 100%;
-    }
-    .story-contact-email:hover {
-      color: #fff;
-    }
-    .story-contact-email svg {
-      flex-shrink: 0;
-      opacity: .8;
-    }
-    .story-contact-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 18px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: #fff;
-      color: #09090d;
-      text-decoration: none;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
-      margin: 0 auto;
-    }
-    .story-contact-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 12px 28px rgba(0,0,0,.24);
-      background: #f3f3f3;
-    }
-    .story-contact-btn--ghost {
-      margin-top: 10px;
-      background: transparent;
-      color: #fff;
-      border-color: rgba(255,255,255,.28);
-    }
-    .story-contact-btn--ghost:hover {
-      background: rgba(255,255,255,.1);
-      color: #fff;
-    }
-    .story-modal-fade {
-      position: absolute;
-      left: 0;
-      right: 0;
-      z-index: 2;
-      pointer-events: none;
-    }
-    .story-modal-fade-top {
-      top: 0;
-      height: 14%;
-      background: linear-gradient(180deg, rgba(9,9,13,.55), rgba(9,9,13,0));
-    }
-    .story-modal-fade-bottom {
-      bottom: 0;
-      height: 22%;
-      background: linear-gradient(0deg, rgba(9,9,13,.98), rgba(9,9,13,0));
-    }
-    .story-scroll-cue {
-      position: absolute;
-      left: 50%;
-      bottom: 22px;
-      z-index: 3;
-      transform: translateX(-50%);
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      color: rgba(255,255,255,.54);
-      opacity: 1;
-      transition: opacity 180ms ease, transform 180ms ease;
-      pointer-events: none;
-    }
-    .story-scroll-cue.hidden {
-      opacity: 0;
-      transform: translateX(-50%) translateY(6px);
-    }
-    .story-scroll-cue-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-    }
-    .story-scroll-cue-arrow {
-      width: 28px;
-      height: 28px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.04);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      animation: story-cue-bounce 1.6s ease-in-out infinite;
-    }
-    @keyframes story-cue-bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(4px); }
-    }
-
-    /* ── STORY PARALLAX HERO ── */
-    .story-parallax-hero {
-      position: relative;
-      width: 100%;
-      max-width: none;
-      margin: 0;
-      height: 100vh;
-      overflow: hidden;
-      background: #09090d;
-      pointer-events: none;
-    }
-    .story-parallax-layers {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      transform-style: preserve-3d;
-    }
-    .story-parallax-layer {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      will-change: transform;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .story-parallax-layer-img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
-      user-select: none;
-      -webkit-user-drag: none;
-    }
-    .story-parallax-title-wrap {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      will-change: transform;
-      pointer-events: none;
-      z-index: 2;
-    }
-    .story-parallax-title {
-      font-family: var(--font-display);
-      font-size: clamp(52px, 9vw, 156px);
-      font-weight: 600;
-      line-height: .95;
-      letter-spacing: -.05em;
-      color: #fff;
-      margin: 0;
-      text-align: center;
-      text-shadow: 0 16px 60px rgba(0,0,0,.45);
-      max-width: min(1200px, 92vw);
-      text-wrap: balance;
-    }
-    .story-parallax-title em {
-      font-style: normal;
-      color: #4db88a;
-    }
-    .story-parallax-fade {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 40%;
-      background: linear-gradient(0deg, #09090d 0%, rgba(9,9,13,.6) 55%, rgba(9,9,13,0) 100%);
-      pointer-events: none;
-      z-index: 3;
-    }
-    .story-parallax-cue {
-      position: absolute;
-      left: 50%;
-      bottom: 32px;
-      transform: translateX(-50%);
-      z-index: 4;
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      margin: 0;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: rgba(255,255,255,.7);
-      font: inherit;
-      cursor: pointer;
-      pointer-events: auto;
-      transition: color 180ms ease, opacity 180ms ease;
-    }
-    .story-parallax-cue:hover { color: #fff; }
-    .story-parallax-cue:hover .story-parallax-cue-dot {
-      border-color: rgba(157,255,209,.55);
-      background: rgba(255,255,255,.1);
-    }
-    .story-parallax-cue.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .story-parallax-cue-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .22em;
-      text-transform: uppercase;
-    }
-    .story-parallax-cue-dot {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.18);
-      background: rgba(255,255,255,.05);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      animation: story-cue-bounce 1.6s ease-in-out infinite;
-    }
-    @media (max-width: 768px) {
-      .story-parallax-hero { height: 80vh; }
-      .story-parallax-title { font-size: clamp(40px, 8vw, 96px); }
-    }
-    @media (max-width: 480px) {
-      .story-parallax-hero { height: 70vh; }
-      .story-parallax-title { font-size: clamp(32px, 9.5vw, 64px); letter-spacing: -.03em; }
-      .story-parallax-cue { bottom: 22px; }
-    }
+    /* Everything inside the story modal (track, pinned intro, chapters, figures, contact) is in
+       /portfolio/story.css since 2026-11-04; only the shell above stays inline. */
 
     /* ── INTERFACE MODAL ── */
     #iface-modal {
@@ -7505,21 +7189,6 @@
       .story-modal-panel { border-radius: 0; }
       .story-modal-close { top: 16px; right: 16px; }
       .story-modal-scroller { padding: 0; }
-      .story-modal-track { padding: 40px 24px 16vh; }
-      .story-sheet { grid-template-columns: 1fr; gap: 8px; }
-      .story-chapters { display: none; }
-      .story-chapter {
-        grid-template-columns: 1fr;
-        gap: 18px;
-        padding-top: 48px;
-      }
-      .story-chapter:nth-child(even) .story-fig { order: 0; }
-      .story-fig { aspect-ratio: 4 / 3; }
-      .story-scroll-cue { bottom: 18px; }
-      .story-contact-stack { width: min(460px, 100%); }
-      .story-inline-logos { gap: 12px; }
-      .story-inline-logo { padding: .07em .3em; }
-      .story-inline-logo img { height: 1.08em; max-width: 5.4em; }
     }
 
     /* ── RESPONSIVE — mobile (≤ 480px) ── */
@@ -7715,30 +7384,6 @@
       .story-modal-panel { border-radius: 0; }
       .story-modal-close { top: 14px; right: 14px; }
       .story-modal-scroller { padding: 0; }
-      .story-modal-track { padding: 28px 16px 14vh; }
-      .story-chapter-title { font-size: clamp(32px, 9vw, 48px); }
-      .story-line { font-size: clamp(28px, 10vw, 48px); }
-      .story-scroll-cue {
-        bottom: 14px;
-        gap: 6px;
-      }
-      .story-inline-logos {
-        gap: 10px;
-        margin: 0 4px;
-      }
-      .story-inline-logo { padding: .06em .26em; }
-      .story-inline-logo img {
-        height: 1.02em;
-        max-width: 5em;
-      }
-      .story-scroll-cue-label { font-size: 9px; }
-      .story-scroll-cue-arrow {
-        width: 24px;
-        height: 24px;
-      }
-      .story-contact-wrap { padding-top: 24px; }
-      .story-contact-stack { width: 100%; }
-      .story-contact-email { font-size: 14px; }
 
       /* Project detail */
       .proj-hero { padding: 80px 16px 24px; }
@@ -8574,6 +8219,9 @@
 </style>
 <!-- Vercel Web Analytics (@vercel/analytics, HTML form: the site is a Node server, not Next.js). Skipped on localhost. -->
 <script>if(!["localhost","127.0.0.1","[::1]"].includes(location.hostname)){window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};var s=document.createElement("script");s.defer=true;s.src="/_vercel/insights/script.js";document.head.appendChild(s);}</script>
+<!-- Story modal styles: not needed for first paint, loaded without blocking it -->
+<link rel="stylesheet" href="/portfolio/story.css?v=20261104a" media="print" onload="this.media='all'; this.onload=null;">
+<noscript><link rel="stylesheet" href="/portfolio/story.css?v=20261104a"></noscript>
 </head>
 <body>
 
@@ -8792,7 +8440,42 @@
     <div class="hero-aurora"><div class="hero-aurora-mid"></div></div>
     <video class="hero-video" id="hero-bg" src="../images/hero-loop.mp4" poster="../images/hero-loop-poster.jpg" aria-hidden="true" autoplay muted loop playsinline preload="auto" disablepictureinpicture></video>
     <div class="hero-3d">
-      <div class="hero-3d-stage" id="hero-3d-stage" aria-hidden="true"></div>
+      <div class="hero-3d-stage is-loading" id="hero-3d-stage" aria-hidden="true">
+        <!-- Shown until the GLB is in the scene (stage3d.js drives data-state, data-variant and --p) -->
+        <div class="h3l" id="hero-3d-loader" data-state="loading" data-variant="sunstone" style="--p:0">
+          <svg class="h3l-svg" viewBox="-70 -70 140 140" fill="none">
+            <defs>
+              <clipPath id="h3l-clip"><path d="M-18,-22 L18,-22 L34,-8 L0,34 L-34,-8 Z"/></clipPath>
+              <linearGradient id="h3l-sweep" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="currentColor" stop-opacity="0"/>
+                <stop offset=".5" stop-color="currentColor" stop-opacity=".55"/>
+                <stop offset="1" stop-color="currentColor" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <circle class="h3l-ticks" r="58"/>
+            <circle class="h3l-track" r="50"/>
+            <circle class="h3l-arc" r="50" pathLength="100"/>
+            <g class="h3l-float">
+              <g class="h3l-facets" clip-path="url(#h3l-clip)">
+                <path class="h3l-facet" style="--i:0" d="M-34,-8 L-18,-22 L-12,-8 Z"/>
+                <path class="h3l-facet" style="--i:1" d="M-6,-22 L0,-8 L6,-22 Z"/>
+                <path class="h3l-facet" style="--i:2" d="M12,-8 L18,-22 L34,-8 Z"/>
+                <path class="h3l-facet" style="--i:3" d="M-12,-8 L0,-8 L0,34 Z"/>
+                <path class="h3l-facet" style="--i:4" d="M12,-8 L24,-8 L6,22 L0,34 Z"/>
+                <rect class="h3l-sweep" x="-60" y="-30" width="34" height="70" fill="url(#h3l-sweep)"/>
+              </g>
+              <path class="h3l-edge" style="--i:0" pathLength="1" d="M-18,-22 L18,-22 L34,-8 L0,34 L-34,-8 Z"/>
+              <path class="h3l-edge" style="--i:1" pathLength="1" d="M-34,-8 L34,-8"/>
+              <path class="h3l-edge" style="--i:2" pathLength="1" d="M-34,-8 L-18,-22 L-12,-8 L-6,-22 L0,-8 L6,-22 L12,-8 L18,-22 L34,-8"/>
+              <path class="h3l-edge" style="--i:3" pathLength="1" d="M-12,-8 L0,34 L12,-8 M-24,-8 L-6,22 M24,-8 L6,22"/>
+            </g>
+          </svg>
+          <div class="h3l-meta">
+            <span class="h3l-name">Sunstone</span>
+            <span class="h3l-pct" aria-hidden="true">0</span>
+          </div>
+        </div>
+      </div>
       <div class="hero-shape-switch" id="hero-shape-toggle" data-object="sunstone" role="group" aria-label="Switch the 3D hero shape">
         <span class="hero-shape-switch-name hero-shape-switch-name--left">Emerald</span>
         <div class="hsw">
@@ -9669,7 +9352,7 @@
   </div>
 </div>
 
-<script src="/portfolio/story-ifaces.js?v=20261019d" defer></script>
+<script src="/portfolio/story-ifaces.js?v=20261104a" defer></script>
 <script src="/portfolio/visit-counter.js?v=20261019" defer></script>
 
 <!-- HERO 3D OBELISK + PROJECT 3D -->
