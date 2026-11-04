@@ -387,6 +387,9 @@
   .draft-suggest { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--border-strong); border-radius: 10px; font-size: 12.5px; color: var(--text-2); }
   .draft-suggest-label { font-size: 11.5px; color: var(--text-4); }
   .draft-suggest q { flex: 1 1 240px; min-width: 0; color: var(--text-1); quotes: '“' '”'; overflow-wrap: anywhere; }
+  .import-meanwhile { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 10px; padding: 12px 14px; border: 1px solid var(--accent-line); border-radius: 12px; background: rgba(var(--accent-rgb),0.05); font-size: 12.5px; color: var(--text-2); }
+  .import-meanwhile[hidden] { display: none; }
+  .import-meanwhile span { flex: 1 1 260px; min-width: 0; }
   /* Ask mode: what the CV or the stored profile already answered is folded away. */
   .is-known { display: none !important; }
   .known-bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: -8px 0 20px; padding: 10px 14px; border: 1px solid var(--border-s); border-radius: var(--radius); font-size: 12.5px; color: var(--text-3); background: rgba(var(--fg-rgb),0.015); }
@@ -521,6 +524,10 @@
         <div><strong id="cv-stage">Reading your file…</strong><span class="import-progress-meta" id="cv-elapsed" aria-hidden="true">0 s</span></div>
         <button type="button" class="btn btn-secondary" id="cv-cancel">Cancel</button>
         <div class="rail-track" aria-hidden="true"><div class="rail-fill" id="cv-progress-fill"></div></div>
+      </div>
+      <div class="import-meanwhile" id="cv-meanwhile" hidden>
+        <span>This takes up to a minute. Your CV cannot say where you can work, your salary or your deal breakers: answer those meanwhile.</span>
+        <button type="button" class="btn btn-primary" id="cv-meanwhile-btn">Answer them now</button>
       </div>
 
       <div class="alert" id="cv-alert" role="status" aria-live="polite" tabindex="-1"></div>
@@ -817,6 +824,7 @@
         <div class="field">
           <label for="notice_period">Notice period <span class="opt">optional</span></label>
           <input id="notice_period" type="text" placeholder="1 month">
+          <div class="suggest" id="notice-suggest"></div>
         </div>
         <div class="field">
           <label for="start_date">Earliest start <span class="opt">optional</span></label>
@@ -873,6 +881,7 @@
         <div class="field full" data-tags-for="search.deal_breakers">
           <label>Deal breakers <span class="opt">recommended</span></label>
           <div class="tags" data-tags-input><input class="tag-input" type="text" placeholder="4+ days on-site, no AI focus, agency work… press Enter"></div>
+          <div class="suggest" id="dealbreaker-suggest"></div>
           <div class="hint">An offer matching a deal breaker is scored 1/5.</div>
         </div>
       </div>
@@ -1525,6 +1534,29 @@
     render('role-suggest', 'target_roles.primary', state.suggestions.roles);
     render('superpower-suggest', 'narrative.superpowers', state.suggestions.superpowers);
   }
+  // One-click answers for the questions a CV never answers. They are only
+  // offered: nothing is set until the user clicks one.
+  const NOTICE_PICKS = ['Immediately', '2 weeks', '1 month', '2 months', '3 months'];
+  const DEAL_BREAKER_PICKS = ['Full on-site', 'More than 2 days on-site', 'Agency or outsourcing work', 'Unpaid test project', 'No salary range stated'];
+  function renderQuickPicks() {
+    const notice = $('notice-suggest'); notice.innerHTML = '';
+    if (!str(state.profile.availability.notice_period).trim()) {
+      NOTICE_PICKS.forEach(v => {
+        const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'chip'; chip.textContent = v;
+        chip.addEventListener('click', () => { $('notice_period').value = v; setByPath('availability.notice_period', v); scheduleDraft(); renderQuickPicks(); });
+        notice.appendChild(chip);
+      });
+    }
+    notice.style.display = notice.childElementCount ? '' : 'none';
+    const deals = $('dealbreaker-suggest'); deals.innerHTML = '';
+    const current = strList(state.profile.search.deal_breakers).map(x => x.toLowerCase());
+    DEAL_BREAKER_PICKS.filter(v => !current.includes(v.toLowerCase())).forEach(v => {
+      const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'chip'; chip.textContent = `+ ${v}`;
+      chip.addEventListener('click', () => { addTag('search.deal_breakers', v); renderQuickPicks(); });
+      deals.appendChild(chip);
+    });
+    deals.style.display = deals.childElementCount ? '' : 'none';
+  }
   // Drafted headline and story: model-written prose, so they are offered and
   // never applied without a click.
   function renderDraftSuggestions() {
@@ -1714,7 +1746,9 @@
     BINDINGS.forEach(([id, path]) => {
       const el = $(id); if (!el) return;
       const value = str(getByPath(path));
-      if (el.tagName !== 'SELECT') { el.value = value; return; }
+      // An unchanged value is not rewritten: an import finishing in the
+      // background must not move the caret of the field being typed in.
+      if (el.tagName !== 'SELECT') { if (el.value !== value) el.value = value; return; }
       if (!value && id === 'pref_language') { el.value = 'en'; return; }
       const known = [...el.options].find(o => o.value.toLowerCase() === value.toLowerCase());
       if (known) { el.value = known.value; return; }
@@ -1900,7 +1934,8 @@
     $('main-nav').style.display = n === 0 ? 'none' : 'flex';
     $('back-btn').disabled = n <= 0;
     $('next-btn').textContent = n === TOTAL_STEPS - 1 ? 'Finish setup' : 'Continue';
-    $('next-btn').disabled = n === TOTAL_STEPS - 1 && !state.loaded;
+    // Finishing waits for a running import: the CV text is what it returns.
+    $('next-btn').disabled = n === TOTAL_STEPS - 1 && (!state.loaded || Boolean(currentImport));
     $('nav-status').textContent = '';
     if (n === 0) refreshReplaceRow();
     applyAskMode(n);
@@ -1913,6 +1948,7 @@
     }
     if (n === TOTAL_STEPS - 1) { renderReview(); renderCvVersion(); }
     if (n === 2 || n === 3) renderSuggestions();
+    if (n === 5 || n === 6) renderQuickPicks();
     if (n === 3) renderDraftSuggestions();
     renderStepper();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1951,10 +1987,33 @@
     return ok;
   }
 
+  // "Paris, France" already says the country: the location step does not ask
+  // it again. A single word ("Paris") says nothing about the country.
+  function countryFromLocation() {
+    const loc = state.profile.location;
+    if (str(loc.country).trim()) return;
+    const parts = str(state.profile.candidate.location).split(',').map(s => s.trim()).filter(Boolean);
+    if (parts.length < 2) return;
+    loc.country = parts[parts.length - 1];
+    if (!str(loc.city).trim()) loc.city = parts[0];
+    $('loc_country').value = loc.country; $('loc_city').value = loc.city;
+    scheduleDraft();
+  }
+
   $('back-btn').addEventListener('click', () => { if (state.step > 0) showStep(prevInFlow(state.step)); });
   $('next-btn').addEventListener('click', async () => {
     if (!validateStep(state.step)) { $('nav-status').textContent = 'Fill the required fields to continue.'; return; }
+    if (state.step === 1) countryFromLocation();
     if (state.step < TOTAL_STEPS - 1) showStep(nextInFlow(state.step)); else await submit();
+  });
+  // Enter in a one-line field moves on, as on any form. Tag inputs keep
+  // Enter to add a tag; textareas and buttons keep their own Enter.
+  document.addEventListener('keydown', (e) => {
+    const el = e.target;
+    if (e.key !== 'Enter' || e.isComposing || e.ctrlKey || e.metaKey || e.shiftKey || state.step === 0) return;
+    if (el?.tagName !== 'INPUT' || el.classList.contains('tag-input') || ['checkbox', 'radio', 'button', 'submit', 'file'].includes(el.type)) return;
+    if (!el.closest('.step.active')) return;
+    e.preventDefault(); $('next-btn').click();
   });
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && state.step > 0) { e.preventDefault(); $('next-btn').click(); }
@@ -2436,6 +2495,8 @@
     const file = lastFilePayload && sameCv(text, lastFilePayload.markdown) ? lastFilePayload : null;
     runImport(async () => file || { markdown: text }, { fromFile: Boolean(file) });
   });
+  // The questions a CV never answers come first while it is being read.
+  $('cv-meanwhile-btn').addEventListener('click', () => showStep(4));
   $('cv-cancel').addEventListener('click', () => {
     if (!currentImport) return;
     currentImport.reason = 'cancel';
@@ -2445,6 +2506,7 @@
   const STAGES = [[6, 'Extracting your details…'], [25, 'Structuring your CV…'], [70, 'Almost done…']];
   function setImportBusy(run) {
     $('cv-progress').hidden = false;
+    $('cv-meanwhile').hidden = false;
     $('cv-result').hidden = true;
     dropzone.classList.add('is-busy'); dropzone.setAttribute('aria-disabled', 'true');
     [cvFile, cvText, parseBtn, $('cv-skip'), $('cv-replace')].forEach(el => { el.disabled = true; });
@@ -2457,6 +2519,8 @@
       // seconds counter is aria-hidden.
       if ($('cv-stage').textContent !== label) $('cv-stage').textContent = label;
       $('cv-elapsed').textContent = `${secs} s`;
+      // Answering other steps meanwhile: the nav line tells the import is still running.
+      if (state.step !== 0) $('nav-status').textContent = `${label.replace(/…$/, '')} · ${secs} s`;
       $('cv-progress-fill').style.width = `${Math.min(92, Math.round((secs / 90) * 100))}%`;
     };
     tick();
@@ -2465,6 +2529,9 @@
   function setImportIdle(run) {
     clearInterval(run.ticker);
     $('cv-progress').hidden = true;
+    $('cv-meanwhile').hidden = true;
+    if (state.step !== 0) $('nav-status').textContent = '';
+    $('next-btn').disabled = state.step === TOTAL_STEPS - 1 && !state.loaded;
     dropzone.classList.remove('is-busy'); dropzone.removeAttribute('aria-disabled');
     [cvFile, cvText, parseBtn, $('cv-skip'), $('cv-replace')].forEach(el => { el.disabled = false; });
   }
@@ -2501,10 +2568,22 @@
       setImportIdle(run);
       currentImport = null;
       const summary = applyImport(data, payload.markdown || '');
+      countryFromLocation();
       if (fromFile && str(data.source_text).trim()) cvText.value = data.source_text;
       clearCvAlert();
       refreshReplaceRow();
       renderImportResult($('cv-result'), { dismissible: false });
+      // The user went on answering meanwhile: the fields the CV filled fold
+      // away, what they typed is kept (applyImport fills empty fields only).
+      if (state.step !== 0) {
+        applyAskMode(state.step); renderStepper();
+        const left = importTodo().length;
+        showTopAlert(summary.changed
+          ? `Your CV is read: ${summary.changed} field${summary.changed === 1 ? '' : 's'} filled${left ? `, ${left} question${left === 1 ? '' : 's'} left` : ''}.`
+          : 'Your CV is read, but it filled no field.', summary.warnings.length ? 'warn' : 'info',
+          { label: 'See what it filled', onClick: () => showStep(0) });
+        return;
+      }
       focusAfterImport($('cv-result').querySelector('.import-result-title'));
       // Warnings (or nothing changed) need reading: no automatic jump then,
       // the user clicks Continue.
@@ -2523,6 +2602,9 @@
       else if (err?.name === 'TypeError') showCvAlert('We could not reach the server. Check your connection and try again. You can still continue and fill the steps by hand.');
       else showCvAlert(`${sentence(err?.message || 'The import failed')} You can still continue and fill the steps by hand.`);
       keepExtractedText(run.extracted, run.reason);
+      if (state.step !== 0 && run.reason !== 'cancel') {
+        showTopAlert('Your CV could not be analyzed. Your answers are kept.', 'error', { label: 'Back to the import', onClick: () => showStep(0) });
+      }
       focusAfterImport(cvAlert);
     } finally {
       clearTimeout(timeout);
