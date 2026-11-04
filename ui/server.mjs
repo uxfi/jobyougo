@@ -10555,7 +10555,9 @@ const server = createServer(async (req, res) => {
         const found = await findContacts({ company, role, jobUrl, jobText, jobHtml, ownEmails, companyUrlHint: site }, {
           fetchPage: contactFinderPageFetcher,
           webSearch: contactFinderWebSearch,
-          providers: providersFromEnv(),
+          // The provider keys in .env are the owner's credits: another
+          // account's search runs on the free sources only.
+          providers: (await ownsLocalData(req.userId)) ? providersFromEnv() : [],
           extractPeople: contactFinderExtractPeople,
           judgePeople: contactFinderJudgePeople,
           // 60 s for the searches and pages; past it the run ends with what it has.

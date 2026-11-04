@@ -24,9 +24,13 @@ draft opens in Gmail or the mail app, or is copied.
    A result is kept only when its title names the company exactly ("Riot", not
    "Riot Games", and never a truncated "Riot …"), and a cheap model pass drops
    namesakes by comparing the result with what the company site says it does.
-4. **An address for each person**: an enrichment provider when a key is set,
-   otherwise the naming pattern the site itself shows (`marie.dupont@` →
-   `first.last`), otherwise a common pattern that is clearly labelled a guess.
+4. **An address for each person**: an enrichment provider when a key is set
+   (the first two people in line only), otherwise the naming pattern the site
+   itself shows (`marie.dupont@` → `first.last`), otherwise a common pattern
+   that is clearly labelled a guess.
+5. **A check of the kept guesses** when a provider with a verifier is set: a
+   valid address becomes verified, a bouncing one gives way to its
+   alternatives (`julie@`, `jmartin@`) or is dropped.
 
 ## Confidence
 
@@ -47,7 +51,8 @@ found by search are listed but none is drafted for without asking. Addresses on 
 `press@`, `noreply@` and the like are never proposed; `support@` / `contact@`
 are kept as a last resort because a person may forward them.
 
-The finder does **not** probe mail servers (no SMTP `RCPT TO` checks).
+The finder itself does **not** probe mail servers (no SMTP `RCPT TO`
+checks): only a provider's verifier does, on the provider's side.
 
 ## Providers (optional)
 
@@ -58,6 +63,24 @@ The finder does **not** probe mail servers (no SMTP `RCPT TO` checks).
 
 Without a key the finder still works from the site, the posting and web
 search; people found by search then get pattern-based addresses.
+
+Every provider answer costs credits, so per offer:
+
+- one domain search per provider;
+- name lookups for the first `MAX_PROVIDER_FINDS` (2) people in line, never
+  for a first name alone, someone from another department or a possible
+  namesake (they cannot be drafted for anyway);
+- checks of the kept guesses (3 at most) and their alternatives,
+  `MAX_VERIFY_CALLS` (4) in all, in line order. A catch-all domain (the
+  verifier's `accept_all`) is asked once: its guesses stay guesses, tagged
+  "domaine catch-all". Checks may start up to 20 s past the 60 s search
+  deadline.
+
+Answers are cached for a week per provider and question (domain, name,
+address), in memory: reopening an offer or two offers at the same company pay
+once, a server restart starts over. At Hunter's prices (1 credit a search or
+lookup, 0.5 a check) an offer costs 1 to 5 credits. The keys are the owner's:
+other accounts search with the free sources only.
 
 ## Models and cost
 
