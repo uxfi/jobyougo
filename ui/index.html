@@ -7831,7 +7831,7 @@ function openRowMenu(trigger) {
   if (app.JobURL || app.Company) items.push(item('contact', ICON_CONTACT, 'Find contact & write email', 'contact-row-btn'));
   if (app.JobURL) items.push(item('email', ICON_MAIL, 'Write application email', 'email-row-btn'));
   if (coverPdf?.filename) {
-    items.push(`<a class="row-menu-item" role="menuitem" href="/output/${encodeURIComponent(coverPdf.filename)}" download="${escapeHtml(coverPdf.filename)}">${ICON_DOWNLOAD}Download cover letter PDF</a>`);
+    items.push(`<a class="row-menu-item" role="menuitem" href="/output/${encodeURIComponent(coverPdf.filename)}${window.__authToken ? `?_token=${encodeURIComponent(window.__authToken)}` : ''}" download="${escapeHtml(coverPdf.filename)}">${ICON_DOWNLOAD}Download cover letter PDF</a>`);
   }
   if (report) items.push(item('question', ICON_QUESTION, 'Answer a form question', 'question-row-btn'));
   if (report && isAppliedStatus(app.Status)) items.push(item('auto-apply', ICON_ROCKET, 'Run auto-apply again', 'auto-apply-row-btn'));

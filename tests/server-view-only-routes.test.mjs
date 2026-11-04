@@ -155,6 +155,22 @@ test('only the owner edits the shared portals.yml (portals and queries)', () => 
   assert.ok(block.includes('!(await isAdminUser(req.userId, req.userEmail))') && block.includes('403'));
 });
 
+test('the static handler serves scripts from ui/ only, never the backend', () => {
+  const at = server.indexOf("if (/\\.(js|mjs|map)$/i.test(resolvedRel)");
+  assert.ok(at > 0 && at < server.indexOf('const fullPath = safeJoin(ROOT, resolvedRel);'));
+  const line = server.slice(at, server.indexOf('\n', at));
+  const blocked = vm.runInNewContext(`(resolvedRel) => { ${line.replace(/\{\s*$/, '{ return true; }')} return false; }`, {});
+  for (const rel of ['ui/server.mjs', 'lib/supabase.mjs', 'scan.mjs', 'extension/background.js', 'node_modules/x/index.js']) assert.equal(blocked(rel), true, rel);
+  for (const rel of ['ui/effects/dist/a.js', 'ui/portfolio/app.js', 'ui/portfolio/vendor/three-0.160.0/build/three.module.js', 'images/a.png', 'fonts/a.woff2']) assert.equal(blocked(rel), false, rel);
+});
+
+test('/output/*.pdf answers the owner only', () => {
+  const start = server.indexOf("if (path.startsWith('/output/') && path.endsWith('.pdf')) {");
+  const block = server.slice(start, server.indexOf('readFile(file)', start));
+  assert.ok(start > 0 && block.includes('const viewer = await getRequestUser(req)'));
+  assert.ok(block.includes('!(await isAdminUser(viewer.id, viewer.email))') && block.includes('401'));
+});
+
 test("output/ PDFs are the owner's: a scoped account lists none and opens none", () => {
   const list = routeBlock("if (path === '/api/cvs' && method === 'GET')");
   assert.ok(list.indexOf('if (viewOnlyScope(req)) return json(res, []);') >= 0);

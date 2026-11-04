@@ -12407,6 +12407,14 @@ Règles:
 
     if (path.startsWith('/output/') && path.endsWith('.pdf')) {
       const filename = decodeURIComponent(path.slice('/output/'.length));
+      // output/ holds the owner's CVs and cover letters: anyone could download
+      // them by name. The dashboard link sends its token as ?_token=.
+      if (useSupabase) {
+        const viewer = await getRequestUser(req).catch(() => null);
+        if (!viewer || !(await isAdminUser(viewer.id, viewer.email))) {
+          return json(res, { error: 'Sign in required' }, 401);
+        }
+      }
       try {
         // A file of output/ itself: "..%2F" used to reach any PDF under ROOT.
         const file = /[\\/]/.test(filename) ? null : safeJoin(join(ROOT, 'output'), filename);
@@ -12519,6 +12527,11 @@ Règles:
         const resolvedRel = relPath.startsWith('effects/') || relPath.startsWith('portfolio/')
           ? `ui/${relPath}`
           : relPath;
+        // Pages only load scripts from ui/. Anything else (this server, lib/,
+        // the root scripts) is backend code and was readable by anyone.
+        if (/\.(js|mjs|map)$/i.test(resolvedRel) && (!resolvedRel.startsWith('ui/') || resolvedRel === 'ui/server.mjs')) {
+          res.writeHead(404); res.end('Not found'); return;
+        }
         const fullPath = safeJoin(ROOT, resolvedRel);
         if (!fullPath) { res.writeHead(403); res.end('Forbidden'); return; }
         const content = await readFile(fullPath);
