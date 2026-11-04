@@ -110,8 +110,49 @@ test('the view-only row routes read through viewOnlyScope, never req.userId', ()
     assert.ok(!block.includes('req.userId'), `${condition} does not read req.userId`);
   }
   const pipeline = routeBlock("if (path === '/api/pipeline') {");
-  assert.ok(pipeline.includes("if (method === 'GET') return json(res, await getPipeline(viewOnlyScope(req)));"));
+  assert.ok(pipeline.includes("if (method === 'GET') return json(res, withoutUserId(await getPipeline(viewOnlyScope(req))));"));
   assert.ok(pipeline.includes("addToPipeline(url, note || '', req.userId, { force: force === true })") && pipeline.includes('removeManyFromPipeline(validUrls, req.userId)'), 'writes stay on the account');
+});
+
+test('anonymous callers get empty row lists and a 401 on rows, files and report data', async () => {
+  const start = server.indexOf('if (useSupabase && isViewOnlyGet && !req.userId) {');
+  assert.ok(start > server.indexOf('if (useSupabase && isViewOnlyGet) {'), 'after the token is resolved');
+  assert.ok(start < server.indexOf("if (path === '/api/applications' && method === 'GET')"), 'before any row route');
+  const block = server.slice(start, server.indexOf('\n    }\n', start) + 6);
+  const consts = server.slice(server.indexOf('const ANONYMOUS_EMPTY_LISTS'), server.indexOf('\n', server.indexOf('const ANONYMOUS_SIGN_IN_PATHS')));
+  const answer = vm.runInNewContext(`(async (path, req) => {
+    const isViewOnlyGet = true;
+    const res = null;
+    const json = (res, body, status = 200) => ({ body, status });
+    ${consts}
+    ${block}
+    return 'route';
+  })`, { useSupabase: true, Set });
+  for (const path of ['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs']) {
+    assert.deepEqual(plain(await answer(path, {})), { body: [], status: 200 }, `anonymous ${path} is empty`);
+  }
+  for (const path of ['/api/reports/277-acme-2026-09-30.md', '/api/cvs/Hugo_Vermot_CV.pdf', '/api/pipeline/dropped', '/api/monetization/affiliates']) {
+    assert.equal((await answer(path, {})).status, 401, `anonymous ${path} needs a sign-in`);
+  }
+  for (const path of ['/api/portals', '/api/queries', '/api/scan-sources', '/api/profile', '/api/apply/extension.zip']) {
+    assert.equal(await answer(path, {}), 'route', `anonymous ${path} stays public`);
+  }
+  assert.equal(await answer('/api/applications', { userId: OTHER }), 'route', 'a signed-in account reaches the route');
+});
+
+test('withoutUserId drops the account id from every row', () => {
+  const withoutUserId = vm.runInNewContext(`(${sourceOf('withoutUserId')})`, {});
+  assert.deepEqual(plain(withoutUserId([{ num: 1, user_id: ADMIN }, { url: 'u' }, null])), [{ num: 1 }, { url: 'u' }, null]);
+  assert.deepEqual(plain(withoutUserId({ error: 'x' })), { error: 'x' });
+  assert.ok(routeBlock("if (path === '/api/applications' && method === 'GET')").includes('withoutUserId(await getApplications('));
+});
+
+test('only the owner edits the shared portals.yml (portals and queries)', () => {
+  const start = server.indexOf('const editsSharedPortals');
+  assert.ok(start > 0 && start < server.indexOf('// Portals CRUD'));
+  const block = server.slice(start, server.indexOf('// Portals CRUD'));
+  assert.ok(block.includes("method !== 'GET'") && block.includes("['/api/portals', '/api/queries']"));
+  assert.ok(block.includes('!(await isAdminUser(req.userId, req.userEmail))') && block.includes('403'));
 });
 
 test("output/ PDFs are the owner's: a scoped account lists none and opens none", () => {

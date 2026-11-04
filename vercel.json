@@ -13,6 +13,7 @@
           "!images/3d/floating-island/source/**",
           "modes/**",
           "fonts/**",
+          "extension/**",
           "config/monetization.yml",
           "portals.yml",
           "cv.md",

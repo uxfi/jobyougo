@@ -575,6 +575,20 @@ function viewOnlyScope(req) {
   return req.isAdmin ? undefined : req.userId;
 }
 
+// Rows leave the server without their account id: the dashboard never reads it.
+function withoutUserId(rows) {
+  if (!Array.isArray(rows)) return rows;
+  return rows.map(row => {
+    if (!row || typeof row !== 'object' || !('user_id' in row)) return row;
+    const { user_id, ...rest } = row;
+    return rest;
+  });
+}
+
+// View-only GETs an anonymous caller may not read (see the guard in the router).
+const ANONYMOUS_EMPTY_LISTS = new Set(['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs']);
+const ANONYMOUS_SIGN_IN_PATHS = ['/api/applications', '/api/pipeline', '/api/reports', '/api/cvs', '/api/monetization/affiliates'];
+
 // ─── Monetization config (config/monetization.yml) ───────────────────────────
 // Re-read at most every 30 s, so turning a channel on needs no restart.
 let _monetizationCache = null;
@@ -9377,6 +9391,18 @@ const server = createServer(async (req, res) => {
       }
     }
 
+    // Anonymous "View only" callers read every account's rows unfiltered (the
+    // service-role key skips RLS) and the owner's CV PDFs: the live site gave
+    // them to anyone. Without a token the row lists now answer empty, and one
+    // row, a file or report-based data needs a sign-in. The shared config
+    // (portals, queries, scan sources) and the plugin routes stay public.
+    if (useSupabase && isViewOnlyGet && !req.userId) {
+      if (ANONYMOUS_EMPTY_LISTS.has(path)) return json(res, []);
+      if (ANONYMOUS_SIGN_IN_PATHS.some(p => path === p || path.startsWith(p + '/'))) {
+        return json(res, { error: 'Sign in required' }, 401);
+      }
+    }
+
     // ── Monetization ─────────────────────────────────────────────────────────
     // Sponsored jobs are fetched for the viewer (their IP and browser, as the
     // publisher programs require) and only ever displayed: their links are
@@ -9476,7 +9502,7 @@ const server = createServer(async (req, res) => {
 
     // API routes
     if (path === '/api/applications' && method === 'GET') {
-      return json(res, await getApplications(viewOnlyScope(req)));
+      return json(res, withoutUserId(await getApplications(viewOnlyScope(req))));
     }
 
     if (path.startsWith('/api/applications/') && method === 'PATCH') {
@@ -9616,7 +9642,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === '/api/pipeline') {
-      if (method === 'GET') return json(res, await getPipeline(viewOnlyScope(req)));
+      if (method === 'GET') return json(res, withoutUserId(await getPipeline(viewOnlyScope(req))));
       if (method === 'POST') {
         const { url, note, force } = await readBody(req);
         if (!url?.startsWith('http')) return json(res, { error: 'Invalid URL' }, 400);
@@ -9772,6 +9798,14 @@ const server = createServer(async (req, res) => {
         runExploreJob(req);
         return json(res, { ok: true, ...exploreJobState() }, 202);
       }
+    }
+
+    // portals.yml is one list shared by every account (each one picks its own
+    // sources through /api/scan-selection): only the owner edits it.
+    const editsSharedPortals = method !== 'GET'
+      && ['/api/portals', '/api/queries'].some(p => path === p || path.startsWith(p + '/'));
+    if (editsSharedPortals && useSupabase && !(await isAdminUser(req.userId, req.userEmail))) {
+      return json(res, { error: 'The shared sources list is only edited on the owner account.' }, 403);
     }
 
     // Portals CRUD
