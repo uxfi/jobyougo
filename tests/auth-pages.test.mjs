@@ -358,7 +358,7 @@ test('OB-F8: import progress is announced once per stage and the outcome gets fo
   assert.ok(page.includes("focusAfterImport($('cv-result').querySelector('.import-result-title'));"), 'success focuses the result');
   assert.ok(page.includes('focusAfterImport(cvAlert);'), 'failure and cancel focus the alert');
   assert.ok(page.includes('id="cv-alert" role="status" aria-live="polite" tabindex="-1"'));
-  assert.ok(page.includes('showStep(1, { focusSummary: followFocus });'), 'focus follows the automatic jump');
+  assert.ok(page.includes('showStep(nextInFlow(0), { focusSummary: followFocus });'), 'focus follows the automatic jump');
 });
 
 test('OB-F10: retrying from the paste box resends the file name and links of the file read', () => {

@@ -387,6 +387,12 @@
   .draft-suggest { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--border-strong); border-radius: 10px; font-size: 12.5px; color: var(--text-2); }
   .draft-suggest-label { font-size: 11.5px; color: var(--text-4); }
   .draft-suggest q { flex: 1 1 240px; min-width: 0; color: var(--text-1); quotes: '“' '”'; overflow-wrap: anywhere; }
+  /* Ask mode: what the CV or the stored profile already answered is folded away. */
+  .is-known { display: none !important; }
+  .known-bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: -8px 0 20px; padding: 10px 14px; border: 1px solid var(--border-s); border-radius: var(--radius); font-size: 12.5px; color: var(--text-3); background: rgba(var(--fg-rgb),0.015); }
+  .known-bar[hidden] { display: none; }
+  .known-bar span { flex: 1 1 260px; min-width: 0; }
+  .flow-toggle { margin-top: 12px; }
   .btn-link { background: none; border: none; padding: 0; color: var(--accent); font-size: 12.5px; font-weight: 500; cursor: pointer; }
   .btn-link:hover { color: var(--accent-h); text-decoration: underline; }
   .cv-version { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--border-s); border-radius: 10px; background: rgba(var(--fg-rgb),0.02); font-size: 12.5px; color: var(--text-3); }
@@ -452,7 +458,7 @@
   <!-- ── Left rail ───────────────────────────────────────────────────── -->
   <aside class="rail">
     <div class="rail-title">Set up your profile</div>
-    <div class="rail-sub">About 10 minutes. Everything can be edited later from the dashboard.</div>
+    <div class="rail-sub">About 3 minutes with a CV. Everything can be edited later from the dashboard.</div>
 
     <div class="rail-progress">
       <div class="rail-track"><div class="rail-fill" id="rail-fill"></div></div>
@@ -460,6 +466,7 @@
     </div>
 
     <nav class="stepper" id="stepper" aria-label="Setup steps"></nav>
+    <button type="button" class="btn-link flow-toggle" id="flow-toggle">Show every step</button>
 
     <div class="mobile-progress">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
@@ -470,7 +477,7 @@
     </div>
 
     <div class="rail-note">
-      <strong>Why so many questions?</strong> The scanner filters offers on your location and remote policy, the evaluator scores against your target roles and criteria, and the CV generator reuses your narrative and proof points. Empty fields mean looser filters and vaguer CVs.
+      <strong>Why these questions?</strong> Your CV answers most of the setup. What it cannot say (where you can work, your salary, your deal breakers) decides which offers the scanner keeps and how the evaluator scores them, so only that is asked.
     </div>
     <div class="draft-state" id="draft-state">Draft not saved yet</div>
   </aside>
@@ -483,8 +490,8 @@
     <section class="step active" data-step="0">
       <div class="step-header">
         <span class="eyebrow">Get started</span>
-        <h1 class="step-title">Import your CV and let us pre-fill the rest</h1>
-        <p class="step-sub">Drop your CV (PDF, Word or a photo) or paste the text. We read your identity, current role, languages, narrative and contact links so the next steps are mostly a review. Nothing is invented: what the CV does not say stays empty.</p>
+        <h1 class="step-title">Start with your CV</h1>
+        <p class="step-sub">Drop your CV (PDF, Word or a photo) or paste the text. We fill in everything it states (identity, current role, languages, story, links), then ask only what it leaves out. Nothing is invented: what the CV does not say stays a question.</p>
       </div>
 
       <div class="import-grid">
@@ -520,7 +527,7 @@
       <div class="import-result" id="cv-result" hidden></div>
 
       <div class="import-actions">
-        <button type="button" class="btn btn-ghost" id="cv-skip">Skip and fill the steps by hand</button>
+        <button type="button" class="btn btn-ghost" id="cv-skip">No CV at hand? Answer the questions instead</button>
         <span class="spacer"></span>
         <button type="button" class="btn btn-primary" id="cv-parse-btn">
           <span id="cv-parse-label">Analyze and pre-fill</span>
@@ -972,6 +979,7 @@
       </div>
 
       <div class="review" id="review"></div>
+      <button type="button" class="btn-link" id="review-all" style="margin:-4px 0 18px">Review every step before finishing</button>
 
       <div class="field full">
         <div class="field-label" style="justify-content:space-between">
@@ -1155,6 +1163,8 @@
     importSummary: null,
     importSummaryDismissed: false,
     visited: new Set([0]),
+    fullFlow: false,      // every step and field, instead of only what is missing
+    openSteps: new Set(), // steps opened in full with "Show all fields"
   };
 
   const isObj = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
@@ -1313,7 +1323,7 @@
       const provenance = {
         savedAt: Date.now(), step: state.step, cvImported: state.cvImported, serverUpdatedAt: state.serverUpdatedAt,
         imported: state.imported, cvSource: state.cvSource, cvStructured: state.cvStructured, keptExtracted: state.keptExtracted,
-        suggestions: state.suggestions, visited: [...state.visited],
+        suggestions: state.suggestions, visited: [...state.visited], fullFlow: state.fullFlow,
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(synced
         ? { ...provenance, synced: true }
@@ -1763,22 +1773,125 @@
     }
   }
 
+  // ── Ask only what is missing ───────────────────────────────────────
+  // The CV fills what it states; each step then shows only the questions it
+  // left open, plus any required field still empty. A step with nothing to
+  // ask is skipped. "Show all fields" opens one step in full, "Show every
+  // step" the whole walkthrough (the default for a profile finished before).
+  const ASK = [
+    [1, 'candidate.full_name', 'your name'], [1, 'candidate.email', 'your email'], [1, 'candidate.phone', 'your phone'],
+    [1, 'candidate.location', 'where you are based'], [1, 'candidate.linkedin', 'your LinkedIn'],
+    [2, 'target_roles.primary', 'your target roles'],
+    [3, 'narrative.headline', 'your headline'], [3, 'narrative.exit_story', 'your story'],
+    [4, 'location.country', 'your country'], [4, 'location.remote_policy', 'your remote policy'], [4, 'location.authorized_in', 'where you can work'],
+    [5, 'compensation.target_range', 'your salary'], [5, 'availability.notice_period', 'your notice period'],
+    [6, 'search.deal_breakers', 'your deal breakers'],
+    [7, 'cv_markdown', 'your CV'],
+  ].map(([step, path, label]) => ({ step, path, label }));
+  // Inputs asked together with a question: the remote preset and its text,
+  // the visa line and sponsorship with the countries, the currency and floor
+  // with the salary.
+  const ASK_WITH = {
+    'location.remote_policy': ['loc_remote_select'],
+    'location.authorized_in': ['loc_visa', 'loc_sponsorship'],
+    'compensation.target_range': ['currency', 'minimum'],
+  };
+  function askBlocks(path) {
+    const binding = BINDINGS.find(([, p]) => p === path);
+    const own = path === 'cv_markdown' ? $('cv_markdown') : binding ? $(binding[0]) : tagField(path);
+    return [own, ...(ASK_WITH[path] || []).map(id => $(id))].map(el => el?.closest('.field') || el).filter(Boolean);
+  }
+  const isMissing = (path) => isEmptyField(path, fieldValue(path));
+  // What a step asked once stays on screen: a field must not vanish while it is typed in.
+  const asked = new Map();
+  function stepAsks(n) {
+    const kept = asked.get(n) || new Set();
+    return ASK.filter(a => a.step === n && (kept.has(a.path) || isMissing(a.path))).map(a => a.path);
+  }
+  function flowSteps() {
+    if (state.fullFlow) return STEPS.map((_, i) => i);
+    const middle = [];
+    for (let i = 1; i < TOTAL_STEPS - 1; i++) {
+      if (i === state.step || asked.has(i) || stepAsks(i).length || !stepValid(i)) middle.push(i);
+    }
+    return [0, ...middle, TOTAL_STEPS - 1];
+  }
+  const nextInFlow = (n) => flowSteps().find(i => i > n) ?? TOTAL_STEPS - 1;
+  const prevInFlow = (n) => [...flowSteps()].reverse().find(i => i < n) ?? 0;
+
+  function applyAskMode(n) {
+    const section = document.querySelector(`.step[data-step="${n}"]`);
+    if (!section || n === 0) return;
+    const eyebrow = section.querySelector('.step-header .eyebrow');
+    if (eyebrow) {
+      eyebrow.dataset.full ??= eyebrow.textContent;
+      eyebrow.textContent = state.fullFlow ? eyebrow.dataset.full : eyebrow.dataset.full.replace(/^Step \d+ · /, '');
+    }
+    const open = state.fullFlow || state.openSteps.has(n);
+    const paths = open ? [] : stepAsks(n);
+    if (!open) asked.set(n, new Set(paths));
+    const shown = new Set(paths.flatMap(askBlocks));
+    section.querySelectorAll('[data-required], [data-email]').forEach(el => { if (fieldInvalid(el)) shown.add(el.closest('.field')); });
+    const blocks = [...section.querySelectorAll('.field, .group')];
+    blocks.forEach(el => el.classList.toggle('is-known', !open && !shown.has(el)));
+    // A grid left empty, and the sub-header above it, fold away too.
+    section.querySelectorAll('.grid').forEach(grid => {
+      const empty = !open && !grid.querySelector(':scope > :not(.is-known)');
+      grid.classList.toggle('is-known', empty);
+      const header = grid.previousElementSibling;
+      if (header?.classList.contains('step-header') && header !== section.querySelector('.step-header')) header.classList.toggle('is-known', empty);
+    });
+
+    let bar = section.querySelector(':scope > .known-bar');
+    if (!bar) {
+      bar = document.createElement('div'); bar.className = 'known-bar';
+      section.querySelector('.step-header').after(bar);
+    }
+    const folded = blocks.filter(el => el.classList.contains('is-known')).length;
+    bar.hidden = open || !folded;
+    if (bar.hidden) return;
+    const known = ASK.filter(a => a.step === n && !paths.includes(a.path) && !isMissing(a.path)).map(a => a.label);
+    bar.innerHTML = '';
+    const text = document.createElement('span');
+    text.textContent = known.length
+      ? `Already filled: ${listText(known)}.${paths.length ? ' Only what is missing is asked here.' : ''}`
+      : 'Only what is missing is asked here; the other fields are optional.';
+    const more = document.createElement('button');
+    more.type = 'button'; more.className = 'btn-link';
+    more.textContent = `Show all ${folded} field${folded === 1 ? '' : 's'}`;
+    more.addEventListener('click', () => { state.openSteps.add(n); applyAskMode(n); });
+    bar.append(text, more);
+  }
+
+  function setFullFlow(on) {
+    state.fullFlow = on;
+    if (on) for (let i = 0; i < TOTAL_STEPS; i++) state.visited.add(i);
+    showStep(state.step);
+  }
+  $('flow-toggle').addEventListener('click', () => setFullFlow(!state.fullFlow));
+  $('review-all').addEventListener('click', () => { state.fullFlow = true; for (let i = 0; i < TOTAL_STEPS; i++) state.visited.add(i); showStep(1); });
+
   // ── Stepper & navigation ───────────────────────────────────────────
   function renderStepper() {
     const host = $('stepper'); host.innerHTML = '';
-    STEPS.forEach((s, i) => {
+    const flow = flowSteps();
+    const at = Math.max(0, flow.indexOf(state.step));
+    flow.forEach((i, pos) => {
+      const s = STEPS[i];
       const btn = document.createElement('button');
-      btn.type = 'button'; btn.className = 'step-link' + (i < state.step && state.visited.has(i) && (i === 0 || stepValid(i)) ? ' is-done' : '');
+      btn.type = 'button'; btn.className = 'step-link' + (pos < at && state.visited.has(i) && (i === 0 || stepValid(i)) ? ' is-done' : '');
       if (i === state.step) btn.setAttribute('aria-current', 'step');
-      btn.disabled = !state.visited.has(i) && i > state.step;
-      btn.innerHTML = `<span class="step-dot"><span>${String(i + 1).padStart(2, '0')}</span></span><span><span class="step-name">${s.name}</span><span class="step-hint">${s.hint}</span></span>`;
+      btn.disabled = !state.visited.has(i) && pos > at;
+      btn.innerHTML = `<span class="step-dot"><span>${String(pos + 1).padStart(2, '0')}</span></span><span><span class="step-name">${s.name}</span><span class="step-hint">${s.hint}</span></span>`;
       btn.addEventListener('click', () => { if (!btn.disabled) showStep(i); });
       host.appendChild(btn);
     });
-    const pct = Math.round((state.step / (TOTAL_STEPS - 1)) * 100);
+    const pct = Math.round((at / Math.max(1, flow.length - 1)) * 100);
     $('rail-fill').style.width = `${pct}%`; $('mobile-fill').style.width = `${pct}%`;
-    $('rail-step').textContent = `Step ${state.step + 1} of ${TOTAL_STEPS}`; $('rail-pct').textContent = `${pct}%`;
-    $('mobile-step').textContent = `${state.step + 1} / ${TOTAL_STEPS}`; $('mobile-step-name').textContent = STEPS[state.step].name;
+    $('rail-step').textContent = `Step ${at + 1} of ${flow.length}`; $('rail-pct').textContent = `${pct}%`;
+    $('mobile-step').textContent = `${at + 1} / ${flow.length}`; $('mobile-step-name').textContent = STEPS[state.step].name;
+    $('flow-toggle').textContent = state.fullFlow ? 'Ask only what is missing' : 'Show every step';
+    $('review-all').hidden = state.fullFlow;
   }
 
   function showStep(n, { focusSummary = false } = {}) {
@@ -1790,16 +1903,24 @@
     $('next-btn').disabled = n === TOTAL_STEPS - 1 && !state.loaded;
     $('nav-status').textContent = '';
     if (n === 0) refreshReplaceRow();
-    if (n === 1) renderImportResult($('cv-result-step1'), { dismissible: true });
+    applyAskMode(n);
+    // The import summary opens the first step after the import, whichever it is.
+    const summaryStep = flowSteps()[1];
+    if (n === summaryStep) {
+      const host = document.querySelector(`.step[data-step="${n}"] .step-header`);
+      if (host && host.nextElementSibling !== $('cv-result-step1')) host.after($('cv-result-step1'));
+      renderImportResult($('cv-result-step1'), { dismissible: true });
+    }
     if (n === TOTAL_STEPS - 1) { renderReview(); renderCvVersion(); }
     if (n === 2 || n === 3) renderSuggestions();
     if (n === 3) renderDraftSuggestions();
     renderStepper();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    const first = document.querySelector(`.step[data-step="${n}"] input:not([disabled]):not([type=hidden]), .step[data-step="${n}"] textarea`);
+    const first = [...document.querySelectorAll(`.step[data-step="${n}"] input:not([disabled]):not([type=hidden]), .step[data-step="${n}"] textarea`)]
+      .find(el => !el.closest('.is-known'));
     // After the automatic jump from a finished import, focus follows the
     // import summary (shown again on step 1) instead of the first field.
-    const summary = focusSummary && n === 1 ? $('cv-result-step1').querySelector('.import-result-title') : null;
+    const summary = focusSummary && n === summaryStep ? $('cv-result-step1').querySelector('.import-result-title') : null;
     if (summary) setTimeout(() => summary.focus({ preventScroll: true }), 50);
     else if (first && n > 0 && window.matchMedia('(min-width: 920px)').matches) setTimeout(() => first.focus({ preventScroll: true }), 50);
     saveDraft();
@@ -1830,10 +1951,10 @@
     return ok;
   }
 
-  $('back-btn').addEventListener('click', () => { if (state.step > 0) showStep(state.step - 1); });
+  $('back-btn').addEventListener('click', () => { if (state.step > 0) showStep(prevInFlow(state.step)); });
   $('next-btn').addEventListener('click', async () => {
     if (!validateStep(state.step)) { $('nav-status').textContent = 'Fill the required fields to continue.'; return; }
-    if (state.step < TOTAL_STEPS - 1) showStep(state.step + 1); else await submit();
+    if (state.step < TOTAL_STEPS - 1) showStep(nextInFlow(state.step)); else await submit();
   });
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && state.step > 0) { e.preventDefault(); $('next-btn').click(); }
@@ -2304,7 +2425,7 @@
     return { markdown, links };
   }
 
-  $('cv-skip').addEventListener('click', () => { if (!currentImport) showStep(1); });
+  $('cv-skip').addEventListener('click', () => { if (!currentImport) showStep(nextInFlow(0)); });
 
   parseBtn.addEventListener('click', () => {
     if (currentImport) return;
@@ -2391,7 +2512,7 @@
         setTimeout(() => {
           if (state.step !== 0 || currentImport) return;
           const followFocus = $('cv-result').contains(document.activeElement);
-          showStep(1, { focusSummary: followFocus });
+          showStep(nextInFlow(0), { focusSummary: followFocus });
         }, 900);
       }
     } catch (err) {
@@ -2554,16 +2675,10 @@
     return out;
   }
 
+  // The questions the CV left open: what the next steps ask.
   function importTodo() {
-    const p = state.profile;
-    return [
-      [!str(p.candidate.full_name).trim(), 'Your name', 1],
-      [!strList(p.target_roles.primary).length, 'Target roles', 2],
-      [!str(p.location.country).trim(), 'Country', 4],
-      [!str(p.location.remote_policy).trim(), 'Remote policy', 4],
-      [!str(p.compensation.target_range).trim() && !str(p.compensation.minimum).trim(), 'Salary', 5],
-      [!strList(p.search.deal_breakers).length, 'Deal breakers', 6],
-    ].filter(([missing]) => missing).map(([, label, step]) => ({ label, step }));
+    return ASK.filter(a => isMissing(a.path))
+      .map(a => ({ label: a.label.replace(/^your /, '').replace(/^./, c => c.toUpperCase()), step: a.step }));
   }
 
   function renderImportResult(host, { dismissible }) {
@@ -2584,7 +2699,9 @@
     title.tabIndex = -1;
     copy.appendChild(title);
     copy.appendChild(el('span', '', s.changed
-      ? 'Check each step: only you can confirm what is accurate. Fields marked “From your CV” came from this import.'
+      ? (todo.length
+        ? `Next, only the ${todo.length} question${todo.length === 1 ? '' : 's'} your CV does not answer. What it filled stays folded; open any step to check it.`
+        : 'Your CV answered everything we ask. Check the summary before you finish.')
       : (s.replaceOffered ? 'What you already entered was kept. Tick “Replace what I already entered” and import again to use the CV instead.' : 'We could not find details to pre-fill in this CV.')));
     head.appendChild(copy);
     if (dismissible) {
@@ -2596,7 +2713,7 @@
 
     if (!dismissible) {
       const kpis = el('div', 'parsed-summary');
-      [[s.changed, 'fields pre-filled'], [strList(state.profile.target_roles.primary).length, 'target roles'], [todo.length, 'important fields left']].forEach(([n, label]) => {
+      [[s.changed, 'fields pre-filled'], [strList(state.profile.target_roles.primary).length, 'target roles'], [todo.length, todo.length === 1 ? 'question left' : 'questions left']].forEach(([n, label]) => {
         const kpi = el('div', 'parsed-kpi'); kpi.append(el('b', '', String(n)), el('span', '', label)); kpis.appendChild(kpi);
       });
       host.appendChild(kpis);
@@ -2608,7 +2725,7 @@
     }
     if (todo.length) {
       const row = el('div', 'import-todo');
-      row.appendChild(el('span', 'import-todo-label', 'Still to fill'));
+      row.appendChild(el('span', 'import-todo-label', 'Still to answer'));
       todo.forEach(({ label, step }) => {
         const chip = el('button', 'chip', label); chip.type = 'button';
         chip.addEventListener('click', () => showStep(step));
@@ -2619,7 +2736,7 @@
     if (!dismissible) {
       const actions = el('div', 'import-result-actions');
       const go = el('button', 'btn btn-primary', 'Continue'); go.type = 'button';
-      go.addEventListener('click', () => showStep(1));
+      go.addEventListener('click', () => showStep(nextInFlow(0)));
       actions.appendChild(go);
       host.appendChild(actions);
     }
@@ -2668,7 +2785,10 @@
         <span class="mark">${level === 'ok' ? '✓' : level === 'missing' ? '!' : '–'}</span>
         <div><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span> <a href="#" data-goto="${step}">Edit</a></div>
       </div>`).join('');
-    $('review').querySelectorAll('[data-goto]').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); showStep(Number(a.dataset.goto)); }));
+    $('review').querySelectorAll('[data-goto]').forEach(a => a.addEventListener('click', (e) => {
+      // Edit opens the step in full: the folded fields are the ones to check.
+      e.preventDefault(); state.openSteps.add(Number(a.dataset.goto)); showStep(Number(a.dataset.goto));
+    }));
   }
 
   // Same H2 dialect as the structured import (and what
@@ -2850,6 +2970,7 @@
     }
     state.step = Math.min(Math.max(Number(draft.step) || 0, 0), TOTAL_STEPS - 1);
     state.cvImported = Boolean(draft.cvImported);
+    state.fullFlow = draft.fullFlow === true;
     state.imported = isObj(draft.imported) ? draft.imported : {};
     state.cvSource = str(draft.cvSource);
     state.cvStructured = str(draft.cvStructured);
@@ -2857,6 +2978,8 @@
     if (isObj(draft.suggestions)) state.suggestions = { ...state.suggestions, ...draft.suggestions };
     (Array.isArray(draft.visited) ? draft.visited : []).forEach(n => state.visited.add(n));
   } else if (completedBefore) {
+    // A finished profile is being edited: every step and field, as before.
+    state.fullFlow = true;
     for (let i = 0; i < TOTAL_STEPS; i++) state.visited.add(i);
     state.step = missing.length ? Math.min(...missing.map(key => MISSING[key][1])) : 1;
   } else {
