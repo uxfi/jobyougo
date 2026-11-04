@@ -39,7 +39,9 @@ draft opens in Gmail or the mail app, or is copied.
 Only a verified or likely address is picked as **best** and drafted for without
 asking. A guess is listed with its alternatives (`marie@`, `mdupont@`) and the
 user chooses. A single printed pair (`nicolas@` beside "Nicolas Bégin") only
-orders the guesses: it may be one founder's own address. When the namesake
+orders the guesses: it may be one founder's own address, and it gives way to
+the pattern the site's other printed addresses show (`paul.durand@`,
+`anne.dubois@` beside their names). When the namesake
 pass gives no verdict (the model fails or answers nothing usable), the people
 found by search are listed but none is drafted for without asking. Addresses on a domain with no MX record are dropped; `dpo@`,
 `press@`, `noreply@` and the like are never proposed; `support@` / `contact@`

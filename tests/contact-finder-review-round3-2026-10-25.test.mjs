@@ -395,6 +395,16 @@ test('2026-11-02: two printed pairs make the pattern likely', () => {
   assert.equal(two.confidence, 'likely');
 });
 
+test('2026-11-04: a single pair gives way to the shape of the printed addresses when it shows a pattern', () => {
+  const shapes = ['paul.martin', 'anne.dubois', 'marc.petit'].map(local => ({ email: `${local}@acme.io`, url: 'https://acme.io/contact', printed: true }));
+  // The founder's own first@ does not hide the team's first.last@.
+  const founder = patternEvidence([{ pattern: 'first', email: 'nicolas@acme.io', url: '', name: 'Nicolas Bégin' }], shapes);
+  assert.deepEqual([founder.pattern, founder.basis, founder.confidence], ['first.last', 'shape', 'likely']);
+  // A shape that shows nothing leaves the pair in charge, as a guess.
+  const weak = patternEvidence([{ pattern: 'first', email: 'nicolas@acme.io', url: '', name: 'Nicolas Bégin' }], shapes.slice(0, 1));
+  assert.deepEqual([weak.pattern, weak.basis, weak.confidence], ['first', 'paired', 'guess']);
+});
+
 test('2026-11-02: when the namesake judge gives no verdict, search people are listed but never drafted for', async () => {
   const pages = { 'https://riot.co': '<p>Riot trains employees against phishing with simulated attacks.</p>' };
   const fetchPage = async (url) => { const html = pages[url.replace(/\/$/, '')]; return html ? { ok: true, status: 200, url, html, text: html.replace(/<[^>]+>/g, '') } : { ok: false, status: 404, url, html: '', text: '' }; };
