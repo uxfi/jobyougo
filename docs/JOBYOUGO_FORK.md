@@ -47,6 +47,7 @@ Or `pinchtab daemon start`. Check with `pinchtab health`. Token comes from
 | `sync-supabase.mjs` | Pushes reports / pipeline / applications to Supabase |
 | `supabase/schema.sql` | Supabase schema for the above |
 | `migrate-admin.mjs` | One-off admin migration |
+| `import-profile-offers.mjs` | Queues the 2026-10-29 LinkedIn leads on Hugo's `pipeline` row (`--dry-run`, `--sql`). The paste-ready statement is `supabase/imports/20261029_hugo_linkedin_offers.sql` |
 | `apply-runner.mjs` | Auto-apply: drives a VISIBLE Chrome through the application. Spawned by `POST /api/apply/start`, state in `scratch/apply-runs/{runId}/state.json`, commands (submit/rescan/abort) via `command.json`. Himalayas: detect host → `/login` + `HIMALAYAS_*` creds → PinchTab captcha → back to job → Apply (often external ATS). |
 | `lib/apply-spec.mjs` | Builds the apply spec from a report: parses `**URL:**` + Section F Q&A, detects offer region (EU → Paris identity/CV, Asia → Bangkok identity/CV per `profile.yml` declared_policy), picks the CV PDF |
 | `lib/openrouter.mjs`, `lib/pinchtab.mjs`, `lib/apply-llm.mjs`, `lib/apply-fill-guards.mjs`, `lib/apply-collect-fields.mjs`, `lib/apply-combobox-dom.mjs` | Apply-runner helpers (field detection, identity vs typeahead probe, combobox option matching) |
