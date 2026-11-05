@@ -41,7 +41,7 @@ import { authorizedFor, locationSummaryLines, resolveLocationProfile, workModeAl
 import { placesIn, regionCountriesIn } from '../lib/apply-places.mjs';
 import { attendancePlaceText, resolveWorkMode, structuredWorkMode } from '../lib/work-mode.mjs';
 import { CV_MIN_CHARS, CvImportError, parseCvWithLlm, validateCvParseRequest } from '../lib/cv-import.mjs';
-import { buildApplySpec, detectRegion, preferLocalApplyCv } from '../lib/apply-spec.mjs';
+import { applyCvNameOf, buildApplySpec, detectRegion, pickCvPath, preferLocalApplyCv } from '../lib/apply-spec.mjs';
 import { detectJdLanguage, jdSufficiency, offerAnchor, offerTaskLine } from '../lib/jd-sufficiency.mjs';
 import { recordEvalFailure, validationFailureAction, MAX_VALIDATION_RETRIES } from '../lib/eval-attempts.mjs';
 import { formatJustJoinOffer, justJoinOfferApiUrl, justJoinOfferSlug } from '../providers/justjoin.mjs';
@@ -9953,8 +9953,20 @@ const server = createServer(async (req, res) => {
       }
       if (path === '/api/profile/apply-cv' && method === 'GET') {
         const cv = await readAccountCv(WRITE_ROOT, account).catch(() => null);
-        // The owner without an upload still applies with the profile's apply_cv.
-        return json(res, { cv: describe(cv), ownerFallback: !cv && await ownsLocalData(req.userId) });
+        // The owner without an upload still applies with the profile's PDFs:
+        // each base's apply_cv (picked per offer), else candidate.apply_cv.
+        const ownerFallback = !cv && await ownsLocalData(req.userId);
+        let ownerFiles = [];
+        if (ownerFallback) {
+          const local = await readLocalProfile().catch(() => ({}));
+          const fallback = applyCvNameOf(local);
+          const named = resolveLocationProfile(local).bases
+            .map((b) => ({ base: b.label, regions: b.regions.filter((r) => r !== 'GLOBAL'), fileName: b.applyCv || fallback }))
+            .filter((f) => f.fileName);
+          if (!named.length && fallback) named.push({ base: '', regions: [], fileName: fallback });
+          ownerFiles = await Promise.all(named.map(async (f) => ({ ...f, exists: !!(await pickCvPath(ROOT, '', '', f.fileName)) })));
+        }
+        return json(res, { cv: describe(cv), ownerFallback, ownerFiles });
       }
       if (path === '/api/profile/apply-cv' && method === 'PUT') {
         const body = await readBody(req, { limit: 8 * 1024 * 1024 });

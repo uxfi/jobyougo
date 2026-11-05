@@ -11101,10 +11101,17 @@ function paintApplyCv(state) {
   if (!status) return;
   const cv = state?.cv || null;
   const size = cv ? (cv.size >= 1048576 ? `${(cv.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(cv.size / 1024))} KB`) : '';
+  // The owner's per-base PDFs from config/profile.yml (location.bases[].apply_cv).
+  const ownerFiles = Array.isArray(state?.ownerFiles) ? state.ownerFiles : [];
+  const ownerLine = ownerFiles.length > 1
+    ? `None uploaded: each run attaches the PDF of the base picked for the offer: ${ownerFiles.map((f) => `${f.fileName} (${f.base}${f.regions?.length ? `, ${f.regions.join('/')} offers` : ''})${f.exists ? '' : ' [file missing]'}`).join(' · ')}.`
+    : ownerFiles.length
+      ? `None uploaded: runs attach ${ownerFiles[0].fileName}${ownerFiles[0].exists ? '' : ' [file missing]'} from config/profile.yml.`
+      : 'None uploaded: runs attach the apply_cv named in config/profile.yml.';
   status.textContent = cv
     ? `${cv.fileName} · ${size} · updated ${new Date(cv.updatedAt).toLocaleDateString()}`
     : state?.ownerFallback
-      ? 'None uploaded: runs attach the apply_cv named in config/profile.yml.'
+      ? ownerLine
       : 'None yet. Auto-apply needs one: upload your PDF or generate it from the CV below.';
   document.getElementById('apply-cv-view').hidden = !cv;
   document.getElementById('apply-cv-remove').hidden = !cv;
